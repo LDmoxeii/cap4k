@@ -1,6 +1,5 @@
 package com.only4.core.share
 
-import org.netcorepal.cap4j.ddd.share.PageParam
 
 /**
  * 请使用 PageData.create 静态方法创建实例
