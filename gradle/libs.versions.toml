@@ -19,6 +19,7 @@ kotlinxCoroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", 
 springBootDependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
 springContext = { module = "org.springframework:spring-context" }
 springTx = { module = "org.springframework:spring-tx" }
+springMassaging = { module = "org.springframework:spring-messaging" }
 
 # Libraries can be bundled together for easier import
 [bundles]

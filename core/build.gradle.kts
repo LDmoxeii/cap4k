@@ -11,4 +11,5 @@ dependencies {
     implementation(platform(libs.springBootDependencies))
     implementation(libs.springContext)
     implementation(libs.springTx)
+    implementation(libs.springMassaging)
 }

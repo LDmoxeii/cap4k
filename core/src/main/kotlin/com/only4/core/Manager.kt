@@ -2,6 +2,9 @@ package com.only4.core
 
 import com.only4.core.application.RequestRecord
 import com.only4.core.application.saga.SagaRecord
+import com.only4.core.domain.aggregate.Specification
+import com.only4.core.domain.event.EventSubscriber
+import com.only4.core.domain.repo.PersistType
 import java.time.LocalDateTime
 
 /**
@@ -118,4 +121,114 @@ interface SagaManager {
              */
             get() = SagaSupervisorSupport.sagaManager
     }
+}
+
+/**
+ * 实体规格约束管理器
+ *
+ * @author binking338
+ * @date 2023/8/5
+ */
+interface SpecificationManager {
+    /**
+     * 校验实体是否符合规格约束
+     *
+     * @param entity
+     * @param <Entity>
+     * @return
+    </Entity> */
+    fun <Entity> specifyInTransaction(entity: Entity): Specification.Result
+
+    /**
+     * 校验实体是否符合规格约束（事务开启前）
+     *
+     * @param entity
+     * @param <Entity>
+     * @return
+    </Entity> */
+    fun <Entity> specifyBeforeTransaction(entity: Entity): Specification.Result
+}
+
+/**
+ * 持久化监听管理器
+ *
+ * @author binking338
+ * @date 2024/1/31
+ */
+interface PersistListenerManager {
+    fun <Entity> onChange(aggregate: Entity, type: PersistType)
+}
+
+/**
+ * 领域事件拦截器管理器
+ *
+ * @author binking338
+ * @date 2024/9/12
+ */
+interface DomainEventInterceptorManager {
+    /**
+     * 拦截器基于 [org.springframework.core.annotation.Order] 排序
+     * @return
+     */
+    val orderedDomainEventInterceptors: Set<Any>
+
+    /**
+     *
+     * 拦截器基于 [org.springframework.core.annotation.Order] 排序
+     * @return
+     */
+    val orderedEventInterceptors4DomainEvent: Set<Any>
+}
+
+/**
+ * 事件消息拦截器管理器
+ *
+ * @author binking338
+ * @date 2024/9/12
+ */
+interface EventMessageInterceptorManager {
+    /**
+     * 拦截器基于 [org.springframework.core.annotation.Order] 排序
+     * @return
+     */
+    val orderedEventMessageInterceptors: Set<Any>
+}
+
+/**
+ * 领域事件订阅管理器接口
+ *
+ * @author binking338
+ * @date 2023/8/13
+ */
+interface EventSubscriberManager {
+    /**
+     * 订阅事件
+     *
+     * @param eventPayloadClass
+     * @param subscriber
+     * @return
+     */
+    fun subscribe(
+        eventPayloadClass: Class<*>,
+        subscriber: EventSubscriber<*>
+    ): Boolean
+
+    /**
+     * 取消订阅
+     *
+     * @param eventPayloadClass
+     * @param subscriber
+     * @return
+     */
+    fun unsubscribe(
+        eventPayloadClass: Class<*>,
+        subscriber: EventSubscriber<*>
+    ): Boolean
+
+    /**
+     * 分发事件到所有订阅者
+     *
+     * @param eventPayload
+     */
+    fun dispatch(eventPayload: Any)
 }

@@ -6,7 +6,7 @@ package com.only4.core.share
  * @author binking338
  * @date
  */
-class PageParam(
+open class PageParam(
     /**
      * 页码
      */
