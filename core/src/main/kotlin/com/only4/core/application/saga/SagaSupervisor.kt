@@ -101,7 +101,7 @@ interface SagaSupervisor {
  */
 open class DefaultSagaSupervisor(
     requestHandlers: List<RequestHandler<Any, RequestParam<Any>>>,
-    requestInterceptors: List<RequestInterceptor<Any, Any>>,
+    requestInterceptors: List<RequestInterceptor<Any, RequestParam<Any>>>,
     threadPoolSize: Int,
     threadFactoryClassName: String,
     private val validator: Validator?,
@@ -110,7 +110,8 @@ open class DefaultSagaSupervisor(
 ) : SagaSupervisor, SagaProcessSupervisor, SagaManager {
 
     private var requestHandlerMap: MutableMap<Class<*>, RequestHandler<Any, RequestParam<Any>>> = mutableMapOf()
-    private var requestInterceptorMap: MutableMap<Class<*>, MutableList<RequestInterceptor<Any, Any>>> = mutableMapOf()
+    private var requestInterceptorMap: MutableMap<Class<*>, MutableList<RequestInterceptor<Any, RequestParam<Any>>>> =
+        mutableMapOf()
 
     private var executorService: ScheduledExecutorService
 
@@ -304,7 +305,7 @@ open class DefaultSagaSupervisor(
             SAGA_RECORD_THREAD_LOCAL.set(sageRecord)
             requestInterceptorMap.getOrDefault(request.javaClass, emptyList())
                 .forEach { interceptor ->
-                    interceptor.preRequest(request)
+                    interceptor.preRequest(request as SagaParam<Any>)
                 }
             val response: RESPONSE =
                 (requestHandlerMap[request.javaClass] as RequestHandler<RESPONSE, REQUEST>).exec(
@@ -312,7 +313,7 @@ open class DefaultSagaSupervisor(
                 )
             requestInterceptorMap.getOrDefault(request.javaClass, emptyList())
                 .forEach { interceptor ->
-                    interceptor.postRequest(request, response)
+                    interceptor.postRequest(request as SagaParam<Any>, response)
                 }
 
             sageRecord.endSaga(LocalDateTime.now(), response)
