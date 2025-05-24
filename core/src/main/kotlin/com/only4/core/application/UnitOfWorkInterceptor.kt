@@ -1,5 +1,8 @@
 package com.only4.core.application
 
+import com.only4.core.application.event.IntegrationEventManager
+
+
 /**
  * UOW工作单元拦截器
  *
@@ -44,4 +47,25 @@ interface UnitOfWorkInterceptor {
      * @param entities 实体
      */
     fun postEntitiesPersisted(entities: Set<Any>)
+}
+
+class IntergrationEventUnitOfWorkInterceptor(
+    private val integrationEventManager: IntegrationEventManager,
+) : UnitOfWorkInterceptor {
+
+    override fun beforeTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
+    }
+
+    override fun preInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
+    }
+
+    override fun postInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
+        integrationEventManager.release()
+    }
+
+    override fun afterTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
+    }
+
+    override fun postEntitiesPersisted(entities: Set<Any>) {
+    }
 }
