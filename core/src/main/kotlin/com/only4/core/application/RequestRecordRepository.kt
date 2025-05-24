@@ -1,6 +1,7 @@
 package com.only4.core.application
 
 import java.time.LocalDateTime
+import java.util.*
 
 /**
  * RequestRecord仓储
@@ -29,7 +30,7 @@ interface RequestRecordRepository {
      * @param id 请求id
      * @return [RequestRecord]
      */
-    fun getById(id: String): RequestRecord
+    fun getById(id: String): Optional<RequestRecord>
 
     /**
      * 通过下次尝试时间获取

@@ -8,7 +8,7 @@ package com.only4.core.application
  * @author binking338
  * @date 2024/8/24
 </RESPONSE></REQUEST> */
-interface RequestHandler<RESPONSE, REQUEST : RequestParam<RESPONSE>> {
+interface RequestHandler<RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> {
     /**
      * 执行请求
      *

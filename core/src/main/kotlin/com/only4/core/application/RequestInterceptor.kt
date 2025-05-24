@@ -6,7 +6,7 @@ package com.only4.core.application
  * @author binking338
  * @date 2024/9/1
  */
-interface RequestInterceptor<REQUEST, RESPONSE> {
+interface RequestInterceptor<RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> {
     /**
      * 请求前
      *

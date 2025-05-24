@@ -41,7 +41,7 @@ interface RequestRecord {
      *
      * @return
      */
-    val param: RequestParam<*>
+    val param: RequestParam<Any>
 
     /**
      * 获取Request流程执行结果
