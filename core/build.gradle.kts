@@ -8,8 +8,11 @@ plugins {
 }
 
 dependencies {
-    implementation(platform(libs.springBootDependencies))
-    implementation(libs.springContext)
-    implementation(libs.springTx)
-    implementation(libs.springMassaging)
+    api(platform(libs.springBootDependencies))
+    compileOnly(libs.springContext)
+    compileOnly(libs.springTx)
+    compileOnly(libs.springMassaging)
+    compileOnly(libs.aspectjweaver)
+
+    implementation(libs.kotlinLogging)
 }

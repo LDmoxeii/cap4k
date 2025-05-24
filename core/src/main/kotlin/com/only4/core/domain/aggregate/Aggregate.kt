@@ -1,7 +1,7 @@
 package com.only4.core.domain.aggregate
 
-import com.only4.core.DomainEventSupervisorSupport.events
 import com.only4.core.Mediator
+import com.only4.core.domain.event.DomainEventSupervisorSupport.events
 
 /**
  * 聚合封装

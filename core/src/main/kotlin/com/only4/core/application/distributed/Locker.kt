@@ -1,4 +1,4 @@
-package com.only4.core.application
+package com.only4.core.application.distributed
 
 import java.time.Duration
 
