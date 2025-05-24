@@ -1,8 +1,21 @@
 package com.only4.core.application.saga
 
+import com.only4.core.application.RequestHandler
+import com.only4.core.application.RequestInterceptor
+import com.only4.core.application.RequestParam
+import com.only4.core.application.RequestSupervisor
+import com.only4.core.application.command.Command
+import com.only4.core.application.command.NoneResultCommandParam
+import com.only4.core.application.query.ListQuery
+import com.only4.core.application.query.PageQuery
+import com.only4.core.application.query.Query
+import com.only4.core.share.misc.ClassUtils
+import jakarta.validation.ConstraintViolationException
+import jakarta.validation.Validator
+import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
-import kotlin.time.Duration
+import java.util.concurrent.*
 
 /**
  * Saga控制器
@@ -17,7 +30,7 @@ interface SagaSupervisor {
      * @param request   请求参数
      * @param <REQUEST> 请求参数类型
     </REQUEST> */
-    fun <RESPONSE, REQUEST : SagaParam<RESPONSE>> send(request: REQUEST): RESPONSE
+    fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> send(request: REQUEST): RESPONSE
 
     /**
      * 异步执行Saga流程
@@ -27,7 +40,7 @@ interface SagaSupervisor {
      * @param <RESPONSE> 响应参数类型
      * @return Saga ID
     </RESPONSE></REQUEST> */
-    fun <RESPONSE, REQUEST : SagaParam<RESPONSE>> async(request: REQUEST): String {
+    fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> async(request: REQUEST): String {
         return schedule(request, LocalDateTime.now())
     }
 
@@ -40,10 +53,8 @@ interface SagaSupervisor {
      * @param <RESPONSE> 响应参数类型
      * @return 请求ID
     </RESPONSE></REQUEST> */
-    fun <RESPONSE, REQUEST : SagaParam<RESPONSE>> schedule(
-        request: REQUEST,
-        schedule: LocalDateTime,
-        delay: Duration = Duration.ZERO
+    fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> schedule(
+        request: REQUEST, schedule: LocalDateTime, delay: Duration = Duration.ZERO
     ): String
 
     /**
@@ -53,7 +64,7 @@ interface SagaSupervisor {
      * @param <R>
      * @return 请求结果
     </R> */
-    fun <R> result(id: String): R
+    fun <R : Any> result(id: String): Optional<R>
 
     /**
      * 获取Saga结果
@@ -65,10 +76,11 @@ interface SagaSupervisor {
      * @return 请求结果
     </RESPONSE></REQUEST> */
     @Suppress("UNCHECKED_CAST")
-    fun <RESPONSE, REQUEST : SagaParam<RESPONSE>> result(
-        requestId: String,
-        requestClass: Class<REQUEST> = Any::class.java as Class<REQUEST>
-    ): Optional<RESPONSE>
+    fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> result(
+        requestId: String, requestClass: Class<REQUEST> = Any::class.java as Class<REQUEST>
+    ): Optional<RESPONSE> {
+        return this.result(requestId)
+    }
 
     companion object {
         val instance: SagaSupervisor
@@ -78,5 +90,260 @@ interface SagaSupervisor {
              * @return 请求管理器
              */
             get() = SagaSupervisorSupport.instance
+    }
+}
+
+/**
+ * 默认SagaSupervisor实现
+ *
+ * @author binking338
+ * @date 2024/10/12
+ */
+open class DefaultSagaSupervisor(
+    requestHandlers: List<RequestHandler<Any, RequestParam<Any>>>,
+    requestInterceptors: List<RequestInterceptor<Any, Any>>,
+    threadPoolSize: Int,
+    threadFactoryClassName: String,
+    private val validator: Validator?,
+    private val sagaRecordRepository: SagaRecordRepository,
+    private val svcName: String,
+) : SagaSupervisor, SagaProcessSupervisor, SagaManager {
+
+    private var requestHandlerMap: MutableMap<Class<*>, RequestHandler<Any, RequestParam<Any>>> = mutableMapOf()
+    private var requestInterceptorMap: MutableMap<Class<*>, MutableList<RequestInterceptor<Any, Any>>> = mutableMapOf()
+
+    private var executorService: ScheduledExecutorService
+
+    init {
+
+        requestHandlers.forEach { handler ->
+            val requestPayloadClass = ClassUtils.resolveGenericTypeClass(
+                handler, 0,
+                RequestHandler::class.java,
+                Command::class.java, NoneResultCommandParam::class.java,
+                Query::class.java, ListQuery::class.java, PageQuery::class.java,
+                SagaHandler::class.java
+            )
+            requestHandlerMap[requestPayloadClass] = handler
+        }
+
+        requestInterceptors.forEach { interceptor ->
+            val requestPayloadClass = ClassUtils.resolveGenericTypeClass(
+                interceptor, 0,
+                RequestInterceptor::class.java
+            )
+            val interceptors = requestInterceptorMap.getOrPut(requestPayloadClass) { mutableListOf() }
+            interceptors.add(interceptor)
+        }
+        this.executorService = if (threadFactoryClassName.isBlank()) {
+            Executors.newScheduledThreadPool(threadPoolSize)
+        } else {
+            val threadFactoryClass = org.springframework.objenesis.instantiator.util.ClassUtils.getExistingClass<Any>(
+                javaClass.classLoader, threadFactoryClassName
+            )
+            val threadFactory =
+                org.springframework.objenesis.instantiator.util.ClassUtils.newInstance(threadFactoryClass) as ThreadFactory
+            Executors.newScheduledThreadPool(threadPoolSize, threadFactory)
+        }
+    }
+
+    override fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> send(request: REQUEST): RESPONSE {
+        validator?.let {
+            val constraintViolations = it.validate(request)
+            if (constraintViolations.isNotEmpty()) {
+                throw ConstraintViolationException(constraintViolations)
+            }
+        }
+        val sagaRecord = createSagaRecord(request.javaClass.name, request as SagaParam<Any>, LocalDateTime.now())
+        return internalSend(request as REQUEST, sagaRecord)
+    }
+
+    override fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> schedule(
+        request: REQUEST,
+        schedule: LocalDateTime,
+        delay: Duration
+    ): String {
+        validator?.let {
+            val constraintViolations = it.validate(request)
+            if (constraintViolations.isNotEmpty()) {
+                throw ConstraintViolationException(constraintViolations)
+            }
+        }
+
+        val sagaRecord = createSagaRecord(request.javaClass.name, request as SagaParam<Any>, schedule)
+        if (sagaRecord.isExecuting) {
+            val now = LocalDateTime.now()
+            val duration = if (now.isBefore(sagaRecord.scheduleTime)) Duration.between(
+                LocalDateTime.now(),
+                sagaRecord.scheduleTime
+            )
+            else Duration.ZERO
+            executorService.schedule(
+                {
+                    internalSend(
+                        request,
+                        sagaRecord
+                    )
+                },
+                duration.toMillis(), TimeUnit.MILLISECONDS
+            )
+        }
+
+        return sagaRecord.id
+    }
+
+    override fun <R : Any> result(id: String): Optional<R> {
+        return sagaRecordRepository.getById(id).getResult()
+    }
+
+    override fun resume(saga: SagaRecord) {
+        if (!saga.beginSaga(LocalDateTime.now())) sagaRecordRepository.save(saga).apply { return }
+        val param = saga.param as SagaParam<Any>
+
+        validator?.let {
+            val constraintViolations = it.validate(param)
+            if (constraintViolations.isNotEmpty()) {
+                throw ConstraintViolationException(constraintViolations)
+            }
+        }
+        if (saga.isExecuting) {
+            val now = LocalDateTime.now()
+            val duration = if (now.isBefore(saga.scheduleTime)) Duration.between(
+                LocalDateTime.now(),
+                saga.scheduleTime
+            )
+            else Duration.ZERO
+            executorService.schedule(
+                {
+                    internalSend(
+                        param,
+                        saga
+                    )
+                },
+                duration.toMillis(), TimeUnit.MILLISECONDS
+            )
+        }
+    }
+
+    override fun getByNextTryTime(maxNextTryTime: LocalDateTime, limit: Int): List<SagaRecord> {
+        return sagaRecordRepository.getByNextTryTime(svcName, maxNextTryTime, limit)
+    }
+
+    override fun archiveByExpireAt(maxExpireAt: LocalDateTime, limit: Int): Int {
+        return sagaRecordRepository.archiveByExpireAt(svcName, maxExpireAt, limit)
+    }
+
+    override fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> sendProcess(
+        processCode: String,
+        request: REQUEST
+    ): RESPONSE {
+        val sagaRecord = SAGA_RECORD_THREAD_LOCAL.get()
+        requireNotNull(sagaRecord) { "No SagaRecord found in thread local" }
+        if (sagaRecord.isSagaProcessExecuted(processCode))
+            return sagaRecord.getSagaProcessResult(processCode)
+
+        sagaRecord.beginSagaProcess(LocalDateTime.now(), processCode, request as RequestParam<Any>)
+        sagaRecordRepository.save(sagaRecord)
+        try {
+            val response = RequestSupervisor.instance.send(request) as RESPONSE
+
+            sagaRecord.endSagaProcess(LocalDateTime.now(), processCode, response)
+            sagaRecordRepository.save(sagaRecord)
+            return response
+        } catch (throwable: Throwable) {
+            sagaRecord.sagaProcessOccuredException(LocalDateTime.now(), processCode, throwable)
+            sagaRecordRepository.save(sagaRecord)
+            throw throwable
+        }
+    }
+
+    /**
+     * 创建SagaRecord
+     *
+     * @param sagaType
+     * @param request
+     * @return
+     */
+    protected fun createSagaRecord(
+        sagaType: String,
+        request: SagaParam<Any>,
+        scheduleAt: LocalDateTime
+    ): SagaRecord {
+        val sagaRecord = sagaRecordRepository.create()
+        sagaRecord.init(
+            request,
+            svcName,
+            sagaType,
+            scheduleAt,
+            Duration.ofMinutes(DEFAULT_SAGA_EXPIRE_MINUTES),
+            DEFAULT_SAGA_RETRY_TIMES
+        )
+        if (scheduleAt.isBefore(LocalDateTime.now()) || Duration.between(LocalDateTime.now(), scheduleAt)
+                .toMinutes() < LOCAL_SCHEDULE_ON_INIT_TIME_THRESHOLDS_MINUTES
+        ) {
+            sagaRecord.beginSaga(scheduleAt)
+        }
+        sagaRecordRepository.save(sagaRecord)
+        return sagaRecord
+    }
+
+    /**
+     * 执行Saga
+     *
+     * @param request
+     * @param sagaRecord
+     * @param <REQUEST>
+     * @param <RESPONSE>
+     * @return
+     */
+    protected fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> internalSend(
+        request: REQUEST,
+        sageRecord: SagaRecord
+    ): RESPONSE {
+        try {
+            SAGA_RECORD_THREAD_LOCAL.set(sageRecord)
+            requestInterceptorMap.getOrDefault(request.javaClass, emptyList())
+                .forEach { interceptor ->
+                    interceptor.preRequest(request)
+                }
+            val response: RESPONSE =
+                (requestHandlerMap[request.javaClass] as RequestHandler<RESPONSE, REQUEST>).exec(
+                    request
+                )
+            requestInterceptorMap.getOrDefault(request.javaClass, emptyList())
+                .forEach { interceptor ->
+                    interceptor.postRequest(request, response)
+                }
+
+            sageRecord.endSaga(LocalDateTime.now(), response)
+            sagaRecordRepository.save(sageRecord)
+            return response
+        } catch (throwable: Throwable) {
+            sageRecord.occurredException(LocalDateTime.now(), throwable)
+            sagaRecordRepository.save(sageRecord)
+            throw throwable
+        } finally {
+            SAGA_RECORD_THREAD_LOCAL.remove()
+        }
+    }
+
+    companion object {
+        private val SAGA_RECORD_THREAD_LOCAL = ThreadLocal<SagaRecord>()
+
+        /**
+         * 默认Saga过期时间（分钟）
+         * 一天 60*24 = 1440
+         */
+        const val DEFAULT_SAGA_EXPIRE_MINUTES: Long = 1440L
+
+        /**
+         * 默认Saga重试次数
+         */
+        const val DEFAULT_SAGA_RETRY_TIMES: Int = 200
+
+        /**
+         * 本地调度时间阈值
+         */
+        const val LOCAL_SCHEDULE_ON_INIT_TIME_THRESHOLDS_MINUTES: Int = 2
     }
 }

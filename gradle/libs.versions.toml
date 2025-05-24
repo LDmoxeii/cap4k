@@ -12,6 +12,8 @@ springBoot = "3.1.12"
 
 kotlinLogging = "7.0.7"
 
+validation = "3.0.2"
+
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 kotlinxDatetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
@@ -22,9 +24,11 @@ springBootDependencies = { module = "org.springframework.boot:spring-boot-depend
 springContext = { module = "org.springframework:spring-context" }
 springTx = { module = "org.springframework:spring-tx" }
 springMassaging = { module = "org.springframework:spring-messaging" }
-aspectjweaver = { module = "org.aspectj:aspectjweaver" }
 
 kotlinLogging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlinLogging" }
+
+aspectjweaver = { module = "org.aspectj:aspectjweaver" }
+validation = { module = "jakarta.validation:jakarta.validation-api", version.ref = "validation" }
 
 # Libraries can be bundled together for easier import
 [bundles]

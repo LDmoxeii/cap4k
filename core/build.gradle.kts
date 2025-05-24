@@ -12,7 +12,9 @@ dependencies {
     compileOnly(libs.springContext)
     compileOnly(libs.springTx)
     compileOnly(libs.springMassaging)
+
     compileOnly(libs.aspectjweaver)
+    compileOnly(libs.validation)
 
     implementation(libs.kotlinLogging)
 }

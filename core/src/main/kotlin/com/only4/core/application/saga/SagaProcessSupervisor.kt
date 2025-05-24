@@ -18,7 +18,7 @@ interface SagaProcessSupervisor {
      * @param <RESPONSE>  响应参数类型
      * @return
     </RESPONSE></REQUEST> */
-    fun <RESPONSE, REQUEST : RequestParam<RESPONSE>> sendProcess(
+    fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> sendProcess(
         processCode: String,
         request: REQUEST
     ): RESPONSE
