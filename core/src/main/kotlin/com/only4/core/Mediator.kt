@@ -449,12 +449,12 @@ class DefaultMediator : Mediator {
 
     override fun save(propagation: Propagation) = UnitOfWork.instance.save(propagation)
 
-    override fun <EVENT> attach(eventPayload: EVENT, schedule: LocalDateTime, delay: Duration) =
+    override fun <EVENT : Any> attach(eventPayload: EVENT, schedule: LocalDateTime, delay: Duration) =
         IntegrationEventSupervisor.instance.attach(eventPayload, schedule, delay)
 
-    override fun <EVENT> detach(eventPayload: EVENT) = IntegrationEventSupervisor.instance.detach(eventPayload)
+    override fun <EVENT : Any> detach(eventPayload: EVENT) = IntegrationEventSupervisor.instance.detach(eventPayload)
 
-    override fun <EVENT> publish(eventPayload: EVENT, schedule: LocalDateTime, delay: Duration) =
+    override fun <EVENT : Any> publish(eventPayload: EVENT, schedule: LocalDateTime, delay: Duration) =
         IntegrationEventSupervisor.instance.publish(eventPayload, schedule, delay)
 
     override fun <RESPONSE, REQUEST : RequestParam<RESPONSE>> send(request: REQUEST): RESPONSE =
