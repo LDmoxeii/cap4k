@@ -6,7 +6,7 @@ package com.only4.core.application
  * @author binking338
  * @date 2024/9/1
  */
-interface RequestInterceptor<RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> {
+interface RequestInterceptor<in RESPONSE : Any, in REQUEST : RequestParam<@UnsafeVariance RESPONSE>> {
     /**
      * 请求前
      *

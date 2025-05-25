@@ -6,7 +6,7 @@ package com.only4.core.domain.aggregate
  * @author binking338
  * @date 2024/9/18
  */
-interface ValueObject<ID> {
+interface ValueObject<out ID> {
     /**
      * 值对象哈希码
      *

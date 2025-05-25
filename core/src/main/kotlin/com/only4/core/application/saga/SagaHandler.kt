@@ -1,6 +1,5 @@
 package com.only4.core.application.saga
 
-import com.only4.core.SagaProcessSupervisor
 import com.only4.core.application.RequestHandler
 import com.only4.core.application.RequestParam
 
@@ -10,7 +9,7 @@ import com.only4.core.application.RequestParam
  * @author binking338
  * @date 2024/10/12
  */
-interface SagaHandler<RESPONSE, REQUEST : SagaParam<RESPONSE>> :
+interface SagaHandler<out RESPONSE : Any, in REQUEST : SagaParam<@UnsafeVariance RESPONSE>> :
     RequestHandler<RESPONSE, REQUEST> {
     /**
      * 执行流程子环节
@@ -21,7 +20,7 @@ interface SagaHandler<RESPONSE, REQUEST : SagaParam<RESPONSE>> :
      * @param <SUB_RESPONSE>
      * @return
     </SUB_RESPONSE></SUB_REQUEST> */
-    fun <SUB_RESPONSE, SUB_REQUEST : RequestParam<SUB_RESPONSE>> execProcess(
+    fun <SUB_RESPONSE : Any, SUB_REQUEST : RequestParam<SUB_RESPONSE>> execProcess(
         subCode: String,
         request: SUB_REQUEST
     ): SUB_RESPONSE {

@@ -6,7 +6,7 @@ package com.only4.core.domain.aggregate
  * @author binking338
  * @date 2025/4/8
  */
-interface Id<AGGREGATE, KEY> {
+interface Id<AGGREGATE, out KEY> {
     /**
      * 获取实体Key
      *
@@ -14,7 +14,7 @@ interface Id<AGGREGATE, KEY> {
      */
     val value: KEY
 
-    class Default<AGGREGATE, KEY>(protected val key: KEY) : Id<AGGREGATE, KEY> {
+    class Default<AGGREGATE, out KEY>(protected val key: KEY) : Id<AGGREGATE, KEY> {
 
         override fun toString(): String = key.toString()
 
@@ -24,11 +24,11 @@ interface Id<AGGREGATE, KEY> {
             get() = key
 
 
-        override fun equals(obj: Any?): Boolean {
-            if (obj !is Default<*, *> || obj.javaClass != this.javaClass) {
+        override fun equals(other: Any?): Boolean {
+            if (other !is Default<*, *> || other.javaClass != this.javaClass) {
                 return false
             }
-            return key == (obj as Default<AGGREGATE, KEY>).key
+            return key == other.key
         }
     }
 }

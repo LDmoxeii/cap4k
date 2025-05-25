@@ -10,5 +10,5 @@ import com.only4.core.share.PageParam
  * @author binking338
  * @date 2024/9/6
  */
-abstract class PageQueryParam<RESPONSE_ITEM>(pageNum: Int, pageSize: Int) : PageParam(pageNum, pageSize),
+abstract class PageQueryParam<RESPONSE_ITEM : Any>(pageNum: Int, pageSize: Int) : PageParam(pageNum, pageSize),
     RequestParam<PageData<RESPONSE_ITEM>>

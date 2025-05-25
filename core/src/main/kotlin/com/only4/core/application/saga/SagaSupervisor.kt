@@ -15,7 +15,10 @@ import jakarta.validation.Validator
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
-import java.util.concurrent.*
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ThreadFactory
+import java.util.concurrent.TimeUnit
 
 /**
  * Saga控制器
@@ -99,6 +102,7 @@ interface SagaSupervisor {
  * @author binking338
  * @date 2024/10/12
  */
+@Suppress("UNCHECKED_CAST")
 open class DefaultSagaSupervisor(
     requestHandlers: List<RequestHandler<Any, RequestParam<Any>>>,
     requestInterceptors: List<RequestInterceptor<Any, RequestParam<Any>>>,
@@ -119,19 +123,23 @@ open class DefaultSagaSupervisor(
 
         requestHandlers.forEach { handler ->
             val requestPayloadClass = ClassUtils.resolveGenericTypeClass(
-                handler, 0,
-                RequestHandler::class.java,
-                Command::class.java, NoneResultCommandParam::class.java,
-                Query::class.java, ListQuery::class.java, PageQuery::class.java,
-                SagaHandler::class.java
+                handler as Class<Any>,
+                0,
+                RequestHandler::class.java as Class<Any>,
+                Command::class.java as Class<Any>,
+                NoneResultCommandParam::class.java as Class<Any>,
+                Query::class.java as Class<Any>,
+                ListQuery::class.java as Class<Any>,
+                PageQuery::class.java as Class<Any>,
+                SagaHandler::class.java as Class<Any>
             )
             requestHandlerMap[requestPayloadClass] = handler
         }
 
         requestInterceptors.forEach { interceptor ->
             val requestPayloadClass = ClassUtils.resolveGenericTypeClass(
-                interceptor, 0,
-                RequestInterceptor::class.java
+                interceptor as Class<Any>, 0,
+                RequestInterceptor::class.java as Class<Any>
             )
             val interceptors = requestInterceptorMap.getOrPut(requestPayloadClass) { mutableListOf() }
             interceptors.add(interceptor)
@@ -252,7 +260,7 @@ open class DefaultSagaSupervisor(
             sagaRecordRepository.save(sagaRecord)
             return response
         } catch (throwable: Throwable) {
-            sagaRecord.sagaProcessOccuredException(LocalDateTime.now(), processCode, throwable)
+            sagaRecord.sagaProcessOccurredException(LocalDateTime.now(), processCode, throwable)
             sagaRecordRepository.save(sagaRecord)
             throw throwable
         }
@@ -299,11 +307,11 @@ open class DefaultSagaSupervisor(
      */
     protected fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> internalSend(
         request: REQUEST,
-        sageRecord: SagaRecord
+        sagaRecord: SagaRecord
     ): RESPONSE {
         try {
-            SAGA_RECORD_THREAD_LOCAL.set(sageRecord)
-            requestInterceptorMap.getOrDefault(request.javaClass, emptyList())
+            SAGA_RECORD_THREAD_LOCAL.set(sagaRecord)
+            requestInterceptorMap.getOrDefault(request.javaClass as Class<Any>, emptyList())
                 .forEach { interceptor ->
                     interceptor.preRequest(request as SagaParam<Any>)
                 }
@@ -311,17 +319,17 @@ open class DefaultSagaSupervisor(
                 (requestHandlerMap[request.javaClass] as RequestHandler<RESPONSE, REQUEST>).exec(
                     request
                 )
-            requestInterceptorMap.getOrDefault(request.javaClass, emptyList())
+            requestInterceptorMap.getOrDefault(request.javaClass as Class<Any>, emptyList())
                 .forEach { interceptor ->
                     interceptor.postRequest(request as SagaParam<Any>, response)
                 }
 
-            sageRecord.endSaga(LocalDateTime.now(), response)
-            sagaRecordRepository.save(sageRecord)
+            sagaRecord.endSaga(LocalDateTime.now(), response)
+            sagaRecordRepository.save(sagaRecord)
             return response
         } catch (throwable: Throwable) {
-            sageRecord.occurredException(LocalDateTime.now(), throwable)
-            sagaRecordRepository.save(sageRecord)
+            sagaRecord.occurredException(LocalDateTime.now(), throwable)
+            sagaRecordRepository.save(sagaRecord)
             throw throwable
         } finally {
             SAGA_RECORD_THREAD_LOCAL.remove()

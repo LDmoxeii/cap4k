@@ -16,7 +16,7 @@ import java.util.*
  */
 interface AggregateSupervisor {
 
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY> create(
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>> create(
         clazz: Class<AGGREGATE>,
         payload: ENTITY_PAYLOAD
     ): AGGREGATE
@@ -30,7 +30,7 @@ interface AggregateSupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY></AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getById(
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> getById(
         id: Id<AGGREGATE, *>,
         persist: Boolean = true
     ): Optional<AGGREGATE> {
@@ -47,7 +47,7 @@ interface AggregateSupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY></AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> {
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> getByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> {
         return getByIds(listOf(*ids))
     }
 
@@ -59,7 +59,7 @@ interface AggregateSupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY></AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getByIds(
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> getByIds(
         ids: Iterable<Id<AGGREGATE, *>>,
         persist: Boolean = true
     ): List<AGGREGATE>
@@ -72,7 +72,7 @@ interface AggregateSupervisor {
      * @param <AGGREGATE>
      * @return
      */
-    fun <ENTITY, AGGREGATE : Aggregate<ENTITY>> find(
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> find(
         predicate: AggregatePredicate<ENTITY, AGGREGATE>,
         vararg orders: OrderInfo,
         persist: Boolean = true
@@ -88,7 +88,7 @@ interface AggregateSupervisor {
      * @param <AGGREGATE>
      * @return
     </AGGREGATE> */
-    fun <ENTITY, AGGREGATE : Aggregate<ENTITY>> find(
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> find(
         predicate: AggregatePredicate<ENTITY, AGGREGATE>,
         orders: Collection<OrderInfo> = emptyList(),
         persist: Boolean = true
@@ -102,7 +102,7 @@ interface AggregateSupervisor {
      * @param persist
      * @return
      */
-    fun <ENTITY, AGGREGATE : Aggregate<ENTITY>> find(
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> find(
         predicate: AggregatePredicate<ENTITY, AGGREGATE>,
         pageParam: PageParam,
         persist: Boolean = true
@@ -116,7 +116,7 @@ interface AggregateSupervisor {
      * @param <AGGREGATE>
      * @return
     </AGGREGATE> */
-    fun <ENTITY, AGGREGATE : Aggregate<ENTITY>> findOne(
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> findOne(
         predicate: AggregatePredicate<ENTITY, AGGREGATE>,
         persist: Boolean = true
     ): Optional<AGGREGATE>
@@ -130,7 +130,7 @@ interface AggregateSupervisor {
      * @param <AGGREGATE>
      * @return
     </AGGREGATE> */
-    fun <ENTITY, AGGREGATE : Aggregate<ENTITY>> findFirst(
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> findFirst(
         predicate: AggregatePredicate<ENTITY, AGGREGATE>,
         vararg orders: OrderInfo,
         persist: Boolean = true
@@ -147,7 +147,7 @@ interface AggregateSupervisor {
      * @param <AGGREGATE>
      * @return
     </AGGREGATE> */
-    fun <ENTITY, AGGREGATE : Aggregate<ENTITY>> findFirst(
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> findFirst(
         predicate: AggregatePredicate<ENTITY, AGGREGATE>,
         orders: Collection<OrderInfo> = emptyList(),
         persist: Boolean = true
@@ -162,7 +162,7 @@ interface AggregateSupervisor {
      * @param <AGGREGATE>
      * @return
     </AGGREGATE> */
-    fun <ENTITY, AGGREGATE : Aggregate<ENTITY>> findPage(
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> findPage(
         predicate: AggregatePredicate<ENTITY, AGGREGATE>,
         pageParam: PageParam,
         persist: Boolean = true
@@ -176,7 +176,7 @@ interface AggregateSupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY></AGGREGATE> */
-    fun <ENTITY, AGGREGATE : Aggregate<ENTITY>> removeById(id: Id<AGGREGATE, *>): Optional<AGGREGATE> {
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> removeById(id: Id<AGGREGATE, *>): Optional<AGGREGATE> {
         return Optional.ofNullable(removeByIds(listOf(id)).firstOrNull())
     }
 
@@ -188,7 +188,7 @@ interface AggregateSupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY></AGGREGATE> */
-    fun <ENTITY, AGGREGATE : Aggregate<ENTITY>> removeByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> {
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> removeByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> {
         return removeByIds(listOf(*ids))
     }
 
@@ -200,7 +200,7 @@ interface AggregateSupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY></AGGREGATE> */
-    fun <ENTITY, AGGREGATE : Aggregate<ENTITY>> removeByIds(ids: Iterable<Id<AGGREGATE, *>>): List<AGGREGATE>
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> removeByIds(ids: Iterable<Id<AGGREGATE, *>>): List<AGGREGATE>
 
     /**
      * 根据条件删除实体
@@ -210,7 +210,7 @@ interface AggregateSupervisor {
      * @param <AGGREGATE>
      * @return
     </AGGREGATE> */
-    fun <ENTITY, AGGREGATE : Aggregate<ENTITY>> remove(
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> remove(
         predicate: AggregatePredicate<ENTITY, AGGREGATE>,
         limit: Int = 1
     ): List<AGGREGATE>
@@ -222,7 +222,7 @@ interface AggregateSupervisor {
      * @param <AGGREGATE>
      * @return
     </AGGREGATE> */
-    fun <ENTITY, AGGREGATE : Aggregate<ENTITY>> count(predicate: AggregatePredicate<ENTITY, AGGREGATE>): Long
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> count(predicate: AggregatePredicate<ENTITY, AGGREGATE>): Long
 
     /**
      * 根据条件判断实体是否存在
@@ -231,7 +231,7 @@ interface AggregateSupervisor {
      * @param <AGGREGATE>
      * @return
     </AGGREGATE> */
-    fun <ENTITY, AGGREGATE : Aggregate<ENTITY>> exists(predicate: AggregatePredicate<ENTITY, AGGREGATE>): Boolean
+    fun <ENTITY : Any, AGGREGATE : Aggregate<ENTITY>> exists(predicate: AggregatePredicate<ENTITY, AGGREGATE>): Boolean
 
     companion object {
         val instance: AggregateSupervisor

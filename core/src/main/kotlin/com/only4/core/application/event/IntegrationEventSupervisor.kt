@@ -126,23 +126,23 @@ open class DefaultIntegrationEventSupervisor(
 
     override fun <EVENT : Any> publish(eventPayload: EVENT, schedule: LocalDateTime, delay: Duration) {
         val persistedEvents = ArrayList<EventRecord>(1)
-        val evnet = eventRecordRepository.create()
-        evnet.init(
+        val event = eventRecordRepository.create()
+        event.init(
             eventPayload,
             this.svcName,
             schedule,
             Duration.ofMinutes(DEFAULT_EVENT_EXPIRE_MINUTES),
             DEFAULT_EVENT_RETRY_TIMES
         )
-        evnet.markPersist(true)
+        event.markPersist(true)
         integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent.forEach {
-            it.prePersist(evnet)
+            it.prePersist(event)
         }
-        eventRecordRepository.save(evnet)
+        eventRecordRepository.save(event)
         integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent.forEach {
-            it.postPersist(evnet)
+            it.postPersist(event)
         }
-        persistedEvents.add(evnet)
+        persistedEvents.add(event)
         val integrationEventAttachedTransactionCommittedEvent =
             IntegrationEventAttachedTransactionCommittedEvent(
                 this, persistedEvents

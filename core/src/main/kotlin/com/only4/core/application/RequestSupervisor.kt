@@ -110,6 +110,7 @@ interface RequestSupervisor {
  * @author binking338
  * @date 2024/8/24
  */
+@Suppress("UNCHECKED_CAST")
 open class DefaultRequestSupervisor(
     requestHandlers: List<RequestHandler<Any, RequestParam<Any>>>,
     requestInterceptors: List<RequestInterceptor<Any, RequestParam<Any>>>,
@@ -159,22 +160,22 @@ open class DefaultRequestSupervisor(
     }
 
     override fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> send(request: REQUEST): RESPONSE {
-        if (request as RequestParam<Any> is SagaParam<Any>) return SagaSupervisor.instance.send(request as SagaParam<Any>) as RESPONSE
+        if (request is SagaParam<*>) return SagaSupervisor.instance.send(request as SagaParam<RESPONSE>)
         validator?.let {
             val constraintViolations = it.validate(request)
             if (constraintViolations.isNotEmpty()) {
                 throw ConstraintViolationException(constraintViolations)
             }
         }
-        return internalSend(request as REQUEST)
+        return internalSend(request)
     }
 
     override fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> schedule(
         request: REQUEST,
         schedule: LocalDateTime
     ): String {
-        if (request as RequestParam<Any> is SagaParam<Any>) return SagaSupervisor.instance.schedule(
-            request as SagaParam<Any>,
+        if (request is SagaParam<*>) return SagaSupervisor.instance.schedule(
+            request as SagaParam<RESPONSE>,
             schedule
         )
         validator?.let {
@@ -253,7 +254,7 @@ open class DefaultRequestSupervisor(
 
     protected fun createRequestRecord(
         requestType: String,
-        request: RequestParam<Any>,
+        request: RequestParam<*>,
         scheduleAt: LocalDateTime
     ): RequestRecord {
         val requestRecord = requestRecordRepository.create()
@@ -295,7 +296,7 @@ open class DefaultRequestSupervisor(
             .forEach { interceptor ->
                 interceptor.preRequest(request as RequestParam<Any>)
             }
-        val response: RESPONSE =
+        val response =
             (requestHandlerMap[request.javaClass] as RequestHandler<RESPONSE, REQUEST>).exec(
                 request
             )

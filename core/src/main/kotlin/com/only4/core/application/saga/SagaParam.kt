@@ -8,4 +8,4 @@ import com.only4.core.application.RequestParam
  * @author binking338
  * @date 2024/10/12
  */
-interface SagaParam<RESULT> : RequestParam<RESULT>
+interface SagaParam<RESULT : Any> : RequestParam<RESULT>

@@ -76,7 +76,7 @@ interface SagaRecord {
      * @param processCode
      * @param throwable
      */
-    fun sagaProcessOccuredException(now: LocalDateTime, processCode: String, throwable: Throwable)
+    fun sagaProcessOccurredException(now: LocalDateTime, processCode: String, throwable: Throwable)
 
     /**
      * 获取Saga流程子环节是否已执行

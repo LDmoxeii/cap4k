@@ -8,5 +8,5 @@ import com.only4.core.application.RequestParam
  * @author binking338
  * @date 2024/9/6
  */
-interface ListQueryParam<RESPONSE_ITEM> :
+interface ListQueryParam<RESPONSE_ITEM : Any> :
     RequestParam<List<RESPONSE_ITEM>>

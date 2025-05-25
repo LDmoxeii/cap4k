@@ -6,7 +6,7 @@ package com.only4.core.domain.aggregate
  * @author binking338
  * @date 2024/9/3
  */
-interface AggregateFactory<ENTITY, ENTITY_PAYLOAD : AggregatePayload<ENTITY>> {
+interface AggregateFactory<out ENTITY, in ENTITY_PAYLOAD : AggregatePayload<@UnsafeVariance ENTITY>> {
     /**
      * 创建新聚合实例
      *

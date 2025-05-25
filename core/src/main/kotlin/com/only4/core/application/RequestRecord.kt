@@ -48,7 +48,7 @@ interface RequestRecord {
      *
      * @return
      */
-    fun <R> getResult(): R
+    fun <R : Any> getResult(): R
 
     /**
      * 获取计划执行时间

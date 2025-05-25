@@ -12,7 +12,7 @@ import java.util.*
  * @author binking338
  * @date 2023/8/12
  */
-interface Repository<ENTITY> {
+interface Repository<ENTITY : Any> {
     /**
      * 支持条件类型
      *

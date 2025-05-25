@@ -15,7 +15,7 @@ interface AggregateFactorySupervisor {
      * @param <ENTITY_PAYLOAD>
      * @param <ENTITY>
     </ENTITY></ENTITY_PAYLOAD> */
-    fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY> create(entityPayload: ENTITY_PAYLOAD): ENTITY
+    fun <ENTITY : Any, ENTITY_PAYLOAD : AggregatePayload<ENTITY>> create(entityPayload: ENTITY_PAYLOAD): ENTITY
 
     companion object {
         val instance: AggregateFactorySupervisor

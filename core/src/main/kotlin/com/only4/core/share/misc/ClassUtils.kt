@@ -79,13 +79,13 @@ object ClassUtils {
      */
     @Suppress("UNCHECKED_CAST")
     fun newConverterInstance(
-        srcClass: Class<*>,
-        destClass: Class<*>,
+        srcClass: Class<Any>,
+        destClass: Class<Any>,
         converterClass: Class<*> = Void::class.java
     ): Converter<Any, Any> {
-        var converter: Converter<*, *>? = if (converterClass == Void::class.java) null
+        var converter: Converter<Any, Any>? = if (converterClass == Void::class.java) null
         else converterClass.getConstructor()
-            .newInstance() as Converter<*, *>
+            .newInstance() as Converter<Any, Any>
 
         findMethod(converterClass, "convert") {
             it.parameterCount == 1
@@ -106,6 +106,6 @@ object ClassUtils {
                 dest
             }
         }
-        return converter as Converter<Any, Any>
+        return converter
     }
 }
