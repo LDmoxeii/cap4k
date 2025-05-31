@@ -19,7 +19,7 @@ annotation class AutoAttach(
      *
      * @return
      */
-    val sourceEntityClass: KClass<*> = Void::class,
+    val sourceEntityClass: KClass<*> = Unit::class,
 
     /**
      * 持久化变更类型
@@ -43,5 +43,5 @@ annotation class AutoAttach(
      * [org.springframework.core.convert.converter.Converter]
      * @return [?][<]
      */
-    val converterClass: KClass<*> = Void::class
+    val converterClass: KClass<*> = Unit::class
 )
