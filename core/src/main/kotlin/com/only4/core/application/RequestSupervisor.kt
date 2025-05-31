@@ -15,7 +15,6 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
 import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 import kotlin.jvm.optionals.getOrDefault
@@ -113,44 +112,57 @@ interface RequestSupervisor {
  * @date 2024/8/24
  */
 open class DefaultRequestSupervisor(
-    requestHandlers: List<RequestHandler<*, *>>,
-    requestInterceptors: List<RequestInterceptor<*, *>>,
-    threadPoolSize: Int,
-    threadFactoryClassName: String,
+    private val requestHandlers: List<RequestHandler<*, *>>,
+    private val requestInterceptors: List<RequestInterceptor<*, *>>,
+    private val threadPoolSize: Int,
+    private val threadFactoryClassName: String,
     private val validator: Validator?,
     private val requestRecordRepository: RequestRecordRepository,
     private val svcName: String,
 ) : RequestSupervisor, RequestManager {
 
-    private val requestHandlerMap: MutableMap<Class<*>, RequestHandler<*, *>> = mutableMapOf()
-    private val requestInterceptorMap: MutableMap<Class<*>, MutableList<RequestInterceptor<*, *>>> = mutableMapOf()
-    private val executorService: ScheduledExecutorService
-
-    init {
-        // 初始化请求处理器映射
-        requestHandlers.forEach { handler ->
-            val requestPayloadClass = ClassUtils.resolveGenericTypeClass(
-                handler, 0,
-                RequestHandler::class.java,
-                Command::class.java, NoneResultCommandParam::class.java,
-                Query::class.java, ListQuery::class.java, PageQuery::class.java,
-                SagaHandler::class.java
-            )
-            requestHandlerMap[requestPayloadClass] = handler
+    /**
+     * 请求处理器映射
+     * 使用lazy委托属性实现线程安全的延迟初始化
+     */
+    private val requestHandlerMap by lazy {
+        mutableMapOf<Class<*>, RequestHandler<*, *>>().apply {
+            requestHandlers.forEach { handler ->
+                val requestPayloadClass = ClassUtils.resolveGenericTypeClass(
+                    handler, 0,
+                    RequestHandler::class.java,
+                    Command::class.java, NoneResultCommandParam::class.java,
+                    Query::class.java, ListQuery::class.java, PageQuery::class.java,
+                    SagaHandler::class.java
+                )
+                put(requestPayloadClass, handler)
+            }
         }
+    }
 
-        // 初始化请求拦截器映射
-        requestInterceptors.forEach { interceptor ->
-            val requestPayloadClass = ClassUtils.resolveGenericTypeClass(
-                interceptor, 0,
-                RequestInterceptor::class.java
-            )
-            val interceptors = requestInterceptorMap.getOrPut(requestPayloadClass) { mutableListOf() }
-            interceptors.add(interceptor)
+    /**
+     * 请求拦截器映射
+     * 使用lazy委托属性实现线程安全的延迟初始化
+     */
+    private val requestInterceptorMap by lazy {
+        mutableMapOf<Class<*>, MutableList<RequestInterceptor<*, *>>>().apply {
+            requestInterceptors.forEach { interceptor ->
+                val requestPayloadClass = ClassUtils.resolveGenericTypeClass(
+                    interceptor, 0,
+                    RequestInterceptor::class.java
+                )
+                val interceptors = getOrPut(requestPayloadClass) { mutableListOf() }
+                interceptors.add(interceptor)
+            }
         }
+    }
 
-        // 初始化线程池
-        executorService = if (threadFactoryClassName.isBlank()) {
+    /**
+     * 线程池服务
+     * 使用lazy委托属性实现线程安全的延迟初始化
+     */
+    private val executorService by lazy {
+        if (threadFactoryClassName.isBlank()) {
             Executors.newScheduledThreadPool(threadPoolSize)
         } else {
             val threadFactoryClass = org.springframework.objenesis.instantiator.util.ClassUtils.getExistingClass<Any>(
