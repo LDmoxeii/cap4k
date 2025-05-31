@@ -110,10 +110,9 @@ interface RequestSupervisor {
  * @author binking338
  * @date 2024/8/24
  */
-@Suppress("UNCHECKED_CAST")
 open class DefaultRequestSupervisor(
-    requestHandlers: List<RequestHandler<Any, RequestParam<Any>>>,
-    requestInterceptors: List<RequestInterceptor<Any, RequestParam<Any>>>,
+    requestHandlers: List<RequestHandler<*, *>>,
+    requestInterceptors: List<RequestInterceptor<*, *>>,
     threadPoolSize: Int,
     threadFactoryClassName: String,
     private val validator: Validator?,
@@ -121,8 +120,8 @@ open class DefaultRequestSupervisor(
     private val svcName: String,
 ) : RequestSupervisor, RequestManager {
 
-    private var requestHandlerMap: MutableMap<Class<*>, RequestHandler<Any, RequestParam<Any>>> = mutableMapOf()
-    private var requestInterceptorMap: MutableMap<Class<*>, MutableList<RequestInterceptor<Any, RequestParam<Any>>>> =
+    private val requestHandlerMap: MutableMap<Class<*>, RequestHandler<*, *>> = mutableMapOf()
+    private val requestInterceptorMap: MutableMap<Class<*>, MutableList<RequestInterceptor<*, *>>> =
         mutableMapOf()
 
     private var executorService: ScheduledExecutorService
@@ -153,9 +152,9 @@ open class DefaultRequestSupervisor(
             val threadFactoryClass = org.springframework.objenesis.instantiator.util.ClassUtils.getExistingClass<Any>(
                 javaClass.classLoader, threadFactoryClassName
             )
-            val threadFactory =
-                org.springframework.objenesis.instantiator.util.ClassUtils.newInstance(threadFactoryClass) as ThreadFactory
-            Executors.newScheduledThreadPool(threadPoolSize, threadFactory)
+            (org.springframework.objenesis.instantiator.util.ClassUtils.newInstance(threadFactoryClass) as ThreadFactory?)?.let {
+                Executors.newScheduledThreadPool(threadPoolSize, it)
+            } ?: Executors.newScheduledThreadPool(threadPoolSize)
         }
     }
 
@@ -175,7 +174,7 @@ open class DefaultRequestSupervisor(
         schedule: LocalDateTime
     ): String {
         if (request is SagaParam<*>) return SagaSupervisor.instance.schedule(
-            request as SagaParam<RESPONSE>,
+            request as SagaParam<*>,
             schedule
         )
         validator?.let {
@@ -294,15 +293,13 @@ open class DefaultRequestSupervisor(
     protected fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> internalSend(request: REQUEST): RESPONSE {
         requestInterceptorMap.getOrDefault(request.javaClass, emptyList())
             .forEach { interceptor ->
-                interceptor.preRequest(request as RequestParam<Any>)
+                (interceptor as RequestInterceptor<RESPONSE, REQUEST>).preRequest(request)
             }
         val response =
-            (requestHandlerMap[request.javaClass] as RequestHandler<RESPONSE, REQUEST>).exec(
-                request
-            )
+            (requestHandlerMap[request.javaClass] as RequestHandler<RESPONSE, REQUEST>).exec(request)
         requestInterceptorMap.getOrDefault(request.javaClass, emptyList())
             .forEach { interceptor ->
-                interceptor.postRequest(request as RequestParam<Any>, response)
+                (interceptor as RequestInterceptor<RESPONSE, REQUEST>).postRequest(request, response)
             }
         return response
     }

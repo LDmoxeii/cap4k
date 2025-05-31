@@ -11,8 +11,5 @@ import org.springframework.context.ApplicationEvent
  */
 class IntegrationEventAttachedTransactionCommittedEvent(
     source: Any,
-    events: List<EventRecord>
-) :
-    ApplicationEvent(source) {
-    val events: List<EventRecord> = events
-}
+    val events: List<EventRecord>
+) : ApplicationEvent(source)

@@ -21,7 +21,7 @@ interface SagaRecord {
      * @param retryTimes
      */
     fun init(
-        sagaParam: SagaParam<Any>,
+        sagaParam: SagaParam<*>,
         svcName: String,
         sagaType: String,
         scheduleAt: LocalDateTime,
@@ -57,7 +57,7 @@ interface SagaRecord {
     fun beginSagaProcess(
         now: LocalDateTime,
         processCode: String,
-        param: RequestParam<Any>
+        param: RequestParam<*>
     )
 
     /**

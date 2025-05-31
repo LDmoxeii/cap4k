@@ -6,7 +6,7 @@ package com.only4.core.domain.repo
  * @author binking338
  * @date 2024/1/31
  */
-interface PersistListener<in Entity : Any> {
+interface PersistListener<Entity : Any> {
     /**
      * 持久化变更
      * @param aggregate

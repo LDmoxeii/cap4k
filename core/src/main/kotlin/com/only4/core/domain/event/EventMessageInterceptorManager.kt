@@ -11,5 +11,5 @@ interface EventMessageInterceptorManager {
      * 拦截器基于 [org.springframework.core.annotation.Order] 排序
      * @return
      */
-    val orderedEventMessageInterceptors: Set<Any>
+    val orderedEventMessageInterceptors: Set<EventMessageInterceptor>
 }

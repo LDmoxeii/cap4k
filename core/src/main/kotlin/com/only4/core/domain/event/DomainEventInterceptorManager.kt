@@ -11,12 +11,12 @@ interface DomainEventInterceptorManager {
      * 拦截器基于 [org.springframework.core.annotation.Order] 排序
      * @return
      */
-    val orderedDomainEventInterceptors: Set<Any>
+    val orderedDomainEventInterceptors: Set<DomainEventInterceptor>
 
     /**
      *
      * 拦截器基于 [org.springframework.core.annotation.Order] 排序
      * @return
      */
-    val orderedEventInterceptors4DomainEvent: Set<Any>
+    val orderedEventInterceptors4DomainEvent: Set<DomainEventInterceptor>
 }

@@ -8,7 +8,7 @@ import com.only4.core.application.RequestParam
  * @author binking338
  * @date
  */
-abstract class NoneResultCommandParam<PARAM : RequestParam<Void>> :
-    Command<Void, PARAM> {
-    abstract override fun exec(request: PARAM): Void
+abstract class NoneResultCommandParam<PARAM : RequestParam<Unit>> :
+    Command<Unit, PARAM> {
+    abstract override fun exec(request: PARAM)
 }

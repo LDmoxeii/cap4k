@@ -9,7 +9,7 @@ import com.only4.core.application.RequestParam
  * @author binking338
  * @date 2024/10/12
  */
-interface SagaHandler<out RESPONSE : Any, in REQUEST : SagaParam<@UnsafeVariance RESPONSE>> :
+interface SagaHandler<RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> :
     RequestHandler<RESPONSE, REQUEST> {
     /**
      * 执行流程子环节

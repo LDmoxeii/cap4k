@@ -6,4 +6,4 @@ package com.only4.core.domain.repo
  * @author binking338
  * @date 2024/9/8
  */
-interface Predicate<ENTITY>
+interface Predicate<ENTITY : Any>

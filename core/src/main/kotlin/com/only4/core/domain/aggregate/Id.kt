@@ -6,7 +6,7 @@ package com.only4.core.domain.aggregate
  * @author binking338
  * @date 2025/4/8
  */
-interface Id<AGGREGATE, out KEY> {
+interface Id<AGGREGATE : Any, KEY : Any> {
     /**
      * 获取实体Key
      *
@@ -14,11 +14,11 @@ interface Id<AGGREGATE, out KEY> {
      */
     val value: KEY
 
-    class Default<AGGREGATE, out KEY>(protected val key: KEY) : Id<AGGREGATE, KEY> {
+    class Default<AGGREGATE : Any, KEY : Any>(protected val key: KEY) : Id<AGGREGATE, KEY> {
 
         override fun toString(): String = key.toString()
 
-        override fun hashCode(): Int = key?.hashCode() ?: 0
+        override fun hashCode(): Int = key.hashCode()
 
         override val value: KEY
             get() = key

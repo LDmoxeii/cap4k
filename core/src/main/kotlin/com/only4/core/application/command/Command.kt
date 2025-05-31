@@ -11,7 +11,7 @@ import com.only4.core.application.RequestParam
  * @author binking338
  * @date
 </RESULT> */
-interface Command<out RESULT : Any, in PARAM : RequestParam<@UnsafeVariance RESULT>> :
+interface Command<RESULT : Any, PARAM : RequestParam<RESULT>> :
     RequestHandler<RESULT, PARAM> {
     override fun exec(request: PARAM): RESULT
 }

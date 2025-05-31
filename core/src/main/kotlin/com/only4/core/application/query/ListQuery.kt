@@ -8,5 +8,5 @@ import com.only4.core.application.RequestParam
  * @author binking338
  * @date
  */
-interface ListQuery<out ITEM : Any, in PARAM : RequestParam<List<@UnsafeVariance ITEM>>> :
+interface ListQuery<ITEM : Any, PARAM : RequestParam<List<ITEM>>> :
     Query<List<ITEM>, PARAM>

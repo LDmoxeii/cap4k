@@ -6,7 +6,7 @@ package com.only4.core.domain.event
  * @author binking338
  * @date 2023/8/5
  */
-interface EventSubscriber<in Event> {
+interface EventSubscriber<Event : Any> {
     /**
      * 领域事件消费逻辑
      *

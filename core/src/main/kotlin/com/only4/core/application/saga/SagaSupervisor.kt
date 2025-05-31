@@ -102,10 +102,9 @@ interface SagaSupervisor {
  * @author binking338
  * @date 2024/10/12
  */
-@Suppress("UNCHECKED_CAST")
 open class DefaultSagaSupervisor(
-    requestHandlers: List<RequestHandler<Any, RequestParam<Any>>>,
-    requestInterceptors: List<RequestInterceptor<Any, RequestParam<Any>>>,
+    requestHandlers: List<RequestHandler<*, *>>,
+    requestInterceptors: List<RequestInterceptor<*, *>>,
     threadPoolSize: Int,
     threadFactoryClassName: String,
     private val validator: Validator?,
@@ -113,33 +112,29 @@ open class DefaultSagaSupervisor(
     private val svcName: String,
 ) : SagaSupervisor, SagaProcessSupervisor, SagaManager {
 
-    private var requestHandlerMap: MutableMap<Class<*>, RequestHandler<Any, RequestParam<Any>>> = mutableMapOf()
-    private var requestInterceptorMap: MutableMap<Class<*>, MutableList<RequestInterceptor<Any, RequestParam<Any>>>> =
-        mutableMapOf()
+    private val requestHandlerMap: MutableMap<Class<*>, RequestHandler<*, *>> = mutableMapOf()
+    private val requestInterceptorMap: MutableMap<Class<*>, MutableList<RequestInterceptor<*, *>>> = mutableMapOf()
 
-    private var executorService: ScheduledExecutorService
+    private val executorService: ScheduledExecutorService
 
     init {
 
         requestHandlers.forEach { handler ->
             val requestPayloadClass = ClassUtils.resolveGenericTypeClass(
-                handler as Class<Any>,
+                handler,
                 0,
-                RequestHandler::class.java as Class<Any>,
-                Command::class.java as Class<Any>,
-                NoneResultCommandParam::class.java as Class<Any>,
-                Query::class.java as Class<Any>,
-                ListQuery::class.java as Class<Any>,
-                PageQuery::class.java as Class<Any>,
-                SagaHandler::class.java as Class<Any>
+                RequestHandler::class.java,
+                Command::class.java, NoneResultCommandParam::class.java,
+                Query::class.java, ListQuery::class.java, PageQuery::class.java,
+                SagaHandler::class.java
             )
             requestHandlerMap[requestPayloadClass] = handler
         }
 
         requestInterceptors.forEach { interceptor ->
             val requestPayloadClass = ClassUtils.resolveGenericTypeClass(
-                interceptor as Class<Any>, 0,
-                RequestInterceptor::class.java as Class<Any>
+                interceptor, 0,
+                RequestInterceptor::class.java
             )
             val interceptors = requestInterceptorMap.getOrPut(requestPayloadClass) { mutableListOf() }
             interceptors.add(interceptor)
@@ -150,9 +145,9 @@ open class DefaultSagaSupervisor(
             val threadFactoryClass = org.springframework.objenesis.instantiator.util.ClassUtils.getExistingClass<Any>(
                 javaClass.classLoader, threadFactoryClassName
             )
-            val threadFactory =
-                org.springframework.objenesis.instantiator.util.ClassUtils.newInstance(threadFactoryClass) as ThreadFactory
-            Executors.newScheduledThreadPool(threadPoolSize, threadFactory)
+            (org.springframework.objenesis.instantiator.util.ClassUtils.newInstance(threadFactoryClass) as ThreadFactory?)?.let {
+                Executors.newScheduledThreadPool(threadPoolSize, it)
+            } ?: Executors.newScheduledThreadPool(threadPoolSize)
         }
     }
 
@@ -163,8 +158,8 @@ open class DefaultSagaSupervisor(
                 throw ConstraintViolationException(constraintViolations)
             }
         }
-        val sagaRecord = createSagaRecord(request.javaClass.name, request as SagaParam<Any>, LocalDateTime.now())
-        return internalSend(request as REQUEST, sagaRecord)
+        val sagaRecord = createSagaRecord(request.javaClass.name, request, LocalDateTime.now())
+        return internalSend(request, sagaRecord)
     }
 
     override fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> schedule(
@@ -179,7 +174,7 @@ open class DefaultSagaSupervisor(
             }
         }
 
-        val sagaRecord = createSagaRecord(request.javaClass.name, request as SagaParam<Any>, schedule)
+        val sagaRecord = createSagaRecord(request.javaClass.name, request, schedule)
         if (sagaRecord.isExecuting) {
             val now = LocalDateTime.now()
             val duration = if (now.isBefore(sagaRecord.scheduleTime)) Duration.between(
@@ -207,7 +202,7 @@ open class DefaultSagaSupervisor(
 
     override fun resume(saga: SagaRecord) {
         if (!saga.beginSaga(LocalDateTime.now())) sagaRecordRepository.save(saga).apply { return }
-        val param = saga.param as SagaParam<Any>
+        val param = saga.param
 
         validator?.let {
             val constraintViolations = it.validate(param)
@@ -251,10 +246,10 @@ open class DefaultSagaSupervisor(
         if (sagaRecord.isSagaProcessExecuted(processCode))
             return sagaRecord.getSagaProcessResult(processCode)
 
-        sagaRecord.beginSagaProcess(LocalDateTime.now(), processCode, request as RequestParam<Any>)
+        sagaRecord.beginSagaProcess(LocalDateTime.now(), processCode, request)
         sagaRecordRepository.save(sagaRecord)
         try {
-            val response = RequestSupervisor.instance.send(request) as RESPONSE
+            val response = RequestSupervisor.instance.send(request)
 
             sagaRecord.endSagaProcess(LocalDateTime.now(), processCode, response)
             sagaRecordRepository.save(sagaRecord)
@@ -275,7 +270,7 @@ open class DefaultSagaSupervisor(
      */
     protected fun createSagaRecord(
         sagaType: String,
-        request: SagaParam<Any>,
+        request: SagaParam<*>,
         scheduleAt: LocalDateTime
     ): SagaRecord {
         val sagaRecord = sagaRecordRepository.create()
@@ -311,17 +306,14 @@ open class DefaultSagaSupervisor(
     ): RESPONSE {
         try {
             SAGA_RECORD_THREAD_LOCAL.set(sagaRecord)
-            requestInterceptorMap.getOrDefault(request.javaClass as Class<Any>, emptyList())
+            requestInterceptorMap.getOrDefault(request.javaClass, emptyList())
                 .forEach { interceptor ->
-                    interceptor.preRequest(request as SagaParam<Any>)
+                    (interceptor as RequestInterceptor<RESPONSE, REQUEST>).preRequest(request)
                 }
-            val response: RESPONSE =
-                (requestHandlerMap[request.javaClass] as RequestHandler<RESPONSE, REQUEST>).exec(
-                    request
-                )
-            requestInterceptorMap.getOrDefault(request.javaClass as Class<Any>, emptyList())
+            val response = (requestHandlerMap[request.javaClass] as RequestHandler<RESPONSE, REQUEST>).exec(request)
+            requestInterceptorMap.getOrDefault(request.javaClass, emptyList())
                 .forEach { interceptor ->
-                    interceptor.postRequest(request as SagaParam<Any>, response)
+                    (interceptor as RequestInterceptor<RESPONSE, REQUEST>).postRequest(request, response)
                 }
 
             sagaRecord.endSaga(LocalDateTime.now(), response)

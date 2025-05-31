@@ -9,5 +9,5 @@ import com.only4.core.share.PageData
  * @author binking338
  * @date
  */
-interface PageQuery<ITEM : Any, in PARAM : RequestParam<PageData<ITEM>>> :
+interface PageQuery<ITEM : Any, PARAM : RequestParam<PageData<ITEM>>> :
     Query<PageData<ITEM>, PARAM>

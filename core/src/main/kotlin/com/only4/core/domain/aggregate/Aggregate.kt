@@ -24,7 +24,7 @@ interface Aggregate<ENTITY : Any> {
      */
     fun _wrap(root: ENTITY)
 
-    class Default<ENTITY>(payload: AggregatePayload<ENTITY>) : Aggregate<ENTITY> where ENTITY : Any {
+    class Default<ENTITY : Any>(payload: AggregatePayload<ENTITY>) : Aggregate<ENTITY> {
         protected lateinit var root: ENTITY
 
         init {
@@ -57,7 +57,7 @@ interface Aggregate<ENTITY : Any> {
          * @param event
          */
         protected fun registerDomainEvent(event: Any) {
-            events().attach<Any, Default<ENTITY>>(event, this)
+            events().attach(event, this)
         }
 
         /**
@@ -66,7 +66,7 @@ interface Aggregate<ENTITY : Any> {
          * @param event
          */
         protected fun cancelDomainEvent(event: Any) {
-            events().detach<Any, Default<ENTITY>>(event, this)
+            events().detach(event, this)
         }
     }
 }

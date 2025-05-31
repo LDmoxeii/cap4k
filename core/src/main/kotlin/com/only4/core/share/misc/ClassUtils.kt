@@ -17,7 +17,11 @@ object ClassUtils {
      * @param superClasses
      * @return
      */
-    fun resolveGenericTypeClass(obj: Any, typeArgumentIndex: Int, vararg superClasses: Class<*>): Class<*> {
+    fun resolveGenericTypeClass(
+        obj: Any,
+        typeArgumentIndex: Int,
+        vararg superClasses: Class<*>
+    ): Class<*> {
         val clazz = AopUtils.getTargetClass(obj)
         return resolveGenericTypeClass(
             clazz,
@@ -79,20 +83,23 @@ object ClassUtils {
      */
     @Suppress("UNCHECKED_CAST")
     fun newConverterInstance(
-        srcClass: Class<Any>,
-        destClass: Class<Any>,
-        converterClass: Class<*> = Void::class.java
+        srcClass: Class<*>,
+        destClass: Class<*>,
+        converterClass: Class<*> = Unit::class.java
     ): Converter<Any, Any> {
-        var converter: Converter<Any, Any>? = if (converterClass == Void::class.java) null
-        else converterClass.getConstructor()
-            .newInstance() as Converter<Any, Any>
+        var converter: Converter<*, *>? =
+            if (converterClass == Unit::class.java) null
+            else converterClass.getConstructor()
+                .newInstance() as Converter<*, *>
 
         findMethod(converterClass, "convert") {
             it.parameterCount == 1
                     && srcClass.isAssignableFrom(it.parameterTypes[0])
                     && destClass.isAssignableFrom(it.returnType)
         }?.let {
-            return Converter<Any, Any> { src -> it.invoke(destClass.getConstructor().newInstance(), src) }
+            return Converter<Any, Any> { src ->
+                it.invoke(destClass.getConstructor().newInstance(), src)
+            }
         }
 
         if (converter == null) {
@@ -106,6 +113,6 @@ object ClassUtils {
                 dest
             }
         }
-        return converter
+        return converter as Converter<Any, Any>
     }
 }

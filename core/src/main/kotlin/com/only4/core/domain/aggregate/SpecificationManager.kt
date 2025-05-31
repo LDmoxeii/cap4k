@@ -14,7 +14,7 @@ interface SpecificationManager {
      * @param <Entity>
      * @return
     </Entity> */
-    fun <Entity> specifyInTransaction(entity: Entity): Specification.Result
+    fun <Entity : Any> specifyInTransaction(entity: Entity): Specification.Result
 
     /**
      * 校验实体是否符合规格约束（事务开启前）
@@ -23,5 +23,5 @@ interface SpecificationManager {
      * @param <Entity>
      * @return
     </Entity> */
-    fun <Entity> specifyBeforeTransaction(entity: Entity): Specification.Result
+    fun <Entity : Any> specifyBeforeTransaction(entity: Entity): Specification.Result
 }
