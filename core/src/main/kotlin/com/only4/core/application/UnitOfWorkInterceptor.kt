@@ -2,6 +2,13 @@ package com.only4.core.application
 
 import com.only4.core.application.event.IntegrationEventManager
 
+/**
+ * 聚合根操作集合
+ */
+data class AggregateOperation(
+    val persistAggregates: Set<Any> = emptySet(),
+    val removeAggregates: Set<Any> = emptySet()
+)
 
 /**
  * UOW工作单元拦截器
@@ -13,59 +20,45 @@ interface UnitOfWorkInterceptor {
     /**
      * 事务开始前
      *
-     * @param persistAggregates 待持久化聚合根（新建、更新）
-     * @param removeAggregates  待删除聚合根
+     * @param operation 聚合根操作集合
      */
-    fun beforeTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>)
+    fun beforeTransaction(operation: AggregateOperation) = Unit
 
     /**
      * 事务执行最初
      *
-     * @param persistAggregates 待持久化聚合根（新建、更新）
-     * @param removeAggregates  待删除聚合根
+     * @param operation 聚合根操作集合
      */
-    fun preInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>)
+    fun preInTransaction(operation: AggregateOperation) = Unit
 
     /**
      * 事务执行之后
      *
-     * @param persistAggregates 待持久化聚合根（新建、更新）
-     * @param removeAggregates  待删除聚合根
+     * @param operation 聚合根操作集合
      */
-    fun postInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>)
+    fun postInTransaction(operation: AggregateOperation) = Unit
 
     /**
      * 事务结束后
      *
-     * @param persistAggregates 待持久化聚合根（新建、更新）
-     * @param removeAggregates  待删除聚合根
+     * @param operation 聚合根操作集合
      */
-    fun afterTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>)
+    fun afterTransaction(operation: AggregateOperation) = Unit
 
     /**
      * 实体持久化之后
-     * @param entities 实体
+     * @param entities 实体集合
      */
-    fun postEntitiesPersisted(entities: Set<Any>)
+    fun postEntitiesPersisted(entities: Set<Any>) = Unit
 }
 
-class IntergrationEventUnitOfWorkInterceptor(
-    private val integrationEventManager: IntegrationEventManager,
+/**
+ * 集成事件工作单元拦截器
+ */
+class IntegrationEventUnitOfWorkInterceptor(
+    private val integrationEventManager: IntegrationEventManager
 ) : UnitOfWorkInterceptor {
-
-    override fun beforeTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
-    }
-
-    override fun preInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
-    }
-
-    override fun postInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
+    override fun postInTransaction(operation: AggregateOperation) {
         integrationEventManager.release()
-    }
-
-    override fun afterTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
-    }
-
-    override fun postEntitiesPersisted(entities: Set<Any>) {
     }
 }
