@@ -3,8 +3,8 @@ package com.only4.core.application.event.annotation
 import kotlin.reflect.KClass
 
 /**
- * 自动发布
- * 领域事件 -> 集成事件
+ * 自动发布注解
+ * 用于将领域事件自动转换为集成事件并发布
  *
  * @author binking338
  * @date 2024/8/29
@@ -14,22 +14,28 @@ import kotlin.reflect.KClass
 annotation class AutoRelease(
     /**
      * 源领域事件类型
+     * 指定要监听的领域事件类型
      */
     val sourceDomainEventClass: KClass<*> = Void::class,
 
     /**
-     * 延迟发布（秒）
+     * 延迟发布时间（秒）
+     * 指定事件发布前的延迟时间，默认为0表示立即发布
      */
     val delayInSeconds: Int = 0,
 
     /**
-     * 领域事件 -> 集成事件 转换器
-     * {@link org.springframework.core.convert.converter.Converter}
+     * 领域事件到集成事件的转换器
+     * 实现org.springframework.core.convert.converter.Converter接口
+     * 用于将领域事件转换为集成事件
      */
     val converterClass: KClass<*> = Void::class
 )
 
 /**
+ * 自动发布注解集合
+ * 用于在同一个类上配置多个自动发布规则
+ *
  * @author binking338
  * @date 2024/9/11
  */
