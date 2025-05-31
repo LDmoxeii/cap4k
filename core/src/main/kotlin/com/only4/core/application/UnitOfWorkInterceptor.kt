@@ -1,6 +1,8 @@
 package com.only4.core.application
 
 import com.only4.core.application.event.IntegrationEventManager
+import com.only4.core.domain.aggregate.SpecificationManager
+import com.only4.core.share.DomainException
 
 /**
  * 聚合根操作集合
@@ -60,5 +62,35 @@ class IntegrationEventUnitOfWorkInterceptor(
 ) : UnitOfWorkInterceptor {
     override fun postInTransaction(operation: AggregateOperation) {
         integrationEventManager.release()
+    }
+}
+
+/**
+ * 规约工作单元拦截器
+ * 在事务执行过程中调用聚合根的规约进行验证
+ *
+ * @author binking338
+ * @date 2024/12/29
+ */
+class SpecificationUnitOfWorkInterceptor(
+    private val specificationManager: SpecificationManager
+) : UnitOfWorkInterceptor {
+
+    override fun beforeTransaction(operation: AggregateOperation) {
+        operation.persistAggregates.forEach { entity ->
+            val result = specificationManager.specifyBeforeTransaction(entity)
+            if (!result.passed) {
+                throw DomainException(result.message)
+            }
+        }
+    }
+
+    override fun preInTransaction(operation: AggregateOperation) {
+        operation.persistAggregates.forEach { entity ->
+            val result = specificationManager.specifyInTransaction(entity)
+            if (!result.passed) {
+                throw DomainException(result.message)
+            }
+        }
     }
 }

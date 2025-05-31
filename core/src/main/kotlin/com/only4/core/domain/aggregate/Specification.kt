@@ -12,9 +12,7 @@ interface Specification<Entity : Any> {
      *
      * @return
      */
-    fun beforeTransaction(): Boolean {
-        return false
-    }
+    fun beforeTransaction(): Boolean = false
 
     /**
      * 校验实体是否符合规格约束
@@ -31,11 +29,11 @@ interface Specification<Entity : Any> {
         /**
          * 是否通过规格校验
          */
-        private val passed: Boolean,
+        val passed: Boolean,
         /**
          * 规格校验反馈消息
          */
-        private val message: String = ""
+        val message: String = ""
     ) {
         companion object {
             fun pass(): Result {
