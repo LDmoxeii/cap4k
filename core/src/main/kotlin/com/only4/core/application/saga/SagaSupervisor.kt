@@ -324,6 +324,7 @@ open class DefaultSagaSupervisor(
      * @param sagaRecord Saga记录
      * @return 执行结果
      */
+    @Suppress("UNCHECKED_CAST")
     protected fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> internalSend(
         request: REQUEST,
         sagaRecord: SagaRecord

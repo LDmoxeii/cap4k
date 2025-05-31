@@ -111,6 +111,7 @@ interface RequestSupervisor {
  * @author binking338
  * @date 2024/8/24
  */
+@Suppress("UNCHECKED_CAST")
 open class DefaultRequestSupervisor(
     private val requestHandlers: List<RequestHandler<*, *>>,
     private val requestInterceptors: List<RequestInterceptor<*, *>>,

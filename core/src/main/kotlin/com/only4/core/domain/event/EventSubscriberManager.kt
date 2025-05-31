@@ -123,7 +123,7 @@ class DefaultEventSubscriberManager(
 
                 subscribe(autoRelease.sourceDomainEventClass.java) { domainEvent ->
                     IntegrationEventSupervisor.instance.attach(
-                        converter.convert(domainEvent),
+                        converter.convert(domainEvent)!!,
                         delay = Duration.ofSeconds(autoRelease.delayInSeconds)
                     )
                     IntegrationEventSupervisor.manager.release()
@@ -161,6 +161,7 @@ class DefaultEventSubscriberManager(
         return subscriberMap[eventPayloadClass]?.remove(subscriber) ?: false
     }
 
+    @Suppress("UNCHECKED_CAST")
     override fun dispatch(eventPayload: Any) {
         initialized // 触发懒加载初始化
         subscriberMap[eventPayload.javaClass]?.forEach { subscriber ->

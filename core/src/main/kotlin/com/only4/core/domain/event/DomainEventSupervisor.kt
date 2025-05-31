@@ -10,7 +10,6 @@ import org.springframework.data.domain.AbstractAggregateRoot
 import org.springframework.transaction.event.TransactionalEventListener
 import java.time.Duration
 import java.time.LocalDateTime
-import java.util.*
 
 /**
  * 领域事件管理器
@@ -24,7 +23,6 @@ interface DomainEventSupervisor {
      * 附加领域事件到持久化上下文
      * @param domainEventPayload 领域事件消息体
      * @param entity 绑定实体，该实体对象进入持久化上下文且事务提交时才会触发领域事件分发
-     * @param delay 延迟发送
      * @param schedule 指定时间发送
      */
     fun <DOMAIN_EVENT : Any, ENTITY : Any> attach(
@@ -36,9 +34,10 @@ interface DomainEventSupervisor {
     fun <DOMAIN_EVENT : Any, ENTITY : Any> attach(
         domainEventPayload: DOMAIN_EVENT,
         entity: ENTITY,
+        schedule: LocalDateTime = LocalDateTime.now(),
         delay: Duration = Duration.ZERO,
     ) {
-        attach(domainEventPayload, entity, LocalDateTime.now().plus(delay))
+        attach(domainEventPayload, entity, schedule.plus(delay))
     }
 
     /**

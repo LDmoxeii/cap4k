@@ -36,6 +36,7 @@ interface SpecificationManager {
  * @author binking338
  * @date 2023/8/13
  */
+@Suppress("UNCHECKED_CAST")
 class DefaultSpecificationManager(
     private val specifications: List<Specification<*>>
 ) : SpecificationManager {
