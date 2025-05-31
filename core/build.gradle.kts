@@ -12,6 +12,7 @@ dependencies {
     compileOnly(libs.springContext)
     compileOnly(libs.springTx)
     compileOnly(libs.springMassaging)
+    compileOnly(libs.springData)
 
     compileOnly(libs.aspectjweaver)
     compileOnly(libs.validation)

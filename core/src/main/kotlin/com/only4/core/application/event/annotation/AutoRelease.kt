@@ -22,7 +22,7 @@ annotation class AutoRelease(
      * 延迟发布时间（秒）
      * 指定事件发布前的延迟时间，默认为0表示立即发布
      */
-    val delayInSeconds: Int = 0,
+    val delayInSeconds: Long = 0,
 
     /**
      * 领域事件到集成事件的转换器
