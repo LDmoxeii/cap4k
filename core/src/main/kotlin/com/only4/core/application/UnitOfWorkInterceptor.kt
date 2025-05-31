@@ -2,6 +2,7 @@ package com.only4.core.application
 
 import com.only4.core.application.event.IntegrationEventManager
 import com.only4.core.domain.aggregate.SpecificationManager
+import com.only4.core.domain.event.DomainEventManager
 import com.only4.core.share.DomainException
 
 /**
@@ -92,5 +93,20 @@ class SpecificationUnitOfWorkInterceptor(
                 throw DomainException(result.message)
             }
         }
+    }
+}
+
+/**
+ * 领域事件工作单元拦截器
+ * 在实体持久化后释放领域事件
+ *
+ * @author binking338
+ * @date 2024/12/29
+ */
+class DomainEventUnitOfWorkInterceptor(
+    private val domainEventManager: DomainEventManager
+) : UnitOfWorkInterceptor {
+    override fun postEntitiesPersisted(entities: Set<Any>) {
+        domainEventManager.release(entities)
     }
 }
