@@ -8,7 +8,7 @@ plugins {
 }
 
 dependencies {
-    api(platform(libs.springBootDependencies))
+    compileOnly(project(":ddd-core"))
     compileOnly(libs.springJdbc)
 
     implementation(libs.kotlinLogging)
