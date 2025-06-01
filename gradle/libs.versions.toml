@@ -10,8 +10,6 @@ kotlinxCoroutines = "1.9.0"
 
 springBoot = "3.1.12"
 
-kotlinLogging = "7.0.7"
-
 validation = "3.0.2"
 hibernateCore = "6.2.25.Final"
 
@@ -28,7 +26,7 @@ springMassaging = { module = "org.springframework:spring-messaging" }
 springData = { module = "org.springframework.data:spring-data-commons" }
 springJdbc = { module = "org.springframework:spring-jdbc" }
 
-kotlinLogging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlinLogging" }
+slf4j = { module = "org.slf4j:slf4j-api" }
 
 aspectjweaver = { module = "org.aspectj:aspectjweaver" }
 validation = { module = "jakarta.validation:jakarta.validation-api", version.ref = "validation" }

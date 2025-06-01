@@ -11,5 +11,5 @@ dependencies {
     compileOnly(project(":ddd-core"))
     compileOnly(libs.springJdbc)
 
-    implementation(libs.kotlinLogging)
+    compileOnly(libs.slf4j)
 }

@@ -1,7 +1,7 @@
 package com.only4.cap4k.ddd.application.distributed.locker
 
 import com.only4.cap4k.ddd.core.application.distributed.Locker
-import com.sun.org.slf4j.internal.LoggerFactory
+import org.slf4j.LoggerFactory
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.Duration
 import java.time.LocalDateTime

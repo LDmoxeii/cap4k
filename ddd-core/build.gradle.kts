@@ -16,6 +16,5 @@ dependencies {
 
     compileOnly(libs.aspectjweaver)
     compileOnly(libs.validation)
-
-    implementation(libs.kotlinLogging)
+    compileOnly(libs.slf4j)
 }

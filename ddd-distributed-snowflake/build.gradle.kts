@@ -8,8 +8,9 @@ plugins {
 }
 
 dependencies {
-    compileOnly(project(":ddd-core"))
+    api(platform(libs.springBootDependencies))
     compileOnly(libs.springJdbc)
+    compileOnly(libs.hibernateCore)
 
-    implementation(libs.kotlinLogging)
+    compileOnly(libs.slf4j)
 }
