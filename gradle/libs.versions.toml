@@ -13,6 +13,7 @@ springBoot = "3.1.12"
 kotlinLogging = "7.0.7"
 
 validation = "3.0.2"
+hibernateCore = "6.2.25.Final"
 
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
@@ -31,6 +32,7 @@ kotlinLogging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "
 
 aspectjweaver = { module = "org.aspectj:aspectjweaver" }
 validation = { module = "jakarta.validation:jakarta.validation-api", version.ref = "validation" }
+hibernateCore = { module = "org.hibernate:hibernate-core", version.ref = "hibernateCore" }
 
 # Libraries can be bundled together for easier import
 [bundles]
