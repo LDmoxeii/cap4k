@@ -12,6 +12,7 @@ springBoot = "3.1.12"
 
 validation = "3.0.2"
 hibernateCore = "6.2.25.Final"
+fastjson = "1.2.83"
 
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
@@ -25,12 +26,14 @@ springTx = { module = "org.springframework:spring-tx" }
 springMassaging = { module = "org.springframework:spring-messaging" }
 springData = { module = "org.springframework.data:spring-data-commons" }
 springJdbc = { module = "org.springframework:spring-jdbc" }
+jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
 
 slf4j = { module = "org.slf4j:slf4j-api" }
 
 aspectjweaver = { module = "org.aspectj:aspectjweaver" }
 validation = { module = "jakarta.validation:jakarta.validation-api", version.ref = "validation" }
 hibernateCore = { module = "org.hibernate:hibernate-core", version.ref = "hibernateCore" }
+fastjson = { module = "com.alibaba:fastjson", version.ref = "fastjson" }
 
 # Libraries can be bundled together for easier import
 [bundles]
