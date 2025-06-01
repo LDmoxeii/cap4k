@@ -25,6 +25,7 @@ springContext = { module = "org.springframework:spring-context" }
 springTx = { module = "org.springframework:spring-tx" }
 springMassaging = { module = "org.springframework:spring-messaging" }
 springData = { module = "org.springframework.data:spring-data-commons" }
+springJdbc = { module = "org.springframework:spring-jdbc" }
 
 kotlinLogging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlinLogging" }
 
