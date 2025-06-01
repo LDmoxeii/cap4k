@@ -1,4 +1,4 @@
-package com.only4.ddd.application.distributed.locker
+package com.only4.cap4k.ddd.application.distributed.locker
 
 import com.only4.cap4k.ddd.core.application.distributed.Locker
 import com.sun.org.slf4j.internal.LoggerFactory
