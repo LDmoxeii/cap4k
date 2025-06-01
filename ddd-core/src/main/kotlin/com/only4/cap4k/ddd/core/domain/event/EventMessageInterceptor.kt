@@ -44,21 +44,21 @@ interface EventMessageInterceptor {
      */
     fun postSubscribe(message: Message<*>)
 
-    class ModifiableMessageHeaders : MessageHeaders {
-        constructor(headers: Map<String, Any>) : this(
+    class ModifiableMessageHeaders(
+        headers: Map<String, Any>?,
+        id: UUID?,
+        timestamp: Long?
+    ) : MessageHeaders(
+        headers, id, timestamp
+    ) {
+        constructor(headers: Map<String, Any>?) : this(
             headers,
-            headers[ID]?.let { UUID.fromString(it.toString()) },
-            headers[TIMESTAMP]?.toString()?.toLong()
+            headers?.get(ID)?.let { UUID.fromString(it.toString()) },
+            headers?.get(TIMESTAMP)?.toString()?.toLong()
         )
 
-        constructor(
-            headers: Map<String, Any>?,
-            id: UUID?,
-            timestamp: Long?
-        ) : super(headers, id, timestamp)
-
-        override fun putAll(map: Map<out String, *>) {
-            rawHeaders.putAll(map)
+        override fun putAll(from: Map<out String, *>) {
+            rawHeaders.putAll(from)
         }
 
         override fun put(key: String, value: Any): Any {
