@@ -7,7 +7,7 @@ plugins {
     application
 }
 dependencies {
-    compileOnly(project(":ddd-core"))
+    implementation(project(":ddd-core"))
 
     implementation(libs.fastjson)
 
