@@ -9,4 +9,4 @@ package com.only4.cap4k.ddd.core.application
  * @author binking338
  * @date 2024/9/6
  */
-interface RequestParam<RESULT : Any>
+interface RequestParam<RESULT>

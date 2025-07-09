@@ -9,7 +9,7 @@ import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisorSupport.events
  * @author binking338
  * @date 2025/1/9
  */
-interface Aggregate<ENTITY : Any> {
+interface Aggregate<ENTITY> {
     /**
      * 获取ORM实体
      * 仅供框架调用使用，勿在业务逻辑代码中使用
@@ -24,8 +24,8 @@ interface Aggregate<ENTITY : Any> {
      */
     fun _wrap(root: ENTITY)
 
-    class Default<ENTITY : Any>(payload: AggregatePayload<ENTITY>) : Aggregate<ENTITY> {
-        protected lateinit var root: ENTITY
+    class Default<ENTITY>(payload: AggregatePayload<ENTITY>) : Aggregate<ENTITY> {
+        protected var root: ENTITY = TODO()
 
         init {
             val root = Mediator.factories().create(payload)

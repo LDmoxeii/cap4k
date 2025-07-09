@@ -21,7 +21,7 @@ interface RepositorySupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY> */
-    fun <ENTITY : Any> find(
+    fun <ENTITY> find(
         predicate: Predicate<ENTITY>,
         vararg orders: OrderInfo,
         persist: Boolean = true,
@@ -37,7 +37,7 @@ interface RepositorySupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY> */
-    fun <ENTITY : Any> find(
+    fun <ENTITY> find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
         persist: Boolean = true,
@@ -52,7 +52,7 @@ interface RepositorySupervisor {
      * @param persist
      * @return
      */
-    fun <ENTITY : Any> find(
+    fun <ENTITY> find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
         persist: Boolean = true,
@@ -66,7 +66,7 @@ interface RepositorySupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY> */
-    fun <ENTITY : Any> findOne(
+    fun <ENTITY> findOne(
         predicate: Predicate<ENTITY>,
         persist: Boolean = true
     ): Optional<ENTITY>
@@ -80,7 +80,7 @@ interface RepositorySupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY> */
-    fun <ENTITY : Any> findFirst(
+    fun <ENTITY> findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = listOf(),
         persist: Boolean = true,
@@ -95,7 +95,7 @@ interface RepositorySupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY> */
-    fun <ENTITY : Any> findFirst(
+    fun <ENTITY> findFirst(
         predicate: Predicate<ENTITY>,
         vararg orders: OrderInfo,
         persist: Boolean = true,
@@ -113,7 +113,7 @@ interface RepositorySupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY> */
-    fun <ENTITY : Any> findPage(
+    fun <ENTITY> findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
         persist: Boolean = true
@@ -127,7 +127,7 @@ interface RepositorySupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY> */
-    fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>, limit: Int = 1): List<ENTITY>
+    fun <ENTITY> remove(predicate: Predicate<ENTITY>, limit: Int = 1): List<ENTITY>
 
     /**
      * 根据条件获取实体计数
@@ -136,7 +136,7 @@ interface RepositorySupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY> */
-    fun <ENTITY : Any> count(predicate: Predicate<ENTITY>): Long
+    fun <ENTITY> count(predicate: Predicate<ENTITY>): Long
 
     /**
      * 根据条件判断实体是否存在
@@ -145,7 +145,7 @@ interface RepositorySupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY> */
-    fun <ENTITY : Any> exists(predicate: Predicate<ENTITY>): Boolean
+    fun <ENTITY> exists(predicate: Predicate<ENTITY>): Boolean
 
     companion object {
         val instance: RepositorySupervisor

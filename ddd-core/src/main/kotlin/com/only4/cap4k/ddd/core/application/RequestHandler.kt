@@ -10,7 +10,7 @@ package com.only4.cap4k.ddd.core.application
  * @author binking338
  * @date 2024/8/24
  */
-interface RequestHandler<RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> {
+interface RequestHandler<RESPONSE, REQUEST : RequestParam<RESPONSE>> {
     /**
      * 执行请求处理
      * 根据请求参数执行相应的业务逻辑并返回处理结果

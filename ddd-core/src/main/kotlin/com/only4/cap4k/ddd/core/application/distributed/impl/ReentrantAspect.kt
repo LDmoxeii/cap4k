@@ -1,11 +1,12 @@
-package com.only4.cap4k.ddd.core.application.distributed
+package com.only4.cap4k.ddd.core.application.distributed.impl
 
+import com.only4.cap4k.ddd.core.application.distributed.Locker
 import com.only4.cap4k.ddd.core.application.distributed.annotation.Reentrant
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
 import org.aspectj.lang.annotation.Aspect
 import org.aspectj.lang.reflect.MethodSignature
+import org.slf4j.LoggerFactory
 import java.lang.reflect.Method
 import java.time.Duration
 import java.util.*
@@ -21,16 +22,23 @@ import java.util.concurrent.ConcurrentHashMap
 class ReentrantAspect(
     private val distributedLocker: Locker
 ) {
-    private val logger = KotlinLogging.logger {}
+    private val logger = LoggerFactory.getLogger(this::class.java)
     private val localLocker = MemoryLocker()
+
+    companion object {
+        private val DEFAULT_EXPIRE = Duration.ofHours(6)
+    }
 
     @Around("@annotation(reentrant)")
     fun around(
         joinPoint: ProceedingJoinPoint,
         reentrant: Reentrant
-    ): Any {
-        if (reentrant.value) return joinPoint.proceed()
+    ): Any? = when {
+        reentrant.value -> joinPoint.proceedSafely()
+        else -> handleWithLock(joinPoint, reentrant)
+    }
 
+    private fun handleWithLock(joinPoint: ProceedingJoinPoint, reentrant: Reentrant): Any? {
         val signature = joinPoint.signature as MethodSignature
         val method = signature.method
 
@@ -41,36 +49,41 @@ class ReentrantAspect(
         val lockPwd = UUID.randomUUID().toString()
 
         val expire = parseDuration(reentrant.expire)
+
         return if (locker.acquire(lockKey, lockPwd, expire)) {
-            logger.debug { "获取锁成功:$lockKey" }
+            logger.debug("获取锁成功: {}", lockKey)
             try {
-                joinPoint.proceed()
+                joinPoint.proceedSafely()
             } finally {
                 locker.release(lockKey, lockPwd)
-                logger.debug { "释放锁成功:$lockKey" }
+                logger.debug("释放锁成功: {}", lockKey)
             }
         } else {
-            logger.debug { "获取锁失败:$lockKey" }
+            logger.debug("获取锁失败: {}", lockKey)
+            null
         }
     }
 
-    private fun generateLockKey(method: Method, key: String): String {
-        return key.ifEmpty {
-            "${method.declaringClass.name}:${method.name}"
-        }
+    private fun ProceedingJoinPoint.proceedSafely(): Any? = try {
+        proceed()
+    } catch (e: Throwable) {
+        throw RuntimeException(e)
     }
+
+    private fun generateLockKey(method: Method, key: String): String =
+        key.takeIf { it.isNotEmpty() } ?: "${method.declaringClass.name}:${method.name}"
 
     private fun parseDuration(expireStr: String): Duration {
         if (expireStr.isEmpty()) return DEFAULT_EXPIRE
 
         val lowerExpireStr = expireStr.lowercase(Locale.getDefault())
         return when {
-            lowerExpireStr.matches("\\d+".toRegex()) ->
+            lowerExpireStr.matches(Regex("\\d+")) ->
                 Duration.ofSeconds(lowerExpireStr.toLong())
 
-            lowerExpireStr.matches("\\d+([smhd]|ms)".toRegex()) -> {
-                val numericPart = lowerExpireStr.replace("\\D".toRegex(), "")
-                val unit = lowerExpireStr.replace("\\d".toRegex(), "")
+            lowerExpireStr.matches(Regex("\\d+([smhd]|ms)")) -> {
+                val numericPart = lowerExpireStr.replace(Regex("\\D"), "")
+                val unit = lowerExpireStr.replace(Regex("\\d"), "")
                 when (unit) {
                     "ms" -> Duration.ofMillis(numericPart.toLong())
                     "s" -> Duration.ofSeconds(numericPart.toLong())
@@ -80,21 +93,20 @@ class ReentrantAspect(
                     else -> throw IllegalArgumentException("Invalid expire string: $lowerExpireStr")
                 }
             }
+
             else -> Duration.parse(lowerExpireStr)
         }
     }
 
     private inner class MemoryLocker : Locker {
-        private val DEFAULT_CONTROL = Pair("", 0L)
         private val expireMap = ConcurrentHashMap<String, Pair<String, Long>>()
 
         override fun acquire(key: String, pwd: String, expireDuration: Duration): Boolean {
             val now = System.currentTimeMillis()
-            val control = expireMap.getOrDefault(key, DEFAULT_CONTROL)
-            val timestamp = control.second
+            val control = expireMap[key]
 
             synchronized(this) {
-                if (timestamp > now) {
+                if (control != null && control.second > now) {
                     return pwd == control.first
                 }
                 expireMap[key] = Pair(pwd, now + expireDuration.toMillis())
@@ -104,10 +116,8 @@ class ReentrantAspect(
 
         override fun release(key: String, pwd: String): Boolean {
             synchronized(this) {
-                if (!expireMap.containsKey(key)) {
-                    return true
-                }
-                val control = expireMap[key]!!
+                val control = expireMap[key] ?: return true
+
                 if (pwd == control.first) {
                     expireMap.remove(key)
                     return true
@@ -115,9 +125,5 @@ class ReentrantAspect(
                 return false
             }
         }
-    }
-
-    companion object {
-        private val DEFAULT_EXPIRE = Duration.ofHours(6)
     }
 }

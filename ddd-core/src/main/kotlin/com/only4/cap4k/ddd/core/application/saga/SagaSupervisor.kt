@@ -36,7 +36,7 @@ interface SagaSupervisor {
      * @return 执行结果
      * @throws ConstraintViolationException 当请求参数验证失败时
      */
-    fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> send(request: REQUEST): RESPONSE
+    fun <RESPONSE, REQUEST : SagaParam<RESPONSE>> send(request: REQUEST): RESPONSE
 
     /**
      * 异步执行Saga事务流程
@@ -46,7 +46,7 @@ interface SagaSupervisor {
      * @return Saga事务ID
      * @throws ConstraintViolationException 当请求参数验证失败时
      */
-    fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> async(request: REQUEST): String =
+    fun <RESPONSE, REQUEST : SagaParam<RESPONSE>> async(request: REQUEST): String =
         schedule(request, LocalDateTime.now())
 
     /**
@@ -59,7 +59,7 @@ interface SagaSupervisor {
      * @return Saga事务ID
      * @throws ConstraintViolationException 当请求参数验证失败时
      */
-    fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> schedule(
+    fun <RESPONSE, REQUEST : SagaParam<RESPONSE>> schedule(
         request: REQUEST,
         schedule: LocalDateTime,
         delay: Duration = Duration.ZERO
@@ -71,7 +71,7 @@ interface SagaSupervisor {
      * @param id Saga事务ID
      * @return 执行结果，如果不存在则返回空
      */
-    fun <R : Any> result(id: String): Optional<R>
+    fun <R> result(id: String): Optional<R>
 
     /**
      * 获取Saga事务执行结果
@@ -82,7 +82,7 @@ interface SagaSupervisor {
      * @return 执行结果，如果不存在则返回空
      */
     @Suppress("UNCHECKED_CAST")
-    fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> result(
+    fun <RESPONSE, REQUEST : SagaParam<RESPONSE>> result(
         requestId: String,
         requestClass: Class<REQUEST> = Any::class.java as Class<REQUEST>
     ): Optional<RESPONSE> = result(requestId)
@@ -169,7 +169,7 @@ open class DefaultSagaSupervisor(
         }
     }
 
-    override fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> send(request: REQUEST): RESPONSE {
+    override fun <RESPONSE, REQUEST : SagaParam<RESPONSE>> send(request: REQUEST): RESPONSE {
         // 验证请求参数
         validator?.let {
             val constraintViolations = it.validate(request)
@@ -182,7 +182,7 @@ open class DefaultSagaSupervisor(
         return internalSend(request, sagaRecord)
     }
 
-    override fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> schedule(
+    override fun <RESPONSE, REQUEST : SagaParam<RESPONSE>> schedule(
         request: REQUEST,
         schedule: LocalDateTime,
         delay: Duration
@@ -215,7 +215,7 @@ open class DefaultSagaSupervisor(
         return sagaRecord.id
     }
 
-    override fun <R : Any> result(id: String): Optional<R> =
+    override fun <R> result(id: String): Optional<R> =
         sagaRecordRepository.getById(id).getResult()
 
     override fun resume(saga: SagaRecord) {
@@ -325,7 +325,7 @@ open class DefaultSagaSupervisor(
      * @return 执行结果
      */
     @Suppress("UNCHECKED_CAST")
-    protected fun <RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> internalSend(
+    protected fun <RESPONSE, REQUEST : SagaParam<RESPONSE>> internalSend(
         request: REQUEST,
         sagaRecord: SagaRecord
     ): RESPONSE {
@@ -347,7 +347,7 @@ open class DefaultSagaSupervisor(
                 }
 
             // 保存执行结果
-            sagaRecord.endSaga(LocalDateTime.now(), response)
+            sagaRecord.endSaga(LocalDateTime.now(), response!!)
             sagaRecordRepository.save(sagaRecord)
             return response
         } catch (throwable: Throwable) {

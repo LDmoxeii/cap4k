@@ -104,7 +104,7 @@ open class DefaultDomainEventSupervisor(
     }
 
     private fun unwrapEntity(entity: Any): Any =
-        if (entity is Aggregate<*>) entity._unwrap() else entity
+        (if (entity is Aggregate<*>) entity._unwrap() else entity)!!
 
     override fun <DOMAIN_EVENT : Any, ENTITY : Any> attach(
         domainEventPayload: DOMAIN_EVENT,

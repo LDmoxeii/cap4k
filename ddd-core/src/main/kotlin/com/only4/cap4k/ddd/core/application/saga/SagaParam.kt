@@ -12,4 +12,4 @@ import com.only4.cap4k.ddd.core.application.RequestParam
  *
  * @param RESULT 结果类型，表示Saga流程执行后的返回结果
  */
-interface SagaParam<RESULT : Any> : RequestParam<RESULT>
+interface SagaParam<RESULT> : RequestParam<RESULT>

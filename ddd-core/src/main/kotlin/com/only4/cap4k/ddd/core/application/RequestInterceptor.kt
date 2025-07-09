@@ -10,7 +10,7 @@ package com.only4.cap4k.ddd.core.application
  * @author binking338
  * @date 2024/9/1
  */
-interface RequestInterceptor<RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> {
+interface RequestInterceptor<RESPONSE, REQUEST : RequestParam<RESPONSE>> {
     /**
      * 请求处理前的拦截方法
      * 在请求执行前调用，可用于参数验证、权限检查等

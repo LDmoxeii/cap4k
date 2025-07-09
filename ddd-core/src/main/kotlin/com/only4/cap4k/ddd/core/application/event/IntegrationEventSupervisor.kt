@@ -26,7 +26,7 @@ interface IntegrationEventSupervisor {
      * @param delay 延迟时间
      * @throws IllegalArgumentException 如果事件类型不是集成事件
      */
-    fun <EVENT : Any> attach(
+    fun <EVENT> attach(
         eventPayload: EVENT,
         schedule: LocalDateTime = LocalDateTime.now(),
         delay: Duration = Duration.ZERO
@@ -38,7 +38,7 @@ interface IntegrationEventSupervisor {
      *
      * @param eventPayload 事件消息体
      */
-    fun <EVENT : Any> detach(eventPayload: EVENT)
+    fun <EVENT> detach(eventPayload: EVENT)
 
     /**
      * 发布指定集成事件
@@ -48,7 +48,7 @@ interface IntegrationEventSupervisor {
      * @param schedule 指定时间发送
      * @param delay 延迟时间
      */
-    fun <EVENT : Any> publish(
+    fun <EVENT> publish(
         eventPayload: EVENT,
         schedule: LocalDateTime = LocalDateTime.now(),
         delay: Duration = Duration.ZERO
@@ -85,8 +85,8 @@ open class DefaultIntegrationEventSupervisor(
 ) : IntegrationEventSupervisor,
     IntegrationEventManager {
 
-    override fun <EVENT : Any> attach(eventPayload: EVENT, schedule: LocalDateTime, delay: Duration) {
-        require(eventPayload.javaClass.isAnnotationPresent(IntegrationEvent::class.java)) { "事件类型必须为集成事件" }
+    override fun <EVENT> attach(eventPayload: EVENT, schedule: LocalDateTime, delay: Duration) {
+        require(eventPayload!!.javaClass.isAnnotationPresent(IntegrationEvent::class.java)) { "事件类型必须为集成事件" }
 
         val eventPayloads = TL_EVENT_PAYLOADS.get() ?: HashSet<Any>().also { TL_EVENT_PAYLOADS.set(it) }
         eventPayloads.add(eventPayload)
@@ -97,9 +97,9 @@ open class DefaultIntegrationEventSupervisor(
         }
     }
 
-    override fun <EVENT : Any> detach(eventPayload: EVENT) {
+    override fun <EVENT> detach(eventPayload: EVENT) {
         TL_EVENT_PAYLOADS.get()?.let { eventPayloads ->
-            eventPayloads.remove(eventPayload)
+            eventPayloads.remove(eventPayload!!)
             integrationEventInterceptorManager.orderedIntegrationEventInterceptors.forEach { interceptor ->
                 interceptor.onDetach(eventPayload)
             }
@@ -134,10 +134,10 @@ open class DefaultIntegrationEventSupervisor(
         )
     }
 
-    override fun <EVENT : Any> publish(eventPayload: EVENT, schedule: LocalDateTime, delay: Duration) {
+    override fun <EVENT> publish(eventPayload: EVENT, schedule: LocalDateTime, delay: Duration) {
         val event = eventRecordRepository.create().apply {
             init(
-                eventPayload,
+                eventPayload!!,
                 svcName,
                 schedule,
                 Duration.ofMinutes(DEFAULT_EVENT_EXPIRE_MINUTES),

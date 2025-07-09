@@ -37,7 +37,7 @@ interface RequestSupervisor {
      * @throws ConstraintViolationException 当请求参数验证失败时
      * @throws IllegalStateException 当请求执行失败时
      */
-    fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> send(request: REQUEST): RESPONSE
+    fun <RESPONSE, REQUEST : RequestParam<RESPONSE>> send(request: REQUEST): RESPONSE
 
     /**
      * 异步执行请求
@@ -47,7 +47,7 @@ interface RequestSupervisor {
      * @return 请求ID，用于后续查询结果
      * @throws ConstraintViolationException 当请求参数验证失败时
      */
-    fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> async(request: REQUEST): String =
+    fun <RESPONSE, REQUEST : RequestParam<RESPONSE>> async(request: REQUEST): String =
         schedule(request, LocalDateTime.now())
 
     /**
@@ -59,7 +59,7 @@ interface RequestSupervisor {
      * @return 请求ID，用于后续查询结果
      * @throws ConstraintViolationException 当请求参数验证失败时
      */
-    fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> schedule(
+    fun <RESPONSE, REQUEST : RequestParam<RESPONSE>> schedule(
         request: REQUEST,
         schedule: LocalDateTime
     ): String
@@ -73,7 +73,7 @@ interface RequestSupervisor {
      * @return 请求ID，用于后续查询结果
      * @throws ConstraintViolationException 当请求参数验证失败时
      */
-    fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> delay(
+    fun <RESPONSE, REQUEST : RequestParam<RESPONSE>> delay(
         request: REQUEST,
         delay: Duration
     ): String = schedule(request, LocalDateTime.now().plus(delay))
@@ -86,10 +86,10 @@ interface RequestSupervisor {
      * @return 请求执行结果，如果请求未完成则返回空
      */
     @Suppress("UNCHECKED_CAST")
-    fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> result(
+    fun <RESPONSE, REQUEST : RequestParam<RESPONSE>> result(
         requestId: String,
         requestClass: Class<REQUEST> = Any::class.java as Class<REQUEST>
-    ): Optional<RESPONSE>
+    ): Optional<RESPONSE & Any>
 
     companion object {
         /**
@@ -175,13 +175,13 @@ open class DefaultRequestSupervisor(
         }
     }
 
-    override fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> send(request: REQUEST): RESPONSE {
+    override fun <RESPONSE, REQUEST : RequestParam<RESPONSE>> send(request: REQUEST): RESPONSE {
         if (request is SagaParam<*>) return SagaSupervisor.instance.send(request as SagaParam<RESPONSE>)
         validateRequest(request)
         return internalSend(request)
     }
 
-    override fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> schedule(
+    override fun <RESPONSE, REQUEST : RequestParam<RESPONSE>> schedule(
         request: REQUEST,
         schedule: LocalDateTime
     ): String {
@@ -195,10 +195,10 @@ open class DefaultRequestSupervisor(
         return requestRecord.id
     }
 
-    override fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> result(
+    override fun <RESPONSE, REQUEST : RequestParam<RESPONSE>> result(
         requestId: String,
         requestClass: Class<REQUEST>
-    ): Optional<RESPONSE> {
+    ): Optional<RESPONSE & Any> {
         val requestRecord = requestRecordRepository.getById(requestId)
             .getOrDefault(RequestSupervisor.instance.result(requestId, requestClass)) as RequestRecord
         return Optional.ofNullable(requestRecord.getResult())
@@ -274,13 +274,13 @@ open class DefaultRequestSupervisor(
         )
     }
 
-    private fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> internalSend(
+    private fun <RESPONSE, REQUEST : RequestParam<RESPONSE>> internalSend(
         request: REQUEST,
         requestRecord: RequestRecord
     ): RESPONSE {
         try {
             val response = internalSend(request)
-            requestRecord.endRequest(LocalDateTime.now(), response)
+            requestRecord.endRequest(LocalDateTime.now(), response!!)
             requestRecordRepository.save(requestRecord)
             return response
         } catch (throwable: Throwable) {
@@ -290,7 +290,7 @@ open class DefaultRequestSupervisor(
         }
     }
 
-    private fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> internalSend(request: REQUEST): RESPONSE {
+    private fun <RESPONSE, REQUEST : RequestParam<RESPONSE>> internalSend(request: REQUEST): RESPONSE {
         // 执行前置拦截器
         requestInterceptorMap.getOrDefault(request.javaClass, emptyList())
             .forEach { interceptor ->

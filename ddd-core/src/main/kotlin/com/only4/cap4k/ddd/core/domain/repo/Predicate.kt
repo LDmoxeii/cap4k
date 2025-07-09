@@ -6,4 +6,4 @@ package com.only4.cap4k.ddd.core.domain.repo
  * @author binking338
  * @date 2024/9/8
  */
-interface Predicate<ENTITY : Any>
+interface Predicate<ENTITY>

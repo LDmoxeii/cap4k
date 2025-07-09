@@ -7,7 +7,7 @@ package com.only4.cap4k.ddd.core.share
  * @author binking338
  * @date
  */
-open class PageData<T : Any> protected constructor(
+open class PageData<T> protected constructor(
     /**
      * 页码
      */
@@ -35,7 +35,7 @@ open class PageData<T : Any> protected constructor(
      * @param <D>
      * @return
     </D> */
-    fun <D : Any> transform(map: (T) -> D): PageData<D> = create(pageSize, pageNum, totalCount, list.map(map))
+    fun <D> transform(map: (T) -> D): PageData<D> = create(pageSize, pageNum, totalCount, list.map(map))
 
 
     companion object {
@@ -47,7 +47,7 @@ open class PageData<T : Any> protected constructor(
          * @param <T>
          * @return
         </T> */
-        fun <T : Any> empty(pageSize: Int, clazz: Class<T>): PageData<T> =
+        fun <T> empty(pageSize: Int, clazz: Class<T>): PageData<T> =
             create(pageSize, 1, 0L, mutableListOf())
 
         /**
@@ -58,7 +58,7 @@ open class PageData<T : Any> protected constructor(
          * @param <T>
          * @return
         </T> */
-        fun <T : Any> create(pageParam: PageParam, totalCount: Long, list: List<T>): PageData<T> =
+        fun <T> create(pageParam: PageParam, totalCount: Long, list: List<T>): PageData<T> =
             PageData(pageParam.pageSize, pageParam.pageNum, totalCount, list)
 
         /**
@@ -70,7 +70,7 @@ open class PageData<T : Any> protected constructor(
          * @param <T>
          * @return
         </T> */
-        fun <T : Any> create(pageSize: Int, pageNum: Int, totalCount: Long, list: List<T>): PageData<T> =
+        fun <T> create(pageSize: Int, pageNum: Int, totalCount: Long, list: List<T>): PageData<T> =
             PageData(pageSize, pageNum, totalCount, list)
     }
 }

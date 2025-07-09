@@ -18,7 +18,7 @@ interface AggregateFactorySupervisor {
      * @param ENTITY 聚合实体类型
      * @param ENTITY_PAYLOAD 聚合载荷类型
      */
-    fun <ENTITY : Any, ENTITY_PAYLOAD : AggregatePayload<ENTITY>> create(entityPayload: ENTITY_PAYLOAD): ENTITY
+    fun <ENTITY, ENTITY_PAYLOAD : AggregatePayload<ENTITY>> create(entityPayload: ENTITY_PAYLOAD): ENTITY
 
     companion object {
         /**
@@ -61,14 +61,14 @@ open class DefaultAggregateFactorySupervisor(
         }
     }
 
-    override fun <ENTITY : Any, ENTITY_PAYLOAD : AggregatePayload<ENTITY>> create(entityPayload: ENTITY_PAYLOAD): ENTITY {
+    override fun <ENTITY, ENTITY_PAYLOAD : AggregatePayload<ENTITY>> create(entityPayload: ENTITY_PAYLOAD): ENTITY {
         val factory = factoryMap[entityPayload.javaClass] ?: throw IllegalArgumentException(
             "No factory found for entity payload: ${entityPayload.javaClass.name}"
         )
 
         @Suppress("UNCHECKED_CAST")
         val instance = (factory as AggregateFactory<ENTITY, ENTITY_PAYLOAD>).create(entityPayload)
-        unitOfWork.persist(instance)
+        unitOfWork.persist(instance!!)
         return instance
     }
 }
