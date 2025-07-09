@@ -22,7 +22,7 @@ interface SagaProcessSupervisor {
      * @param RESPONSE 响应类型，表示子环节执行的结果类型
      * @param REQUEST 请求类型，必须实现RequestParam接口
      */
-    fun <RESPONSE : Any, REQUEST : RequestParam<RESPONSE>> sendProcess(
+    fun <RESPONSE, REQUEST : RequestParam<RESPONSE>> sendProcess(
         processCode: String,
         request: REQUEST
     ): RESPONSE

@@ -13,7 +13,7 @@ import com.only4.cap4k.ddd.core.application.RequestParam
  * @param RESPONSE 响应类型，表示处理结果
  * @param REQUEST 请求类型，必须实现SagaParam接口
  */
-interface SagaHandler<RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> :
+interface SagaHandler<RESPONSE, REQUEST : SagaParam<RESPONSE>> :
     RequestHandler<RESPONSE, REQUEST> {
     /**
      * 执行流程子环节
@@ -26,7 +26,7 @@ interface SagaHandler<RESPONSE : Any, REQUEST : SagaParam<RESPONSE>> :
      * @param SUB_RESPONSE 子流程响应类型
      * @param SUB_REQUEST 子流程请求类型，必须实现RequestParam接口
      */
-    fun <SUB_RESPONSE : Any, SUB_REQUEST : RequestParam<SUB_RESPONSE>> execProcess(
+    fun <SUB_RESPONSE, SUB_REQUEST : RequestParam<SUB_RESPONSE>> execProcess(
         subCode: String,
         request: SUB_REQUEST
     ): SUB_RESPONSE = SagaProcessSupervisor.instance
