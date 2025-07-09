@@ -16,7 +16,7 @@ import com.only4.cap4k.ddd.core.share.PageParam
  * @property pageNum 页码，从1开始计数
  * @property pageSize 每页大小，表示每页包含的数据项数量
  */
-abstract class PageQueryParam<RESPONSE_ITEM : Any>(
+abstract class PageQueryParam<RESPONSE_ITEM>(
     pageNum: Int,
     pageSize: Int
 ) : PageParam(pageNum, pageSize),

@@ -19,7 +19,6 @@ import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
 import org.springframework.context.ApplicationContext
 import org.springframework.transaction.annotation.Propagation
-import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
 
@@ -453,13 +452,13 @@ class DefaultMediator : Mediator {
 
     override fun save(propagation: Propagation) = UnitOfWork.instance.save(propagation)
 
-    override fun <EVENT> attach(eventPayload: EVENT, schedule: LocalDateTime, delay: Duration) =
-        IntegrationEventSupervisor.instance.attach(eventPayload, schedule, delay)
+    override fun <EVENT> attach(eventPayload: EVENT, schedule: LocalDateTime) =
+        IntegrationEventSupervisor.instance.attach(eventPayload, schedule)
 
     override fun <EVENT> detach(eventPayload: EVENT) = IntegrationEventSupervisor.instance.detach(eventPayload)
 
-    override fun <EVENT> publish(eventPayload: EVENT, schedule: LocalDateTime, delay: Duration) =
-        IntegrationEventSupervisor.instance.publish(eventPayload, schedule, delay)
+    override fun <EVENT> publish(eventPayload: EVENT, schedule: LocalDateTime) =
+        IntegrationEventSupervisor.instance.publish(eventPayload, schedule)
 
     override fun <RESPONSE, REQUEST : RequestParam<RESPONSE>> send(request: REQUEST): RESPONSE =
         RequestSupervisor.instance.send(request)
