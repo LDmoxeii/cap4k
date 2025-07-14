@@ -12,7 +12,7 @@ import com.only4.cap4k.ddd.core.application.RequestParam
  * @author binking338
  * @date 2024/12/29
  */
-interface Command<RESULT, PARAM : RequestParam<RESULT>> : RequestHandler<RESULT, PARAM> {
+interface Command<PARAM : RequestParam<RESULT>, RESULT> : RequestHandler<RESULT, PARAM> {
     /**
      * 执行命令
      *

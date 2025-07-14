@@ -24,7 +24,7 @@ interface Aggregate<ENTITY> {
      */
     fun _wrap(root: ENTITY)
 
-    class Default<ENTITY>(payload: AggregatePayload<ENTITY>) : Aggregate<ENTITY> {
+    open class Default<ENTITY>(payload: AggregatePayload<ENTITY>) : Aggregate<ENTITY> {
         protected var root: ENTITY = TODO()
 
         init {

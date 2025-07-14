@@ -10,7 +10,7 @@ import com.only4.cap4k.ddd.core.application.RequestParam
  * @author binking338
  * @date 2024/12/29
  */
-abstract class NoneResultCommandParam<PARAM : RequestParam<Unit>> : Command<Unit, PARAM> {
+abstract class NoneResultCommandParam<PARAM : RequestParam<Unit>> : Command<PARAM, Unit> {
     /**
      * 执行无返回结果的命令
      *

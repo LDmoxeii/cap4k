@@ -6,7 +6,7 @@ package com.only4.cap4k.ddd.core.domain.aggregate
  * @author binking338
  * @date 2025/4/8
  */
-interface Id<AGGREGATE : Any, KEY : Any> {
+interface Id<AGGREGATE, KEY> {
     /**
      * 获取实体Key
      *
@@ -14,7 +14,7 @@ interface Id<AGGREGATE : Any, KEY : Any> {
      */
     val value: KEY
 
-    class Default<AGGREGATE : Any, KEY : Any>(protected val key: KEY) : Id<AGGREGATE, KEY> {
+    open class Default<AGGREGATE : Any, KEY : Any>(protected val key: KEY) : Id<AGGREGATE, KEY> {
 
         override fun toString(): String = key.toString()
 

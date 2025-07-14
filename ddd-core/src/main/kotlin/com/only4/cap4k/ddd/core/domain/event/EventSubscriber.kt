@@ -6,7 +6,7 @@ package com.only4.cap4k.ddd.core.domain.event
  * @author binking338
  * @date 2023/8/5
  */
-fun interface EventSubscriber<Event : Any> {
+fun interface EventSubscriber<Event> {
     /**
      * 领域事件消费逻辑
      *
@@ -22,7 +22,7 @@ fun interface EventSubscriber<Event : Any> {
  * @author binking338
  * @date 2023/8/13
  */
-abstract class AbstractEventSubscriber<Event : Any> : EventSubscriber<Event> {
+abstract class AbstractEventSubscriber<Event> : EventSubscriber<Event> {
     /**
      * 领域事件消费逻辑
      * 子类必须实现此方法以处理具体的领域事件

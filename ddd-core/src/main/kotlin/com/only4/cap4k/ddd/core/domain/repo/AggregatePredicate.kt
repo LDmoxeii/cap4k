@@ -9,5 +9,5 @@ import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
  * @author binking338
  * @date 2025/1/12
  */
-interface AggregatePredicate<ENTITY, AGGREGATE : Aggregate<ENTITY>> :
+interface AggregatePredicate<AGGREGATE : Aggregate<ENTITY>, ENTITY> :
     Predicate<ENTITY>

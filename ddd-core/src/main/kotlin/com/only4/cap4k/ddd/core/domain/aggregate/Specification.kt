@@ -6,7 +6,7 @@ package com.only4.cap4k.ddd.core.domain.aggregate
  * @author binking338
  * @date 2023/8/5
  */
-interface Specification<Entity : Any> {
+interface Specification<Entity> {
     /**
      * 是否强制在事务开启前执行规格校验
      *

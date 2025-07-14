@@ -6,7 +6,7 @@ package com.only4.cap4k.ddd.core.domain.aggregate
  * @author binking338
  * @date 2024/9/18
  */
-interface ValueObject<ID : Any> {
+interface ValueObject<ID> {
     /**
      * 值对象哈希码
      *
