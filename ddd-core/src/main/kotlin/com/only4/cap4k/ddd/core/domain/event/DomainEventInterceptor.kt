@@ -5,8 +5,8 @@ import java.time.LocalDateTime
 /**
  * 领域事件拦截器
  *
- * @author binking338
- * @date 2024/8/27
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface DomainEventInterceptor : EventInterceptor {
     /**

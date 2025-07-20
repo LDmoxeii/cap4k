@@ -5,8 +5,8 @@ import java.time.LocalDateTime
 /**
  * 事件发布接口
  *
- * @author binking338
- * @date 2023/8/5
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface EventPublisher {
     /**

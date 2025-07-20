@@ -7,8 +7,8 @@ import java.time.LocalDateTime
  * 负责管理和控制请求的执行、重试和归档
  * 提供请求生命周期管理功能
  *
- * @author binking338
- * @date 2025/5/17
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface RequestManager {
     /**

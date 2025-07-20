@@ -3,8 +3,8 @@ package com.only4.cap4k.ddd.core.domain.repo
 /**
  * 持久化监听管理器
  *
- * @author binking338
- * @date 2024/1/31
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface PersistListenerManager {
     fun <Entity> onChange(aggregate: Entity, type: PersistType)

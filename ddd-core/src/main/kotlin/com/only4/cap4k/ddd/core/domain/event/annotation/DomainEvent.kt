@@ -3,8 +3,8 @@ package com.only4.cap4k.ddd.core.domain.event.annotation
 /**
  * 领域事件
  *
- * @author binking338
- * @date
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)

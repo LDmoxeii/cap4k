@@ -6,8 +6,8 @@ import java.time.LocalDateTime
 /**
  * 事件记录仓储
  *
- * @author binking338
- * @date 2023/9/9
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface EventRecordRepository {
     fun create(): EventRecord

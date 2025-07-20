@@ -3,8 +3,8 @@ package com.only4.cap4k.ddd.core.domain.event
 /**
  * 事件消息拦截器管理器
  *
- * @author binking338
- * @date 2024/9/12
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface EventMessageInterceptorManager {
     /**

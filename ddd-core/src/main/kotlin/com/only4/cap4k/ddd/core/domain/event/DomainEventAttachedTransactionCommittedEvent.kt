@@ -5,14 +5,12 @@ import org.springframework.context.ApplicationEvent
 /**
  * 领域事件所在事务成功提交事件
  *
- * @author binking338
- * @date 2024/8/28
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 class DomainEventAttachedTransactionCommittedEvent(
     source: Any,
-    events: List<EventRecord>
+    val events: List<EventRecord>
 ) :
-    ApplicationEvent(source) {
-    val events: List<EventRecord> = events
-}
+    ApplicationEvent(source)
 

@@ -6,9 +6,10 @@ import kotlin.reflect.KClass
  * 自动触发请求注解
  * 用于将事件（领域事件或集成事件）自动转换为命令并执行
  *
- * @author binking338
- * @date 2024/9/1
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
+@Repeatable
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class AutoRequest(
@@ -30,8 +31,8 @@ annotation class AutoRequest(
  * 自动触发请求注解集合
  * 用于在同一个类上配置多个自动触发规则
  *
- * @author binking338
- * @date 2024/9/11
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)

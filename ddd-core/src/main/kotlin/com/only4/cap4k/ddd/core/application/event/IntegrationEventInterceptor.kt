@@ -7,8 +7,8 @@ import java.time.LocalDateTime
  * 集成事件拦截器接口
  * 用于在集成事件的生命周期中进行拦截和处理
  *
- * @author binking338
- * @date 2024/8/29
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface IntegrationEventInterceptor : EventInterceptor {
     /**

@@ -4,7 +4,12 @@ import org.springframework.messaging.Message
 import org.springframework.messaging.MessageHeaders
 import java.util.*
 
-
+/**
+ * 领域事件消息拦截器
+ *
+ * @author LD_moxeii
+ * @date 2025/07/20
+ */
 interface EventMessageInterceptor {
     /**
      * 提交发布

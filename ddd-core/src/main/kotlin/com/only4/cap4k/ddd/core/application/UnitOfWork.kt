@@ -7,8 +7,8 @@ import org.springframework.transaction.annotation.Propagation
  * 实现UnitOfWork模式，用于管理实体的持久化操作
  * 提供事务管理和实体状态追踪功能
  *
- * @author binking338
- * @date 2023/8/5
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface UnitOfWork {
     /**

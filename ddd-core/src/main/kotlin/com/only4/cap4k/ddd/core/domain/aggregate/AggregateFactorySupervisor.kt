@@ -3,8 +3,8 @@ package com.only4.cap4k.ddd.core.domain.aggregate
 /**
  * 聚合工厂管理器
  *
- * @author binking338
- * @date 2024/9/3
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface AggregateFactorySupervisor {
     /**
@@ -15,7 +15,7 @@ interface AggregateFactorySupervisor {
      * @param ENTITY 聚合实体类型
      * @param ENTITY_PAYLOAD 聚合载荷类型
      */
-    fun <ENTITY, ENTITY_PAYLOAD : AggregatePayload<ENTITY>> create(entityPayload: ENTITY_PAYLOAD): ENTITY
+    fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY> create(entityPayload: ENTITY_PAYLOAD): ENTITY
 
     companion object {
         /**

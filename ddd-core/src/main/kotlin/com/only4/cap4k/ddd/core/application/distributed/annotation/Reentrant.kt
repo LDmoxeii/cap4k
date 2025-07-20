@@ -4,13 +4,11 @@ package com.only4.cap4k.ddd.core.application.distributed.annotation
  * 可重入锁注解
  * 用于标记需要加锁的方法或属性，支持分布式锁和本地锁
  *
- * @author binking338
- * @date 2025/5/14
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 @Target(
     AnnotationTarget.FUNCTION,
-    AnnotationTarget.PROPERTY_GETTER,
-    AnnotationTarget.PROPERTY_SETTER
 )
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Reentrant(

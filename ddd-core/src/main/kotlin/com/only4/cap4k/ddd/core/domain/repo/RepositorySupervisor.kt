@@ -6,10 +6,10 @@ import com.only4.cap4k.ddd.core.share.PageParam
 import java.util.*
 
 /**
- * 仓储管理器
+ * 仓储管理器 TODO: 待检查
  *
- * @author binking338
- * @date 2024/8/25
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface RepositorySupervisor {
 

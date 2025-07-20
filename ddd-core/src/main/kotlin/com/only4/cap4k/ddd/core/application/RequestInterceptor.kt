@@ -7,10 +7,10 @@ package com.only4.cap4k.ddd.core.application
  *
  * @param RESPONSE 响应结果类型，必须是具体类型
  * @param REQUEST 请求参数类型，必须继承自RequestParam
- * @author binking338
- * @date 2024/9/1
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
-interface RequestInterceptor<RESPONSE, REQUEST : RequestParam<RESPONSE>> {
+interface RequestInterceptor<REQUEST, RESPONSE> {
     /**
      * 请求处理前的拦截方法
      * 在请求执行前调用，可用于参数验证、权限检查等

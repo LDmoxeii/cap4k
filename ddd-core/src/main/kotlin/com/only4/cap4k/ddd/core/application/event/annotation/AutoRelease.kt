@@ -6,9 +6,10 @@ import kotlin.reflect.KClass
  * 自动发布注解
  * 用于将领域事件自动转换为集成事件并发布
  *
- * @author binking338
- * @date 2024/8/29
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
+@Repeatable
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class AutoRelease(
@@ -36,8 +37,8 @@ annotation class AutoRelease(
  * 自动发布注解集合
  * 用于在同一个类上配置多个自动发布规则
  *
- * @author binking338
- * @date 2024/9/11
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)

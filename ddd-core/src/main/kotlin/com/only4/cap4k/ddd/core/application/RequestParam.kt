@@ -6,7 +6,7 @@ package com.only4.cap4k.ddd.core.application
  * 用于定义请求参数的基本结构和约束
  *
  * @param RESULT 请求处理结果的类型，必须是具体类型
- * @author binking338
- * @date 2024/9/6
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface RequestParam<RESULT>

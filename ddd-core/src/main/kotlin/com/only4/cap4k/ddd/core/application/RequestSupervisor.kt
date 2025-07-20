@@ -9,8 +9,8 @@ import java.time.LocalDateTime
  * 负责管理和执行请求，支持同步、异步和延迟执行
  * 提供请求结果查询和状态管理功能
  *
- * @author binking338
- * @date 2024/8/24
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface RequestSupervisor {
     /**

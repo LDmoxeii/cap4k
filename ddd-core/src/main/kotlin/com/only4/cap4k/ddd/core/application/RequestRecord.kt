@@ -8,8 +8,8 @@ import java.time.LocalDateTime
  * 用于记录和管理请求的完整生命周期
  * 包括初始化、执行、完成和异常处理等状态
  *
- * @author binking338
- * @date 2025/5/15
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface RequestRecord {
     /**

@@ -7,8 +7,8 @@ import java.time.LocalDateTime
  * 集成事件监督者接口
  * 负责管理和控制集成事件的生命周期，包括事件的附加、解除附加和发布
  *
- * @author binking338
- * @date 2024/8/25
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface IntegrationEventSupervisor {
     /**
@@ -43,7 +43,6 @@ interface IntegrationEventSupervisor {
      *
      * @param eventPayload 集成事件负载
      * @param schedule 指定时间发送
-     * @param delay 延迟时间
      */
     fun <EVENT> publish(
         eventPayload: EVENT,

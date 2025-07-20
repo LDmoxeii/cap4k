@@ -11,8 +11,8 @@ import java.util.*
 /**
  * 聚合管理器
  *
- * @author binking338
- * @date 2025/1/12
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface AggregateSupervisor {
 
@@ -33,11 +33,7 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getById(
         id: Id<AGGREGATE, *>,
         persist: Boolean = true
-    ): Optional<AGGREGATE> {
-        return Optional.ofNullable(
-            getByIds(listOf(id), persist).firstOrNull()
-        )
-    }
+    ): AGGREGATE? = getByIds(listOf(id), persist).firstOrNull()
 
     /**
      * 根据id获取聚合
@@ -47,9 +43,10 @@ interface AggregateSupervisor {
      * @param <ENTITY>
      * @return
     </ENTITY></AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> {
-        return getByIds(listOf(*ids))
-    }
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getByIds(
+        vararg ids: Id<AGGREGATE, *>
+    ): List<AGGREGATE> = getByIds(listOf(*ids), true)
+
 
     /**
      * 根据id获取聚合
@@ -211,8 +208,20 @@ interface AggregateSupervisor {
      * @return
     </AGGREGATE> */
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> remove(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>
+    ): List<AGGREGATE>
+
+    /**
+     * 根据条件删除实体
+     *
+     * @param predicate
+     * @param limit
+     * @param <AGGREGATE>
+     * @return
+    </AGGREGATE> */
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> remove(
         predicate: AggregatePredicate<AGGREGATE, ENTITY>,
-        limit: Int = 1
+        limit: Int
     ): List<AGGREGATE>
 
     /**

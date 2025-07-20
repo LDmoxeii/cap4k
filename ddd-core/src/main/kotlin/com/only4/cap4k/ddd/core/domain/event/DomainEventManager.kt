@@ -3,8 +3,8 @@ package com.only4.cap4k.ddd.core.domain.event
 /**
  * 领域事件发布管理器
  *
- * @author binking338
- * @date 2024/9/11
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface DomainEventManager {
     /**

@@ -2,12 +2,13 @@ package com.only4.cap4k.ddd.core.application.distributed
 
 import java.time.Duration
 
+
 /**
  * 分布式锁接口
  * 用于实现分布式环境下的锁机制，支持锁的获取和释放操作
  *
- * @author binking338
- * @date 2023/8/17
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface Locker {
     /**

@@ -14,7 +14,7 @@ interface Id<AGGREGATE, KEY> {
      */
     val value: KEY
 
-    open class Default<AGGREGATE : Any, KEY : Any>(protected val key: KEY) : Id<AGGREGATE, KEY> {
+    open class Default<AGGREGATE, KEY>(protected val key: KEY) : Id<AGGREGATE, KEY> {
 
         override fun toString(): String = key.toString()
 

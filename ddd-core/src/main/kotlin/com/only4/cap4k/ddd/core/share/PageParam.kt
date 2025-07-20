@@ -6,22 +6,22 @@ package com.only4.cap4k.ddd.core.share
  * @author binking338
  * @date
  */
-open class PageParam(
+open class PageParam{
+
     /**
      * 页码
      */
-    var pageNum: Int,
+    var pageNum: Int
 
     /**
      * 页大小
      */
-    var pageSize: Int,
+    var pageSize: Int
 
     /**
      * 排序
      */
     private var sort: MutableCollection<OrderInfo> = mutableListOf()
-) {
 
     /**
      * 添加排序字段

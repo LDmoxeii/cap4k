@@ -6,8 +6,8 @@ import com.only4.cap4k.ddd.core.domain.event.EventRecord
  * 集成事件发布器接口
  * 负责将集成事件发布到消息系统
  *
- * @author binking338
- * @date 2024/8/29
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface IntegrationEventPublisher {
     /**

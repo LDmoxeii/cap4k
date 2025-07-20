@@ -4,8 +4,8 @@ package com.only4.cap4k.ddd.core.application.event
  * 集成事件管理器接口
  * 负责管理集成事件的发布和生命周期
  *
- * @author binking338
- * @date 2024/9/11
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface IntegrationEventManager {
     /**

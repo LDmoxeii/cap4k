@@ -5,8 +5,8 @@ package com.only4.cap4k.ddd.core.application
  * 用于配置和管理工作单元实例
  * 提供全局访问点，支持在应用启动时进行配置
  *
- * @author binking338
- * @date 2024/8/25
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 object UnitOfWorkSupport {
     /**

@@ -7,10 +7,10 @@ import java.util.*
 
 
 /**
- * 聚合仓储
+ * 聚合仓储 TODO: 待检查
  *
- * @author binking338
- * @date 2023/8/12
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface Repository<ENTITY> {
     /**

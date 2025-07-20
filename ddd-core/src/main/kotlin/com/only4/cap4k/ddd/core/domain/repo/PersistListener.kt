@@ -3,10 +3,10 @@ package com.only4.cap4k.ddd.core.domain.repo
 /**
  * 实体持久化监听接口
  *
- * @author binking338
- * @date 2024/1/31
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
-interface PersistListener<Entity : Any> {
+interface PersistListener<Entity> {
     /**
      * 持久化变更
      * @param aggregate

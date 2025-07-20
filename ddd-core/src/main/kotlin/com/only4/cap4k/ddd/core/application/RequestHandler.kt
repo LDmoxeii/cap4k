@@ -7,8 +7,8 @@ package com.only4.cap4k.ddd.core.application
  *
  * @param RESPONSE 响应结果类型，必须是具体类型
  * @param REQUEST 请求参数类型，必须继承自RequestParam
- * @author binking338
- * @date 2024/8/24
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface RequestHandler<REQUEST : RequestParam<RESPONSE>, RESPONSE> {
     /**

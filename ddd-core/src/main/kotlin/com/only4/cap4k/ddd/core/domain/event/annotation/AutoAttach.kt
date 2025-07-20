@@ -8,8 +8,8 @@ import kotlin.reflect.KClass
  * 自动附加领域事件
  * 聚合根持久化变更 -> 领域事件
  *
- * @author binking338
- * @date 2024/8/29
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)

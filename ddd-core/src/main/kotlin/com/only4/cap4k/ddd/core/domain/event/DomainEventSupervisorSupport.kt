@@ -3,8 +3,8 @@ package com.only4.cap4k.ddd.core.domain.event
 /**
  * 领域事件管理器配置
  *
- * @author binking338
- * @date 2024/8/24
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 object DomainEventSupervisorSupport {
     lateinit var instance: DomainEventSupervisor
@@ -31,7 +31,6 @@ object DomainEventSupervisorSupport {
      *
      * @return
      */
-    fun events(): DomainEventSupervisor {
-        return instance
-    }
+    fun events(): DomainEventSupervisor = instance
+
 }

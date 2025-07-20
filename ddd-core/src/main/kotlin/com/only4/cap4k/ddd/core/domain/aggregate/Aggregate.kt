@@ -6,8 +6,8 @@ import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisorSupport.events
 /**
  * 聚合封装
  *
- * @author binking338
- * @date 2025/1/9
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface Aggregate<ENTITY> {
     /**
@@ -24,11 +24,12 @@ interface Aggregate<ENTITY> {
      */
     fun _wrap(root: ENTITY)
 
-    open class Default<ENTITY>(payload: AggregatePayload<ENTITY>) : Aggregate<ENTITY> {
-        protected var root: ENTITY = TODO()
+    open class Default<ENTITY : Any>(payload: Any) : Aggregate<ENTITY> {
+        protected lateinit var root: ENTITY
 
         init {
-            val root = Mediator.factories().create(payload)
+            require(payload is AggregatePayload<*>) { "payload must be AggregatePayload" }
+            val root = Mediator.factories().create(payload as AggregatePayload<ENTITY>)
             _wrap(root)
         }
 

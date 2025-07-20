@@ -7,8 +7,8 @@ import java.time.LocalDateTime
  * 负责请求记录的持久化存储和检索
  * 提供请求记录的基本CRUD操作和归档功能
  *
- * @author binking338
- * @date 2025/5/15
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface RequestRecordRepository {
     /**
@@ -16,7 +16,6 @@ interface RequestRecordRepository {
      * 返回一个未初始化的请求记录对象
      *
      * @return 新的请求记录实例
-     * @throws IllegalStateException 当创建失败时
      */
     fun create(): RequestRecord
 
@@ -25,7 +24,6 @@ interface RequestRecordRepository {
      * 将请求记录持久化到存储中
      *
      * @param requestRecord 要保存的请求记录
-     * @throws IllegalArgumentException 当请求记录无效时
      */
     fun save(requestRecord: RequestRecord)
 

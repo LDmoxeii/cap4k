@@ -6,8 +6,8 @@ import com.only4.cap4k.ddd.core.domain.event.EventInterceptor
  * 集成事件拦截器管理器接口
  * 负责管理和提供集成事件相关的拦截器，支持拦截器的有序获取
  *
- * @author binking338
- * @date 2024/9/12
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface IntegrationEventInterceptorManager {
     /**

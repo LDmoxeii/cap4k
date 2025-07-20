@@ -6,8 +6,8 @@ import java.time.LocalDateTime
 /**
  * 领域事件管理器
  *
- * @author binking338
- * @date 2023/8/12
+ * @author LD_moxeii
+ * @date 2025/07/20
  */
 interface DomainEventSupervisor {
 
@@ -26,10 +26,9 @@ interface DomainEventSupervisor {
     fun <DOMAIN_EVENT, ENTITY> attach(
         domainEventPayload: DOMAIN_EVENT,
         entity: ENTITY,
-        schedule: LocalDateTime = LocalDateTime.now(),
         delay: Duration = Duration.ZERO,
     ) {
-        attach(domainEventPayload, entity, schedule.plus(delay))
+        attach(domainEventPayload, entity, LocalDateTime.now().plus(delay))
     }
 
     /**
