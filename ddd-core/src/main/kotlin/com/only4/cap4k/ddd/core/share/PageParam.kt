@@ -1,22 +1,24 @@
 package com.only4.cap4k.ddd.core.share
 
+import kotlin.properties.Delegates
+
 /**
  * 分页参数
  *
  * @author binking338
  * @date
  */
-open class PageParam{
+open class PageParam {
 
     /**
      * 页码
      */
-    var pageNum: Int
+    var pageNum by Delegates.notNull<Int>()
 
     /**
      * 页大小
      */
-    var pageSize: Int
+    var pageSize by Delegates.notNull<Int>()
 
     /**
      * 排序
@@ -107,7 +109,12 @@ open class PageParam{
          * @return
          */
         fun of(pageNum: Int, pageSize: Int, sort: MutableList<OrderInfo> = mutableListOf()): PageParam =
-            PageParam(pageNum, pageSize, sort)
+            PageParam().apply {
+                this.pageNum = pageNum
+                this.pageSize = pageSize
+                this.sort = sort
+            }
+
 
         /**
          * 创建分页参数，pageNum=1
