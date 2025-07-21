@@ -20,9 +20,9 @@ plugins {
 // If there are changes in only one of the projects, Gradle will rebuild only the one that has changed.
 // Learn more about structuring projects with Gradle - https://docs.gradle.org/8.7/userguide/multi_project_builds.html
 include("ddd-core")
-include("ddd-distributed-locker-jdbc")
-include("ddd-distributed-snowflake")
-include("ddd-domain-event-jpa")
-include("ddd-domain-repo-jpa")
+//include("ddd-distributed-locker-jdbc")
+//include("ddd-distributed-snowflake")
+//include("ddd-domain-event-jpa")
+//include("ddd-domain-repo-jpa")
 
 rootProject.name = "cap4k"

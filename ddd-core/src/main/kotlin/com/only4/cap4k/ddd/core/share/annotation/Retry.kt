@@ -3,8 +3,8 @@ package com.only4.cap4k.ddd.core.share.annotation
 /**
  * 重试注解
  *
- * @author binking338
- * @date 2023/8/28
+ * @author LD_moxeii
+ * @date 2025/07/21
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
@@ -20,7 +20,7 @@ annotation class Retry(
      * 重试时间间隔，单位分钟
      * @return
      */
-    val retryIntervals: IntArray = [],
+    vararg val retryIntervals: Int = [],
     /**
      * 过期时长，单位分钟，默认一天
      * @return

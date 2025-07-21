@@ -1,15 +1,4 @@
-@file:JvmName("Aggregate")
-
 package com.only4.cap4k.ddd.core.domain.aggregate.annotation
-
-const val TYPE_ENTITY: String = "entity"
-const val TYPE_VALUE_OBJECT: String = "value-object"
-const val TYPE_ENUM: String = "enum"
-const val TYPE_REPOSITORY: String = "repository"
-const val TYPE_DOMAIN_EVENT: String = "domain-event"
-const val TYPE_FACTORY: String = "factory"
-const val TYPE_FACTORY_PAYLOAD: String = "factory-payload"
-const val TYPE_SPECIFICATION: String = "specification"
 
 /**
  * 聚合信息
@@ -56,4 +45,15 @@ annotation class Aggregate(
      * @return
      */
     vararg val relevant: String = []
-)
+) {
+    companion object {
+        const val TYPE_ENTITY: String = "entity"
+        const val TYPE_VALUE_OBJECT: String = "value-object"
+        const val TYPE_ENUM: String = "enum"
+        const val TYPE_REPOSITORY: String = "repository"
+        const val TYPE_DOMAIN_EVENT: String = "domain-event"
+        const val TYPE_FACTORY: String = "factory"
+        const val TYPE_FACTORY_PAYLOAD: String = "factory-payload"
+        const val TYPE_SPECIFICATION: String = "specification"
+    }
+}

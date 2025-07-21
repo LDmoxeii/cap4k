@@ -1,22 +1,24 @@
 package com.only4.cap4k.ddd.core.share
 
+import kotlin.properties.Delegates
+
 /**
  * 排序定义
  *
- * @author binking338
- * @date 2023/8/13
+ * @author LD_moxeii
+ * @date 2025/07/21
  */
-class OrderInfo(
+class OrderInfo {
+
     /**
      * 排序字段
      */
-    var field: String,
+    lateinit var field: String
 
     /**
      * 是否降序
      */
-    var desc: Boolean,
-) {
+    var desc by Delegates.notNull<Boolean>()
 
     class OrderInfosBuilder {
         private val orderInfos: MutableList<OrderInfo> = ArrayList()
@@ -63,7 +65,12 @@ class OrderInfo(
          * @param field
          * @return
          */
-        fun desc(field: String): OrderInfo = OrderInfo(field, true)
+        fun desc(field: String): OrderInfo {
+            val orderInfo = OrderInfo()
+            orderInfo.field = field
+            orderInfo.desc = true
+            return orderInfo
+        }
 
 
         /**
@@ -82,10 +89,15 @@ class OrderInfo(
          * @param field
          * @return
          */
-        fun asc(field: String): OrderInfo = OrderInfo(field, false)
-
-        fun sortBuilder(): OrderInfosBuilder {
-            return OrderInfosBuilder()
+        fun asc(field: String): OrderInfo {
+            val orderInfo = OrderInfo()
+            orderInfo.field = field
+            orderInfo.desc = false
+            return orderInfo
         }
+    }
+
+    fun sortBuilder(): OrderInfosBuilder {
+        return OrderInfosBuilder()
     }
 }

@@ -6,7 +6,7 @@ import com.only4.cap4k.ddd.core.share.PageParam
 import java.util.*
 
 /**
- * 仓储管理器 TODO: 待检查
+ * 仓储管理器
  *
  * @author LD_moxeii
  * @date 2025/07/20
@@ -118,6 +118,8 @@ interface RepositorySupervisor {
         pageParam: PageParam,
         persist: Boolean = true
     ): PageData<ENTITY>
+
+    fun <ENTITY> remove(predicate: Predicate<ENTITY>): List<ENTITY>
 
     /**
      * 根据条件删除实体

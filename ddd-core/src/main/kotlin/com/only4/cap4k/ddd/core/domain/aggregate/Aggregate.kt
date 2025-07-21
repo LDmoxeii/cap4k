@@ -58,7 +58,8 @@ interface Aggregate<ENTITY> {
          * @param event
          */
         protected fun registerDomainEvent(event: Any) {
-            events().attach(event, this)
+            events().attach(domainEventPayload = event, entity = this)
+
         }
 
         /**

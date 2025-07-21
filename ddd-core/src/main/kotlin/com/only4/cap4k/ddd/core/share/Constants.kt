@@ -4,8 +4,8 @@ package com.only4.cap4k.ddd.core.share
  * 常量定义
  * 包含系统配置和消息头相关的常量
  *
- * @author binking338
- * @date 2023/11/2
+ * @author LD_moxeii
+ * @date 2025/07/21
  */
 object Constants {
     /**

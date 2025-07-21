@@ -26,7 +26,7 @@ interface DomainEventSupervisor {
     fun <DOMAIN_EVENT, ENTITY> attach(
         domainEventPayload: DOMAIN_EVENT,
         entity: ENTITY,
-        delay: Duration = Duration.ZERO,
+        delay: Duration,
     ) {
         attach(domainEventPayload, entity, LocalDateTime.now().plus(delay))
     }

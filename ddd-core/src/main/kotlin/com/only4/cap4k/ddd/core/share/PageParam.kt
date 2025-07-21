@@ -5,8 +5,8 @@ import kotlin.properties.Delegates
 /**
  * 分页参数
  *
- * @author binking338
- * @date
+ * @author LD_moxeii
+ * @date 2025/07/21
  */
 open class PageParam {
 
