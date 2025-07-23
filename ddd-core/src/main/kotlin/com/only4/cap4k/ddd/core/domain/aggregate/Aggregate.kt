@@ -30,6 +30,7 @@ interface Aggregate<ENTITY> {
         init {
             require(payload is AggregatePayload<*>) { "payload must be AggregatePayload" }
             val root = Mediator.factories().create(payload as AggregatePayload<ENTITY>)
+                ?: throw IllegalStateException("No factory found for payload: ${payload::class.java}")
             _wrap(root)
         }
 

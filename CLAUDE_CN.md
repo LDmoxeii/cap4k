@@ -16,41 +16,40 @@
 
 Cap4k 是一个面向 Kotlin/JVM 应用程序的领域驱动设计（DDD）框架，集成了 Spring Boot。项目遵循多模块结构和 DDD 架构模式。
 
-### 核心组件
-
-框架围绕中心的 **中介者（Mediator）** 模式构建，通过统一接口提供对所有 DDD 组件的访问。主要架构组件包括：
-
-- **Mediator/X**：所有框架组件的中央访问点（Mediator.kt:18，X 接口在第 182 行提供快捷方法）
-- **聚合（Aggregates）**：支持工厂模式的领域聚合
-- **仓储（Repositories）**：数据持久化抽象层
-- **领域服务（Domain Services）**：核心业务逻辑服务
-- **工作单元（Unit of Work）**：事务管理模式
-- **请求/命令/查询处理器**：CQRS 模式实现
-- **领域事件（Domain Events）**：面向领域关注点的事件驱动架构
-- **集成事件（Integration Events）**：跨界限上下文事件通信
-
 ### 模块结构
 
-- `ddd-core/` - 核心 DDD 框架接口和实现
-- `ddd-distributed-*` - 分布式系统组件（目前被注释掉）
-- `ddd-domain-*` - 领域特定实现（目前被注释掉）
+#### 激活的模块
 
-### 包组织结构
+- **ddd-core** - 核心 DDD 框架接口和实现（纯接口，无依赖）
 
-核心包遵循 DDD 分层结构在 `com.only4.cap4k.ddd.core`：
+#### 可用但未激活的模块（在设置中被注释）
 
+- **ddd-distributed-locker-jdbc** - 基于 JDBC 的分布式锁
+- **ddd-distributed-snowflake** - Snowflake 算法的分布式 ID 生成
+- **ddd-domain-event-jpa** - 基于 JPA 的事件溯源和事件存储
+- **ddd-domain-repo-jpa** - 基于 JPA 的仓储实现和工作单元
+
+### 核心架构
+
+框架围绕中心的 **中介者（Mediator）** 模式构建，通过统一接口提供对所有 DDD 组件的访问。
+
+#### 核心组件
+
+- **Mediator/X** - 中央访问点，提供两种接口：
+    - 详细接口：`Mediator.repositories()`、`Mediator.commands()`
+    - 简洁接口：`X.repo()`、`X.cmd()`、`X.qry()`
+- **聚合（Aggregates）** - 支持工厂模式的领域聚合
+- **仓储（Repositories）** - 数据持久化抽象层
+- **工作单元（Unit of Work）** - 事务管理模式
+- **CQRS** - 请求/命令/查询处理
+- **事件（Events）** - 领域事件和集成事件系统
+
+#### 包组织结构
+
+`com.only4.cap4k.ddd.core` 包含：
 - `application/` - 应用服务层（命令、查询、事件、工作单元）
 - `domain/` - 领域层（聚合、仓储、领域服务、事件）
 - `share/` - 共享工具和常量
-
-### 框架使用模式
-
-框架提供两种主要的访问模式：
-
-1. **Mediator 接口**：完整的描述性方法名（`Mediator.repositories()`、`Mediator.commands()`）
-2. **X 接口**：简洁代码的短别名（`X.repo()`、`X.cmd()`、`X.qry()`）
-
-两个接口都提供对相同底层监督者和管理组件的访问。
 
 ## 开发说明
 

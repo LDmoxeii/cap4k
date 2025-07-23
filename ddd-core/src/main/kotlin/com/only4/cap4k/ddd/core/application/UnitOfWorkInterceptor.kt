@@ -13,7 +13,7 @@ interface UnitOfWorkInterceptor {
      * @param persistAggregates 待持久化聚合根（新建、更新）
      * @param removeAggregates  待删除聚合根
      */
-    fun beforeTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) = Unit
+    fun beforeTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>)
 
     /**
      * 事务执行最初
@@ -21,7 +21,7 @@ interface UnitOfWorkInterceptor {
      * @param persistAggregates 待持久化聚合根（新建、更新）
      * @param removeAggregates  待删除聚合根
      */
-    fun preInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) = Unit
+    fun preInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>)
 
     /**
      * 事务执行之后
