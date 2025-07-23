@@ -12,8 +12,8 @@ import org.springframework.context.ApplicationContext
 /**
  * 中介者
  *
- * @author binking338
- * @date 2024/8/24
+ * @author LD_moxeii
+ * @date 2025/07/22
  */
 interface Mediator : AggregateFactorySupervisor,
     RepositorySupervisor,
@@ -49,127 +49,25 @@ interface Mediator : AggregateFactorySupervisor,
         val instance: Mediator
             get() = MediatorSupport.instance
 
-        /**
-         * 获取IOC容器
-         *
-         * @return
-         */
         fun ioc(): ApplicationContext = MediatorSupport.ioc
-
-        /**
-         * 获取聚合工厂管理器
-         *
-         * @return
-         */
         fun factories(): AggregateFactorySupervisor = AggregateFactorySupervisor.instance
-
-        /**
-         * 获取聚合仓储管理器
-         *
-         * @return
-         */
         fun repositories(): RepositorySupervisor = RepositorySupervisor.instance
-
-        /**
-         * 获取聚合管理器
-         *
-         * @return
-         */
         fun aggregates(): AggregateSupervisor = AggregateSupervisor.instance
-
-        /**
-         * 获取领域服务管理器
-         *
-         * @return
-         */
         fun services(): DomainServiceSupervisor = DomainServiceSupervisor.instance
-
-        /**
-         * 获取集成事件管理器
-         *
-         * @return
-         */
         fun events(): IntegrationEventSupervisor = IntegrationEventSupervisor.instance
-
-
-        /**
-         * 获取请求管理器
-         * 兼容 cmd() qry()，当前三者实现一致。
-         *
-         * @return
-         */
         fun requests(): RequestSupervisor = RequestSupervisor.instance
+        fun commands(): RequestSupervisor = requests()
+        fun queries(): RequestSupervisor = requests()
 
-        /**
-         * 获取命令管理器
-         *
-         * @return
-         */
-        fun commands(): RequestSupervisor = RequestSupervisor.instance
-
-        /**
-         * 获取查询管理器
-         *
-         * @return
-         */
-        fun queries(): RequestSupervisor = RequestSupervisor.instance
-
-
-        /**
-         * 获取聚合工厂管理器(shortcut for factories)
-         *
-         * @return
-         */
-        fun fac(): AggregateFactorySupervisor = AggregateFactorySupervisor.instance
-
-        /**
-         * 获取聚合仓储管理器(shortcut for repositories)
-         *
-         * @return
-         */
-        fun repo(): RepositorySupervisor = RepositorySupervisor.instance
-
-        /**
-         * 获取聚合管理器(shortcut for aggregates)
-         *
-         * @return
-         */
-        fun agg(): AggregateSupervisor = AggregateSupervisor.instance
-
-        /**
-         * 获取领域服务管理器(shortcut for services)
-         *
-         * @return
-         */
-        fun svc(): DomainServiceSupervisor = DomainServiceSupervisor.instance
-
-        /**
-         * 获取单元工作单元
-         *
-         * @return
-         */
+        // Shortcuts
+        fun fac(): AggregateFactorySupervisor = factories()
+        fun repo(): RepositorySupervisor = repositories()
+        fun agg(): AggregateSupervisor = aggregates()
+        fun svc(): DomainServiceSupervisor = services()
         fun uow(): UnitOfWork = UnitOfWork.instance
-
-        /**
-         * 获取请求管理器(shortcut for requests)
-         *
-         * @return
-         */
-        fun req(): RequestSupervisor = RequestSupervisor.instance
-
-        /**
-         * 获取命令管理器(shortcut for commands)
-         *
-         * @return
-         */
-        fun cmd(): RequestSupervisor = RequestSupervisor.instance
-
-        /**
-         * 获取查询管理器(shortcut for queries)
-         *
-         * @return
-         */
-        fun qry(): RequestSupervisor = RequestSupervisor.instance
+        fun req(): RequestSupervisor = requests()
+        fun cmd(): RequestSupervisor = requests()
+        fun qry(): RequestSupervisor = requests()
     }
 }
 
@@ -181,132 +79,23 @@ interface Mediator : AggregateFactorySupervisor,
  */
 interface X {
     companion object {
-        /**
-         * 获取IOC容器
-         *
-         * @return
-         */
-        fun ioc(): ApplicationContext = MediatorSupport.ioc
-
-        /**
-         * 获取聚合工厂管理器
-         *
-         * @return
-         */
-        fun factories(): AggregateFactorySupervisor = AggregateFactorySupervisor.instance
-
-        /**
-         * 获取聚合仓储管理器
-         *
-         * @return
-         */
-        fun repositories(): RepositorySupervisor = RepositorySupervisor.instance
-
-        /**
-         * 获取聚合管理器
-         *
-         * @return
-         */
-        fun aggregates(): AggregateSupervisor = AggregateSupervisor.instance
-
-        /**
-         * 获取领域服务管理器
-         *
-         * @return
-         */
-        fun services(): DomainServiceSupervisor = DomainServiceSupervisor.instance
-
-        /**
-         * 获取单元工作单元
-         *
-         * @return
-         */
-        fun unitOfWork(): UnitOfWork = UnitOfWork.instance
-
-        /**
-         * 获取集成事件管理器
-         *
-         * @return
-         */
-        fun events(): IntegrationEventSupervisor = IntegrationEventSupervisor.instance
-
-
-        /**
-         * 获取请求管理器
-         * 兼容 cmd() qry()，当前三者实现一致。
-         *
-         * @return
-         */
-        fun requests(): RequestSupervisor = RequestSupervisor.instance
-
-        /**
-         * 获取命令管理器
-         *
-         * @return
-         */
-        fun commands(): RequestSupervisor = RequestSupervisor.instance
-
-        /**
-         * 获取查询管理器
-         *
-         * @return
-         */
-        fun queries(): RequestSupervisor = RequestSupervisor.instance
-
-        /**
-         * 获取聚合工厂管理器(shortcut for factories)
-         *
-         * @return
-         */
-        fun fac(): AggregateFactorySupervisor = AggregateFactorySupervisor.instance
-
-        /**
-         * 获取聚合仓储管理器(shortcut for repositories)
-         *
-         * @return
-         */
-        fun repo(): RepositorySupervisor = RepositorySupervisor.instance
-
-        /**
-         * 获取聚合管理器(shortcut for aggregates)
-         *
-         * @return
-         */
-        fun agg(): AggregateSupervisor = AggregateSupervisor.instance
-
-        /**
-         * 获取领域服务管理器(shortcut for services)
-         *
-         * @return
-         */
-        fun svc(): DomainServiceSupervisor = DomainServiceSupervisor.instance
-
-        /**
-         * 获取单元工作单元
-         *
-         * @return
-         */
-        fun uow(): UnitOfWork = UnitOfWork.instance
-
-        /**
-         * 获取请求管理器(shortcut for requests)
-         *
-         * @return
-         */
-        fun req(): RequestSupervisor = RequestSupervisor.instance
-
-        /**
-         * 获取命令管理器(shortcut for commands)
-         *
-         * @return
-         */
-        fun cmd(): RequestSupervisor = RequestSupervisor.instance
-
-        /**
-         * 获取查询管理器(shortcut for queries)
-         *
-         * @return
-         */
-        fun qry(): RequestSupervisor = RequestSupervisor.instance
+        fun ioc(): ApplicationContext = Mediator.ioc()
+        fun factories(): AggregateFactorySupervisor = Mediator.factories()
+        fun repositories(): RepositorySupervisor = Mediator.repositories()
+        fun aggregates(): AggregateSupervisor = Mediator.aggregates()
+        fun services(): DomainServiceSupervisor = Mediator.services()
+        fun unitOfWork(): UnitOfWork = Mediator.uow()
+        fun events(): IntegrationEventSupervisor = Mediator.events()
+        fun requests(): RequestSupervisor = Mediator.requests()
+        fun commands(): RequestSupervisor = Mediator.commands()
+        fun queries(): RequestSupervisor = Mediator.queries()
+        fun fac(): AggregateFactorySupervisor = Mediator.fac()
+        fun repo(): RepositorySupervisor = Mediator.repo()
+        fun agg(): AggregateSupervisor = Mediator.agg()
+        fun svc(): DomainServiceSupervisor = Mediator.svc()
+        fun uow(): UnitOfWork = Mediator.uow()
+        fun req(): RequestSupervisor = Mediator.req()
+        fun cmd(): RequestSupervisor = Mediator.cmd()
+        fun qry(): RequestSupervisor = Mediator.qry()
     }
 }

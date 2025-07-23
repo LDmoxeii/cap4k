@@ -64,12 +64,12 @@ interface RequestSupervisor {
     ): String = schedule(request, LocalDateTime.now().plus(delay))
 
     /**
-     * 获取请求执行结果
+     * 获取请求结果
      *
      * @param requestId 请求ID
-     * @return 请求执行结果，如果请求未完成则返回空
-     */
-    fun <REQUEST : RequestParam<RESPONSE>, RESPONSE> result(requestId: String): RESPONSE
+     * @return 请求结果
+    </R> */
+    fun <R> result(requestId: String): R
 
     companion object {
         /**

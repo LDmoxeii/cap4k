@@ -8,149 +8,143 @@ import java.util.*
 /**
  * 仓储管理器
  *
- * @author LD_moxeii
- * @date 2025/07/20
+ * @author binking338
+ * @date 2024/8/25
  */
 interface RepositorySupervisor {
 
-    /**
-     * 根据条件获取实体列表
-     *
-     * @param predicate
-     * @param orders
-     * @param <ENTITY>
-     * @return
-    </ENTITY> */
-    fun <ENTITY> find(
-        predicate: Predicate<ENTITY>,
-        vararg orders: OrderInfo,
-        persist: Boolean = true,
-    ): List<ENTITY> {
-        return find(predicate, listOf(*orders), persist)
+    companion object {
+        val instance: RepositorySupervisor = RepositorySupervisorSupport.instance
     }
 
     /**
      * 根据条件获取实体列表
-     *
-     * @param predicate
-     * @param orders
-     * @param <ENTITY>
-     * @return
-    </ENTITY> */
-    fun <ENTITY> find(
-        predicate: Predicate<ENTITY>,
-        orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true,
-    ): List<ENTITY>
-
+     */
+    fun <ENTITY> find(predicate: Predicate<ENTITY>): List<ENTITY> =
+        find(predicate, null as Collection<OrderInfo>?, true)
 
     /**
      * 根据条件获取实体列表
-     *
-     * @param predicate
-     * @param pageParam
-     * @param persist
-     * @return
+     */
+    fun <ENTITY> find(predicate: Predicate<ENTITY>, persist: Boolean): List<ENTITY> =
+        find(predicate, null as Collection<OrderInfo>?, persist)
+
+    /**
+     * 根据条件获取实体列表
+     */
+    fun <ENTITY> find(predicate: Predicate<ENTITY>, orders: Collection<OrderInfo>): List<ENTITY> =
+        find(predicate, orders, true)
+
+    /**
+     * 根据条件获取实体列表
+     */
+    fun <ENTITY> find(predicate: Predicate<ENTITY>, vararg orders: OrderInfo): List<ENTITY> =
+        find(predicate, orders.toList(), true)
+
+    /**
+     * 根据条件获取实体列表
+     */
+    fun <ENTITY> find(
+        predicate: Predicate<ENTITY>,
+        orders: Collection<OrderInfo>?,
+        persist: Boolean
+    ): List<ENTITY>
+
+    /**
+     * 根据条件获取实体列表
+     */
+    fun <ENTITY> find(predicate: Predicate<ENTITY>, pageParam: PageParam): List<ENTITY> =
+        find(predicate, pageParam, true)
+
+    /**
+     * 根据条件获取实体列表
      */
     fun <ENTITY> find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean = true,
+        persist: Boolean
     ): List<ENTITY>
 
     /**
      * 根据条件获取单个实体
-     *
-     * @param predicate
-     * @param persist
-     * @param <ENTITY>
-     * @return
-    </ENTITY> */
-    fun <ENTITY> findOne(
+     */
+    fun <ENTITY> findOne(predicate: Predicate<ENTITY>): Optional<ENTITY> =
+        findOne(predicate, true)
+
+    /**
+     * 根据条件获取单个实体
+     */
+    fun <ENTITY> findOne(predicate: Predicate<ENTITY>, persist: Boolean): Optional<ENTITY>
+
+    /**
+     * 根据条件获取实体
+     */
+    fun <ENTITY> findFirst(
         predicate: Predicate<ENTITY>,
-        persist: Boolean = true
+        orders: Collection<OrderInfo>,
+        persist: Boolean
     ): Optional<ENTITY>
 
     /**
      * 根据条件获取实体
-     *
-     * @param predicate
-     * @param orders
-     * @param persist
-     * @param <ENTITY>
-     * @return
-    </ENTITY> */
+     */
     fun <ENTITY> findFirst(
         predicate: Predicate<ENTITY>,
-        orders: Collection<OrderInfo> = listOf(),
-        persist: Boolean = true,
-    ): Optional<ENTITY>
+        orders: Collection<OrderInfo>
+    ): Optional<ENTITY> =
+        findFirst(predicate, orders, true)
 
     /**
      * 根据条件获取实体
-     *
-     * @param predicate
-     * @param orders
-     * @param persist
-     * @param <ENTITY>
-     * @return
-    </ENTITY> */
-    fun <ENTITY> findFirst(
-        predicate: Predicate<ENTITY>,
-        vararg orders: OrderInfo,
-        persist: Boolean = true,
-    ): Optional<ENTITY> {
-        return findFirst(predicate, listOf(*orders), persist)
-    }
+     */
+    fun <ENTITY> findFirst(predicate: Predicate<ENTITY>, vararg orders: OrderInfo): Optional<ENTITY> =
+        findFirst(predicate, orders.toList(), true)
+
+    /**
+     * 根据条件获取实体
+     */
+    fun <ENTITY> findFirst(predicate: Predicate<ENTITY>, persist: Boolean): Optional<ENTITY> =
+        findFirst(predicate, emptyList(), persist)
+
+    /**
+     * 根据条件获取实体
+     */
+    fun <ENTITY> findFirst(predicate: Predicate<ENTITY>): Optional<ENTITY> =
+        findFirst(predicate, true)
 
     /**
      * 根据条件获取实体分页列表
      * 自动调用 UnitOfWork::persist
-     *
-     * @param predicate
-     * @param pageParam
-     * @param persist
-     * @param <ENTITY>
-     * @return
-    </ENTITY> */
+     */
+    fun <ENTITY> findPage(predicate: Predicate<ENTITY>, pageParam: PageParam): PageData<ENTITY> =
+        findPage(predicate, pageParam, true)
+
+    /**
+     * 根据条件获取实体分页列表
+     */
     fun <ENTITY> findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean = true
+        persist: Boolean
     ): PageData<ENTITY>
 
+    /**
+     * 根据条件删除实体
+     */
     fun <ENTITY> remove(predicate: Predicate<ENTITY>): List<ENTITY>
 
     /**
      * 根据条件删除实体
-     *
-     * @param predicate
-     * @param limit
-     * @param <ENTITY>
-     * @return
-    </ENTITY> */
-    fun <ENTITY> remove(predicate: Predicate<ENTITY>, limit: Int = 1): List<ENTITY>
+     */
+    fun <ENTITY> remove(predicate: Predicate<ENTITY>, limit: Int): List<ENTITY>
 
     /**
      * 根据条件获取实体计数
-     *
-     * @param predicate
-     * @param <ENTITY>
-     * @return
-    </ENTITY> */
+     */
     fun <ENTITY> count(predicate: Predicate<ENTITY>): Long
 
     /**
      * 根据条件判断实体是否存在
-     *
-     * @param predicate
-     * @param <ENTITY>
-     * @return
-    </ENTITY> */
+     */
     fun <ENTITY> exists(predicate: Predicate<ENTITY>): Boolean
-
-    companion object {
-        val instance: RepositorySupervisor
-            get() = RepositorySupervisorSupport.instance
-    }
 }

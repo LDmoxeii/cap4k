@@ -5,12 +5,11 @@ import org.springframework.context.ApplicationContext
 /**
  * 中介者配置
  *
- * @author binking338
- * @date 2024/8/24
+ * @author LD_moxeii
+ * @date 2025/07/22
  */
 object MediatorSupport {
     lateinit var instance: Mediator
-
     lateinit var ioc: ApplicationContext
 
     fun configure(mediator: Mediator) {

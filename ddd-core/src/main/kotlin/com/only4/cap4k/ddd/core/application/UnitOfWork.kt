@@ -43,10 +43,16 @@ interface UnitOfWork {
      * 执行持久化操作
      * 将工作单元上下文中的持久化意图转换为实际的持久化指令并提交事务
      *
-     * @param propagation 事务传播特性，默认为REQUIRED
-     * @throws IllegalStateException 当工作单元状态不允许执行持久化操作时
      */
-    fun save(propagation: Propagation = Propagation.REQUIRED)
+    fun save()
+
+    /**
+     * 执行持久化操作
+     * 将工作单元上下文中的持久化意图转换为实际的持久化指令并提交事务
+     *
+     * @param propagation 事务传播特性
+     */
+    fun save(propagation: Propagation)
 
     companion object {
         /**

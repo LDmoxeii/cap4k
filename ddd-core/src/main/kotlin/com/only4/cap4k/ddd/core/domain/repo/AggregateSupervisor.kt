@@ -11,10 +11,14 @@ import java.util.*
 /**
  * 聚合管理器
  *
- * @author LD_moxeii
- * @date 2025/07/20
+ * @author binking338
+ * @date 2025/1/12
  */
 interface AggregateSupervisor {
+
+    companion object {
+        val instance: AggregateSupervisor = AggregateSupervisorSupport.instance
+    }
 
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY> create(
         clazz: Class<AGGREGATE>,
@@ -23,228 +27,205 @@ interface AggregateSupervisor {
 
     /**
      * 根据id获取聚合
-     *
-     * @param id
-     * @param persist
-     * @param <AGGREGATE>
-     * @param <ENTITY>
-     * @return
-    </ENTITY></AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getById(
-        id: Id<AGGREGATE, *>,
-        persist: Boolean = true
-    ): AGGREGATE? = getByIds(listOf(id), persist).firstOrNull()
+     */
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getById(id: Id<AGGREGATE, *>): AGGREGATE? =
+        getByIds(listOf(id), true).firstOrNull()
 
     /**
      * 根据id获取聚合
-     *
-     * @param ids
-     * @param <AGGREGATE>
-     * @param <ENTITY>
-     * @return
-    </ENTITY></AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getByIds(
-        vararg ids: Id<AGGREGATE, *>
-    ): List<AGGREGATE> = getByIds(listOf(*ids), true)
-
+     */
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getById(id: Id<AGGREGATE, *>, persist: Boolean): AGGREGATE? =
+        getByIds(listOf(id), persist).firstOrNull()
 
     /**
      * 根据id获取聚合
-     *
-     * @param ids
-     * @param <AGGREGATE>
-     * @param <ENTITY>
-     * @return
-    </ENTITY></AGGREGATE> */
+     */
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getByIds(ids: Iterable<Id<AGGREGATE, *>>): List<AGGREGATE> =
+        getByIds(ids, true)
+
+    /**
+     * 根据id获取聚合
+     */
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> =
+        getByIds(ids.toList(), true)
+
+    /**
+     * 根据id获取聚合
+     */
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getByIds(
         ids: Iterable<Id<AGGREGATE, *>>,
-        persist: Boolean = true
+        persist: Boolean
     ): List<AGGREGATE>
 
     /**
      * 根据条件获取聚合列表
-     *
-     * @param predicate
-     * @param orders
-     * @param <AGGREGATE>
-     * @return
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> find(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
-        vararg orders: OrderInfo,
-        persist: Boolean = true
-    ): List<AGGREGATE> {
-        return find(predicate, listOf(*orders), persist)
-    }
+    fun <AGGREGATE : Aggregate<*>> find(predicate: AggregatePredicate<AGGREGATE, *>): List<AGGREGATE> =
+        find(predicate, null as Collection<OrderInfo>?, true)
 
     /**
      * 根据条件获取聚合列表
-     *
-     * @param predicate
-     * @param orders
-     * @param <AGGREGATE>
-     * @return
-    </AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> find(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
-        orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true
+     */
+    fun <AGGREGATE : Aggregate<*>> find(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        persist: Boolean
+    ): List<AGGREGATE> =
+        find(predicate, null as Collection<OrderInfo>?, persist)
+
+    /**
+     * 根据条件获取聚合列表
+     */
+    fun <AGGREGATE : Aggregate<*>> find(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        orders: Collection<OrderInfo>
+    ): List<AGGREGATE> =
+        find(predicate, orders, true)
+
+    /**
+     * 根据条件获取聚合列表
+     */
+    fun <AGGREGATE : Aggregate<*>> find(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        vararg orders: OrderInfo
+    ): List<AGGREGATE> =
+        find(predicate, orders.toList(), true)
+
+    /**
+     * 根据条件获取聚合列表
+     */
+    fun <AGGREGATE : Aggregate<*>> find(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        orders: Collection<OrderInfo>?,
+        persist: Boolean
     ): List<AGGREGATE>
 
     /**
      * 根据条件获取聚合列表
-     *
-     * @param predicate
-     * @param pageParam
-     * @param persist
-     * @return
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> find(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
+    fun <AGGREGATE : Aggregate<*>> find(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        pageParam: PageParam
+    ): List<AGGREGATE> =
+        find(predicate, pageParam, true)
+
+    /**
+     * 根据条件获取聚合列表
+     */
+    fun <AGGREGATE : Aggregate<*>> find(
+        predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
-        persist: Boolean = true
+        persist: Boolean
     ): List<AGGREGATE>
 
     /**
      * 根据条件获取单个实体
-     *
-     * @param predicate
-     * @param persist
-     * @param <AGGREGATE>
-     * @return
-    </AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> findOne(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
-        persist: Boolean = true
+     */
+    fun <AGGREGATE : Aggregate<*>> findOne(predicate: AggregatePredicate<AGGREGATE, *>): Optional<AGGREGATE> =
+        findOne(predicate, true)
+
+    /**
+     * 根据条件获取单个实体
+     */
+    fun <AGGREGATE : Aggregate<*>> findOne(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        persist: Boolean
     ): Optional<AGGREGATE>
 
     /**
      * 根据条件获取实体
-     *
-     * @param predicate
-     * @param orders
-     * @param persist
-     * @param <AGGREGATE>
-     * @return
-    </AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> findFirst(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
-        vararg orders: OrderInfo,
-        persist: Boolean = true
-    ): AGGREGATE {
-        return findFirst(predicate, listOf(*orders), persist)
-    }
+     */
+    fun <AGGREGATE : Aggregate<*>> findFirst(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        orders: Collection<OrderInfo>,
+        persist: Boolean
+    ): Optional<AGGREGATE>
 
     /**
      * 根据条件获取实体
-     *
-     * @param predicate
-     * @param orders
-     * @param persist
-     * @param <AGGREGATE>
-     * @return
-    </AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> findFirst(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
-        orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true
-    ): AGGREGATE
+     */
+    fun <AGGREGATE : Aggregate<*>> findFirst(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        orders: Collection<OrderInfo>
+    ): Optional<AGGREGATE> =
+        findFirst(predicate, orders, true)
+
+    /**
+     * 根据条件获取实体
+     */
+    fun <AGGREGATE : Aggregate<*>> findFirst(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        vararg orders: OrderInfo
+    ): Optional<AGGREGATE> =
+        findFirst(predicate, orders.toList(), true)
+
+    /**
+     * 根据条件获取实体
+     */
+    fun <AGGREGATE : Aggregate<*>> findFirst(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        persist: Boolean
+    ): Optional<AGGREGATE> =
+        findFirst(predicate, emptyList(), persist)
+
+    /**
+     * 根据条件获取实体
+     */
+    fun <AGGREGATE : Aggregate<*>> findFirst(predicate: AggregatePredicate<AGGREGATE, *>): Optional<AGGREGATE> =
+        findFirst(predicate, true)
 
     /**
      * 根据条件获取实体分页列表
-     *
-     * @param predicate
-     * @param pageParam
-     * @param persist
-     * @param <AGGREGATE>
-     * @return
-    </AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> findPage(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
+     * 自动调用 UnitOfWork::persist
+     */
+    fun <AGGREGATE : Aggregate<*>> findPage(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        pageParam: PageParam
+    ): PageData<AGGREGATE> =
+        findPage(predicate, pageParam, true)
+
+    /**
+     * 根据条件获取实体分页列表
+     */
+    fun <AGGREGATE : Aggregate<*>> findPage(
+        predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
-        persist: Boolean = true
+        persist: Boolean
     ): PageData<AGGREGATE>
 
     /**
      * 根据id删除聚合
-     *
-     * @param id
-     * @param <AGGREGATE>
-     * @param <ENTITY>
-     * @return
-    </ENTITY></AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> removeById(id: Id<AGGREGATE, *>): AGGREGATE? {
-        return removeByIds(listOf(id)).firstOrNull()
-    }
+     */
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> removeById(id: Id<AGGREGATE, *>): AGGREGATE? =
+        removeByIds(listOf(id)).firstOrNull()
 
     /**
      * 根据id删除聚合
-     *
-     * @param ids
-     * @param <AGGREGATE>
-     * @param <ENTITY>
-     * @return
-    </ENTITY></AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> removeByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> {
-        return removeByIds(listOf(*ids))
-    }
+     */
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> removeByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> =
+        removeByIds(ids.toList())
 
     /**
      * 根据id删除聚合
-     *
-     * @param ids
-     * @param <AGGREGATE>
-     * @param <ENTITY>
-     * @return
-    </ENTITY></AGGREGATE> */
+     */
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> removeByIds(ids: Iterable<Id<AGGREGATE, *>>): List<AGGREGATE>
 
     /**
      * 根据条件删除实体
-     *
-     * @param predicate
-     * @param limit
-     * @param <AGGREGATE>
-     * @return
-    </AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> remove(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>
-    ): List<AGGREGATE>
+     */
+    fun <AGGREGATE : Aggregate<*>> remove(predicate: AggregatePredicate<AGGREGATE, *>): List<AGGREGATE>
 
     /**
      * 根据条件删除实体
-     *
-     * @param predicate
-     * @param limit
-     * @param <AGGREGATE>
-     * @return
-    </AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> remove(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
-        limit: Int
-    ): List<AGGREGATE>
+     */
+    fun <AGGREGATE : Aggregate<*>> remove(predicate: AggregatePredicate<AGGREGATE, *>, limit: Int): List<AGGREGATE>
 
     /**
      * 根据条件获取实体计数
-     *
-     * @param predicate
-     * @param <AGGREGATE>
-     * @return
-    </AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> count(predicate: AggregatePredicate<AGGREGATE, ENTITY>): Long
+     */
+    fun <AGGREGATE : Aggregate<*>> count(predicate: AggregatePredicate<AGGREGATE, *>): Long
 
     /**
      * 根据条件判断实体是否存在
-     *
-     * @param predicate
-     * @param <AGGREGATE>
-     * @return
-    </AGGREGATE> */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> exists(predicate: AggregatePredicate<AGGREGATE, ENTITY>): Boolean
-
-    companion object {
-        val instance: AggregateSupervisor
-            get() = AggregateSupervisorSupport.instance
-    }
-
+     */
+    fun <AGGREGATE : Aggregate<*>> exists(predicate: AggregatePredicate<AGGREGATE, *>): Boolean
 }
