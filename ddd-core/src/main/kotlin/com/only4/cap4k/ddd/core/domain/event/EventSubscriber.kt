@@ -6,7 +6,7 @@ package com.only4.cap4k.ddd.core.domain.event
  * @author LD_moxeii
  * @date 2025/07/20
  */
-fun interface EventSubscriber<Event> {
+fun interface EventSubscriber<Event : Any> {
     /**
      * 领域事件消费逻辑
      *

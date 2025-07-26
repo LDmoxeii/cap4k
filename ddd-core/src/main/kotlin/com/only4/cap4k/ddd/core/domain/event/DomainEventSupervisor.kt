@@ -18,14 +18,14 @@ interface DomainEventSupervisor {
      * @param schedule 指定时间发送
      */
     fun <DOMAIN_EVENT, ENTITY> attach(
-        domainEventPayload: DOMAIN_EVENT,
-        entity: ENTITY,
+        domainEventPayload: DOMAIN_EVENT & Any,
+        entity: ENTITY & Any,
         schedule: LocalDateTime = LocalDateTime.now(),
     )
 
     fun <DOMAIN_EVENT, ENTITY> attach(
-        domainEventPayload: DOMAIN_EVENT,
-        entity: ENTITY,
+        domainEventPayload: DOMAIN_EVENT & Any,
+        entity: ENTITY & Any,
         delay: Duration,
     ) {
         attach(domainEventPayload, entity, LocalDateTime.now().plus(delay))
@@ -36,7 +36,7 @@ interface DomainEventSupervisor {
      * @param domainEventPayload 领域事件消息体
      * @param entity 关联实体
      */
-    fun <DOMAIN_EVENT, ENTITY> detach(domainEventPayload: DOMAIN_EVENT, entity: ENTITY)
+    fun <DOMAIN_EVENT, ENTITY> detach(domainEventPayload: DOMAIN_EVENT & Any, entity: ENTITY & Any)
 
     companion object {
         val instance: DomainEventSupervisor

@@ -3,6 +3,7 @@
 package buildsrc.convention
 
 import org.gradle.api.tasks.testing.logging.TestLogEvent
+import java.time.Duration
 
 plugins {
     // Apply the Kotlin JVM plugin to add support for Kotlin in JVM projects.
@@ -17,6 +18,16 @@ kotlin {
 tasks.withType<Test>().configureEach {
     // Configure all test Gradle tasks to use JUnitPlatform.
     useJUnitPlatform()
+
+    // 增加测试超时时间（10分钟）
+    timeout.set(Duration.ofMinutes(10))
+
+    // 配置JVM内存和参数
+    jvmArgs(
+        "-Xmx2g",           // 最大堆内存2GB
+        "-Xms512m",         // 初始堆内存512MB
+        "-XX:MaxMetaspaceSize=512m"  // 元空间最大512MB
+    )
 
     // Log information about all test results, not only the failed ones.
     testLogging {

@@ -86,10 +86,10 @@ fun findMethod(clazz: Class<*>, name: String, methodPredicate: Predicate<Method>
 fun newConverterInstance(
     srcClass: Class<*>,
     destClass: Class<*>,
-    converterClass: Class<*> = Unit::class.java
+    converterClass: Class<*>? = Unit::class.java
 ): Converter<Any, Any> {
     var converter: Converter<*, *>? =
-        if (converterClass == Unit::class.java) null
+        if (converterClass == null || converterClass == Unit::class.java) null
         else converterClass.getConstructor()
             .newInstance() as Converter<*, *>
 

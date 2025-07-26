@@ -9,7 +9,7 @@ import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisorSupport.events
  * @author LD_moxeii
  * @date 2025/07/20
  */
-interface Aggregate<ENTITY> {
+interface Aggregate<ENTITY : Any> {
     /**
      * 获取ORM实体
      * 仅供框架调用使用，勿在业务逻辑代码中使用
