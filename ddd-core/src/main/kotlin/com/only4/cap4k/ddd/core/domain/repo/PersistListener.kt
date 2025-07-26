@@ -6,7 +6,7 @@ package com.only4.cap4k.ddd.core.domain.repo
  * @author LD_moxeii
  * @date 2025/07/20
  */
-interface PersistListener<Entity> {
+fun interface PersistListener<Entity : Any> {
     /**
      * 持久化变更
      * @param aggregate
@@ -20,6 +20,6 @@ interface PersistListener<Entity> {
      * @param type
      * @param e
      */
-    fun onExcepton(aggregate: Entity, type: PersistType, e: Exception) {
+    fun onException(aggregate: Entity, type: PersistType, e: Exception) {
     }
 }

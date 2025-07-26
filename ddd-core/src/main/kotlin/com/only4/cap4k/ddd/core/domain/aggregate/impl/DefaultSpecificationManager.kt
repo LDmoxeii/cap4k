@@ -24,8 +24,8 @@ class DefaultSpecificationManager(
             }
     }
 
-    override fun <Entity> specifyBeforeTransaction(entity: Entity): Specification.Result {
-        val specifications = specificationMap[entity!!::class.java] ?: return Specification.Result.pass()
+    override fun <Entity : Any> specifyBeforeTransaction(entity: Entity): Specification.Result {
+        val specifications = specificationMap[entity::class.java] ?: return Specification.Result.pass()
 
         return specifications
             .filter { it.beforeTransaction() }
@@ -38,8 +38,8 @@ class DefaultSpecificationManager(
             ?: Specification.Result.pass()
     }
 
-    override fun <Entity> specifyInTransaction(entity: Entity): Specification.Result {
-        val specifications = specificationMap[entity!!::class.java] ?: return Specification.Result.pass()
+    override fun <Entity : Any> specifyInTransaction(entity: Entity): Specification.Result {
+        val specifications = specificationMap[entity::class.java] ?: return Specification.Result.pass()
 
         return specifications
             .filterNot { it.beforeTransaction() }

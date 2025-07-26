@@ -7,5 +7,5 @@ package com.only4.cap4k.ddd.core.domain.repo
  * @date 2025/07/20
  */
 interface PersistListenerManager {
-    fun <Entity> onChange(aggregate: Entity, type: PersistType)
+    fun <Entity : Any> onChange(aggregate: Entity, type: PersistType)
 }

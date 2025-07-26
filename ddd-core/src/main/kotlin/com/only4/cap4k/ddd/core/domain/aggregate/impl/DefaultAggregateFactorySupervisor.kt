@@ -23,13 +23,13 @@ class DefaultAggregateFactorySupervisor(
         }
     }
 
-    override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY> create(entityPayload: ENTITY_PAYLOAD): ENTITY? {
+    override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY? {
         val factory = factoryMap[entityPayload::class.java] ?: return null
 
         @Suppress("UNCHECKED_CAST")
         val instance = (factory as AggregateFactory<ENTITY_PAYLOAD, ENTITY>).create(entityPayload)
 
-        unitOfWork.persist(instance!!)
+        unitOfWork.persist(instance)
         return instance
     }
 }

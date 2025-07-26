@@ -29,7 +29,7 @@ import java.util.*
  */
 class DefaultMediator : Mediator {
 
-    override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY> create(entityPayload: ENTITY_PAYLOAD): ENTITY? =
+    override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY? =
         AggregateFactorySupervisor.instance.create(entityPayload)
 
     override fun <ENTITY> find(
@@ -71,7 +71,7 @@ class DefaultMediator : Mediator {
     override fun <ENTITY> exists(predicate: Predicate<ENTITY>): Boolean =
         RepositorySupervisor.instance.exists(predicate)
 
-    override fun <DOMAIN_SERVICE> getService(domainServiceClass: Class<DOMAIN_SERVICE>): DOMAIN_SERVICE =
+    override fun <DOMAIN_SERVICE> getService(domainServiceClass: Class<DOMAIN_SERVICE>): DOMAIN_SERVICE? =
         DomainServiceSupervisor.instance.getService(domainServiceClass)
 
     override fun persist(entity: Any) {

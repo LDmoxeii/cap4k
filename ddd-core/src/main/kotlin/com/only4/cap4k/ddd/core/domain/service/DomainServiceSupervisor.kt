@@ -13,7 +13,7 @@ interface DomainServiceSupervisor {
      * @return
      * @param <DOMAIN_SERVICE>
     </DOMAIN_SERVICE> */
-    fun <DOMAIN_SERVICE> getService(domainServiceClass: Class<DOMAIN_SERVICE>): DOMAIN_SERVICE
+    fun <DOMAIN_SERVICE> getService(domainServiceClass: Class<DOMAIN_SERVICE>): DOMAIN_SERVICE?
 
     companion object {
         val instance: DomainServiceSupervisor
