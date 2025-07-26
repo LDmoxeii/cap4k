@@ -18,12 +18,12 @@ interface IntegrationEventSupervisor {
      * @param eventPayload 事件消息体
      * @param schedule 指定时间发送
      */
-    fun <EVENT> attach(
+    fun <EVENT : Any> attach(
         eventPayload: EVENT,
         schedule: LocalDateTime = LocalDateTime.now(),
     )
 
-    fun <EVENT> attach(
+    fun <EVENT : Any> attach(
         eventPayload: EVENT,
         delay: Duration
     ) = attach(eventPayload, LocalDateTime.now().plus(delay))
@@ -35,7 +35,7 @@ interface IntegrationEventSupervisor {
      *
      * @param eventPayload 事件消息体
      */
-    fun <EVENT> detach(eventPayload: EVENT)
+    fun <EVENT : Any> detach(eventPayload: EVENT)
 
     /**
      * 发布指定集成事件
@@ -44,12 +44,12 @@ interface IntegrationEventSupervisor {
      * @param eventPayload 集成事件负载
      * @param schedule 指定时间发送
      */
-    fun <EVENT> publish(
+    fun <EVENT : Any> publish(
         eventPayload: EVENT,
         schedule: LocalDateTime = LocalDateTime.now(),
     )
 
-    fun <EVENT> publish(
+    fun <EVENT : Any> publish(
         eventPayload: EVENT,
         delay: Duration
     ) = publish(eventPayload, LocalDateTime.now().plus(delay))

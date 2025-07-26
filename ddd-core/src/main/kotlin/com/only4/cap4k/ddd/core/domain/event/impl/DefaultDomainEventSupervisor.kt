@@ -27,9 +27,9 @@ class DefaultDomainEventSupervisor(
 ) : DomainEventSupervisor, DomainEventManager {
 
     companion object {
-        private val tlEntityEventPayloads = ThreadLocal<MutableMap<Any, MutableSet<Any>>>()
-        private val tlEventScheduleMap = ThreadLocal<MutableMap<Any, LocalDateTime>>()
-        private val emptyEventPayloads: Set<Any> = emptySet()
+        private val TL_ENTITY_EVENT_PAYLOADS = ThreadLocal<MutableMap<Any, MutableSet<Any>>>()
+        private val TL_EVENT_SCHEDULE_MAP = ThreadLocal<MutableMap<Any, LocalDateTime>>()
+        private val EMPTY_EVENT_PAYLOADS: Set<Any> = emptySet()
 
         /**
          * 默认事件过期时间（分钟）
@@ -45,8 +45,8 @@ class DefaultDomainEventSupervisor(
          * 重置线程本地变量
          */
         fun reset() {
-            tlEntityEventPayloads.remove()
-            tlEventScheduleMap.remove()
+            TL_ENTITY_EVENT_PAYLOADS.remove()
+            TL_EVENT_SCHEDULE_MAP.remove()
         }
     }
 
@@ -64,8 +64,8 @@ class DefaultDomainEventSupervisor(
 
         val unwrappedEntity = unwrapEntity(entity)
 
-        val entityEventPayloads = tlEntityEventPayloads.get() ?: mutableMapOf<Any, MutableSet<Any>>().also {
-            tlEntityEventPayloads.set(it)
+        val entityEventPayloads = TL_ENTITY_EVENT_PAYLOADS.get() ?: mutableMapOf<Any, MutableSet<Any>>().also {
+            TL_ENTITY_EVENT_PAYLOADS.set(it)
         }
 
         entityEventPayloads.computeIfAbsent(unwrappedEntity) { mutableSetOf() }
@@ -77,7 +77,7 @@ class DefaultDomainEventSupervisor(
     }
 
     override fun <DOMAIN_EVENT, ENTITY> detach(domainEventPayload: DOMAIN_EVENT & Any, entity: ENTITY & Any) {
-        val entityEventPayloads = tlEntityEventPayloads.get() ?: return
+        val entityEventPayloads = TL_ENTITY_EVENT_PAYLOADS.get() ?: return
         val unwrappedEntity = unwrapEntity(entity)
         val eventPayloads = entityEventPayloads[unwrappedEntity] ?: return
 
@@ -206,25 +206,25 @@ class DefaultDomainEventSupervisor(
      * @return 事件列表
      */
     protected fun popEvents(entity: Any): Set<Any> {
-        val entityEventPayloads = tlEntityEventPayloads.get()
-            ?: return emptyEventPayloads
+        val entityEventPayloads = TL_ENTITY_EVENT_PAYLOADS.get()
+            ?: return EMPTY_EVENT_PAYLOADS
 
         if (!entityEventPayloads.containsKey(entity)) {
-            return emptyEventPayloads
+            return EMPTY_EVENT_PAYLOADS
         }
 
         val eventPayloads = entityEventPayloads.remove(entity)
-        return eventPayloads ?: emptyEventPayloads
+        return eventPayloads ?: EMPTY_EVENT_PAYLOADS
     }
 
     /**
      * 记录事件发送时间
      */
     protected fun putDeliverTime(eventPayload: Any, schedule: LocalDateTime) {
-        var eventScheduleMap = tlEventScheduleMap.get()
+        var eventScheduleMap = TL_EVENT_SCHEDULE_MAP.get()
         if (eventScheduleMap == null) {
             eventScheduleMap = mutableMapOf()
-            tlEventScheduleMap.set(eventScheduleMap)
+            TL_EVENT_SCHEDULE_MAP.set(eventScheduleMap)
         }
         eventScheduleMap[eventPayload] = schedule
     }
@@ -233,7 +233,7 @@ class DefaultDomainEventSupervisor(
      * 获取事件发送时间
      */
     fun getDeliverTime(eventPayload: Any): LocalDateTime {
-        val eventScheduleMap = tlEventScheduleMap.get()
+        val eventScheduleMap = TL_EVENT_SCHEDULE_MAP.get()
         return if (eventScheduleMap != null && eventScheduleMap.containsKey(eventPayload)) {
             eventScheduleMap[eventPayload]!!
         } else {

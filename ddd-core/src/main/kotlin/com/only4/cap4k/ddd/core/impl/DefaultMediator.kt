@@ -105,15 +105,15 @@ class DefaultMediator : Mediator {
     override fun <R> result(requestId: String): R =
         RequestSupervisor.instance.result(requestId)
 
-    override fun <EVENT> attach(eventPayload: EVENT, schedule: LocalDateTime) {
+    override fun <EVENT : Any> attach(eventPayload: EVENT, schedule: LocalDateTime) {
         IntegrationEventSupervisor.instance.attach(eventPayload, schedule)
     }
 
-    override fun <EVENT> detach(eventPayload: EVENT) {
+    override fun <EVENT : Any> detach(eventPayload: EVENT) {
         IntegrationEventSupervisor.instance.detach(eventPayload)
     }
 
-    override fun <EVENT> publish(eventPayload: EVENT, schedule: LocalDateTime) {
+    override fun <EVENT : Any> publish(eventPayload: EVENT, schedule: LocalDateTime) {
         IntegrationEventSupervisor.instance.publish(eventPayload, schedule)
     }
 
