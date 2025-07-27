@@ -3,8 +3,8 @@ package com.only4.cap4k.ddd.core.domain.aggregate
 /**
  * 实体ID
  *
- * @author binking338
- * @date 2025/4/8
+ * @author LD_moxeii
+ * @date 2025/07/27
  */
 interface Id<AGGREGATE, KEY> {
     /**

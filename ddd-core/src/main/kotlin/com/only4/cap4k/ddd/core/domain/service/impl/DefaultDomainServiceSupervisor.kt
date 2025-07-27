@@ -7,8 +7,8 @@ import org.springframework.context.ApplicationContext
 /**
  * 默认领域服务管理器
  *
- * @author binking338
- * @date 2024/9/4
+ * @author LD_moxeii
+ * @date 2025/07/27
  */
 class DefaultDomainServiceSupervisor(
     private val applicationContext: ApplicationContext

@@ -13,8 +13,8 @@ import org.springframework.util.ClassUtils
 /**
  * 类扫描工具
  *
- * @author binking338
- * @date 2023-03-25
+ * @author LD_moxeii
+ * @date 2025/07/27
  */
 private val RESOLVER: ResourcePatternResolver = PathMatchingResourcePatternResolver()
 private val METADATA_READER_FACTORY: MetadataReaderFactory = SimpleMetadataReaderFactory()

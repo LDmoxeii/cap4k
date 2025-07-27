@@ -11,8 +11,8 @@ import java.util.*
 /**
  * 聚合管理器
  *
- * @author binking338
- * @date 2025/1/12
+ * @author LD_moxeii
+ * @date 2025/07/27
  */
 interface AggregateSupervisor {
 

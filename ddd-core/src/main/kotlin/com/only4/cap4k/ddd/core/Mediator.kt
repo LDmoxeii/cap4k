@@ -74,8 +74,8 @@ interface Mediator : AggregateFactorySupervisor,
 /**
  * Mediator的短别名引用
  *
- * @author binking338
- * @date 2025/4/7
+ * @author LD_moxeii
+ * @date 2025/07/27
  */
 interface X {
     companion object {

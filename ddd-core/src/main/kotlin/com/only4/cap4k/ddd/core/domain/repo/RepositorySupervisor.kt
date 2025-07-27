@@ -8,8 +8,8 @@ import java.util.*
 /**
  * 仓储管理器
  *
- * @author binking338
- * @date 2024/8/25
+ * @author LD_moxeii
+ * @date 2025/07/27
  */
 interface RepositorySupervisor {
 
