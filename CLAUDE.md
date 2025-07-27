@@ -22,12 +22,12 @@ follows a multi-module structure with DDD architectural patterns.
 #### Active Modules
 
 - **ddd-core** - Core DDD framework interfaces and implementations (pure interfaces, no dependencies)
+- **ddd-domain-event-jpa** - JPA-based event sourcing and event store implementation
 
 #### Available but Inactive Modules (commented in settings)
 
 - **ddd-distributed-locker-jdbc** - JDBC-based distributed locking
 - **ddd-distributed-snowflake** - Snowflake algorithm for distributed ID generation
-- **ddd-domain-event-jpa** - JPA-based event sourcing and event store
 - **ddd-domain-repo-jpa** - JPA-based repository implementation with Unit of Work
 
 ### Core Architecture
@@ -122,6 +122,23 @@ The `ArchInfoManager` provides runtime introspection of the DDD architecture:
 - JUnit 5 with MockK for testing
 - Build caching and configuration caching enabled
 - Convention plugins in `buildSrc/` for shared build logic
+
+## Testing
+
+Testing uses JUnit 5 with MockK for mocking:
+
+- `./gradlew test` - Run all tests
+- `./gradlew test --tests "*ClassName*"` - Run specific test class
+- `./gradlew test --tests "*ClassName.methodName*"` - Run specific test method
+
+Test files are located in `src/test/kotlin` with the same package structure as main code.
+
+## Development Notes
+
+- Version catalog in `gradle/libs.versions.toml` manages all dependency versions
+- Build caching and configuration caching are enabled for performance
+- Convention plugins in `buildSrc/` provide shared build logic
+- Chinese documentation available in `CLAUDE_CN.md` (sync when updating `CLAUDE.md`)
 
 # important-instruction-reminders
 

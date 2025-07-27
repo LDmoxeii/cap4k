@@ -21,12 +21,12 @@ Cap4k 是一个面向 Kotlin/JVM 应用程序的领域驱动设计（DDD）框�
 #### 活跃模块
 
 - **ddd-core** - 核心 DDD 框架接口和实现（纯接口，无依赖）
+- **ddd-domain-event-jpa** - 基于 JPA 的事件溯源和事件存储实现
 
 #### 可用但未激活的模块（在 settings 中注释）
 
 - **ddd-distributed-locker-jdbc** - 基于 JDBC 的分布式锁
 - **ddd-distributed-snowflake** - 分布式 ID 生成的雪花算法
-- **ddd-domain-event-jpa** - 基于 JPA 的事件溯源和事件存储
 - **ddd-domain-repo-jpa** - 基于 JPA 的仓储实现与工作单元
 
 ### 核心架构
@@ -119,6 +119,23 @@ X.cmd().execute(command)
 - JUnit 5 与 MockK 测试
 - 启用构建缓存和配置缓存
 - `buildSrc/` 中的约定插件用于共享构建逻辑
+
+## 测试
+
+使用 JUnit 5 与 MockK 进行模拟测试：
+
+- `./gradlew test` - 运行所有测试
+- `./gradlew test --tests "*ClassName*"` - 运行特定测试类
+- `./gradlew test --tests "*ClassName.methodName*"` - 运行特定测试方法
+
+测试文件位于 `src/test/kotlin`，包结构与主代码相同。
+
+## 开发说明
+
+- `gradle/libs.versions.toml` 中的版本目录管理所有依赖项版本
+- 启用构建缓存和配置缓存以提升性能
+- `buildSrc/` 中的约定插件提供共享构建逻辑
+- 中文文档可在 `CLAUDE_CN.md` 中获取（更新 `CLAUDE.md` 时同步）
 
 # 重要指令提醒
 
