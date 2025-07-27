@@ -10,8 +10,17 @@ dependencies {
     implementation(project(":ddd-core"))
 
     implementation(libs.fastjson)
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
 
     compileOnly(libs.jpa)
     compileOnly(libs.springMassaging)
+
+    // Test dependencies
+    testImplementation(libs.jpa)
+    testImplementation(libs.springMassaging)
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testImplementation("org.jetbrains.kotlin:kotlin-test")
+    testImplementation("io.mockk:mockk:1.13.8")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

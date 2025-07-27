@@ -5,5 +5,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 
 /**
  * 事件仓储
+ *
+ * @author LD_moxeii
+ * @date 2025/07/27
  */
 interface EventJpaRepository : JpaRepository<Event, Long>, JpaSpecificationExecutor<Event>

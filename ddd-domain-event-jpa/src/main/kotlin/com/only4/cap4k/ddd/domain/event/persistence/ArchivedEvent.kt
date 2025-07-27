@@ -1,128 +1,146 @@
 package com.only4.cap4k.ddd.domain.event.persistence
 
 import com.alibaba.fastjson.JSON
-import com.alibaba.fastjson.serializer.SerializerFeature
+import com.alibaba.fastjson.serializer.SerializerFeature.IgnoreNonFieldGetter
+import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
 import java.time.LocalDateTime
-import java.util.*
 
 /**
  * 归档事件
+ *
+ * @author LD_moxeii
+ * @date 2025/07/27
  */
 @Entity
 @Table(name = "`__archived_event`")
 @DynamicInsert
 @DynamicUpdate
-data class ArchivedEvent(
+class ArchivedEvent {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "`id`")
-    val id: Long? = null,
+    var id: Long? = null
 
     /**
      * 事件uuid
+     * varchar(64) NOT NULL DEFAULT ''
      */
-    @Column(name = "`event_uuid`")
-    var eventUuid: String = "",
+    @Column(name = "`event_uuid`", nullable = false)
+    var eventUuid: String = ""
 
     /**
      * 服务
+     * varchar(255) NOT NULL DEFAULT ''
      */
-    @Column(name = "`svc_name`")
-    var svcName: String = "",
+    @Column(name = "`svc_name`", nullable = false)
+    var svcName: String = ""
 
     /**
      * 事件类型
+     * varchar(255) NOT NULL DEFAULT ''
      */
-    @Column(name = "`event_type`")
-    var eventType: String = "",
+    @Column(name = "`event_type`", nullable = false)
+    var eventType: String = ""
 
     /**
      * 事件数据
+     * text (nullable)
      */
     @Column(name = "`data`")
-    var data: String = "",
+    var data: String? = null
 
     /**
      * 事件数据类型
+     * varchar(255) NOT NULL DEFAULT ''
      */
-    @Column(name = "`data_type`")
-    var dataType: String = "",
+    @Column(name = "`data_type`", nullable = false)
+    var dataType: String = ""
 
     /**
      * 异常信息
+     * text (nullable)
      */
     @Column(name = "`exception`")
-    var exception: String = "",
-
-    /**
-     * 创建时间
-     */
-    @Column(name = "`create_at`")
-    var createAt: LocalDateTime = LocalDateTime.now(),
+    var exception: String? = null
 
     /**
      * 过期时间
+     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`expire_at`")
-    var expireAt: LocalDateTime = LocalDateTime.now(),
+    var expireAt: LocalDateTime? = null
+
+    /**
+     * 创建时间
+     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+     */
+    @Column(name = "`create_at`")
+    var createAt: LocalDateTime? = null
 
     /**
      * 分发状态
+     * int(11) NOT NULL DEFAULT '0'
      */
-    @Column(name = "`event_state`")
+    @Column(name = "`event_state`", nullable = false)
     @Convert(converter = Event.EventState.Converter::class)
-    var eventState: Event.EventState = Event.EventState.INIT,
-
-    /**
-     * 尝试次数
-     */
-    @Column(name = "`try_times`")
-    var tryTimes: Int = 0,
-
-    /**
-     * 已尝试次数
-     */
-    @Column(name = "`tried_times`")
-    var triedTimes: Int = 0,
+    var eventState: Event.EventState = Event.EventState.INIT
 
     /**
      * 上次尝试时间
+     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`last_try_time`")
-    var lastTryTime: LocalDateTime? = null,
+    var lastTryTime: LocalDateTime? = null
 
     /**
      * 下次尝试时间
+     * datetime NOT NULL DEFAULT '0001-01-01 00:00:00'
      */
     @Column(name = "`next_try_time`")
-    var nextTryTime: LocalDateTime? = null,
+    var nextTryTime: LocalDateTime? = null
+
+    /**
+     * 已尝试次数
+     * int(11) NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`tried_times`", nullable = false)
+    var triedTimes: Int = 0
+
+    /**
+     * 尝试次数
+     * int(11) NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`try_times`", nullable = false)
+    var tryTimes: Int = 0
 
     /**
      * 乐观锁
+     * int(11) NOT NULL DEFAULT '0'
      */
     @Version
-    @Column(name = "`version`")
-    var version: Int = 0,
+    @Column(name = "`version`", nullable = false)
+    var version: Int = 0
 
     /**
      * 创建时间（数据库自动维护）
+     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`db_created_at`", insertable = false, updatable = false)
-    var dbCreatedAt: LocalDateTime? = null,
+    var dbCreatedAt: LocalDateTime? = null
 
     /**
      * 更新时间（数据库自动维护）
+     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
      */
     @Column(name = "`db_updated_at`", insertable = false, updatable = false)
-    var dbUpdatedAt: Date? = null
-) {
-    /**
-     * 从Event复制数据
-     */
+    var dbUpdatedAt: LocalDateTime? = null
+
     fun archiveFrom(event: Event) {
+        this.id = event.id
         this.eventUuid = event.eventUuid
         this.svcName = event.svcName
         this.eventType = event.eventType
@@ -139,14 +157,7 @@ data class ArchivedEvent(
         this.version = event.version
     }
 
-    /**
-     * 转为字符串
-     */
     override fun toString(): String {
-        return JSON.toJSONString(
-            this,
-            SerializerFeature.IgnoreNonFieldGetter,
-            SerializerFeature.SkipTransientField
-        )
+        return JSON.toJSONString(this, IgnoreNonFieldGetter, SkipTransientField)
     }
 }

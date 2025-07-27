@@ -3,7 +3,7 @@ package com.only4.cap4k.ddd.domain.event
 import com.only4.cap4k.ddd.core.application.distributed.Locker
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
-import com.only4.cap4k.ddd.core.share.misc.TextUtils
+import com.only4.cap4k.ddd.core.share.misc.randomString
 import org.slf4j.LoggerFactory
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.Duration
@@ -13,6 +13,9 @@ import java.time.format.DateTimeFormatter
 /**
  * 事件调度服务
  * 失败定时重试
+ *
+ * @author LD_moxeii
+ * @date 2025/07/27
  */
 class JpaEventScheduleService(
     private val eventPublisher: EventPublisher,
@@ -27,8 +30,7 @@ class JpaEventScheduleService(
     private val logger = LoggerFactory.getLogger(JpaEventScheduleService::class.java)
     private var compensationRunning = false
 
-    // 懒加载初始化分区
-    private val partitionInitializer by lazy {
+    fun init() {
         addPartition()
     }
 
@@ -42,7 +44,7 @@ class JpaEventScheduleService(
         }
 
         compensationRunning = true
-        val pwd = TextUtils.randomString(8, hasDigital = true, hasLetter = true)
+        val pwd = randomString(8, hasDigital = true, hasLetter = true)
         val lockerKey = compensationLockerKey
 
         try {
@@ -50,10 +52,12 @@ class JpaEventScheduleService(
             val now = LocalDateTime.now()
 
             while (!noneEvent) {
+                var lockAcquired = false
                 try {
                     if (!locker.acquire(lockerKey, pwd, maxLockDuration)) {
                         return
                     }
+                    lockAcquired = true
 
                     val eventRecords = eventRecordRepository.getByNextTryTime(svcName, now.plus(interval), batchSize)
 
@@ -69,7 +73,9 @@ class JpaEventScheduleService(
                 } catch (ex: Exception) {
                     logger.error("事件发送补偿:异常失败", ex)
                 } finally {
-                    locker.release(lockerKey, pwd)
+                    if (lockAcquired) {
+                        locker.release(lockerKey, pwd)
+                    }
                 }
             }
         } finally {
@@ -82,7 +88,7 @@ class JpaEventScheduleService(
      */
     fun archive(expireDays: Int, batchSize: Int, maxLockDuration: Duration) {
 
-        val pwd = TextUtils.randomString(8, hasDigital = true, hasLetter = true)
+        val pwd = randomString(8, hasDigital = true, hasLetter = true)
         val lockerKey = archiveLockerKey
 
         if (!locker.acquire(lockerKey, pwd, maxLockDuration)) {
@@ -140,7 +146,7 @@ class JpaEventScheduleService(
         try {
             jdbcTemplate.execute(sql)
         } catch (ex: Exception) {
-            if (!ex.message?.contains("Duplicate partition")!!) {
+            if (ex.message?.contains("Duplicate partition") != true) {
                 logger.error(
                     "分区创建异常 table = $table partition = p${date.format(DateTimeFormatter.ofPattern("yyyyMM"))}",
                     ex

@@ -15,6 +15,9 @@ import java.time.LocalDateTime
 
 /**
  * 基于Jpa的事件记录仓储实现
+ *
+ * @author LD_moxeii
+ * @date 2025/07/27
  */
 open class JpaEventRecordRepository(
     private val eventJpaRepository: EventJpaRepository,
@@ -22,7 +25,6 @@ open class JpaEventRecordRepository(
 ) : EventRecordRepository {
 
     override fun create(): EventRecord = EventRecordImpl()
-
 
     @Transactional(propagation = Propagation.REQUIRED)
     override fun save(event: EventRecord) {

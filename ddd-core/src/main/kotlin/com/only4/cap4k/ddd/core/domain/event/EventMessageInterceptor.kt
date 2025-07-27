@@ -66,12 +66,12 @@ interface EventMessageInterceptor {
             rawHeaders.putAll(from)
         }
 
-        override fun put(key: String, value: Any): Any {
-            return rawHeaders.put(key, value)!!
+        override fun put(key: String, value: Any): Any? {
+            return rawHeaders.put(key, value)
         }
 
-        override fun remove(key: String): Any {
-            return rawHeaders.remove(key)!!
+        override fun remove(key: String): Any? {
+            return rawHeaders.remove(key)
         }
 
         override fun clear() {
