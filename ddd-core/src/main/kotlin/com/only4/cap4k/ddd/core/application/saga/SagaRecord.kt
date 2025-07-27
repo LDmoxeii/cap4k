@@ -93,7 +93,7 @@ interface SagaRecord {
      * @param processCode 子流程代码
      * @return 执行结果
      */
-    fun <R> getSagaProcessResult(processCode: String): R?
+    fun <R> getSagaProcessResult(processCode: String): R
 
     /**
      * 获取计划执行时间
