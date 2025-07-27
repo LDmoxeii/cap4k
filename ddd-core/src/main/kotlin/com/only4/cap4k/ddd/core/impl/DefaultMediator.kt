@@ -102,7 +102,7 @@ class DefaultMediator : Mediator {
     ): String =
         RequestSupervisor.instance.schedule(request, schedule)
 
-    override fun <R> result(requestId: String): R =
+    override fun <R> result(requestId: String): R? =
         RequestSupervisor.instance.result(requestId)
 
     override fun <EVENT : Any> attach(eventPayload: EVENT, schedule: LocalDateTime) {

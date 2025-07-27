@@ -195,9 +195,7 @@ class DefaultSagaSupervisor(
     }
 
     override fun resume(saga: SagaRecord) {
-        val now = LocalDateTime.now()
-
-        if (!saga.beginSaga(now)) {
+        if (!saga.beginSaga(LocalDateTime.now())) {
             sagaRecordRepository.save(saga)
             return
         }
@@ -259,7 +257,7 @@ class DefaultSagaSupervisor(
     /**
      * 创建Saga记录
      */
-    private fun createSagaRecord(
+    protected fun createSagaRecord(
         sagaType: String,
         request: SagaParam<*>,
         scheduleAt: LocalDateTime
@@ -308,37 +306,15 @@ class DefaultSagaSupervisor(
     /**
      * 内部执行Saga逻辑
      */
-    private fun <REQUEST : SagaParam<RESPONSE>, RESPONSE> internalSend(
+    protected fun <REQUEST : SagaParam<RESPONSE>, RESPONSE> internalSend(
         request: REQUEST,
         sagaRecord: SagaRecord
     ): RESPONSE {
         return try {
             SAGA_RECORD_THREAD_LOCAL.set(sagaRecord)
-
-            val requestClass = request::class.java
-            val interceptors = getInterceptorsForRequest(requestClass)
-            val handler = getHandlerForRequest(requestClass)
-
-            // 执行前置拦截器
-            interceptors.forEach { interceptor ->
-                @Suppress("UNCHECKED_CAST")
-                (interceptor as RequestInterceptor<REQUEST, RESPONSE>).preRequest(request)
-            }
-
-            // 执行主要业务逻辑
-            @Suppress("UNCHECKED_CAST")
-            val response = (handler as RequestHandler<REQUEST, RESPONSE>).exec(request)
-
-            // 执行后置拦截器
-            interceptors.forEach { interceptor ->
-                @Suppress("UNCHECKED_CAST")
-                (interceptor as RequestInterceptor<REQUEST, RESPONSE>).postRequest(request, response)
-            }
-
-            // Saga执行成功
+            val response = internalSend(request)
             sagaRecord.endSaga(LocalDateTime.now(), response)
             sagaRecordRepository.save(sagaRecord)
-
             response
         } catch (throwable: Throwable) {
             // Saga执行异常
@@ -348,6 +324,29 @@ class DefaultSagaSupervisor(
         } finally {
             SAGA_RECORD_THREAD_LOCAL.remove()
         }
+    }
+
+    protected fun <REQUEST : SagaParam<RESPONSE>, RESPONSE> internalSend(request: REQUEST): RESPONSE {
+        val requestClass = request::class.java
+        val interceptors = getInterceptorsForRequest(requestClass)
+        val handler = getHandlerForRequest(requestClass)
+
+        // 执行前置拦截器
+        interceptors.forEach { interceptor ->
+            @Suppress("UNCHECKED_CAST")
+            (interceptor as RequestInterceptor<REQUEST, RESPONSE>).preRequest(request)
+        }
+
+        // 执行主要业务逻辑
+        @Suppress("UNCHECKED_CAST")
+        val response = (handler as RequestHandler<REQUEST, RESPONSE>).exec(request)
+
+        // 执行后置拦截器
+        interceptors.forEach { interceptor ->
+            @Suppress("UNCHECKED_CAST")
+            (interceptor as RequestInterceptor<REQUEST, RESPONSE>).postRequest(request, response)
+        }
+        return response
     }
 
     /**
