@@ -46,11 +46,73 @@ unified interface.
 - **CQRS** - Request/Command/Query handling
 - **Events** - Domain events and integration events system
 
+#### Mediator Pattern Implementation
+
+The `Mediator` interface unifies access to all framework components. It implements multiple supervisor interfaces and
+provides both verbose and concise access patterns:
+
+```kotlin
+// Verbose access
+Mediator.repositories().findById(id)
+Mediator.commands().execute(command)
+
+// Concise access via X class
+X.repo().findById(id)
+X.cmd().execute(command)
+```
+
+Core supervisors accessible through Mediator:
+
+- `AggregateFactorySupervisor` - Factory pattern for aggregates
+- `RepositorySupervisor` - Repository access and management
+- `AggregateSupervisor` - Aggregate lifecycle management
+- `DomainServiceSupervisor` - Domain service execution
+- `RequestSupervisor` - CQRS request handling (commands, queries, sagas)
+- `IntegrationEventSupervisor` - Cross-boundary event publishing
+- `UnitOfWork` - Transaction management
+
+#### DDD Annotation System
+
+The framework uses annotations to classify and organize domain components:
+
+**@Aggregate** - Marks classes as part of domain aggregates:
+
+- `aggregate` - The aggregate name (e.g., "user", "order")
+- `type` - Component type: "entity", "value-object", "repository", "factory", "factory-payload", "domain-event", "
+  specification", "enum"
+- `name` - Component display name
+- `root` - Whether this entity is the aggregate root
+- `description` - Component description
+
+**@DomainService** - Marks domain service classes
+**@DomainEvent** - Marks domain event classes
+**@IntegrationEvent** - Marks cross-boundary events
+
+#### Architecture Information System
+
+The `ArchInfoManager` provides runtime introspection of the DDD architecture:
+
+- Scans packages for annotated classes
+- Categorizes components by type and aggregate
+- Builds hierarchical architecture metadata
+- Uses lazy loading with thread-safe initialization via `ResolvedClasses` data wrapper
+- Provides JSON-serializable architecture information for documentation and tooling
+
 #### Package Organization
 
 `com.only4.cap4k.ddd.core` contains:
 - `application/` - Application service layer (commands, queries, events, UoW)
+  - `command/` - Command handling
+  - `query/` - Query handling with list/page support
+  - `saga/` - Saga orchestration
+  - `event/` - Integration event management
+  - `distributed/` - Distributed locking
 - `domain/` - Domain layer (aggregates, repositories, domain services, events)
+  - `aggregate/` - Aggregate root, entities, value objects, specifications
+  - `repo/` - Repository pattern with persist listeners
+  - `service/` - Domain services
+  - `event/` - Domain event publishing and subscription
+- `archinfo/` - Architecture introspection and metadata
 - `share/` - Shared utilities and constants
 
 ### Technology Stack
@@ -60,3 +122,11 @@ unified interface.
 - JUnit 5 with MockK for testing
 - Build caching and configuration caching enabled
 - Convention plugins in `buildSrc/` for shared build logic
+
+# important-instruction-reminders
+
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly
+requested by the User.
