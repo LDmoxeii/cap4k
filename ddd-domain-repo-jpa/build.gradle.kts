@@ -12,5 +12,17 @@ dependencies {
 
     compileOnly(libs.jpa)
     compileOnly(libs.springMassaging)
+
+    // Add test dependencies
+    testImplementation(libs.jpa)
+    testImplementation(libs.springMassaging)
+    testImplementation(libs.springData)
+    testImplementation(libs.hibernateCore)
+    testImplementation(libs.mockk)
+    testImplementation(libs.mockkAgentJvm)
+    testImplementation("org.junit.jupiter:junit-jupiter-api")
+    testImplementation("org.junit.jupiter:junit-jupiter-engine")
+    testImplementation("org.jetbrains.kotlin:kotlin-test")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 }
 

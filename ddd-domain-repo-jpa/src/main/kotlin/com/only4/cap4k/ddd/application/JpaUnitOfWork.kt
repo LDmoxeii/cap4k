@@ -1,6 +1,5 @@
 package com.only4.cap4k.ddd.application
 
-import com.only4.cap4k.ddd.core.application.AggregateOperation
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
@@ -19,6 +18,9 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 基于Jpa的UnitOfWork实现
+ *
+ * @author LD_moxeii
+ * @date 2025/07/28
  */
 open class JpaUnitOfWork(
     private val uowInterceptors: List<UnitOfWorkInterceptor>,
@@ -28,18 +30,14 @@ open class JpaUnitOfWork(
 ) : UnitOfWork {
 
     @PersistenceContext
-    lateinit var entityManager: EntityManager
-        protected set
+    protected lateinit var entityManager: EntityManager
 
     companion object {
-        private val logger = LoggerFactory.getLogger(JpaUnitOfWork::class.java)
+        private val log = LoggerFactory.getLogger(JpaUnitOfWork::class.java)
+
         lateinit var instance: JpaUnitOfWork
             private set
 
-        /**
-         * 修复AOP包装
-         */
-        @JvmStatic
         fun fixAopWrapper(unitOfWork: JpaUnitOfWork) {
             instance = unitOfWork
         }
@@ -51,10 +49,6 @@ open class JpaUnitOfWork(
 
         private val entityInformationCache = ConcurrentHashMap<Class<*>, EntityInformation<*, *>>()
 
-        /**
-         * 重置线程本地变量
-         */
-        @JvmStatic
         fun reset() {
             persistEntitiesThreadLocal.remove()
             removeEntitiesThreadLocal.remove()
@@ -63,402 +57,261 @@ open class JpaUnitOfWork(
         }
     }
 
-    /**
-     * 获取实体信息
-     */
-    private fun getEntityInformation(entityClass: Class<*>): EntityInformation<*, *> {
-        return entityInformationCache.computeIfAbsent(entityClass) { cls ->
-            JpaEntityInformationSupport.getEntityInformation(cls, entityManager)
-        }
-    }
+    @Suppress("UNCHECKED_CAST")
+    private fun getEntityInformation(entityClass: Class<*>): EntityInformation<Any, Any> =
+        entityInformationCache.computeIfAbsent(entityClass) {
+            JpaEntityInformationSupport.getEntityInformation(it, entityManager)
+        } as EntityInformation<Any, Any>
 
-    /**
-     * 检查值对象是否存在
-     */
     private fun isValueObjectAndExists(entity: Any): Boolean {
-        val valueObject = if (entity is ValueObject<*>) entity else null
-        return if (valueObject != null) {
-            val id = valueObject.hash()
-            entityManager.find(entity.javaClass, id) != null
-        } else {
-            false
-        }
+        val valueObject = entity as? ValueObject<*> ?: return false
+        val id = valueObject.hash()
+        return entityManager.find(entity.javaClass, id) != null
     }
 
-    /**
-     * 检查实体是否存在
-     */
     private fun isExists(entity: Any): Boolean {
-        val entityClass = entity.javaClass
-        val entityInformation = getEntityInformation(entityClass)
+        val entityInformation = getEntityInformation(entity.javaClass)
         val isValueObject = entity is ValueObject<*>
 
-
-        if (!isValueObject) {
-            // 类型安全转换
-            @Suppress("UNCHECKED_CAST")
-            val typedInfo = entityInformation as EntityInformation<in Any, *>
-            if (typedInfo.isNew(entity)) {
-                return false
-            }
-
-            val id = typedInfo.getId(entity)
-            return id != null && entityManager.find(entityClass, id) != null
-        } else {
-            val valueObject = entity as ValueObject<*>
-            val id = valueObject.hash()
-            return entityManager.find(entityClass, id) != null
+        if (!isValueObject && entityInformation.isNew(entity)) {
+            return false
         }
+
+        val id = if (isValueObject) {
+            (entity as ValueObject<*>).hash()
+        } else {
+            entityInformation.getId(entity)
+        }
+
+        return id != null && entityManager.find(entity.javaClass, id) != null
     }
 
-    /**
-     * 获取持久化上下文中的实体
-     */
-    protected fun persistenceContextEntities(): List<Any> {
-        return try {
-            val delegate = entityManager.delegate
-            if (delegate is SessionImplementor && !delegate.isClosed) {
-                val persistenceContext = delegate.persistenceContext
-                persistenceContext.reentrantSafeEntityEntries()
-                    .map { it.key }
-                    .toList()
-            } else {
-                emptyList()
-            }
-        } catch (ex: Exception) {
-            logger.debug("跟踪实体获取失败", ex)
+    protected fun persistenceContextEntities(): List<Any> = try {
+        val sessionImplementor = entityManager.delegate as SessionImplementor
+        if (!sessionImplementor.isClosed) {
+            sessionImplementor.persistenceContext
+                .reentrantSafeEntityEntries()
+                .map { it.key }
+        } else {
             emptyList()
         }
+    } catch (ex: Exception) {
+        log.debug("跟踪实体获取失败", ex)
+        emptyList()
     }
 
-    /**
-     * 实体刷新时触发事件
-     */
     protected fun onEntitiesFlushed(
         createdEntities: Set<Any>,
         updatedEntities: Set<Any>,
         deletedEntities: Set<Any>
     ) {
-        if (!supportEntityInlinePersistListener) {
-            return
-        }
+        if (!supportEntityInlinePersistListener) return
 
-        createdEntities.forEach { entity ->
-            persistListenerManager.onChange(entity, PersistType.CREATE)
-        }
-
-        updatedEntities.forEach { entity ->
-            persistListenerManager.onChange(entity, PersistType.UPDATE)
-        }
-
-        deletedEntities.forEach { entity ->
-            persistListenerManager.onChange(entity, PersistType.DELETE)
-        }
+        createdEntities.forEach { persistListenerManager.onChange(it, PersistType.CREATE) }
+        updatedEntities.forEach { persistListenerManager.onChange(it, PersistType.UPDATE) }
+        deletedEntities.forEach { persistListenerManager.onChange(it, PersistType.DELETE) }
     }
 
-    /**
-     * 解包实体
-     */
     private fun unwrapEntity(entity: Any): Any {
-        if (entity !is Aggregate<*>) {
-            return entity
-        }
+        if (entity !is Aggregate<*>) return entity
 
         val unwrappedEntity = entity._unwrap()
         wrapperMapThreadLocal.get()[unwrappedEntity] = entity
         return unwrappedEntity
     }
 
-    /**
-     * 更新包装实体
-     */
     private fun updateWrappedEntity(entity: Any, updatedEntity: Any) {
         val wrapperMap = wrapperMapThreadLocal.get()
-        if (!wrapperMap.containsKey(entity)) {
-            return
-        }
+        val aggregate = wrapperMap.remove(entity) ?: return
 
-        val aggregate = wrapperMap.remove(entity)!!
         @Suppress("UNCHECKED_CAST")
-        (aggregate as Aggregate<in Any>)._wrap(updatedEntity)
+        (aggregate as Aggregate<Any>)._wrap(updatedEntity)
         wrapperMap[updatedEntity] = aggregate
     }
 
-    /**
-     * 持久化实体
-     */
     override fun persist(entity: Any) {
         val unwrappedEntity = unwrapEntity(entity)
-        if (isValueObjectAndExists(unwrappedEntity)) {
-            return
-        }
+        if (isValueObjectAndExists(unwrappedEntity)) return
         persistEntitiesThreadLocal.get().add(unwrappedEntity)
     }
 
-    /**
-     * 持久化实体（如果不存在）
-     */
     override fun persistIfNotExist(entity: Any): Boolean {
         val unwrappedEntity = unwrapEntity(entity)
-        if (isExists(unwrappedEntity)) {
-            return false
-        }
-        persistEntitiesThreadLocal.get().add(unwrappedEntity)
-        return true
+        if (isExists(unwrappedEntity)) return false
+        return persistEntitiesThreadLocal.get().add(unwrappedEntity)
     }
 
-    /**
-     * 移除实体
-     */
     override fun remove(entity: Any) {
         val unwrappedEntity = unwrapEntity(entity)
         removeEntitiesThreadLocal.get().add(unwrappedEntity)
     }
 
+    override fun save() {
+        save(Propagation.REQUIRED)
+    }
 
-    /**
-     * 添加到处理中的实体
-     */
     private fun pushProcessingEntities(
         entity: Any,
         currentProcessedPersistenceContextEntities: MutableSet<Any>
     ): Boolean {
-        val processingEntities = processingEntitiesThreadLocal.get()
-        if (entity !in processingEntities) {
-            processingEntities.add(entity)
+        return if (entity !in processingEntitiesThreadLocal.get()) {
+            processingEntitiesThreadLocal.get().add(entity)
             currentProcessedPersistenceContextEntities.add(entity)
-            return true
+            true
+        } else {
+            false
         }
-
-        return false
     }
 
-    /**
-     * 从处理中的实体移除
-     */
-    private fun popProcessingEntities(currentProcessedPersistenceContextEntities: Set<Any>): Boolean {
-        return if (currentProcessedPersistenceContextEntities.isNotEmpty()) {
+    private fun popProcessingEntities(currentProcessedPersistenceContextEntities: Set<Any>): Boolean =
+        if (currentProcessedPersistenceContextEntities.isNotEmpty()) {
             processingEntitiesThreadLocal.get().removeAll(currentProcessedPersistenceContextEntities)
         } else {
             true
         }
-    }
 
-    /**
-     * 保存（指定传播方式）
-     */
     override fun save(propagation: Propagation) {
         val currentProcessedEntitySet = LinkedHashSet<Any>()
-
         val persistEntitySet = persistEntitiesThreadLocal.get()
+
         if (persistEntitySet.isNotEmpty()) {
             persistEntitiesThreadLocal.remove()
-            persistEntitySet.forEach { e -> pushProcessingEntities(e, currentProcessedEntitySet) }
+            persistEntitySet.forEach { pushProcessingEntities(it, currentProcessedEntitySet) }
         }
 
         val deleteEntitySet = removeEntitiesThreadLocal.get()
         if (deleteEntitySet.isNotEmpty()) {
             removeEntitiesThreadLocal.remove()
-            deleteEntitySet.forEach { e -> pushProcessingEntities(e, currentProcessedEntitySet) }
+            deleteEntitySet.forEach { pushProcessingEntities(it, currentProcessedEntitySet) }
         }
 
-        // 事务前拦截器
-        uowInterceptors.forEach { interceptor ->
-            interceptor.beforeTransaction(AggregateOperation(persistEntitySet, deleteEntitySet))
-        }
+        uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
 
-        val saveAndDeleteEntities = arrayOf(
-            persistEntitySet,
-            deleteEntitySet,
-            currentProcessedEntitySet
-        )
+        val saveAndDeleteEntities = arrayOf(persistEntitySet, deleteEntitySet, currentProcessedEntitySet)
 
-        // 执行保存
-        save(
-            transactionHandler = { input ->
-                val persistEntities = input[0] as Set<Any>
-                val deleteEntities = input[1] as Set<Any>
-                val processedEntities = input[2] as MutableSet<Any>
+        save(saveAndDeleteEntities, propagation) { input ->
+            val (persistEntities, deleteEntities, processedEntities) = input
+            val createdEntities = LinkedHashSet<Any>()
+            val updatedEntities = LinkedHashSet<Any>()
+            val deletedEntities = LinkedHashSet<Any>()
 
-                val createdEntities = LinkedHashSet<Any>()
-                val updatedEntities = LinkedHashSet<Any>()
-                val deletedEntities = LinkedHashSet<Any>()
+            uowInterceptors.forEach { it.preInTransaction(persistEntities, deleteEntities) }
 
-                // 事务内前置拦截器
-                uowInterceptors.forEach { interceptor ->
-                    interceptor.preInTransaction(AggregateOperation(persistEntities, deleteEntities))
-                }
+            var flush = false
+            var refreshEntityList: MutableList<Any>? = null
 
-                var flush = false
-                val refreshEntityList: MutableList<Any> = ArrayList()
-
-                // 处理持久化实体
-                if (persistEntities.isNotEmpty()) {
-                    flush = true
-                    for (entity in persistEntities) {
-                        if (supportValueObjectExistsCheckOnSave && entity is ValueObject<*>) {
-                            if (!isExists(entity)) {
-                                entityManager.persist(entity)
-                                createdEntities.add(entity)
-                            }
-                            continue
-                        }
-
-                        val entityInformation = getEntityInformation(entity.javaClass) as EntityInformation<in Any, *>
-                        if (entityInformation.isNew(entity)) {
-                            if (!entityManager.contains(entity)) {
-                                entityManager.persist(entity)
-                            }
-                            refreshEntityList.add(entity)
+            if (persistEntities.isNotEmpty()) {
+                flush = true
+                for (entity in persistEntities) {
+                    if (supportValueObjectExistsCheckOnSave && entity is ValueObject<*>) {
+                        if (!isExists(entity)) {
+                            entityManager.persist(entity)
                             createdEntities.add(entity)
-                        } else {
-                            if (!entityManager.contains(entity)) {
-                                val mergedEntity = entityManager.merge(entity)
-                                updateWrappedEntity(entity, mergedEntity)
-                            }
-                            updatedEntities.add(entity)
                         }
+                        continue
                     }
-                }
 
-                // 处理删除实体
-                if (deleteEntities.isNotEmpty()) {
-                    flush = true
-                    for (entity in deleteEntities) {
-                        if (entityManager.contains(entity)) {
-                            entityManager.remove(entity)
-                        } else {
+                    val entityInformation = getEntityInformation(entity.javaClass)
+                    if (entityInformation.isNew(entity)) {
+                        if (!entityManager.contains(entity)) {
+                            entityManager.persist(entity)
+                        }
+                        if (refreshEntityList == null) {
+                            refreshEntityList = mutableListOf()
+                        }
+                        refreshEntityList.add(entity)
+                        createdEntities.add(entity)
+                    } else {
+                        if (!entityManager.contains(entity)) {
                             val mergedEntity = entityManager.merge(entity)
                             updateWrappedEntity(entity, mergedEntity)
-                            entityManager.remove(mergedEntity)
                         }
-                        deletedEntities.add(entity)
+                        updatedEntities.add(entity)
                     }
                 }
+            }
 
-                // 刷新实体
-                if (flush) {
-                    entityManager.flush()
-                    refreshEntityList.forEach { entity ->
-                        entityManager.refresh(entity)
+            if (deleteEntities.isNotEmpty()) {
+                flush = true
+                for (entity in deleteEntities) {
+                    if (entityManager.contains(entity)) {
+                        entityManager.remove(entity)
+                    } else {
+                        val mergedEntity = entityManager.merge(entity)
+                        updateWrappedEntity(entity, mergedEntity)
+                        entityManager.remove(mergedEntity)
                     }
-                    onEntitiesFlushed(createdEntities, updatedEntities, deletedEntities)
+                    deletedEntities.add(entity)
                 }
+            }
 
-                // 收集所有处理的实体
-                val entities = LinkedHashSet<Any>()
-                entities.addAll(persistEntities)
-                entities.addAll(deleteEntities)
+            if (flush) {
+                entityManager.flush()
+                refreshEntityList?.forEach { entityManager.refresh(it) }
+                onEntitiesFlushed(createdEntities, updatedEntities, deletedEntities)
+            }
 
-                persistenceContextEntities().forEach { entity ->
-                    pushProcessingEntities(entity, processedEntities)
-                }
-                entities.addAll(processedEntities)
+            val entities = LinkedHashSet<Any>().apply {
+                addAll(persistEntities)
+                addAll(deleteEntities)
+            }
 
-                // 实体持久化后拦截器
-                uowInterceptors.forEach { interceptor ->
-                    interceptor.postEntitiesPersisted(entities)
-                }
+            persistenceContextEntities().forEach {
+                pushProcessingEntities(it, processedEntities as MutableSet<Any>)
+            }
+            entities.addAll(processedEntities)
 
-                // 事务内后置拦截器
-                uowInterceptors.forEach { interceptor ->
-                    interceptor.postInTransaction(AggregateOperation(persistEntities, deleteEntities))
-                }
-            },
-            input = saveAndDeleteEntities,
-            propagation = propagation
-        )
-
-        // 事务后拦截器
-        uowInterceptors.forEach { interceptor ->
-            interceptor.afterTransaction(AggregateOperation(persistEntitySet, deleteEntitySet))
+            uowInterceptors.forEach { it.postEntitiesPersisted(entities) }
+            uowInterceptors.forEach { it.postInTransaction(persistEntities, deleteEntities) }
         }
 
+        uowInterceptors.forEach { it.afterTransaction(persistEntitySet, deleteEntitySet) }
         popProcessingEntities(currentProcessedEntitySet)
     }
 
-    /**
-     * 事务执行处理器
-     */
     fun interface TransactionHandler<I, O> {
         fun exec(input: I): O
     }
 
-    /**
-     * 在事务中保存
-     */
-    fun <I, O> save(transactionHandler: TransactionHandler<I, O>, input: I, propagation: Propagation): O {
-        return when (propagation) {
-            Propagation.SUPPORTS -> instance.supports(transactionHandler, input)
-            Propagation.NOT_SUPPORTED -> instance.notSupported(transactionHandler, input)
-            Propagation.REQUIRES_NEW -> instance.requiresNew(transactionHandler, input)
-            Propagation.MANDATORY -> instance.mandatory(transactionHandler, input)
-            Propagation.NEVER -> instance.never(transactionHandler, input)
-            Propagation.NESTED -> instance.nested(transactionHandler, input)
-            else -> instance.required(transactionHandler, input)
+    fun <I, O> save(input: I, propagation: Propagation, transactionHandler: TransactionHandler<I, O>): O =
+        when (propagation) {
+            Propagation.SUPPORTS -> instance.supports(input, transactionHandler)
+            Propagation.NOT_SUPPORTED -> instance.notSupported(input, transactionHandler)
+            Propagation.REQUIRES_NEW -> instance.requiresNew(input, transactionHandler)
+            Propagation.MANDATORY -> instance.mandatory(input, transactionHandler)
+            Propagation.NEVER -> instance.never(input, transactionHandler)
+            Propagation.NESTED -> instance.nested(input, transactionHandler)
+            else -> instance.required(input, transactionHandler)
         }
-    }
 
-    /**
-     * 在REQUIRED事务中执行
-     */
     @Transactional(rollbackFor = [Exception::class], propagation = Propagation.REQUIRED)
-    open fun <I, O> required(transactionHandler: TransactionHandler<I, O>, input: I): O {
-        return transactionWrapper(transactionHandler, input)
-    }
+    open fun <I, O> required(input: I, transactionHandler: TransactionHandler<I, O>): O =
+        transactionWrapper(input, transactionHandler)
 
-    /**
-     * 在REQUIRES_NEW事务中执行
-     */
     @Transactional(rollbackFor = [Exception::class], propagation = Propagation.REQUIRES_NEW)
-    open fun <I, O> requiresNew(transactionHandler: TransactionHandler<I, O>, input: I): O {
-        return transactionWrapper(transactionHandler, input)
-    }
+    open fun <I, O> requiresNew(input: I, transactionHandler: TransactionHandler<I, O>): O =
+        transactionWrapper(input, transactionHandler)
 
-    /**
-     * 在SUPPORTS事务中执行
-     */
     @Transactional(rollbackFor = [Exception::class], propagation = Propagation.SUPPORTS)
-    open fun <I, O> supports(transactionHandler: TransactionHandler<I, O>, input: I): O {
-        return transactionWrapper(transactionHandler, input)
-    }
+    open fun <I, O> supports(input: I, transactionHandler: TransactionHandler<I, O>): O =
+        transactionWrapper(input, transactionHandler)
 
-    /**
-     * 在NOT_SUPPORTED事务中执行
-     */
     @Transactional(rollbackFor = [Exception::class], propagation = Propagation.NOT_SUPPORTED)
-    open fun <I, O> notSupported(transactionHandler: TransactionHandler<I, O>, input: I): O {
-        return transactionWrapper(transactionHandler, input)
-    }
+    open fun <I, O> notSupported(input: I, transactionHandler: TransactionHandler<I, O>): O =
+        transactionWrapper(input, transactionHandler)
 
-    /**
-     * 在MANDATORY事务中执行
-     */
     @Transactional(rollbackFor = [Exception::class], propagation = Propagation.MANDATORY)
-    open fun <I, O> mandatory(transactionHandler: TransactionHandler<I, O>, input: I): O {
-        return transactionWrapper(transactionHandler, input)
-    }
+    open fun <I, O> mandatory(input: I, transactionHandler: TransactionHandler<I, O>): O =
+        transactionWrapper(input, transactionHandler)
 
-    /**
-     * 在NEVER事务中执行
-     */
     @Transactional(rollbackFor = [Exception::class], propagation = Propagation.NEVER)
-    open fun <I, O> never(transactionHandler: TransactionHandler<I, O>, input: I): O {
-        return transactionWrapper(transactionHandler, input)
-    }
+    open fun <I, O> never(input: I, transactionHandler: TransactionHandler<I, O>): O =
+        transactionWrapper(input, transactionHandler)
 
-    /**
-     * 在NESTED事务中执行
-     */
     @Transactional(rollbackFor = [Exception::class], propagation = Propagation.NESTED)
-    open fun <I, O> nested(transactionHandler: TransactionHandler<I, O>, input: I): O {
-        return transactionWrapper(transactionHandler, input)
-    }
+    open fun <I, O> nested(input: I, transactionHandler: TransactionHandler<I, O>): O =
+        transactionWrapper(input, transactionHandler)
 
-    /**
-     * 事务执行包装器
-     */
-    protected fun <I, O> transactionWrapper(transactionHandler: TransactionHandler<I, O>, input: I): O {
-        return transactionHandler.exec(input)
-    }
+    protected fun <I, O> transactionWrapper(input: I, transactionHandler: TransactionHandler<I, O>): O =
+        transactionHandler.exec(input)
 }
