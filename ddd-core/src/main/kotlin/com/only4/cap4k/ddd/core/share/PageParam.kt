@@ -23,7 +23,7 @@ open class PageParam {
     /**
      * 排序
      */
-    private var sort: MutableCollection<OrderInfo> = mutableListOf()
+    var sort: MutableCollection<OrderInfo> = mutableListOf()
 
     /**
      * 添加排序字段

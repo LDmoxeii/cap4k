@@ -30,7 +30,7 @@ open class JpaUnitOfWork(
 ) : UnitOfWork {
 
     @PersistenceContext
-    protected lateinit var entityManager: EntityManager
+    lateinit var entityManager: EntityManager
 
     companion object {
         private val log = LoggerFactory.getLogger(JpaUnitOfWork::class.java)

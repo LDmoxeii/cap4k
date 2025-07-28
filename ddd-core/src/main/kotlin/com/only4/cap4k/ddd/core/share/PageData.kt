@@ -9,7 +9,7 @@ import kotlin.properties.Delegates
  * @author LD_moxeii
  * @date 2025/07/21
  */
-open class PageData<T> protected constructor() {
+open class PageData<T : Any> protected constructor() {
 
     /**
      * 页码
@@ -29,7 +29,7 @@ open class PageData<T> protected constructor() {
     /**
      * 记录列表
      */
-    private lateinit var list: List<T>
+    lateinit var list: List<T>
 
     /**
      * 转换分页结果类型
@@ -37,7 +37,7 @@ open class PageData<T> protected constructor() {
      * @param <D>
      * @return
     </D> */
-    fun <D> transform(map: (T) -> D): PageData<D> = create(pageSize, pageNum, totalCount, list.map(map))
+    fun <D : Any> transform(map: (T) -> D): PageData<D> = create(pageSize, pageNum, totalCount, list.map(map))
 
 
     companion object {
@@ -45,11 +45,10 @@ open class PageData<T> protected constructor() {
          * 生成空分页返回
          *
          * @param pageSize
-         * @param clazz
          * @param <T>
          * @return
         </T> */
-        fun <T> empty(pageSize: Int, clazz: Class<T>): PageData<T> =
+        fun <T : Any> empty(pageSize: Int): PageData<T> =
             create(pageSize, 1, 0L, mutableListOf())
 
         /**
@@ -60,7 +59,7 @@ open class PageData<T> protected constructor() {
          * @param <T>
          * @return
         </T> */
-        fun <T> create(pageParam: PageParam, totalCount: Long, list: List<T>): PageData<T> {
+        fun <T : Any> create(pageParam: PageParam, totalCount: Long, list: List<T>): PageData<T> {
             val pageData = PageData<T>()
             pageData.pageSize = pageParam.pageSize
             pageData.pageNum = pageParam.pageNum
@@ -78,7 +77,7 @@ open class PageData<T> protected constructor() {
          * @param <T>
          * @return
         </T> */
-        fun <T> create(pageSize: Int, pageNum: Int, totalCount: Long, list: List<T>): PageData<T> {
+        fun <T : Any> create(pageSize: Int, pageNum: Int, totalCount: Long, list: List<T>): PageData<T> {
             val pageData = PageData<T>()
             pageData.pageSize = pageSize
             pageData.pageNum = pageNum

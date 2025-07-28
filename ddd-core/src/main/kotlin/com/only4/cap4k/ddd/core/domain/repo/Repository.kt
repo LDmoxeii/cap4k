@@ -12,7 +12,7 @@ import java.util.*
  * @author LD_moxeii
  * @date 2025/07/20
  */
-interface Repository<ENTITY> {
+interface Repository<ENTITY : Any> {
     /**
      * 支持条件类型
      *
