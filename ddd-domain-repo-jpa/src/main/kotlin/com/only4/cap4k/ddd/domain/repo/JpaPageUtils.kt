@@ -19,10 +19,7 @@ import org.springframework.data.domain.Pageable
 /**
  * 从JPA转换
  */
-fun <T : Any> fromSpringData(page: Page<T>?): PageData<T> {
-    if (page == null) {
-        return PageData.empty(10)
-    }
+fun <T : Any> fromSpringData(page: Page<T>): PageData<T> {
     return PageData.create(
         page.pageable.pageSize,
         page.pageable.pageNumber + 1,

@@ -7,6 +7,7 @@ import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.Root
 import org.slf4j.LoggerFactory
 import java.util.*
+import kotlin.properties.Delegates
 
 /**
  * JPA查询帮助类
@@ -22,8 +23,8 @@ object JpaQueryUtils {
         fun build(cb: CriteriaBuilder, cq: CriteriaQuery<R>, root: Root<F>)
     }
 
-    private var jpaUnitOfWork: JpaUnitOfWork? = null
-    private var retrieveCountWarnThreshold: Int = 0
+    private lateinit var jpaUnitOfWork: JpaUnitOfWork
+    private var retrieveCountWarnThreshold by Delegates.notNull<Int>()
 
     fun configure(jpaUnitOfWork: JpaUnitOfWork, retrieveCountWarnThreshold: Int) {
         this.jpaUnitOfWork = jpaUnitOfWork
@@ -31,7 +32,7 @@ object JpaQueryUtils {
     }
 
     private val entityManager: EntityManager
-        get() = jpaUnitOfWork!!.entityManager
+        get() = jpaUnitOfWork.entityManager
 
     /**
      * 自定义查询
