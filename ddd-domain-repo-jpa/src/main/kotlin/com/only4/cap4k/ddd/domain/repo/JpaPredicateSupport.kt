@@ -50,9 +50,7 @@ object JpaPredicateSupport {
      */
     @Suppress("UNCHECKED_CAST")
     fun <ENTITY : Any> reflectEntityClass(predicate: Predicate<ENTITY>): Class<ENTITY>? {
-        if (predicate !is JpaPredicate) {
-            return null
-        }
+        if (predicate !is JpaPredicate) return null
         return predicate.entityClass
     }
 }

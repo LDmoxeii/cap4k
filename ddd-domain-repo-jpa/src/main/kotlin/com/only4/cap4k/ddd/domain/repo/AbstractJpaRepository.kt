@@ -17,8 +17,8 @@ import java.util.*
 /**
  * 基于Jpa的仓储抽象类
  *
- * @author binking338
- * @date 2023/8/13
+ * @author LD_moxeii
+ * @date 2025/07/29
  */
 class AbstractJpaRepository<ENTITY : Any, ID>(
     private val jpaSpecificationExecutor: JpaSpecificationExecutor<ENTITY>,
@@ -27,18 +27,17 @@ class AbstractJpaRepository<ENTITY : Any, ID>(
 
     @PersistenceContext
     lateinit var entityManager: EntityManager
-        protected set
 
     @PostConstruct
     fun init() {
         DefaultRepositorySupervisor.registerPredicateEntityClassReflector(JpaPredicate::class.java) { predicate ->
-            predicate?.let { JpaPredicateSupport.reflectEntityClass(it) }
+            JpaPredicateSupport.reflectEntityClass(predicate) ?: Object::class.java
         }
         DefaultRepositorySupervisor.registerRepositoryEntityClassReflector(AbstractJpaRepository::class.java) { repository ->
             resolveGenericTypeClass(
                 repository, 0,
                 AbstractJpaRepository::class.java
-            )
+            ) ?: Object::class.java
         }
     }
 

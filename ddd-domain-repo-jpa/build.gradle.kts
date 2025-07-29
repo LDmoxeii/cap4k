@@ -10,6 +10,8 @@ dependencies {
     implementation(project(":ddd-core"))
     implementation(project(":ddd-domain-event-jpa"))
 
+    implementation(libs.fastjson)
+
     compileOnly(libs.jpa)
     compileOnly(libs.springMassaging)
 

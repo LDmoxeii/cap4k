@@ -16,8 +16,8 @@ import org.springframework.data.domain.Sort
 /**
  * 将OrderInfo列表转换为Spring Data的Sort对象
  */
-fun toSpringData(orders: Collection<OrderInfo>): Sort {
-    if (orders.isEmpty()) {
+fun toSpringData(orders: Collection<OrderInfo>?): Sort {
+    if (orders.isNullOrEmpty()) {
         return Sort.unsorted()
     }
     return Sort.by(
