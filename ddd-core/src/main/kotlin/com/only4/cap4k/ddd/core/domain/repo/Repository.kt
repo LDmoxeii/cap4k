@@ -110,7 +110,7 @@ interface Repository<ENTITY : Any> {
     fun findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean
+        persist: Boolean = true
     ): PageData<ENTITY>
 
     /**

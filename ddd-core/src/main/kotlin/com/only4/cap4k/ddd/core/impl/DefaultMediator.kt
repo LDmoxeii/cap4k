@@ -32,43 +32,43 @@ class DefaultMediator : Mediator {
     override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY? =
         AggregateFactorySupervisor.instance.create(entityPayload)
 
-    override fun <ENTITY> find(
+    override fun <ENTITY: Any> find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>?,
         persist: Boolean
     ): List<ENTITY> =
         RepositorySupervisor.instance.find(predicate, orders, persist)
 
-    override fun <ENTITY> find(predicate: Predicate<ENTITY>, pageParam: PageParam, persist: Boolean): List<ENTITY> =
+    override fun <ENTITY: Any> find(predicate: Predicate<ENTITY>, pageParam: PageParam, persist: Boolean): List<ENTITY> =
         RepositorySupervisor.instance.find(predicate, pageParam, persist)
 
-    override fun <ENTITY> findOne(predicate: Predicate<ENTITY>, persist: Boolean): Optional<ENTITY> =
+    override fun <ENTITY: Any> findOne(predicate: Predicate<ENTITY>, persist: Boolean): Optional<ENTITY> =
         RepositorySupervisor.instance.findOne(predicate, persist)
 
-    override fun <ENTITY> findFirst(
+    override fun <ENTITY: Any> findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean
     ): Optional<ENTITY> =
         RepositorySupervisor.instance.findFirst(predicate, orders, persist)
 
-    override fun <ENTITY> findPage(
+    override fun <ENTITY: Any> findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
         persist: Boolean
     ): PageData<ENTITY> =
         RepositorySupervisor.instance.findPage(predicate, pageParam, persist)
 
-    override fun <ENTITY> remove(predicate: Predicate<ENTITY>): List<ENTITY> =
+    override fun <ENTITY: Any> remove(predicate: Predicate<ENTITY>): List<ENTITY> =
         RepositorySupervisor.instance.remove(predicate)
 
-    override fun <ENTITY> remove(predicate: Predicate<ENTITY>, limit: Int): List<ENTITY> =
+    override fun <ENTITY: Any> remove(predicate: Predicate<ENTITY>, limit: Int): List<ENTITY> =
         RepositorySupervisor.instance.remove(predicate, limit)
 
-    override fun <ENTITY> count(predicate: Predicate<ENTITY>): Long =
+    override fun <ENTITY: Any> count(predicate: Predicate<ENTITY>): Long =
         RepositorySupervisor.instance.count(predicate)
 
-    override fun <ENTITY> exists(predicate: Predicate<ENTITY>): Boolean =
+    override fun <ENTITY: Any> exists(predicate: Predicate<ENTITY>): Boolean =
         RepositorySupervisor.instance.exists(predicate)
 
     override fun <DOMAIN_SERVICE> getService(domainServiceClass: Class<DOMAIN_SERVICE>): DOMAIN_SERVICE? =
@@ -117,13 +117,13 @@ class DefaultMediator : Mediator {
         IntegrationEventSupervisor.instance.publish(eventPayload, schedule)
     }
 
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY> create(
+    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY: Any> create(
         clazz: Class<AGGREGATE>,
         payload: ENTITY_PAYLOAD
     ): AGGREGATE =
         AggregateSupervisor.instance.create(clazz, payload)
 
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getByIds(
+    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> getByIds(
         ids: Iterable<Id<AGGREGATE, *>>,
         persist: Boolean
     ): List<AGGREGATE> =
@@ -163,7 +163,7 @@ class DefaultMediator : Mediator {
     ): PageData<AGGREGATE> =
         AggregateSupervisor.instance.findPage(predicate, pageParam, persist)
 
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> removeByIds(ids: Iterable<Id<AGGREGATE, *>>): List<AGGREGATE> =
+    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> removeByIds(ids: Iterable<Id<AGGREGATE, *>>): List<AGGREGATE> =
         AggregateSupervisor.instance.removeByIds(ids)
 
     override fun <AGGREGATE : Aggregate<*>> remove(predicate: AggregatePredicate<AGGREGATE, *>): List<AGGREGATE> =

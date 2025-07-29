@@ -20,7 +20,7 @@ interface AggregateSupervisor {
         val instance: AggregateSupervisor = AggregateSupervisorSupport.instance
     }
 
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY> create(
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY: Any> create(
         clazz: Class<AGGREGATE>,
         payload: ENTITY_PAYLOAD
     ): AGGREGATE
@@ -28,31 +28,31 @@ interface AggregateSupervisor {
     /**
      * 根据id获取聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getById(id: Id<AGGREGATE, *>): AGGREGATE? =
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> getById(id: Id<AGGREGATE, *>): AGGREGATE? =
         getByIds(listOf(id), true).firstOrNull()
 
     /**
      * 根据id获取聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getById(id: Id<AGGREGATE, *>, persist: Boolean): AGGREGATE? =
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> getById(id: Id<AGGREGATE, *>, persist: Boolean): AGGREGATE? =
         getByIds(listOf(id), persist).firstOrNull()
 
     /**
      * 根据id获取聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getByIds(ids: Iterable<Id<AGGREGATE, *>>): List<AGGREGATE> =
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> getByIds(ids: Iterable<Id<AGGREGATE, *>>): List<AGGREGATE> =
         getByIds(ids, true)
 
     /**
      * 根据id获取聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> =
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> getByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> =
         getByIds(ids.toList(), true)
 
     /**
      * 根据id获取聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> getByIds(
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> getByIds(
         ids: Iterable<Id<AGGREGATE, *>>,
         persist: Boolean
     ): List<AGGREGATE>
@@ -195,19 +195,19 @@ interface AggregateSupervisor {
     /**
      * 根据id删除聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> removeById(id: Id<AGGREGATE, *>): AGGREGATE? =
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> removeById(id: Id<AGGREGATE, *>): AGGREGATE? =
         removeByIds(listOf(id)).firstOrNull()
 
     /**
      * 根据id删除聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> removeByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> =
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> removeByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> =
         removeByIds(ids.toList())
 
     /**
      * 根据id删除聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY> removeByIds(ids: Iterable<Id<AGGREGATE, *>>): List<AGGREGATE>
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> removeByIds(ids: Iterable<Id<AGGREGATE, *>>): List<AGGREGATE>
 
     /**
      * 根据条件删除实体
