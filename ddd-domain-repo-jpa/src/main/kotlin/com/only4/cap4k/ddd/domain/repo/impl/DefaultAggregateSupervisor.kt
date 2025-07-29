@@ -18,25 +18,23 @@ import java.util.*
 /**
  * 默认聚合管理器
  *
- * @author LD_moxeii
- * @date 2025/07/29
+ * @author binking338
+ * @date 2025/1/12
  */
 class DefaultAggregateSupervisor(
     private val repositorySupervisor: RepositorySupervisor
 ) : AggregateSupervisor {
 
-    private inline fun <reified AGGREGATE : Aggregate<*>> newInstance(entity: Any): AGGREGATE {
-        return newInstance(AGGREGATE::class.java, entity)
-    }
-
-    private fun <AGGREGATE : Aggregate<*>> newInstance(clazz: Class<AGGREGATE>, entity: Any): AGGREGATE {
-        return try {
-            val aggregate = clazz.getDeclaredConstructor().newInstance()
-            @Suppress("UNCHECKED_CAST")
-            (aggregate as Aggregate<Any>)._wrap(entity)
-            aggregate
-        } catch (ex: Exception) {
-            throw RuntimeException(ex)
+    companion object {
+        @Suppress("UNCHECKED_CAST")
+        private fun <AGGREGATE : Aggregate<*>> newInstance(clazz: Class<AGGREGATE>, entity: Any): AGGREGATE {
+            return try {
+                val aggregate = clazz.getDeclaredConstructor().newInstance() as Aggregate<Any>
+                aggregate._wrap(entity)
+                aggregate as AGGREGATE
+            } catch (ex: Exception) {
+                throw RuntimeException(ex)
+            }
         }
     }
 
@@ -44,7 +42,7 @@ class DefaultAggregateSupervisor(
         clazz: Class<AGGREGATE>,
         payload: ENTITY_PAYLOAD
     ): AGGREGATE {
-        val entity = AggregateFactorySupervisor.instance.create(payload)!!
+        val entity: ENTITY = AggregateFactorySupervisor.instance.create(payload)!!
         return newInstance(clazz, entity)
     }
 
@@ -56,12 +54,9 @@ class DefaultAggregateSupervisor(
             return emptyList()
         }
 
-        val firstId = ids.first()
-
         @Suppress("UNCHECKED_CAST")
         val aggregateClass = resolveGenericTypeClass(
-            firstId, 0,
-            Id::class.java, Id.Default::class.java
+            ids.iterator().next(), 0, Id::class.java, Id.Default::class.java
         ) as Class<AGGREGATE>
 
         val aggregatePredicate = JpaAggregatePredicate.byIds(
@@ -72,62 +67,65 @@ class DefaultAggregateSupervisor(
     }
 
     override fun <AGGREGATE : Aggregate<*>> find(
-        aggregatePredicate: AggregatePredicate<AGGREGATE, *>,
+        predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo>?,
         persist: Boolean
     ): List<AGGREGATE> {
-        val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(aggregatePredicate)
-        @Suppress("UNCHECKED_CAST")
-        val predicate = (aggregatePredicate as JpaAggregatePredicate<AGGREGATE, Any>).predicate
-        val entities = repositorySupervisor.find(predicate, orders, persist)
-        return entities.map { newInstance(clazz, it) }
+        val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(predicate)
+        val pred = JpaAggregatePredicateSupport.getPredicate(predicate)
+        val entities = repositorySupervisor.find(pred, orders, persist)
+        return entities.map { entity -> newInstance(clazz, entity) }
     }
 
     override fun <AGGREGATE : Aggregate<*>> find(
-        aggregatePredicate: AggregatePredicate<AGGREGATE, *>,
+        predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
         persist: Boolean
     ): List<AGGREGATE> {
-        val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(aggregatePredicate)
-        @Suppress("UNCHECKED_CAST")
-        val predicate = (aggregatePredicate as JpaAggregatePredicate<AGGREGATE, Any>).predicate
-        val entities = repositorySupervisor.find(predicate, pageParam, persist)
-        return entities.map { newInstance(clazz, it) }
+        val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(predicate)
+        val pred = JpaAggregatePredicateSupport.getPredicate(predicate)
+        val entities = repositorySupervisor.find(pred, pageParam, persist)
+        return entities.map { entity -> newInstance(clazz, entity) }
     }
 
     override fun <AGGREGATE : Aggregate<*>> findOne(
-        aggregatePredicate: AggregatePredicate<AGGREGATE, *>,
+        predicate: AggregatePredicate<AGGREGATE, *>,
         persist: Boolean
     ): Optional<AGGREGATE> {
-        val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(aggregatePredicate)
-        @Suppress("UNCHECKED_CAST")
-        val predicate = (aggregatePredicate as JpaAggregatePredicate<AGGREGATE, Any>).predicate
-        val entity = repositorySupervisor.findOne(predicate, persist)
-        return entity.map { newInstance(clazz, it) }
+        val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(predicate)
+        val pred = JpaAggregatePredicateSupport.getPredicate(predicate)
+        val entity = repositorySupervisor.findOne(pred, persist)
+        return if (entity.isPresent) {
+            Optional.of(newInstance(clazz, entity.get()))
+        } else {
+            Optional.empty()
+        }
     }
 
     override fun <AGGREGATE : Aggregate<*>> findFirst(
-        aggregatePredicate: AggregatePredicate<AGGREGATE, *>,
+        predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo>,
         persist: Boolean
     ): Optional<AGGREGATE> {
-        val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(aggregatePredicate)
-        @Suppress("UNCHECKED_CAST")
-        val predicate = (aggregatePredicate as JpaAggregatePredicate<AGGREGATE, Any>).predicate
-        val entity = repositorySupervisor.findFirst(predicate, orders, persist)
-        return entity.map { newInstance(clazz, it) }
+        val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(predicate)
+        val pred = JpaAggregatePredicateSupport.getPredicate(predicate)
+        val entity = repositorySupervisor.findFirst(pred, orders, persist)
+        return if (entity.isPresent) {
+            Optional.of(newInstance(clazz, entity.get()))
+        } else {
+            Optional.empty()
+        }
     }
 
     override fun <AGGREGATE : Aggregate<*>> findPage(
-        aggregatePredicate: AggregatePredicate<AGGREGATE, *>,
+        predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
         persist: Boolean
     ): PageData<AGGREGATE> {
-        val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(aggregatePredicate)
-        @Suppress("UNCHECKED_CAST")
-        val predicate = (aggregatePredicate as JpaAggregatePredicate<AGGREGATE, Any>).predicate
-        val entities = repositorySupervisor.findPage(predicate, pageParam, persist)
-        return entities.transform { newInstance(clazz, it) }
+        val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(predicate)
+        val pred = JpaAggregatePredicateSupport.getPredicate(predicate)
+        val entities = repositorySupervisor.findPage(pred, pageParam, persist)
+        return entities.transform { entity -> newInstance(clazz, entity) }
     }
 
     override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> removeByIds(
@@ -137,12 +135,9 @@ class DefaultAggregateSupervisor(
             return emptyList()
         }
 
-        val firstId = ids.first()
-
         @Suppress("UNCHECKED_CAST")
         val aggregateClass = resolveGenericTypeClass(
-            firstId, 0,
-            Id::class.java, Id.Default::class.java
+            ids.iterator().next(), 0, Id::class.java, Id.Default::class.java
         ) as Class<AGGREGATE>
 
         val aggregatePredicate = JpaAggregatePredicate.byIds(
@@ -153,39 +148,35 @@ class DefaultAggregateSupervisor(
     }
 
     override fun <AGGREGATE : Aggregate<*>> remove(
-        aggregatePredicate: AggregatePredicate<AGGREGATE, *>
+        predicate: AggregatePredicate<AGGREGATE, *>
     ): List<AGGREGATE> {
-        val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(aggregatePredicate)
-        @Suppress("UNCHECKED_CAST")
-        val predicate = (aggregatePredicate as JpaAggregatePredicate<AGGREGATE, Any>).predicate
-        val entities = repositorySupervisor.remove(predicate)
-        return entities.map { newInstance(clazz, it) }
+        val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(predicate)
+        val pred = JpaAggregatePredicateSupport.getPredicate(predicate)
+        val entities = repositorySupervisor.remove(pred)
+        return entities.map { entity -> newInstance(clazz, entity) }
     }
 
     override fun <AGGREGATE : Aggregate<*>> remove(
-        aggregatePredicate: AggregatePredicate<AGGREGATE, *>,
+        predicate: AggregatePredicate<AGGREGATE, *>,
         limit: Int
     ): List<AGGREGATE> {
-        val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(aggregatePredicate)
-        @Suppress("UNCHECKED_CAST")
-        val predicate = (aggregatePredicate as JpaAggregatePredicate<AGGREGATE, Any>).predicate
-        val entities = repositorySupervisor.remove(predicate, limit)
-        return entities.map { newInstance(clazz, it) }
+        val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(predicate)
+        val pred = JpaAggregatePredicateSupport.getPredicate(predicate)
+        val entities = repositorySupervisor.remove(pred, limit)
+        return entities.map { entity -> newInstance(clazz, entity) }
     }
 
     override fun <AGGREGATE : Aggregate<*>> count(
-        aggregatePredicate: AggregatePredicate<AGGREGATE, *>
+        predicate: AggregatePredicate<AGGREGATE, *>
     ): Long {
-        @Suppress("UNCHECKED_CAST")
-        val predicate = (aggregatePredicate as JpaAggregatePredicate<AGGREGATE, Any>).predicate
-        return repositorySupervisor.count(predicate)
+        val pred = JpaAggregatePredicateSupport.getPredicate(predicate)
+        return repositorySupervisor.count(pred)
     }
 
     override fun <AGGREGATE : Aggregate<*>> exists(
-        aggregatePredicate: AggregatePredicate<AGGREGATE, *>
+        predicate: AggregatePredicate<AGGREGATE, *>
     ): Boolean {
-        @Suppress("UNCHECKED_CAST")
-        val predicate = (aggregatePredicate as JpaAggregatePredicate<AGGREGATE, Any>).predicate
-        return repositorySupervisor.exists(predicate)
+        val pred = JpaAggregatePredicateSupport.getPredicate(predicate)
+        return repositorySupervisor.exists(pred)
     }
 }

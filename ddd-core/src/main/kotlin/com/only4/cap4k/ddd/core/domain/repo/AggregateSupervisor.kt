@@ -40,12 +40,6 @@ interface AggregateSupervisor {
     /**
      * 根据id获取聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> getByIds(ids: Iterable<Id<AGGREGATE, *>>): List<AGGREGATE> =
-        getByIds(ids, true)
-
-    /**
-     * 根据id获取聚合
-     */
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> getByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> =
         getByIds(ids.toList(), true)
 
@@ -54,7 +48,7 @@ interface AggregateSupervisor {
      */
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> getByIds(
         ids: Iterable<Id<AGGREGATE, *>>,
-        persist: Boolean
+        persist: Boolean = true
     ): List<AGGREGATE>
 
     /**

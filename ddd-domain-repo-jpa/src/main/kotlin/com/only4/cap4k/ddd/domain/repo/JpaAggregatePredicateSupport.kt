@@ -18,10 +18,9 @@ object JpaAggregatePredicateSupport {
      * @param predicate
      * @return
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getPredicate(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>
-    ): Predicate<ENTITY> {
-        return (predicate as JpaAggregatePredicate<AGGREGATE, ENTITY>).predicate
+    @Suppress("UNCHECKED_CAST")
+    fun getPredicate(predicate: AggregatePredicate<*, *>): Predicate<Any> {
+        return (predicate as JpaAggregatePredicate<*, *>).predicate as Predicate<Any>
     }
 
     /**

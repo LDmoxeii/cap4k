@@ -37,7 +37,7 @@ class AbstractJpaRepository<ENTITY : Any, ID>(
             resolveGenericTypeClass(
                 repository, 0,
                 AbstractJpaRepository::class.java
-            ) ?: Object::class.java
+            )
         }
     }
 

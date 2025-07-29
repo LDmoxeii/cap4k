@@ -32,13 +32,13 @@ class DefaultRepositorySupervisor(
             var entityClass = resolveGenericTypeClass(
                 repository, 0,
                 Repository::class.java
-            ) ?: Object::class.java
+            )
 
-            if (Object::class.java == entityClass) {
+            if (Any::class.java == entityClass) {
                 for ((repositoryClass, reflector) in repositoryClass2EntityClassReflector) {
                     if (repositoryClass.isAssignableFrom(repository.javaClass)) {
                         val reflectedClass = reflector(repository)
-                        if (reflectedClass != null && Object::class.java != reflectedClass) {
+                        if (reflectedClass != null && Any::class.java != reflectedClass) {
                             entityClass = reflectedClass
                             break
                         }

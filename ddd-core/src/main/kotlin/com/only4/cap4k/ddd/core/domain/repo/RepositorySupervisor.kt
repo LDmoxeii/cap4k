@@ -53,16 +53,10 @@ interface RepositorySupervisor {
     /**
      * 根据条件获取实体列表
      */
-    fun <ENTITY: Any> find(predicate: Predicate<ENTITY>, pageParam: PageParam): List<ENTITY> =
-        find(predicate, pageParam, true)
-
-    /**
-     * 根据条件获取实体列表
-     */
     fun <ENTITY: Any> find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean
+        persist: Boolean = true
     ): List<ENTITY>
 
     /**
