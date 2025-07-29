@@ -44,7 +44,7 @@ class Md5HashIdentifierGenerator : IdentifierGenerator {
             jsonObject.removeFieldRecursively(idFieldName)
             val json = jsonObject.toString(SerializerFeature.SortField)
 
-            val idFieldType = resolveGenericTypeClass(obj, 0, ValueObject::class.java)!!
+            val idFieldType = resolveGenericTypeClass(obj, 0, ValueObject::class.java)
 
             val hashBytes = DigestUtils.md5Digest(json.toByteArray(StandardCharsets.UTF_8))
 
