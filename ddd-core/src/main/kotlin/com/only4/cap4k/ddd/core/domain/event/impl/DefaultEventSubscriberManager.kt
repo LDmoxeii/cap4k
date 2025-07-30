@@ -134,7 +134,7 @@ class DefaultEventSubscriberManager(
             )
 
             subscribeInternal(map, autoRelease.sourceDomainEventClass.java) { domainEvent ->
-                val integrationEvent = converter.convert(domainEvent)
+                val integrationEvent = converter.convert(domainEvent)!!
                 IntegrationEventSupervisor.instance.attach(
                     integrationEvent,
                     Duration.ofSeconds(autoRelease.delayInSeconds)
@@ -169,9 +169,20 @@ class DefaultEventSubscriberManager(
 
         if (subscribersForEvent.isEmpty()) return
 
+        val exceptions = mutableListOf<Exception>()
         subscribersForEvent.forEach { subscriber ->
+            try {
             @Suppress("UNCHECKED_CAST")
             (subscriber as EventSubscriber<Any>).onEvent(eventPayload)
+            } catch (ex: Exception) {
+                // 记录异常但不影响其他订阅器的执行
+                exceptions.add(ex)
+                // 可以根据需要添加日志记录
+                // log.error("Subscriber ${subscriber.javaClass.simpleName} failed to handle event", ex)
+            }
+        }
+        if (exceptions.isNotEmpty()) {
+            throw RuntimeException("Some subscribers failed to handle the event: ${exceptions.joinToString(", ")}")
         }
     }
 // try {

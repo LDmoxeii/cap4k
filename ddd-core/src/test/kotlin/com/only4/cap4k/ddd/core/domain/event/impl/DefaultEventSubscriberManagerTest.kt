@@ -9,7 +9,10 @@ import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriber
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import io.mockk.*
-import org.junit.jupiter.api.*
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.core.Ordered
 import org.springframework.core.convert.converter.Converter
@@ -293,7 +296,6 @@ class DefaultEventSubscriberManagerTest {
     inner class ExceptionHandlingTests {
 
         @Test
-        @Disabled
         @DisplayName("订阅者异常不应该影响其他订阅者")
         fun `subscriber exceptions should not affect other subscribers`() {
             // given
