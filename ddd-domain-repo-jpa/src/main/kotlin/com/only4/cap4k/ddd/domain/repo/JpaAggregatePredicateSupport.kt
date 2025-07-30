@@ -19,8 +19,8 @@ object JpaAggregatePredicateSupport {
      * @return
      */
     @Suppress("UNCHECKED_CAST")
-    fun getPredicate(predicate: AggregatePredicate<*, *>): Predicate<Any> {
-        return (predicate as JpaAggregatePredicate<*, *>).predicate as Predicate<Any>
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getPredicate(predicate: AggregatePredicate<AGGREGATE, ENTITY>): Predicate<ENTITY> {
+        return (predicate as JpaAggregatePredicate<AGGREGATE, ENTITY>).predicate as Predicate<ENTITY>
     }
 
     /**
@@ -30,9 +30,9 @@ object JpaAggregatePredicateSupport {
      * @return
      */
     @Suppress("UNCHECKED_CAST")
-    fun <AGGREGATE : Aggregate<*>> reflectAggregateClass(
-        predicate: AggregatePredicate<AGGREGATE, *>
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> reflectAggregateClass(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>
     ): Class<AGGREGATE> {
-        return (predicate as JpaAggregatePredicate<AGGREGATE, *>).aggregateClass
+        return (predicate as JpaAggregatePredicate<AGGREGATE, ENTITY>).aggregateClass
     }
 }

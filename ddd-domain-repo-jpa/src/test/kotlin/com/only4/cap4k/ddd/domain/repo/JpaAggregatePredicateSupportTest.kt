@@ -3,7 +3,6 @@ package com.only4.cap4k.ddd.domain.repo
 import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
 import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
 import com.only4.cap4k.ddd.core.domain.repo.AggregatePredicate
-import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -114,7 +113,7 @@ class JpaAggregatePredicateSupportTest {
         val result = JpaAggregatePredicateSupport.getPredicate(jpaAggregatePredicate)
 
         // 验证
-        assertSame<Predicate<Any>>(existingPredicate as Predicate<Any>, result)
+        assertSame(existingPredicate, result)
     }
 
     @Test

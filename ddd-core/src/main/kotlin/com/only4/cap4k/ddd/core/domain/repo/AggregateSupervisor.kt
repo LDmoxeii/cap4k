@@ -54,14 +54,14 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取聚合列表
      */
-    fun <AGGREGATE : Aggregate<*>> find(predicate: AggregatePredicate<AGGREGATE, *>): List<AGGREGATE> =
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> find(predicate: AggregatePredicate<AGGREGATE, ENTITY>): List<AGGREGATE> =
         find(predicate, null as Collection<OrderInfo>?, true)
 
     /**
      * 根据条件获取聚合列表
      */
-    fun <AGGREGATE : Aggregate<*>> find(
-        predicate: AggregatePredicate<AGGREGATE, *>,
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> find(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         persist: Boolean
     ): List<AGGREGATE> =
         find(predicate, null as Collection<OrderInfo>?, persist)
@@ -69,8 +69,8 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取聚合列表
      */
-    fun <AGGREGATE : Aggregate<*>> find(
-        predicate: AggregatePredicate<AGGREGATE, *>,
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> find(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         orders: Collection<OrderInfo>
     ): List<AGGREGATE> =
         find(predicate, orders, true)
@@ -78,8 +78,8 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取聚合列表
      */
-    fun <AGGREGATE : Aggregate<*>> find(
-        predicate: AggregatePredicate<AGGREGATE, *>,
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> find(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         vararg orders: OrderInfo
     ): List<AGGREGATE> =
         find(predicate, orders.toList(), true)
@@ -87,8 +87,8 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取聚合列表
      */
-    fun <AGGREGATE : Aggregate<*>> find(
-        predicate: AggregatePredicate<AGGREGATE, *>,
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> find(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         orders: Collection<OrderInfo>?,
         persist: Boolean
     ): List<AGGREGATE>
@@ -96,8 +96,8 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取聚合列表
      */
-    fun <AGGREGATE : Aggregate<*>> find(
-        predicate: AggregatePredicate<AGGREGATE, *>,
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> find(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         pageParam: PageParam
     ): List<AGGREGATE> =
         find(predicate, pageParam, true)
@@ -105,8 +105,8 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取聚合列表
      */
-    fun <AGGREGATE : Aggregate<*>> find(
-        predicate: AggregatePredicate<AGGREGATE, *>,
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> find(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         pageParam: PageParam,
         persist: Boolean
     ): List<AGGREGATE>
@@ -114,22 +114,22 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取单个实体
      */
-    fun <AGGREGATE : Aggregate<*>> findOne(predicate: AggregatePredicate<AGGREGATE, *>): Optional<AGGREGATE> =
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findOne(predicate: AggregatePredicate<AGGREGATE, ENTITY>): Optional<AGGREGATE> =
         findOne(predicate, true)
 
     /**
      * 根据条件获取单个实体
      */
-    fun <AGGREGATE : Aggregate<*>> findOne(
-        predicate: AggregatePredicate<AGGREGATE, *>,
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findOne(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         persist: Boolean
     ): Optional<AGGREGATE>
 
     /**
      * 根据条件获取实体
      */
-    fun <AGGREGATE : Aggregate<*>> findFirst(
-        predicate: AggregatePredicate<AGGREGATE, *>,
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findFirst(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean
     ): Optional<AGGREGATE>
@@ -137,8 +137,8 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取实体
      */
-    fun <AGGREGATE : Aggregate<*>> findFirst(
-        predicate: AggregatePredicate<AGGREGATE, *>,
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findFirst(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         orders: Collection<OrderInfo>
     ): Optional<AGGREGATE> =
         findFirst(predicate, orders, true)
@@ -146,8 +146,8 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取实体
      */
-    fun <AGGREGATE : Aggregate<*>> findFirst(
-        predicate: AggregatePredicate<AGGREGATE, *>,
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findFirst(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         vararg orders: OrderInfo
     ): Optional<AGGREGATE> =
         findFirst(predicate, orders.toList(), true)
@@ -155,8 +155,8 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取实体
      */
-    fun <AGGREGATE : Aggregate<*>> findFirst(
-        predicate: AggregatePredicate<AGGREGATE, *>,
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findFirst(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         persist: Boolean
     ): Optional<AGGREGATE> =
         findFirst(predicate, emptyList(), persist)
@@ -164,15 +164,15 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取实体
      */
-    fun <AGGREGATE : Aggregate<*>> findFirst(predicate: AggregatePredicate<AGGREGATE, *>): Optional<AGGREGATE> =
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findFirst(predicate: AggregatePredicate<AGGREGATE, ENTITY>): Optional<AGGREGATE> =
         findFirst(predicate, true)
 
     /**
      * 根据条件获取实体分页列表
      * 自动调用 UnitOfWork::persist
      */
-    fun <AGGREGATE : Aggregate<*>> findPage(
-        predicate: AggregatePredicate<AGGREGATE, *>,
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findPage(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         pageParam: PageParam
     ): PageData<AGGREGATE> =
         findPage(predicate, pageParam, true)
@@ -180,8 +180,8 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取实体分页列表
      */
-    fun <AGGREGATE : Aggregate<*>> findPage(
-        predicate: AggregatePredicate<AGGREGATE, *>,
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findPage(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         pageParam: PageParam,
         persist: Boolean
     ): PageData<AGGREGATE>
@@ -206,20 +206,23 @@ interface AggregateSupervisor {
     /**
      * 根据条件删除实体
      */
-    fun <AGGREGATE : Aggregate<*>> remove(predicate: AggregatePredicate<AGGREGATE, *>): List<AGGREGATE>
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> remove(predicate: AggregatePredicate<AGGREGATE, ENTITY>): List<AGGREGATE>
 
     /**
      * 根据条件删除实体
      */
-    fun <AGGREGATE : Aggregate<*>> remove(predicate: AggregatePredicate<AGGREGATE, *>, limit: Int): List<AGGREGATE>
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> remove(
+        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
+        limit: Int
+    ): List<AGGREGATE>
 
     /**
      * 根据条件获取实体计数
      */
-    fun <AGGREGATE : Aggregate<*>> count(predicate: AggregatePredicate<AGGREGATE, *>): Long
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> count(predicate: AggregatePredicate<AGGREGATE, ENTITY>): Long
 
     /**
      * 根据条件判断实体是否存在
      */
-    fun <AGGREGATE : Aggregate<*>> exists(predicate: AggregatePredicate<AGGREGATE, *>): Boolean
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> exists(predicate: AggregatePredicate<AGGREGATE, ENTITY>): Boolean
 }

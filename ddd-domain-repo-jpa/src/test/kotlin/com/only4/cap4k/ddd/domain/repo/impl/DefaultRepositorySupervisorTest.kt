@@ -222,7 +222,7 @@ class DefaultRepositorySupervisorTest {
 
         // 使用 mockkObject 代替 mockkStatic
         mockkObject(JpaAggregatePredicateSupport)
-        every { JpaAggregatePredicateSupport.getPredicate(aggregatePredicate) } returns jpaPredicate as Predicate<Any>
+        every { JpaAggregatePredicateSupport.getPredicate(aggregatePredicate) } returns jpaPredicate
 
         DefaultRepositorySupervisor.registerPredicateEntityClassReflector(JpaAggregatePredicate::class.java) {
             TestEntity::class.java
