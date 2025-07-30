@@ -6,6 +6,7 @@ import org.springframework.aop.support.AopUtils
 import org.springframework.cglib.beans.BeanCopier
 import org.springframework.core.ResolvableType
 import org.springframework.core.convert.converter.Converter
+import java.lang.reflect.Constructor
 import java.lang.reflect.Method
 import java.lang.reflect.ParameterizedType
 import java.util.function.Predicate
@@ -71,6 +72,19 @@ fun findMethod(clazz: Class<*>, name: String, methodPredicate: Predicate<Method>
     return clazz.declaredMethods.asSequence()
         .filter { it.name == name }
         .filter { methodPredicate?.test(it) ?: true }
+        .firstOrNull()
+}
+
+/**
+ * 查找构造器
+ *
+ * @param clazz                 查找基于类型
+ * @param constructorPredicate  构造器谓词条件
+ * @return
+ */
+fun findConstructor(clazz: Class<*>, constructorPredicate: Predicate<Constructor<*>>?): Constructor<*>? {
+    return clazz.declaredConstructors.asSequence()
+        .filter { constructorPredicate?.test(it) ?: true }
         .firstOrNull()
 }
 

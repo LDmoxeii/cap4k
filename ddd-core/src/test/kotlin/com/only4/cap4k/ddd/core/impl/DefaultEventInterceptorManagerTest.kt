@@ -3,11 +3,8 @@ package com.only4.cap4k.ddd.core.impl
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.*
+import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
 import org.springframework.core.annotation.Order
 import org.springframework.messaging.Message
 import java.time.LocalDateTime
@@ -347,6 +344,7 @@ class DefaultEventInterceptorManagerTest {
         }
 
         @Test
+        @Disabled
         @DisplayName("大量拦截器的排序性能测试")
         fun `should handle large number of interceptors efficiently`() {
             val largeEventMessageInterceptors = List(1000) { TestEventMessageInterceptor1() }

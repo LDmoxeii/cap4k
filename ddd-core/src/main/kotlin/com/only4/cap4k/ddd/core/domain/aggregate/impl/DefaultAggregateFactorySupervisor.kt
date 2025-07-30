@@ -4,6 +4,7 @@ import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
+import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 
 /**
@@ -23,8 +24,9 @@ class DefaultAggregateFactorySupervisor(
         }
     }
 
-    override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY? {
-        val factory = factoryMap[entityPayload::class.java] ?: return null
+    override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY {
+        val factory = factoryMap[entityPayload::class.java]
+            ?: throw DomainException("No factory found for payload: ${entityPayload::class.java.name}")
 
         @Suppress("UNCHECKED_CAST")
         val instance = (factory as AggregateFactory<ENTITY_PAYLOAD, ENTITY>).create(entityPayload)

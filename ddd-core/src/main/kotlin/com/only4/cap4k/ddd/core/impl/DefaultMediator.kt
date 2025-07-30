@@ -29,7 +29,7 @@ import java.util.*
  */
 class DefaultMediator : Mediator {
 
-    override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY? =
+    override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY =
         AggregateFactorySupervisor.instance.create(entityPayload)
 
     override fun <ENTITY: Any> find(

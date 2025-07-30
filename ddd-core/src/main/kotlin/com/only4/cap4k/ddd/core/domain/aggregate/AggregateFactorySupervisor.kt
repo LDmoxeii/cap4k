@@ -15,7 +15,7 @@ interface AggregateFactorySupervisor {
      * @param ENTITY 聚合实体类型
      * @param ENTITY_PAYLOAD 聚合载荷类型
      */
-    fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY?
+    fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY
 
     companion object {
         /**

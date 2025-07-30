@@ -40,17 +40,18 @@ class DefaultAggregateFactorySupervisorTest {
     }
 
     @Test
-    @DisplayName("当没有匹配的工厂时应该返回null")
-    fun `should return null when no matching factory found`() {
+    @DisplayName("当没有匹配的工厂时应该抛出异常")
+    fun `should throw exception when no matching factory found`() {
         // Given
         supervisor = DefaultAggregateFactorySupervisor(emptyList(), unitOfWork)
         val payload = TestPayload("test-data")
 
-        // When
-        val result = supervisor.create(payload)
+        // When & Then
+        val exception = assertThrows(com.only4.cap4k.ddd.core.share.DomainException::class.java) {
+            supervisor.create(payload)
+        }
 
-        // Then
-        assertNull(result)
+        assertTrue(exception.message!!.contains("No factory found for payload"))
         verify(exactly = 0) { unitOfWork.persist(any()) }
     }
 
@@ -97,17 +98,18 @@ class DefaultAggregateFactorySupervisorTest {
     }
 
     @Test
-    @DisplayName("当工厂列表为空时应该返回null")
-    fun `should return null when factory list is empty`() {
+    @DisplayName("当工厂列表为空时应该抛出异常")
+    fun `should throw exception when factory list is empty`() {
         // Given
         supervisor = DefaultAggregateFactorySupervisor(emptyList(), unitOfWork)
         val payload = TestPayload("test-data")
 
-        // When
-        val result = supervisor.create(payload)
+        // When & Then
+        val exception = assertThrows(com.only4.cap4k.ddd.core.share.DomainException::class.java) {
+            supervisor.create(payload)
+        }
 
-        // Then
-        assertNull(result)
+        assertTrue(exception.message!!.contains("No factory found for payload"))
         verify(exactly = 0) { unitOfWork.persist(any()) }
     }
 

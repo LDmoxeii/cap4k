@@ -15,23 +15,24 @@ interface Aggregate<ENTITY : Any> {
      * 仅供框架调用使用，勿在业务逻辑代码中使用
      * @return
      */
-    fun _unwrap(): ENTITY
+    fun _unwrap(): ENTITY?
 
     /**
      * 封装ORM实体
      * 仅供框架调用使用，勿在业务逻辑代码中使用
      * @param root
      */
-    fun _wrap(root: ENTITY)
+    fun _wrap(root: ENTITY?)
 
-    open class Default<ENTITY : Any>(payload: Any) : Aggregate<ENTITY> {
-        protected lateinit var root: ENTITY
+    open class Default<ENTITY : Any>(payload: Any? = null) : Aggregate<ENTITY> {
+        protected var root: ENTITY? = null
 
         init {
-            require(payload is AggregatePayload<*>) { "payload must be AggregatePayload" }
-            val root = Mediator.factories().create(payload as AggregatePayload<ENTITY>)
-                ?: throw IllegalStateException("No factory found for payload: ${payload::class.java}")
-            _wrap(root)
+            if (payload != null) {
+                require(payload is AggregatePayload<*>) { "payload must be AggregatePayload" }
+                val root = Mediator.factories().create(payload as AggregatePayload<ENTITY>)
+                _wrap(root)
+            }
         }
 
         /**
@@ -39,7 +40,7 @@ interface Aggregate<ENTITY : Any> {
          * 仅供框架调用使用，勿在业务逻辑代码中使用
          * @return
          */
-        override fun _unwrap(): ENTITY {
+        override fun _unwrap(): ENTITY? {
             return this.root
         }
 
@@ -48,7 +49,7 @@ interface Aggregate<ENTITY : Any> {
          * 仅供框架调用使用，勿在业务逻辑代码中使用
          * @param root
          */
-        override fun _wrap(root: ENTITY) {
+        override fun _wrap(root: ENTITY?) {
             this.root = root
         }
 

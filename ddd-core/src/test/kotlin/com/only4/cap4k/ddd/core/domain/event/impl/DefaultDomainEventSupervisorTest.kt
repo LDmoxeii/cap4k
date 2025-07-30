@@ -400,9 +400,9 @@ class DefaultDomainEventSupervisorTest {
     data class TestEntity(val id: String)
 
     // 测试用的聚合根
-    class TestAggregate(private val id: String) : Aggregate<TestEntity> {
+    class TestAggregate(private val id: String) : Aggregate.Default<TestEntity>() {
         override fun _unwrap(): TestEntity = TestEntity(id)
-        override fun _wrap(root: TestEntity) {}
+        override fun _wrap(root: TestEntity?) {}
     }
 
     // 测试用的Spring聚合根
