@@ -19,20 +19,19 @@ import org.springframework.data.domain.Pageable
 /**
  * 从JPA转换
  */
-fun <T : Any> fromSpringData(page: Page<T>): PageData<T> {
-    return PageData.create(
-        page.pageable.pageSize,
-        page.pageable.pageNumber + 1,
-        page.totalElements,
-        page.content
-    )
-}
+fun <T : Any> fromSpringData(page: Page<T>): PageData<T> = PageData.create(
+    page.pageable.pageSize,
+    page.pageable.pageNumber + 1,
+    page.totalElements,
+    page.content
+)
+
 
 /**
  * 从JPA转换
  */
-fun <S : Any, D : Any> fromSpringData(page: Page<S>, desClass: Class<D>): PageData<D> {
-    return fromSpringData(page).transform { s ->
+fun <S : Any, D : Any> fromSpringData(page: Page<S>, desClass: Class<D>): PageData<D> =
+    fromSpringData(page).transform { s ->
         try {
             @Suppress("DEPRECATION")
             val d = desClass.newInstance()
@@ -42,27 +41,22 @@ fun <S : Any, D : Any> fromSpringData(page: Page<S>, desClass: Class<D>): PageDa
             throw DomainException("分页类型转换异常", throwable)
         }
     }
-}
+
 
 /**
  * 从JPA转换
  */
-fun <S : Any, D : Any> fromSpringData(page: Page<S>, transformer: (S) -> D): PageData<D> {
-    return fromSpringData(page).transform(transformer)
-}
+fun <S : Any, D : Any> fromSpringData(page: Page<S>, transformer: (S) -> D): PageData<D> =
+    fromSpringData(page).transform(transformer)
+
 
 /**
  * 转换为Spring Data的Pageable
  */
-fun toSpringData(param: PageParam?): Pageable {
-    if (param == null) {
-        return PageRequest.of(0, 10)
-    }
-
-    return if (param.sort.isEmpty()) {
-        PageRequest.of(param.pageNum - 1, param.pageSize)
-    } else {
-        val orders = toSpringData(param.sort)
-        PageRequest.of(param.pageNum - 1, param.pageSize, orders)
-    }
+fun toSpringData(param: PageParam): Pageable = if (param.sort.isEmpty()) {
+    PageRequest.of(param.pageNum - 1, param.pageSize)
+} else {
+    val orders = toSpringData(param.sort)
+    PageRequest.of(param.pageNum - 1, param.pageSize, orders)
 }
+

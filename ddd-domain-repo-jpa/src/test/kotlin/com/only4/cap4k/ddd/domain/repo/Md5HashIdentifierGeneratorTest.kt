@@ -8,6 +8,7 @@ import io.mockk.unmockkStatic
 import org.hibernate.engine.spi.SharedSessionContractImplementor
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.io.Serializable
 import java.math.BigDecimal
@@ -59,6 +60,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("当实体是具有可序列化哈希的ValueObject时应该返回ValueObject哈希")
     fun `generate should return ValueObject hash when entity is ValueObject with Serializable hash`() {
         val valueObject = TestSerializableValueObject("test")
 
@@ -68,6 +70,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("当实体是ValueObject但哈希不可序列化时应该使用哈希方法")
     fun `generate should use hash method when entity is ValueObject but hash is not Serializable`() {
         val valueObject = TestValueObject("test")
 
@@ -82,6 +85,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("当实体不是ValueObject时应该使用哈希方法")
     fun `generate should use hash method when entity is not ValueObject`() {
         val entity = TestEntity(name = "test", value = 42)
 
@@ -96,6 +100,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("哈希应该生成String类型的哈希")
     fun `hash should generate String type hash`() {
         val entity = TestEntity(name = "test", value = 42)
 
@@ -107,10 +112,11 @@ class Md5HashIdentifierGeneratorTest {
 
         assertNotNull(result)
         assertTrue(result is String)
-        assertEquals(32, (result as String).length) // MD5 hex string length
+        assertEquals(32, result.length) // MD5 hex string length
     }
 
     @Test
+    @DisplayName("哈希应该生成Int类型的哈希")
     fun `hash should generate Int type hash`() {
         val entity = TestEntity(name = "test", value = 42)
 
@@ -125,6 +131,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("哈希应该生成Long类型的哈希")
     fun `hash should generate Long type hash`() {
         val entity = TestEntity(name = "test", value = 42)
 
@@ -139,6 +146,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("哈希应该生成BigInteger类型的哈希")
     fun `hash should generate BigInteger type hash`() {
         val entity = TestEntity(name = "test", value = 42)
 
@@ -153,6 +161,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("哈希应该生成BigDecimal类型的哈希")
     fun `hash should generate BigDecimal type hash`() {
         val entity = TestEntity(name = "test", value = 42)
 
@@ -167,6 +176,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("哈希应该处理Integer包装类")
     fun `hash should handle Integer wrapper class`() {
         val entity = TestEntity(name = "test", value = 42)
 
@@ -181,6 +191,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("哈希应该从 JSON中递归地移除ID字段")
     fun `hash should remove id field recursively from JSON`() {
         val entity = TestEntity(id = 123L, name = "test", value = 42)
 
@@ -198,6 +209,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("哈希应该使用自定义ID字段名")
     fun `hash should use custom id field name`() {
         val entity = EntityWithCustomId(customId = "custom123", name = "test", value = 42)
 
@@ -215,6 +227,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("哈希应该为不同对象生成不同的结果")
     fun `hash should generate different results for different objects`() {
         val entity1 = TestEntity(name = "test1", value = 42)
         val entity2 = TestEntity(name = "test2", value = 42)
@@ -230,6 +243,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("哈希应该为相同对象内容生成相同的结果")
     fun `hash should generate same results for same object content`() {
         val entity1 = TestEntity(name = "test", value = 42)
         val entity2 = TestEntity(name = "test", value = 42)
@@ -245,6 +259,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("配置应该改变ID_FIELD_NAME")
     fun `configure should change ID_FIELD_NAME`() {
         val originalFieldName = Md5HashIdentifierGenerator.ID_FIELD_NAME
 
@@ -258,6 +273,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("哈希应该正确处理边界情况类型")
     fun `hash should handle edge case types correctly`() {
         val entity = TestEntity(name = "edge-case", value = 999)
 
@@ -274,6 +290,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("哈希应该正确处理Short类型")
     fun `hash should handle Short type correctly`() {
         val entity = TestEntity(name = "short-test", value = 123)
 
@@ -289,6 +306,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("哈希应该处理具有ID移除的复杂嵌套对象")
     fun `hash should handle complex nested objects with id removal`() {
         data class NestedEntity(val id: Long? = null, val name: String)
         data class ComplexEntity(val id: Long? = null, val nested: NestedEntity, val value: Int)
@@ -311,6 +329,7 @@ class Md5HashIdentifierGeneratorTest {
     }
 
     @Test
+    @DisplayName("哈希应该在多次调用中保持一致性")
     fun `hash should be consistent across multiple calls`() {
         val entity = TestEntity(name = "consistency-test", value = 777)
 

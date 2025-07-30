@@ -11,10 +11,7 @@ import com.only4.cap4k.ddd.domain.repo.JpaAggregatePredicate
 import com.only4.cap4k.ddd.domain.repo.JpaAggregatePredicateSupport
 import com.only4.cap4k.ddd.domain.repo.JpaPredicate
 import io.mockk.*
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.*
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -68,19 +65,21 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
+    @DisplayName("查找应该从正确的仓储返回实体")
     fun `find should return entities from correct repository`() {
         val predicate = TestPredicate()
         val expectedEntities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
 
         every { mockRepository.find(predicate, any<Collection<OrderInfo>>(), false) } returns expectedEntities
 
-        val result = supervisor.find(predicate, emptyList<OrderInfo>(), false)
+        val result = supervisor.find(predicate, emptyList(), false)
 
         assertEquals(expectedEntities, result)
         verify { mockRepository.find(predicate, any<Collection<OrderInfo>>(), false) }
     }
 
     @Test
+    @DisplayName("查找单个实体应该返回Optional实体")
     fun `findOne should return optional entity`() {
         val predicate = TestPredicate()
         val expectedEntity = TestEntity(1L, "test")
@@ -95,6 +94,7 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
+    @DisplayName("当实体存在时，使用持久化查找单个实体应该调用工作单元持久化")
     fun `findOne with persist should call unitOfWork persist when entity present`() {
         val predicate = TestPredicate()
         val expectedEntity = TestEntity(1L, "test")
@@ -110,6 +110,7 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
+    @DisplayName("查找分页应该返回分页数据")
     fun `findPage should return page data`() {
         val predicate = TestPredicate()
         val pageParam = PageParam.of(1, 10)
@@ -125,6 +126,7 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
+    @DisplayName("使用持久化查找分页应该为每个实体调用工作单元持久化")
     fun `findPage with persist should call unitOfWork persist for each entity`() {
         val predicate = TestPredicate()
         val pageParam = PageParam.of(1, 10)
@@ -143,6 +145,7 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
+    @DisplayName("删除应该查找实体并为每个实体调用工作单元删除")
     fun `remove should find entities and call unitOfWork remove for each`() {
         val predicate = TestPredicate()
         val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
@@ -159,6 +162,7 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
+    @DisplayName("计数应该返回实体数量")
     fun `count should return entity count`() {
         val predicate = TestPredicate()
         val expectedCount = 42L
@@ -172,6 +176,7 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
+    @DisplayName("当实体存在时存在检查应该返回true")
     fun `exists should return true when entities exist`() {
         val predicate = TestPredicate()
 
@@ -184,6 +189,7 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
+    @DisplayName("当实体不存在时存在检查应该返回false")
     fun `exists should return false when entities do not exist`() {
         val predicate = TestPredicate()
 
@@ -196,6 +202,7 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
+    @DisplayName("当实体不存在仓储时应该抛出异常")
     fun `should throw exception when repository not found for entity`() {
         val predicate = TestEntityPredicate()
 
@@ -205,6 +212,7 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
+    @DisplayName("当谓词类型不支持时应该抛出异常")
     fun `should throw exception when predicate type not supported`() {
         class UnsupportedPredicate : Predicate<TestEntity>
 
@@ -216,6 +224,7 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
+    @DisplayName("应该正确处理JpaAggregatePredicate")
     fun `should handle JpaAggregatePredicate correctly`() {
         val jpaPredicate = mockk<JpaPredicate<TestEntity>>()
         val aggregatePredicate = mockk<JpaAggregatePredicate<*, TestEntity>>()
@@ -257,6 +266,7 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
+    @DisplayName("注册谓词实体类反射器不应该替换现有反射器")
     fun `registerPredicateEntityClassReflector should not replace existing reflector`() {
         val originalReflector: (Predicate<*>) -> Class<*>? = { TestEntity::class.java }
         val newReflector: (Predicate<*>) -> Class<*>? = { AnotherEntity::class.java }
@@ -294,6 +304,7 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
+    @DisplayName("注册仓储实体类反射器应该正确注册反射器")
     fun `registerRepositoryEntityClassReflector should register reflector correctly`() {
         val reflector: (Repository<*>) -> Class<*>? = { TestEntity::class.java }
 
@@ -332,7 +343,7 @@ class DefaultRepositorySupervisorTest {
             override fun exists(predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>): Boolean = false
         }
 
-        DefaultRepositorySupervisor.registerRepositoryEntityClassReflector(NewRepositoryType::class.java, reflector)
+        DefaultRepositorySupervisor.registerRepositoryEntityClassReflector(NewRepositoryType::class.java) { TestEntity::class.java }
 
         // 验证注册器正确注册了反射器
         val reflectors =

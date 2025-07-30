@@ -4,6 +4,7 @@ import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
 import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
 import com.only4.cap4k.ddd.core.domain.repo.AggregatePredicate
 import io.mockk.mockk
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.data.jpa.domain.Specification
@@ -56,6 +57,7 @@ class JpaAggregatePredicateSupportTest {
     class NonJpaAggregatePredicate : AggregatePredicate<TestAggregate, TestEntity>
 
     @Test
+    @DisplayName("测试包含基于ID谓词的JpaAggregatePredicate获取谓词")
     fun `test getPredicate with JpaAggregatePredicate containing ID-based predicate`() {
         // 准备
         val testId = 123L
@@ -72,6 +74,7 @@ class JpaAggregatePredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试包含基于多个ID谓词的JpaAggregatePredicate获取谓词")
     fun `test getPredicate with JpaAggregatePredicate containing IDs-based predicate`() {
         // 准备
         val testIds = listOf(123L, 456L, 789L)
@@ -88,6 +91,7 @@ class JpaAggregatePredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试包含基于Specification谓词的JpaAggregatePredicate获取谓词")
     fun `test getPredicate with JpaAggregatePredicate containing Specification-based predicate`() {
         // 准备
         val mockSpec = mockk<Specification<TestEntity>>()
@@ -104,6 +108,7 @@ class JpaAggregatePredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试包含已存在谓词的JpaAggregatePredicate获取谓词")
     fun `test getPredicate with JpaAggregatePredicate containing existing Predicate`() {
         // 准备
         val existingPredicate = JpaPredicate.byId(TestEntity::class.java, 999L)
@@ -117,6 +122,7 @@ class JpaAggregatePredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试基于值对象的JpaAggregatePredicate获取谓词")
     fun `test getPredicate with ValueObject-based JpaAggregatePredicate`() {
         // 准备
         val valueObject = TestValueObject("test-value")
@@ -137,6 +143,7 @@ class JpaAggregatePredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试JpaAggregatePredicate反射聚合类")
     fun `test reflectAggregateClass with JpaAggregatePredicate`() {
         // 准备
         val jpaAggregatePredicate = JpaAggregatePredicate.byId(TestAggregate::class.java, 123L)
@@ -149,6 +156,7 @@ class JpaAggregatePredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试不同聚合类型的反射聚合类")
     fun `test reflectAggregateClass with different aggregate types`() {
         // 准备
         class AnotherAggregate : Aggregate<TestEntity> {
@@ -166,6 +174,7 @@ class JpaAggregatePredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试基于值对象聚合的反射聚合类")
     fun `test reflectAggregateClass with ValueObject-based aggregate`() {
         // 准备
         val valueObject = TestValueObject("test-value")
@@ -182,6 +191,7 @@ class JpaAggregatePredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试两个方法使用同一个JpaAggregatePredicate实例的工作")
     fun `test both methods work with same JpaAggregatePredicate instance`() {
         // 准备
         val testIds = listOf(111L, 222L, 333L)
@@ -200,6 +210,7 @@ class JpaAggregatePredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试复杂场景下的获取谓词类型转换")
     fun `test getPredicate type casting with complex scenario`() {
         // 准备
         val mockSpec = mockk<Specification<TestEntity>>()
@@ -222,6 +233,7 @@ class JpaAggregatePredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试不同创建方法的方法一致性")
     fun `test methods consistency with different creation methods`() {
         // 准备多种创建方式的JpaAggregatePredicate
         val byIdPredicate = JpaAggregatePredicate.byId(TestAggregate::class.java, 100L)
@@ -249,6 +261,7 @@ class JpaAggregatePredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试不同实体类型的类型安全性")
     fun `test type safety across different entity types`() {
         // 准备不同的聚合和实体类型
         data class AnotherEntity(val code: String, val description: String)
@@ -269,6 +282,7 @@ class JpaAggregatePredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试空ID集合的边界情况")
     fun `test edge case with empty ids collection`() {
         // 准备
         val emptyIds = emptyList<Any>()

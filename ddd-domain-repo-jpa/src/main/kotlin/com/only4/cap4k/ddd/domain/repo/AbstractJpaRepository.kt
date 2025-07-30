@@ -31,7 +31,7 @@ class AbstractJpaRepository<ENTITY : Any, ID>(
     @PostConstruct
     fun init() {
         DefaultRepositorySupervisor.registerPredicateEntityClassReflector(JpaPredicate::class.java) { predicate ->
-            JpaPredicateSupport.reflectEntityClass(predicate) ?: Object::class.java
+            JpaPredicateSupport.reflectEntityClass(predicate)
         }
         DefaultRepositorySupervisor.registerRepositoryEntityClassReflector(AbstractJpaRepository::class.java) { repository ->
             resolveGenericTypeClass(

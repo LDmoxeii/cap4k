@@ -21,34 +21,30 @@ class JpaPredicate<ENTITY : Any>(
 
     fun <AGGREGATE : Aggregate<ENTITY>> toAggregatePredicate(
         aggregateClass: Class<AGGREGATE>
-    ): AggregatePredicate<AGGREGATE, ENTITY> {
-        return JpaAggregatePredicate.byPredicate(aggregateClass, this)
-    }
+    ): AggregatePredicate<AGGREGATE, ENTITY> = JpaAggregatePredicate.byPredicate(aggregateClass, this)
+
 
     companion object {
-        fun <ENTITY : Any> byId(entityClass: Class<ENTITY>, id: Any): JpaPredicate<ENTITY> {
-            return JpaPredicate(entityClass, null, listOf(id), null)
-        }
+        fun <ENTITY : Any> byId(entityClass: Class<ENTITY>, id: Any): JpaPredicate<ENTITY> =
+            JpaPredicate(entityClass, null, listOf(id), null)
 
-        fun <ENTITY : Any> byIds(entityClass: Class<ENTITY>, ids: Iterable<Any>): JpaPredicate<ENTITY> {
-            return JpaPredicate(entityClass, null, ids, null)
-        }
 
-        fun <VALUE_OBJECT : ValueObject<*>> byValueObject(valueObject: VALUE_OBJECT): JpaPredicate<VALUE_OBJECT> {
-            @Suppress("UNCHECKED_CAST")
-            return JpaPredicate(
+        fun <ENTITY : Any> byIds(entityClass: Class<ENTITY>, ids: Iterable<Any>): JpaPredicate<ENTITY> =
+            JpaPredicate(entityClass, null, ids, null)
+
+
+        fun <VALUE_OBJECT : ValueObject<*>> byValueObject(valueObject: VALUE_OBJECT): JpaPredicate<VALUE_OBJECT> =
+            JpaPredicate(
                 valueObject.javaClass,
                 null,
                 listOf(valueObject.hash()),
                 valueObject
             )
-        }
+
 
         fun <ENTITY : Any> bySpecification(
             entityClass: Class<ENTITY>,
             specification: Specification<ENTITY>
-        ): JpaPredicate<ENTITY> {
-            return JpaPredicate(entityClass, specification, null, null)
-        }
+        ): JpaPredicate<ENTITY> = JpaPredicate(entityClass, specification, null, null)
     }
 }

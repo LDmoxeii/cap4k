@@ -30,28 +30,24 @@ class JpaAggregatePredicate<AGGREGATE : Aggregate<ENTITY>, ENTITY : Any>(
         fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> byId(
             aggregateClass: Class<AGGREGATE>,
             id: Any
-        ): AggregatePredicate<AGGREGATE, ENTITY> {
-            return JpaAggregatePredicate(
-                aggregateClass,
-                JpaPredicate(getEntityClass(aggregateClass), null, listOf(id), null)
-            )
-        }
+        ): AggregatePredicate<AGGREGATE, ENTITY> = JpaAggregatePredicate(
+            aggregateClass,
+            JpaPredicate(getEntityClass(aggregateClass), null, listOf(id), null)
+        )
 
         fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> byIds(
             aggregateClass: Class<AGGREGATE>,
             ids: Iterable<Any>
-        ): AggregatePredicate<AGGREGATE, ENTITY> {
-            return JpaAggregatePredicate(
+        ): AggregatePredicate<AGGREGATE, ENTITY> =
+            JpaAggregatePredicate(
                 aggregateClass,
                 JpaPredicate(getEntityClass(aggregateClass), null, ids, null)
             )
-        }
 
         fun <AGGREGATE : Aggregate<VALUE_OBJECT>, VALUE_OBJECT : ValueObject<*>> byValueObject(
             valueObject: AGGREGATE
-        ): AggregatePredicate<AGGREGATE, VALUE_OBJECT> {
-            @Suppress("UNCHECKED_CAST")
-            return JpaAggregatePredicate(
+        ): AggregatePredicate<AGGREGATE, VALUE_OBJECT> =
+            JpaAggregatePredicate(
                 valueObject.javaClass,
                 JpaPredicate(
                     getEntityClass(valueObject.javaClass),
@@ -60,23 +56,20 @@ class JpaAggregatePredicate<AGGREGATE : Aggregate<ENTITY>, ENTITY : Any>(
                     valueObject._unwrap()
                 )
             )
-        }
 
         fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> bySpecification(
             aggregateClass: Class<AGGREGATE>,
             specification: Specification<ENTITY>
-        ): AggregatePredicate<AGGREGATE, ENTITY> {
-            return JpaAggregatePredicate(
+        ): AggregatePredicate<AGGREGATE, ENTITY> =
+            JpaAggregatePredicate(
                 aggregateClass,
                 JpaPredicate(getEntityClass(aggregateClass), specification, null, null)
             )
-        }
 
         fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> byPredicate(
             aggregateClass: Class<AGGREGATE>,
             predicate: Predicate<ENTITY>
-        ): AggregatePredicate<AGGREGATE, ENTITY> {
-            return JpaAggregatePredicate(aggregateClass, predicate)
-        }
+        ): AggregatePredicate<AGGREGATE, ENTITY> =
+            JpaAggregatePredicate(aggregateClass, predicate)
     }
 }

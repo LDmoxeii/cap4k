@@ -30,22 +30,22 @@ class DefaultAggregateSupervisor(
         private fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> newInstance(
             clazz: Class<AGGREGATE>,
             entity: Any
-        ): AGGREGATE {
-            return try {
+        ): AGGREGATE =
+            try {
                 val aggregate = clazz.getDeclaredConstructor().newInstance() as Aggregate<Any>
                 aggregate._wrap(entity)
                 aggregate as AGGREGATE
             } catch (ex: Exception) {
                 throw RuntimeException(ex)
             }
-        }
+
     }
 
     override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(
         clazz: Class<AGGREGATE>,
         payload: ENTITY_PAYLOAD
     ): AGGREGATE {
-        val entity: ENTITY = AggregateFactorySupervisor.instance.create(payload)!!
+        val entity: ENTITY = AggregateFactorySupervisor.instance.create(payload)
         return newInstance(clazz, entity)
     }
 

@@ -9,6 +9,7 @@ import io.mockk.*
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
@@ -59,6 +60,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("初始化应该正确注册反射器")
     fun `init should register reflectors correctly`() {
         val mockSupervisor = mockkObject(DefaultRepositorySupervisor)
 
@@ -81,12 +83,14 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("支持谓词类应该返回JpaPredicate类")
     fun `supportPredicateClass should return JpaPredicate class`() {
         val result = repository.supportPredicateClass()
         assertEquals(JpaPredicate::class.java, result)
     }
 
     @Test
+    @DisplayName("使用ID谓词查找单个实体应该返回实体并默认持久化")
     fun `findOne with ID predicate should return entity and persist by default`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val entity = TestEntity(1L, "test")
@@ -104,6 +108,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用ID谓词查找单个实体，当持久化为false时应该分离实体")
     fun `findOne with ID predicate should detach entity when persist is false`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val entity = TestEntity(1L, "test")
@@ -121,6 +126,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用Specification谓词查找单个实体应该使用规范执行器")
     fun `findOne with Specification predicate should use specification executor`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val specification = mockk<Specification<TestEntity>>()
@@ -138,6 +144,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用未知谓词查找单个实体应该返回空Optional")
     fun `findOne with unknown predicate should return empty optional`() {
         val predicate = mockk<Predicate<TestEntity>>()
 
@@ -150,6 +157,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用ID谓词查找第一个实体应该返回实体")
     fun `findFirst with ID predicate should return entity`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val orders = listOf(OrderInfo.asc("name"))
@@ -167,6 +175,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用Specification谓词查找第一个实体应该使用带分页的规范执行器")
     fun `findFirst with Specification predicate should use specification executor with pagination`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val orders = listOf(OrderInfo.desc("name"))
@@ -176,7 +185,7 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { com.only4.cap4k.ddd.domain.repo.toSpringData(any<PageParam>()) } returns PageRequest.of(
+        every { toSpringData(any<PageParam>()) } returns PageRequest.of(
             0,
             1,
             Sort.by(Sort.Direction.DESC, "name")
@@ -191,6 +200,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用多个ID谓词查找分页应该正确处理分页")
     fun `findPage with IDs predicate should handle pagination correctly`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val pageParam = PageParam.of(2, 2)
@@ -215,6 +225,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用空ID列表查找分页应该返回空页面")
     fun `findPage with empty IDs should return empty page`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val pageParam = PageParam.of(1, 10)
@@ -230,6 +241,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用Specification谓词查找分页应该使用规范执行器")
     fun `findPage with Specification predicate should use specification executor`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val pageParam = PageParam.of(1, 10)
@@ -240,9 +252,9 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { com.only4.cap4k.ddd.domain.repo.toSpringData(pageParam) } returns PageRequest.of(0, 10)
+        every { toSpringData(pageParam) } returns PageRequest.of(0, 10)
         every { mockJpaSpecificationExecutor.findAll(specification, any<PageRequest>()) } returns springPage
-        every { com.only4.cap4k.ddd.domain.repo.fromSpringData(springPage) } returns expectedPageData
+        every { fromSpringData(springPage) } returns expectedPageData
 
         val result = repository.findPage(predicate, pageParam, true)
 
@@ -251,6 +263,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("查找分页时持久化为false应该分离所有实体")
     fun `findPage with persist false should detach all entities`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val pageParam = PageParam.of(1, 10)
@@ -261,9 +274,9 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { com.only4.cap4k.ddd.domain.repo.toSpringData(pageParam) } returns PageRequest.of(0, 10)
+        every { toSpringData(pageParam) } returns PageRequest.of(0, 10)
         every { mockJpaSpecificationExecutor.findAll(specification, any<PageRequest>()) } returns springPage
-        every { com.only4.cap4k.ddd.domain.repo.fromSpringData(springPage) } returns expectedPageData
+        every { fromSpringData(springPage) } returns expectedPageData
 
         val result = repository.findPage(predicate, pageParam, false)
 
@@ -274,6 +287,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用排序查找多个ID谓词应该正确处理")
     fun `find with orders should handle IDs predicate correctly`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val orders = listOf(OrderInfo.asc("name"))
@@ -291,6 +305,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用排序查找空ID列表应该正确处理")
     fun `find with orders should handle empty IDs correctly`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val orders = listOf(OrderInfo.asc("name"))
@@ -305,6 +320,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用排序查找Specification谓词应该正确处理")
     fun `find with orders should handle Specification predicate correctly`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val orders = listOf(OrderInfo.desc("name"))
@@ -314,7 +330,7 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { com.only4.cap4k.ddd.domain.repo.toSpringData(orders) } returns sort
+        every { toSpringData(orders) } returns sort
         every { mockJpaSpecificationExecutor.findAll(specification, sort) } returns entities
 
         val result = repository.find(predicate, orders, true)
@@ -324,6 +340,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用排序查找且持久化为false应该分离实体")
     fun `find with orders and persist false should detach entities`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val orders = listOf(OrderInfo.asc("name"))
@@ -333,7 +350,7 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { com.only4.cap4k.ddd.domain.repo.toSpringData(orders) } returns sort
+        every { toSpringData(orders) } returns sort
         every { mockJpaSpecificationExecutor.findAll(specification, sort) } returns entities
 
         val result = repository.find(predicate, orders, false)
@@ -345,6 +362,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用分页参数查找多个ID谓词应该正确处理")
     fun `find with pageParam should handle IDs predicate correctly`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val pageParam = PageParam.of(1, 10)
@@ -362,6 +380,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用分页参数查找Specification谓词应该正确处理")
     fun `find with pageParam should handle Specification predicate correctly`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val pageParam = PageParam.of(1, 10)
@@ -371,7 +390,7 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { com.only4.cap4k.ddd.domain.repo.toSpringData(pageParam) } returns PageRequest.of(0, 10)
+        every { toSpringData(pageParam) } returns PageRequest.of(0, 10)
         every { mockJpaSpecificationExecutor.findAll(specification, any<PageRequest>()) } returns springPage
 
         val result = repository.find(predicate, pageParam, true)
@@ -381,6 +400,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用ID谓词计数，如果实体存在应该返回1")
     fun `count with ID predicate should return 1 if entity exists`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val entity = TestEntity(1L, "test")
@@ -396,6 +416,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用ID谓词计数，如果实体不存在应该返回0")
     fun `count with ID predicate should return 0 if entity does not exist`() {
         val predicate = mockk<Predicate<TestEntity>>()
 
@@ -410,6 +431,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用多个ID谓词计数应该返回找到的实体数量")
     fun `count with IDs predicate should return count of found entities`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val ids = listOf(1L, 2L, 3L)
@@ -426,6 +448,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用空ID列表计数应该返回0")
     fun `count with empty IDs should return 0`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val emptyIds = emptyList<Long>()
@@ -439,6 +462,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用Specification谓词计数应该使用规范执行器")
     fun `count with Specification predicate should use specification executor`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val specification = mockk<Specification<TestEntity>>()
@@ -455,6 +479,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用ID谓词检查存在性，如果实体存在应该返回true")
     fun `exists with ID predicate should return true if entity exists`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val entity = TestEntity(1L, "test")
@@ -470,6 +495,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用ID谓词检查存在性，如果实体不存在应该返回false")
     fun `exists with ID predicate should return false if entity does not exist`() {
         val predicate = mockk<Predicate<TestEntity>>()
 
@@ -484,6 +510,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用多个ID谓词检查存在性，如果任何实体存在应该返回true")
     fun `exists with IDs predicate should return true if any entities exist`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val ids = listOf(1L, 2L)
@@ -500,6 +527,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用空ID列表检查存在性应该返回false")
     fun `exists with empty IDs should return false`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val emptyIds = emptyList<Long>()
@@ -513,6 +541,7 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
+    @DisplayName("使用Specification谓词检查存在性应该使用规范执行器")
     fun `exists with Specification predicate should use specification executor`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val specification = mockk<Specification<TestEntity>>()

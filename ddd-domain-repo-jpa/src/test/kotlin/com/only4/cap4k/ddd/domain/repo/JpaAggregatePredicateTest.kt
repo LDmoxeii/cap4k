@@ -10,6 +10,7 @@ import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.data.jpa.domain.Specification
 import kotlin.test.assertEquals
@@ -53,6 +54,7 @@ class JpaAggregatePredicateTest {
     }
 
     @Test
+    @DisplayName("通过ID创建单个ID的聚合谓词")
     fun `byId should create aggregate predicate with single id`() {
         every {
             resolveGenericTypeClass(TestAggregate::class.java, 0, Aggregate::class.java, Aggregate.Default::class.java)
@@ -69,6 +71,7 @@ class JpaAggregatePredicateTest {
     }
 
     @Test
+    @DisplayName("通过多个ID创建聚合谓词")
     fun `byIds should create aggregate predicate with multiple ids`() {
         every {
             resolveGenericTypeClass(TestAggregate::class.java, 0, Aggregate::class.java, Aggregate.Default::class.java)
@@ -85,6 +88,7 @@ class JpaAggregatePredicateTest {
     }
 
     @Test
+    @DisplayName("处理空ID集合")
     fun `byIds should handle empty id collection`() {
         every {
             resolveGenericTypeClass(TestAggregate::class.java, 0, Aggregate::class.java, Aggregate.Default::class.java)
@@ -100,6 +104,7 @@ class JpaAggregatePredicateTest {
     }
 
     @Test
+    @DisplayName("通过值对象创建聚合谓词")
     fun `byValueObject should create aggregate predicate with value object`() {
         val valueObject = TestValueObject("test-value")
         val aggregate = TestValueObjectAggregate().apply {
@@ -126,6 +131,7 @@ class JpaAggregatePredicateTest {
     }
 
     @Test
+    @DisplayName("通过规范创建聚合谓词")
     fun `bySpecification should create aggregate predicate with specification`() {
         every {
             resolveGenericTypeClass(TestAggregate::class.java, 0, Aggregate::class.java, Aggregate.Default::class.java)
@@ -142,6 +148,7 @@ class JpaAggregatePredicateTest {
     }
 
     @Test
+    @DisplayName("通过已存在的谓词创建聚合谓词")
     fun `byPredicate should create aggregate predicate with existing predicate`() {
         val existingPredicate = JpaPredicate.byId(TestEntity::class.java, 456L)
         val aggregatePredicate = JpaAggregatePredicate.byPredicate(TestAggregate::class.java, existingPredicate)
@@ -151,6 +158,7 @@ class JpaAggregatePredicateTest {
     }
 
     @Test
+    @DisplayName("获取实体类应该正确解析泛型类型")
     fun `getEntityClass should resolve generic type correctly`() {
         every {
             resolveGenericTypeClass(TestAggregate::class.java, 0, Aggregate::class.java, Aggregate.Default::class.java)
@@ -163,6 +171,7 @@ class JpaAggregatePredicateTest {
     }
 
     @Test
+    @DisplayName("聚合谓词应该同时实现AggregatePredicate和Predicate接口")
     fun `aggregate predicate should implement both AggregatePredicate and Predicate interfaces`() {
         every {
             resolveGenericTypeClass(TestAggregate::class.java, 0, Aggregate::class.java, Aggregate.Default::class.java)
@@ -175,6 +184,7 @@ class JpaAggregatePredicateTest {
     }
 
     @Test
+    @DisplayName("不同的工厂方法应该创建不同的聚合谓词")
     fun `different factory methods should create distinct aggregate predicates`() {
         every {
             resolveGenericTypeClass(TestAggregate::class.java, 0, Aggregate::class.java, Aggregate.Default::class.java)
@@ -201,6 +211,7 @@ class JpaAggregatePredicateTest {
     }
 
     @Test
+    @DisplayName("聚合谓词应该处理不同的聚合类型")
     fun `aggregate predicate should handle different aggregate types`() {
         class AnotherAggregate : Aggregate<TestEntity> {
             private lateinit var entity: TestEntity
@@ -231,6 +242,7 @@ class JpaAggregatePredicateTest {
     }
 
     @Test
+    @DisplayName("使用多个ID时应该保持ID的顺序")
     fun `byIds should preserve order of ids in aggregate predicate`() {
         every {
             resolveGenericTypeClass(TestAggregate::class.java, 0, Aggregate::class.java, Aggregate.Default::class.java)
@@ -244,6 +256,7 @@ class JpaAggregatePredicateTest {
     }
 
     @Test
+    @DisplayName("聚合谓词应该处理复杂的规范")
     fun `aggregate predicate should handle complex specifications`() {
         every {
             resolveGenericTypeClass(TestAggregate::class.java, 0, Aggregate::class.java, Aggregate.Default::class.java)

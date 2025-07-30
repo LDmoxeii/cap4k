@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.domain.repo
 import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import io.mockk.mockk
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.data.jpa.domain.Specification
 import kotlin.test.assertEquals
@@ -23,6 +24,7 @@ class JpaPredicateSupportTest {
     class NonJpaPredicate : Predicate<TestEntity>
 
     @Test
+    @DisplayName("测试包含单个ID的JpaPredicate的resumeId方法")
     fun `test resumeId with JpaPredicate containing single id`() {
         // 准备
         val expectedId = 123L
@@ -36,6 +38,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试包含多个ID的JpaPredicate的resumeId方法返回第一个")
     fun `test resumeId with JpaPredicate containing multiple ids returns first`() {
         // 准备
         val ids = listOf(123L, 456L, 789L)
@@ -49,6 +52,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试包含空ID的JpaPredicate的resumeId方法")
     fun `test resumeId with JpaPredicate containing empty ids`() {
         // 准备
         val emptyIds = emptyList<Long>()
@@ -62,6 +66,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试ID为null的JpaPredicate的resumeId方法")
     fun `test resumeId with JpaPredicate having null ids`() {
         // 准备
         val mockSpec = mockk<Specification<TestEntity>>()
@@ -75,6 +80,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试非JpaPredicate的resumeId方法返回null")
     fun `test resumeId with non-JpaPredicate returns null`() {
         // 准备
         val nonJpaPredicate = NonJpaPredicate()
@@ -87,6 +93,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试包含ID的JpaPredicate的resumeIds方法")
     fun `test resumeIds with JpaPredicate containing ids`() {
         // 准备
         val expectedIds = listOf(123L, 456L, 789L)
@@ -100,6 +107,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试包含单个ID的JpaPredicate的resumeIds方法")
     fun `test resumeIds with JpaPredicate containing single id`() {
         // 准备
         val singleId = 123L
@@ -113,6 +121,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试ID为null的JpaPredicate的resumeIds方法")
     fun `test resumeIds with JpaPredicate having null ids`() {
         // 准备
         val mockSpec = mockk<Specification<TestEntity>>()
@@ -126,6 +135,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试非JpaPredicate的resumeIds方法返回null")
     fun `test resumeIds with non-JpaPredicate returns null`() {
         // 准备
         val nonJpaPredicate = NonJpaPredicate()
@@ -138,6 +148,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试包含规范的JpaPredicate的resumeSpecification方法")
     fun `test resumeSpecification with JpaPredicate containing specification`() {
         // 准备
         val mockSpec = mockk<Specification<TestEntity>>()
@@ -151,6 +162,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试规范为null的JpaPredicate的resumeSpecification方法")
     fun `test resumeSpecification with JpaPredicate having null specification`() {
         // 准备
         val jpaPredicate = JpaPredicate.byId(TestEntity::class.java, 123L)
@@ -163,6 +175,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试非JpaPredicate的resumeSpecification方法返回null")
     fun `test resumeSpecification with non-JpaPredicate returns null`() {
         // 准备
         val nonJpaPredicate = NonJpaPredicate()
@@ -175,6 +188,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试JpaPredicate的reflectEntityClass方法")
     fun `test reflectEntityClass with JpaPredicate`() {
         // 准备
         val jpaPredicate = JpaPredicate.byId(TestEntity::class.java, 123L)
@@ -187,6 +201,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试非JpaPredicate的reflectEntityClass方法返回null")
     fun `test reflectEntityClass with non-JpaPredicate returns null`() {
         // 准备
         val nonJpaPredicate = NonJpaPredicate()
@@ -199,6 +214,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试基于值对象的JpaPredicate的resumeId方法")
     fun `test resumeId with ValueObject-based JpaPredicate`() {
         // 准备
         val valueObject = TestValueObject("test-value")
@@ -212,6 +228,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试基于值对象的JpaPredicate的resumeIds方法")
     fun `test resumeIds with ValueObject-based JpaPredicate`() {
         // 准备
         val valueObject = TestValueObject("test-value")
@@ -225,6 +242,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试基于值对象的JpaPredicate的reflectEntityClass方法")
     fun `test reflectEntityClass with ValueObject-based JpaPredicate`() {
         // 准备
         val valueObject = TestValueObject("test-value")
@@ -238,6 +256,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试所有方法使用同一个JpaPredicate实例的协同工作")
     fun `test all methods work together with same JpaPredicate instance`() {
         // 准备
         val ids = listOf(123L, 456L)
@@ -257,6 +276,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试不同实体类型的类型安全性")
     fun `test type safety with different entity types`() {
         // 准备
         data class AnotherEntity(val id: String, val value: Int)
@@ -273,6 +293,7 @@ class JpaPredicateSupportTest {
     }
 
     @Test
+    @DisplayName("测试混合类型ID集合的边界情况")
     fun `test edge case with mixed type ids collection`() {
         // 准备 - 创建包含混合类型的ID集合
         val mixedIds = listOf<Any>(123L, "string-id", 456.0)

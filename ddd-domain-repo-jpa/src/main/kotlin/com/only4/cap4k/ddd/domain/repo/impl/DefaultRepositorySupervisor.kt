@@ -38,7 +38,7 @@ class DefaultRepositorySupervisor(
                 for ((repositoryClass, reflector) in repositoryClass2EntityClassReflector) {
                     if (repositoryClass.isAssignableFrom(repository.javaClass)) {
                         val reflectedClass = reflector(repository)
-                        if (reflectedClass != null && Any::class.java != reflectedClass) {
+                        if (Any::class.java != reflectedClass) {
                             entityClass = reflectedClass
                             break
                         }
@@ -54,7 +54,7 @@ class DefaultRepositorySupervisor(
 
     companion object {
         private val predicateClass2EntityClassReflector = ConcurrentHashMap<Class<*>, (Predicate<*>) -> Class<*>?>()
-        private val repositoryClass2EntityClassReflector = ConcurrentHashMap<Class<*>, (Repository<*>) -> Class<*>?>()
+        private val repositoryClass2EntityClassReflector = ConcurrentHashMap<Class<*>, (Repository<*>) -> Class<*>>()
 
         @JvmStatic
         fun registerPredicateEntityClassReflector(predicateClass: Class<*>, entityClassReflector: (Predicate<*>) -> Class<*>?) {
@@ -62,7 +62,10 @@ class DefaultRepositorySupervisor(
         }
 
         @JvmStatic
-        fun registerRepositoryEntityClassReflector(repositoryClass: Class<*>, entityClassReflector: (Repository<*>) -> Class<*>?) {
+        fun registerRepositoryEntityClassReflector(
+            repositoryClass: Class<*>,
+            entityClassReflector: (Repository<*>) -> Class<*>
+        ) {
             repositoryClass2EntityClassReflector.putIfAbsent(repositoryClass, entityClassReflector)
         }
     }

@@ -116,16 +116,6 @@ class JpaPageUtilsTest {
     }
 
     @Test
-    @DisplayName("当PageParam为null时应返回默认Pageable")
-    fun `toSpringData should return default Pageable when PageParam is null`() {
-        val result = toSpringData(null as PageParam?)
-
-        assertEquals(0, result.pageNumber)
-        assertEquals(10, result.pageSize)
-        assertTrue(result.sort.isUnsorted)
-    }
-
-    @Test
     @DisplayName("应将PageParam转换为无排序的Pageable")
     fun `toSpringData should convert PageParam to Pageable without sort`() {
         val pageParam = PageParam.of(3, 20)

@@ -341,7 +341,7 @@ class JpaQueryUtilsTest {
         var receivedCriteriaQuery: CriteriaQuery<TestEntity>? = null
         var receivedRoot: Root<TestEntity>? = null
 
-        val queryBuilder = JpaQueryUtils.QueryBuilder<TestEntity, TestEntity> { cb, cq, root ->
+        val queryBuilder = JpaQueryUtils.QueryBuilder { cb, cq, root ->
             builderCalled = true
             receivedCriteriaBuilder = cb
             receivedCriteriaQuery = cq
