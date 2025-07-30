@@ -124,6 +124,7 @@ class DefaultDomainEventSupervisorTest {
             val event = TestDomainEvent("test event")
             val aggregate = TestAggregate("agg1")
             val schedule = LocalDateTime.now()
+            aggregate._wrap(TestEntity("agg1"))
 
             // when
             supervisor.attach(event, aggregate, schedule)
@@ -400,10 +401,7 @@ class DefaultDomainEventSupervisorTest {
     data class TestEntity(val id: String)
 
     // 测试用的聚合根
-    class TestAggregate(private val id: String) : Aggregate.Default<TestEntity>() {
-        override fun _unwrap(): TestEntity = TestEntity(id)
-        override fun _wrap(root: TestEntity?) {}
-    }
+    class TestAggregate(private val id: String) : Aggregate.Default<TestEntity>()
 
     // 测试用的Spring聚合根
     class TestSpringAggregateRoot : AbstractAggregateRoot<TestSpringAggregateRoot>() {
