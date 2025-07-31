@@ -50,19 +50,19 @@ open class JpaEventRecordRepository(
                     cb.and(
                         // 【初始状态】
                         cb.equal(root.get<Event.EventState>(Event.F_EVENT_STATE), Event.EventState.INIT),
-                        cb.lessThan(root.get<LocalDateTime>(Event.F_NEXT_TRY_TIME), maxNextTryTime),
+                        cb.lessThan(root.get(Event.F_NEXT_TRY_TIME), maxNextTryTime),
                         cb.equal(root.get<String>(Event.F_SVC_NAME), svcName)
                     ),
                     cb.and(
                         // 【发送中状态】
                         cb.equal(root.get<Event.EventState>(Event.F_EVENT_STATE), Event.EventState.DELIVERING),
-                        cb.lessThan(root.get<LocalDateTime>(Event.F_NEXT_TRY_TIME), maxNextTryTime),
+                        cb.lessThan(root.get(Event.F_NEXT_TRY_TIME), maxNextTryTime),
                         cb.equal(root.get<String>(Event.F_SVC_NAME), svcName)
                     ),
                     cb.and(
                         // 【异常状态】
                         cb.equal(root.get<Event.EventState>(Event.F_EVENT_STATE), Event.EventState.EXCEPTION),
-                        cb.lessThan(root.get<LocalDateTime>(Event.F_NEXT_TRY_TIME), maxNextTryTime),
+                        cb.lessThan(root.get(Event.F_NEXT_TRY_TIME), maxNextTryTime),
                         cb.equal(root.get<String>(Event.F_SVC_NAME), svcName)
                     )
                 )
@@ -88,7 +88,7 @@ open class JpaEventRecordRepository(
                         cb.equal(root.get<Event.EventState>(Event.F_EVENT_STATE), Event.EventState.EXHAUSTED),
                         cb.equal(root.get<Event.EventState>(Event.F_EVENT_STATE), Event.EventState.DELIVERED)
                     ),
-                    cb.lessThan(root.get<LocalDateTime>(Event.F_EXPIRE_AT), maxExpireAt),
+                    cb.lessThan(root.get(Event.F_EXPIRE_AT), maxExpireAt),
                     cb.equal(root.get<String>(Event.F_SVC_NAME), svcName)
                 )
             )
