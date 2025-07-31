@@ -8,16 +8,18 @@ import java.time.Duration
 import java.time.LocalDateTime
 
 /**
- * 请求记录
+ * 请求记录实现
  *
- * @author binking338
- * @date 2025/5/16
+ * @author LD_moxeii
+ * @date 2025/07/31
  */
 class RequestRecordImpl : RequestRecord {
     private val logger = LoggerFactory.getLogger(RequestRecordImpl::class.java)
+    lateinit var request: Request
 
-    internal lateinit var request: Request
-
+    /**
+     * 恢复请求
+     */
     fun resume(request: Request) {
         this.request = request
     }
@@ -32,32 +34,41 @@ class RequestRecordImpl : RequestRecord {
         expireAfter: Duration,
         retryTimes: Int
     ) {
-        request = Request.builder().build()
+        request = Request()
         request.init(requestParam, svcName, requestType, scheduleAt, expireAfter, retryTimes)
     }
 
-    override fun getId(): String = request.requestUuid
+    override val id: String
+        get() = request.requestUuid
 
-    override fun getType(): String = request.requestType
+    override val type: String
+        get() = request.requestType
 
-    override fun getParam(): RequestParam<*> = request.requestParam
+    override val param: RequestParam<*>
+        get() = request.requestParam!!
 
-    override fun <R> getResult(): R? {
+    override fun <R> getResult(): R {
         @Suppress("UNCHECKED_CAST")
-        return request.requestResult as? R
+        return request.requestResult!! as R
     }
 
-    override fun getScheduleTime(): LocalDateTime = request.lastTryTime
+    override val scheduleTime: LocalDateTime
+        get() = request.lastTryTime!!
 
-    override fun getNextTryTime(): LocalDateTime = request.nextTryTime
+    override val nextTryTime: LocalDateTime
+        get() = request.nextTryTime!!
 
-    override fun isValid(): Boolean = request.isValid
+    override val isValid: Boolean
+        get() = request.isValid
 
-    override fun isInvalid(): Boolean = request.isInvalid
+    override val isInvalid: Boolean
+        get() = request.isInvalid
 
-    override fun isExecuting(): Boolean = request.isExecuting
+    override val isExecuting: Boolean
+        get() = request.isExecuting
 
-    override fun isExecuted(): Boolean = request.isExecuted
+    override val isExecuted: Boolean
+        get() = request.isExecuted
 
     override fun beginRequest(now: LocalDateTime): Boolean = request.beginRequest(now)
 
@@ -67,7 +78,7 @@ class RequestRecordImpl : RequestRecord {
         request.endRequest(now, result)
     }
 
-    override fun occuredException(now: LocalDateTime, throwable: Throwable) {
+    override fun occurredException(now: LocalDateTime, throwable: Throwable) {
         request.occurredException(now, throwable)
     }
 }

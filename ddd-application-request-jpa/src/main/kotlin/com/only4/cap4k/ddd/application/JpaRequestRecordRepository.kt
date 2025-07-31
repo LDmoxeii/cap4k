@@ -14,10 +14,10 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
 /**
- * Jpa请求记录仓库
+ * 基于Jpa的请求记录仓储实现
  *
- * @author binking338
- * @date 2025/5/16
+ * @author LD_moxeii
+ * @date 2025/07/31
  */
 open class JpaRequestRecordRepository(
     private val requestJpaRepository: RequestJpaRepository,
@@ -29,9 +29,8 @@ open class JpaRequestRecordRepository(
     @Transactional(propagation = Propagation.REQUIRED)
     override fun save(requestRecord: RequestRecord) {
         val requestRecordImpl = requestRecord as RequestRecordImpl
-        var request = requestRecordImpl.request
-        request = requestJpaRepository.saveAndFlush(request)
-        requestRecordImpl.resume(request)
+        val updatedRequest = requestJpaRepository.saveAndFlush(requestRecordImpl.request)
+        requestRecordImpl.resume(updatedRequest)
     }
 
     override fun getById(id: String): RequestRecord {
@@ -39,7 +38,9 @@ open class JpaRequestRecordRepository(
             criteriaBuilder.equal(root.get<String>(Request.F_REQUEST_UUID), id)
         }.orElseThrow { DomainException("RequestRecord not found") }
 
-        return RequestRecordImpl().apply { resume(request) }
+        return RequestRecordImpl().apply {
+            resume(request)
+        }
     }
 
     override fun getByNextTryTime(svcName: String, maxNextTryTime: LocalDateTime, limit: Int): List<RequestRecord> {
@@ -75,9 +76,11 @@ open class JpaRequestRecordRepository(
             null
         }, PageRequest.of(0, limit, Sort.by(Sort.Direction.ASC, Request.F_NEXT_TRY_TIME)))
 
-        return requests.content.map { request ->
-            RequestRecordImpl().apply { resume(request) }
-        }
+        return requests.map { request ->
+            RequestRecordImpl().apply {
+                resume(request)
+            }
+        }.toList()
     }
 
     override fun archiveByExpireAt(svcName: String, maxExpireAt: LocalDateTime, limit: Int): Int {
@@ -105,9 +108,11 @@ open class JpaRequestRecordRepository(
             return 0
         }
 
-        val archivedRequests = requests.content.map { request ->
-            ArchivedRequest().apply { archiveFrom(request) }
-        }
+        val archivedRequests = requests.map { request ->
+            ArchivedRequest().apply {
+                archiveFrom(request)
+            }
+        }.toList()
 
         migrate(requests.content, archivedRequests)
         return requests.numberOfElements
@@ -116,6 +121,6 @@ open class JpaRequestRecordRepository(
     @Transactional
     open fun migrate(requests: List<Request>, archivedRequests: List<ArchivedRequest>) {
         archivedRequestJpaRepository.saveAll(archivedRequests)
-        requestJpaRepository.deleteInBatch(requests)
+        requestJpaRepository.deleteAllInBatch(requests)
     }
 }

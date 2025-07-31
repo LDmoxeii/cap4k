@@ -13,56 +13,67 @@ import java.time.format.DateTimeFormatter
  * 请求调度服务
  * 失败定时重试
  *
- * @author binking338
- * @date 2025/5/17
+ * @author LD_moxeii
+ * @date 2025/07/31
  */
 class JpaRequestScheduleService(
     private val requestManager: RequestManager,
     private val locker: Locker,
+    private val svcName: String,
     private val compensationLockerKey: String,
     private val archiveLockerKey: String,
     private val enableAddPartition: Boolean,
     private val jdbcTemplate: JdbcTemplate
 ) {
     private val logger = LoggerFactory.getLogger(JpaRequestScheduleService::class.java)
+    private var compensationRunning = false
 
     fun init() {
         addPartition()
     }
 
-    @Volatile
-    private var compensationRunning = false
-
+    /**
+     * 请求执行补偿
+     */
     fun compense(batchSize: Int, maxConcurrency: Int, interval: Duration, maxLockDuration: Duration) {
         if (compensationRunning) {
-            logger.info("Request执行补偿:上次Request执行补偿仍未结束，跳过")
+            logger.info("请求执行补偿:上次请求执行补偿仍未结束，跳过")
             return
         }
-        compensationRunning = true
 
-        val pwd = randomString(8, true, true)
+        compensationRunning = true
+        val pwd = randomString(8, hasDigital = true, hasLetter = true)
         val lockerKey = compensationLockerKey
+
         try {
             var noneRequest = false
             val now = LocalDateTime.now()
+
             while (!noneRequest) {
+                var lockAcquired = false
                 try {
                     if (!locker.acquire(lockerKey, pwd, maxLockDuration)) {
                         return
                     }
+                    lockAcquired = true
+
                     val requestRecords = requestManager.getByNextTryTime(now.plus(interval), batchSize)
-                    if (requestRecords.isNullOrEmpty()) {
+
+                    if (requestRecords.isEmpty()) {
                         noneRequest = true
                         continue
                     }
-                    requestRecords.forEach { requestRecord ->
-                        logger.info("Request执行补偿: {}", requestRecord)
+
+                    for (requestRecord in requestRecords) {
+                        logger.info("请求执行补偿: {}", requestRecord)
                         requestManager.resume(requestRecord, now.plus(interval))
                     }
                 } catch (ex: Exception) {
-                    logger.error("Request执行补偿:异常失败", ex)
+                    logger.error("请求执行补偿:异常失败", ex)
                 } finally {
-                    locker.release(lockerKey, pwd)
+                    if (lockAcquired) {
+                        locker.release(lockerKey, pwd)
+                    }
                 }
             }
         } finally {
@@ -71,41 +82,50 @@ class JpaRequestScheduleService(
     }
 
     /**
-     * Request归档
+     * 本地请求库归档
      */
     fun archive(expireDays: Int, batchSize: Int, maxLockDuration: Duration) {
-        val pwd = randomString(8, true, true)
+
+        val pwd = randomString(8, hasDigital = true, hasLetter = true)
         val lockerKey = archiveLockerKey
 
         if (!locker.acquire(lockerKey, pwd, maxLockDuration)) {
             return
         }
-        logger.info("Request归档")
+
+        logger.info("请求归档")
 
         val now = LocalDateTime.now()
         var failCount = 0
+
         while (true) {
             try {
-                val archivedCount = requestManager.archiveByExpireAt(now.plusDays(expireDays.toLong()), batchSize)
+                val archivedCount =
+                    requestManager.archiveByExpireAt(now.plusDays(expireDays.toLong()), batchSize)
                 if (archivedCount == 0) {
                     break
                 }
             } catch (ex: Exception) {
                 failCount++
-                logger.error("Request归档:失败", ex)
+                logger.error("请求归档:失败", ex)
                 if (failCount >= 3) {
-                    logger.info("Request归档:累计3次异常退出任务")
+                    logger.info("请求归档:累计3次异常退出任务")
                     break
                 }
             }
         }
+
         locker.release(lockerKey, pwd)
     }
 
+    /**
+     * 添加分区
+     */
     fun addPartition() {
         if (!enableAddPartition) {
             return
         }
+
         val now = LocalDateTime.now()
         addPartition("__request", now.plusMonths(1))
         addPartition("__archived_request", now.plusMonths(1))
@@ -113,23 +133,20 @@ class JpaRequestScheduleService(
 
     /**
      * 创建date日期所在月下个月的分区
-     *
-     * @param table
-     * @param date
      */
     private fun addPartition(table: String, date: LocalDateTime) {
         val sql =
-            "alter table $table add partition (partition p${date.format(DateTimeFormatter.ofPattern("yyyyMM"))} values less than (to_days('${
-                date.plusMonths(1).format(DateTimeFormatter.ofPattern("yyyy-MM"))
-            }-01')) ENGINE=InnoDB)"
+            "alter table $table add partition (partition p${date.format(DateTimeFormatter.ofPattern("yyyyMM"))} " +
+                    "values less than (to_days('${
+                        date.plusMonths(1).format(DateTimeFormatter.ofPattern("yyyy-MM"))
+                    }-01')) ENGINE=InnoDB)"
+
         try {
             jdbcTemplate.execute(sql)
         } catch (ex: Exception) {
-            if (!ex.message.orEmpty().contains("Duplicate partition")) {
+            if (ex.message?.contains("Duplicate partition") != true) {
                 logger.error(
-                    "分区创建异常 table = {} partition = p{}",
-                    table,
-                    date.format(DateTimeFormatter.ofPattern("yyyyMM")),
+                    "分区创建异常 table = $table partition = p${date.format(DateTimeFormatter.ofPattern("yyyyMM"))}",
                     ex
                 )
             }
