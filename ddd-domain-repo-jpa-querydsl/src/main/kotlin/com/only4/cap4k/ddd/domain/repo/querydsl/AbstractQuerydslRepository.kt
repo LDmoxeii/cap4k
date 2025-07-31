@@ -17,8 +17,8 @@ import java.util.*
 /**
  * 基于querydsl的仓储抽象类
  *
- * @author binking338
- * @date 2025/3/29
+ * @author LD_moxeii
+ * @date 2025/07/31
  */
 abstract class AbstractQuerydslRepository<ENTITY : Any>(
     private val querydslPredicateExecutor: QuerydslPredicateExecutor<ENTITY>

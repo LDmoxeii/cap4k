@@ -11,8 +11,8 @@ import com.only4.cap4k.ddd.core.domain.repo.Predicate as DomainPredicate
 /**
  * QueryDsl查询条件
  *
- * @author binking338
- * @date 2025/3/29
+ * @author LD_moxeii
+ * @date 2025/07/31
  */
 class QuerydslPredicate<ENTITY : Any>(
     val entityClass: Class<ENTITY>,

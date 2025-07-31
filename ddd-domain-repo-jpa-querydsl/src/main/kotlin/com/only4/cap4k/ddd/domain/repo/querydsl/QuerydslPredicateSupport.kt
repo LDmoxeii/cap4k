@@ -14,8 +14,8 @@ import com.only4.cap4k.ddd.core.domain.repo.Predicate as DomainPredicate
 /**
  * Querydsl仓储检索断言Support
  *
- * @author binking338
- * @date 2025/3/29
+ * @author LD_moxeii
+ * @date 2025/07/31
  */
 object QuerydslPredicateSupport {
 
