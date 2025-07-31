@@ -118,7 +118,10 @@ class JpaRequestScheduleService(
      * @param date
      */
     private fun addPartition(table: String, date: LocalDateTime) {
-        val sql = "alter table $table add partition (partition p${date.format(DateTimeFormatter.ofPattern("yyyyMM"))} values less than (to_days('${date.plusMonths(1).format(DateTimeFormatter.ofPattern("yyyy-MM"))}-01')) ENGINE=InnoDB)"
+        val sql =
+            "alter table $table add partition (partition p${date.format(DateTimeFormatter.ofPattern("yyyyMM"))} values less than (to_days('${
+                date.plusMonths(1).format(DateTimeFormatter.ofPattern("yyyy-MM"))
+            }-01')) ENGINE=InnoDB)"
         try {
             jdbcTemplate.execute(sql)
         } catch (ex: Exception) {

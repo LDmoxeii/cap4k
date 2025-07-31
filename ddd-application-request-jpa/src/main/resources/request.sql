@@ -1,6 +1,6 @@
 -- Create syntax for TABLE '__request'
 CREATE TABLE `__request`
-(
+    (
     `id`            bigint       NOT NULL AUTO_INCREMENT,
     `request_uuid`  varchar(64)  NOT NULL DEFAULT '' COMMENT 'REQUEST uuid',
     `svc_name`      varchar(255) NOT NULL DEFAULT '' COMMENT '服务',
@@ -20,23 +20,21 @@ CREATE TABLE `__request`
     `version`       int          NOT NULL DEFAULT '0',
     `db_created_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `db_updated_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id`
-#   , `db_created_at`
-        ),
-    KEY `idx_db_created_at` (`db_created_at`),
-    KEY `idx_db_updated_at` (`db_updated_at`),
-    KEY `idx_request_uuid` (`request_uuid`),
-    KEY `idx_request_type` (`request_type`, `svc_name`),
-    KEY `idx_create_at` (`create_at`),
-    KEY `idx_expire_at` (`expire_at`),
-    KEY `idx_next_try_time` (`next_try_time`)
-) COMMENT ='请求 support by cap4j\n@I;'
+    PRIMARY KEY (`id` #, `db_created_at`),
+    KEY             `idx_db_created_at` (`db_created_at`),
+    KEY             `idx_db_updated_at` (`db_updated_at`),
+    KEY             `idx_request_uuid` (`request_uuid`),
+    KEY             `idx_request_type` (`request_type`, `svc_name`),
+    KEY             `idx_create_at` (`create_at`),
+    KEY             `idx_expire_at` (`expire_at`),
+    KEY             `idx_next_try_time` (`next_try_time`)
+    ) COMMENT ='请求 support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;
 -- Create syntax for TABLE '__archived_request'
 CREATE TABLE `__archived_request`
-(
+    (
     `id`            bigint       NOT NULL AUTO_INCREMENT,
     `request_uuid`  varchar(64)  NOT NULL DEFAULT '' COMMENT 'REQUEST uuid',
     `svc_name`      varchar(255) NOT NULL DEFAULT '' COMMENT '服务',
@@ -56,17 +54,15 @@ CREATE TABLE `__archived_request`
     `version`       int          NOT NULL DEFAULT '0',
     `db_created_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `db_updated_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id`
-#   , `db_created_at`
-        ),
-    KEY `idx_db_created_at` (`db_created_at`),
-    KEY `idx_db_updated_at` (`db_updated_at`),
-    KEY `idx_request_uuid` (`request_uuid`),
-    KEY `idx_request_type` (`request_type`, `svc_name`),
-    KEY `idx_create_at` (`create_at`),
-    KEY `idx_expire_at` (`expire_at`),
-    KEY `idx_next_try_time` (`next_try_time`)
-) COMMENT ='请求(存档) support by cap4j\n@I;'
+    PRIMARY KEY (`id` #, `db_created_at`),
+    KEY             `idx_db_created_at` (`db_created_at`),
+    KEY             `idx_db_updated_at` (`db_updated_at`),
+    KEY             `idx_request_uuid` (`request_uuid`),
+    KEY             `idx_request_type` (`request_type`, `svc_name`),
+    KEY             `idx_create_at` (`create_at`),
+    KEY             `idx_expire_at` (`expire_at`),
+    KEY             `idx_next_try_time` (`next_try_time`)
+    ) COMMENT ='请求(存档) support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;

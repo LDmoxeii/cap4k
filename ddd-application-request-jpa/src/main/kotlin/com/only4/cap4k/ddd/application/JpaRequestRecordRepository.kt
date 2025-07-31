@@ -54,13 +54,19 @@ open class JpaRequestRecordRepository(
                     ),
                     cb.and(
                         // 【执行中状态】
-                        cb.equal(root.get<Request.RequestState>(Request.F_REQUEST_STATE), Request.RequestState.EXECUTING),
+                        cb.equal(
+                            root.get<Request.RequestState>(Request.F_REQUEST_STATE),
+                            Request.RequestState.EXECUTING
+                        ),
                         cb.lessThan(root.get(Request.F_NEXT_TRY_TIME), maxNextTryTime),
                         cb.equal(root.get<String>(Request.F_SVC_NAME), svcName)
                     ),
                     cb.and(
                         // 【异常状态】
-                        cb.equal(root.get<Request.RequestState>(Request.F_REQUEST_STATE), Request.RequestState.EXCEPTION),
+                        cb.equal(
+                            root.get<Request.RequestState>(Request.F_REQUEST_STATE),
+                            Request.RequestState.EXCEPTION
+                        ),
                         cb.lessThan(root.get(Request.F_NEXT_TRY_TIME), maxNextTryTime),
                         cb.equal(root.get<String>(Request.F_SVC_NAME), svcName)
                     )
@@ -82,7 +88,10 @@ open class JpaRequestRecordRepository(
                     cb.or(
                         cb.equal(root.get<Request.RequestState>(Request.F_REQUEST_STATE), Request.RequestState.CANCEL),
                         cb.equal(root.get<Request.RequestState>(Request.F_REQUEST_STATE), Request.RequestState.EXPIRED),
-                        cb.equal(root.get<Request.RequestState>(Request.F_REQUEST_STATE), Request.RequestState.EXHAUSTED),
+                        cb.equal(
+                            root.get<Request.RequestState>(Request.F_REQUEST_STATE),
+                            Request.RequestState.EXHAUSTED
+                        ),
                         cb.equal(root.get<Request.RequestState>(Request.F_REQUEST_STATE), Request.RequestState.EXECUTED)
                     ),
                     cb.lessThan(root.get(Request.F_EXPIRE_AT), maxExpireAt),

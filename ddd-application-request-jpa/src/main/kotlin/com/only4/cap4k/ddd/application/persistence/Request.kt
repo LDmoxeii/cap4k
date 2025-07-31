@@ -17,7 +17,6 @@ import java.io.StringWriter
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
-import kotlin.jvm.java
 
 /**
  * 请求记录
@@ -61,7 +60,14 @@ class Request {
     }
 
     // 【行为方法开始】
-    fun init(requestParam: RequestParam<*>, svcName: String, requestType: String, scheduleAt: LocalDateTime, expireAfter: Duration, retryTimes: Int) {
+    fun init(
+        requestParam: RequestParam<*>,
+        svcName: String,
+        requestType: String,
+        scheduleAt: LocalDateTime,
+        expireAfter: Duration,
+        retryTimes: Int
+    ) {
         this.requestUuid = UUID.randomUUID().toString()
         this.svcName = svcName
         this.requestType = requestType
@@ -80,8 +86,8 @@ class Request {
     @Transient
     @JSONField(serialize = false)
     var requestParam: RequestParam<*>? = null
-        get()  {
-            if (field != null){
+        get() {
+            if (field != null) {
                 return field
             }
             if (paramType.isNotBlank()) {
@@ -123,7 +129,11 @@ class Request {
             throw DomainException("Request参数不能为null")
         }
         this.requestParam = requestParam
-        this.param = JSON.toJSONString(requestParam, SerializerFeature.IgnoreNonFieldGetter, SerializerFeature.SkipTransientField)
+        this.param = JSON.toJSONString(
+            requestParam,
+            SerializerFeature.IgnoreNonFieldGetter,
+            SerializerFeature.SkipTransientField
+        )
         this.paramType = requestParam.javaClass.name
         val retry = requestParam.javaClass.getAnnotation(Retry::class.java)
         if (retry != null) {
@@ -137,7 +147,8 @@ class Request {
             throw DomainException("Request返回不能为null")
         }
         this.requestResult = result
-        this.result = JSON.toJSONString(result, SerializerFeature.IgnoreNonFieldGetter, SerializerFeature.SkipTransientField)
+        this.result =
+            JSON.toJSONString(result, SerializerFeature.IgnoreNonFieldGetter, SerializerFeature.SkipTransientField)
         this.resultType = result.javaClass.name
     }
 
@@ -173,7 +184,10 @@ class Request {
             return false
         }
         // 未到下次重试时间
-        if ((this.lastTryTime == null || this.lastTryTime != now) && this.nextTryTime != null && this.nextTryTime!!.isAfter(now)) {
+        if ((this.lastTryTime == null || this.lastTryTime != now) && this.nextTryTime != null && this.nextTryTime!!.isAfter(
+                now
+            )
+        ) {
             return false
         }
         this.requestState = RequestState.EXECUTING
@@ -234,26 +248,32 @@ class Request {
          * 初始状态
          */
         INIT(0, "init"),
+
         /**
          * 待确认结果
          */
         EXECUTING(-1, "executing"),
+
         /**
          * 业务主动取消
          */
         CANCEL(-2, "cancel"),
+
         /**
          * 过期
          */
         EXPIRED(-3, "expired"),
+
         /**
          * 用完重试次数
          */
         EXHAUSTED(-4, "exhausted"),
+
         /**
          * 发生异常
          */
         EXCEPTION(-9, "exception"),
+
         /**
          * 已发送
          */
