@@ -23,12 +23,13 @@ follows a multi-module structure with DDD architectural patterns.
 
 - **ddd-core** - Core DDD framework interfaces and implementations (pure interfaces, no dependencies)
 - **ddd-domain-event-jpa** - JPA-based event sourcing and event store implementation
+- **ddd-domain-repo-jpa** - JPA-based repository implementation with Unit of Work
+- **ddd-domain-repo-jpa-querydsl** - QueryDSL integration for type-safe query building
 
 #### Available but Inactive Modules (commented in settings)
 
 - **ddd-distributed-locker-jdbc** - JDBC-based distributed locking
 - **ddd-distributed-snowflake** - Snowflake algorithm for distributed ID generation
-- **ddd-domain-repo-jpa** - JPA-based repository implementation with Unit of Work
 
 ### Core Architecture
 
@@ -41,7 +42,7 @@ unified interface.
   - Verbose: `Mediator.repositories()`, `Mediator.commands()`
   - Concise: `X.repo()`, `X.cmd()`, `X.qry()`
 - **Aggregates** - Domain aggregates with factory pattern support
-- **Repositories** - Data persistence abstraction layer
+- **Repositories** - Data persistence abstraction layer with JPA and QueryDSL implementations
 - **Unit of Work** - Transaction management pattern
 - **CQRS** - Request/Command/Query handling
 - **Events** - Domain events and integration events system
@@ -115,23 +116,68 @@ The `ArchInfoManager` provides runtime introspection of the DDD architecture:
 - `archinfo/` - Architecture introspection and metadata
 - `share/` - Shared utilities and constants
 
+### Repository Implementations
+
+The framework provides multiple repository implementations for different query needs:
+
+#### JPA Repository (`ddd-domain-repo-jpa`)
+
+- `AbstractJpaRepository<ENTITY>` - Basic JPA repository with criteria queries
+- `JpaPredicate<ENTITY>` - Type-safe predicate building using JPA Criteria API
+- Supports standard CRUD operations, pagination, and custom criteria queries
+
+#### QueryDSL Repository (`ddd-domain-repo-jpa-querydsl`)
+
+- `AbstractQuerydslRepository<ENTITY>` - QueryDSL-based repository for type-safe queries
+- `QuerydslPredicate<ENTITY>` - Fluent predicate builder using QueryDSL's BooleanBuilder
+- `QuerydslPredicateSupport` - Utility object for converting between framework and QueryDSL types
+- Provides compile-time query validation and better IDE support for complex queries
+
+**QueryDSL Integration Features:**
+
+- Type-safe query construction with `QuerydslPredicate.of(EntityClass.class).where(condition).orderBy(spec)`
+- Automatic conversion between framework predicates and QueryDSL predicates
+- Support for complex sorting with `OrderSpecifier` integration
+- Seamless integration with Spring Data's `QuerydslPredicateExecutor`
+
+**Usage Pattern:**
+
+```kotlin
+// Create a QueryDSL predicate
+val predicate = QuerydslPredicate.of(User::class.java)
+    .where(QUser.user.name.eq("John"))
+    .orderBy(QUser.user.createdAt.desc())
+
+// Use with repository
+val users = repository.find(predicate, persist = false)
+```
+
 ### Technology Stack
 
 - Kotlin 2.1.20 with Spring Boot 3.1.12
 - Java 17 toolchain
-- JUnit 5 with MockK for testing
+- JUnit 5 with MockK for testing (Kotlin test assertions preferred)
+- QueryDSL for type-safe query building
 - Build caching and configuration caching enabled
 - Convention plugins in `buildSrc/` for shared build logic
 
 ## Testing
 
-Testing uses JUnit 5 with MockK for mocking:
+Testing uses JUnit 5 with Kotlin test assertions and MockK for mocking:
 
 - `./gradlew test` - Run all tests
 - `./gradlew test --tests "*ClassName*"` - Run specific test class
 - `./gradlew test --tests "*ClassName.methodName*"` - Run specific test method
+- `./gradlew :module-name:test` - Run tests for specific module (e.g., `:ddd-domain-repo-jpa-querydsl:test`)
 
 Test files are located in `src/test/kotlin` with the same package structure as main code.
+
+### Testing Conventions
+
+- Use Kotlin test assertions (`kotlin.test.*`) rather than JUnit assertions for better Kotlin integration
+- Chinese `@DisplayName` annotations are preferred for better readability in test reports
+- Test classes should be named with `Test` suffix (e.g., `QuerydslPredicateTest`)
+- Use `@DisplayName` for both class and method level descriptions
 
 ## Development Notes
 
@@ -139,6 +185,21 @@ Test files are located in `src/test/kotlin` with the same package structure as m
 - Build caching and configuration caching are enabled for performance
 - Convention plugins in `buildSrc/` provide shared build logic
 - Chinese documentation available in `CLAUDE_CN.md` (sync when updating `CLAUDE.md`)
+
+### Kotlin Development Guidelines
+
+- Use `ENTITY: Any` type bounds for better type safety
+- Prefer `apply` scoping functions for fluent interfaces and method chaining
+- Use `companion object` for factory methods instead of static methods
+- Leverage Kotlin's null safety with `?` and `!!` operators appropriately
+- Use type aliases to resolve naming conflicts (e.g., `import com.querydsl.core.types.Predicate as QuerydslPredicate`)
+
+### Working with Repository Implementations
+
+- When adding new repository implementations, extend from core `Repository<ENTITY>` interface
+- Implement `supportPredicateClass()` to return the specific predicate type
+- Register predicate and repository reflectors in `@PostConstruct` init methods for framework integration
+- Use `QuerydslPredicateSupport` utilities for converting between framework and QueryDSL types
 
 # important-instruction-reminders
 

@@ -22,12 +22,13 @@ Cap4k 是一个面向 Kotlin/JVM 应用程序的领域驱动设计（DDD）框�
 
 - **ddd-core** - 核心 DDD 框架接口和实现（纯接口，无依赖）
 - **ddd-domain-event-jpa** - 基于 JPA 的事件溯源和事件存储实现
+- **ddd-domain-repo-jpa** - 基于 JPA 的仓储实现与工作单元
+- **ddd-domain-repo-jpa-querydsl** - QueryDSL 集成，用于类型安全的查询构建
 
 #### 可用但未激活的模块（在 settings 中注释）
 
 - **ddd-distributed-locker-jdbc** - 基于 JDBC 的分布式锁
 - **ddd-distributed-snowflake** - 分布式 ID 生成的雪花算法
-- **ddd-domain-repo-jpa** - 基于 JPA 的仓储实现与工作单元
 
 ### 核心架构
 
@@ -39,7 +40,7 @@ Cap4k 是一个面向 Kotlin/JVM 应用程序的领域驱动设计（DDD）框�
   - 详细模式：`Mediator.repositories()`、`Mediator.commands()`
   - 简洁模式：`X.repo()`、`X.cmd()`、`X.qry()`
 - **聚合** - 支持工厂模式的领域聚合
-- **仓储** - 数据持久化抽象层
+- **仓储** - 数据持久化抽象层，包含 JPA 和 QueryDSL 实现
 - **工作单元** - 事务管理模式
 - **CQRS** - 请求/命令/查询处理
 - **事件** - 领域事件和集成事件系统
@@ -112,23 +113,68 @@ X.cmd().execute(command)
 - `archinfo/` - 架构内省和元数据
 - `share/` - 共享工具和常量
 
+### 仓储实现
+
+框架为不同查询需求提供多种仓储实现：
+
+#### JPA 仓储 (`ddd-domain-repo-jpa`)
+
+- `AbstractJpaRepository<ENTITY>` - 使用条件查询的基础 JPA 仓储
+- `JpaPredicate<ENTITY>` - 使用 JPA Criteria API 的类型安全断言构建
+- 支持标准 CRUD 操作、分页和自定义条件查询
+
+#### QueryDSL 仓储 (`ddd-domain-repo-jpa-querydsl`)
+
+- `AbstractQuerydslRepository<ENTITY>` - 基于 QueryDSL 的类型安全查询仓储
+- `QuerydslPredicate<ENTITY>` - 使用 QueryDSL 的 BooleanBuilder 的流式断言构建器
+- `QuerydslPredicateSupport` - 用于在框架和 QueryDSL 类型之间转换的工具对象
+- 提供编译时查询验证和对复杂查询更好的 IDE 支持
+
+**QueryDSL 集成特性：**
+
+- 使用 `QuerydslPredicate.of(EntityClass.class).where(condition).orderBy(spec)` 进行类型安全的查询构建
+- 框架断言和 QueryDSL 断言之间的自动转换
+- 支持与 `OrderSpecifier` 集成的复杂排序
+- 与 Spring Data 的 `QuerydslPredicateExecutor` 无缝集成
+
+**使用模式：**
+
+```kotlin
+// 创建 QueryDSL 断言
+val predicate = QuerydslPredicate.of(User::class.java)
+  .where(QUser.user.name.eq("John"))
+  .orderBy(QUser.user.createdAt.desc())
+
+// 与仓储一起使用
+val users = repository.find(predicate, persist = false)
+```
+
 ### 技术栈
 
 - Kotlin 2.1.20 与 Spring Boot 3.1.12
 - Java 17 工具链
-- JUnit 5 与 MockK 测试
+- JUnit 5 与 MockK 测试（推荐使用 Kotlin 测试断言）
+- QueryDSL 用于类型安全的查询构建
 - 启用构建缓存和配置缓存
 - `buildSrc/` 中的约定插件用于共享构建逻辑
 
 ## 测试
 
-使用 JUnit 5 与 MockK 进行模拟测试：
+使用 JUnit 5 与 Kotlin 测试断言和 MockK 进行模拟测试：
 
 - `./gradlew test` - 运行所有测试
 - `./gradlew test --tests "*ClassName*"` - 运行特定测试类
 - `./gradlew test --tests "*ClassName.methodName*"` - 运行特定测试方法
+- `./gradlew :module-name:test` - 运行特定模块的测试（例如：`:ddd-domain-repo-jpa-querydsl:test`）
 
 测试文件位于 `src/test/kotlin`，包结构与主代码相同。
+
+### 测试约定
+
+- 使用 Kotlin 测试断言（`kotlin.test.*`）而不是 JUnit 断言，以获得更好的 Kotlin 集成
+- 推荐使用中文 `@DisplayName` 注解，以提高测试报告的可读性
+- 测试类应以 `Test` 后缀命名（例如：`QuerydslPredicateTest`）
+- 在类和方法级别都使用 `@DisplayName` 进行描述
 
 ## 开发说明
 
