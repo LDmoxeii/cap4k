@@ -22,9 +22,12 @@ follows a multi-module structure with DDD architectural patterns.
 #### Active Modules
 
 - **ddd-core** - Core DDD framework interfaces and implementations (pure interfaces, no dependencies)
+- **ddd-application-request-jpa** - JPA-based request/command execution with retry and scheduling
 - **ddd-domain-event-jpa** - JPA-based event sourcing and event store implementation
 - **ddd-domain-repo-jpa** - JPA-based repository implementation with Unit of Work
 - **ddd-domain-repo-jpa-querydsl** - QueryDSL integration for type-safe query building
+- **ddd-integration-event-rabbitmq** - RabbitMQ integration for cross-boundary events
+- **ddd-integration-event-rocketmq** - RocketMQ integration for cross-boundary events
 
 #### Available but Inactive Modules (commented in settings)
 

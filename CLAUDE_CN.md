@@ -22,8 +22,11 @@ Cap4k 是一个面向 Kotlin/JVM 应用程序的领域驱动设计（DDD）框�
 
 - **ddd-core** - 核心 DDD 框架接口和实现（纯接口，无依赖）
 - **ddd-domain-event-jpa** - 基于 JPA 的事件溯源和事件存储实现
+- **ddd-application-request-jpa** - 基于 JPA 的请求/命令执行，支持重试和调度
 - **ddd-domain-repo-jpa** - 基于 JPA 的仓储实现与工作单元
 - **ddd-domain-repo-jpa-querydsl** - QueryDSL 集成，用于类型安全的查询构建
+- **ddd-integration-event-rabbitmq** - 基于 RabbitMQ 的集成事件实现
+- **ddd-integration-event-rocketmq** - 基于 RocketMQ 的集成事件实现
 
 #### 可用但未激活的模块（在 settings 中注释）
 
