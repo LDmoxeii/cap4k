@@ -55,7 +55,7 @@ class EventRecordImpl : EventRecord {
     override val id: String
         get() = event.eventUuid
 
-    override val eventTopic: String
+    override val type: String
         get() = event.eventType
 
     override val payload: Any

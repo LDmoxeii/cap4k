@@ -479,7 +479,7 @@ class JpaEventRecordRepositoryTest {
             // Then - 验证能够重新获取
             val retrievedRecord = repository.getById("saved-event-id")
             assertNotNull(retrievedRecord)
-            assertEquals("user.created", retrievedRecord.eventTopic)
+            assertEquals("user.created", retrievedRecord.type)
         }
 
         @Test

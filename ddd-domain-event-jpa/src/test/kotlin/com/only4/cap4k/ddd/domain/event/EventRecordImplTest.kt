@@ -46,7 +46,7 @@ class EventRecordImplTest {
             // Then
             assertNotNull(eventRecord.id)
             assertTrue(eventRecord.id.isNotEmpty())
-            assertEquals("", eventRecord.eventTopic) // TestEvent没有注解
+            assertEquals("", eventRecord.type) // TestEvent没有注解
             assertEquals(payload, eventRecord.payload)
             assertEquals(testTime, eventRecord.scheduleTime)
             assertNotNull(eventRecord.nextTryTime)
@@ -63,7 +63,7 @@ class EventRecordImplTest {
             eventRecord.init(payload, "user-service", testTime, Duration.ofHours(1), 5)
 
             // Then
-            assertEquals("user.created", eventRecord.eventTopic)
+            assertEquals("user.created", eventRecord.type)
             assertEquals(payload, eventRecord.payload)
         }
 
@@ -77,7 +77,7 @@ class EventRecordImplTest {
             eventRecord.init(payload, "order-service", testTime, Duration.ofMinutes(15), 3)
 
             // Then
-            assertEquals("order.submitted", eventRecord.eventTopic)
+            assertEquals("order.submitted", eventRecord.type)
             assertEquals(payload, eventRecord.payload)
         }
 
@@ -123,7 +123,7 @@ class EventRecordImplTest {
         @DisplayName("eventTopic属性应该返回event的eventType")
         fun `should return event type as eventTopic`() {
             // When
-            val eventTopic = eventRecord.eventTopic
+            val eventTopic = eventRecord.type
 
             // Then
             assertEquals(eventRecord.event.eventType, eventTopic)
@@ -407,7 +407,7 @@ class EventRecordImplTest {
             assertEquals(originalEvent, newEventRecord.event)
             assertEquals(originalEventRecord.id, newEventRecord.id)
             assertEquals(originalEventRecord.payload, newEventRecord.payload)
-            assertEquals(originalEventRecord.eventTopic, newEventRecord.eventTopic)
+            assertEquals(originalEventRecord.type, newEventRecord.type)
         }
 
         @Test
@@ -425,7 +425,7 @@ class EventRecordImplTest {
 
             // Then
             assertEquals(originalEventRecord.id, newEventRecord.id)
-            assertEquals("user.created", newEventRecord.eventTopic)
+            assertEquals("user.created", newEventRecord.type)
             assertEquals(payload, newEventRecord.payload)
             assertEquals(testTime, newEventRecord.scheduleTime)
             assertFalse(newEventRecord.isPersist) // persist标记不会被恢复
@@ -507,7 +507,7 @@ class EventRecordImplTest {
             eventRecord.init(payload, "inventory-service", testTime, Duration.ofMinutes(15), 3)
 
             // Then
-            assertEquals("inventory.updated", eventRecord.eventTopic)
+            assertEquals("inventory.updated", eventRecord.type)
             assertEquals(payload, eventRecord.payload)
 
             val retrievedPayload = eventRecord.payload as InventoryUpdatedEvent

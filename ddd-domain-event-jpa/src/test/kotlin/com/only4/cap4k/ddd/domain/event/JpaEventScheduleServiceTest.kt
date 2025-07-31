@@ -499,7 +499,7 @@ class JpaEventScheduleServiceTest {
     private fun createMockEventRecord(eventId: String): EventRecord {
         return mockk<EventRecord> {
             every { id } returns eventId
-            every { eventTopic } returns "test.event"
+            every { type } returns "test.event"
             every { payload } returns TestEvent("test", 12345)
             every { scheduleTime } returns LocalDateTime.now()
             every { nextTryTime } returns LocalDateTime.now().plusMinutes(1)
