@@ -109,7 +109,7 @@ class DefaultEventPublisher(
             now
         }
 
-        val delivering = eventRecord.beginDelivery(deliverTime)
+        eventRecord.beginDelivery(deliverTime)
 
         var maxTry = 65535
         while (eventRecord.nextTryTime.isBefore(minNextTryTime) && eventRecord.isValid) {
@@ -120,7 +120,7 @@ class DefaultEventPublisher(
         }
 
         eventRecordRepository.save(eventRecord)
-        if (delivering) {
+        if (eventRecord.isDelivered) {
             eventRecord.markPersist(true)
             publish(eventRecord)
         }

@@ -18,7 +18,15 @@ interface RequestManager {
      * @param request 需要重新执行的请求记录
      * @throws IllegalStateException 当请求状态不允许重新执行时
      */
-    fun resume(request: RequestRecord)
+    fun resume(request: RequestRecord, minNextTryTime: LocalDateTime)
+
+    /**
+     * 重试请求
+     *
+     * @param uuid
+     * @return
+     */
+    fun retry(uuid: String)
 
     /**
      * 获取需要重试的请求列表

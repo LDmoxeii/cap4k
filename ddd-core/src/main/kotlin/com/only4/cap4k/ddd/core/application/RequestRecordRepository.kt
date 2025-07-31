@@ -34,7 +34,7 @@ interface RequestRecordRepository {
      * @param id 请求记录的唯一标识
      * @return 找到的请求记录，如果不存在则返回空
      */
-    fun getById(id: String): RequestRecord?
+    fun getById(id: String): RequestRecord
 
     /**
      * 获取需要重试的请求记录

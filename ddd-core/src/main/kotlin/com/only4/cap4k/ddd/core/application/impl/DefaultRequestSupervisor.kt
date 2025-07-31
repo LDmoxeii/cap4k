@@ -8,6 +8,7 @@ import com.only4.cap4k.ddd.core.application.query.PageQuery
 import com.only4.cap4k.ddd.core.application.query.Query
 import com.only4.cap4k.ddd.core.application.saga.SagaParam
 import com.only4.cap4k.ddd.core.application.saga.SagaSupervisor
+import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import jakarta.validation.ConstraintViolationException
 import jakarta.validation.Validator
@@ -163,11 +164,25 @@ class DefaultRequestSupervisor(
         }
     }
 
-    override fun resume(request: RequestRecord) {
-        if (!request.beginRequest(LocalDateTime.now())) {
-            requestRecordRepository.save(request)
-            return
+    override fun resume(request: RequestRecord, minNextTryTime: LocalDateTime) {
+        val now = LocalDateTime.now()
+        val requestTime = if (request.nextTryTime.isAfter(now)) {
+            request.nextTryTime
+        } else {
+            now
         }
+
+        request.beginRequest(requestTime)
+
+        var maxTry = 65535
+        while (request.nextTryTime.isBefore(minNextTryTime) && request.isValid) {
+            request.beginRequest(request.nextTryTime)
+            if (maxTry-- <= 0) {
+                throw DomainException("疑似死循环")
+            }
+        }
+
+        requestRecordRepository.save(request)
 
         val param = request.param
 
@@ -179,6 +194,19 @@ class DefaultRequestSupervisor(
         if (request.isExecuting) {
             scheduleExecution(param, request)
         }
+    }
+
+    override fun retry(uuid: String) {
+        val request = requestRecordRepository.getById(uuid)
+
+        val param = request.param
+
+        // 参数验证
+        validator?.validate(request)?.takeIf { it.isNotEmpty() }?.let { violations ->
+            throw ConstraintViolationException(violations)
+        }
+
+        internalSend(param, request)
     }
 
     override fun getByNextTryTime(maxNextTryTime: LocalDateTime, limit: Int): List<RequestRecord> {
