@@ -34,10 +34,10 @@ interface EventRecord {
     val id: String
 
     /**
-     * 获取事件主题
+     * 获取事件类型
      * @return
      */
-    val eventTopic: String
+    val type: String
 
     /**
      * 获取事件消息体

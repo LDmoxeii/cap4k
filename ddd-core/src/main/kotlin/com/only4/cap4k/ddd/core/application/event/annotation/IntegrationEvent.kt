@@ -1,7 +1,5 @@
 package com.only4.cap4k.ddd.core.application.event.annotation
 
-private const val NONE_SUBSCRIBER: String = "[none]"
-
 /**
  * 集成事件注解
  * 用于标记集成事件类，定义事件的发布和订阅规则
@@ -25,4 +23,12 @@ annotation class IntegrationEvent(
      * 默认为NONE_SUBSCRIBER，表示没有特定订阅者
      */
     val subscriber: String = NONE_SUBSCRIBER
-)
+) {
+    companion object {
+        /**
+         * 默认的订阅者标识
+         * 表示没有特定订阅者
+         */
+        const val NONE_SUBSCRIBER: String = "[none]"
+    }
+}
