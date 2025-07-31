@@ -7,8 +7,8 @@ import com.only4.cap4k.ddd.core.domain.repo.Predicate
 /**
  * Jpa聚合检索断言Support
  *
- * @author binking338
- * @date 2025/1/12
+ * @author LD_moxeii
+ * @date 2025/07/30
  */
 object JpaAggregatePredicateSupport {
 
