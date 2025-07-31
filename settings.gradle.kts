@@ -24,5 +24,6 @@ include("ddd-application-request-jpa")
 //include("ddd-distributed-locker-jdbc")
 //include("ddd-distributed-snowflake")
 include("ddd-domain-event-jpa", "ddd-domain-repo-jpa", "ddd-domain-repo-jpa-querydsl", "ddd-domain-repo-jpa-querydsl")
+include("ddd-integration-event-rabbitmq", "ddd-integration-event-rocketmq")
 
 rootProject.name = "cap4k"
