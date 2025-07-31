@@ -22,6 +22,6 @@ plugins {
 include("ddd-core")
 //include("ddd-distributed-locker-jdbc")
 //include("ddd-distributed-snowflake")
-include("ddd-domain-event-jpa", "ddd-domain-repo-jpa")
+include("ddd-domain-event-jpa", "ddd-domain-repo-jpa", "ddd-domain-repo-jpa-querydsl", "ddd-domain-repo-jpa-querydsl")
 
 rootProject.name = "cap4k"

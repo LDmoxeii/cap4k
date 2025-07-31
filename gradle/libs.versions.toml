@@ -28,6 +28,7 @@ springMassaging = { module = "org.springframework:spring-messaging" }
 springData = { module = "org.springframework.data:spring-data-commons" }
 springJdbc = { module = "org.springframework:spring-jdbc" }
 jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+querydsl = { module = "com.querydsl:querydsl-core" }
 
 slf4j = { module = "org.slf4j:slf4j-api" }
 
