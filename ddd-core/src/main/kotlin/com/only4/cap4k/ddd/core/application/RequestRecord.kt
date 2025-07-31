@@ -39,6 +39,13 @@ interface RequestRecord {
     val id: String
 
     /**
+     * 获取Request类型
+     *
+     * @return
+     */
+    val type: String
+
+    /**
      * 请求参数
      * 包含请求的详细信息和执行参数
      */

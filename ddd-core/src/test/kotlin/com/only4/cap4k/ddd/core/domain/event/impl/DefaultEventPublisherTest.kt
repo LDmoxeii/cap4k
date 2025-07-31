@@ -283,8 +283,9 @@ class DefaultEventPublisherTest {
             val eventRecord = createTestEventRecord()
             val minNextTryTime = LocalDateTime.now().minusMinutes(1)
 
-            every { eventRecord.nextTryTime } returns LocalDateTime.now().plusSeconds(1)
+            every { eventRecord.nextTryTime } returns LocalDateTime.now().plusMinutes(1) // 设置为大于minNextTryTime的时间
             every { eventRecord.isValid } returns true
+            every { eventRecord.isDelivered } returns true
             every { eventRecord.beginDelivery(any()) } returns true
 
             // when
@@ -494,8 +495,9 @@ class DefaultEventPublisherTest {
         every { eventRecord.markPersist(any()) } just Runs
         every { eventRecord.confirmedDelivery(any()) } just Runs
         every { eventRecord.occurredException(any(), any()) } just Runs
-        every { eventRecord.nextTryTime } returns LocalDateTime.now()
+        every { eventRecord.nextTryTime } returns LocalDateTime.now().plusMinutes(10) // 设置为未来时间避免死循环
         every { eventRecord.isValid } returns true
+        every { eventRecord.isDelivered } returns true // 添加缺失的Mock属性
         every { eventRecord.beginDelivery(any()) } returns true
         every { message.headers } returns EventMessageInterceptor.ModifiableMessageHeaders(headers)
 

@@ -154,15 +154,7 @@ class DefaultRequestSupervisor(
         return requestRecord.id
     }
 
-    override fun <R> result(requestId: String): R? {
-        val requestRecord = requestRecordRepository.getById(requestId)
-        return if (requestRecord == null) {
-            RequestSupervisor.instance.result(requestId)
-        } else {
-            @Suppress("UNCHECKED_CAST")
-            requestRecord.getResult()
-        }
-    }
+    override fun <R> result(requestId: String): R = requestRecordRepository.getById(requestId).getResult<R>()
 
     override fun resume(request: RequestRecord, minNextTryTime: LocalDateTime) {
         val now = LocalDateTime.now()
@@ -199,14 +191,14 @@ class DefaultRequestSupervisor(
     override fun retry(uuid: String) {
         val request = requestRecordRepository.getById(uuid)
 
-        val param = request.param
+        val param = request?.param
 
         // 参数验证
         validator?.validate(request)?.takeIf { it.isNotEmpty() }?.let { violations ->
             throw ConstraintViolationException(violations)
         }
 
-        internalSend(param, request)
+        internalSend(param!!, request)
     }
 
     override fun getByNextTryTime(maxNextTryTime: LocalDateTime, limit: Int): List<RequestRecord> {
