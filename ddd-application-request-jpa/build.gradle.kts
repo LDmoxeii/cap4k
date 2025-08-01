@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":ddd-core"))
 
     implementation(libs.fastjson)
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
 
     compileOnly(libs.jpa)
 

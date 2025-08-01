@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":ddd-core"))
 
     implementation(libs.fastjson)
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
 
     implementation(libs.springTx)
     implementation(libs.springAmqp)

@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":ddd-domain-event-jpa"))
 
     implementation(libs.fastjson)
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
 
     compileOnly(libs.jpa)
     compileOnly(libs.springMassaging)

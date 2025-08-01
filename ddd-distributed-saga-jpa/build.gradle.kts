@@ -8,25 +8,18 @@ plugins {
 }
 dependencies {
     implementation(project(":ddd-core"))
-    implementation(project(":ddd-domain-event-jpa"))
-    implementation(project(":ddd-domain-repo-jpa"))
 
     implementation(libs.fastjson)
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
     compileOnly(libs.jpa)
-    compileOnly(libs.querydsl)
+    compileOnly(libs.springMassaging)
 
-    // Add test dependencies
+    // Test dependencies
     testImplementation(libs.jpa)
-    testImplementation(libs.querydsl)
-    testImplementation(libs.springData)
-    testImplementation(libs.hibernateCore)
-    testImplementation(libs.mockk)
-    testImplementation(libs.mockkAgentJvm)
-    testImplementation("org.junit.jupiter:junit-jupiter-api")
-    testImplementation("org.junit.jupiter:junit-jupiter-engine")
+    testImplementation(libs.springMassaging)
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testImplementation("io.mockk:mockk:1.13.8")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
-
