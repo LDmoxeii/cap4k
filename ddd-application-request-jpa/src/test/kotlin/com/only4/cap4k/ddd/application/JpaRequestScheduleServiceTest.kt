@@ -198,31 +198,47 @@ class JpaRequestScheduleServiceTest {
             val interval = Duration.ofMinutes(5)
             val maxLockDuration = Duration.ofMinutes(10)
 
-            // 模拟补偿正在运行
+            // 模拟获取锁成功
             every { locker.acquire(compensationLockerKey, any(), maxLockDuration) } returns true
+
+            // 第一次调用返回一个请求，第二次调用返回空列表来结束循环
+            // 使用 slot 来捕获调用参数，避免多次调用的混乱
+            val callCount = mutableListOf<Int>()
             every { requestManager.getByNextTryTime(any(), batchSize) } answers {
-                // 在第一次调用中，让线程休眠模拟长时间运行
-                Thread.sleep(100)
-                listOf(createMockRequestRecord("request1"))
+                callCount.add(1)
+                if (callCount.size == 1) {
+                    // 第一次调用：延迟较长时间以模拟正在运行
+                    Thread.sleep(200)
+                    emptyList()
+                } else {
+                    emptyList()
+                }
             }
 
-            // When - 启动两个并发的补偿任务
+            // When - 启动一个后台线程来运行补偿
             val thread1 = Thread {
                 scheduleService.compense(batchSize, maxConcurrency, interval, maxLockDuration)
             }
-            val thread2 = Thread {
-                scheduleService.compense(batchSize, maxConcurrency, interval, maxLockDuration)
-            }
-
             thread1.start()
-            Thread.sleep(10) // 确保第一个线程先开始
-            thread2.start()
 
-            thread1.join()
-            thread2.join()
+            // 等待一点时间确保第一个线程开始并设置了 compensationRunning = true
+            Thread.sleep(50)
 
-            // Then - 第二个线程应该被跳过
-            verify(atMost = 1) { locker.acquire(compensationLockerKey, any(), maxLockDuration) }
+            // 现在在主线程中调用补偿，应该立即跳过
+            val startTime = System.currentTimeMillis()
+            scheduleService.compense(batchSize, maxConcurrency, interval, maxLockDuration)
+            val executionTime = System.currentTimeMillis() - startTime
+
+            // 等待第一个线程完成
+            thread1.join(1000)
+
+            // Then - 主线程的调用应该立即返回（被跳过）
+            assertTrue(executionTime < 20, "第二次调用应该立即跳过，用时: ${executionTime}ms")
+
+            // 验证只有第一个线程执行了实际逻辑
+            assertEquals(1, callCount.size, "应该只有一次 getByNextTryTime 调用")
+            verify(exactly = 1) { locker.acquire(compensationLockerKey, any(), maxLockDuration) }
+            verify(exactly = 1) { locker.release(compensationLockerKey, any()) }
         }
     }
 

@@ -451,19 +451,21 @@ class JpaRequestRecordRepositoryTest {
             val requestParam = CreateUserRequestParam("john", "john@test.com", "ADMIN")
             requestRecord.init(requestParam, "user-service", "CREATE_USER", testTime, Duration.ofHours(1), 3)
 
-            val savedRequest = mockk<Request> {
+            val savedRequest = mockk<Request>(relaxed = true) {
                 every { id } returns 1L
                 every { requestUuid } returns "saved-request-id"
                 every { svcName } returns "user-service"
                 every { requestType } returns "CREATE_USER"
                 every { lastTryTime } returns testTime
-                every { requestParam } returns requestParam
                 every { nextTryTime } returns testTime.plusMinutes(1)
                 every { requestState } returns Request.RequestState.INIT
                 every { param } returns """{"username":"john","email":"john@test.com","role":"ADMIN"}"""
                 every { paramType } returns "CreateUserRequestParam"
+                every { result } returns """{"success":true,"userId":"12345"}"""
+                every { resultType } returns "CreateUserResult"
                 every { exception } returns null
                 every { expireAt } returns testTime.plusHours(1)
+                every { createAt } returns testTime.minusHours(1)
                 every { tryTimes } returns 3
                 every { triedTimes } returns 0
                 every { requestResult } returns null
@@ -648,8 +650,11 @@ class JpaRequestRecordRepositoryTest {
             every { requestParam } returns TestRequestParam("test", mapOf("key" to "value"))
             every { param } returns """{"action":"test","data":{"key":"value"},"timestamp":123456789}"""
             every { paramType } returns "TestRequestParam"
+            every { result } returns """{"success":true,"message":"completed"}"""
+            every { resultType } returns "TestResult"
             every { exception } returns null
             every { expireAt } returns testTime.plusHours(1)
+            every { createAt } returns testTime.minusHours(1)
             every { tryTimes } returns 3
             every { triedTimes } returns 0
             every { requestResult } returns null
