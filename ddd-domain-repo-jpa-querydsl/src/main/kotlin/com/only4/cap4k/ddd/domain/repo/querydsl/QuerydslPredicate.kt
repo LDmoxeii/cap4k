@@ -1,8 +1,8 @@
 package com.only4.cap4k.ddd.domain.repo.querydsl
 
 import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
-import com.only4.cap4k.ddd.core.domain.repo.AggregatePredicate
-import com.only4.cap4k.ddd.domain.repo.JpaAggregatePredicate
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate
+import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
 import com.querydsl.core.BooleanBuilder
 import com.querydsl.core.types.OrderSpecifier
 import com.querydsl.core.types.Predicate

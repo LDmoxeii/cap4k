@@ -2,6 +2,7 @@ package com.only4.cap4k.ddd.domain.repo
 
 import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
 import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
+import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
 import io.mockk.mockk
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test

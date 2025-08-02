@@ -1,18 +1,14 @@
-package com.only4.cap4k.ddd.domain.repo.impl
+package com.only4.cap4k.ddd.domain.aggregate.impl
 
 import com.only4.cap4k.ddd.core.application.UnitOfWork
-import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
-import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
-import com.only4.cap4k.ddd.core.domain.aggregate.Id
-import com.only4.cap4k.ddd.core.domain.repo.AggregatePredicate
-import com.only4.cap4k.ddd.core.domain.repo.AggregateSupervisor
+import com.only4.cap4k.ddd.core.domain.aggregate.*
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
-import com.only4.cap4k.ddd.domain.repo.JpaAggregatePredicate
-import com.only4.cap4k.ddd.domain.repo.JpaAggregatePredicateSupport
+import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
+import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicateSupport
 import java.util.*
 
 /**

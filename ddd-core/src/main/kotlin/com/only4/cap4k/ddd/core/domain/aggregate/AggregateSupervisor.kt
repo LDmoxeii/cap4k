@@ -1,8 +1,5 @@
-package com.only4.cap4k.ddd.core.domain.repo
+package com.only4.cap4k.ddd.core.domain.aggregate
 
-import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
-import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
-import com.only4.cap4k.ddd.core.domain.aggregate.Id
 import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam

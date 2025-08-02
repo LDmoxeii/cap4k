@@ -5,12 +5,7 @@ import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
-import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
-import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
-import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
-import com.only4.cap4k.ddd.core.domain.aggregate.Id
-import com.only4.cap4k.ddd.core.domain.repo.AggregatePredicate
-import com.only4.cap4k.ddd.core.domain.repo.AggregateSupervisor
+import com.only4.cap4k.ddd.core.domain.aggregate.*
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.core.domain.service.DomainServiceSupervisor

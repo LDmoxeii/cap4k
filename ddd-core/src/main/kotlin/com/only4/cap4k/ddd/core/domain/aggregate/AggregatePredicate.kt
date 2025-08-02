@@ -1,6 +1,6 @@
-package com.only4.cap4k.ddd.core.domain.repo
+package com.only4.cap4k.ddd.core.domain.aggregate
 
-import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
+import com.only4.cap4k.ddd.core.domain.repo.Predicate
 
 
 /**

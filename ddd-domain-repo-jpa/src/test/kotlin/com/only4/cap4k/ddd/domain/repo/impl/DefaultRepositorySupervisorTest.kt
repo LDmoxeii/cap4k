@@ -7,8 +7,8 @@ import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
-import com.only4.cap4k.ddd.domain.repo.JpaAggregatePredicate
-import com.only4.cap4k.ddd.domain.repo.JpaAggregatePredicateSupport
+import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
+import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicateSupport
 import com.only4.cap4k.ddd.domain.repo.JpaPredicate
 import io.mockk.*
 import org.junit.jupiter.api.*

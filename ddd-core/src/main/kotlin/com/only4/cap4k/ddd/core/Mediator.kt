@@ -4,7 +4,7 @@ import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
-import com.only4.cap4k.ddd.core.domain.repo.AggregateSupervisor
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateSupervisor
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.core.domain.service.DomainServiceSupervisor
 import org.springframework.context.ApplicationContext

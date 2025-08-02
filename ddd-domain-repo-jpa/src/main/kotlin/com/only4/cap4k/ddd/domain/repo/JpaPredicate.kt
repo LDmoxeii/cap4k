@@ -1,9 +1,10 @@
 package com.only4.cap4k.ddd.domain.repo
 
 import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate
 import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
-import com.only4.cap4k.ddd.core.domain.repo.AggregatePredicate
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
+import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
 import org.springframework.data.jpa.domain.Specification
 
 /**

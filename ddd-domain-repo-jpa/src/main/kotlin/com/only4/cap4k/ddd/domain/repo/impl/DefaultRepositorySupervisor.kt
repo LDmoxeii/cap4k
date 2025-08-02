@@ -9,8 +9,8 @@ import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
-import com.only4.cap4k.ddd.domain.repo.JpaAggregatePredicate
-import com.only4.cap4k.ddd.domain.repo.JpaAggregatePredicateSupport
+import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
+import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicateSupport
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 

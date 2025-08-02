@@ -1,4 +1,4 @@
-package com.only4.cap4k.ddd.core.domain.repo
+package com.only4.cap4k.ddd.core.domain.aggregate
 
 /**
  * 聚合管理器帮助类
