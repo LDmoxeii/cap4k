@@ -30,5 +30,6 @@ include(
     "ddd-integration-event-rabbitmq",
     "ddd-integration-event-rocketmq"
 )
+include("cap4k-ddd-console")
 
 rootProject.name = "cap4k"
