@@ -10,7 +10,7 @@ package com.only4.cap4k.ddd.core.application
  * @author LD_moxeii
  * @date 2025/07/20
  */
-interface RequestHandler<REQUEST : RequestParam<RESPONSE>, RESPONSE> {
+interface RequestHandler<in REQUEST : RequestParam<out RESPONSE>, out RESPONSE: Any> {
     /**
      * 执行请求处理
      * 根据请求参数执行相应的业务逻辑并返回处理结果

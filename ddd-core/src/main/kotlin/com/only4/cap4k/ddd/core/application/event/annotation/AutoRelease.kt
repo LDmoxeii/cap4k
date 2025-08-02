@@ -17,7 +17,7 @@ annotation class AutoRelease(
      * 源领域事件类型
      * 指定要监听的领域事件类型
      */
-    val sourceDomainEventClass: KClass<*> = Unit::class,
+    val sourceDomainEventClass: KClass<out Any> = Unit::class,
 
     /**
      * 延迟发布时间（秒）
@@ -30,7 +30,7 @@ annotation class AutoRelease(
      * 实现org.springframework.core.convert.converter.Converter接口
      * 用于将领域事件转换为集成事件
      */
-    val converterClass: KClass<*> = Unit::class
+    val converterClass: KClass<out Any> = Unit::class
 )
 
 /**

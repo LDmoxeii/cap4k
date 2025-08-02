@@ -39,6 +39,12 @@ interface SagaRecord {
     val id: String
 
     /**
+     * 获取Saga类型
+     * @return
+     */
+    val type: String
+
+    /**
      * 获取Saga流程执行参数
      *
      * @return Saga参数
@@ -68,7 +74,7 @@ interface SagaRecord {
      * @param processCode 子流程代码
      * @param result 执行结果
      */
-    fun endSagaProcess(now: LocalDateTime, processCode: String, result: Any?)
+    fun endSagaProcess(now: LocalDateTime, processCode: String, result: Any)
 
     /**
      * Saga流程子环节发生异常
@@ -93,7 +99,7 @@ interface SagaRecord {
      * @param processCode 子流程代码
      * @return 执行结果
      */
-    fun <R> getSagaProcessResult(processCode: String): R
+    fun <R> getSagaProcessResult(processCode: String): R?
 
     /**
      * 获取计划执行时间
@@ -159,7 +165,7 @@ interface SagaRecord {
      * @param now 当前时间
      * @param result 执行结果
      */
-    fun endSaga(now: LocalDateTime, result: Any?)
+    fun endSaga(now: LocalDateTime, result: Any)
 
     /**
      * Saga流程发生异常

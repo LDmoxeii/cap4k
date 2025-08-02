@@ -8,4 +8,4 @@ import com.only4.cap4k.ddd.core.application.RequestParam
  * @author LD_moxeii
  * @date 2025/07/26
  */
-interface SagaParam<RESULT> : RequestParam<RESULT>
+interface SagaParam<RESULT: Any> : RequestParam<RESULT>

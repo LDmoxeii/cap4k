@@ -2,6 +2,7 @@ package com.only4.cap4k.ddd.core.domain.aggregate
 
 import com.only4.cap4k.ddd.core.Mediator
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisorSupport.events
+import java.util.function.Supplier
 
 /**
  * 聚合封装
@@ -63,6 +64,15 @@ interface Aggregate<ENTITY : Any> {
         protected fun registerDomainEvent(event: Any) {
             events().attach(domainEventPayload = event, entity = this)
 
+        }
+
+        /**
+         * 注册领域事件到持久化上下文
+         *
+         * @param eventSupplier
+         */
+        protected fun registerDomainEvent(eventSupplier: Supplier<out Any>) {
+            events().attach(eventSupplier, this.root)
         }
 
         /**

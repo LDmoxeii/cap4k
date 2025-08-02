@@ -53,9 +53,9 @@ class DefaultDomainEventSupervisor(
     private fun unwrapEntity(entity: Any): Any = (entity as? Aggregate<*>)?._unwrap() ?: entity
 
 
-    override fun <DOMAIN_EVENT, ENTITY> attach(
-        domainEventPayload: DOMAIN_EVENT & Any,
-        entity: ENTITY & Any,
+    override fun <DOMAIN_EVENT: Any, ENTITY: Any> attach(
+        domainEventPayload: DOMAIN_EVENT,
+        entity: ENTITY,
         schedule: LocalDateTime
     ) {
         if (domainEventPayload::class.java.isAnnotationPresent(IntegrationEvent::class.java)) {
@@ -76,7 +76,7 @@ class DefaultDomainEventSupervisor(
             .forEach { interceptor -> interceptor.onAttach(domainEventPayload, unwrappedEntity, schedule) }
     }
 
-    override fun <DOMAIN_EVENT, ENTITY> detach(domainEventPayload: DOMAIN_EVENT & Any, entity: ENTITY & Any) {
+    override fun <DOMAIN_EVENT: Any, ENTITY: Any> detach(domainEventPayload: DOMAIN_EVENT, entity: ENTITY) {
         val entityEventPayloads = TL_ENTITY_EVENT_PAYLOADS.get() ?: return
         val unwrappedEntity = unwrapEntity(entity)
         val eventPayloads = entityEventPayloads[unwrappedEntity] ?: return

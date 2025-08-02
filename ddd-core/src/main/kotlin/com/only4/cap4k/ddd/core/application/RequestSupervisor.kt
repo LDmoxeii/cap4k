@@ -22,7 +22,7 @@ interface RequestSupervisor {
      * @throws ConstraintViolationException 当请求参数验证失败时
      * @throws IllegalStateException 当请求执行失败时
      */
-    fun <REQUEST : RequestParam<RESPONSE>, RESPONSE> send(request: REQUEST): RESPONSE
+    fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> send(request: REQUEST): RESPONSE
 
     /**
      * 异步执行请求
@@ -32,7 +32,7 @@ interface RequestSupervisor {
      * @return 请求ID，用于后续查询结果
      * @throws ConstraintViolationException 当请求参数验证失败时
      */
-    fun <REQUEST : RequestParam<RESPONSE>, RESPONSE> async(request: REQUEST): String =
+    fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> async(request: REQUEST): String =
         schedule(request, LocalDateTime.now())
 
     /**
@@ -44,7 +44,7 @@ interface RequestSupervisor {
      * @return 请求ID，用于后续查询结果
      * @throws ConstraintViolationException 当请求参数验证失败时
      */
-    fun <REQUEST : RequestParam<RESPONSE>, RESPONSE> schedule(
+    fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> schedule(
         request: REQUEST,
         schedule: LocalDateTime
     ): String
@@ -58,7 +58,7 @@ interface RequestSupervisor {
      * @return 请求ID，用于后续查询结果
      * @throws ConstraintViolationException 当请求参数验证失败时
      */
-    fun <REQUEST : RequestParam<RESPONSE>, RESPONSE> delay(
+    fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> delay(
         request: REQUEST,
         delay: Duration
     ): String = schedule(request, LocalDateTime.now().plus(delay))
@@ -69,7 +69,7 @@ interface RequestSupervisor {
      * @param requestId 请求ID
      * @return 请求结果
     </R> */
-    fun <R> result(requestId: String): R
+    fun <R: Any> result(requestId: String): R
 
     companion object {
         /**

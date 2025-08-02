@@ -27,7 +27,7 @@ interface SagaSupervisor {
      * @param request 请求参数
      * @return 处理结果
      */
-    fun <REQUEST : SagaParam<RESPONSE>, RESPONSE> send(request: REQUEST): RESPONSE
+    fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> send(request: REQUEST): RESPONSE
 
     /**
      * 异步执行Saga流程
@@ -35,7 +35,7 @@ interface SagaSupervisor {
      * @param request 请求参数
      * @return Saga ID
      */
-    fun <REQUEST : SagaParam<RESPONSE>, RESPONSE> async(request: REQUEST): String {
+    fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> async(request: REQUEST): String {
         return schedule(request, LocalDateTime.now())
     }
 
@@ -46,7 +46,7 @@ interface SagaSupervisor {
      * @param schedule   计划时间
      * @return 请求ID
      */
-    fun <REQUEST : SagaParam<RESPONSE>, RESPONSE> schedule(
+    fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> schedule(
         request: REQUEST,
         schedule: LocalDateTime
     ): String
@@ -58,7 +58,7 @@ interface SagaSupervisor {
      * @param delay   延迟时间
      * @return 请求ID
      */
-    fun <REQUEST : SagaParam<RESPONSE>, RESPONSE> delay(request: REQUEST, delay: Duration): String {
+    fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> delay(request: REQUEST, delay: Duration): String {
         return schedule(request, LocalDateTime.now().plus(delay))
     }
 
@@ -68,7 +68,7 @@ interface SagaSupervisor {
      * @param id Saga ID
      * @return 请求结果
      */
-    fun <R> result(id: String): R?
+    fun <R: Any> result(id: String): R?
 
     /**
      * 获取Saga结果
@@ -77,7 +77,7 @@ interface SagaSupervisor {
      * @param requestClass 请求参数类型
      * @return 请求结果
      */
-    fun <REQUEST : SagaParam<RESPONSE>, RESPONSE> result(
+    fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> result(
         requestId: String,
         requestClass: Class<REQUEST>
     ): RESPONSE? {

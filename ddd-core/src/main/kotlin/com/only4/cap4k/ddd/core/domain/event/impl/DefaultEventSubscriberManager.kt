@@ -172,8 +172,8 @@ class DefaultEventSubscriberManager(
         val exceptions = mutableListOf<Exception>()
         subscribersForEvent.forEach { subscriber ->
             try {
-            @Suppress("UNCHECKED_CAST")
-            (subscriber as EventSubscriber<Any>).onEvent(eventPayload)
+                @Suppress("UNCHECKED_CAST")
+                (subscriber as EventSubscriber<Any>).onEvent(eventPayload)
             } catch (ex: Exception) {
                 // 记录异常但不影响其他订阅器的执行
                 exceptions.add(ex)
@@ -185,12 +185,4 @@ class DefaultEventSubscriberManager(
             throw RuntimeException("Some subscribers failed to handle the event: ${exceptions.joinToString(", ")}")
         }
     }
-// try {
-//     @Suppress("UNCHECKED_CAST")
-//     (subscriber as EventSubscriber<Any>).onEvent(eventPayload)
-// } catch (ex: Exception) {
-//     // 记录异常但不影响其他订阅器的执行
-//     // 可以根据需要添加日志记录
-//     // log.error("Subscriber ${subscriber.javaClass.simpleName} failed to handle event", + ex)
-// }
 }

@@ -151,7 +151,7 @@ class DefaultSagaSupervisor(
         }
     }
 
-    override fun <REQUEST : SagaParam<RESPONSE>, RESPONSE> send(request: REQUEST): RESPONSE {
+    override fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> send(request: REQUEST): RESPONSE {
         // 参数验证
         validator?.validate(request)?.takeIf { it.isNotEmpty() }?.let { violations ->
             throw ConstraintViolationException(violations)
@@ -166,7 +166,7 @@ class DefaultSagaSupervisor(
         return internalSend(request, sagaRecord)
     }
 
-    override fun <REQUEST : SagaParam<RESPONSE>, RESPONSE> schedule(
+    override fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> schedule(
         request: REQUEST,
         schedule: LocalDateTime
     ): String {
@@ -189,7 +189,7 @@ class DefaultSagaSupervisor(
         return sagaRecord.id
     }
 
-    override fun <R> result(id: String): R = sagaRecordRepository.getById(id).getResult()
+    override fun <R: Any> result(id: String): R = sagaRecordRepository.getById(id).getResult()
 
 
     override fun resume(saga: SagaRecord, minNextTryTime: LocalDateTime) {
@@ -241,10 +241,10 @@ class DefaultSagaSupervisor(
         return sagaRecordRepository.archiveByExpireAt(svcName, maxExpireAt, limit)
     }
 
-    override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE> sendProcess(
+    override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> sendProcess(
         processCode: String,
         request: REQUEST
-    ): RESPONSE {
+    ): RESPONSE? {
         val sagaRecord = SAGA_RECORD_THREAD_LOCAL.get()
             ?: throw IllegalStateException("No SagaRecord found in thread local")
 
@@ -279,7 +279,7 @@ class DefaultSagaSupervisor(
      */
     protected fun createSagaRecord(
         sagaType: String,
-        request: SagaParam<*>,
+        request: SagaParam<out Any>,
         scheduleAt: LocalDateTime
     ): SagaRecord {
         val sagaRecord = sagaRecordRepository.create()
@@ -309,7 +309,7 @@ class DefaultSagaSupervisor(
     /**
      * 调度Saga执行
      */
-    private fun scheduleExecution(request: SagaParam<*>, sagaRecord: SagaRecord) {
+    private fun scheduleExecution(request: SagaParam<out Any>, sagaRecord: SagaRecord) {
         val now = LocalDateTime.now()
         val delay = if (now.isBefore(sagaRecord.scheduleTime)) {
             Duration.between(now, sagaRecord.scheduleTime)
@@ -326,7 +326,7 @@ class DefaultSagaSupervisor(
     /**
      * 内部执行Saga逻辑
      */
-    protected fun <REQUEST : SagaParam<RESPONSE>, RESPONSE> internalSend(
+    protected fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> internalSend(
         request: REQUEST,
         sagaRecord: SagaRecord
     ): RESPONSE {
@@ -346,7 +346,7 @@ class DefaultSagaSupervisor(
         }
     }
 
-    protected fun <REQUEST : SagaParam<RESPONSE>, RESPONSE> internalSend(request: REQUEST): RESPONSE {
+    protected fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> internalSend(request: REQUEST): RESPONSE {
         val requestClass = request::class.java
         val interceptors = getInterceptorsForRequest(requestClass)
         val handler = getHandlerForRequest(requestClass)

@@ -111,7 +111,7 @@ class DefaultRequestSupervisor(
         }
     }
 
-    override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE> send(request: REQUEST): RESPONSE {
+    override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> send(request: REQUEST): RESPONSE {
         // 如果是Saga请求，委托给SagaSupervisor处理
         if (request is SagaParam<*>) {
             @Suppress("UNCHECKED_CAST")
@@ -126,7 +126,7 @@ class DefaultRequestSupervisor(
         return internalSend(request)
     }
 
-    override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE> schedule(
+    override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> schedule(
         request: REQUEST,
         schedule: LocalDateTime
     ): String {
@@ -154,7 +154,7 @@ class DefaultRequestSupervisor(
         return requestRecord.id
     }
 
-    override fun <R> result(requestId: String): R = requestRecordRepository.getById(requestId).getResult()
+    override fun <R: Any> result(requestId: String): R = requestRecordRepository.getById(requestId).getResult()
 
     override fun resume(request: RequestRecord, minNextTryTime: LocalDateTime) {
         val now = LocalDateTime.now()
@@ -250,7 +250,7 @@ class DefaultRequestSupervisor(
         }, duration.toMillis(), TimeUnit.MILLISECONDS)
     }
 
-    protected fun <REQUEST : RequestParam<RESPONSE>, RESPONSE> internalSend(
+    protected fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> internalSend(
         request: REQUEST,
         requestRecord: RequestRecord
     ): RESPONSE {
@@ -266,7 +266,7 @@ class DefaultRequestSupervisor(
         }
     }
 
-    protected fun <REQUEST : RequestParam<RESPONSE>, RESPONSE> internalSend(request: REQUEST): RESPONSE {
+    protected fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> internalSend(request: REQUEST): RESPONSE {
         val requestClass = request::class.java
         val interceptors = requestInterceptorMap[requestClass] ?: emptyList()
 

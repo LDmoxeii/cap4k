@@ -93,16 +93,16 @@ class DefaultMediator : Mediator {
         UnitOfWork.instance.save(propagation)
     }
 
-    override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE> send(request: REQUEST): RESPONSE =
+    override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE : Any> send(request: REQUEST): RESPONSE =
         RequestSupervisor.instance.send(request)
 
-    override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE> schedule(
+    override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE : Any> schedule(
         request: REQUEST,
         schedule: LocalDateTime
     ): String =
         RequestSupervisor.instance.schedule(request, schedule)
 
-    override fun <R> result(requestId: String): R =
+    override fun <R: Any> result(requestId: String): R =
         RequestSupervisor.instance.result(requestId)
 
     override fun <EVENT : Any> attach(eventPayload: EVENT, schedule: LocalDateTime) {
@@ -129,35 +129,35 @@ class DefaultMediator : Mediator {
     ): List<AGGREGATE> =
         AggregateSupervisor.instance.getByIds(ids, persist)
 
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> find(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
+    override fun <AGGREGATE : Aggregate<out Any>> find(
+        predicate: AggregatePredicate<AGGREGATE, out Any>,
         orders: Collection<OrderInfo>?,
         persist: Boolean
     ): List<AGGREGATE> =
         AggregateSupervisor.instance.find(predicate, orders, persist)
 
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> find(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
+    override fun <AGGREGATE : Aggregate<out Any>> find(
+        predicate: AggregatePredicate<AGGREGATE, out Any>,
         pageParam: PageParam,
         persist: Boolean
     ): List<AGGREGATE> =
         AggregateSupervisor.instance.find(predicate, pageParam, persist)
 
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findOne(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
+    override fun <AGGREGATE : Aggregate<out Any>> findOne(
+        predicate: AggregatePredicate<AGGREGATE, out Any>,
         persist: Boolean
     ): Optional<AGGREGATE> =
         AggregateSupervisor.instance.findOne(predicate, persist)
 
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findFirst(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
+    override fun <AGGREGATE : Aggregate<out Any>> findFirst(
+        predicate: AggregatePredicate<AGGREGATE, out Any>,
         orders: Collection<OrderInfo>,
         persist: Boolean
     ): Optional<AGGREGATE> =
         AggregateSupervisor.instance.findFirst(predicate, orders, persist)
 
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findPage(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
+    override fun <AGGREGATE : Aggregate<out Any>> findPage(
+        predicate: AggregatePredicate<AGGREGATE, out Any>,
         pageParam: PageParam,
         persist: Boolean
     ): PageData<AGGREGATE> =
@@ -166,18 +166,18 @@ class DefaultMediator : Mediator {
     override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> removeByIds(ids: Iterable<Id<AGGREGATE, *>>): List<AGGREGATE> =
         AggregateSupervisor.instance.removeByIds(ids)
 
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> remove(predicate: AggregatePredicate<AGGREGATE, ENTITY>): List<AGGREGATE> =
+    override fun <AGGREGATE : Aggregate<out Any>> remove(predicate: AggregatePredicate<AGGREGATE, out Any>): List<AGGREGATE> =
         AggregateSupervisor.instance.remove(predicate)
 
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> remove(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
+    override fun <AGGREGATE : Aggregate<out Any>> remove(
+        predicate: AggregatePredicate<AGGREGATE, out Any>,
         limit: Int
     ): List<AGGREGATE> =
         AggregateSupervisor.instance.remove(predicate, limit)
 
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> count(predicate: AggregatePredicate<AGGREGATE, ENTITY>): Long =
+    override fun <AGGREGATE : Aggregate<out Any>> count(predicate: AggregatePredicate<AGGREGATE, out Any>): Long =
         AggregateSupervisor.instance.count(predicate)
 
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> exists(predicate: AggregatePredicate<AGGREGATE, ENTITY>): Boolean =
+    override fun <AGGREGATE : Aggregate<out Any>> exists(predicate: AggregatePredicate<AGGREGATE, out Any>): Boolean =
         AggregateSupervisor.instance.exists(predicate)
 }

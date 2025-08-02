@@ -28,8 +28,8 @@ interface SagaProcessSupervisor {
      * @param request     请求参数
      * @return 处理结果
      */
-    fun <REQUEST : RequestParam<RESPONSE>, RESPONSE> sendProcess(
+    fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> sendProcess(
         processCode: String,
         request: REQUEST
-    ): RESPONSE
+    ): RESPONSE?
 }

@@ -9,4 +9,4 @@ package com.only4.cap4k.ddd.core.application
  * @author LD_moxeii
  * @date 2025/07/20
  */
-interface RequestParam<RESULT>
+interface RequestParam<RESULT: Any>
