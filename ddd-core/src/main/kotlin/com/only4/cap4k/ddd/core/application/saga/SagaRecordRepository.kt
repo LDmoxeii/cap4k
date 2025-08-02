@@ -30,7 +30,7 @@ interface SagaRecordRepository {
      * @param id Saga ID
      * @return SagaRecord实例，如果不存在则返回null
      */
-    fun getById(id: String): SagaRecord?
+    fun getById(id: String): SagaRecord
 
     /**
      * 根据下次执行时间获取SagaRecord

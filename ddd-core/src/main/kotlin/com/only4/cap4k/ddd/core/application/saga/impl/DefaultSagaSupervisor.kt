@@ -10,6 +10,7 @@ import com.only4.cap4k.ddd.core.application.query.ListQuery
 import com.only4.cap4k.ddd.core.application.query.PageQuery
 import com.only4.cap4k.ddd.core.application.query.Query
 import com.only4.cap4k.ddd.core.application.saga.*
+import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import jakarta.validation.ConstraintViolationException
 import jakarta.validation.Validator
@@ -188,29 +189,48 @@ class DefaultSagaSupervisor(
         return sagaRecord.id
     }
 
-    override fun <R> result(id: String): R? {
-        val sagaRecord = sagaRecordRepository.getById(id)
-        @Suppress("UNCHECKED_CAST")
-        return sagaRecord?.getResult() as? R
-    }
+    override fun <R> result(id: String): R = sagaRecordRepository.getById(id).getResult()
 
-    override fun resume(saga: SagaRecord) {
-        if (!saga.beginSaga(LocalDateTime.now())) {
-            sagaRecordRepository.save(saga)
-            return
+
+    override fun resume(saga: SagaRecord, minNextTryTime: LocalDateTime) {
+        val now = LocalDateTime.now()
+        val sagaTime = if (saga.nextTryTime.isAfter(now)) saga.nextTryTime else now
+
+        saga.beginSaga(sagaTime)
+
+        // 解决请求重试间隔配置过小造成连续重试
+        var maxTry = 65535
+        while (saga.nextTryTime.isBefore(minNextTryTime) && saga.isValid) {
+            saga.beginSaga(saga.nextTryTime)
+            if (maxTry-- <= 0) {
+                throw DomainException("疑似死循环")
+            }
         }
+        sagaRecordRepository.save(saga)
 
         val param = saga.param
 
         // 参数验证
-        validator?.validate(param)?.takeIf { it.isNotEmpty() }?.let { violations ->
+        validator?.validate(saga)?.takeIf { it.isNotEmpty() }?.let { violations ->
             throw ConstraintViolationException(violations)
         }
 
-        // 如果Saga正在执行且需要延迟调度
         if (saga.isExecuting) {
             scheduleExecution(param, saga)
         }
+    }
+
+    override fun retry(uuid: String) {
+        val saga = sagaRecordRepository.getById(uuid)
+
+        val param = saga.param
+
+        // 参数验证
+        validator?.validate(saga)?.takeIf { it.isNotEmpty() }?.let { violations ->
+            throw ConstraintViolationException(violations)
+        }
+
+        internalSend(param, saga)
     }
 
     override fun getByNextTryTime(maxNextTryTime: LocalDateTime, limit: Int): List<SagaRecord> {

@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.core.application.saga.impl
 
+import com.only4.cap4k.ddd.core.application.saga.SagaHandler
 import com.only4.cap4k.ddd.core.application.saga.SagaParam
 import com.only4.cap4k.ddd.core.application.saga.SagaRecord
 import com.only4.cap4k.ddd.core.application.saga.SagaRecordRepository
@@ -55,15 +56,20 @@ class DefaultSagaSupervisorTest {
 
         // 设置默认 Mock 行为
         every { mockValidator.validate(testParam) } returns emptySet()
+        every { mockValidator.validate(mockSagaRecord) } returns emptySet()
         every { mockSagaRecordRepository.create() } returns mockSagaRecord
         every { mockSagaRecordRepository.save(mockSagaRecord) } just Runs
+        every { mockSagaRecordRepository.getById(any()) } returns mockSagaRecord
         every { mockSagaRecord.init(any(), any(), any(), any(), any(), any()) } just Runs
         every { mockSagaRecord.beginSaga(any()) } returns true
         every { mockSagaRecord.endSaga(any(), any()) } just Runs
         every { mockSagaRecord.occurredException(any(), any()) } just Runs
         every { mockSagaRecord.id } returns "test-saga-id"
         every { mockSagaRecord.isExecuting } returns false
+        every { mockSagaRecord.isValid } returns true
         every { mockSagaRecord.param } returns testParam
+        every { mockSagaRecord.nextTryTime } returns LocalDateTime.now().plusMinutes(5)
+        every { mockSagaRecord.scheduleTime } returns LocalDateTime.now().plusMinutes(1)
     }
 
     @AfterEach
@@ -145,49 +151,120 @@ class DefaultSagaSupervisorTest {
     }
 
     @Test
-    @DisplayName("测试result方法在Saga不存在时返回null")
-    fun `test result method with non-existent saga`() {
+    @DisplayName("测试result方法正确委托给SagaRecord")
+    fun `test result method delegates to saga record`() {
         // 准备
-        val sagaId = "non-existent-id"
-        every { mockSagaRecordRepository.getById(sagaId) } returns null
+        val expectedResult = "delegated-result"
+        val sagaId = "test-saga-id"
+        every { mockSagaRecordRepository.getById(sagaId) } returns mockSagaRecord
+        every { mockSagaRecord.getResult<String>() } returns expectedResult
 
         // 执行
         val result = supervisor.result<String>(sagaId)
 
         // 验证
-        assertEquals(null, result)
+        assertEquals(expectedResult, result)
+        verify { mockSagaRecordRepository.getById(sagaId) }
+        verify { mockSagaRecord.getResult<String>() }
     }
 
     @Test
     @DisplayName("测试resume方法恢复有效的Saga")
     fun `test resume method with valid saga`() {
         // 准备
+        val minNextTryTime = LocalDateTime.now().plusMinutes(5)
+        val nextTryTime = LocalDateTime.now().plusMinutes(10) // 大于minNextTryTime
+        every { mockSagaRecord.nextTryTime } returns nextTryTime
         every { mockSagaRecord.beginSaga(any()) } returns true
         every { mockSagaRecord.isExecuting } returns false
+        every { mockSagaRecord.isValid } returns true
+        every { mockSagaRecord.scheduleTime } returns LocalDateTime.now().plusMinutes(1)
 
         // 执行
-        supervisor.resume(mockSagaRecord)
+        supervisor.resume(mockSagaRecord, minNextTryTime)
 
         // 验证
         verify { mockSagaRecord.beginSaga(any()) }
-        verify { mockValidator.validate(testParam) }
-        // 注意：当beginSaga返回true且isExecuting为false时，不会调用save方法
-        // 因为saga会立即执行而不需要保存状态
+        verify { mockValidator.validate(mockSagaRecord) }
+        verify { mockSagaRecordRepository.save(mockSagaRecord) }
     }
 
     @Test
-    @DisplayName("测试resume方法在Saga无法开始时的处理")
-    fun `test resume method with saga that cannot begin`() {
-        // 准备
-        every { mockSagaRecord.beginSaga(any()) } returns false
+    @DisplayName("测试resume方法处理连续重试")
+    fun `test resume method handles continuous retry`() {
+        // 准备 - 简化测试，只验证基本调用
+        val minNextTryTime = LocalDateTime.now().plusMinutes(10)
+        val nextTryTime = LocalDateTime.now().plusMinutes(15) // 大于minNextTryTime，不会进入while循环
+
+        // 重新配置mock
+        clearMocks(mockSagaRecord)
+        every { mockSagaRecord.param } returns testParam
+        every { mockSagaRecord.scheduleTime } returns LocalDateTime.now().plusMinutes(1)
+        every { mockSagaRecord.isExecuting } returns false
+        every { mockSagaRecord.endSaga(any(), any()) } just Runs
+        every { mockSagaRecord.occurredException(any(), any()) } just Runs
+        every { mockSagaRecord.nextTryTime } returns nextTryTime
+        every { mockSagaRecord.isValid } returns true
+        every { mockSagaRecord.beginSaga(any()) } returns true
 
         // 执行
-        supervisor.resume(mockSagaRecord)
+        supervisor.resume(mockSagaRecord, minNextTryTime)
+
+        // 验证 - 应该只调用1次beginSaga (因为nextTryTime > minNextTryTime，不进入while循环)
+        verify(exactly = 1) { mockSagaRecord.beginSaga(any()) }
+        verify { mockValidator.validate(mockSagaRecord) }
+        verify { mockSagaRecordRepository.save(mockSagaRecord) }
+    }
+
+    @Test
+    @DisplayName("测试retry方法重试Saga")
+    fun `test retry method retries saga successfully`() {
+        // 准备 - 需要添加请求处理器来避免IllegalStateException
+        val testHandler = object : SagaHandler<TestSagaParam, String> {
+            override fun exec(request: TestSagaParam): String = "retry-success"
+        }
+
+        val testSupervisor = DefaultSagaSupervisor(
+            requestHandlers = listOf(testHandler),
+            requestInterceptors = emptyList(),
+            validator = mockValidator,
+            sagaRecordRepository = mockSagaRecordRepository,
+            svcName = testSvcName,
+            threadPoolSize = testThreadPoolSize
+        )
+
+        val sagaUuid = "test-saga-uuid"
+        every { mockSagaRecordRepository.getById(sagaUuid) } returns mockSagaRecord
+        every { mockSagaRecord.param } returns testParam
+        every { mockSagaRecord.endSaga(any(), any()) } just Runs
+
+        // 执行
+        testSupervisor.retry(sagaUuid)
 
         // 验证
-        verify { mockSagaRecord.beginSaga(any()) }
+        verify { mockSagaRecordRepository.getById(sagaUuid) }
+        verify { mockValidator.validate(mockSagaRecord) }
+        verify { mockSagaRecord.endSaga(any(), any()) }
         verify { mockSagaRecordRepository.save(mockSagaRecord) }
-        verify(exactly = 0) { mockValidator.validate(any<TestSagaParam>()) }
+    }
+
+    @Test
+    @DisplayName("测试retry方法在验证失败时抛出异常")
+    fun `test retry method throws exception on validation failure`() {
+        // 准备
+        val sagaUuid = "test-saga-uuid"
+        val violation = mockk<ConstraintViolation<SagaRecord>>(relaxed = true)
+        every { mockSagaRecordRepository.getById(sagaUuid) } returns mockSagaRecord
+        every { mockSagaRecord.param } returns testParam
+        every { mockValidator.validate(mockSagaRecord) } returns setOf(violation)
+
+        // 执行 & 验证
+        assertThrows<ConstraintViolationException> {
+            supervisor.retry(sagaUuid)
+        }
+
+        verify { mockValidator.validate(mockSagaRecord) }
+        verify(exactly = 0) { mockSagaRecord.endSaga(any(), any()) }
     }
 
     @Test

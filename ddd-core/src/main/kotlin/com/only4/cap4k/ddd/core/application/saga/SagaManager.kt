@@ -25,7 +25,14 @@ interface SagaManager {
      *
      * @param saga Saga记录
      */
-    fun resume(saga: SagaRecord)
+    fun resume(saga: SagaRecord, minNextTryTime: LocalDateTime)
+
+    /**
+     * 重试Saga流程
+     *
+     * @param uuid
+     */
+    fun retry(uuid: String)
 
     /**
      * 获取指定时间前需重试的请求
