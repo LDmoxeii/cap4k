@@ -27,6 +27,8 @@ slf4j = { module = "org.slf4j:slf4j-api" }
 
 springBootDependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
 springContext = { module = "org.springframework:spring-context" }
+springAotoConfiguration = { module = "org.springframework.boot:spring-boot-autoconfigure" }
+springTomcat = { module = "org.springframework.boot:spring-boot-starter-tomcat" }
 springWeb = { module = "org.springframework:spring-web" }
 springTx = { module = "org.springframework:spring-tx" }
 springAmqp = { module = "org.springframework.boot:spring-boot-starter-amqp" }

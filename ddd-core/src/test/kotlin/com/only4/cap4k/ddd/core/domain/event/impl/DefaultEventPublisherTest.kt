@@ -289,7 +289,7 @@ class DefaultEventPublisherTest {
             every { eventRecord.beginDelivery(any()) } returns true
 
             // when
-            publisher.retry(eventRecord, minNextTryTime)
+            publisher.resume(eventRecord, minNextTryTime)
 
             // then
             verify { eventRecordRepository.save(eventRecord) }
@@ -309,7 +309,7 @@ class DefaultEventPublisherTest {
 
             // when & then
             assertThrows<DomainException> {
-                publisher.retry(eventRecord, minNextTryTime)
+                publisher.resume(eventRecord, minNextTryTime)
             }
         }
     }

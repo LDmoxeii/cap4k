@@ -119,7 +119,7 @@ class JpaEventScheduleServiceTest {
             // Then
             verify { locker.acquire(compensationLockerKey, any(), maxLockDuration) }
             verify { eventRecordRepository.getByNextTryTime(svcName, any(), batchSize) }
-            verify(exactly = 2) { eventPublisher.retry(any(), any()) }
+            verify(exactly = 2) { eventPublisher.resume(any(), any()) }
             verify { locker.release(compensationLockerKey, any()) }
         }
 
@@ -140,7 +140,7 @@ class JpaEventScheduleServiceTest {
             // Then
             verify { locker.acquire(compensationLockerKey, any(), maxLockDuration) }
             verify(exactly = 0) { eventRecordRepository.getByNextTryTime(any(), any(), any()) }
-            verify(exactly = 0) { eventPublisher.retry(any(), any()) }
+            verify(exactly = 0) { eventPublisher.resume(any(), any()) }
             verify(exactly = 0) { locker.release(any(), any()) }
         }
 
@@ -161,7 +161,7 @@ class JpaEventScheduleServiceTest {
                     mockEventRecord
                 ), emptyList()
             )
-            every { eventPublisher.retry(any(), any()) } throws RuntimeException("Publishing failed")
+            every { eventPublisher.resume(any(), any()) } throws RuntimeException("Publishing failed")
 
             // When
             assertDoesNotThrow {
@@ -170,7 +170,7 @@ class JpaEventScheduleServiceTest {
 
             // Then
             verify { locker.acquire(compensationLockerKey, any(), maxLockDuration) }
-            verify { eventPublisher.retry(mockEventRecord, any()) }
+            verify { eventPublisher.resume(mockEventRecord, any()) }
             verify { locker.release(compensationLockerKey, any()) }
         }
 
@@ -192,7 +192,7 @@ class JpaEventScheduleServiceTest {
             // Then
             verify { locker.acquire(compensationLockerKey, any(), maxLockDuration) }
             verify { eventRecordRepository.getByNextTryTime(svcName, any(), batchSize) }
-            verify(exactly = 0) { eventPublisher.retry(any(), any()) }
+            verify(exactly = 0) { eventPublisher.resume(any(), any()) }
             verify { locker.release(compensationLockerKey, any()) }
         }
     }
@@ -469,7 +469,7 @@ class JpaEventScheduleServiceTest {
             val duration = System.currentTimeMillis() - startTime
 
             // Then
-            verify(exactly = batchSize) { eventPublisher.retry(any(), any()) }
+            verify(exactly = batchSize) { eventPublisher.resume(any(), any()) }
             assertTrue(duration < 5000) // 应该在5秒内完成
         }
 

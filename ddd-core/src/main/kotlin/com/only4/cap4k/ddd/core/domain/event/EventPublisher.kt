@@ -17,10 +17,17 @@ interface EventPublisher {
     fun publish(event: EventRecord)
 
     /**
-     * 重试事件
+     * 重新发送事件
      *
      * @param event
      * @param minNextTryTime
      */
-    fun retry(event: EventRecord, minNextTryTime: LocalDateTime)
+    fun resume(event: EventRecord, minNextTryTime: LocalDateTime)
+
+    /**
+     * 重试事件
+     *
+     * @param uuid
+     */
+    fun retry(uuid: String)
 }

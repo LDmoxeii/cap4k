@@ -101,7 +101,7 @@ class DefaultEventPublisher(
         }
     }
 
-    override fun retry(eventRecord: EventRecord, minNextTryTime: LocalDateTime) {
+    override fun resume(eventRecord: EventRecord, minNextTryTime: LocalDateTime) {
         val now = LocalDateTime.now()
         val deliverTime = if (eventRecord.nextTryTime.isAfter(now)) {
             eventRecord.nextTryTime
@@ -124,6 +124,12 @@ class DefaultEventPublisher(
             eventRecord.markPersist(true)
             publish(eventRecord)
         }
+    }
+
+    override fun retry(uuid: String) {
+        val eventRecord = eventRecordRepository.getById(uuid)
+        eventRecord.markPersist(true)
+        publish(eventRecord)
     }
 
     /**
