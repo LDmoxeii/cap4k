@@ -8,14 +8,16 @@ plugins {
 }
 dependencies {
     implementation(project(":ddd-core"))
+    implementation(project(":ddd-integration-event-http"))
 
     implementation(libs.fastjson)
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
-    implementation(libs.springTx)
-    implementation(libs.rocketmq)
+    compileOnly(libs.jpa)
 
     // Add test dependencies
+    testImplementation(libs.jpa)
+
     testImplementation(libs.mockk)
     testImplementation(libs.mockkAgentJvm)
     testImplementation("org.junit.jupiter:junit-jupiter-api")
