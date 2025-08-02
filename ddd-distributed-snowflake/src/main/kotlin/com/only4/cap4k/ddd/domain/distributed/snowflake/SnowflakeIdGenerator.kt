@@ -84,12 +84,12 @@ class SnowflakeIdGenerator(
         const val SEQUENCE_BITS = 12L
 
         // 最大机器ID（2的workerIdBits次方-1）
-        const val MAX_WORKER_ID = (1L shl WORKER_ID_BITS.toInt()) - 1
+        const val MAX_WORKER_ID = -1L xor (-1L shl WORKER_ID_BITS.toInt())
 
         // 最大数据中心ID（2的datacenterIdBits次方-1）
-        const val MAX_DATACENTER_ID = (1L shl DATACENTER_ID_BITS.toInt()) - 1
+        const val MAX_DATACENTER_ID = -1L xor (-1L shl DATACENTER_ID_BITS.toInt())
 
         // 序列号的最大值（2的sequenceBits次方-1）
-        const val MAX_SEQUENCE = (1L shl SEQUENCE_BITS.toInt()) - 1
+        const val MAX_SEQUENCE = -1L xor (-1L shl SEQUENCE_BITS.toInt())
     }
 }
