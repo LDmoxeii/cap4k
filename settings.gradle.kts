@@ -22,9 +22,13 @@ plugins {
 include("ddd-core")
 include("ddd-distributed-saga-jpa")
 include("ddd-application-request-jpa")
-//include("ddd-distributed-locker-jdbc")
-//include("ddd-distributed-snowflake")
+include("ddd-distributed-locker-jdbc", "ddd-distributed-snowflake")
 include("ddd-domain-event-jpa", "ddd-domain-repo-jpa", "ddd-domain-repo-jpa-querydsl", "ddd-domain-repo-jpa-querydsl")
-include("ddd-integration-event-rabbitmq", "ddd-integration-event-rocketmq")
+include(
+    "ddd-integration-event-http",
+    "ddd-integration-event-http-jpa",
+    "ddd-integration-event-rabbitmq",
+    "ddd-integration-event-rocketmq"
+)
 
 rootProject.name = "cap4k"
