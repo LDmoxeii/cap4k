@@ -28,6 +28,43 @@ import java.time.LocalDateTime
 @DynamicUpdate
 class ArchivedSaga {
 
+    fun archiveFrom(saga: Saga) {
+        this.id = saga.id
+        this.sagaUuid = saga.sagaUuid
+        this.svcName = saga.svcName
+        this.sagaType = saga.sagaType
+        this.param = saga.param
+        this.paramType = saga.paramType
+        this.result = saga.result
+        this.resultType = saga.resultType
+        this.exception = saga.exception
+        this.expireAt = saga.expireAt
+        this.createAt = saga.createAt
+        this.sagaState = saga.sagaState
+        this.nextTryTime = saga.nextTryTime
+        this.triedTimes = saga.triedTimes
+        this.tryTimes = saga.tryTimes
+        this.version = saga.version
+        this.sagaProcesses = saga.sagaProcesses?.map { p ->
+            ArchivedSagaProcess().apply {
+                processCode = p.processCode
+                param = p.param
+                paramType = p.paramType
+                result = p.result
+                resultType = p.resultType
+                exception = p.exception
+                processState = p.processState
+                createAt = p.createAt
+                triedTimes = p.triedTimes
+                lastTryTime = p.lastTryTime
+            }
+        }?.toMutableList()
+    }
+
+    override fun toString(): String {
+        return JSON.toJSONString(this, IgnoreNonFieldGetter, SkipTransientField)
+    }
+
     @OneToMany(cascade = [CascadeType.ALL], fetch = FetchType.EAGER, orphanRemoval = true)
     @JoinColumn(name = "`saga_id`", nullable = false)
     var sagaProcesses: MutableList<ArchivedSagaProcess>? = null
@@ -164,41 +201,4 @@ class ArchivedSaga {
      */
     @Column(name = "`db_updated_at`", insertable = false, updatable = false)
     var dbUpdatedAt: LocalDateTime? = null
-
-    fun archiveFrom(saga: Saga) {
-        this.id = saga.id
-        this.sagaUuid = saga.sagaUuid
-        this.svcName = saga.svcName
-        this.sagaType = saga.sagaType
-        this.param = saga.param
-        this.paramType = saga.paramType
-        this.result = saga.result
-        this.resultType = saga.resultType
-        this.exception = saga.exception
-        this.expireAt = saga.expireAt
-        this.createAt = saga.createAt
-        this.sagaState = saga.sagaState
-        this.nextTryTime = saga.nextTryTime
-        this.triedTimes = saga.triedTimes
-        this.tryTimes = saga.tryTimes
-        this.version = saga.version
-        this.sagaProcesses = saga.sagaProcesses?.map { p ->
-            ArchivedSagaProcess().apply {
-                processCode = p.processCode
-                param = p.param
-                paramType = p.paramType
-                result = p.result
-                resultType = p.resultType
-                exception = p.exception
-                processState = p.processState
-                createAt = p.createAt
-                triedTimes = p.triedTimes
-                lastTryTime = p.lastTryTime
-            }
-        }?.toMutableList()
-    }
-
-    override fun toString(): String {
-        return JSON.toJSONString(this, IgnoreNonFieldGetter, SkipTransientField)
-    }
 }

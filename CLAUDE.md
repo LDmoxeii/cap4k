@@ -11,6 +11,8 @@ This project uses Gradle with Kotlin DSL:
 - `./gradlew clean` - Clean build outputs
 - `./gradlew test` - Run tests only
 - `./gradlew test --tests "*ClassName*"` - Run specific test class
+- `./gradlew test --tests "*ClassName.methodName*"` - Run specific test method
+- `./gradlew :module-name:test` - Run tests for specific module (e.g., `:ddd-domain-repo-jpa-querydsl:test`)
 
 ## Architecture Overview
 
@@ -28,6 +30,7 @@ follows a multi-module structure with DDD architectural patterns.
 - **ddd-domain-repo-jpa-querydsl** - QueryDSL integration for type-safe query building
 - **ddd-integration-event-rabbitmq** - RabbitMQ integration for cross-boundary events
 - **ddd-integration-event-rocketmq** - RocketMQ integration for cross-boundary events
+- **ddd-distributed-saga-jpa** - JPA-based distributed saga orchestration with compensation and archiving
 
 #### Available but Inactive Modules (commented in settings)
 
@@ -49,6 +52,7 @@ unified interface.
 - **Unit of Work** - Transaction management pattern
 - **CQRS** - Request/Command/Query handling
 - **Events** - Domain events and integration events system
+- **Sagas** - Long-running business processes with compensation logic
 
 #### Mediator Pattern Implementation
 
@@ -155,6 +159,26 @@ val predicate = QuerydslPredicate.of(User::class.java)
 val users = repository.find(predicate, persist = false)
 ```
 
+### Saga Implementation (`ddd-distributed-saga-jpa`)
+
+The distributed saga module provides orchestration for long-running business processes:
+
+#### Key Components
+
+- `SagaRecord` - Interface for saga state management and process tracking
+- `SagaRecordImpl` - Implementation handling saga lifecycle, compensation, and process results
+- `JpaSagaRecordRepository` - JPA-based persistence with archiving capabilities
+- `JpaSagaScheduleService` - Scheduling service for compensation retry and archiving
+- `SagaManager` - High-level saga management and orchestration
+
+#### Saga Features
+
+- **Compensation Logic** - Automatic retry with configurable intervals and maximum attempts
+- **Process Tracking** - Track individual saga steps with results and exception handling
+- **Archiving System** - Move completed/expired sagas to archive tables for performance
+- **Distributed Locking** - Prevent concurrent saga processing conflicts
+- **Partitioning Support** - Automatic MySQL table partitioning for large datasets
+
 ### Technology Stack
 
 - Kotlin 2.1.20 with Spring Boot 3.1.12
@@ -182,6 +206,24 @@ Test files are located in `src/test/kotlin` with the same package structure as m
 - Test classes should be named with `Test` suffix (e.g., `QuerydslPredicateTest`)
 - Use `@DisplayName` for both class and method level descriptions
 
+### MockK Testing Patterns
+
+When creating mock objects for complex entities (especially in saga tests):
+
+```kotlin
+// For entities with many properties, use relaxed mocking
+val mockEntity = mockk<EntityClass>(relaxed = true) {
+  every { id } returns "test-id"
+  every { importantProperty } returns expectedValue
+  // Only configure properties that are actually used in the test
+}
+```
+
+For saga-related tests, ensure all accessed properties are mocked:
+
+- `sagaProcesses` property should return `mutableListOf()` for proper archiving tests
+- Use `answers` callback for simulating state changes in exception handling tests
+
 ## Development Notes
 
 - Version catalog in `gradle/libs.versions.toml` manages all dependency versions
@@ -203,6 +245,21 @@ Test files are located in `src/test/kotlin` with the same package structure as m
 - Implement `supportPredicateClass()` to return the specific predicate type
 - Register predicate and repository reflectors in `@PostConstruct` init methods for framework integration
 - Use `QuerydslPredicateSupport` utilities for converting between framework and QueryDSL types
+
+### Saga Development Guidelines
+
+- Saga processes should be idempotent to handle retry scenarios
+- Use proper error handling and compensation logic for failed saga steps
+- Consider partitioning strategies for high-volume saga tables
+- Implement proper archiving to maintain performance as saga volume grows
+
+# important-instruction-reminders
+
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly
+requested by the User.
 
 # important-instruction-reminders
 

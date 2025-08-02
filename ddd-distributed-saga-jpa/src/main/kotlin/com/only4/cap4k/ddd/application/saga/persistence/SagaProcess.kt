@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.application.saga.persistence
 
 import com.alibaba.fastjson.JSON
+import com.alibaba.fastjson.annotation.JSONField
 import com.alibaba.fastjson.parser.Feature
 import com.alibaba.fastjson.serializer.SerializerFeature.IgnoreNonFieldGetter
 import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
@@ -33,6 +34,94 @@ import java.time.LocalDateTime
 @DynamicInsert
 @DynamicUpdate
 class SagaProcess {
+
+    @Transient
+    @JSONField(serialize = false)
+    var sagaProcessResult: Any? = null
+        get() {
+            if (field != null) {
+                return field
+            }
+            if (resultType.isNotBlank()) {
+                var dataClass: Class<out Any>? = null
+                try {
+                    dataClass = Class.forName(resultType)
+                } catch (e: ClassNotFoundException) {
+                    log.error("返回类型解析错误", e)
+                }
+                field = JSON.parseObject(result, dataClass, Feature.SupportNonPublicField)
+            }
+            return field
+        }
+        private set
+
+    fun beginProcess(now: LocalDateTime, param: RequestParam<out Any>) {
+        this.param = JSON.toJSONString(param, IgnoreNonFieldGetter, SkipTransientField)
+        this.paramType = param.javaClass.name
+        this.processState = SagaProcessState.EXECUTING
+        this.lastTryTime = now
+    }
+
+    fun endProcess(now: LocalDateTime, result: Any) {
+        this.sagaProcessResult = result
+        this.result = JSON.toJSONString(result, IgnoreNonFieldGetter, SkipTransientField)
+        this.resultType = result.javaClass.name
+        this.processState = SagaProcessState.EXECUTED
+        this.lastTryTime = now
+    }
+
+    fun occurredException(now: LocalDateTime, ex: Throwable) {
+        this.result = JSON.toJSONString(null)
+        this.resultType = Any::class.java.name
+        this.processState = SagaProcessState.EXCEPTION
+        val sw = StringWriter()
+        ex.printStackTrace(PrintWriter(sw, true))
+        this.exception = sw.toString()
+    }
+
+
+    enum class SagaProcessState(val value: Int, val stateName: String) {
+        /**
+         * 初始状态
+         */
+        INIT(0, "init"),
+
+        /**
+         * 待确认结果
+         */
+        EXECUTING(-1, "executing"),
+
+        /**
+         * 发生异常
+         */
+        EXCEPTION(-9, "exception"),
+
+        /**
+         * 已发送
+         */
+        EXECUTED(1, "executed");
+
+        companion object {
+            fun valueOf(value: Int): SagaProcessState? {
+                for (state in values()) {
+                    if (state.value == value) {
+                        return state
+                    }
+                }
+                return null
+            }
+        }
+
+        class Converter : AttributeConverter<SagaProcessState, Int> {
+            override fun convertToDatabaseColumn(attribute: SagaProcessState): Int {
+                return attribute.value
+            }
+
+            override fun convertToEntityAttribute(dbData: Int): SagaProcessState? {
+                return valueOf(dbData)
+            }
+        }
+    }
 
     companion object {
         private val log = LoggerFactory.getLogger(SagaProcess::class.java)
@@ -113,89 +202,4 @@ class SagaProcess {
      */
     @Column(name = "`tried_times`", nullable = false)
     var triedTimes: Int = 0
-
-    @Transient
-    private var sagaProcessResult: Any? = null
-
-    fun beginProcess(now: LocalDateTime, param: RequestParam<*>) {
-        this.param = JSON.toJSONString(param, IgnoreNonFieldGetter, SkipTransientField)
-        this.paramType = param.javaClass.name
-        this.processState = SagaProcessState.EXECUTING
-        this.lastTryTime = now
-    }
-
-    fun endProcess(now: LocalDateTime, result: Any) {
-        this.result = JSON.toJSONString(result, IgnoreNonFieldGetter, SkipTransientField)
-        this.resultType = result.javaClass.name
-        this.processState = SagaProcessState.EXECUTED
-        this.lastTryTime = now
-    }
-
-    fun occuredException(now: LocalDateTime, ex: Throwable) {
-        this.result = JSON.toJSONString(null)
-        this.resultType = Any::class.java.name
-        this.processState = SagaProcessState.EXCEPTION
-        val sw = StringWriter()
-        ex.printStackTrace(PrintWriter(sw, true))
-        this.exception = sw.toString()
-    }
-
-    fun getSagaProcessResult(): Any? {
-        if (sagaProcessResult != null) {
-            return sagaProcessResult
-        }
-        if (resultType.isNotBlank()) {
-            var dataClass: Class<*>? = null
-            try {
-                dataClass = Class.forName(resultType)
-            } catch (e: ClassNotFoundException) {
-                log.error("返回类型解析错误", e)
-            }
-            this.sagaProcessResult = JSON.parseObject(result, dataClass, Feature.SupportNonPublicField)
-        }
-        return this.sagaProcessResult
-    }
-
-    enum class SagaProcessState(val value: Int, val stateName: String) {
-        /**
-         * 初始状态
-         */
-        INIT(0, "init"),
-
-        /**
-         * 待确认结果
-         */
-        EXECUTING(-1, "executing"),
-
-        /**
-         * 发生异常
-         */
-        EXCEPTION(-9, "exception"),
-
-        /**
-         * 已发送
-         */
-        EXECUTED(1, "executed");
-
-        companion object {
-            fun valueOf(value: Int): SagaProcessState? {
-                for (state in values()) {
-                    if (state.value == value) {
-                        return state
-                    }
-                }
-                return null
-            }
-        }
-
-        class Converter : AttributeConverter<SagaProcessState, Int> {
-            override fun convertToDatabaseColumn(attribute: SagaProcessState): Int {
-                return attribute.value
-            }
-
-            override fun convertToEntityAttribute(dbData: Int): SagaProcessState? {
-                return valueOf(dbData)
-            }
-        }
-    }
 }

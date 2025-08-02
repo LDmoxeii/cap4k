@@ -29,6 +29,10 @@ import java.time.LocalDateTime
 @DynamicUpdate
 class ArchivedSagaProcess {
 
+    override fun toString(): String {
+        return JSON.toJSONString(this, IgnoreNonFieldGetter, SkipTransientField)
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "`id`")
@@ -118,8 +122,4 @@ class ArchivedSagaProcess {
      */
     @Column(name = "`db_updated_at`", insertable = false, updatable = false)
     var dbUpdatedAt: LocalDateTime? = null
-
-    override fun toString(): String {
-        return JSON.toJSONString(this, IgnoreNonFieldGetter, SkipTransientField)
-    }
 }

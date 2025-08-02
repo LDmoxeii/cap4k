@@ -29,7 +29,7 @@ class SagaRecordImpl : SagaRecord {
     override fun toString(): String = saga.toString()
 
     override fun init(
-        sagaParam: SagaParam<*>,
+        sagaParam: SagaParam<out Any>,
         svcName: String,
         sagaType: String,
         scheduleAt: LocalDateTime,
@@ -46,24 +46,58 @@ class SagaRecordImpl : SagaRecord {
     override val type: String
         get() = saga.sagaType
 
-    override val param: SagaParam<*>
-        get() = saga.sagaParam
+    override val param: SagaParam<out Any>
+        get() = saga.sagaParam!!
 
-    override fun <R> getResult(): R? {
+    override fun <R> getResult(): R {
         @Suppress("UNCHECKED_CAST")
-        return saga.sagaResult as? R
+        return saga.sagaResult!! as R
     }
 
-    override fun beginSagaProcess(now: LocalDateTime, processCode: String, param: RequestParam<*>) {
+    override val scheduleTime: LocalDateTime
+        get() = saga.lastTryTime!!
+
+    override val nextTryTime: LocalDateTime
+        get() = saga.nextTryTime!!
+
+    override val isValid: Boolean
+        get() = saga.isValid
+
+    override val isInvalid: Boolean
+        get() = saga.isInvalid
+
+    override val isExecuting: Boolean
+        get() = saga.isExecuting
+
+    override val isExecuted: Boolean
+        get() = saga.isExecuted
+
+    override fun beginSaga(now: LocalDateTime): Boolean {
+        return saga.beginSaga(now)
+    }
+
+    override fun cancelSaga(now: LocalDateTime): Boolean {
+        return saga.cancelSaga(now)
+    }
+
+    override fun endSaga(now: LocalDateTime, result: Any) {
+        saga.endSaga(now, result)
+    }
+
+    override fun occurredException(now: LocalDateTime, throwable: Throwable) {
+        saga.occurredException(now, throwable)
+    }
+
+    override fun beginSagaProcess(now: LocalDateTime, processCode: String, param: RequestParam<out Any>) {
         saga.beginSagaProcess(now, processCode, param)
     }
 
-    override fun endSagaProcess(now: LocalDateTime, processCode: String, result: Any?) {
+    override fun endSagaProcess(now: LocalDateTime, processCode: String, result: Any) {
         saga.endSagaProcess(now, processCode, result)
     }
 
     override fun sagaProcessOccurredException(now: LocalDateTime, processCode: String, throwable: Throwable) {
-        saga.getSagaProcess(processCode)?.occuredException(now, throwable)
+        saga.getSagaProcess(processCode)!!.occurredException(now, throwable)
     }
 
     override fun isSagaProcessExecuted(processCode: String): Boolean {
@@ -75,39 +109,5 @@ class SagaRecordImpl : SagaRecord {
         val sagaProcess = saga.getSagaProcess(processCode) ?: return null
         @Suppress("UNCHECKED_CAST")
         return sagaProcess.sagaProcessResult as? R
-    }
-
-    override val scheduleTime: LocalDateTime
-        get() = saga.lastTryTime
-
-    override val nextTryTime: LocalDateTime
-        get() = saga.nextTryTime
-
-    override val isValid: Boolean
-        get() = saga.isValid()
-
-    override val isInvalid: Boolean
-        get() = saga.isInvalid()
-
-    override val isExecuting: Boolean
-        get() = saga.isExecuting()
-
-    override val isExecuted: Boolean
-        get() = saga.isExecuted()
-
-    override fun beginSaga(now: LocalDateTime): Boolean {
-        return saga.beginSaga(now)
-    }
-
-    override fun cancelSaga(now: LocalDateTime): Boolean {
-        return saga.cancelSaga(now)
-    }
-
-    override fun endSaga(now: LocalDateTime, result: Any?) {
-        saga.endSaga(now, result)
-    }
-
-    override fun occurredException(now: LocalDateTime, throwable: Throwable) {
-        saga.occuredException(now, throwable)
     }
 }
