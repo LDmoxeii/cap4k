@@ -35,6 +35,8 @@ springAmqp = { module = "org.springframework.boot:spring-boot-starter-amqp" }
 springMassaging = { module = "org.springframework:spring-messaging" }
 springData = { module = "org.springframework.data:spring-data-commons" }
 springJdbc = { module = "org.springframework:spring-jdbc" }
+springBootStarter = { module = "org.springframework.boot:spring-boot-starter" }
+springConfigurationProcessor = { module = "org.springframework.boot:spring-boot-configuration-processor" }
 
 jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
 querydsl = { module = "com.querydsl:querydsl-core" }
