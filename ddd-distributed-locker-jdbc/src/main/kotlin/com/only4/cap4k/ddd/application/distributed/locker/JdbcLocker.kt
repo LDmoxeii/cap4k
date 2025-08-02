@@ -8,7 +8,10 @@ import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * JDBC implementation of distributed locker
+ * 基于Jdbc实现的锁
+ *
+ * @author binking338
+ * @date 2023/8/17
  */
 class JdbcLocker(
     private val jdbcTemplate: JdbcTemplate,
@@ -19,6 +22,7 @@ class JdbcLocker(
     private val fieldUnlockAt: String,
     private val showSql: Boolean = false
 ) : Locker {
+
     private val logger = LoggerFactory.getLogger(JdbcLocker::class.java)
     private val lockerExpireMap = ConcurrentHashMap<String, LocalDateTime>()
     private val lockerPwdMap = ConcurrentHashMap<String, String>()
@@ -26,104 +30,97 @@ class JdbcLocker(
     override fun acquire(key: String, pwd: String, expireDuration: Duration): Boolean {
         val now = LocalDateTime.now()
 
-        synchronized(this) {
-            // Check if key exists in the map
+        return synchronized(this) {
+            // Check and clean expired entries from in-memory cache
             lockerExpireMap[key]?.let { expireTime ->
-                // If expired, remove from maps
-                if (expireTime.isBefore(now)) {
-                    lockerExpireMap.remove(key)
-                    lockerPwdMap.remove(key)
-                } else {
-                    // If not expired and password doesn't match, return false
-                    if (lockerPwdMap[key] != pwd) {
-                        return false
-                    } else return@let
+                when {
+                    expireTime.isBefore(now) -> {
+                        // Expired, remove from cache
+                        lockerExpireMap.remove(key)
+                        lockerPwdMap.remove(key)
+                    }
+
+                    lockerPwdMap[key] != pwd -> {
+                        // Not expired but password doesn't match
+                        return@synchronized false
+                    }
                 }
             }
 
-            // Check if key exists in database
-            val sql = "select count(*) from $table where $fieldName = ?"
-            if (showSql) {
-                logger.debug(sql)
-                logger.debug("binding parameters: [$key]")
-            }
+            runCatching {
+                // Check if key exists in database
+                val countSql = "select count(*) from $table where $fieldName = ?"
+                logSqlIfEnabled(countSql, listOf(key))
 
-            val exists = jdbcTemplate.queryForObject(sql, Int::class.java, key)
+                val exists = jdbcTemplate.queryForObject(countSql, Int::class.java, key) ?: 0
+                val unlockAt = now.plusSeconds(expireDuration.seconds)
 
-            if (exists == 0) {
-                try {
+                if (exists == 0) {
                     // Insert new lock record
-                    val unlockAt = now.plusSeconds(expireDuration.seconds)
                     val insertSql =
                         "insert into $table($fieldName, $fieldPwd, $fieldLockAt, $fieldUnlockAt) values(?, ?, ?, ?)"
-
-                    if (showSql) {
-                        logger.debug(insertSql)
-                        logger.debug("binding parameters: [$key, $pwd, $now, $unlockAt]")
-                    }
+                    logSqlIfEnabled(insertSql, listOf(key, pwd, now, unlockAt))
 
                     jdbcTemplate.update(insertSql, key, pwd, now, unlockAt)
                     lockerExpireMap[key] = unlockAt
                     lockerPwdMap[key] = pwd
-                    return true
-                } catch (e: Exception) {
-                    return false
-                }
-            } else {
-                try {
+                    true
+                } else {
                     // Update existing lock record
-                    val unlockAt = now.plusSeconds(expireDuration.seconds)
                     val updateSql =
                         "update $table set $fieldPwd = ?, $fieldLockAt = ?, $fieldUnlockAt = ? where $fieldName = ? and ($fieldUnlockAt < ? or $fieldPwd = ?)"
+                    logSqlIfEnabled(updateSql, listOf(pwd, now, unlockAt, key, now, pwd))
 
-                    if (showSql) {
-                        logger.debug(updateSql)
-                        logger.debug("binding parameters: [$pwd, $now, $unlockAt, $key, $now, $pwd]")
+                    val rowsUpdated = jdbcTemplate.update(updateSql, pwd, now, unlockAt, key, now, pwd)
+                    if (rowsUpdated > 0) {
+                        lockerExpireMap[key] = unlockAt
+                        lockerPwdMap[key] = pwd
+                        true
+                    } else {
+                        false
                     }
-
-                    val success = jdbcTemplate.update(updateSql, pwd, now, unlockAt, key, now, pwd)
-                    return success > 0
-                } catch (e: Exception) {
-                    return false
                 }
-            }
+            }.getOrElse { false }
         }
     }
 
     override fun release(key: String, pwd: String): Boolean {
         val now = LocalDateTime.now()
 
-        // Check if key exists in the map
+        // Check and clean from in-memory cache
         lockerExpireMap[key]?.let {
-            if (lockerPwdMap[key] == pwd) {
-                lockerExpireMap.remove(key)
-                lockerPwdMap.remove(key)
-            } else {
-                return false
+            when {
+                lockerPwdMap[key] == pwd -> {
+                    lockerExpireMap.remove(key)
+                    lockerPwdMap.remove(key)
+                }
+
+                else -> return false
             }
         }
 
-        // Check if key and password match in database
+        // Verify lock exists in database with correct password
         val selectSql = "select count(*) from $table where $fieldName = ? and $fieldPwd = ?"
-        if (showSql) {
-            logger.debug(selectSql)
-            logger.debug("binding parameters: [$key, $pwd]")
-        }
+        logSqlIfEnabled(selectSql, listOf(key, pwd))
 
-        val count = jdbcTemplate.queryForObject(selectSql, Int::class.java, key, pwd)
+        val count = jdbcTemplate.queryForObject(selectSql, Int::class.java, key, pwd) ?: 0
         if (count == 0) {
             return false
         }
 
-        // Update unlock time
+        // Release the lock by updating unlock time
         val updateSql =
             "update $table set $fieldUnlockAt = ? where $fieldName = ? and $fieldPwd = ? and $fieldUnlockAt > ?"
-        if (showSql) {
-            logger.debug(updateSql)
-            logger.debug("binding parameters: [$now, $key, $pwd, $now]")
-        }
+        logSqlIfEnabled(updateSql, listOf(now, key, pwd, now))
 
         jdbcTemplate.update(updateSql, now, key, pwd, now)
         return true
+    }
+
+    private fun logSqlIfEnabled(sql: String, params: List<Any>) {
+        if (showSql) {
+            logger.debug(sql)
+            logger.debug("binding parameters: $params")
+        }
     }
 }
