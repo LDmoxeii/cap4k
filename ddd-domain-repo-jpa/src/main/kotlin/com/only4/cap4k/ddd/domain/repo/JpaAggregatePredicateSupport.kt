@@ -19,8 +19,8 @@ object JpaAggregatePredicateSupport {
      * @return
      */
     @Suppress("UNCHECKED_CAST")
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getPredicate(predicate: AggregatePredicate<AGGREGATE, ENTITY>): Predicate<ENTITY> =
-        (predicate as JpaAggregatePredicate<AGGREGATE, ENTITY>).predicate
+    fun <AGGREGATE : Aggregate<out Any>> getPredicate(predicate: AggregatePredicate<AGGREGATE, out Any>): Predicate<out Any> =
+        (predicate as JpaAggregatePredicate<AGGREGATE, out Any>).predicate
 
     /**
      * 获取断言聚合类型
@@ -29,8 +29,8 @@ object JpaAggregatePredicateSupport {
      * @return
      */
     @Suppress("UNCHECKED_CAST")
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> reflectAggregateClass(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>
+    fun <AGGREGATE : Aggregate<out Any>> reflectAggregateClass(
+        predicate: AggregatePredicate<AGGREGATE, out Any>
     ): Class<AGGREGATE> =
-        (predicate as JpaAggregatePredicate<AGGREGATE, ENTITY>).aggregateClass
+        (predicate as JpaAggregatePredicate<AGGREGATE, out Any>).aggregateClass
 }

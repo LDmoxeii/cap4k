@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.domain.repo.impl
 
+import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
@@ -10,6 +11,7 @@ import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
+import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import com.only4.cap4k.ddd.domain.repo.JpaAggregatePredicateSupport
 import io.mockk.*
 import org.junit.jupiter.api.*
@@ -23,6 +25,7 @@ class DefaultAggregateSupervisorTest {
 
     private lateinit var mockRepositorySupervisor: RepositorySupervisor
     private lateinit var mockAggregateFactorySupervisor: AggregateFactorySupervisor
+    private lateinit var mockUnitOfWork: UnitOfWork
     private lateinit var supervisor: DefaultAggregateSupervisor
 
     // 测试实体类
@@ -33,6 +36,10 @@ class DefaultAggregateSupervisorTest {
         private lateinit var entity: TestEntity
 
         constructor() // 无参构造器
+
+        constructor(payload: TestAggregatePayload) { // 载荷构造器
+            this.entity = TestEntity(0L, payload.name, payload.value)
+        }
 
         override fun _wrap(entity: TestEntity) {
             this.entity = entity
@@ -66,8 +73,12 @@ class DefaultAggregateSupervisorTest {
     fun setup() {
         mockRepositorySupervisor = mockk<RepositorySupervisor>(relaxed = true)
         mockAggregateFactorySupervisor = mockk<AggregateFactorySupervisor>(relaxed = true)
+        mockUnitOfWork = mockk<UnitOfWork>(relaxed = true)
 
-        supervisor = DefaultAggregateSupervisor(mockRepositorySupervisor)
+        supervisor = DefaultAggregateSupervisor(
+            mockRepositorySupervisor,
+            unitOfWork = mockUnitOfWork
+        )
 
         // Mock静态方法
         mockkStatic("com.only4.cap4k.ddd.core.share.misc.ClassUtils")
@@ -88,17 +99,13 @@ class DefaultAggregateSupervisorTest {
     @DisplayName("创建聚合应该通过聚合工厂创建实体并包装为聚合")
     fun `create should create entity through aggregate factory and wrap in aggregate`() {
         val payload = TestAggregatePayload("test", 42)
-        val expectedEntity = TestEntity(1L, "test", 42)
-
-        every { mockAggregateFactorySupervisor.create(payload) } returns expectedEntity
 
         val result = supervisor.create(TestAggregate::class.java, payload)
 
         assertNotNull(result)
-        assertEquals(expectedEntity.id, result.getId())
-        assertEquals(expectedEntity.name, result.getName())
-        assertEquals(expectedEntity.value, result.getValue())
-        verify { mockAggregateFactorySupervisor.create(payload) }
+        assertEquals("test", result.getName())
+        assertEquals(42, result.getValue())
+        assertEquals(0L, result.getId()) // 载荷构造器设置的默认ID
     }
 
     @Test
@@ -111,7 +118,7 @@ class DefaultAggregateSupervisorTest {
         )
 
         every {
-            com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass(
+            resolveGenericTypeClass(
                 any(), 0, Id::class.java, Id.Default::class.java
             )
         } returns TestAggregate::class.java
@@ -312,7 +319,7 @@ class DefaultAggregateSupervisorTest {
         )
 
         every {
-            com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass(
+            resolveGenericTypeClass(
                 any(), 0, Id::class.java, Id.Default::class.java
             )
         } returns TestAggregate::class.java
@@ -419,11 +426,11 @@ class DefaultAggregateSupervisorTest {
     }
 
     @Test
-    @DisplayName("创建聚合时工厂抛出异常应该传播异常")
-    fun `create should propagate exception when factory throws exception`() {
-        val payload = TestAggregatePayload("test", 42)
+    @DisplayName("创建聚合时构造器不存在应该抛出异常")
+    fun `create should throw exception when constructor does not exist`() {
+        class InvalidPayload(val invalidField: String) : AggregatePayload<TestEntity>
 
-        every { mockAggregateFactorySupervisor.create(payload) } throws RuntimeException("Factory error")
+        val payload = InvalidPayload("test")
 
         assertThrows<RuntimeException> {
             supervisor.create(TestAggregate::class.java, payload)
