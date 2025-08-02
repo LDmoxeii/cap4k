@@ -12,10 +12,16 @@ dependencies {
     implementation(libs.fastjson)
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
-    implementation(libs.springTx)
-    implementation(libs.rocketmq)
+    compileOnly(libs.slf4j)
+
+    implementation(libs.springMassaging)
+    implementation(libs.springWeb)
 
     // Add test dependencies
+    testImplementation(libs.springMassaging)
+    testImplementation(libs.springWeb)
+
+    testImplementation(libs.slf4j)
     testImplementation(libs.mockk)
     testImplementation(libs.mockkAgentJvm)
     testImplementation("org.junit.jupiter:junit-jupiter-api")
