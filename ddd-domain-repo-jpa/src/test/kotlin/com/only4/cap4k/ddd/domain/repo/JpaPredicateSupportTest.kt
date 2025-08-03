@@ -80,16 +80,15 @@ class JpaPredicateSupportTest {
     }
 
     @Test
-    @DisplayName("测试非JpaPredicate的resumeId方法返回null")
-    fun `test resumeId with non-JpaPredicate returns null`() {
+    @DisplayName("测试非JpaPredicate的resumeId方法抛出异常")
+    fun `test resumeId with non-JpaPredicate throws exception`() {
         // 准备
         val nonJpaPredicate = NonJpaPredicate()
 
-        // 执行
-        val result = JpaPredicateSupport.resumeId<TestEntity, Long>(nonJpaPredicate)
-
-        // 验证
-        assertNull(result)
+        // 执行和验证
+        kotlin.test.assertFailsWith<com.only4.cap4k.ddd.core.share.DomainException> {
+            JpaPredicateSupport.resumeId<TestEntity, Long>(nonJpaPredicate)
+        }
     }
 
     @Test
@@ -135,16 +134,15 @@ class JpaPredicateSupportTest {
     }
 
     @Test
-    @DisplayName("测试非JpaPredicate的resumeIds方法返回null")
-    fun `test resumeIds with non-JpaPredicate returns null`() {
+    @DisplayName("测试非JpaPredicate的resumeIds方法抛出异常")
+    fun `test resumeIds with non-JpaPredicate throws exception`() {
         // 准备
         val nonJpaPredicate = NonJpaPredicate()
 
-        // 执行
-        val result = JpaPredicateSupport.resumeIds<TestEntity, Long>(nonJpaPredicate)
-
-        // 验证
-        assertNull(result)
+        // 执行和验证
+        kotlin.test.assertFailsWith<com.only4.cap4k.ddd.core.share.DomainException> {
+            JpaPredicateSupport.resumeIds<TestEntity, Long>(nonJpaPredicate)
+        }
     }
 
     @Test
@@ -175,16 +173,15 @@ class JpaPredicateSupportTest {
     }
 
     @Test
-    @DisplayName("测试非JpaPredicate的resumeSpecification方法返回null")
-    fun `test resumeSpecification with non-JpaPredicate returns null`() {
+    @DisplayName("测试非JpaPredicate的resumeSpecification方法抛出异常")
+    fun `test resumeSpecification with non-JpaPredicate throws exception`() {
         // 准备
         val nonJpaPredicate = NonJpaPredicate()
 
-        // 执行
-        val result = JpaPredicateSupport.resumeSpecification(nonJpaPredicate)
-
-        // 验证
-        assertNull(result)
+        // 执行和验证
+        kotlin.test.assertFailsWith<com.only4.cap4k.ddd.core.share.DomainException> {
+            JpaPredicateSupport.resumeSpecification(nonJpaPredicate)
+        }
     }
 
     @Test
@@ -201,16 +198,15 @@ class JpaPredicateSupportTest {
     }
 
     @Test
-    @DisplayName("测试非JpaPredicate的reflectEntityClass方法返回null")
-    fun `test reflectEntityClass with non-JpaPredicate returns null`() {
+    @DisplayName("测试非JpaPredicate的reflectEntityClass方法抛出异常")
+    fun `test reflectEntityClass with non-JpaPredicate throws exception`() {
         // 准备
         val nonJpaPredicate = NonJpaPredicate()
 
-        // 执行
-        val result = JpaPredicateSupport.reflectEntityClass(nonJpaPredicate)
-
-        // 验证
-        assertNull(result)
+        // 执行和验证
+        kotlin.test.assertFailsWith<com.only4.cap4k.ddd.core.share.DomainException> {
+            JpaPredicateSupport.reflectEntityClass(nonJpaPredicate)
+        }
     }
 
     @Test
