@@ -30,6 +30,7 @@ class DefaultEventPublisher(
     private val eventMessageInterceptorManager: EventMessageInterceptorManager,
     private val domainEventInterceptorManager: DomainEventInterceptorManager,
     private val integrationEventInterceptorManager: IntegrationEventInterceptorManager,
+    private val integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
     private val threadPoolSize: Int
 ) : EventPublisher {
 
@@ -184,11 +185,7 @@ class DefaultEventPublisher(
             integrationEventPublishers.forEach { integrationEventPublisher ->
                 integrationEventPublisher.publish(
                     event,
-                    IntegrationEventSendPublishCallback(
-                        eventMessageInterceptorManager.orderedEventMessageInterceptors,
-                        integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent,
-                        eventRecordRepository
-                    )
+                    integrationEventPublisherCallback
                 )
             }
 

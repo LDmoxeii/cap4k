@@ -52,6 +52,10 @@ class DefaultRepositorySupervisor(
         newRepositoryMap
     }
 
+    fun init() {
+        repositoryMap
+    }
+
     companion object {
         private val predicateClass2EntityClassReflector = ConcurrentHashMap<Class<*>, (Predicate<*>) -> Class<*>?>()
         private val repositoryClass2EntityClassReflector = ConcurrentHashMap<Class<*>, (Repository<*>) -> Class<*>>()

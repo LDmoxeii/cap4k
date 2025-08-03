@@ -19,7 +19,6 @@ import java.time.format.DateTimeFormatter
 class JpaRequestScheduleService(
     private val requestManager: RequestManager,
     private val locker: Locker,
-    private val svcName: String,
     private val compensationLockerKey: String,
     private val archiveLockerKey: String,
     private val enableAddPartition: Boolean,

@@ -13,7 +13,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
     implementation(libs.springTx)
-    implementation(libs.springAmqp)
+    api(libs.springAmqp)
 
     // Add test dependencies
     testImplementation(libs.mockk)

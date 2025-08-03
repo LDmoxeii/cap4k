@@ -24,6 +24,10 @@ class DefaultSpecificationManager(
             }
     }
 
+    fun init() {
+        specificationMap
+    }
+
     override fun <Entity : Any> specifyBeforeTransaction(entity: Entity): Specification.Result {
         val specifications = specificationMap[entity::class.java] ?: return Specification.Result.pass()
 

@@ -14,17 +14,17 @@ open class PageData<T : Any> protected constructor() {
     /**
      * 页码
      */
-    private var pageNum by Delegates.notNull<Int>()
+    var pageNum by Delegates.notNull<Int>()
 
     /**
      * 页大小
      */
-    private var pageSize by Delegates.notNull<Int>()
+    var pageSize by Delegates.notNull<Int>()
 
     /**
      * 总记录数
      */
-    private var totalCount by Delegates.notNull<Long>()
+    var totalCount by Delegates.notNull<Long>()
 
     /**
      * 记录列表

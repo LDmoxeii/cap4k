@@ -111,6 +111,12 @@ class DefaultRequestSupervisor(
         }
     }
 
+    fun init() {
+        requestHandlerMap
+        requestInterceptorMap
+        executorService
+    }
+
     override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> send(request: REQUEST): RESPONSE {
         // 如果是Saga请求，委托给SagaSupervisor处理
         if (request is SagaParam<*>) {

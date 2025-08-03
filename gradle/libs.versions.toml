@@ -30,6 +30,7 @@ springContext = { module = "org.springframework:spring-context" }
 springAotoConfiguration = { module = "org.springframework.boot:spring-boot-autoconfigure" }
 springTomcat = { module = "org.springframework.boot:spring-boot-starter-tomcat" }
 springWeb = { module = "org.springframework:spring-web" }
+springWebMvc = { module = "org.springframework:spring-webmvc" }
 springTx = { module = "org.springframework:spring-tx" }
 springAmqp = { module = "org.springframework.boot:spring-boot-starter-amqp" }
 springMassaging = { module = "org.springframework:spring-messaging" }

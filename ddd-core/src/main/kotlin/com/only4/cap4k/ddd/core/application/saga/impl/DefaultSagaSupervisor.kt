@@ -81,6 +81,12 @@ class DefaultSagaSupervisor(
         initExecutorService()
     }
 
+    fun init() {
+        requestHandlerMap
+        requestInterceptorMap
+        executorService
+    }
+
     /**
      * 初始化请求处理器映射
      */
