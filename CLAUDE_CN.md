@@ -29,7 +29,11 @@ Cap4k 是一个面向 Kotlin/JVM 应用程序的领域驱动设计（DDD）框�
 - **ddd-domain-repo-jpa-querydsl** - QueryDSL 集成，用于类型安全的查询构建
 - **ddd-integration-event-rabbitmq** - 基于 RabbitMQ 的集成事件实现
 - **ddd-integration-event-rocketmq** - 基于 RocketMQ 的集成事件实现
+- **ddd-integration-event-http** - 基于 HTTP 的集成事件发布和订阅
+- **ddd-integration-event-http-jpa** - HTTP 集成事件订阅的 JPA 持久化
 - **ddd-distributed-saga-jpa** - 基于 JPA 的分布式 Saga 编排，支持补偿和归档
+- **cap4k-ddd-console** - 管理控制台，提供监控事件、请求、Saga、锁和雪花 ID 的 HTTP 端点
+- **cap4k-ddd-starter** - Spring Boot 自动配置启动器
 
 #### 可用但未激活的模块（在 settings 中注释）
 
@@ -176,6 +180,43 @@ val users = repository.find(predicate, persist = false)
 - **分布式锁** - 防止并发 Saga 处理冲突
 - **分区支持** - 针对大型数据集的自动 MySQL 表分区
 
+### 控制台管理 (`cap4k-ddd-console`)
+
+控制台模块提供用于监控和管理 DDD 组件的 HTTP 端点：
+
+#### 控制台服务
+
+- `EventConsoleService` - 搜索和重试领域/集成事件
+- `RequestConsoleService` - 搜索和重试失败的请求
+- `SagaConsoleService` - 监控 Saga 执行和重试失败的 Saga
+- `LockerConsoleService` - 查看分布式锁并强制解锁
+- `SnowflakeConsoleService` - 监控雪花 ID 工作者分配
+
+每个控制台服务提供 REST 端点用于：
+
+- 使用过滤器搜索记录（按时间、状态、类型、UUID）
+- 重试失败的操作
+- 查看操作统计信息
+
+### HTTP 集成事件 (`ddd-integration-event-http`)
+
+基于 HTTP 的跨服务通信集成事件系统：
+
+#### 关键组件
+
+- `HttpIntegrationEventPublisher` - 通过 HTTP POST 向注册的订阅者发布事件
+- `HttpIntegrationEventSubscriberRegister` - 管理事件订阅和取消订阅
+- `HttpIntegrationEventSubscriberAdapter` - 适配传入的 HTTP 事件通知
+- `IntegrationEventHttpSubscribeCommand` - 注册事件通知的命令
+- `IntegrationEventHttpUnsubscribeCommand` - 删除事件订阅的命令
+
+#### 功能特性
+
+- 使用 HTTP 端点的动态订阅管理
+- 失败 HTTP 传递的自动重试逻辑
+- 使用 JPA 的持久化订阅者注册表（与 `ddd-integration-event-http-jpa` 结合使用时）
+- 支持事件过滤和路由
+
 ### 技术栈
 
 - Kotlin 2.1.20 与 Spring Boot 3.1.12
@@ -249,6 +290,80 @@ val mockEntity = mockk<EntityClass>(relaxed = true) {
 - 对失败的 Saga 步骤使用适当的错误处理和补偿逻辑
 - 为高容量 Saga 表考虑分区策略
 - 实施适当的归档以在 Saga 容量增长时保持性能
+
+### 服务构造函数模式
+
+关键框架服务遵循特定的构造函数模式，在测试中必须维护：
+
+#### DefaultRequestSupervisor 构造函数
+
+```kotlin
+DefaultRequestSupervisor(
+    requestHandlers: List<RequestHandler<*, *>>,
+    requestInterceptors: List<RequestInterceptor<*, *>>,
+    validator: Validator?,
+    requestRecordRepository: RequestRecordRepository,
+    svcName: String,
+    threadPoolSize: Int,
+    threadFactoryClassName: String
+)
+```
+
+#### DefaultSagaSupervisor 构造函数
+
+```kotlin
+DefaultSagaSupervisor(
+    requestHandlers: List<RequestHandler<*, *>>,
+    requestInterceptors: List<RequestInterceptor<*, *>>,
+    validator: Validator?,
+    sagaRecordRepository: SagaRecordRepository,
+    svcName: String,
+    threadPoolSize: Int = 10,
+    threadFactoryClassName: String = ""
+)
+```
+
+#### DefaultEventPublisher 构造函数
+
+```kotlin
+DefaultEventPublisher(
+    eventSubscriberManager: EventSubscriberManager,
+    integrationEventPublishers: List<IntegrationEventPublisher>,
+    eventRecordRepository: EventRecordRepository,
+    eventMessageInterceptorManager: EventMessageInterceptorManager,
+    domainEventInterceptorManager: DomainEventInterceptorManager,
+    integrationEventInterceptorManager: IntegrationEventInterceptorManager,
+    integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
+    threadPoolSize: Int
+)
+```
+
+#### DefaultEventInterceptorManager 构造函数
+
+```kotlin
+DefaultEventInterceptorManager(
+    eventMessageInterceptors: List<EventMessageInterceptor>,
+    eventInterceptors: List<EventInterceptor>,
+    eventRecordRepository: EventRecordRepository
+)
+```
+
+#### JpaRequestScheduleService 构造函数
+
+```kotlin
+JpaRequestScheduleService(
+    requestManager: RequestManager,
+    locker: Locker,
+    compensationLockerKey: String,
+    archiveLockerKey: String,
+    enableAddPartition: Boolean,
+    jdbcTemplate: JdbcTemplate
+)
+```
+
+注意：在最近的更新中，`JpaRequestScheduleService` 移除了 `svcName` 参数。
+
+更新这些服务时，确保所有测试构造函数都相应更新。
 
 # 重要指令提醒
 

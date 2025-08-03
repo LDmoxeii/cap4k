@@ -30,7 +30,12 @@ follows a multi-module structure with DDD architectural patterns.
 - **ddd-domain-repo-jpa-querydsl** - QueryDSL integration for type-safe query building
 - **ddd-integration-event-rabbitmq** - RabbitMQ integration for cross-boundary events
 - **ddd-integration-event-rocketmq** - RocketMQ integration for cross-boundary events
+- **ddd-integration-event-http** - HTTP-based integration event publishing and subscription
+- **ddd-integration-event-http-jpa** - JPA persistence for HTTP integration event subscriptions
 - **ddd-distributed-saga-jpa** - JPA-based distributed saga orchestration with compensation and archiving
+- **cap4k-ddd-console** - Management console with HTTP endpoints for monitoring events, requests, sagas, locks, and
+  snowflake IDs
+- **cap4k-ddd-starter** - Spring Boot starter for automatic configuration
 
 #### Available but Inactive Modules (commented in settings)
 
@@ -179,6 +184,43 @@ The distributed saga module provides orchestration for long-running business pro
 - **Distributed Locking** - Prevent concurrent saga processing conflicts
 - **Partitioning Support** - Automatic MySQL table partitioning for large datasets
 
+### Console Management (`cap4k-ddd-console`)
+
+The console module provides HTTP endpoints for monitoring and managing DDD components:
+
+#### Console Services
+
+- `EventConsoleService` - Search and retry domain/integration events
+- `RequestConsoleService` - Search and retry failed requests
+- `SagaConsoleService` - Monitor saga execution and retry failed sagas
+- `LockerConsoleService` - View distributed locks and force unlock
+- `SnowflakeConsoleService` - Monitor snowflake ID worker assignments
+
+Each console service provides REST endpoints for:
+
+- Searching records with filters (by time, status, type, UUID)
+- Retrying failed operations
+- Viewing operational statistics
+
+### HTTP Integration Events (`ddd-integration-event-http`)
+
+HTTP-based integration event system for cross-service communication:
+
+#### Key Components
+
+- `HttpIntegrationEventPublisher` - Publishes events via HTTP POST to registered subscribers
+- `HttpIntegrationEventSubscriberRegister` - Manages event subscriptions and unsubscriptions
+- `HttpIntegrationEventSubscriberAdapter` - Adapts incoming HTTP event notifications
+- `IntegrationEventHttpSubscribeCommand` - Command to register for event notifications
+- `IntegrationEventHttpUnsubscribeCommand` - Command to remove event subscriptions
+
+#### Features
+
+- Dynamic subscription management with HTTP endpoints
+- Automatic retry logic for failed HTTP deliveries
+- Persistent subscriber registry using JPA (when combined with `ddd-integration-event-http-jpa`)
+- Support for event filtering and routing
+
 ### Technology Stack
 
 - Kotlin 2.1.20 with Spring Boot 3.1.12
@@ -252,6 +294,80 @@ For saga-related tests, ensure all accessed properties are mocked:
 - Use proper error handling and compensation logic for failed saga steps
 - Consider partitioning strategies for high-volume saga tables
 - Implement proper archiving to maintain performance as saga volume grows
+
+### Service Constructor Patterns
+
+Key framework services follow specific constructor patterns that must be maintained in tests:
+
+#### DefaultRequestSupervisor Constructor
+
+```kotlin
+DefaultRequestSupervisor(
+    requestHandlers: List<RequestHandler<*, *>>,
+    requestInterceptors: List<RequestInterceptor<*, *>>,
+    validator: Validator?,
+    requestRecordRepository: RequestRecordRepository,
+    svcName: String,
+    threadPoolSize: Int,
+    threadFactoryClassName: String
+)
+```
+
+#### DefaultSagaSupervisor Constructor
+
+```kotlin
+DefaultSagaSupervisor(
+    requestHandlers: List<RequestHandler<*, *>>,
+    requestInterceptors: List<RequestInterceptor<*, *>>,
+    validator: Validator?,
+    sagaRecordRepository: SagaRecordRepository,
+    svcName: String,
+    threadPoolSize: Int = 10,
+    threadFactoryClassName: String = ""
+)
+```
+
+#### DefaultEventPublisher Constructor
+
+```kotlin
+DefaultEventPublisher(
+    eventSubscriberManager: EventSubscriberManager,
+    integrationEventPublishers: List<IntegrationEventPublisher>,
+    eventRecordRepository: EventRecordRepository,
+    eventMessageInterceptorManager: EventMessageInterceptorManager,
+    domainEventInterceptorManager: DomainEventInterceptorManager,
+    integrationEventInterceptorManager: IntegrationEventInterceptorManager,
+    integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
+    threadPoolSize: Int
+)
+```
+
+#### DefaultEventInterceptorManager Constructor
+
+```kotlin
+DefaultEventInterceptorManager(
+    eventMessageInterceptors: List<EventMessageInterceptor>,
+    eventInterceptors: List<EventInterceptor>,
+    eventRecordRepository: EventRecordRepository
+)
+```
+
+#### JpaRequestScheduleService Constructor
+
+```kotlin
+JpaRequestScheduleService(
+    requestManager: RequestManager,
+    locker: Locker,
+    compensationLockerKey: String,
+    archiveLockerKey: String,
+    enableAddPartition: Boolean,
+    jdbcTemplate: JdbcTemplate
+)
+```
+
+Note: The `svcName` parameter was removed from `JpaRequestScheduleService` in recent updates.
+
+When updating these services, ensure all test constructors are updated accordingly.
 
 # important-instruction-reminders
 
