@@ -77,8 +77,10 @@ class Request {
         this.tryTimes = retryTimes
         this.triedTimes = 0
         this.lastTryTime = scheduleAt
-        this.nextTryTime = calculateNextTryTime(scheduleAt)
+
         this.loadRequestParam(requestParam)
+
+        this.nextTryTime = calculateNextTryTime(scheduleAt)
         this.result = ""
         this.resultType = ""
     }
@@ -307,49 +309,49 @@ class Request {
      * varchar(64)  NOT NULL DEFAULT ''
      */
     @Column(name = "`request_uuid`")
-    var requestUuid: String = ""
+    lateinit var requestUuid: String
 
     /**
      * 服务
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`svc_name`")
-    var svcName: String = ""
+    lateinit var svcName: String
 
     /**
      * REQUEST类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`request_type`")
-    var requestType: String = ""
+    lateinit var requestType: String
 
     /**
      * 参数
      * text
      */
     @Column(name = "`param`")
-    var param: String = ""
+    lateinit var param: String
 
     /**
      * 参数类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`param_type`")
-    var paramType: String = ""
+    lateinit var paramType: String
 
     /**
      * 结果
      * text
      */
     @Column(name = "`result`")
-    var result: String = ""
+    lateinit var result: String
 
     /**
      * 结果类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`result_type`")
-    var resultType: String = ""
+    lateinit var resultType: String
 
     /**
      * 执行异常
@@ -363,36 +365,36 @@ class Request {
      * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`expire_at`")
-    var expireAt: LocalDateTime? = null
+    lateinit var expireAt: LocalDateTime
 
     /**
      * 创建时间
      * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`create_at`")
-    var createAt: LocalDateTime? = null
+    lateinit var createAt: LocalDateTime
 
     /**
      * 执行状态@E=0:INIT:init|-1:EXECUTING:executing|-2:CANCEL:cancel|-3:EXPIRED:expired|-4:EXHAUSTED:exhausted|-9:EXCEPTION:exception|1:EXECUTED:executed;@T=RequestState;
      * int          NOT NULL DEFAULT '0'
      */
     @Column(name = "`request_state`")
-    @Convert(converter = Request.RequestState.Converter::class)
-    var requestState: Request.RequestState = Request.RequestState.INIT
+    @Convert(converter = RequestState.Converter::class)
+    lateinit var requestState: RequestState
 
     /**
      * 上次尝试时间
      * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`last_try_time`")
-    var lastTryTime: LocalDateTime? = null
+    lateinit var lastTryTime: LocalDateTime
 
     /**
      * 下次尝试时间
      * datetime     NOT NULL DEFAULT '0001-01-01 00:00:00'
      */
     @Column(name = "`next_try_time`")
-    var nextTryTime: LocalDateTime? = null
+    lateinit var nextTryTime: LocalDateTime
 
     /**
      * 已尝试次数

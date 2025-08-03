@@ -51,10 +51,10 @@ class RequestRecordImpl : RequestRecord {
     }
 
     override val scheduleTime: LocalDateTime
-        get() = request.lastTryTime!!
+        get() = request.lastTryTime
 
     override val nextTryTime: LocalDateTime
-        get() = request.nextTryTime!!
+        get() = request.nextTryTime
 
     override val isValid: Boolean
         get() = request.isValid
