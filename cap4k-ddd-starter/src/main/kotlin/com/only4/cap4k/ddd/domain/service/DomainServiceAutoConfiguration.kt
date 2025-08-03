@@ -1,0 +1,30 @@
+package com.only4.cap4k.ddd.domain.service
+
+import com.only4.cap4k.ddd.core.domain.service.DomainServiceSupervisorSupport
+import com.only4.cap4k.ddd.core.domain.service.impl.DefaultDomainServiceSupervisor
+import org.springframework.context.ApplicationContext
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+
+/**
+ * 领域服务自动配置
+ *
+ * @author binking338
+ * @date 2024/9/4
+ */
+@Configuration
+open class DomainServiceAutoConfiguration {
+
+    /**
+     * 默认领域服务管理器
+     *
+     * @param applicationContext
+     * @return
+     */
+    @Bean
+    open fun defaultDomainServiceSupervisor(applicationContext: ApplicationContext): DefaultDomainServiceSupervisor {
+        return DefaultDomainServiceSupervisor(applicationContext).apply {
+            DomainServiceSupervisorSupport.configure(this)
+        }
+    }
+}
