@@ -43,11 +43,11 @@ class SagaProcess {
                 return field
             }
             if (resultType.isNotBlank()) {
-                var dataClass: Class<out Any>? = null
-                try {
-                    dataClass = Class.forName(resultType)
+                val dataClass = try {
+                    Class.forName(resultType)
                 } catch (e: ClassNotFoundException) {
                     log.error("返回类型解析错误", e)
+                    throw ClassNotFoundException("无法找到结果类型: $resultType", e)
                 }
                 field = JSON.parseObject(result, dataClass, Feature.SupportNonPublicField)
             }
@@ -179,8 +179,8 @@ class SagaProcess {
      * int NOT NULL DEFAULT '0'
      */
     @Column(name = "`process_state`", nullable = false)
-    @Convert(converter = SagaProcess.SagaProcessState.Converter::class)
-    lateinit var processState: SagaProcess.SagaProcessState
+    @Convert(converter = SagaProcessState.Converter::class)
+    lateinit var processState: SagaProcessState
 
     /**
      * 创建时间

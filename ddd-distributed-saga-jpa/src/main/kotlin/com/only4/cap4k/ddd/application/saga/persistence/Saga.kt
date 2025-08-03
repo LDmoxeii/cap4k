@@ -107,11 +107,11 @@ class Saga {
                 return field
             }
             if (resultType.isNotBlank()) {
-                var dataClass: Class<out Any>? = null
-                try {
-                    dataClass = Class.forName(resultType)
+                val dataClass = try {
+                    Class.forName(resultType)
                 } catch (e: ClassNotFoundException) {
                     log.error("返回类型解析错误", e)
+                    throw DomainException("返回类型解析错误: $resultType", e)
                 }
                 field = JSON.parseObject(result, dataClass, Feature.SupportNonPublicField)
             }
@@ -119,10 +119,7 @@ class Saga {
         }
         private set
 
-    private fun loadSagaParam(sagaParam: SagaParam<out Any>?) {
-        if (sagaParam == null) {
-            throw DomainException("Saga参数不能为null")
-        }
+    private fun loadSagaParam(sagaParam: SagaParam<*>) {
         this.sagaParam = sagaParam
         this.param = JSON.toJSONString(sagaParam, IgnoreNonFieldGetter, SkipTransientField)
         this.paramType = sagaParam.javaClass.name
@@ -134,10 +131,7 @@ class Saga {
         }
     }
 
-    private fun loadSagaResult(result: Any?) {
-        if (result == null) {
-            throw DomainException("Saga返回不能为null")
-        }
+    private fun loadSagaResult(result: Any) {
         this.sagaResult = result
         this.result = JSON.toJSONString(result, IgnoreNonFieldGetter, SkipTransientField)
         this.resultType = result.javaClass.name
