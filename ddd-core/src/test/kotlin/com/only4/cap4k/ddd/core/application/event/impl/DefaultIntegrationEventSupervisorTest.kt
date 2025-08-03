@@ -297,6 +297,10 @@ class DefaultIntegrationEventSupervisorTest {
             supervisor.release()
 
             verify(exactly = 1) { eventRecordRepository.create() }
+            // Should still be called twice total - once from first release, once from second
+            verify(exactly = 2) {
+                applicationEventPublisher.publishEvent(any<IntegrationEventAttachedTransactionCommittedEvent>())
+            }
         }
     }
 
@@ -449,6 +453,65 @@ class DefaultIntegrationEventSupervisorTest {
             @Suppress("UNCHECKED_CAST")
             val secondResult = popEventsMethod.invoke(supervisor) as Set<Any>
             assertTrue(secondResult.isEmpty())
+        }
+
+        @Test
+        @DisplayName("popEvents应该正确调用Function0事件供应商")
+        fun `popEvents should correctly invoke Function0 event suppliers`() {
+            val actualEvent = TestIntegrationEvent("supplier-event", "from supplier")
+            val eventSupplier: () -> TestIntegrationEvent = { actualEvent }
+
+            // Manually add supplier to thread local using reflection to simulate the supplier scenario
+            val eventPayloadsField = DefaultIntegrationEventSupervisor::class.java.getDeclaredField("TL_EVENT_PAYLOADS")
+            eventPayloadsField.isAccessible = true
+            @Suppress("UNCHECKED_CAST")
+            val threadLocal = eventPayloadsField.get(null) as ThreadLocal<MutableSet<Any>>
+
+            val eventSet = mutableSetOf<Any>()
+            eventSet.add(eventSupplier)
+            threadLocal.set(eventSet)
+
+            // Use reflection to access protected method
+            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents")
+            popEventsMethod.isAccessible = true
+
+            @Suppress("UNCHECKED_CAST")
+            val result = popEventsMethod.invoke(supervisor) as Set<Any>
+
+            assertEquals(1, result.size)
+            assertTrue(result.contains(actualEvent))
+            assertFalse(result.contains(eventSupplier))
+        }
+
+        @Test
+        @DisplayName("popEvents应该处理混合的常规事件和Function0事件")
+        fun `popEvents should handle mixed regular events and Function0 events`() {
+            val regularEvent = TestIntegrationEvent("regular", "regular event")
+            val supplierEvent = AnotherIntegrationEvent(99)
+            val eventSupplier: () -> AnotherIntegrationEvent = { supplierEvent }
+
+            // Manually set up thread local with mixed events
+            val eventPayloadsField = DefaultIntegrationEventSupervisor::class.java.getDeclaredField("TL_EVENT_PAYLOADS")
+            eventPayloadsField.isAccessible = true
+            @Suppress("UNCHECKED_CAST")
+            val threadLocal = eventPayloadsField.get(null) as ThreadLocal<MutableSet<Any>>
+
+            val eventSet = mutableSetOf<Any>()
+            eventSet.add(regularEvent)
+            eventSet.add(eventSupplier)
+            threadLocal.set(eventSet)
+
+            // Use reflection to access protected method
+            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents")
+            popEventsMethod.isAccessible = true
+
+            @Suppress("UNCHECKED_CAST")
+            val result = popEventsMethod.invoke(supervisor) as Set<Any>
+
+            assertEquals(2, result.size)
+            assertTrue(result.contains(regularEvent))
+            assertTrue(result.contains(supplierEvent))
+            assertFalse(result.contains(eventSupplier))
         }
 
         @Test

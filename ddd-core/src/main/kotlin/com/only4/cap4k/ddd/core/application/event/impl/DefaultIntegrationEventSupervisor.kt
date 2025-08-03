@@ -141,7 +141,7 @@ open class DefaultIntegrationEventSupervisor(
      * @return 事件列表
      */
     protected open fun popEvents(): Set<Any> {
-        val eventPayloads = TL_EVENT_PAYLOADS.get()
+        val eventPayloads = TL_EVENT_PAYLOADS.get() ?: return emptySet()
         TL_EVENT_PAYLOADS.remove()
         return eventPayloads.map { if (it is Function0<*>) it.invoke()!! else it }.toSet()
     }

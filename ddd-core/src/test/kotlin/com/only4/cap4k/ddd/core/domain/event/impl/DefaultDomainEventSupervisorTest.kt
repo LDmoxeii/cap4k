@@ -14,6 +14,8 @@ import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.AbstractAggregateRoot
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * DefaultDomainEventSupervisor测试
@@ -384,6 +386,169 @@ class DefaultDomainEventSupervisorTest {
 
             // then
             verify(exactly = 2) { eventRecordRepository.create() }
+        }
+    }
+
+    @Nested
+    @DisplayName("Function0事件供应商测试")
+    inner class Function0EventSupplierTests {
+
+        @Test
+        @DisplayName("popEvents应该正确调用Function0事件供应商")
+        fun `popEvents should correctly invoke Function0 event suppliers`() {
+            // given
+            val actualEvent = TestDomainEvent("supplier event")
+            val eventSupplier: () -> TestDomainEvent = { actualEvent }
+            val entity = TestEntity("entity1")
+
+            // Manually add supplier to thread local using reflection to simulate the supplier scenario
+            val entityEventPayloadsField =
+                DefaultDomainEventSupervisor::class.java.getDeclaredField("TL_ENTITY_EVENT_PAYLOADS")
+            entityEventPayloadsField.isAccessible = true
+            @Suppress("UNCHECKED_CAST")
+            val threadLocal = entityEventPayloadsField.get(null) as ThreadLocal<MutableMap<Any, MutableSet<Any>>>
+
+            val eventMap = mutableMapOf<Any, MutableSet<Any>>()
+            val eventSet = mutableSetOf<Any>()
+            eventSet.add(eventSupplier)
+            eventMap[entity] = eventSet
+            threadLocal.set(eventMap)
+
+            // Use reflection to access protected method
+            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents", Any::class.java)
+            popEventsMethod.isAccessible = true
+
+            // when
+            @Suppress("UNCHECKED_CAST")
+            val result = popEventsMethod.invoke(supervisor, entity) as Set<Any>
+
+            // then
+            assertEquals(1, result.size)
+            assertTrue(result.contains(actualEvent))
+            assertFalse(result.contains(eventSupplier))
+        }
+
+        @Test
+        @DisplayName("popEvents应该处理混合的常规事件和Function0事件")
+        fun `popEvents should handle mixed regular events and Function0 events`() {
+            // given
+            val regularEvent = TestDomainEvent("regular event")
+            val supplierEvent = TestDomainEvent("supplier event")
+            val eventSupplier: () -> TestDomainEvent = { supplierEvent }
+            val entity = TestEntity("entity1")
+
+            // Manually set up thread local with mixed events
+            val entityEventPayloadsField =
+                DefaultDomainEventSupervisor::class.java.getDeclaredField("TL_ENTITY_EVENT_PAYLOADS")
+            entityEventPayloadsField.isAccessible = true
+            @Suppress("UNCHECKED_CAST")
+            val threadLocal = entityEventPayloadsField.get(null) as ThreadLocal<MutableMap<Any, MutableSet<Any>>>
+
+            val eventMap = mutableMapOf<Any, MutableSet<Any>>()
+            val eventSet = mutableSetOf<Any>()
+            eventSet.add(regularEvent)
+            eventSet.add(eventSupplier)
+            eventMap[entity] = eventSet
+            threadLocal.set(eventMap)
+
+            // Use reflection to access protected method
+            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents", Any::class.java)
+            popEventsMethod.isAccessible = true
+
+            // when
+            @Suppress("UNCHECKED_CAST")
+            val result = popEventsMethod.invoke(supervisor, entity) as Set<Any>
+
+            // then
+            assertEquals(2, result.size)
+            assertTrue(result.contains(regularEvent))
+            assertTrue(result.contains(supplierEvent))
+            assertFalse(result.contains(eventSupplier))
+        }
+
+        @Test
+        @DisplayName("popEvents应该在没有事件时返回空集合")
+        fun `popEvents should return empty set when no events exist`() {
+            // given
+            val entity = TestEntity("entity1")
+
+            // Use reflection to access protected method
+            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents", Any::class.java)
+            popEventsMethod.isAccessible = true
+
+            // when
+            @Suppress("UNCHECKED_CAST")
+            val result = popEventsMethod.invoke(supervisor, entity) as Set<Any>
+
+            // then
+            assertTrue(result.isEmpty())
+        }
+
+        @Test
+        @DisplayName("popEvents应该移除实体的事件映射")
+        fun `popEvents should remove entity event mapping`() {
+            // given
+            val event = TestDomainEvent("test event")
+            val entity = TestEntity("entity1")
+            val schedule = LocalDateTime.now()
+
+            supervisor.attach(event, entity, schedule)
+
+            // Use reflection to access protected method
+            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents", Any::class.java)
+            popEventsMethod.isAccessible = true
+
+            // when - first call should return events
+            @Suppress("UNCHECKED_CAST")
+            val firstResult = popEventsMethod.invoke(supervisor, entity) as Set<Any>
+
+            // when - second call should return empty
+            @Suppress("UNCHECKED_CAST")
+            val secondResult = popEventsMethod.invoke(supervisor, entity) as Set<Any>
+
+            // then
+            assertEquals(1, firstResult.size)
+            assertTrue(firstResult.contains(event))
+            assertTrue(secondResult.isEmpty())
+        }
+
+        @Test
+        @DisplayName("Function0应该支持复杂的事件创建逻辑")
+        fun `Function0 should support complex event creation logic`() {
+            // given
+            var counter = 0
+            val complexEventSupplier: () -> TestDomainEvent = {
+                counter++
+                TestDomainEvent("complex event #$counter")
+            }
+            val entity = TestEntity("entity1")
+
+            // Manually set up thread local
+            val entityEventPayloadsField =
+                DefaultDomainEventSupervisor::class.java.getDeclaredField("TL_ENTITY_EVENT_PAYLOADS")
+            entityEventPayloadsField.isAccessible = true
+            @Suppress("UNCHECKED_CAST")
+            val threadLocal = entityEventPayloadsField.get(null) as ThreadLocal<MutableMap<Any, MutableSet<Any>>>
+
+            val eventMap = mutableMapOf<Any, MutableSet<Any>>()
+            val eventSet = mutableSetOf<Any>()
+            eventSet.add(complexEventSupplier)
+            eventMap[entity] = eventSet
+            threadLocal.set(eventMap)
+
+            // Use reflection to access protected method
+            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents", Any::class.java)
+            popEventsMethod.isAccessible = true
+
+            // when
+            @Suppress("UNCHECKED_CAST")
+            val result = popEventsMethod.invoke(supervisor, entity) as Set<Any>
+
+            // then
+            assertEquals(1, result.size)
+            val resultEvent = result.first() as TestDomainEvent
+            assertEquals("complex event #1", resultEvent.message)
+            assertEquals(1, counter) // Should only be invoked once
         }
     }
 
