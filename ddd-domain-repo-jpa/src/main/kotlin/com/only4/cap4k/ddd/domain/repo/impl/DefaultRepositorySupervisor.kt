@@ -26,30 +26,29 @@ class DefaultRepositorySupervisor(
 ) : RepositorySupervisor {
 
     private val repositoryMap: Map<Class<*>, Map<Class<*>, Repository<*>>> by lazy {
-        val newRepositoryMap = mutableMapOf<Class<*>, MutableMap<Class<*>, Repository<*>>>()
+        buildMap<Class<*>, MutableMap<Class<*>, Repository<*>>> {
+            repositories.forEach { repository ->
+                var entityClass = resolveGenericTypeClass(
+                    repository, 0,
+                    Repository::class.java
+                )
 
-        repositories.forEach { repository ->
-            var entityClass = resolveGenericTypeClass(
-                repository, 0,
-                Repository::class.java
-            )
-
-            if (Any::class.java == entityClass) {
-                for ((repositoryClass, reflector) in repositoryClass2EntityClassReflector) {
-                    if (repositoryClass.isAssignableFrom(repository.javaClass)) {
-                        val reflectedClass = reflector(repository)
-                        if (Any::class.java != reflectedClass) {
-                            entityClass = reflectedClass
-                            break
+                if (Any::class.java == entityClass) {
+                    for ((repositoryClass, reflector) in repositoryClass2EntityClassReflector) {
+                        if (repositoryClass.isAssignableFrom(repository.javaClass)) {
+                            val reflectedClass = reflector(repository)
+                            if (Any::class.java != reflectedClass) {
+                                entityClass = reflectedClass
+                                break
+                            }
                         }
                     }
                 }
+
+                computeIfAbsent(entityClass) { mutableMapOf() }[repository.supportPredicateClass()] =
+                    repository
             }
-
-            newRepositoryMap.computeIfAbsent(entityClass) { mutableMapOf() }[repository.supportPredicateClass()] = repository
-        }
-
-        newRepositoryMap
+        }.toMap()
     }
 
     fun init() {
@@ -61,7 +60,10 @@ class DefaultRepositorySupervisor(
         private val repositoryClass2EntityClassReflector = ConcurrentHashMap<Class<*>, (Repository<*>) -> Class<*>>()
 
         @JvmStatic
-        fun registerPredicateEntityClassReflector(predicateClass: Class<*>, entityClassReflector: (Predicate<*>) -> Class<*>?) {
+        fun registerPredicateEntityClassReflector(
+            predicateClass: Class<*>,
+            entityClassReflector: (Predicate<*>) -> Class<*>?
+        ) {
             predicateClass2EntityClassReflector.putIfAbsent(predicateClass, entityClassReflector)
         }
 
@@ -76,7 +78,7 @@ class DefaultRepositorySupervisor(
 
 
     @Suppress("UNCHECKED_CAST")
-    private fun <ENTITY: Any> repo(entityClass: Class<ENTITY>, predicate: Predicate<*>): Repository<ENTITY> {
+    private fun <ENTITY : Any> repo(entityClass: Class<ENTITY>, predicate: Predicate<*>): Repository<ENTITY> {
         val repos = repositoryMap[entityClass]
             ?: throw DomainException("仓储不存在：${entityClass.typeName}")
 
@@ -97,23 +99,24 @@ class DefaultRepositorySupervisor(
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun <ENTITY: Any> reflectEntityClass(predicate: Predicate<*>): Class<ENTITY> {
+    private fun <ENTITY : Any> reflectEntityClass(predicate: Predicate<*>): Class<ENTITY> {
         val reflector = predicateClass2EntityClassReflector[predicate.javaClass]
             ?: throw DomainException("实体断言类型不支持：${predicate.javaClass.name}")
 
-        return (reflector(predicate) ?: throw DomainException("无法解析实体类型：${predicate.javaClass.name}")) as Class<ENTITY>
+        return (reflector(predicate)
+            ?: throw DomainException("无法解析实体类型：${predicate.javaClass.name}")) as Class<ENTITY>
     }
 
     override fun <ENTITY : Any> find(
         predicate: Predicate<ENTITY>,
-        orders: Collection<OrderInfo>?,
+        orders: Collection<OrderInfo>,
         persist: Boolean
     ): List<ENTITY> {
         val entityClass = reflectEntityClass<ENTITY>(predicate)
-        return repo(entityClass, predicate).find(predicate = predicate, persist = persist)
+        return repo(entityClass, predicate).find(predicate, orders, persist)
     }
 
-    override fun <ENTITY: Any> find(
+    override fun <ENTITY : Any> find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
         persist: Boolean
@@ -126,7 +129,7 @@ class DefaultRepositorySupervisor(
         return list
     }
 
-    override fun <ENTITY: Any> findOne(
+    override fun <ENTITY : Any> findOne(
         predicate: Predicate<ENTITY>,
         persist: Boolean
     ): Optional<ENTITY> {
@@ -171,7 +174,7 @@ class DefaultRepositorySupervisor(
         return entities
     }
 
-    override fun <ENTITY: Any> remove(predicate: Predicate<ENTITY>, limit: Int): List<ENTITY> {
+    override fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>, limit: Int): List<ENTITY> {
         val entityClass = reflectEntityClass<ENTITY>(predicate)
         val pageParam = PageParam.limit(limit)
         val entities = repo(entityClass, predicate).findPage(predicate, pageParam)
@@ -179,12 +182,12 @@ class DefaultRepositorySupervisor(
         return entities.list
     }
 
-    override fun <ENTITY: Any> count(predicate: Predicate<ENTITY>): Long {
+    override fun <ENTITY : Any> count(predicate: Predicate<ENTITY>): Long {
         val entityClass = reflectEntityClass<ENTITY>(predicate)
         return repo(entityClass, predicate).count(predicate)
     }
 
-    override fun <ENTITY: Any> exists(predicate: Predicate<ENTITY>): Boolean {
+    override fun <ENTITY : Any> exists(predicate: Predicate<ENTITY>): Boolean {
         val entityClass = reflectEntityClass<ENTITY>(predicate)
         return repo(entityClass, predicate).exists(predicate)
     }

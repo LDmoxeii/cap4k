@@ -86,7 +86,7 @@ open class JpaUnitOfWork(
         return id != null && entityManager.find(entity.javaClass, id) != null
     }
 
-    protected fun persistenceContextEntities(): List<Any> = try {
+    protected open fun persistenceContextEntities(): List<Any> = try {
         val sessionImplementor = entityManager.delegate as SessionImplementor
         if (!sessionImplementor.isClosed) {
             sessionImplementor.persistenceContext
@@ -100,7 +100,7 @@ open class JpaUnitOfWork(
         emptyList()
     }
 
-    protected fun onEntitiesFlushed(
+    protected open fun onEntitiesFlushed(
         createdEntities: Set<Any>,
         updatedEntities: Set<Any>,
         deletedEntities: Set<Any>
@@ -144,10 +144,6 @@ open class JpaUnitOfWork(
     override fun remove(entity: Any) {
         val unwrappedEntity = unwrapEntity(entity)
         removeEntitiesThreadLocal.get().add(unwrappedEntity)
-    }
-
-    override fun save() {
-        save(Propagation.REQUIRED)
     }
 
     private fun pushProcessingEntities(
@@ -312,6 +308,6 @@ open class JpaUnitOfWork(
     open fun <I, O> nested(input: I, transactionHandler: TransactionHandler<I, O>): O =
         transactionWrapper(input, transactionHandler)
 
-    protected fun <I, O> transactionWrapper(input: I, transactionHandler: TransactionHandler<I, O>): O =
+    protected open fun <I, O> transactionWrapper(input: I, transactionHandler: TransactionHandler<I, O>): O =
         transactionHandler.exec(input)
 }

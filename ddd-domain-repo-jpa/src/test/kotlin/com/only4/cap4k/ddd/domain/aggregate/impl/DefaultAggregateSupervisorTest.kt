@@ -181,12 +181,17 @@ class DefaultAggregateSupervisorTest {
 
         every { JpaAggregatePredicateSupport.reflectAggregateClass(any<AggregatePredicate<TestAggregate, TestEntity>>()) } returns TestAggregate::class.java
         every { JpaAggregatePredicateSupport.getPredicate(any<AggregatePredicate<TestAggregate, TestEntity>>()) } returns mockk()
-        every { mockRepositorySupervisor.find(any<Predicate<TestEntity>>(), null, false) } returns entities
+        every {
+            mockRepositorySupervisor.find(
+                predicate = any<Predicate<TestEntity>>(),
+                persist = false
+            )
+        } returns entities
 
-        val result = supervisor.find(predicate, null, false)
+        val result = supervisor.find(predicate = predicate, persist = false)
 
         assertEquals(1, result.size)
-        verify { mockRepositorySupervisor.find(any<Predicate<TestEntity>>(), null, false) }
+        verify { mockRepositorySupervisor.find(predicate = any<Predicate<TestEntity>>(), persist = false) }
     }
 
     @Test

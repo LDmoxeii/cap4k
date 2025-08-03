@@ -15,9 +15,9 @@ import org.springframework.data.jpa.domain.Specification
  */
 class JpaPredicate<ENTITY : Any>(
     val entityClass: Class<ENTITY>,
-    val spec: Specification<ENTITY>?,
-    val ids: Iterable<Any>?,
-    val valueObject: ValueObject<*>?
+    val spec: Specification<ENTITY>? = null,
+    val ids: Iterable<Any>? = null,
+    val valueObject: ValueObject<*>? = null
 ) : Predicate<ENTITY> {
 
     fun <AGGREGATE : Aggregate<ENTITY>> toAggregatePredicate(
@@ -27,25 +27,24 @@ class JpaPredicate<ENTITY : Any>(
 
     companion object {
         fun <ENTITY : Any> byId(entityClass: Class<ENTITY>, id: Any): JpaPredicate<ENTITY> =
-            JpaPredicate(entityClass, null, listOf(id), null)
+            JpaPredicate(entityClass, ids = listOf(id))
 
 
         fun <ENTITY : Any> byIds(entityClass: Class<ENTITY>, ids: Iterable<Any>): JpaPredicate<ENTITY> =
-            JpaPredicate(entityClass, null, ids, null)
+            JpaPredicate(entityClass, ids = ids)
 
 
         fun <VALUE_OBJECT : ValueObject<*>> byValueObject(valueObject: VALUE_OBJECT): JpaPredicate<VALUE_OBJECT> =
             JpaPredicate(
                 valueObject.javaClass,
-                null,
-                listOf(valueObject.hash()),
-                valueObject
+                ids = listOf(valueObject.hash()),
+                valueObject = valueObject
             )
 
 
         fun <ENTITY : Any> bySpecification(
             entityClass: Class<ENTITY>,
             specification: Specification<ENTITY>
-        ): JpaPredicate<ENTITY> = JpaPredicate(entityClass, specification, null, null)
+        ): JpaPredicate<ENTITY> = JpaPredicate(entityClass, specification)
     }
 }
