@@ -8,6 +8,7 @@ import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
+import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.annotation.Retry
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
@@ -65,8 +66,10 @@ class Event {
         this.tryTimes = retryTimes
         this.triedTimes = 1
         this.lastTryTime = scheduleAt
-        this.nextTryTime = calculateNextTryTime(scheduleAt)
+
         loadPayload(payload)
+
+        this.nextTryTime = calculateNextTryTime(scheduleAt)
     }
 
     @Transient
@@ -77,14 +80,14 @@ class Event {
                 return field
             }
             if (dataType.isNotBlank()) {
-                var dataClass: Class<*>? = null
-                try {
-                    dataClass = Class.forName(dataType)
+                val dataClass: Class<*> = try {
+                    Class.forName(dataType)
                 } catch (e: ClassNotFoundException) {
                     log.error("事件类型解析错误", e)
+                    throw DomainException("事件数据类型解析错误: $dataType", e)
                 }
                 field = JSON.parseObject(data, dataClass, Feature.SupportNonPublicField)
-            }
+            } else throw DomainException("事件数据类型未指定")
             return field
         }
         private set
@@ -100,13 +103,13 @@ class Event {
         this.eventType = when {
             integrationEvent != null -> integrationEvent.value
             domainEvent != null -> domainEvent.value
-            else -> ""
+            else -> throw DomainException("事件类型未指定: ${payload.javaClass.name}")
         }
 
         val retry = payload.javaClass.getAnnotation(Retry::class.java)
         if (retry != null) {
             this.tryTimes = retry.retryTimes
-            this.expireAt = this.createAt?.plusMinutes(retry.expireAfter.toLong())
+            this.expireAt = this.createAt.plusMinutes(retry.expireAfter.toLong())
         }
     }
 
@@ -120,35 +123,35 @@ class Event {
      * varchar(64) NOT NULL DEFAULT ''
      */
     @Column(name = "`event_uuid`", nullable = false)
-    var eventUuid: String = ""
+    lateinit var eventUuid: String
 
     /**
      * 服务
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`svc_name`", nullable = false)
-    var svcName: String = ""
+    lateinit var svcName: String
 
     /**
      * 事件类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`event_type`", nullable = false)
-    var eventType: String = ""
+    lateinit var eventType: String
 
     /**
      * 事件数据
      * text (nullable)
      */
     @Column(name = "`data`")
-    var data: String? = null
+    lateinit var data: String
 
     /**
      * 事件数据类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`data_type`", nullable = false)
-    var dataType: String = ""
+    lateinit var dataType: String
 
     /**
      * 异常信息
@@ -162,14 +165,14 @@ class Event {
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`expire_at`")
-    var expireAt: LocalDateTime? = null
+    lateinit var expireAt: LocalDateTime
 
     /**
      * 创建时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`create_at`")
-    var createAt: LocalDateTime? = null
+    lateinit var createAt: LocalDateTime
 
     /**
      * 分发状态
@@ -177,21 +180,21 @@ class Event {
      */
     @Column(name = "`event_state`", nullable = false)
     @Convert(converter = EventState.Converter::class)
-    var eventState: EventState = EventState.INIT
+    lateinit var eventState: EventState
 
     /**
      * 上次尝试时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`last_try_time`")
-    var lastTryTime: LocalDateTime? = null
+    lateinit var lastTryTime: LocalDateTime
 
     /**
      * 下次尝试时间
      * datetime NOT NULL DEFAULT '0001-01-01 00:00:00'
      */
     @Column(name = "`next_try_time`")
-    var nextTryTime: LocalDateTime? = null
+    lateinit var nextTryTime: LocalDateTime
 
     /**
      * 已尝试次数
@@ -261,7 +264,7 @@ class Event {
             return false
         }
         // 未到下次重试时间 (特殊值0001-01-01表示立即执行)
-        if (this.nextTryTime!!.year > 1 && this.nextTryTime!!.isAfter(now)) {
+        if (this.nextTryTime.year > 1 && this.nextTryTime.isAfter(now)) {
             return false
         }
         this.eventState = EventState.DELIVERING
@@ -294,7 +297,7 @@ class Event {
     }
 
     private fun calculateNextTryTime(now: LocalDateTime): LocalDateTime {
-        val retry = payload?.javaClass?.getAnnotation(Retry::class.java)
+        val retry = payload!!.javaClass.getAnnotation(Retry::class.java)
         if (retry == null || retry.retryIntervals.isEmpty()) {
             return when {
                 this.triedTimes <= 10 -> now.plusMinutes(1)
@@ -347,7 +350,7 @@ class Event {
 
         companion object {
             fun valueOf(value: Int): EventState? {
-                for (state in values()) {
+                for (state in entries) {
                     if (state.value == value) {
                         return state
                     }

@@ -62,10 +62,10 @@ class EventRecordImpl : EventRecord {
         get() = event.payload!!
 
     override val scheduleTime: LocalDateTime
-        get() = event.createAt!!
+        get() = event.createAt
 
     override val nextTryTime: LocalDateTime
-        get() = event.nextTryTime!!
+        get() = event.nextTryTime
 
     override fun markPersist(persist: Boolean) {
         this.persist = persist

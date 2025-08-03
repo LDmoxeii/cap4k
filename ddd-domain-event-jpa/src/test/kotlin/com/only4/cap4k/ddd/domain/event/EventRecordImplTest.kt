@@ -46,7 +46,7 @@ class EventRecordImplTest {
             // Then
             assertNotNull(eventRecord.id)
             assertTrue(eventRecord.id.isNotEmpty())
-            assertEquals("", eventRecord.type) // TestEvent没有注解
+            assertEquals("test.event", eventRecord.type) // TestEvent now has @DomainEvent("test.event") annotation
             assertEquals(payload, eventRecord.payload)
             assertEquals(testTime, eventRecord.scheduleTime)
             assertNotNull(eventRecord.nextTryTime)

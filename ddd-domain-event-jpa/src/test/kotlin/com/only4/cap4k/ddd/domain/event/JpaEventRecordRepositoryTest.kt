@@ -464,7 +464,7 @@ class JpaEventRecordRepositoryTest {
                 every { expireAt } returns testTime.plusHours(1)
                 every { tryTimes } returns 3
                 every { triedTimes } returns 0
-                every { lastTryTime } returns null
+                every { lastTryTime } returns testTime.minusHours(1)
                 every { version } returns 1
             }
 
@@ -592,7 +592,7 @@ class JpaEventRecordRepositoryTest {
             every { expireAt } returns testTime.plusHours(1)
             every { tryTimes } returns 3
             every { triedTimes } returns 0
-            every { lastTryTime } returns null
+            every { lastTryTime } returns testTime.minusHours(1)
             every { version } returns 1
         }
     }

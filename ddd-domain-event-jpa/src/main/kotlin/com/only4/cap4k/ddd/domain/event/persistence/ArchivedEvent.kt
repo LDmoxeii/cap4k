@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.domain.event.persistence
 import com.alibaba.fastjson.JSON
 import com.alibaba.fastjson.serializer.SerializerFeature.IgnoreNonFieldGetter
 import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
+import com.only4.cap4k.ddd.domain.event.persistence.Event.EventState
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
@@ -30,35 +31,35 @@ class ArchivedEvent {
      * varchar(64) NOT NULL DEFAULT ''
      */
     @Column(name = "`event_uuid`", nullable = false)
-    var eventUuid: String = ""
+    lateinit var eventUuid: String
 
     /**
      * 服务
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`svc_name`", nullable = false)
-    var svcName: String = ""
+    lateinit var svcName: String
 
     /**
      * 事件类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`event_type`", nullable = false)
-    var eventType: String = ""
+    lateinit var eventType: String
 
     /**
      * 事件数据
      * text (nullable)
      */
     @Column(name = "`data`")
-    var data: String? = null
+    lateinit var data: String
 
     /**
      * 事件数据类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`data_type`", nullable = false)
-    var dataType: String = ""
+    lateinit var dataType: String
 
     /**
      * 异常信息
@@ -72,36 +73,36 @@ class ArchivedEvent {
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`expire_at`")
-    var expireAt: LocalDateTime? = null
+    lateinit var expireAt: LocalDateTime
 
     /**
      * 创建时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`create_at`")
-    var createAt: LocalDateTime? = null
+    lateinit var createAt: LocalDateTime
 
     /**
      * 分发状态
      * int(11) NOT NULL DEFAULT '0'
      */
     @Column(name = "`event_state`", nullable = false)
-    @Convert(converter = Event.EventState.Converter::class)
-    var eventState: Event.EventState = Event.EventState.INIT
+    @Convert(converter = EventState.Converter::class)
+    lateinit var eventState: EventState
 
     /**
      * 上次尝试时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`last_try_time`")
-    var lastTryTime: LocalDateTime? = null
+    lateinit var lastTryTime: LocalDateTime
 
     /**
      * 下次尝试时间
      * datetime NOT NULL DEFAULT '0001-01-01 00:00:00'
      */
     @Column(name = "`next_try_time`")
-    var nextTryTime: LocalDateTime? = null
+    lateinit var nextTryTime: LocalDateTime
 
     /**
      * 已尝试次数
@@ -130,14 +131,14 @@ class ArchivedEvent {
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`db_created_at`", insertable = false, updatable = false)
-    var dbCreatedAt: LocalDateTime? = null
+    lateinit var dbCreatedAt: LocalDateTime
 
     /**
      * 更新时间（数据库自动维护）
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
      */
     @Column(name = "`db_updated_at`", insertable = false, updatable = false)
-    var dbUpdatedAt: LocalDateTime? = null
+    lateinit var dbUpdatedAt: LocalDateTime
 
     fun archiveFrom(event: Event) {
         this.id = event.id

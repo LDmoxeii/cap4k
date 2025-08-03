@@ -36,6 +36,7 @@ class EventTest {
             // Then
             assertNotNull(event.eventUuid)
             assertEquals(svcName, event.svcName)
+            assertEquals("test.event", event.eventType) // TestEvent now has @DomainEvent("test.event") annotation
             assertEquals(testTime, event.createAt)
             assertEquals(testTime.plusSeconds(1800), event.expireAt) // 30分钟
             assertEquals(Event.EventState.INIT, event.eventState)
@@ -94,16 +95,14 @@ class EventTest {
 
         @Test
         @DisplayName("初始化无注解事件")
-        fun `should initialize event without annotations`() {
+        fun `should throw exception when initializing event without annotations`() {
             // Given
             val payload = SimpleEvent("simple123", "simple value")
 
-            // When
-            event.init(payload, "simple-service", testTime, Duration.ofMinutes(5), 1)
-
-            // Then
-            assertEquals("", event.eventType) // 无注解时应该为空字符串
-            assertEquals(payload.javaClass.name, event.dataType)
+            // When & Then
+            assertThrows<com.only4.cap4k.ddd.core.share.DomainException> {
+                event.init(payload, "simple-service", testTime, Duration.ofMinutes(5), 1)
+            }
         }
 
         @Test
@@ -156,36 +155,29 @@ class EventTest {
         }
 
         @Test
-        @DisplayName("无效的dataType应该返回null")
-        fun `should return null for invalid dataType`() {
+        @DisplayName("无效的dataType应该抛出异常")
+        fun `should throw exception for invalid dataType`() {
             // Given
             event.data = "{\"test\": \"value\"}"
             event.dataType = "com.invalid.ClassName"
 
-            // When
-            val retrievedPayload = event.payload
-
-            // Then
-            // The actual behavior is that JSON.parseObject is called with null class,
-            // which might return a JSONObject instead of null
-            // Let's check what it actually returns
-            println("Retrieved payload: $retrievedPayload, type: ${retrievedPayload?.javaClass}")
-            // For now, just verify it doesn't throw an exception
-            // The exact behavior depends on FastJSON implementation
+            // When & Then
+            assertThrows<com.only4.cap4k.ddd.core.share.DomainException> {
+                event.payload
+            }
         }
 
         @Test
-        @DisplayName("空dataType应该返回null")
-        fun `should return null for empty dataType`() {
+        @DisplayName("空dataType应该抛出异常")
+        fun `should throw exception for empty dataType`() {
             // Given
             event.data = "{\"test\": \"value\"}"
             event.dataType = ""
 
-            // When
-            val retrievedPayload = event.payload
-
-            // Then
-            assertNull(retrievedPayload)
+            // When & Then
+            assertThrows<com.only4.cap4k.ddd.core.share.DomainException> {
+                event.payload
+            }
         }
 
         @Test

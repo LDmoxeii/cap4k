@@ -7,6 +7,7 @@ import com.only4.cap4k.ddd.core.share.annotation.Retry
 /**
  * 测试用的事件数据类
  */
+@DomainEvent("test.event")
 data class TestEvent(
     val message: String = "",
     val timestamp: Long = System.currentTimeMillis()
