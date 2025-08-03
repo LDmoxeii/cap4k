@@ -36,7 +36,7 @@ object IntegrationEventHttpCallbackTriggerCommand {
 
             val url = buildString {
                 append(param.url)
-                uriParams.forEach { (key, value) ->
+                uriParams.forEach { (key, _) ->
                     append(if (contains("?")) "&" else "?")
                     append("$key={$key}")
                 }
