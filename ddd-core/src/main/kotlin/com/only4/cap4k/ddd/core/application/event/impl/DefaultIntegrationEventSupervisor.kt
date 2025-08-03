@@ -31,7 +31,6 @@ open class DefaultIntegrationEventSupervisor(
     companion object {
         private val TL_EVENT_PAYLOADS = ThreadLocal<MutableSet<Any>>()
         private val TL_EVENT_SCHEDULE_MAP = ThreadLocal<MutableMap<Any, LocalDateTime>>()
-        private val EMPTY_EVENT_PAYLOADS: Set<Any> = emptySet()
 
         /**
          * 默认事件过期时间（分钟）
@@ -144,7 +143,7 @@ open class DefaultIntegrationEventSupervisor(
     protected open fun popEvents(): Set<Any> {
         val eventPayloads = TL_EVENT_PAYLOADS.get()
         TL_EVENT_PAYLOADS.remove()
-        return eventPayloads ?: EMPTY_EVENT_PAYLOADS
+        return eventPayloads.map { if (it is Function0<*>) it.invoke()!! else it }.toSet()
     }
 
     /**

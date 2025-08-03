@@ -81,7 +81,7 @@ open class DefaultDomainEventSupervisor(
         schedule: LocalDateTime,
         domainEventPayloadSupplier: () -> DOMAIN_EVENT
     ) {
-        attach(domainEventPayloadSupplier.invoke(), entity, schedule)
+        attach(domainEventPayloadSupplier, entity, schedule)
     }
 
     override fun <DOMAIN_EVENT : Any, ENTITY : Any> detach(domainEventPayload: DOMAIN_EVENT, entity: ENTITY) {
@@ -220,7 +220,7 @@ open class DefaultDomainEventSupervisor(
         }
 
         val eventPayloads = entityEventPayloads.remove(entity)
-        return eventPayloads ?: EMPTY_EVENT_PAYLOADS
+        return eventPayloads?.map { if (it is Function0<*>) it.invoke()!! else it }?.toSet() ?: EMPTY_EVENT_PAYLOADS
     }
 
     /**
