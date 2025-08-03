@@ -17,8 +17,8 @@ import java.nio.charset.StandardCharsets
 /**
  * 架构信息自动配置
  *
- * @author binking338
- * @date 2024/11/24
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Configuration
 open class ArchInfoAutoConfiguration {

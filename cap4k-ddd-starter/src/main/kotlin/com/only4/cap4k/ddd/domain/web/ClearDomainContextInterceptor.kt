@@ -13,8 +13,8 @@ import org.springframework.web.servlet.HandlerInterceptor
 /**
  * 领域事件上下文清理拦截器
  *
- * @author binking338
- * @date 2023-03-10
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Configuration
 @ConditionalOnWebApplication

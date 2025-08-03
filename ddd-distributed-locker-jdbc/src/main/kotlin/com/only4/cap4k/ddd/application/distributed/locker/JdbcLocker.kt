@@ -44,6 +44,8 @@ class JdbcLocker(
                         // Not expired but password doesn't match
                         return@synchronized false
                     }
+
+                    else -> {}
                 }
             }
 

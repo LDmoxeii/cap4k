@@ -114,7 +114,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val request = TestCommandRequest("test")
 
@@ -138,7 +138,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val request = TestQueryRequest(123)
 
@@ -161,7 +161,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val sagaRequest = TestSagaRequest("saga-data")
             every { mockSagaSupervisor.send(sagaRequest) } returns "saga-result"
@@ -191,7 +191,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val request = TestCommandRequest("error")
 
@@ -213,7 +213,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             data class UnknownRequest(val data: String) : RequestParam<String>
 
@@ -238,7 +238,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val request = TestCommandRequest("test")
 
@@ -265,7 +265,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val request = TestCommandRequest("scheduled")
             val scheduleTime = LocalDateTime.now()
@@ -303,7 +303,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val sagaRequest = TestSagaRequest("saga-scheduled")
             val scheduleTime = LocalDateTime.now().plusMinutes(5)
@@ -329,7 +329,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val request = TestCommandRequest("non-executing")
             val scheduleTime = LocalDateTime.now()
@@ -359,7 +359,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             every { mockRequestRecordRepository.getById(testRequestId) } returns mockRequestRecord
 
@@ -383,7 +383,7 @@ class DefaultRequestSupervisorTest {
 //                requestRecordRepository = mockRequestRecordRepository,
 //                svcName = testSvcName,
 //                threadPoolSize = testThreadPoolSize,
-//                threadFactoryClassName = null
+//                threadFactoryClassName = ""
 //            )
 //            every { mockRequestRecordRepository.getById(testRequestId) } returns null
 //            every { mockRequestSupervisor.result<String>(testRequestId) } returns "delegated-result"
@@ -412,7 +412,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val request = TestCommandRequest("resume")
             val minNextTryTime = LocalDateTime.now().plusMinutes(5)
@@ -443,7 +443,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val minNextTryTime = LocalDateTime.now().plusMinutes(5)
             val nextTryTime = LocalDateTime.now().plusMinutes(10) // 设置为大于minNextTryTime的时间
@@ -478,7 +478,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val request = TestCommandRequest("retry")
             every { mockRequestRecord.param } returns request
@@ -511,7 +511,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val request = TestCommandRequest("retry-error")
             every { mockRequestRecord.param } returns request
@@ -543,7 +543,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val maxNextTryTime = LocalDateTime.now().plusHours(1)
             val limit = 10
@@ -575,7 +575,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val maxExpireAt = LocalDateTime.now().minusDays(1)
             val limit = 100
@@ -657,7 +657,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val request = TestCommandRequest("empty")
 
@@ -702,7 +702,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val request = TestCommandRequest("multi-interceptor")
 
@@ -736,7 +736,7 @@ class DefaultRequestSupervisorTest {
                 requestRecordRepository = mockRequestRecordRepository,
                 svcName = testSvcName,
                 threadPoolSize = testThreadPoolSize,
-                threadFactoryClassName = null
+                threadFactoryClassName = ""
             )
             val request = TestCommandRequest("interceptor-error")
 

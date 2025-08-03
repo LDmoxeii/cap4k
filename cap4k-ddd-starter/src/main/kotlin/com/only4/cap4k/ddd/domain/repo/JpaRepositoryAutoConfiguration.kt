@@ -30,8 +30,8 @@ import org.springframework.context.annotation.Configuration
  * DefaultSpecificationManager
  * JpaUnitOfWork
  *
- * @author binking338
- * @date 2023/9/10
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Configuration
 open class JpaRepositoryAutoConfiguration {

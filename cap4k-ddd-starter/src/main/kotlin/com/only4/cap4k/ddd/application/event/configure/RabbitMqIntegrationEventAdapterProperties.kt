@@ -6,8 +6,8 @@ import org.springframework.context.annotation.Configuration
 /**
  * RabbitMq集成事件适配器配置
  *
- * @author binking338
- * @date 2025/4/4
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.integration.event.rabbitmq")
@@ -19,7 +19,7 @@ open class RabbitMqIntegrationEventAdapterProperties(
     /**
      * 异步发送线程工厂类名
      */
-    var publishThreadFactoryClassName: String? = null,
+    var publishThreadFactoryClassName: String = "",
     /**
      * 是否自动声明交换机
      */

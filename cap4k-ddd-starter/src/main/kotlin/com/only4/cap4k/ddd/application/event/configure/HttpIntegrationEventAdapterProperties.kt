@@ -6,8 +6,8 @@ import org.springframework.context.annotation.Configuration
 /**
  * http集成事件适配器配置
  *
- * @author binking338
- * @date 2025/5/21
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.integration.event.http")

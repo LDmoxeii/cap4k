@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.core.impl
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.*
+import io.mockk.mockk
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.springframework.core.annotation.Order
@@ -22,6 +23,7 @@ import java.util.concurrent.TimeUnit
 class DefaultEventInterceptorManagerTest {
 
     private lateinit var manager: DefaultEventInterceptorManager
+    private val mockEventRecordRepository = mockk<EventRecordRepository>(relaxed = true)
 
     // Mock拦截器接口实现
     @Order(1)
@@ -137,7 +139,8 @@ class DefaultEventInterceptorManagerTest {
                 TestDomainEventInterceptorNoOrder()   // No order (LOWEST_PRECEDENCE)
             )
 
-            manager = DefaultEventInterceptorManager(eventMessageInterceptors, eventInterceptors)
+            manager =
+                DefaultEventInterceptorManager(eventMessageInterceptors, eventInterceptors, mockEventRecordRepository)
         }
 
         @Test
@@ -217,7 +220,7 @@ class DefaultEventInterceptorManagerTest {
         @Test
         @DisplayName("应该正确处理空的拦截器列表")
         fun `should handle empty interceptor lists`() {
-            val manager = DefaultEventInterceptorManager(emptyList(), emptyList())
+            val manager = DefaultEventInterceptorManager(emptyList(), emptyList(), mockEventRecordRepository)
 
             assertTrue(manager.orderedEventMessageInterceptors.isEmpty())
             assertTrue(manager.orderedDomainEventInterceptors.isEmpty())
@@ -230,7 +233,8 @@ class DefaultEventInterceptorManagerTest {
         @DisplayName("应该正确处理只有EventMessageInterceptor的情况")
         fun `should handle only EventMessageInterceptors`() {
             val eventMessageInterceptors = listOf(TestEventMessageInterceptor1())
-            val manager = DefaultEventInterceptorManager(eventMessageInterceptors, emptyList())
+            val manager =
+                DefaultEventInterceptorManager(eventMessageInterceptors, emptyList(), mockEventRecordRepository)
 
             assertEquals(1, manager.orderedEventMessageInterceptors.size)
             assertTrue(manager.orderedDomainEventInterceptors.isEmpty())
@@ -243,7 +247,7 @@ class DefaultEventInterceptorManagerTest {
         @DisplayName("应该正确处理只有单一类型EventInterceptor的情况")
         fun `should handle single type of EventInterceptors`() {
             val eventInterceptors = listOf(TestDomainEventInterceptor1(), TestDomainEventInterceptor2())
-            val manager = DefaultEventInterceptorManager(emptyList(), eventInterceptors)
+            val manager = DefaultEventInterceptorManager(emptyList(), eventInterceptors, mockEventRecordRepository)
 
             assertTrue(manager.orderedEventMessageInterceptors.isEmpty())
             assertEquals(2, manager.orderedDomainEventInterceptors.size)
@@ -256,7 +260,8 @@ class DefaultEventInterceptorManagerTest {
         @DisplayName("应该正确处理没有Order注解的拦截器")
         fun `should handle interceptors without Order annotation`() {
             val eventMessageInterceptors = listOf(TestEventMessageInterceptor1()) // No @Order
-            val manager = DefaultEventInterceptorManager(eventMessageInterceptors, emptyList())
+            val manager =
+                DefaultEventInterceptorManager(eventMessageInterceptors, emptyList(), mockEventRecordRepository)
 
             assertEquals(1, manager.orderedEventMessageInterceptors.size)
         }
@@ -283,7 +288,8 @@ class DefaultEventInterceptorManagerTest {
             }
 
             val eventMessageInterceptors = listOf(SameOrderInterceptor1(), SameOrderInterceptor2())
-            val manager = DefaultEventInterceptorManager(eventMessageInterceptors, emptyList())
+            val manager =
+                DefaultEventInterceptorManager(eventMessageInterceptors, emptyList(), mockEventRecordRepository)
 
             assertEquals(2, manager.orderedEventMessageInterceptors.size)
         }
@@ -297,7 +303,8 @@ class DefaultEventInterceptorManagerTest {
         fun setUp() {
             val eventMessageInterceptors = List(100) { TestEventMessageInterceptor1() }
             val eventInterceptors = List(100) { TestDomainEventInterceptor1() }
-            manager = DefaultEventInterceptorManager(eventMessageInterceptors, eventInterceptors)
+            manager =
+                DefaultEventInterceptorManager(eventMessageInterceptors, eventInterceptors, mockEventRecordRepository)
         }
 
         @Test
@@ -351,7 +358,11 @@ class DefaultEventInterceptorManagerTest {
             val largeEventInterceptors = List(1000) { TestDomainEventInterceptor1() }
 
             val startTime = System.currentTimeMillis()
-            val largeManager = DefaultEventInterceptorManager(largeEventMessageInterceptors, largeEventInterceptors)
+            val largeManager = DefaultEventInterceptorManager(
+                largeEventMessageInterceptors,
+                largeEventInterceptors,
+                mockEventRecordRepository
+            )
 
             // 访问所有属性
             largeManager.orderedEventMessageInterceptors
@@ -385,7 +396,8 @@ class DefaultEventInterceptorManagerTest {
                 TestGenericEventInterceptor()
             )
 
-            manager = DefaultEventInterceptorManager(eventMessageInterceptors, eventInterceptors)
+            manager =
+                DefaultEventInterceptorManager(eventMessageInterceptors, eventInterceptors, mockEventRecordRepository)
         }
 
         @Test
@@ -423,7 +435,8 @@ class DefaultEventInterceptorManagerTest {
         @DisplayName("拦截器实例不应该被意外修改")
         fun `interceptor instances should not be accidentally modified`() {
             val originalEventInterceptors = listOf(TestDomainEventInterceptor1())
-            val testManager = DefaultEventInterceptorManager(emptyList(), originalEventInterceptors)
+            val testManager =
+                DefaultEventInterceptorManager(emptyList(), originalEventInterceptors, mockEventRecordRepository)
 
             val retrievedInterceptors = testManager.orderedDomainEventInterceptors
 
@@ -440,7 +453,7 @@ class DefaultEventInterceptorManagerTest {
         @Test
         @DisplayName("应该正确实现EventMessageInterceptorManager接口")
         fun `should correctly implement EventMessageInterceptorManager interface`() {
-            val manager = DefaultEventInterceptorManager(emptyList(), emptyList())
+            val manager = DefaultEventInterceptorManager(emptyList(), emptyList(), mockEventRecordRepository)
 
             assertTrue(manager is EventMessageInterceptorManager)
             assertNotNull(manager.orderedEventMessageInterceptors)
@@ -449,7 +462,7 @@ class DefaultEventInterceptorManagerTest {
         @Test
         @DisplayName("应该正确实现DomainEventInterceptorManager接口")
         fun `should correctly implement DomainEventInterceptorManager interface`() {
-            val manager = DefaultEventInterceptorManager(emptyList(), emptyList())
+            val manager = DefaultEventInterceptorManager(emptyList(), emptyList(), mockEventRecordRepository)
 
             assertTrue(manager is DomainEventInterceptorManager)
             assertNotNull(manager.orderedDomainEventInterceptors)
@@ -459,7 +472,7 @@ class DefaultEventInterceptorManagerTest {
         @Test
         @DisplayName("应该正确实现IntegrationEventInterceptorManager接口")
         fun `should correctly implement IntegrationEventInterceptorManager interface`() {
-            val manager = DefaultEventInterceptorManager(emptyList(), emptyList())
+            val manager = DefaultEventInterceptorManager(emptyList(), emptyList(), mockEventRecordRepository)
 
             assertTrue(manager is IntegrationEventInterceptorManager)
             assertNotNull(manager.orderedIntegrationEventInterceptors)

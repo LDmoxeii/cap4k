@@ -30,8 +30,8 @@ import java.time.Duration
 /**
  * 基于JPA的领域事件（集成事件）实现自动配置类
  *
- * @author binking338
- * @date 2023/9/10
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Configuration
 @EnableJpaRepositories(

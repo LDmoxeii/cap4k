@@ -120,7 +120,7 @@ class HttpIntegrationEventSubscriberAdapter(
     /**
      * 操作响应数据类
      */
-    data class OperationResponse<T>(
+    data class OperationResponse<T : Any>(
         val success: Boolean = false,
         val message: String? = null,
         val data: T? = null

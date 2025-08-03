@@ -6,8 +6,8 @@ import org.springframework.context.annotation.Configuration
 /**
  * Snowflake配置类
  *
- * @author qiaohe
- * @date 2024/8/12
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.distributed.idgenerator.snowflake")

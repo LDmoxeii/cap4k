@@ -6,8 +6,8 @@ import org.springframework.context.annotation.Configuration
 /**
  * Mediator配置类
  *
- * @author binking338
- * @date 2025/5/15
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.application")
@@ -20,5 +20,5 @@ open class RequestProperties(
     /**
      * 请求调度线程工厂类名
      */
-    var requestScheduleThreadFactoryClassName: String? = null
+    var requestScheduleThreadFactoryClassName: String = ""
 )

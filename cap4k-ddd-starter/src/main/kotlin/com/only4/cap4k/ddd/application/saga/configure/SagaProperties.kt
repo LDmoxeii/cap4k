@@ -6,8 +6,8 @@ import org.springframework.context.annotation.Configuration
 /**
  * Saga配置类
  *
- * @author binking338
- * @date 2024/10/15
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.application.saga")
@@ -21,5 +21,5 @@ open class SagaProperties(
      * Saga异步线程池工厂类名
      * 用于实现Saga异步执行
      */
-    var asyncThreadFactoryClassName: String? = null
+    var asyncThreadFactoryClassName: String = ""
 )

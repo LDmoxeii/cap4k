@@ -27,8 +27,8 @@ import java.time.Duration
 /**
  * Saga 自动配置
  *
- * @author binking338
- * @date 2024/10/15
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Configuration
 @EnableJpaRepositories(

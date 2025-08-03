@@ -34,14 +34,14 @@ import org.springframework.objenesis.instantiator.util.ClassUtils as SpringClass
  * @author LD_moxeii
  * @date 2025/07/26
  */
-class DefaultSagaSupervisor(
+open class DefaultSagaSupervisor(
     private val requestHandlers: List<RequestHandler<*, *>>,
     private val requestInterceptors: List<RequestInterceptor<*, *>>,
     private val validator: Validator?,
     private val sagaRecordRepository: SagaRecordRepository,
     private val svcName: String,
     private val threadPoolSize: Int = 10,
-    private val threadFactoryClassName: String? = null
+    private val threadFactoryClassName: String = ""
 ) : SagaSupervisor, SagaProcessSupervisor, SagaManager {
 
     companion object {
@@ -132,7 +132,7 @@ class DefaultSagaSupervisor(
      */
     private fun initExecutorService(): ScheduledExecutorService {
         return when {
-            threadFactoryClassName.isNullOrEmpty() -> {
+            threadFactoryClassName.isBlank() -> {
                 Executors.newScheduledThreadPool(threadPoolSize)
             }
 
@@ -283,7 +283,7 @@ class DefaultSagaSupervisor(
     /**
      * 创建Saga记录
      */
-    protected fun createSagaRecord(
+    protected open fun createSagaRecord(
         sagaType: String,
         request: SagaParam<out Any>,
         scheduleAt: LocalDateTime
@@ -332,7 +332,7 @@ class DefaultSagaSupervisor(
     /**
      * 内部执行Saga逻辑
      */
-    protected fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> internalSend(
+    protected open fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE : Any> internalSend(
         request: REQUEST,
         sagaRecord: SagaRecord
     ): RESPONSE {
@@ -352,7 +352,7 @@ class DefaultSagaSupervisor(
         }
     }
 
-    protected fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> internalSend(request: REQUEST): RESPONSE {
+    protected open fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE : Any> internalSend(request: REQUEST): RESPONSE {
         val requestClass = request::class.java
         val interceptors = getInterceptorsForRequest(requestClass)
         val handler = getHandlerForRequest(requestClass)

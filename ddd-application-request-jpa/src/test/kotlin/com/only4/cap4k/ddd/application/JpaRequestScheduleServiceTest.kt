@@ -25,7 +25,6 @@ class JpaRequestScheduleServiceTest {
     private lateinit var locker: Locker
     private lateinit var jdbcTemplate: JdbcTemplate
 
-    private val svcName = "test-service"
     private val compensationLockerKey = "compensation-lock"
     private val archiveLockerKey = "archive-lock"
     private val enableAddPartition = true
@@ -39,7 +38,6 @@ class JpaRequestScheduleServiceTest {
         scheduleService = JpaRequestScheduleService(
             requestManager = requestManager,
             locker = locker,
-            svcName = svcName,
             compensationLockerKey = compensationLockerKey,
             archiveLockerKey = archiveLockerKey,
             enableAddPartition = enableAddPartition,
@@ -68,7 +66,6 @@ class JpaRequestScheduleServiceTest {
             val serviceWithoutPartition = JpaRequestScheduleService(
                 requestManager = requestManager,
                 locker = locker,
-                svcName = svcName,
                 compensationLockerKey = compensationLockerKey,
                 archiveLockerKey = archiveLockerKey,
                 enableAddPartition = false,
@@ -445,7 +442,6 @@ class JpaRequestScheduleServiceTest {
             val serviceWithoutPartition = JpaRequestScheduleService(
                 requestManager = requestManager,
                 locker = locker,
-                svcName = svcName,
                 compensationLockerKey = compensationLockerKey,
                 archiveLockerKey = archiveLockerKey,
                 enableAddPartition = false,

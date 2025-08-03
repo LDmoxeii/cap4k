@@ -17,8 +17,8 @@ import org.springframework.stereotype.Service
 /**
  * Snowflake自动配置类
  *
- * @author binking338
- * @date 2024/8/10
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Service
 @Configuration

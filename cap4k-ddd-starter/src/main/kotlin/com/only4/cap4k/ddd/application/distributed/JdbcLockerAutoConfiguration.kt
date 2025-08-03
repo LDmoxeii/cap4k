@@ -13,8 +13,8 @@ import org.springframework.jdbc.core.JdbcTemplate
 /**
  * Jdbc锁自动配置类
  *
- * @author binking338
- * @date 2023/9/10
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Configuration
 open class JdbcLockerAutoConfiguration(

@@ -20,7 +20,7 @@ import java.time.LocalDateTime
  * @author LD_moxeii
  * @date 2025/07/26
  */
-class DefaultIntegrationEventSupervisor(
+open class DefaultIntegrationEventSupervisor(
     private val eventPublisher: EventPublisher,
     private val eventRecordRepository: EventRecordRepository,
     private val integrationEventInterceptorManager: IntegrationEventInterceptorManager,
@@ -154,7 +154,7 @@ class DefaultIntegrationEventSupervisor(
      *
      * @return 事件列表
      */
-    protected fun popEvents(): Set<Any> {
+    protected open fun popEvents(): Set<Any> {
         val eventPayloads = TL_EVENT_PAYLOADS.get()
         TL_EVENT_PAYLOADS.remove()
         return eventPayloads ?: EMPTY_EVENT_PAYLOADS
@@ -166,7 +166,7 @@ class DefaultIntegrationEventSupervisor(
      * @param eventPayload 事件负载
      * @param schedule 调度时间
      */
-    protected fun putDeliverTime(eventPayload: Any, schedule: LocalDateTime?) {
+    protected open fun putDeliverTime(eventPayload: Any, schedule: LocalDateTime?) {
         val eventScheduleMap = TL_EVENT_SCHEDULE_MAP.get() ?: run {
             val newMap = mutableMapOf<Any, LocalDateTime>()
             TL_EVENT_SCHEDULE_MAP.set(newMap)
@@ -175,7 +175,7 @@ class DefaultIntegrationEventSupervisor(
         schedule?.let { eventScheduleMap[eventPayload] = it }
     }
 
-    protected fun getDeliverTime(eventPayload: Any): LocalDateTime {
+    protected open fun getDeliverTime(eventPayload: Any): LocalDateTime {
         val eventScheduleMap = TL_EVENT_SCHEDULE_MAP.get()
         return eventScheduleMap?.get(eventPayload) ?: LocalDateTime.now()
     }

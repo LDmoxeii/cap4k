@@ -6,8 +6,8 @@ import org.springframework.context.annotation.Configuration
 /**
  * saga调度配置
  *
- * @author binking338
- * @date 2024/10/15
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.application.saga.schedule")

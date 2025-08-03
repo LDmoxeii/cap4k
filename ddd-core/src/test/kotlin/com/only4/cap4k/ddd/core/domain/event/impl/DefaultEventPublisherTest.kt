@@ -31,6 +31,7 @@ class DefaultEventPublisherTest {
     private lateinit var eventMessageInterceptorManager: EventMessageInterceptorManager
     private lateinit var domainEventInterceptorManager: DomainEventInterceptorManager
     private lateinit var integrationEventInterceptorManager: IntegrationEventInterceptorManager
+    private lateinit var integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback
     private lateinit var publisher: DefaultEventPublisher
 
     private val threadPoolSize = 2
@@ -43,6 +44,7 @@ class DefaultEventPublisherTest {
         eventMessageInterceptorManager = mockk()
         domainEventInterceptorManager = mockk()
         integrationEventInterceptorManager = mockk()
+        integrationEventPublisherCallback = mockk(relaxed = true)
 
         // Mock 默认行为
         every { eventSubscriberManager.dispatch(any()) } just Runs
@@ -60,6 +62,7 @@ class DefaultEventPublisherTest {
             eventMessageInterceptorManager,
             domainEventInterceptorManager,
             integrationEventInterceptorManager,
+            integrationEventPublisherCallback,
             threadPoolSize
         )
     }
@@ -107,6 +110,7 @@ class DefaultEventPublisherTest {
                 eventMessageInterceptorManager,
                 domainEventInterceptorManager,
                 integrationEventInterceptorManager,
+                integrationEventPublisherCallback,
                 2
             )
 

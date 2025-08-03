@@ -9,8 +9,8 @@ import org.springframework.context.annotation.Configuration
 /**
  * 领域服务自动配置
  *
- * @author binking338
- * @date 2024/9/4
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Configuration
 open class DomainServiceAutoConfiguration {

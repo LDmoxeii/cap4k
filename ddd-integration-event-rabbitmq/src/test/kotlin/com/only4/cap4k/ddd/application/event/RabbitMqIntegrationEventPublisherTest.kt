@@ -38,7 +38,7 @@ class RabbitMqIntegrationEventPublisherTest {
             connectionFactory = connectionFactory,
             environment = environment,
             threadPoolSize = 5,
-            threadFactoryClassName = null,
+            threadFactoryClassName = "",
             autoDeclareExchange = false,
             defaultExchangeType = "direct"
         )

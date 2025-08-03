@@ -25,14 +25,14 @@ import org.springframework.objenesis.instantiator.util.ClassUtils as SpringClass
  * @author LD_moxeii
  * @date 2025/07/27
  */
-class DefaultRequestSupervisor(
+open class DefaultRequestSupervisor(
     private val requestHandlers: List<RequestHandler<*, *>>,
     private val requestInterceptors: List<RequestInterceptor<*, *>>,
     private val validator: Validator?,
     private val requestRecordRepository: RequestRecordRepository,
     private val svcName: String,
     private val threadPoolSize: Int,
-    private val threadFactoryClassName: String?
+    private val threadFactoryClassName: String
 ) : RequestSupervisor, RequestManager {
 
     companion object {
@@ -88,7 +88,7 @@ class DefaultRequestSupervisor(
 
     private val executorService by lazy {
         when {
-            threadFactoryClassName.isNullOrEmpty() -> {
+            threadFactoryClassName.isBlank() -> {
                 Executors.newScheduledThreadPool(threadPoolSize)
             }
 
@@ -138,7 +138,6 @@ class DefaultRequestSupervisor(
     ): String {
         // 如果是Saga请求，委托给SagaSupervisor处理
         if (request is SagaParam<*>) {
-            @Suppress("UNCHECKED_CAST")
             return SagaSupervisor.instance.schedule(request as SagaParam<*>, schedule)
         }
 
@@ -211,7 +210,7 @@ class DefaultRequestSupervisor(
         return requestRecordRepository.archiveByExpireAt(svcName, maxExpireAt, limit)
     }
 
-    protected fun createRequestRecord(
+    protected open fun createRequestRecord(
         requestType: String,
         request: RequestParam<*>,
         scheduleAt: LocalDateTime
@@ -256,7 +255,7 @@ class DefaultRequestSupervisor(
         }, duration.toMillis(), TimeUnit.MILLISECONDS)
     }
 
-    protected fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> internalSend(
+    protected open fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE : Any> internalSend(
         request: REQUEST,
         requestRecord: RequestRecord
     ): RESPONSE {
@@ -272,7 +271,7 @@ class DefaultRequestSupervisor(
         }
     }
 
-    protected fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> internalSend(request: REQUEST): RESPONSE {
+    protected open fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE : Any> internalSend(request: REQUEST): RESPONSE {
         val requestClass = request::class.java
         val interceptors = requestInterceptorMap[requestClass] ?: emptyList()
 

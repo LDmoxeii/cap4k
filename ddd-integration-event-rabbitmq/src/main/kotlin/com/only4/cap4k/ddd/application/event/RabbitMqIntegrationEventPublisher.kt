@@ -27,7 +27,7 @@ class RabbitMqIntegrationEventPublisher(
     private val connectionFactory: ConnectionFactory,
     private val environment: Environment,
     private val threadPoolSize: Int,
-    private val threadFactoryClassName: String? = null,
+    private val threadFactoryClassName: String = "",
     private val autoDeclareExchange: Boolean = false,
     private val defaultExchangeType: String = "direct"
 ) : IntegrationEventPublisher {
@@ -38,7 +38,7 @@ class RabbitMqIntegrationEventPublisher(
 
     private val executorService: ExecutorService by lazy {
         when {
-            threadFactoryClassName.isNullOrBlank() -> {
+            threadFactoryClassName.isBlank() -> {
                 Executors.newFixedThreadPool(threadPoolSize)
             }
 

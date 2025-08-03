@@ -6,8 +6,8 @@ import org.springframework.context.annotation.Configuration
 /**
  * 领域事件配置类
  *
- * @author binking338
- * @date 2024/8/11
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.domain.event")
