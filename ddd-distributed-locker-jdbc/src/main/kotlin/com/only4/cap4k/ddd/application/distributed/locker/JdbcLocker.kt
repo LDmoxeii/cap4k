@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.Duration
 import java.time.LocalDateTime
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 基于Jdbc实现的锁
@@ -24,31 +23,11 @@ class JdbcLocker(
 ) : Locker {
 
     private val logger = LoggerFactory.getLogger(JdbcLocker::class.java)
-    private val lockerExpireMap = ConcurrentHashMap<String, LocalDateTime>()
-    private val lockerPwdMap = ConcurrentHashMap<String, String>()
 
     override fun acquire(key: String, pwd: String, expireDuration: Duration): Boolean {
         val now = LocalDateTime.now()
 
         return synchronized(this) {
-            // Check and clean expired entries from in-memory cache
-            lockerExpireMap[key]?.let { expireTime ->
-                when {
-                    expireTime.isBefore(now) -> {
-                        // Expired, remove from cache
-                        lockerExpireMap.remove(key)
-                        lockerPwdMap.remove(key)
-                    }
-
-                    lockerPwdMap[key] != pwd -> {
-                        // Not expired but password doesn't match
-                        return@synchronized false
-                    }
-
-                    else -> {}
-                }
-            }
-
             runCatching {
                 // Check if key exists in database
                 val countSql = "select count(*) from $table where $fieldName = ?"
@@ -64,8 +43,6 @@ class JdbcLocker(
                     logSqlIfEnabled(insertSql, listOf(key, pwd, now, unlockAt))
 
                     jdbcTemplate.update(insertSql, key, pwd, now, unlockAt)
-                    lockerExpireMap[key] = unlockAt
-                    lockerPwdMap[key] = pwd
                     true
                 } else {
                     // Update existing lock record
@@ -74,13 +51,7 @@ class JdbcLocker(
                     logSqlIfEnabled(updateSql, listOf(pwd, now, unlockAt, key, now, pwd))
 
                     val rowsUpdated = jdbcTemplate.update(updateSql, pwd, now, unlockAt, key, now, pwd)
-                    if (rowsUpdated > 0) {
-                        lockerExpireMap[key] = unlockAt
-                        lockerPwdMap[key] = pwd
-                        true
-                    } else {
-                        false
-                    }
+                    rowsUpdated > 0
                 }
             }.getOrElse { false }
         }
@@ -88,18 +59,6 @@ class JdbcLocker(
 
     override fun release(key: String, pwd: String): Boolean {
         val now = LocalDateTime.now()
-
-        // Check and clean from in-memory cache
-        lockerExpireMap[key]?.let {
-            when {
-                lockerPwdMap[key] == pwd -> {
-                    lockerExpireMap.remove(key)
-                    lockerPwdMap.remove(key)
-                }
-
-                else -> return false
-            }
-        }
 
         // Verify lock exists in database with correct password
         val selectSql = "select count(*) from $table where $fieldName = ? and $fieldPwd = ?"
@@ -122,7 +81,7 @@ class JdbcLocker(
     private fun logSqlIfEnabled(sql: String, params: List<Any>) {
         if (showSql) {
             logger.debug(sql)
-            logger.debug("binding parameters: $params")
+            logger.debug("binding parameters: {}", params)
         }
     }
 }
