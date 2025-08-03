@@ -32,7 +32,7 @@ class DefaultEventSubscriberManager(
     private val scanPath: String
 ) : EventSubscriberManager {
 
-    private val subscriberMap: MutableMap<Class<*>, MutableList<EventSubscriber<*>>> by lazy {
+    private val subscriberMap by lazy {
         ConcurrentHashMap<Class<*>, MutableList<EventSubscriber<*>>>().also {
             initializeSubscribers(it)
         }
@@ -152,17 +152,15 @@ class DefaultEventSubscriberManager(
         map: MutableMap<Class<*>, MutableList<EventSubscriber<*>>>,
         eventPayloadClass: Class<*>,
         subscriber: EventSubscriber<*>
-    ): Boolean {
-        val subscribers = map.computeIfAbsent(eventPayloadClass) {
+    ): Boolean =
+        map.computeIfAbsent(eventPayloadClass) {
             mutableListOf()
-        }
-        return subscribers.add(subscriber)
-    }
+        }.add(subscriber)
 
-    override fun unsubscribe(eventPayloadClass: Class<*>, subscriber: EventSubscriber<*>): Boolean {
-        val subscribers = subscriberMap[eventPayloadClass] ?: return false
-        return subscribers.remove(subscriber)
-    }
+
+    override fun unsubscribe(eventPayloadClass: Class<*>, subscriber: EventSubscriber<*>): Boolean =
+        subscriberMap[eventPayloadClass]?.remove(subscriber) ?: false
+
 
     override fun dispatch(eventPayload: Any) {
         val subscribersForEvent = subscriberMap[eventPayload.javaClass] ?: return

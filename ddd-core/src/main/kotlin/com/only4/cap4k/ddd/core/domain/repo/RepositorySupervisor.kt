@@ -20,34 +20,16 @@ interface RepositorySupervisor {
     /**
      * 根据条件获取实体列表
      */
-    fun <ENTITY: Any> find(predicate: Predicate<ENTITY>): List<ENTITY> =
-        find(predicate, null as Collection<OrderInfo>?, true)
-
-    /**
-     * 根据条件获取实体列表
-     */
-    fun <ENTITY: Any> find(predicate: Predicate<ENTITY>, persist: Boolean): List<ENTITY> =
-        find(predicate, null as Collection<OrderInfo>?, persist)
-
-    /**
-     * 根据条件获取实体列表
-     */
-    fun <ENTITY: Any> find(predicate: Predicate<ENTITY>, orders: Collection<OrderInfo>): List<ENTITY> =
-        find(predicate, orders, true)
-
-    /**
-     * 根据条件获取实体列表
-     */
     fun <ENTITY: Any> find(predicate: Predicate<ENTITY>, vararg orders: OrderInfo): List<ENTITY> =
-        find(predicate, orders.toList(), true)
+        find(predicate, orders.toList())
 
     /**
      * 根据条件获取实体列表
      */
     fun <ENTITY: Any> find(
         predicate: Predicate<ENTITY>,
-        orders: Collection<OrderInfo>?,
-        persist: Boolean
+        orders: Collection<OrderInfo> = emptyList(),
+        persist: Boolean = true
     ): List<ENTITY>
 
     /**
@@ -62,56 +44,22 @@ interface RepositorySupervisor {
     /**
      * 根据条件获取单个实体
      */
-    fun <ENTITY: Any> findOne(predicate: Predicate<ENTITY>): Optional<ENTITY> =
-        findOne(predicate, true)
-
-    /**
-     * 根据条件获取单个实体
-     */
-    fun <ENTITY: Any> findOne(predicate: Predicate<ENTITY>, persist: Boolean): Optional<ENTITY>
+    fun <ENTITY : Any> findOne(predicate: Predicate<ENTITY>, persist: Boolean = true): Optional<ENTITY>
 
     /**
      * 根据条件获取实体
      */
     fun <ENTITY: Any> findFirst(
         predicate: Predicate<ENTITY>,
-        orders: Collection<OrderInfo>,
-        persist: Boolean
+        orders: Collection<OrderInfo> = emptyList(),
+        persist: Boolean = true
     ): Optional<ENTITY>
 
     /**
      * 根据条件获取实体
      */
-    fun <ENTITY: Any> findFirst(
-        predicate: Predicate<ENTITY>,
-        orders: Collection<OrderInfo>
-    ): Optional<ENTITY> =
-        findFirst(predicate, orders, true)
-
-    /**
-     * 根据条件获取实体
-     */
     fun <ENTITY: Any> findFirst(predicate: Predicate<ENTITY>, vararg orders: OrderInfo): Optional<ENTITY> =
-        findFirst(predicate, orders.toList(), true)
-
-    /**
-     * 根据条件获取实体
-     */
-    fun <ENTITY: Any> findFirst(predicate: Predicate<ENTITY>, persist: Boolean): Optional<ENTITY> =
-        findFirst(predicate, emptyList(), persist)
-
-    /**
-     * 根据条件获取实体
-     */
-    fun <ENTITY: Any> findFirst(predicate: Predicate<ENTITY>): Optional<ENTITY> =
-        findFirst(predicate, true)
-
-    /**
-     * 根据条件获取实体分页列表
-     * 自动调用 UnitOfWork::persist
-     */
-    fun <ENTITY: Any> findPage(predicate: Predicate<ENTITY>, pageParam: PageParam): PageData<ENTITY> =
-        findPage(predicate, pageParam, true)
+        findFirst(predicate, orders.toList())
 
     /**
      * 根据条件获取实体分页列表
@@ -119,7 +67,7 @@ interface RepositorySupervisor {
     fun <ENTITY: Any> findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean
+        persist: Boolean = true
     ): PageData<ENTITY>
 
     /**

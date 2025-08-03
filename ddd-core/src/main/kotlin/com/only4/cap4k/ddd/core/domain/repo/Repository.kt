@@ -45,7 +45,7 @@ interface Repository<ENTITY : Any> {
         predicate: Predicate<ENTITY>,
         vararg orders: OrderInfo
     ): List<ENTITY> {
-        return find(predicate, listOf(*orders))
+        return find(predicate, orders.toList())
     }
 
     /**
@@ -96,7 +96,7 @@ interface Repository<ENTITY : Any> {
         predicate: Predicate<ENTITY>,
         vararg orders: OrderInfo
     ): Optional<ENTITY> {
-        return findFirst(predicate, listOf(*orders))
+        return findFirst(predicate, orders.toList())
     }
 
     /**

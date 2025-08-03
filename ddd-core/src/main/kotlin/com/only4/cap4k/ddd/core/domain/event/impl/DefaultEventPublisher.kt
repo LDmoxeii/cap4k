@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
  * @author LD_moxeii
  * @date 2025/07/24
  */
-class DefaultEventPublisher(
+open class DefaultEventPublisher(
     private val eventSubscriberManager: EventSubscriberManager,
     private val integrationEventPublishers: List<IntegrationEventPublisher>,
     private val eventRecordRepository: EventRecordRepository,
@@ -136,7 +136,7 @@ class DefaultEventPublisher(
     /**
      * 内部发布实现 - 领域事件
      */
-    protected fun internalPublish4DomainEvent(event: EventRecord) {
+    protected open fun internalPublish4DomainEvent(event: EventRecord) {
         try {
             val message = event.message
             val persist = message.headers[HEADER_KEY_CAP4J_PERSIST] as? Boolean ?: false
@@ -175,7 +175,7 @@ class DefaultEventPublisher(
     /**
      * 内部发布实现 - 集成事件
      */
-    protected fun internalPublish4IntegrationEvent(event: EventRecord) {
+    protected open fun internalPublish4IntegrationEvent(event: EventRecord) {
         try {
             integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent
                 .forEach { interceptor -> interceptor.preRelease(event) }
@@ -194,41 +194,6 @@ class DefaultEventPublisher(
                 .forEach { interceptor -> interceptor.onException(ex, event) }
             log.error("集成事件发布失败：${event.id}", ex)
             throw DomainException("集成事件发布失败: ${event.id}", ex)
-        }
-    }
-
-    /**
-     * 集成事件发送发布回调
-     */
-    class IntegrationEventSendPublishCallback(
-        private val orderedEventMessageInterceptors: Set<EventMessageInterceptor>,
-        private val orderedIntegrationEventInterceptor: Set<EventInterceptor>,
-        private val eventRecordRepository: EventRecordRepository
-    ) : IntegrationEventPublisher.PublishCallback {
-
-        override fun onSuccess(event: EventRecord) {
-            val now = LocalDateTime.now()
-            // 修改事件消费状态
-            event.confirmedDelivery(now)
-
-            orderedIntegrationEventInterceptor.forEach { interceptor -> interceptor.prePersist(event) }
-            eventRecordRepository.save(event)
-            orderedIntegrationEventInterceptor.forEach { interceptor -> interceptor.postPersist(event) }
-
-            orderedEventMessageInterceptors.forEach { interceptor -> interceptor.postPublish(event.message) }
-            orderedIntegrationEventInterceptor.forEach { interceptor -> interceptor.postRelease(event) }
-        }
-
-        override fun onException(event: EventRecord, throwable: Throwable) {
-            val now = LocalDateTime.now()
-            // 修改事件异常状态
-            event.occurredException(now, throwable)
-
-            orderedIntegrationEventInterceptor.forEach { interceptor -> interceptor.prePersist(event) }
-            eventRecordRepository.save(event)
-            orderedIntegrationEventInterceptor.forEach { interceptor -> interceptor.postPersist(event) }
-
-            orderedIntegrationEventInterceptor.forEach { interceptor -> interceptor.onException(throwable, event) }
         }
     }
 }

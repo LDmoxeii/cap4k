@@ -383,7 +383,10 @@ class DefaultIntegrationEventSupervisorTest {
             val events = listOf(mockEventRecord)
             val commitEvent = IntegrationEventAttachedTransactionCommittedEvent(supervisor, events)
 
-            supervisor.onTransactionCommitted(commitEvent)
+            // Call the extension function with the supervisor
+            with(supervisor) {
+                commitEvent.onTransactionCommitted()
+            }
 
             verify { eventPublisher.publish(mockEventRecord) }
         }
@@ -393,7 +396,10 @@ class DefaultIntegrationEventSupervisorTest {
         fun `empty event list should not trigger publishing`() {
             val commitEvent = IntegrationEventAttachedTransactionCommittedEvent(supervisor, emptyList())
 
-            supervisor.onTransactionCommitted(commitEvent)
+            // Call the extension function with the supervisor
+            with(supervisor) {
+                commitEvent.onTransactionCommitted()
+            }
 
             verify(exactly = 0) { eventPublisher.publish(any()) }
         }
@@ -405,7 +411,10 @@ class DefaultIntegrationEventSupervisorTest {
             val events = listOf(mockEventRecord, mockEventRecord2)
             val commitEvent = IntegrationEventAttachedTransactionCommittedEvent(supervisor, events)
 
-            supervisor.onTransactionCommitted(commitEvent)
+            // Call the extension function with the supervisor
+            with(supervisor) {
+                commitEvent.onTransactionCommitted()
+            }
 
             verify { eventPublisher.publish(mockEventRecord) }
             verify { eventPublisher.publish(mockEventRecord2) }
@@ -656,7 +665,10 @@ class DefaultIntegrationEventSupervisorTest {
 
             // Trigger transaction committed event
             val commitEvent = IntegrationEventAttachedTransactionCommittedEvent(supervisor, listOf(mockEventRecord))
-            supervisor.onTransactionCommitted(commitEvent)
+            // Call the extension function with the supervisor
+            with(supervisor) {
+                commitEvent.onTransactionCommitted()
+            }
 
             // Verify complete flow
             verify { mockIntegrationEventInterceptor.onAttach(event, schedule) }

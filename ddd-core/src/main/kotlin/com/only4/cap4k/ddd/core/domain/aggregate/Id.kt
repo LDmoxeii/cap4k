@@ -6,7 +6,7 @@ package com.only4.cap4k.ddd.core.domain.aggregate
  * @author LD_moxeii
  * @date 2025/07/27
  */
-interface Id<AGGREGATE: Any, KEY: Any> {
+interface Id<AGGREGATE : Any, out KEY : Any> {
     /**
      * 获取实体Key
      *

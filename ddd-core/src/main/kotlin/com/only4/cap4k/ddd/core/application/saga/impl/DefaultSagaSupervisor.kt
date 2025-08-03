@@ -17,7 +17,6 @@ import jakarta.validation.Validator
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 import org.springframework.objenesis.instantiator.util.ClassUtils as SpringClassUtils
@@ -69,69 +68,36 @@ open class DefaultSagaSupervisor(
     }
 
     // 使用lazy懒加载的成员变量
-    private val requestHandlerMap: Map<Class<*>, RequestHandler<*, *>> by lazy {
-        initRequestHandlers()
+    private val requestHandlerMap by lazy {
+        buildMap<Class<*>, RequestHandler<*, *>> {
+            requestHandlers.forEach { handler ->
+                val requestPayloadClass = resolveGenericTypeClass(
+                    handler, 0,
+                    RequestHandler::class.java,
+                    Command::class.java, NoneResultCommandParam::class.java,
+                    Query::class.java, ListQuery::class.java, PageQuery::class.java,
+                    SagaHandler::class.java
+                )
+                put(requestPayloadClass, handler)
+            }
+        }.toMap()
     }
 
-    private val requestInterceptorMap: Map<Class<*>, List<RequestInterceptor<*, *>>> by lazy {
-        initRequestInterceptors()
+    private val requestInterceptorMap by lazy {
+        buildMap<Class<*>, MutableList<RequestInterceptor<*, *>>> {
+            requestInterceptors.forEach { interceptor ->
+                val requestPayloadClass = resolveGenericTypeClass(
+                    interceptor, 0,
+                    RequestInterceptor::class.java
+                )
+                computeIfAbsent(requestPayloadClass) { mutableListOf() }
+                    .add(interceptor)
+            }
+        }.toMap()
     }
 
-    private val executorService: ScheduledExecutorService by lazy {
-        initExecutorService()
-    }
-
-    fun init() {
-        requestHandlerMap
-        requestInterceptorMap
-        executorService
-    }
-
-    /**
-     * 初始化请求处理器映射
-     */
-    private fun initRequestHandlers(): Map<Class<*>, RequestHandler<*, *>> {
-        val handlerMap = mutableMapOf<Class<*>, RequestHandler<*, *>>()
-
-        // 构建处理器映射
-        requestHandlers.forEach { handler ->
-            val requestPayloadClass = resolveGenericTypeClass(
-                handler, 0,
-                RequestHandler::class.java,
-                Command::class.java, NoneResultCommandParam::class.java,
-                Query::class.java, ListQuery::class.java, PageQuery::class.java,
-                SagaHandler::class.java
-            )
-            handlerMap[requestPayloadClass] = handler
-        }
-
-        return handlerMap
-    }
-
-    /**
-     * 初始化请求拦截器映射
-     */
-    private fun initRequestInterceptors(): Map<Class<*>, List<RequestInterceptor<*, *>>> {
-        val interceptorMap = mutableMapOf<Class<*>, MutableList<RequestInterceptor<*, *>>>()
-
-        // 构建拦截器映射
-        requestInterceptors.forEach { interceptor ->
-            val requestPayloadClass = resolveGenericTypeClass(
-                interceptor, 0,
-                RequestInterceptor::class.java
-            )
-            interceptorMap.computeIfAbsent(requestPayloadClass) { mutableListOf() }
-                .add(interceptor)
-        }
-
-        return interceptorMap.mapValues { it.value.toList() }
-    }
-
-    /**
-     * 初始化调度线程池
-     */
-    private fun initExecutorService(): ScheduledExecutorService {
-        return when {
+    private val executorService by lazy {
+        when {
             threadFactoryClassName.isBlank() -> {
                 Executors.newScheduledThreadPool(threadPoolSize)
             }
@@ -155,6 +121,12 @@ open class DefaultSagaSupervisor(
                 }
             }
         }
+    }
+
+    fun init() {
+        requestHandlerMap
+        requestInterceptorMap
+        executorService
     }
 
     override fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> send(request: REQUEST): RESPONSE {
@@ -195,7 +167,7 @@ open class DefaultSagaSupervisor(
         return sagaRecord.id
     }
 
-    override fun <R: Any> result(id: String): R = sagaRecordRepository.getById(id).getResult()
+    override fun <R : Any> result(id: String): R? = sagaRecordRepository.getById(id).getResult()
 
 
     override fun resume(saga: SagaRecord, minNextTryTime: LocalDateTime) {
@@ -313,23 +285,6 @@ open class DefaultSagaSupervisor(
     }
 
     /**
-     * 调度Saga执行
-     */
-    private fun scheduleExecution(request: SagaParam<out Any>, sagaRecord: SagaRecord) {
-        val now = LocalDateTime.now()
-        val delay = if (now.isBefore(sagaRecord.scheduleTime)) {
-            Duration.between(now, sagaRecord.scheduleTime)
-        } else {
-            Duration.ZERO
-        }
-
-        executorService.schedule({
-            @Suppress("UNCHECKED_CAST")
-            internalSend(request as SagaParam<Any>, sagaRecord)
-        }, delay.toMillis(), TimeUnit.MILLISECONDS)
-    }
-
-    /**
      * 内部执行Saga逻辑
      */
     protected open fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE : Any> internalSend(
@@ -373,6 +328,23 @@ open class DefaultSagaSupervisor(
             (interceptor as RequestInterceptor<REQUEST, RESPONSE>).postRequest(request, response)
         }
         return response
+    }
+
+    /**
+     * 调度Saga执行
+     */
+    private fun scheduleExecution(request: SagaParam<out Any>, sagaRecord: SagaRecord) {
+        val now = LocalDateTime.now()
+        val delay = if (now.isBefore(sagaRecord.scheduleTime)) {
+            Duration.between(now, sagaRecord.scheduleTime)
+        } else {
+            Duration.ZERO
+        }
+
+        executorService.schedule({
+            @Suppress("UNCHECKED_CAST")
+            internalSend(request as SagaParam<Any>, sagaRecord)
+        }, delay.toMillis(), TimeUnit.MILLISECONDS)
     }
 
     /**

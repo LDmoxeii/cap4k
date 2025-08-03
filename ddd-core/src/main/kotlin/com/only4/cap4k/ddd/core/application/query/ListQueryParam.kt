@@ -11,5 +11,5 @@ import com.only4.cap4k.ddd.core.application.RequestParam
  *
  * @param RESPONSE_ITEM 响应列表项类型
  */
-interface ListQueryParam<RESPONSE_ITEM> :
+interface ListQueryParam<RESPONSE_ITEM : Any> :
     RequestParam<List<RESPONSE_ITEM>>

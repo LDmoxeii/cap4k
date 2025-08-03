@@ -17,14 +17,14 @@ annotation class AutoRequest(
      * 目标请求类型
      * 指定要触发的命令类型
      */
-    val targetRequestClass: KClass<out Any> = Unit::class,
+    val targetRequestClass: KClass<*> = Unit::class,
 
     /**
      * 事件到请求的转换器
      * 实现org.springframework.core.convert.converter.Converter接口
      * 用于将事件转换为命令
      */
-    val converterClass: KClass<out Any> = Unit::class
+    val converterClass: KClass<*> = Unit::class
 )
 
 /**

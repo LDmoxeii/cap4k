@@ -77,6 +77,106 @@ class ArchInfoManager(
         resolveAllClasses()
     }
 
+    /**
+     * 解析所有类并按类型分类
+     * 此方法只会被懒加载调用一次，并且是线程安全的
+     */
+    private fun resolveAllClasses(): ResolvedClasses {
+        return try {
+            val classes = scanClass(basePackage, true)
+
+            // 使用可变列表进行分类
+            val repositoryClasses = mutableListOf<Class<*>>()
+            val factoryClasses = mutableListOf<Class<*>>()
+            val factoryPayloadClasses = mutableListOf<Class<*>>()
+            val entityClasses = mutableListOf<Class<*>>()
+            val valueObjectClasses = mutableListOf<Class<*>>()
+            val enumObjectClasses = mutableListOf<Class<*>>()
+            val specificationClasses = mutableListOf<Class<*>>()
+            val domainServiceClasses = mutableListOf<Class<*>>()
+            val domainEventClasses = mutableListOf<Class<*>>()
+            val integrationEventClasses = mutableListOf<Class<*>>()
+            val subscriberClasses = mutableListOf<Class<*>>()
+            val queryClasses = mutableListOf<Class<*>>()
+            val commandClasses = mutableListOf<Class<*>>()
+            val requestClasses = mutableListOf<Class<*>>()
+            val sagaClasses = mutableListOf<Class<*>>()
+
+            classes.forEach { cls ->
+                // Check for event listener methods
+                if (cls.declaredMethods.any { method ->
+                        getDomainOrIntegrationEventListener(method) != null
+                    }) {
+                    subscriberClasses.add(cls)
+                }
+
+                // Check for Aggregate annotation
+                if (cls.isAnnotationPresent(Aggregate::class.java)) {
+                    val aggregate = cls.getAnnotation(Aggregate::class.java)
+                    when (aggregate.type) {
+                        Aggregate.TYPE_REPOSITORY -> repositoryClasses.add(cls)
+                        Aggregate.TYPE_FACTORY -> factoryClasses.add(cls)
+                        Aggregate.TYPE_FACTORY_PAYLOAD -> factoryPayloadClasses.add(cls)
+                        Aggregate.TYPE_ENTITY -> entityClasses.add(cls)
+                        Aggregate.TYPE_VALUE_OBJECT -> valueObjectClasses.add(cls)
+                        Aggregate.TYPE_ENUM -> enumObjectClasses.add(cls)
+                        Aggregate.TYPE_SPECIFICATION -> specificationClasses.add(cls)
+                        Aggregate.TYPE_DOMAIN_EVENT -> domainEventClasses.add(cls)
+                    }
+                    return@forEach
+                }
+
+                // Check for other annotations
+                when {
+                    cls.isAnnotationPresent(DomainService::class.java) ->
+                        domainServiceClasses.add(cls)
+
+                    cls.isAnnotationPresent(DomainEvent::class.java) ->
+                        domainEventClasses.add(cls)
+
+                    cls.isAnnotationPresent(IntegrationEvent::class.java) ->
+                        integrationEventClasses.add(cls)
+
+                    EventSubscriber::class.java.isAssignableFrom(cls) ->
+                        subscriberClasses.add(cls)
+
+                    Query::class.java.isAssignableFrom(cls) ->
+                        queryClasses.add(cls)
+
+                    Command::class.java.isAssignableFrom(cls) ->
+                        commandClasses.add(cls)
+
+                    SagaHandler::class.java.isAssignableFrom(cls) ->
+                        sagaClasses.add(cls)
+
+                    RequestHandler::class.java.isAssignableFrom(cls) ->
+                        requestClasses.add(cls)
+                }
+            }
+
+            ResolvedClasses(
+                repositoryClasses = repositoryClasses.toList(),
+                factoryClasses = factoryClasses.toList(),
+                factoryPayloadClasses = factoryPayloadClasses.toList(),
+                entityClasses = entityClasses.toList(),
+                valueObjectClasses = valueObjectClasses.toList(),
+                enumObjectClasses = enumObjectClasses.toList(),
+                specificationClasses = specificationClasses.toList(),
+                domainServiceClasses = domainServiceClasses.toList(),
+                domainEventClasses = domainEventClasses.toList(),
+                integrationEventClasses = integrationEventClasses.toList(),
+                subscriberClasses = subscriberClasses.toList(),
+                queryClasses = queryClasses.toList(),
+                commandClasses = commandClasses.toList(),
+                requestClasses = requestClasses.toList(),
+                sagaClasses = sagaClasses.toList()
+            )
+        } catch (e: Exception) {
+            // 在异常情况下返回空的分类结果，避免应用崩溃
+            ResolvedClasses.empty()
+        }
+    }
+
     fun configure(config: (ArchInfo) -> ArchInfo) {
         this.config = config
     }
@@ -529,106 +629,6 @@ class ArchInfoManager(
             eventListener
         } else {
             null
-        }
-    }
-
-    /**
-     * 解析所有类并按类型分类
-     * 此方法只会被懒加载调用一次，并且是线程安全的
-     */
-    private fun resolveAllClasses(): ResolvedClasses {
-        return try {
-            val classes = scanClass(basePackage, true)
-
-            // 使用可变列表进行分类
-            val repositoryClasses = mutableListOf<Class<*>>()
-            val factoryClasses = mutableListOf<Class<*>>()
-            val factoryPayloadClasses = mutableListOf<Class<*>>()
-            val entityClasses = mutableListOf<Class<*>>()
-            val valueObjectClasses = mutableListOf<Class<*>>()
-            val enumObjectClasses = mutableListOf<Class<*>>()
-            val specificationClasses = mutableListOf<Class<*>>()
-            val domainServiceClasses = mutableListOf<Class<*>>()
-            val domainEventClasses = mutableListOf<Class<*>>()
-            val integrationEventClasses = mutableListOf<Class<*>>()
-            val subscriberClasses = mutableListOf<Class<*>>()
-            val queryClasses = mutableListOf<Class<*>>()
-            val commandClasses = mutableListOf<Class<*>>()
-            val requestClasses = mutableListOf<Class<*>>()
-            val sagaClasses = mutableListOf<Class<*>>()
-
-            classes.forEach { cls ->
-                // Check for event listener methods
-                if (cls.declaredMethods.any { method ->
-                        getDomainOrIntegrationEventListener(method) != null
-                    }) {
-                    subscriberClasses.add(cls)
-                }
-
-                // Check for Aggregate annotation
-                if (cls.isAnnotationPresent(Aggregate::class.java)) {
-                    val aggregate = cls.getAnnotation(Aggregate::class.java)
-                    when (aggregate.type) {
-                        Aggregate.TYPE_REPOSITORY -> repositoryClasses.add(cls)
-                        Aggregate.TYPE_FACTORY -> factoryClasses.add(cls)
-                        Aggregate.TYPE_FACTORY_PAYLOAD -> factoryPayloadClasses.add(cls)
-                        Aggregate.TYPE_ENTITY -> entityClasses.add(cls)
-                        Aggregate.TYPE_VALUE_OBJECT -> valueObjectClasses.add(cls)
-                        Aggregate.TYPE_ENUM -> enumObjectClasses.add(cls)
-                        Aggregate.TYPE_SPECIFICATION -> specificationClasses.add(cls)
-                        Aggregate.TYPE_DOMAIN_EVENT -> domainEventClasses.add(cls)
-                    }
-                    return@forEach
-                }
-
-                // Check for other annotations
-                when {
-                    cls.isAnnotationPresent(DomainService::class.java) ->
-                        domainServiceClasses.add(cls)
-
-                    cls.isAnnotationPresent(DomainEvent::class.java) ->
-                        domainEventClasses.add(cls)
-
-                    cls.isAnnotationPresent(IntegrationEvent::class.java) ->
-                        integrationEventClasses.add(cls)
-
-                    EventSubscriber::class.java.isAssignableFrom(cls) ->
-                        subscriberClasses.add(cls)
-
-                    Query::class.java.isAssignableFrom(cls) ->
-                        queryClasses.add(cls)
-
-                    Command::class.java.isAssignableFrom(cls) ->
-                        commandClasses.add(cls)
-
-                    SagaHandler::class.java.isAssignableFrom(cls) ->
-                        sagaClasses.add(cls)
-
-                    RequestHandler::class.java.isAssignableFrom(cls) ->
-                        requestClasses.add(cls)
-                }
-            }
-
-            ResolvedClasses(
-                repositoryClasses = repositoryClasses.toList(),
-                factoryClasses = factoryClasses.toList(),
-                factoryPayloadClasses = factoryPayloadClasses.toList(),
-                entityClasses = entityClasses.toList(),
-                valueObjectClasses = valueObjectClasses.toList(),
-                enumObjectClasses = enumObjectClasses.toList(),
-                specificationClasses = specificationClasses.toList(),
-                domainServiceClasses = domainServiceClasses.toList(),
-                domainEventClasses = domainEventClasses.toList(),
-                integrationEventClasses = integrationEventClasses.toList(),
-                subscriberClasses = subscriberClasses.toList(),
-                queryClasses = queryClasses.toList(),
-                commandClasses = commandClasses.toList(),
-                requestClasses = requestClasses.toList(),
-                sagaClasses = sagaClasses.toList()
-            )
-        } catch (e: Exception) {
-            // 在异常情况下返回空的分类结果，避免应用崩溃
-            ResolvedClasses.empty()
         }
     }
 }

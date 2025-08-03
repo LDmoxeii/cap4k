@@ -61,7 +61,7 @@ interface Aggregate<ENTITY : Any> {
          *
          * @param event
          */
-        protected fun registerDomainEvent(event: Any) {
+        protected open fun registerDomainEvent(event: Any) {
             events().attach(domainEventPayload = event, entity = this)
 
         }
@@ -71,7 +71,7 @@ interface Aggregate<ENTITY : Any> {
          *
          * @param eventSupplier
          */
-        protected fun registerDomainEvent(eventSupplier: Supplier<out Any>) {
+        protected open fun registerDomainEvent(eventSupplier: Supplier<out Any>) {
             events().attach(eventSupplier, this.root)
         }
 
@@ -80,7 +80,7 @@ interface Aggregate<ENTITY : Any> {
          *
          * @param event
          */
-        protected fun cancelDomainEvent(event: Any) {
+        protected open fun cancelDomainEvent(event: Any) {
             events().detach(event, this)
         }
     }

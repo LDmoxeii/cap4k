@@ -18,7 +18,7 @@ import java.time.LocalDateTime
  * @author LD_moxeii
  * @date 2025/07/24
  */
-class DefaultDomainEventSupervisor(
+open class DefaultDomainEventSupervisor(
     private val eventRecordRepository: EventRecordRepository,
     private val domainEventInterceptorManager: DomainEventInterceptorManager,
     private val eventPublisher: EventPublisher,
@@ -53,7 +53,7 @@ class DefaultDomainEventSupervisor(
     private fun unwrapEntity(entity: Any): Any = (entity as? Aggregate<*>)?._unwrap() ?: entity
 
 
-    override fun <DOMAIN_EVENT: Any, ENTITY: Any> attach(
+    override fun <DOMAIN_EVENT : Any, ENTITY : Any> attach(
         domainEventPayload: DOMAIN_EVENT,
         entity: ENTITY,
         schedule: LocalDateTime
@@ -76,7 +76,15 @@ class DefaultDomainEventSupervisor(
             .forEach { interceptor -> interceptor.onAttach(domainEventPayload, unwrappedEntity, schedule) }
     }
 
-    override fun <DOMAIN_EVENT: Any, ENTITY: Any> detach(domainEventPayload: DOMAIN_EVENT, entity: ENTITY) {
+    override fun <DOMAIN_EVENT : Any, ENTITY : Any> attach(
+        entity: ENTITY,
+        schedule: LocalDateTime,
+        domainEventPayloadSupplier: () -> DOMAIN_EVENT
+    ) {
+        attach(domainEventPayloadSupplier.invoke(), entity, schedule)
+    }
+
+    override fun <DOMAIN_EVENT : Any, ENTITY : Any> detach(domainEventPayload: DOMAIN_EVENT, entity: ENTITY) {
         val entityEventPayloads = TL_ENTITY_EVENT_PAYLOADS.get() ?: return
         val unwrappedEntity = unwrapEntity(entity)
         val eventPayloads = entityEventPayloads[unwrappedEntity] ?: return
@@ -89,41 +97,39 @@ class DefaultDomainEventSupervisor(
     override fun release(entities: Set<Any>) {
         val eventPayloads = mutableSetOf<Any>()
 
-        if (entities.isNotEmpty()) {
-            for (entity in entities) {
-                eventPayloads.addAll(popEvents(entity))
+        for (entity in entities) {
+            eventPayloads.addAll(popEvents(entity))
 
-                // 处理 Spring Data 的 AbstractAggregateRoot
-                if (entity is AbstractAggregateRoot<*>) {
-                    val domainEventsMethod = findMethod(
+            // 处理 Spring Data 的 AbstractAggregateRoot
+            if (entity is AbstractAggregateRoot<*>) {
+                val domainEventsMethod = findMethod(
+                    AbstractAggregateRoot::class.java,
+                    "domainEvents"
+                ) { it.parameterCount == 0 }
+
+                if (domainEventsMethod != null) {
+                    domainEventsMethod.isAccessible = true
+                    try {
+                        val domainEvents = domainEventsMethod.invoke(entity)
+                        if (domainEvents != null && domainEvents is Collection<*>) {
+                            @Suppress("UNCHECKED_CAST")
+                            eventPayloads.addAll(domainEvents as Collection<Any>)
+                        }
+                    } catch (throwable: Throwable) {
+                        // 忽略异常，继续处理
+                        continue
+                    }
+
+                    val clearDomainEventsMethod = findMethod(
                         AbstractAggregateRoot::class.java,
-                        "domainEvents"
+                        "clearDomainEvents"
                     ) { it.parameterCount == 0 }
 
-                    if (domainEventsMethod != null) {
-                        domainEventsMethod.isAccessible = true
-                        try {
-                            val domainEvents = domainEventsMethod.invoke(entity)
-                            if (domainEvents != null && domainEvents is Collection<*>) {
-                                @Suppress("UNCHECKED_CAST")
-                                eventPayloads.addAll(domainEvents as Collection<Any>)
-                            }
-                        } catch (throwable: Throwable) {
-                            // 忽略异常，继续处理
-                            continue
-                        }
-
-                        val clearDomainEventsMethod = findMethod(
-                            AbstractAggregateRoot::class.java,
-                            "clearDomainEvents"
-                        ) { it.parameterCount == 0 }
-
-                        try {
-                            clearDomainEventsMethod?.invoke(entity)
-                        } catch (throwable: Throwable) {
-                            // 忽略异常，继续处理
-                            continue
-                        }
+                    try {
+                        clearDomainEventsMethod?.invoke(entity)
+                    } catch (throwable: Throwable) {
+                        // 忽略异常，继续处理
+                        continue
                     }
                 }
             }
@@ -174,12 +180,12 @@ class DefaultDomainEventSupervisor(
      * - 延迟或定时领域事件视情况进行持久化
      * - 显式指定persist=true的领域事件必须持久化
      */
-    protected fun isDomainEventNeedPersist(payload: Any?): Boolean {
-        val domainEvent = payload?.javaClass?.getAnnotation(DomainEvent::class.java)
+    protected open fun isDomainEventNeedPersist(payload: Any): Boolean {
+        val domainEvent = payload.javaClass.getAnnotation(DomainEvent::class.java)
         return domainEvent?.persist ?: false
     }
 
-    protected fun onTransactionCommiting(domainEventAttachedTransactionCommittingEvent: DomainEventAttachedTransactionCommittingEvent) {
+    protected open fun onTransactionCommiting(domainEventAttachedTransactionCommittingEvent: DomainEventAttachedTransactionCommittingEvent) {
         val events = domainEventAttachedTransactionCommittingEvent.events
         publish(events)
     }
@@ -205,7 +211,7 @@ class DefaultDomainEventSupervisor(
      * @param entity 关联实体
      * @return 事件列表
      */
-    protected fun popEvents(entity: Any): Set<Any> {
+    protected open fun popEvents(entity: Any): Set<Any> {
         val entityEventPayloads = TL_ENTITY_EVENT_PAYLOADS.get()
             ?: return EMPTY_EVENT_PAYLOADS
 
@@ -220,7 +226,7 @@ class DefaultDomainEventSupervisor(
     /**
      * 记录事件发送时间
      */
-    protected fun putDeliverTime(eventPayload: Any, schedule: LocalDateTime) {
+    protected open fun putDeliverTime(eventPayload: Any, schedule: LocalDateTime) {
         var eventScheduleMap = TL_EVENT_SCHEDULE_MAP.get()
         if (eventScheduleMap == null) {
             eventScheduleMap = mutableMapOf()

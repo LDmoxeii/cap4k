@@ -25,7 +25,7 @@ class DefaultPersistListenerManager(
     private val eventClassScanPath: String
 ) : PersistListenerManager {
 
-    private val persistListenersMap: MutableMap<Class<*>, MutableList<PersistListener<*>>> by lazy {
+    private val persistListenersMap by lazy {
         ConcurrentHashMap<Class<*>, MutableList<PersistListener<*>>>().also { map ->
             initializePersistListeners(map)
         }

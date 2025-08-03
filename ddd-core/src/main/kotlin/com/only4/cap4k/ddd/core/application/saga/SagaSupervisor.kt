@@ -69,25 +69,4 @@ interface SagaSupervisor {
      * @return 请求结果
      */
     fun <R: Any> result(id: String): R?
-
-    /**
-     * 获取Saga结果
-     *
-     * @param requestId    请求ID
-     * @param requestClass 请求参数类型
-     * @return 请求结果
-     */
-    fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> result(
-        requestId: String,
-        requestClass: Class<REQUEST>
-    ): RESPONSE? {
-        val r = result<Any>(requestId)
-
-        @Suppress("UNCHECKED_CAST")
-        val response = r as? RESPONSE
-        if (r != null && response == null) {
-            throw IllegalArgumentException("request response type mismatch")
-        }
-        return response
-    }
 }

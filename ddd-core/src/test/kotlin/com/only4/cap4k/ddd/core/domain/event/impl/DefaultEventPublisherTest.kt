@@ -319,54 +319,6 @@ class DefaultEventPublisherTest {
     }
 
     @Nested
-    @DisplayName("发布回调测试")
-    inner class PublishCallbackTests {
-
-        @Test
-        @DisplayName("成功回调应该正确处理")
-        fun `success callback should handle correctly`() {
-            // given
-            val eventRecord = createTestEventRecord()
-            val callback = DefaultEventPublisher.IntegrationEventSendPublishCallback(
-                emptySet(),
-                emptySet(),
-                eventRecordRepository
-            )
-
-            every { eventRecord.confirmedDelivery(any()) } just Runs
-
-            // when
-            callback.onSuccess(eventRecord)
-
-            // then
-            verify { eventRecord.confirmedDelivery(any()) }
-            verify { eventRecordRepository.save(eventRecord) }
-        }
-
-        @Test
-        @DisplayName("异常回调应该正确处理")
-        fun `exception callback should handle correctly`() {
-            // given
-            val eventRecord = createTestEventRecord()
-            val throwable = RuntimeException("Test exception")
-            val callback = DefaultEventPublisher.IntegrationEventSendPublishCallback(
-                emptySet(),
-                emptySet(),
-                eventRecordRepository
-            )
-
-            every { eventRecord.occurredException(any(), any()) } just Runs
-
-            // when
-            callback.onException(eventRecord, throwable)
-
-            // then
-            verify { eventRecord.occurredException(any(), throwable) }
-            verify { eventRecordRepository.save(eventRecord) }
-        }
-    }
-
-    @Nested
     @DisplayName("拦截器集成测试")
     inner class InterceptorIntegrationTests {
 

@@ -11,6 +11,5 @@ import org.springframework.context.ApplicationEvent
 class DomainEventAttachedTransactionCommittedEvent(
     source: Any,
     val events: List<EventRecord>
-) :
-    ApplicationEvent(source)
+) : ApplicationEvent(source)
 

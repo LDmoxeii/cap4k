@@ -17,7 +17,7 @@ interface AggregateSupervisor {
         val instance: AggregateSupervisor = AggregateSupervisorSupport.instance
     }
 
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY: Any> create(
+    fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY_PAYLOAD : AggregatePayload<out ENTITY>, ENTITY : Any> create(
         clazz: Class<AGGREGATE>,
         payload: ENTITY_PAYLOAD
     ): AGGREGATE
@@ -25,52 +25,25 @@ interface AggregateSupervisor {
     /**
      * 根据id获取聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> getById(id: Id<AGGREGATE, out Any>): AGGREGATE? =
-        getByIds(listOf(id), true).firstOrNull()
-
-    /**
-     * 根据id获取聚合
-     */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> getById(id: Id<AGGREGATE, out Any>, persist: Boolean): AGGREGATE? =
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getById(
+        id: Id<AGGREGATE, *>,
+        persist: Boolean = true
+    ): AGGREGATE? =
         getByIds(listOf(id), persist).firstOrNull()
 
     /**
      * 根据id获取聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> getByIds(vararg ids: Id<AGGREGATE, out Any>): List<AGGREGATE> =
-        getByIds(ids.toList(), true)
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> =
+        getByIds(ids.toList())
 
     /**
      * 根据id获取聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> getByIds(
-        ids: Iterable<Id<AGGREGATE, out Any>>,
+    fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any> getByIds(
+        ids: Iterable<Id<AGGREGATE, *>>,
         persist: Boolean = true
     ): List<AGGREGATE>
-
-    /**
-     * 根据条件获取聚合列表
-     */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> find(predicate: AggregatePredicate<AGGREGATE, ENTITY>): List<AGGREGATE> =
-        find(predicate, null as Collection<OrderInfo>?, true)
-
-    /**
-     * 根据条件获取聚合列表
-     */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> find(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
-        persist: Boolean
-    ): List<AGGREGATE> =
-        find(predicate, null as Collection<OrderInfo>?, persist)
-
-    /**
-     * 根据条件获取聚合列表
-     */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> find(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
-        orders: Collection<OrderInfo>
-    ): List<AGGREGATE> =
-        find(predicate, orders, true)
 
     /**
      * 根据条件获取聚合列表
@@ -79,25 +52,16 @@ interface AggregateSupervisor {
         predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         vararg orders: OrderInfo
     ): List<AGGREGATE> =
-        find(predicate, orders.toList(), true)
+        find(predicate, orders.toList())
 
     /**
      * 根据条件获取聚合列表
      */
     fun <AGGREGATE : Aggregate<out Any>> find(
         predicate: AggregatePredicate<AGGREGATE, out Any>,
-        orders: Collection<OrderInfo>?,
-        persist: Boolean
+        orders: Collection<OrderInfo> = emptyList(),
+        persist: Boolean = true
     ): List<AGGREGATE>
-
-    /**
-     * 根据条件获取聚合列表
-     */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> find(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
-        pageParam: PageParam
-    ): List<AGGREGATE> =
-        find(predicate, pageParam, true)
 
     /**
      * 根据条件获取聚合列表
@@ -105,21 +69,15 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<out Any>> find(
         predicate: AggregatePredicate<AGGREGATE, out Any>,
         pageParam: PageParam,
-        persist: Boolean
+        persist: Boolean = true
     ): List<AGGREGATE>
-
-    /**
-     * 根据条件获取单个实体
-     */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findOne(predicate: AggregatePredicate<AGGREGATE, ENTITY>): Optional<AGGREGATE> =
-        findOne(predicate, true)
 
     /**
      * 根据条件获取单个实体
      */
     fun <AGGREGATE : Aggregate<out Any>> findOne(
         predicate: AggregatePredicate<AGGREGATE, out Any>,
-        persist: Boolean
+        persist: Boolean = true
     ): Optional<AGGREGATE>
 
     /**
@@ -127,18 +85,9 @@ interface AggregateSupervisor {
      */
     fun <AGGREGATE : Aggregate<out Any>> findFirst(
         predicate: AggregatePredicate<AGGREGATE, out Any>,
-        orders: Collection<OrderInfo>,
-        persist: Boolean
+        orders: Collection<OrderInfo> = emptyList(),
+        persist: Boolean = true
     ): Optional<AGGREGATE>
-
-    /**
-     * 根据条件获取实体
-     */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findFirst(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
-        orders: Collection<OrderInfo>
-    ): Optional<AGGREGATE> =
-        findFirst(predicate, orders, true)
 
     /**
      * 根据条件获取实体
@@ -147,32 +96,7 @@ interface AggregateSupervisor {
         predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         vararg orders: OrderInfo
     ): Optional<AGGREGATE> =
-        findFirst(predicate, orders.toList(), true)
-
-    /**
-     * 根据条件获取实体
-     */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findFirst(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
-        persist: Boolean
-    ): Optional<AGGREGATE> =
-        findFirst(predicate, emptyList(), persist)
-
-    /**
-     * 根据条件获取实体
-     */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findFirst(predicate: AggregatePredicate<AGGREGATE, ENTITY>): Optional<AGGREGATE> =
-        findFirst(predicate, true)
-
-    /**
-     * 根据条件获取实体分页列表
-     * 自动调用 UnitOfWork::persist
-     */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findPage(
-        predicate: AggregatePredicate<AGGREGATE, ENTITY>,
-        pageParam: PageParam
-    ): PageData<AGGREGATE> =
-        findPage(predicate, pageParam, true)
+        findFirst(predicate, orders.toList())
 
     /**
      * 根据条件获取实体分页列表
@@ -180,25 +104,25 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<out Any>> findPage(
         predicate: AggregatePredicate<AGGREGATE, out Any>,
         pageParam: PageParam,
-        persist: Boolean
+        persist: Boolean = true
     ): PageData<AGGREGATE>
 
     /**
      * 根据id删除聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> removeById(id: Id<AGGREGATE, out Any>): AGGREGATE? =
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> removeById(id: Id<AGGREGATE, *>): AGGREGATE? =
         removeByIds(listOf(id)).firstOrNull()
 
     /**
      * 根据id删除聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> removeByIds(vararg ids: Id<AGGREGATE, out Any>): List<AGGREGATE> =
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> removeByIds(vararg ids: Id<AGGREGATE, *>): List<AGGREGATE> =
         removeByIds(ids.toList())
 
     /**
      * 根据id删除聚合
      */
-    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> removeByIds(ids: Iterable<Id<AGGREGATE, out Any>>): List<AGGREGATE>
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> removeByIds(ids: Iterable<Id<AGGREGATE, *>>): List<AGGREGATE>
 
     /**
      * 根据条件删除实体

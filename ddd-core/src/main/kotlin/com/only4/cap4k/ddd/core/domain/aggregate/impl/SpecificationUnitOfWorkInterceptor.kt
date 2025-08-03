@@ -15,26 +15,24 @@ class SpecificationUnitOfWorkInterceptor(
 ) : UnitOfWorkInterceptor {
 
     override fun beforeTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
-        persistAggregates.takeIf { it.isNotEmpty() }?.let { aggregates ->
-            aggregates.forEach { entity ->
-                val result = specificationManager.specifyBeforeTransaction(entity)
-                if (!result.passed) {
-                    throw DomainException(result.message)
-                }
+        persistAggregates.forEach { entity ->
+            val result = specificationManager.specifyBeforeTransaction(entity)
+            if (!result.passed) {
+                throw DomainException(result.message)
             }
         }
     }
 
+
     override fun preInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
-        persistAggregates.takeIf { it.isNotEmpty() }?.let { aggregates ->
-            aggregates.forEach { entity ->
-                val result = specificationManager.specifyInTransaction(entity)
-                if (!result.passed) {
-                    throw DomainException(result.message)
-                }
+        persistAggregates.forEach { entity ->
+            val result = specificationManager.specifyInTransaction(entity)
+            if (!result.passed) {
+                throw DomainException(result.message)
             }
         }
     }
+
 
     override fun postInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
         // Empty implementation

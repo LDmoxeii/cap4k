@@ -12,5 +12,5 @@ import com.only4.cap4k.ddd.core.application.RequestParam
  * @param PARAM 查询参数类型，必须实现RequestParam接口，用于定义查询条件
  * @param ITEM 列表项类型，表示查询结果中的单个数据项
  */
-interface ListQuery<PARAM : RequestParam<List<ITEM>>, ITEM> :
+interface ListQuery<in PARAM : RequestParam<out List<ITEM>>, out ITEM : Any> :
     Query<PARAM, List<ITEM>>

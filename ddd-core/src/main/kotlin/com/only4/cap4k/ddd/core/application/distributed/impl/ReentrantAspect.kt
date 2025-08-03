@@ -66,16 +66,14 @@ class ReentrantAspect(
         }
     }
 
-    private fun generateLockKey(method: Method, key: String?): String {
-        return if (key.isNullOrEmpty()) {
+    private fun generateLockKey(method: Method, key: String): String {
+        return key.ifBlank {
             "${method.declaringClass.name}:${method.name}"
-        } else {
-            key
         }
     }
 
-    private fun parseDuration(expireStr: String?): Duration {
-        if (expireStr.isNullOrEmpty()) {
+    private fun parseDuration(expireStr: String): Duration {
+        if (expireStr.isBlank()) {
             return DEFAULT_EXPIRE
         }
 

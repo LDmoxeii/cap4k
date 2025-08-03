@@ -28,6 +28,22 @@ interface IntegrationEventSupervisor {
         delay: Duration
     ) = attach(eventPayload, LocalDateTime.now().plus(delay))
 
+    /**
+     * 附加事件到持久化上下文
+     *
+     * @param schedule             指定时间发送
+     * @param eventPayloadSupplier 事件消息体提供者
+     * @param <EVENT>              集成事件类型
+    </EVENT> */
+    fun <EVENT : Any> attach(
+        schedule: LocalDateTime = LocalDateTime.now(),
+        eventPayloadSupplier: () -> EVENT
+    )
+
+    fun <EVENT : Any> attach(
+        delay: Duration,
+        eventPayloadSupplier: () -> EVENT
+    ) = attach(LocalDateTime.now().plus(delay), eventPayloadSupplier)
 
     /**
      * 从持久化上下文解除事件

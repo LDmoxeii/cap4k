@@ -124,7 +124,7 @@ interface RequestRecord {
      * @param result 执行结果
      * @throws IllegalStateException 当请求状态不允许完成时
      */
-    fun endRequest(now: LocalDateTime, result: Any?)
+    fun endRequest(now: LocalDateTime, result: Any)
 
     /**
      * 处理请求执行异常

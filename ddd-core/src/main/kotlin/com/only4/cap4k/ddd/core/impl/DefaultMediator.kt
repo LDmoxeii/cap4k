@@ -24,12 +24,14 @@ import java.util.*
  */
 class DefaultMediator : Mediator {
 
-    override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY =
+    // AggregateFactorySupervisor methods
+    override fun <ENTITY_PAYLOAD : AggregatePayload<out ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY =
         AggregateFactorySupervisor.instance.create(entityPayload)
 
+    // RepositorySupervisor methods
     override fun <ENTITY: Any> find(
         predicate: Predicate<ENTITY>,
-        orders: Collection<OrderInfo>?,
+        orders: Collection<OrderInfo>,
         persist: Boolean
     ): List<ENTITY> =
         RepositorySupervisor.instance.find(predicate, orders, persist)
@@ -66,9 +68,11 @@ class DefaultMediator : Mediator {
     override fun <ENTITY: Any> exists(predicate: Predicate<ENTITY>): Boolean =
         RepositorySupervisor.instance.exists(predicate)
 
+    // DomainServiceSupervisor methods
     override fun <DOMAIN_SERVICE> getService(domainServiceClass: Class<DOMAIN_SERVICE>): DOMAIN_SERVICE? =
         DomainServiceSupervisor.instance.getService(domainServiceClass)
 
+    // UnitOfWork methods
     override fun persist(entity: Any) {
         UnitOfWork.instance.persist(entity)
     }
@@ -80,14 +84,11 @@ class DefaultMediator : Mediator {
         UnitOfWork.instance.remove(entity)
     }
 
-    override fun save() {
-        UnitOfWork.instance.save()
-    }
-
     override fun save(propagation: Propagation) {
         UnitOfWork.instance.save(propagation)
     }
 
+    // RequestSupervisor methods
     override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE : Any> send(request: REQUEST): RESPONSE =
         RequestSupervisor.instance.send(request)
 
@@ -100,8 +101,13 @@ class DefaultMediator : Mediator {
     override fun <R: Any> result(requestId: String): R =
         RequestSupervisor.instance.result(requestId)
 
+    // IntegrationEventSupervisor methods
     override fun <EVENT : Any> attach(eventPayload: EVENT, schedule: LocalDateTime) {
         IntegrationEventSupervisor.instance.attach(eventPayload, schedule)
+    }
+
+    override fun <EVENT : Any> attach(schedule: LocalDateTime, eventPayloadSupplier: () -> EVENT) {
+        IntegrationEventSupervisor.instance.attach(schedule, eventPayloadSupplier)
     }
 
     override fun <EVENT : Any> detach(eventPayload: EVENT) {
@@ -112,13 +118,14 @@ class DefaultMediator : Mediator {
         IntegrationEventSupervisor.instance.publish(eventPayload, schedule)
     }
 
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY: Any> create(
+    // AggregateSupervisor methods
+    override fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY_PAYLOAD : AggregatePayload<out ENTITY>, ENTITY : Any> create(
         clazz: Class<AGGREGATE>,
         payload: ENTITY_PAYLOAD
     ): AGGREGATE =
         AggregateSupervisor.instance.create(clazz, payload)
 
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> getByIds(
+    override fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any> getByIds(
         ids: Iterable<Id<AGGREGATE, *>>,
         persist: Boolean
     ): List<AGGREGATE> =
@@ -126,7 +133,7 @@ class DefaultMediator : Mediator {
 
     override fun <AGGREGATE : Aggregate<out Any>> find(
         predicate: AggregatePredicate<AGGREGATE, out Any>,
-        orders: Collection<OrderInfo>?,
+        orders: Collection<OrderInfo>,
         persist: Boolean
     ): List<AGGREGATE> =
         AggregateSupervisor.instance.find(predicate, orders, persist)

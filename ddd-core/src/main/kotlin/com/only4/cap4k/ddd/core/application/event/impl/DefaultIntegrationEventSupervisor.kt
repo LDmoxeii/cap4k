@@ -67,6 +67,10 @@ open class DefaultIntegrationEventSupervisor(
             .forEach { interceptor -> interceptor.onAttach(eventPayload, schedule) }
     }
 
+    override fun <EVENT : Any> attach(schedule: LocalDateTime, eventPayloadSupplier: () -> EVENT) {
+        attach(eventPayload = eventPayloadSupplier.invoke(), schedule = schedule)
+    }
+
     override fun <EVENT : Any> detach(eventPayload: EVENT) {
         val eventPayloads = TL_EVENT_PAYLOADS.get() ?: return
         eventPayloads.remove(eventPayload)
@@ -81,35 +85,19 @@ open class DefaultIntegrationEventSupervisor(
 
         for (eventPayload in eventPayloads) {
             val deliverTime = getDeliverTime(eventPayload)
-            val event = eventRecordRepository.create().apply {
-                init(
-                    eventPayload,
-                    svcName,
-                    deliverTime,
-                    Duration.ofMinutes(DEFAULT_EVENT_EXPIRE_MINUTES.toLong()),
-                    DEFAULT_EVENT_RETRY_TIMES
-                )
-                markPersist(true)
-            }
-
-            integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent
-                .forEach { interceptor -> interceptor.prePersist(event) }
-
-            eventRecordRepository.save(event)
-
-            integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent
-                .forEach { interceptor -> interceptor.postPersist(event) }
-
+            val event = persistEvent(eventPayload, deliverTime)
             persistedEvents.add(event)
         }
 
-        val integrationEventAttachedTransactionCommittedEvent =
-            IntegrationEventAttachedTransactionCommittedEvent(this, persistedEvents)
-        applicationEventPublisher.publishEvent(integrationEventAttachedTransactionCommittedEvent)
+        publishCommittedEvent(persistedEvents)
     }
 
     override fun <EVENT : Any> publish(eventPayload: EVENT, schedule: LocalDateTime) {
-        val persistedEvents = mutableListOf<EventRecord>()
+        val event = persistEvent(eventPayload, schedule)
+        publishCommittedEvent(listOf(event))
+    }
+
+    private fun persistEvent(eventPayload: Any, schedule: LocalDateTime): EventRecord {
         val event = eventRecordRepository.create().apply {
             init(
                 eventPayload,
@@ -129,10 +117,12 @@ open class DefaultIntegrationEventSupervisor(
         integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent
             .forEach { interceptor -> interceptor.postPersist(event) }
 
-        persistedEvents.add(event)
+        return event
+    }
 
+    private fun publishCommittedEvent(events: List<EventRecord>) {
         val integrationEventAttachedTransactionCommittedEvent =
-            IntegrationEventAttachedTransactionCommittedEvent(this, persistedEvents)
+            IntegrationEventAttachedTransactionCommittedEvent(this, events)
         applicationEventPublisher.publishEvent(integrationEventAttachedTransactionCommittedEvent)
     }
 
@@ -140,11 +130,8 @@ open class DefaultIntegrationEventSupervisor(
         fallbackExecution = true,
         classes = [IntegrationEventAttachedTransactionCommittedEvent::class]
     )
-    fun onTransactionCommitted(
-        integrationEventAttachedTransactionCommittedEvent: IntegrationEventAttachedTransactionCommittedEvent
-    ) {
-        val events = integrationEventAttachedTransactionCommittedEvent.events
-        events.takeIf { it.isNotEmpty() }?.forEach { event ->
+    fun IntegrationEventAttachedTransactionCommittedEvent.onTransactionCommitted() = apply {
+        events.forEach { event ->
             eventPublisher.publish(event)
         }
     }

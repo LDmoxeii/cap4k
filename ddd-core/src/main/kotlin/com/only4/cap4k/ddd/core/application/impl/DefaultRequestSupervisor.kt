@@ -54,36 +54,31 @@ open class DefaultRequestSupervisor(
     }
 
     private val requestHandlerMap by lazy {
-        val handlerMap = mutableMapOf<Class<*>, RequestHandler<*, *>>()
-
-        // 初始化请求处理器映射
-        requestHandlers.forEach { requestHandler ->
-            val requestPayloadClass = resolveGenericTypeClass(
-                requestHandler, 0,
-                RequestHandler::class.java,
-                Command::class.java, NoneResultCommandParam::class.java,
-                Query::class.java, ListQuery::class.java, PageQuery::class.java
-            )
-            handlerMap[requestPayloadClass] = requestHandler
-        }
-
-        handlerMap.toMap()
+        buildMap<Class<*>, RequestHandler<*, *>> {
+            requestHandlers.forEach { requestHandler ->
+                val requestPayloadClass = resolveGenericTypeClass(
+                    requestHandler, 0,
+                    RequestHandler::class.java,
+                    Command::class.java, NoneResultCommandParam::class.java,
+                    Query::class.java, ListQuery::class.java, PageQuery::class.java
+                )
+                put(requestPayloadClass, requestHandler)
+            }
+        }.toMap()
     }
 
     private val requestInterceptorMap by lazy {
-        val interceptorMap = mutableMapOf<Class<*>, MutableList<RequestInterceptor<*, *>>>()
-
-        // 初始化请求拦截器映射
-        requestInterceptors.forEach { requestInterceptor ->
-            val requestPayloadClass = resolveGenericTypeClass(
-                requestInterceptor, 0,
-                RequestInterceptor::class.java
-            )
-            interceptorMap.computeIfAbsent(requestPayloadClass) { mutableListOf() }
-                .add(requestInterceptor)
-        }
-
-        interceptorMap.toMap()
+        buildMap<Class<*>, MutableList<RequestInterceptor<*, *>>> {
+            // 初始化请求拦截器映射
+            requestInterceptors.forEach { requestInterceptor ->
+                val requestPayloadClass = resolveGenericTypeClass(
+                    requestInterceptor, 0,
+                    RequestInterceptor::class.java
+                )
+                computeIfAbsent(requestPayloadClass) { mutableListOf() }
+                    .add(requestInterceptor)
+            }
+        }.toMap()
     }
 
     private val executorService by lazy {

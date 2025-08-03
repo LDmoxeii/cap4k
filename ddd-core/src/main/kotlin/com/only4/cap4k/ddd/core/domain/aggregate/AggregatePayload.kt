@@ -7,4 +7,4 @@ package com.only4.cap4k.ddd.core.domain.aggregate
  * @author LD_moxeii
  * @date 2025/07/20
  */
-interface AggregatePayload<ENTITY>
+interface AggregatePayload<ENTITY : Any>

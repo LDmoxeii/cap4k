@@ -56,7 +56,7 @@ interface SagaRecord {
      *
      * @return 执行结果
      */
-    fun <R> getResult(): R
+    fun <R> getResult(): R?
 
     /**
      * Saga流程子环节开始执行
