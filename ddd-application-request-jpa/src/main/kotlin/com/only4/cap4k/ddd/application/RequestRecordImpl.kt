@@ -47,7 +47,7 @@ class RequestRecordImpl : RequestRecord {
 
     override fun <R : Any> getResult(): R {
         @Suppress("UNCHECKED_CAST")
-        return request.requestResult as R
+        return request.requestResult!! as R
     }
 
     override val scheduleTime: LocalDateTime

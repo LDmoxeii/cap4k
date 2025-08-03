@@ -97,9 +97,8 @@ class Request {
                     Class.forName(paramType)
                 } catch (e: ClassNotFoundException) {
                     logger.error("参数类型解析错误", e)
-                    return null
+                    throw DomainException("参数类型解析错误: $paramType", e)
                 }
-                @Suppress("UNCHECKED_CAST")
                 field = JSON.parseObject(param, dataClass, Feature.SupportNonPublicField) as RequestParam<*>
             }
             return field
@@ -118,7 +117,7 @@ class Request {
                     Class.forName(resultType)
                 } catch (e: ClassNotFoundException) {
                     logger.error("返回类型解析错误", e)
-                    return null
+                    throw DomainException("返回类型解析错误: $resultType", e)
                 }
                 field = JSON.parseObject(result, dataClass, Feature.SupportNonPublicField)
             }
@@ -126,10 +125,7 @@ class Request {
         }
         private set
 
-    private fun loadRequestParam(requestParam: RequestParam<*>?) {
-        if (requestParam == null) {
-            throw DomainException("Request参数不能为null")
-        }
+    private fun loadRequestParam(requestParam: RequestParam<*>) {
         this.requestParam = requestParam
         this.param = JSON.toJSONString(
             requestParam,
@@ -140,7 +136,7 @@ class Request {
         val retry = requestParam.javaClass.getAnnotation(Retry::class.java)
         if (retry != null) {
             this.tryTimes = retry.retryTimes
-            this.expireAt = this.createAt!!.plusMinutes(retry.expireAfter.toLong())
+            this.expireAt = this.createAt.plusMinutes(retry.expireAfter.toLong())
         }
     }
 
@@ -183,15 +179,12 @@ class Request {
             return false
         }
         // 未到下次重试时间
-        if ((this.lastTryTime == null || this.lastTryTime != now) && this.nextTryTime != null && this.nextTryTime!!.isAfter(
-                now
-            )
-        ) {
+        if (this.lastTryTime != now && this.nextTryTime.isAfter(now)) {
             return false
         }
         this.requestState = RequestState.EXECUTING
         this.lastTryTime = now
-        this.triedTimes = this.triedTimes + 1
+        this.triedTimes += 1
         this.nextTryTime = calculateNextTryTime(now)
         return true
     }
