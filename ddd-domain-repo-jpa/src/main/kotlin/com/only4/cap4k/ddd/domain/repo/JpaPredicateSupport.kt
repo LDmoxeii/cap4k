@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.domain.repo
 
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
+import com.only4.cap4k.ddd.core.share.DomainException
 import org.springframework.data.jpa.domain.Specification
 
 /**
@@ -16,9 +17,9 @@ object JpaPredicateSupport {
      */
     @Suppress("UNCHECKED_CAST")
     fun <ENTITY : Any, ID> resumeId(predicate: Predicate<ENTITY>): ID? {
-        if (predicate !is JpaPredicate) {
-            return null
-        }
+        predicate as? JpaPredicate<ENTITY>
+            ?: throw DomainException("Unsupported predicate type: ${predicate::class.java.name}")
+
         val ids = predicate.ids ?: return null
         val iterator = ids.iterator()
         return if (iterator.hasNext()) iterator.next() as ID else null
@@ -29,9 +30,9 @@ object JpaPredicateSupport {
      */
     @Suppress("UNCHECKED_CAST")
     fun <ENTITY : Any, ID> resumeIds(predicate: Predicate<ENTITY>): Iterable<ID>? {
-        if (predicate !is JpaPredicate) {
-            return null
-        }
+        predicate as? JpaPredicate<ENTITY>
+            ?: throw DomainException("Unsupported predicate type: ${predicate::class.java.name}")
+
         return predicate.ids as? Iterable<ID>
     }
 
@@ -39,9 +40,9 @@ object JpaPredicateSupport {
      * 复原Specification
      */
     fun <ENTITY : Any> resumeSpecification(predicate: Predicate<ENTITY>): Specification<ENTITY>? {
-        if (predicate !is JpaPredicate) {
-            return null
-        }
+        predicate as? JpaPredicate<ENTITY>
+            ?: throw DomainException("Unsupported predicate type: ${predicate::class.java.name}")
+
         return predicate.spec
     }
 
@@ -50,7 +51,9 @@ object JpaPredicateSupport {
      */
     @Suppress("UNCHECKED_CAST")
     fun <ENTITY : Any> reflectEntityClass(predicate: Predicate<ENTITY>): Class<ENTITY>? {
-        if (predicate !is JpaPredicate) return null
+        predicate as? JpaPredicate<ENTITY>
+            ?: throw DomainException("Unsupported predicate type: ${predicate::class.java.name}")
+
         return predicate.entityClass
     }
 }

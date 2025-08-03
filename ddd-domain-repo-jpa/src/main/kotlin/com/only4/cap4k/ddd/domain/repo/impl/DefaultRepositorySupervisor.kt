@@ -17,8 +17,8 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * 默认仓储管理器
  *
- * @author binking338
- * @date 2024/9/3
+ * @author LD_moxeii
+ * @date 2025/08/03
  */
 class DefaultRepositorySupervisor(
     private val repositories: List<Repository<*>>,
