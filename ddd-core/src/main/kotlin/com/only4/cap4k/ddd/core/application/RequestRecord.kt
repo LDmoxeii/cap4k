@@ -58,7 +58,7 @@ interface RequestRecord {
      * @return 请求处理结果
      * @throws IllegalStateException 当请求未完成或执行失败时
      */
-    fun <R> getResult(): R
+    fun <R : Any> getResult(): R
 
     /**
      * 计划执行时间

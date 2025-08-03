@@ -3,7 +3,6 @@ package com.only4.cap4k.ddd.application
 import com.only4.cap4k.ddd.application.persistence.Request
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestRecord
-import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -14,7 +13,6 @@ import java.time.LocalDateTime
  * @date 2025/07/31
  */
 class RequestRecordImpl : RequestRecord {
-    private val logger = LoggerFactory.getLogger(RequestRecordImpl::class.java)
     lateinit var request: Request
 
     /**
@@ -47,9 +45,9 @@ class RequestRecordImpl : RequestRecord {
     override val param: RequestParam<*>
         get() = request.requestParam!!
 
-    override fun <R> getResult(): R {
+    override fun <R : Any> getResult(): R {
         @Suppress("UNCHECKED_CAST")
-        return request.requestResult!! as R
+        return request.requestResult as R
     }
 
     override val scheduleTime: LocalDateTime
@@ -74,7 +72,7 @@ class RequestRecordImpl : RequestRecord {
 
     override fun cancelRequest(now: LocalDateTime): Boolean = request.cancelRequest(now)
 
-    override fun endRequest(now: LocalDateTime, result: Any?) {
+    override fun endRequest(now: LocalDateTime, result: Any) {
         request.endRequest(now, result)
     }
 

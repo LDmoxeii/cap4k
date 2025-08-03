@@ -80,7 +80,7 @@ class ArchivedRequest {
      * text
      */
     @Column(name = "`param`")
-    var param: String? = null
+    var param: String = ""
 
     /**
      * 参数类型
@@ -94,7 +94,7 @@ class ArchivedRequest {
      * text
      */
     @Column(name = "`result`")
-    var result: String? = null
+    var result: String = ""
 
     /**
      * 结果类型

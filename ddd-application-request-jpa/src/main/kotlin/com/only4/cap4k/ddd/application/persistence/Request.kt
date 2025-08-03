@@ -142,10 +142,7 @@ class Request {
         }
     }
 
-    private fun loadRequestResult(result: Any?) {
-        if (result == null) {
-            throw DomainException("Request返回不能为null")
-        }
+    private fun loadRequestResult(result: Any) {
         this.requestResult = result
         this.result =
             JSON.toJSONString(result, SerializerFeature.IgnoreNonFieldGetter, SerializerFeature.SkipTransientField)
@@ -197,7 +194,7 @@ class Request {
         return true
     }
 
-    fun endRequest(now: LocalDateTime, result: Any?) {
+    fun endRequest(now: LocalDateTime, result: Any) {
         this.requestState = RequestState.EXECUTED
         loadRequestResult(result)
     }
@@ -281,7 +278,7 @@ class Request {
 
         companion object {
             fun valueOf(value: Int?): RequestState? {
-                return values().find { it.value == value }
+                return entries.find { it.value == value }
             }
         }
 
@@ -331,7 +328,7 @@ class Request {
      * text
      */
     @Column(name = "`param`")
-    var param: String? = null
+    var param: String = ""
 
     /**
      * 参数类型
@@ -345,7 +342,7 @@ class Request {
      * text
      */
     @Column(name = "`result`")
-    var result: String? = null
+    var result: String = ""
 
     /**
      * 结果类型
