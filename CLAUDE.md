@@ -33,14 +33,11 @@ follows a multi-module structure with DDD architectural patterns.
 - **ddd-integration-event-http** - HTTP-based integration event publishing and subscription
 - **ddd-integration-event-http-jpa** - JPA persistence for HTTP integration event subscriptions
 - **ddd-distributed-saga-jpa** - JPA-based distributed saga orchestration with compensation and archiving
+- **ddd-distributed-locker-jdbc** - JDBC-based distributed locking
+- **ddd-distributed-snowflake** - Snowflake algorithm for distributed ID generation
 - **cap4k-ddd-console** - Management console with HTTP endpoints for monitoring events, requests, sagas, locks, and
   snowflake IDs
 - **cap4k-ddd-starter** - Spring Boot starter for automatic configuration
-
-#### Available but Inactive Modules (commented in settings)
-
-- **ddd-distributed-locker-jdbc** - JDBC-based distributed locking
-- **ddd-distributed-snowflake** - Snowflake algorithm for distributed ID generation
 
 ### Core Architecture
 
@@ -229,6 +226,47 @@ HTTP-based integration event system for cross-service communication:
 - QueryDSL for type-safe query building
 - Build caching and configuration caching enabled
 - Convention plugins in `buildSrc/` for shared build logic
+- Spring Boot BOM for dependency version management
+
+### Build System
+
+The project uses a sophisticated Gradle setup:
+
+- **Convention Plugin**: `buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts` provides shared build logic
+- **Kotlin Spring Plugin**: Automatically adds `open` modifier to Spring-annotated classes for proxy compatibility
+- **Version Catalog**: `gradle/libs.versions.toml` centralizes dependency versions
+- **Platform Dependencies**: Uses Spring Boot BOM for consistent dependency versions
+- **Test Configuration**: Enhanced test setup with 2GB heap, 10-minute timeout, and comprehensive logging
+
+#### Build Dependencies Pattern
+
+All modules follow consistent dependency patterns:
+
+```kotlin
+dependencies {
+  // Platform for version management (core modules only)
+  api(platform(libs.springBootDependencies))
+
+  // Project dependencies
+  implementation(project(":ddd-core"))
+
+  // Implementation dependencies
+  implementation(libs.fastjson)
+  implementation("org.jetbrains.kotlin:kotlin-reflect")
+
+  // Compile-only dependencies
+  compileOnly(libs.springContext)
+
+  // Test platform (for modules with Spring test dependencies)
+  testImplementation(platform(libs.springBootDependencies))
+
+  // Test framework (consistent across all modules)
+  testImplementation(libs.mockk)
+  testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+  testImplementation("org.jetbrains.kotlin:kotlin-test")
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+```
 
 ## Testing
 
@@ -368,14 +406,6 @@ JpaRequestScheduleService(
 Note: The `svcName` parameter was removed from `JpaRequestScheduleService` in recent updates.
 
 When updating these services, ensure all test constructors are updated accordingly.
-
-# important-instruction-reminders
-
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly
-requested by the User.
 
 # important-instruction-reminders
 

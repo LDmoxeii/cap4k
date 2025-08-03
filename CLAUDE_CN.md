@@ -32,13 +32,10 @@ Cap4k 是一个面向 Kotlin/JVM 应用程序的领域驱动设计（DDD）框�
 - **ddd-integration-event-http** - 基于 HTTP 的集成事件发布和订阅
 - **ddd-integration-event-http-jpa** - HTTP 集成事件订阅的 JPA 持久化
 - **ddd-distributed-saga-jpa** - 基于 JPA 的分布式 Saga 编排，支持补偿和归档
-- **cap4k-ddd-console** - 管理控制台，提供监控事件、请求、Saga、锁和雪花 ID 的 HTTP 端点
-- **cap4k-ddd-starter** - Spring Boot 自动配置启动器
-
-#### 可用但未激活的模块（在 settings 中注释）
-
 - **ddd-distributed-locker-jdbc** - 基于 JDBC 的分布式锁
 - **ddd-distributed-snowflake** - 分布式 ID 生成的雪花算法
+- **cap4k-ddd-console** - 管理控制台，提供监控事件、请求、Saga、锁和雪花 ID 的 HTTP 端点
+- **cap4k-ddd-starter** - Spring Boot 自动配置启动器
 
 ### 核心架构
 
@@ -225,6 +222,47 @@ val users = repository.find(predicate, persist = false)
 - QueryDSL 用于类型安全的查询构建
 - 启用构建缓存和配置缓存
 - `buildSrc/` 中的约定插件用于共享构建逻辑
+- Spring Boot BOM 用于依赖版本管理
+
+### 构建系统
+
+项目使用复杂的 Gradle 设置：
+
+- **约定插件**：`buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts` 提供共享构建逻辑
+- **Kotlin Spring 插件**：自动为 Spring 注解类添加 `open` 修饰符以支持代理兼容性
+- **版本目录**：`gradle/libs.versions.toml` 集中管理依赖版本
+- **平台依赖**：使用 Spring Boot BOM 确保依赖版本一致性
+- **测试配置**：增强的测试设置，包括 2GB 堆内存、10 分钟超时和全面日志记录
+
+#### 构建依赖模式
+
+所有模块遵循一致的依赖模式：
+
+```kotlin
+dependencies {
+    // 版本管理平台（仅核心模块）
+    api(platform(libs.springBootDependencies))
+    
+    // 项目依赖
+    implementation(project(":ddd-core"))
+    
+    // 实现依赖
+    implementation(libs.fastjson)
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    
+    // 编译时依赖
+    compileOnly(libs.springContext)
+    
+    // 测试平台（包含 Spring 测试依赖的模块）
+    testImplementation(platform(libs.springBootDependencies))
+    
+    // 测试框架（所有模块保持一致）
+    testImplementation(libs.mockk)
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testImplementation("org.jetbrains.kotlin:kotlin-test")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+```
 
 ## 测试
 
