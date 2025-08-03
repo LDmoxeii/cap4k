@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration
  * @date 2025/08/03
  */
 @Configuration
-open class DomainServiceAutoConfiguration {
+class DomainServiceAutoConfiguration {
 
     /**
      * 默认领域服务管理器
@@ -22,7 +22,7 @@ open class DomainServiceAutoConfiguration {
      * @return
      */
     @Bean
-    open fun defaultDomainServiceSupervisor(applicationContext: ApplicationContext): DefaultDomainServiceSupervisor {
+    fun defaultDomainServiceSupervisor(applicationContext: ApplicationContext): DefaultDomainServiceSupervisor {
         return DefaultDomainServiceSupervisor(applicationContext).apply {
             DomainServiceSupervisorSupport.configure(this)
         }

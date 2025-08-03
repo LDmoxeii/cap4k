@@ -8,6 +8,8 @@ import java.time.Duration
 plugins {
     // Apply the Kotlin JVM plugin to add support for Kotlin in JVM projects.
     kotlin("jvm")
+    // Apply the Kotlin Spring plugin for better Spring framework integration.
+    kotlin("plugin.spring")
 }
 
 kotlin {

@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.application")
-open class RequestProperties(
+class RequestProperties(
     /**
      * 请求调度线程池大小
      */

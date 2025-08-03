@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.archinfo")
-open class ArchInfoProperties(
+class ArchInfoProperties(
     var enabled: Boolean = false,
     var basePackage: String = ""
 )

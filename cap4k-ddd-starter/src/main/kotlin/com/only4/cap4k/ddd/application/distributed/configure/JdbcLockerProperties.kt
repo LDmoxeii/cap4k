@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 @ConfigurationProperties("cap4j.ddd.distributed.locker.jdbc")
-open class JdbcLockerProperties(
+class JdbcLockerProperties(
     /**
      * 锁表名
      */

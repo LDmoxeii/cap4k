@@ -17,7 +17,7 @@ import org.springframework.jdbc.core.JdbcTemplate
  * @date 2025/08/03
  */
 @Configuration
-open class JdbcLockerAutoConfiguration(
+class JdbcLockerAutoConfiguration(
     private val jdbcTemplate: JdbcTemplate
 ) {
     companion object {
@@ -26,7 +26,7 @@ open class JdbcLockerAutoConfiguration(
 
     @Bean
     @ConditionalOnMissingBean(value = [Locker::class])
-    open fun jdbcLocker(
+    fun jdbcLocker(
         properties: JdbcLockerProperties,
         @Value(CONFIG_KEY_4_JPA_SHOW_SQL) showSql: Boolean
     ): JdbcLocker {
@@ -42,7 +42,7 @@ open class JdbcLockerAutoConfiguration(
     }
 
     @Bean
-    open fun reentrantAspect(locker: Locker): ReentrantAspect {
+    fun reentrantAspect(locker: Locker): ReentrantAspect {
         return ReentrantAspect(locker)
     }
 }

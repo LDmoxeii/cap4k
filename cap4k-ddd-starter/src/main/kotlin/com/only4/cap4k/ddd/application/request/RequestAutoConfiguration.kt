@@ -41,7 +41,7 @@ import java.time.Duration
         "com.only4.cap4k.ddd.application.persistence"
     ]
 )
-open class RequestAutoConfiguration {
+class RequestAutoConfiguration {
 
     companion object {
         const val CONFIG_KEY_4_REQUEST_COMPENSE_LOCKER_KEY = "request_compense[$CONFIG_KEY_4_SVC_NAME]"
@@ -50,7 +50,7 @@ open class RequestAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(RequestRecordRepository::class)
-    open fun jpaRequestRecordRepository(
+    fun jpaRequestRecordRepository(
         requestJpaRepository: RequestJpaRepository,
         archivedRequestJpaRepository: ArchivedRequestJpaRepository
     ): JpaRequestRecordRepository {
@@ -58,7 +58,7 @@ open class RequestAutoConfiguration {
     }
 
     @Bean
-    open fun defaultRequestSupervisor(
+    fun defaultRequestSupervisor(
         requestHandlers: List<RequestHandler<*, *>>,
         requestInterceptors: List<RequestInterceptor<*, *>>,
         @Autowired(required = false) validator: Validator?,
@@ -82,7 +82,7 @@ open class RequestAutoConfiguration {
     }
 
     @Bean
-    open fun jpaRequestScheduleService(
+    fun jpaRequestScheduleService(
         requestManager: RequestManager,
         locker: Locker,
         @Value(CONFIG_KEY_4_REQUEST_COMPENSE_LOCKER_KEY) compensationLockerKey: String,

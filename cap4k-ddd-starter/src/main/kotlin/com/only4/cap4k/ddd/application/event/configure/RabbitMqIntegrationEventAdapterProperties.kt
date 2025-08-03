@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.integration.event.rabbitmq")
-open class RabbitMqIntegrationEventAdapterProperties(
+class RabbitMqIntegrationEventAdapterProperties(
     /**
      * 异步发送线程池大小
      */

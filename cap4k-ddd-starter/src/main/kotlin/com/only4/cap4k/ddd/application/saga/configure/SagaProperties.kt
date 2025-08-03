@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.application.saga")
-open class SagaProperties(
+class SagaProperties(
     /**
      * Saga异步线程池大小
      * 用于实现Saga异步执行

@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.domain.event.schedule")
-open class EventScheduleProperties(
+class EventScheduleProperties(
     /**
      * 补偿发送-批量查询事件数量
      */

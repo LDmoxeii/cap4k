@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.application.request.schedule")
-open class RequestScheduleProperties(
+class RequestScheduleProperties(
     /**
      * 补偿发送-批量查询事件数量
      */

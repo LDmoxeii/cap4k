@@ -15,11 +15,11 @@ import org.springframework.context.annotation.Configuration
  * @date 2025/08/03
  */
 @Configuration
-open class MediatorAutoConfiguration {
+class MediatorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(Mediator::class)
-    open fun defaultMediator(applicationContext: ApplicationContext): DefaultMediator {
+    fun defaultMediator(applicationContext: ApplicationContext): DefaultMediator {
         val defaultMediator = DefaultMediator()
         MediatorSupport.configure(defaultMediator)
         MediatorSupport.configure(applicationContext)

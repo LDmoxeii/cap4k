@@ -21,14 +21,14 @@ import java.nio.charset.StandardCharsets
  * @date 2025/08/03
  */
 @Configuration
-open class ArchInfoAutoConfiguration {
+class ArchInfoAutoConfiguration {
 
     companion object {
         private val log = LoggerFactory.getLogger(ArchInfoAutoConfiguration::class.java)
     }
 
     @Bean
-    open fun archInfoManager(
+    fun archInfoManager(
         @Value("\$$CONFIG_KEY_4_SVC_NAME") name: String,
         @Value("\$$CONFIG_KEY_4_SVC_VERSION") version: String,
         archInfoProperties: ArchInfoProperties
@@ -39,7 +39,7 @@ open class ArchInfoAutoConfiguration {
     @ConditionalOnWebApplication
     @ConditionalOnProperty(name = ["cap4k.ddd.archinfo.enabled"], havingValue = "true")
     @Bean(name = ["/cap4k/archinfo"])
-    open fun archInfoRequestHandler(
+    fun archInfoRequestHandler(
         archInfoManager: ArchInfoManager,
         @Value("\${server.port:80}") serverPort: String,
         @Value("\${server.servlet.context-path:}") serverServletContentPath: String

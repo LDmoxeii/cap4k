@@ -34,10 +34,10 @@ import org.springframework.context.annotation.Configuration
  * @date 2025/08/03
  */
 @Configuration
-open class JpaRepositoryAutoConfiguration {
+class JpaRepositoryAutoConfiguration {
 
     @Bean
-    open fun defaultRepositorySupervisor(
+    fun defaultRepositorySupervisor(
         repositories: List<Repository<*>>,
         unitOfWork: JpaUnitOfWork
     ): DefaultRepositorySupervisor {
@@ -48,7 +48,7 @@ open class JpaRepositoryAutoConfiguration {
     }
 
     @Bean
-    open fun defaultAggregateSupervisor(
+    fun defaultAggregateSupervisor(
         repositorySupervisor: DefaultRepositorySupervisor,
         jpaUnitOfWork: JpaUnitOfWork
     ): DefaultAggregateSupervisor {
@@ -61,7 +61,7 @@ open class JpaRepositoryAutoConfiguration {
     }
 
     @Bean
-    open fun defaultAggregateFactorySupervisor(
+    fun defaultAggregateFactorySupervisor(
         factories: List<AggregateFactory<*, *>>,
         jpaUnitOfWork: JpaUnitOfWork
     ): DefaultAggregateFactorySupervisor {
@@ -75,7 +75,7 @@ open class JpaRepositoryAutoConfiguration {
     }
 
     @Bean
-    open fun jpaUnitOfWork(
+    fun jpaUnitOfWork(
         unitOfWorkInterceptors: List<UnitOfWorkInterceptor>,
         persistListenerManager: PersistListenerManager,
         jpaUnitOfWorkProperties: JpaUnitOfWorkProperties
@@ -93,7 +93,7 @@ open class JpaRepositoryAutoConfiguration {
     }
 
     @Configuration
-    open class JpaUnitOfWorkLoader(
+    class JpaUnitOfWorkLoader(
         @Autowired(required = false) jpaUnitOfWork: JpaUnitOfWork?
     ) {
         init {
@@ -105,7 +105,7 @@ open class JpaRepositoryAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(PersistListenerManager::class)
-    open fun defaultPersistListenerManager(
+    fun defaultPersistListenerManager(
         persistListeners: List<PersistListener<*>>,
         eventProperties: EventProperties
     ): DefaultPersistListenerManager {
@@ -119,14 +119,14 @@ open class JpaRepositoryAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(SpecificationManager::class)
-    open fun defaultSpecificationManager(specifications: List<Specification<*>>): DefaultSpecificationManager {
+    fun defaultSpecificationManager(specifications: List<Specification<*>>): DefaultSpecificationManager {
         return DefaultSpecificationManager(specifications).apply {
             init()
         }
     }
 
     @Bean
-    open fun specificationUnitOfWorkInterceptor(specificationManager: SpecificationManager): SpecificationUnitOfWorkInterceptor {
+    fun specificationUnitOfWorkInterceptor(specificationManager: SpecificationManager): SpecificationUnitOfWorkInterceptor {
         return SpecificationUnitOfWorkInterceptor(specificationManager)
     }
 
@@ -136,7 +136,7 @@ open class JpaRepositoryAutoConfiguration {
         havingValue = "true",
         matchIfMissing = true
     )
-    open fun defaultEntityInlinePersistListener(): DefaultEntityInlinePersistListener {
+    fun defaultEntityInlinePersistListener(): DefaultEntityInlinePersistListener {
         return DefaultEntityInlinePersistListener()
     }
 }

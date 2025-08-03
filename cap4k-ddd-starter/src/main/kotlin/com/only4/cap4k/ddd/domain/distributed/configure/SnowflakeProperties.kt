@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.distributed.idgenerator.snowflake")
-open class SnowflakeProperties(
+class SnowflakeProperties(
     var enable: Boolean = true,
 
     var table: String = "`__worker_id`",

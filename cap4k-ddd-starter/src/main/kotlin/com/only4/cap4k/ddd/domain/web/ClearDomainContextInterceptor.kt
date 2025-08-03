@@ -18,7 +18,7 @@ import org.springframework.web.servlet.HandlerInterceptor
  */
 @Configuration
 @ConditionalOnWebApplication
-open class ClearDomainContextInterceptor : HandlerInterceptor {
+class ClearDomainContextInterceptor : HandlerInterceptor {
 
     override fun afterCompletion(
         request: HttpServletRequest,

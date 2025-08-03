@@ -3,51 +3,73 @@
 # https://docs.gradle.org/current/userguide/platforms.html#sub::toml-dependencies-format
 
 [versions]
+# Kotlin ecosystem
 kotlin = "2.1.20"
 kotlinxDatetime = "0.6.1"
 kotlinxSerializationJSON = "1.7.3"
 kotlinxCoroutines = "1.9.0"
 
+# Spring framework
 springBoot = "3.1.12"
 
-validation = "3.0.2"
+# Persistence and data
 hibernateCore = "6.2.25.Final"
-fastjson = "1.2.83"
-rocktemq = "2.3.1"
 
+# Validation
+validation = "3.0.2"
+
+# Message queues
+rocketmq = "2.3.1"
+
+# JSON processing
+fastjson = "1.2.83"
+
+# Testing
 mockk = "1.13.8"
 
 [libraries]
+# Kotlin ecosystem
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 kotlinxDatetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 kotlinxSerialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJSON" }
 kotlinxCoroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 
+# Logging
 slf4j = { module = "org.slf4j:slf4j-api" }
 
+# Spring framework
 springBootDependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
 springContext = { module = "org.springframework:spring-context" }
-springAotoConfiguration = { module = "org.springframework.boot:spring-boot-autoconfigure" }
+springAutoConfiguration = { module = "org.springframework.boot:spring-boot-autoconfigure" }
 springTomcat = { module = "org.springframework.boot:spring-boot-starter-tomcat" }
 springWeb = { module = "org.springframework:spring-web" }
 springWebMvc = { module = "org.springframework:spring-webmvc" }
 springTx = { module = "org.springframework:spring-tx" }
 springAmqp = { module = "org.springframework.boot:spring-boot-starter-amqp" }
-springMassaging = { module = "org.springframework:spring-messaging" }
+springMessaging = { module = "org.springframework:spring-messaging" }
 springData = { module = "org.springframework.data:spring-data-commons" }
 springJdbc = { module = "org.springframework:spring-jdbc" }
 springBootStarter = { module = "org.springframework.boot:spring-boot-starter" }
 springConfigurationProcessor = { module = "org.springframework.boot:spring-boot-configuration-processor" }
 
+# Persistence and data
 jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
 querydsl = { module = "com.querydsl:querydsl-core" }
-
-aspectjweaver = { module = "org.aspectj:aspectjweaver" }
-validation = { module = "jakarta.validation:jakarta.validation-api", version.ref = "validation" }
 hibernateCore = { module = "org.hibernate:hibernate-core", version.ref = "hibernateCore" }
-fastjson = { module = "com.alibaba:fastjson", version.ref = "fastjson" }
-rocketmq = { module = "org.apache.rocketmq:rocketmq-spring-boot-starter", version.ref = "rocktemq" }
 
+# AOP
+aspectjweaver = { module = "org.aspectj:aspectjweaver" }
+
+# Validation
+validation = { module = "jakarta.validation:jakarta.validation-api", version.ref = "validation" }
+
+# Message queues
+rocketmq = { module = "org.apache.rocketmq:rocketmq-spring-boot-starter", version.ref = "rocketmq" }
+
+# JSON processing
+fastjson = { module = "com.alibaba:fastjson", version.ref = "fastjson" }
+
+# Testing
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 mockkAgentJvm = { module = "io.mockk:mockk-agent-jvm", version.ref = "mockk" }
 
@@ -57,3 +79,4 @@ kotlinxEcosystem = ["kotlinxDatetime", "kotlinxSerialization", "kotlinxCoroutine
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlinPluginSpring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }

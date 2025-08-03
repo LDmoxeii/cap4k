@@ -1,28 +1,29 @@
 plugins {
-    // Apply the shared build logic from a convention plugin.
-    // The shared code is located in `buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts`.
     id("buildsrc.convention.kotlin-jvm")
-
-    // Apply the Application plugin to add support for building an executable JVM application.
     application
 }
 
 dependencies {
-    compileOnly(project(":ddd-core"))
-    compileOnly(libs.springJdbc)
+    // Project dependencies
+    implementation(project(":ddd-core"))
 
+    // Compile-only dependencies
+    compileOnly(libs.springJdbc)
     compileOnly(libs.slf4j)
 
-    // Add mockk test framework
+    // Test dependencies - Platform
     testImplementation(platform(libs.springBootDependencies))
+
+    // Test dependencies - Projects
     testImplementation(project(":ddd-core"))
+
+    // Test dependencies - Other
     testImplementation(libs.springJdbc)
     testImplementation(libs.slf4j)
 
+    // Test framework dependencies
     testImplementation(libs.mockk)
     testImplementation(libs.mockkAgentJvm)
-
-    // Add JUnit and Kotlin Test
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

@@ -1,13 +1,10 @@
 plugins {
-    // Apply the shared build logic from a convention plugin.
-    // The shared code is located in `buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts`.
     id("buildsrc.convention.kotlin-jvm")
-
-    // Apply the Application plugin to add support for building an executable JVM application.
     application
 }
 
 dependencies {
+    // Project dependencies
     implementation(project(":ddd-core"))
     implementation(project(":ddd-distributed-snowflake"))
     implementation(project(":ddd-distributed-locker-jdbc"))
@@ -20,8 +17,12 @@ dependencies {
     implementation(project(":ddd-integration-event-rocketmq"))
     implementation(project(":ddd-integration-event-rabbitmq"))
     implementation(project(":ddd-domain-event-jpa"))
-    implementation(project(":ddd-core"))
 
+    // Implementation dependencies
+    implementation(libs.fastjson)
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+
+    // Compile-only dependencies
     compileOnly(libs.springBootStarter)
     compileOnly(libs.springTomcat)
     compileOnly(libs.springWeb)
@@ -29,22 +30,21 @@ dependencies {
     compileOnly(libs.springConfigurationProcessor)
     compileOnly(libs.jpa)
     compileOnly(libs.validation)
-
     compileOnly(libs.slf4j)
 
-    implementation(libs.fastjson)
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
-
-    // Add mockk test framework
+    // Test dependencies - Platform
     testImplementation(platform(libs.springBootDependencies))
+
+    // Test dependencies - Projects
     testImplementation(project(":ddd-core"))
+
+    // Test dependencies - Other
     testImplementation(libs.springJdbc)
     testImplementation(libs.slf4j)
 
+    // Test framework dependencies
     testImplementation(libs.mockk)
     testImplementation(libs.mockkAgentJvm)
-
-    // Add JUnit and Kotlin Test
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

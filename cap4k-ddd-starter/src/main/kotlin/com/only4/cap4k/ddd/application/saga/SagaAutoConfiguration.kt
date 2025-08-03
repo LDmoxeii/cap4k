@@ -41,7 +41,7 @@ import java.time.Duration
         "com.only4.cap4k.ddd.application.saga.persistence"
     ]
 )
-open class SagaAutoConfiguration {
+class SagaAutoConfiguration {
 
     companion object {
         const val CONFIG_KEY_4_SAGA_COMPENSE_LOCKER_KEY = "saga_compense[$CONFIG_KEY_4_SVC_NAME]"
@@ -49,7 +49,7 @@ open class SagaAutoConfiguration {
     }
 
     @Bean
-    open fun defaultSagaSupervisor(
+    fun defaultSagaSupervisor(
         requestHandlers: List<RequestHandler<*, *>>,
         requestInterceptors: List<RequestInterceptor<*, *>>,
         @Autowired(required = false) validator: Validator?,
@@ -75,7 +75,7 @@ open class SagaAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(SagaRecordRepository::class)
-    open fun jpaSagaRecordRepository(
+    fun jpaSagaRecordRepository(
         sagaJpaRepository: SagaJpaRepository,
         archivedSagaJpaRepository: ArchivedSagaJpaRepository
     ): JpaSagaRecordRepository {
@@ -86,7 +86,7 @@ open class SagaAutoConfiguration {
     }
 
     @Bean
-    open fun jpaSagaScheduleService(
+    fun jpaSagaScheduleService(
         sagaManager: SagaManager,
         locker: Locker,
         @Value("\$$CONFIG_KEY_4_SAGA_COMPENSE_LOCKER_KEY") compensationLockerKey: String,

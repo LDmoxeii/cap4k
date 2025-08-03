@@ -28,7 +28,7 @@ import org.springframework.stereotype.Service
     havingValue = "true",
     matchIfMissing = true
 )
-open class SnowflakeAutoConfiguration(
+class SnowflakeAutoConfiguration(
     private val properties: SnowflakeProperties
 ) {
     companion object {
@@ -59,7 +59,7 @@ open class SnowflakeAutoConfiguration(
 
     @Bean
     @ConditionalOnMissingBean(SnowflakeIdGenerator::class)
-    open fun snowflakeIdGenerator(
+    fun snowflakeIdGenerator(
         snowflakeWorkerIdDispatcher: SnowflakeWorkerIdDispatcher,
         properties: SnowflakeProperties
     ): SnowflakeIdGenerator {
@@ -74,7 +74,7 @@ open class SnowflakeAutoConfiguration(
 
     @Bean
     @ConditionalOnMissingBean(SnowflakeWorkerIdDispatcher::class)
-    open fun defaultSnowflakeWorkerIdDispatcher(
+    fun defaultSnowflakeWorkerIdDispatcher(
         properties: SnowflakeProperties,
         jdbcTemplate: JdbcTemplate,
         @Value(CONFIG_KEY_4_JPA_SHOW_SQL) showSql: Boolean

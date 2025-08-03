@@ -12,4 +12,6 @@ kotlin {
 dependencies {
     // Add a dependency on the Kotlin Gradle plugin, so that convention plugins can apply it.
     implementation(libs.kotlinGradlePlugin)
+    // Add a dependency on the Kotlin Spring plugin for Spring framework integration.
+    implementation("org.jetbrains.kotlin:kotlin-allopen:2.1.20")
 }

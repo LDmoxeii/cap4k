@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.application.jpa-uow")
-open class JpaUnitOfWorkProperties(
+class JpaUnitOfWorkProperties(
     /**
      * 单次获取记录数
      */

@@ -51,11 +51,11 @@ import java.util.*
  * @date 2025/08/03
  */
 @Configuration
-open class IntegrationEventAutoConfiguration {
+class IntegrationEventAutoConfiguration {
 
     @Bean
     @Primary
-    open fun defaultIntegrationEventSupervisor(
+    fun defaultIntegrationEventSupervisor(
         eventPublisher: EventPublisher,
         eventRecordRepository: EventRecordRepository,
         integrationEventInterceptorManager: IntegrationEventInterceptorManager,
@@ -77,7 +77,7 @@ open class IntegrationEventAutoConfiguration {
     }
 
     @Bean
-    open fun integrationEventUnitOfWorkInterceptor(
+    fun integrationEventUnitOfWorkInterceptor(
         integrationEventManager: IntegrationEventManager
     ): IntegrationEventUnitOfWorkInterceptor {
         return IntegrationEventUnitOfWorkInterceptor(integrationEventManager)
@@ -85,7 +85,7 @@ open class IntegrationEventAutoConfiguration {
 
     @Configuration
     @ConditionalOnClass(name = ["com.only4.cap4k.ddd.application.event.HttpIntegrationEventSubscriberAdapter"])
-    open class HttpAdapterLauncher {
+    class HttpAdapterLauncher {
 
         companion object {
             private val log = LoggerFactory.getLogger(HttpAdapterLauncher::class.java)
@@ -112,9 +112,9 @@ open class IntegrationEventAutoConfiguration {
                 "com.only4.cap4k.ddd.application.event.persistence"
             ]
         )
-        open class JpaHttpIntegrationEventSubscriberRegisterLauncher {
+        class JpaHttpIntegrationEventSubscriberRegisterLauncher {
             @Bean
-            open fun jpaHttpIntegrationEventSubscriberRegister(
+            fun jpaHttpIntegrationEventSubscriberRegister(
                 eventHttpSubscriberJpaRepository: EventHttpSubscriberJpaRepository
             ): JpaHttpIntegrationEventSubscriberRegister {
                 return JpaHttpIntegrationEventSubscriberRegister(eventHttpSubscriberJpaRepository)
@@ -122,7 +122,7 @@ open class IntegrationEventAutoConfiguration {
         }
 
         @Bean
-        open fun httpIntegrationEventCallbackTriggerCommandHandler(): IntegrationEventHttpCallbackTriggerCommand.Handler {
+        fun httpIntegrationEventCallbackTriggerCommandHandler(): IntegrationEventHttpCallbackTriggerCommand.Handler {
             return IntegrationEventHttpCallbackTriggerCommand.Handler(
                 RestTemplate(),
                 EVENT_PARAM,
@@ -131,7 +131,7 @@ open class IntegrationEventAutoConfiguration {
         }
 
         @Bean
-        open fun httpIntegrationEventSubscribeCommandHandler(): IntegrationEventHttpSubscribeCommand.Handler {
+        fun httpIntegrationEventSubscribeCommandHandler(): IntegrationEventHttpSubscribeCommand.Handler {
             return IntegrationEventHttpSubscribeCommand.Handler(
                 RestTemplate(),
                 EVENT_PARAM,
@@ -140,7 +140,7 @@ open class IntegrationEventAutoConfiguration {
         }
 
         @Bean
-        open fun httpIntegrationEventUnsubscribeCommandHandler(): IntegrationEventHttpUnsubscribeCommand.Handler {
+        fun httpIntegrationEventUnsubscribeCommandHandler(): IntegrationEventHttpUnsubscribeCommand.Handler {
             return IntegrationEventHttpUnsubscribeCommand.Handler(
                 RestTemplate(),
                 EVENT_PARAM,
@@ -150,13 +150,13 @@ open class IntegrationEventAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean(HttpIntegrationEventSubscriberRegister::class)
-        open fun httpIntegrationEventSubscriberRegister(): DefaultHttpIntegrationEventSubscriberRegister {
+        fun httpIntegrationEventSubscriberRegister(): DefaultHttpIntegrationEventSubscriberRegister {
             return DefaultHttpIntegrationEventSubscriberRegister()
         }
 
         @Bean
         @ConditionalOnMissingBean(IntegrationEventPublisher::class)
-        open fun httpIntegrationEventPublisher(
+        fun httpIntegrationEventPublisher(
             subscriberRegister: HttpIntegrationEventSubscriberRegister,
             environment: Environment,
             httpIntegrationEventAdapterProperties: HttpIntegrationEventAdapterProperties
@@ -174,7 +174,7 @@ open class IntegrationEventAutoConfiguration {
         }
 
         @Bean
-        open fun httpIntegrationEventSubscriberAdapter(
+        fun httpIntegrationEventSubscriberAdapter(
             eventSubscriberManager: EventSubscriberManager,
             eventMessageInterceptors: List<EventMessageInterceptor>,
             httpIntegrationEventSubscriberRegister: HttpIntegrationEventSubscriberRegister,
@@ -205,7 +205,7 @@ open class IntegrationEventAutoConfiguration {
 
         @ConditionalOnWebApplication
         @Bean(name = [SUBSCRIBE_PATH])
-        open fun httpIntegrationEventSubscribeHandler(
+        fun httpIntegrationEventSubscribeHandler(
             httpIntegrationEventSubscriberRegister: HttpIntegrationEventSubscriberRegister,
             @Value("\${server.port:80}")
             serverPort: String,
@@ -251,7 +251,7 @@ open class IntegrationEventAutoConfiguration {
 
         @ConditionalOnWebApplication
         @Bean(name = [UNSUBSCRIBE_PATH])
-        open fun httpIntegrationEventUnsubscribeHandler(
+        fun httpIntegrationEventUnsubscribeHandler(
             httpIntegrationEventSubscriberRegister: HttpIntegrationEventSubscriberRegister,
             @Value("\${server.port:80}")
             serverPort: String,
@@ -280,7 +280,7 @@ open class IntegrationEventAutoConfiguration {
 
         @ConditionalOnWebApplication
         @Bean(name = [EVENTS_PATH])
-        open fun httpIntegrationEventEventsHandler(
+        fun httpIntegrationEventEventsHandler(
             httpIntegrationEventSubscriberRegister: HttpIntegrationEventSubscriberRegister,
             @Value("\${server.port:80}")
             serverPort: String,
@@ -315,7 +315,7 @@ open class IntegrationEventAutoConfiguration {
 
         @ConditionalOnWebApplication
         @Bean(name = [SUBSCRIBERS_PATH])
-        open fun httpIntegrationEventSubscribersHandler(
+        fun httpIntegrationEventSubscribersHandler(
             httpIntegrationEventSubscriberRegister: HttpIntegrationEventSubscriberRegister,
             @Value("\${server.port:80}")
             serverPort: String,
@@ -350,7 +350,7 @@ open class IntegrationEventAutoConfiguration {
 
         @ConditionalOnWebApplication
         @Bean(name = [CONSUME_PATH])
-        open fun httpIntegrationEventConsumeHandler(
+        fun httpIntegrationEventConsumeHandler(
             httpIntegrationEventSubscriberAdapter: HttpIntegrationEventSubscriberAdapter,
             @Value("\${server.port:80}")
             serverPort: String,
@@ -416,7 +416,7 @@ open class IntegrationEventAutoConfiguration {
     @Configuration
     @ConditionalOnClass(name = ["com.only4.cap4k.ddd.application.event.RocketMqIntegrationEventSubscriberAdapter"])
     @ImportAutoConfiguration(RocketMQAutoConfiguration::class)
-    open class RocketMqAdapterLauncher {
+    class RocketMqAdapterLauncher {
 
         companion object {
             private val log = LoggerFactory.getLogger(RocketMqAdapterLauncher::class.java)
@@ -425,7 +425,7 @@ open class IntegrationEventAutoConfiguration {
         @Bean
         @ConditionalOnProperty(name = ["rocketmq.name-server"])
         @ConditionalOnMissingBean(IntegrationEventPublisher::class)
-        open fun rocketMqIntegrationEventPublisher(
+        fun rocketMqIntegrationEventPublisher(
             rocketMQTemplate: RocketMQTemplate,
             environment: Environment
         ): RocketMqIntegrationEventPublisher {
@@ -434,7 +434,7 @@ open class IntegrationEventAutoConfiguration {
 
         @Bean
         @ConditionalOnProperty(name = ["rocketmq.name-server"])
-        open fun rocketMqDomainEventSubscriberAdapter(
+        fun rocketMqDomainEventSubscriberAdapter(
             eventSubscriberManager: EventSubscriberManager,
             eventMessageInterceptors: List<EventMessageInterceptor>,
             @Autowired(required = false)
@@ -466,7 +466,7 @@ open class IntegrationEventAutoConfiguration {
 
     @Configuration
     @ConditionalOnClass(name = ["com.only4.cap4k.ddd.application.event.RabbitMqIntegrationEventSubscriberAdapter"])
-    open class RabbitMqAdapterLauncher {
+    class RabbitMqAdapterLauncher {
 
         companion object {
             private val log = LoggerFactory.getLogger(RabbitMqAdapterLauncher::class.java)
@@ -476,7 +476,7 @@ open class IntegrationEventAutoConfiguration {
         @ConditionalOnProperty(name = ["spring.rabbitmq.host"])
         @ConditionalOnClass(name = ["org.springframework.amqp.rabbit.connection.ConnectionFactory"])
         @ConditionalOnMissingBean(IntegrationEventPublisher::class)
-        open fun rabbitMqIntegrationEventPublisher(
+        fun rabbitMqIntegrationEventPublisher(
             rabbitTemplate: RabbitTemplate,
             connectionFactory: ConnectionFactory,
             environment: Environment,
@@ -498,7 +498,7 @@ open class IntegrationEventAutoConfiguration {
         @Bean
         @ConditionalOnProperty(name = ["spring.rabbitmq.host"])
         @ConditionalOnClass(name = ["org.springframework.amqp.rabbit.connection.ConnectionFactory"])
-        open fun rabbitMqIntegrationEventSubscriberAdapter(
+        fun rabbitMqIntegrationEventSubscriberAdapter(
             eventSubscriberManager: EventSubscriberManager,
             eventMessageInterceptors: List<EventMessageInterceptor>,
             @Autowired(required = false)

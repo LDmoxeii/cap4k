@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.integration.event.http")
-open class HttpIntegrationEventAdapterProperties(
+class HttpIntegrationEventAdapterProperties(
     /**
      * 异步发送线程池大小
      */

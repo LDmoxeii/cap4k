@@ -44,7 +44,7 @@ import java.time.Duration
         "com.only4.cap4k.ddd.domain.event.persistence"
     ]
 )
-open class DomainEventAutoConfiguration {
+class DomainEventAutoConfiguration {
 
     companion object {
         const val CONFIG_KEY_4_EVENT_COMPENSE_LOCKER_KEY = "event_compense[$CONFIG_KEY_4_SVC_NAME]"
@@ -52,7 +52,7 @@ open class DomainEventAutoConfiguration {
     }
 
     @Bean
-    open fun defaultDomainEventSupervisor(
+    fun defaultDomainEventSupervisor(
         eventRecordRepository: EventRecordRepository,
         domainEventInterceptorManager: DomainEventInterceptorManager,
         eventPublisher: EventPublisher,
@@ -72,13 +72,13 @@ open class DomainEventAutoConfiguration {
     }
 
     @Bean
-    open fun domainEventUnitOfWorkInterceptor(domainEventManager: DomainEventManager): DomainEventUnitOfWorkInterceptor {
+    fun domainEventUnitOfWorkInterceptor(domainEventManager: DomainEventManager): DomainEventUnitOfWorkInterceptor {
         return DomainEventUnitOfWorkInterceptor(domainEventManager)
     }
 
     @Bean
     @ConditionalOnMissingBean(EventRecordRepository::class)
-    open fun jpaEventRecordRepository(
+    fun jpaEventRecordRepository(
         eventJpaRepository: EventJpaRepository,
         archivedEventJpaRepository: ArchivedEventJpaRepository
     ): JpaEventRecordRepository {
@@ -90,7 +90,7 @@ open class DomainEventAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(JpaEventScheduleService::class)
-    open fun jpaEventScheduleService(
+    fun jpaEventScheduleService(
         eventPublisher: EventPublisher,
         eventRecordRepository: EventRecordRepository,
         locker: Locker,
@@ -159,7 +159,7 @@ open class DomainEventAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(EventPublisher::class)
-    open fun defaultEventPublisher(
+    fun defaultEventPublisher(
         eventSubscriberManager: EventSubscriberManager,
         integrationEventPublishers: List<IntegrationEventPublisher>,
         eventRecordRepository: EventRecordRepository,
@@ -185,7 +185,7 @@ open class DomainEventAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(EventSubscriberManager::class)
-    open fun defaultEventSubscriberManager(
+    fun defaultEventSubscriberManager(
         subscribers: List<EventSubscriber<*>>,
         applicationEventPublisher: ApplicationEventPublisher,
         eventProperties: EventProperties
@@ -201,7 +201,7 @@ open class DomainEventAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(DefaultEventInterceptorManager::class)
-    open fun defaultEventInterceptorManager(
+    fun defaultEventInterceptorManager(
         eventMessageInterceptors: List<EventMessageInterceptor>,
         interceptors: List<EventInterceptor>,
         eventRecordRepository: EventRecordRepository

@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 @ConfigurationProperties("cap4k.ddd.domain.event")
-open class EventProperties(
+class EventProperties(
     /**
      * 事件扫描包范围
      * 领域事件 & 集成事件
