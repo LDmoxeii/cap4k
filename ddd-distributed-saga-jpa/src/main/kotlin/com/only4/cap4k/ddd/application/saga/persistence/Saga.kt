@@ -70,8 +70,10 @@ class Saga {
         this.tryTimes = retryTimes
         this.triedTimes = 0
         this.lastTryTime = scheduleAt
-        this.nextTryTime = calculateNextTryTime(scheduleAt)
+
         this.loadSagaParam(sagaParam)
+
+        this.nextTryTime = calculateNextTryTime(scheduleAt)
         this.result = ""
         this.resultType = ""
         this.sagaProcesses = ArrayList()
@@ -128,7 +130,7 @@ class Saga {
         val retry = sagaParam.javaClass.getAnnotation(Retry::class.java)
         if (retry != null) {
             this.tryTimes = retry.retryTimes
-            this.expireAt = this.createAt?.plusMinutes(retry.expireAfter.toLong())
+            this.expireAt = this.createAt.plusMinutes(retry.expireAfter.toLong())
         }
     }
 
@@ -142,7 +144,7 @@ class Saga {
     }
 
 
-    fun getSagaProcess(processCode: String): SagaProcess? = sagaProcesses?.find { it.processCode == processCode }
+    fun getSagaProcess(processCode: String): SagaProcess? = sagaProcesses.find { it.processCode == processCode }
 
     fun beginSagaProcess(now: LocalDateTime, processCode: String, param: RequestParam<out Any>) {
         var sagaProcess = getSagaProcess(processCode)
@@ -153,10 +155,7 @@ class Saga {
                 this.createAt = now
                 this.triedTimes = 0
             }
-            if (this.sagaProcesses == null) {
-                this.sagaProcesses = ArrayList()
-            }
-            this.sagaProcesses!!.add(sagaProcess)
+            this.sagaProcesses.add(sagaProcess)
         }
         sagaProcess.beginProcess(now, param)
     }
@@ -201,9 +200,7 @@ class Saga {
             return false
         }
         // 未到下次重试时间
-        if ((this.lastTryTime == null || !this.lastTryTime!!.isEqual(now)) &&
-            this.nextTryTime != null && this.nextTryTime!!.isAfter(now)
-        ) {
+        if (!this.lastTryTime.isEqual(now) && this.nextTryTime.isAfter(now)) {
             return false
         }
         this.sagaState = SagaState.EXECUTING
@@ -296,7 +293,7 @@ class Saga {
 
         companion object {
             fun valueOf(value: Int): SagaState? {
-                for (state in values()) {
+                for (state in entries) {
                     if (state.value == value) {
                         return state
                     }
@@ -318,7 +315,7 @@ class Saga {
 
     @OneToMany(cascade = [CascadeType.ALL], fetch = FetchType.EAGER, orphanRemoval = true)
     @JoinColumn(name = "`saga_id`", nullable = false)
-    var sagaProcesses: MutableList<SagaProcess>? = null
+    var sagaProcesses: MutableList<SagaProcess> = mutableListOf()
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -330,49 +327,49 @@ class Saga {
      * varchar(64) NOT NULL DEFAULT ''
      */
     @Column(name = "`saga_uuid`", nullable = false)
-    var sagaUuid: String = ""
+    lateinit var sagaUuid: String
 
     /**
      * 服务
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`svc_name`", nullable = false)
-    var svcName: String = ""
+    lateinit var svcName: String
 
     /**
      * SAGA类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`saga_type`", nullable = false)
-    var sagaType: String = ""
+    lateinit var sagaType: String
 
     /**
      * 参数
      * text (nullable)
      */
     @Column(name = "`param`")
-    var param: String? = null
+    lateinit var param: String
 
     /**
      * 参数类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`param_type`", nullable = false)
-    var paramType: String = ""
+    lateinit var paramType: String
 
     /**
      * 结果
      * text (nullable)
      */
     @Column(name = "`result`")
-    var result: String? = null
+    lateinit var result: String
 
     /**
      * 结果类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`result_type`", nullable = false)
-    var resultType: String = ""
+    lateinit var resultType: String
 
     /**
      * 异常信息
@@ -386,14 +383,14 @@ class Saga {
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`expire_at`")
-    var expireAt: LocalDateTime? = null
+    lateinit var expireAt: LocalDateTime
 
     /**
      * 创建时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`create_at`")
-    var createAt: LocalDateTime? = null
+    lateinit var createAt: LocalDateTime
 
     /**
      * 执行状态
@@ -401,21 +398,21 @@ class Saga {
      */
     @Column(name = "`saga_state`", nullable = false)
     @Convert(converter = SagaState.Converter::class)
-    var sagaState: SagaState = SagaState.INIT
+    lateinit var sagaState: SagaState
 
     /**
      * 上次尝试时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`last_try_time`")
-    var lastTryTime: LocalDateTime? = null
+    lateinit var lastTryTime: LocalDateTime
 
     /**
      * 下次尝试时间
      * datetime NOT NULL DEFAULT '0001-01-01 00:00:00'
      */
     @Column(name = "`next_try_time`")
-    var nextTryTime: LocalDateTime? = null
+    lateinit var nextTryTime: LocalDateTime
 
     /**
      * 已尝试次数

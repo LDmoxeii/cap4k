@@ -5,7 +5,6 @@ import com.only4.cap4k.ddd.application.saga.persistence.SagaProcess
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.saga.SagaParam
 import com.only4.cap4k.ddd.core.application.saga.SagaRecord
-import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -16,7 +15,6 @@ import java.time.LocalDateTime
  * @date 2024/10/12
  */
 class SagaRecordImpl : SagaRecord {
-    private val logger = LoggerFactory.getLogger(SagaRecordImpl::class.java)
     lateinit var saga: Saga
 
     /**
@@ -49,16 +47,16 @@ class SagaRecordImpl : SagaRecord {
     override val param: SagaParam<out Any>
         get() = saga.sagaParam!!
 
-    override fun <R> getResult(): R {
+    override fun <R : Any> getResult(): R? {
         @Suppress("UNCHECKED_CAST")
-        return saga.sagaResult!! as R
+        return saga.sagaResult as? R
     }
 
     override val scheduleTime: LocalDateTime
-        get() = saga.lastTryTime!!
+        get() = saga.lastTryTime
 
     override val nextTryTime: LocalDateTime
-        get() = saga.nextTryTime!!
+        get() = saga.nextTryTime
 
     override val isValid: Boolean
         get() = saga.isValid
@@ -105,7 +103,7 @@ class SagaRecordImpl : SagaRecord {
         return sagaProcess.processState == SagaProcess.SagaProcessState.EXECUTED
     }
 
-    override fun <R> getSagaProcessResult(processCode: String): R? {
+    override fun <R : Any> getSagaProcessResult(processCode: String): R? {
         val sagaProcess = saga.getSagaProcess(processCode) ?: return null
         @Suppress("UNCHECKED_CAST")
         return sagaProcess.sagaProcessResult as? R

@@ -43,35 +43,35 @@ class ArchivedSagaProcess {
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`process_code`", nullable = false)
-    var processCode: String = ""
+    lateinit var processCode: String
 
     /**
      * 参数
      * text (nullable)
      */
     @Column(name = "`param`")
-    var param: String? = null
+    lateinit var param: String
 
     /**
      * 参数类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`param_type`", nullable = false)
-    var paramType: String = ""
+    lateinit var paramType: String
 
     /**
      * 结果
      * text (nullable)
      */
     @Column(name = "`result`")
-    var result: String? = null
+    lateinit var result: String
 
     /**
      * 结果类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`result_type`", nullable = false)
-    var resultType: String = ""
+    lateinit var resultType: String
 
     /**
      * 异常信息
@@ -86,21 +86,21 @@ class ArchivedSagaProcess {
      */
     @Column(name = "`process_state`", nullable = false)
     @Convert(converter = SagaProcess.SagaProcessState.Converter::class)
-    var processState: SagaProcess.SagaProcessState = SagaProcess.SagaProcessState.INIT
+    lateinit var processState: SagaProcess.SagaProcessState
 
     /**
      * 创建时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`create_at`", insertable = false, updatable = true)
-    var createAt: LocalDateTime? = null
+    lateinit var createAt: LocalDateTime
 
     /**
      * 上次尝试时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`last_try_time`", insertable = false, updatable = true)
-    var lastTryTime: LocalDateTime? = null
+    lateinit var lastTryTime: LocalDateTime
 
     /**
      * 尝试次数
@@ -114,12 +114,12 @@ class ArchivedSagaProcess {
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`db_created_at`", insertable = false, updatable = false)
-    var dbCreatedAt: LocalDateTime? = null
+    lateinit var dbCreatedAt: LocalDateTime
 
     /**
      * 更新时间（数据库自动维护）
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
      */
     @Column(name = "`db_updated_at`", insertable = false, updatable = false)
-    var dbUpdatedAt: LocalDateTime? = null
+    lateinit var dbUpdatedAt: LocalDateTime
 }

@@ -56,7 +56,7 @@ interface SagaRecord {
      *
      * @return 执行结果
      */
-    fun <R> getResult(): R?
+    fun <R : Any> getResult(): R?
 
     /**
      * Saga流程子环节开始执行
@@ -99,7 +99,7 @@ interface SagaRecord {
      * @param processCode 子流程代码
      * @return 执行结果
      */
-    fun <R> getSagaProcessResult(processCode: String): R?
+    fun <R : Any> getSagaProcessResult(processCode: String): R?
 
     /**
      * 获取计划执行时间

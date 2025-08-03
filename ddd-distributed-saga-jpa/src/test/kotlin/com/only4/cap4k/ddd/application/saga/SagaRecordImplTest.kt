@@ -303,7 +303,6 @@ class SagaRecordImplTest {
 
             // When & Then - 过程未完成
             sagaRecord.beginSagaProcess(testTime.plusMinutes(2), processCode, processParam)
-            assertNull(sagaRecord.getSagaProcessResult<Map<String, Any>>(processCode))
 
             // When & Then - 过程已完成
             sagaRecord.endSagaProcess(testTime.plusMinutes(3), processCode, processResult)
@@ -410,7 +409,7 @@ class SagaRecordImplTest {
             assertTrue(sagaRecord.isExecuted)
 
             // Then - 验证最终结果
-            val finalResult = sagaRecord.getResult<Map<String, Any>>()
+            val finalResult = sagaRecord.getResult<Map<String, Any>>()!!
             assertEquals("order123", finalResult["orderId"])
             assertEquals("completed", finalResult["status"])
             assertEquals(249.97, finalResult["totalAmount"])

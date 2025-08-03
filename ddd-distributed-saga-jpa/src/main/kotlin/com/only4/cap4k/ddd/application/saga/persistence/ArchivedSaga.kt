@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.application.saga.persistence
 import com.alibaba.fastjson.JSON
 import com.alibaba.fastjson.serializer.SerializerFeature.IgnoreNonFieldGetter
 import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
+import com.only4.cap4k.ddd.application.saga.persistence.Saga.SagaState
 import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
@@ -45,7 +46,7 @@ class ArchivedSaga {
         this.triedTimes = saga.triedTimes
         this.tryTimes = saga.tryTimes
         this.version = saga.version
-        this.sagaProcesses = saga.sagaProcesses?.map { p ->
+        this.sagaProcesses = saga.sagaProcesses.map { p ->
             ArchivedSagaProcess().apply {
                 processCode = p.processCode
                 param = p.param
@@ -58,7 +59,7 @@ class ArchivedSaga {
                 triedTimes = p.triedTimes
                 lastTryTime = p.lastTryTime
             }
-        }?.toMutableList()
+        }.toMutableList()
     }
 
     override fun toString(): String {
@@ -67,8 +68,7 @@ class ArchivedSaga {
 
     @OneToMany(cascade = [CascadeType.ALL], fetch = FetchType.EAGER, orphanRemoval = true)
     @JoinColumn(name = "`saga_id`", nullable = false)
-    var sagaProcesses: MutableList<ArchivedSagaProcess>? = null
-
+    var sagaProcesses: MutableList<ArchivedSagaProcess> = mutableListOf()
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "`id`")
@@ -79,49 +79,49 @@ class ArchivedSaga {
      * varchar(64) NOT NULL DEFAULT ''
      */
     @Column(name = "`saga_uuid`", nullable = false)
-    var sagaUuid: String = ""
+    lateinit var sagaUuid: String
 
     /**
      * 服务
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`svc_name`", nullable = false)
-    var svcName: String = ""
+    lateinit var svcName: String
 
     /**
      * SAGA类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`saga_type`", nullable = false)
-    var sagaType: String = ""
+    lateinit var sagaType: String
 
     /**
      * 参数
      * text (nullable)
      */
     @Column(name = "`param`")
-    var param: String? = null
+    lateinit var param: String
 
     /**
      * 参数类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`param_type`", nullable = false)
-    var paramType: String = ""
+    lateinit var paramType: String
 
     /**
      * 结果
      * text (nullable)
      */
     @Column(name = "`result`")
-    var result: String? = null
+    lateinit var result: String
 
     /**
      * 结果类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`result_type`", nullable = false)
-    var resultType: String = ""
+    lateinit var resultType: String
 
     /**
      * 异常信息
@@ -135,36 +135,36 @@ class ArchivedSaga {
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`expire_at`")
-    var expireAt: LocalDateTime? = null
+    lateinit var expireAt: LocalDateTime
 
     /**
      * 创建时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`create_at`")
-    var createAt: LocalDateTime? = null
+    lateinit var createAt: LocalDateTime
 
     /**
      * 执行状态
      * int NOT NULL DEFAULT '0'
      */
     @Column(name = "`saga_state`", nullable = false)
-    @Convert(converter = Saga.SagaState.Converter::class)
-    var sagaState: Saga.SagaState = Saga.SagaState.INIT
+    @Convert(converter = SagaState.Converter::class)
+    lateinit var sagaState: SagaState
 
     /**
      * 上次尝试时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`last_try_time`")
-    var lastTryTime: LocalDateTime? = null
+    lateinit var lastTryTime: LocalDateTime
 
     /**
      * 下次尝试时间
      * datetime NOT NULL DEFAULT '0001-01-01 00:00:00'
      */
     @Column(name = "`next_try_time`")
-    var nextTryTime: LocalDateTime? = null
+    lateinit var nextTryTime: LocalDateTime
 
     /**
      * 已尝试次数
@@ -193,12 +193,12 @@ class ArchivedSaga {
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`db_created_at`", insertable = false, updatable = false)
-    var dbCreatedAt: LocalDateTime? = null
+    lateinit var dbCreatedAt: LocalDateTime
 
     /**
      * 更新时间（数据库自动维护）
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
      */
     @Column(name = "`db_updated_at`", insertable = false, updatable = false)
-    var dbUpdatedAt: LocalDateTime? = null
+    lateinit var dbUpdatedAt: LocalDateTime
 }
