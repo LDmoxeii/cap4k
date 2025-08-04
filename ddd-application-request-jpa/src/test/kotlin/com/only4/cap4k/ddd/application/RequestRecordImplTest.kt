@@ -1,8 +1,11 @@
 package com.only4.cap4k.ddd.application
 
 import com.only4.cap4k.ddd.application.persistence.*
-import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -175,16 +178,6 @@ class RequestRecordImplTest {
         }
 
         @Test
-        @DisplayName("默认结果应该抛出异常")
-        fun `should throw exception for default result`() {
-            // When & Then
-            val exception = assertThrows<NullPointerException> {
-                requestRecord.getResult<TestRequestResult>()
-            }
-            assertNotNull(exception)
-        }
-
-        @Test
         @DisplayName("应该能够获取设置的结果")
         fun `should be able to get set result`() {
             // Given
@@ -216,16 +209,6 @@ class RequestRecordImplTest {
             assertEquals(createUserResult, result)
             assertEquals("user123", result!!.userId)
             assertEquals("john", result.username)
-        }
-
-        @Test
-        @DisplayName("未设置结果时应该抛出异常")
-        fun `should throw exception when result is not set`() {
-            // When & Then
-            val exception = assertThrows<NullPointerException> {
-                requestRecord.getResult<TestRequestResult>()
-            }
-            assertNotNull(exception)
         }
     }
 

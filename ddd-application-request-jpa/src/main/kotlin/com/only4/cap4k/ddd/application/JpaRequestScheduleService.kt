@@ -41,42 +41,44 @@ class JpaRequestScheduleService(
         }
 
         compensationRunning = true
-        val pwd = randomString(8, hasDigital = true, hasLetter = true)
-        val lockerKey = compensationLockerKey
-
         try {
-            var noneRequest = false
             val now = LocalDateTime.now()
+            val nextTryTime = now.plus(interval)
 
-            while (!noneRequest) {
-                var lockAcquired = false
-                try {
-                    if (!locker.acquire(lockerKey, pwd, maxLockDuration)) {
-                        return
-                    }
-                    lockAcquired = true
-
-                    val requestRecords = requestManager.getByNextTryTime(now.plus(interval), batchSize)
-
-                    if (requestRecords.isEmpty()) {
-                        noneRequest = true
-                        continue
-                    }
-
-                    for (requestRecord in requestRecords) {
-                        logger.info("请求执行补偿: {}", requestRecord)
-                        requestManager.resume(requestRecord, now.plus(interval))
-                    }
-                } catch (ex: Exception) {
-                    logger.error("请求执行补偿:异常失败", ex)
-                } finally {
-                    if (lockAcquired) {
-                        locker.release(lockerKey, pwd)
-                    }
-                }
+            while (true) {
+                val processed = processRequestBatch(batchSize, nextTryTime, maxLockDuration)
+                if (!processed) break
             }
         } finally {
             compensationRunning = false
+        }
+    }
+
+    private fun processRequestBatch(batchSize: Int, nextTryTime: LocalDateTime, maxLockDuration: Duration): Boolean {
+        val pwd = randomString(8, hasDigital = true, hasLetter = true)
+
+        if (!locker.acquire(compensationLockerKey, pwd, maxLockDuration)) {
+            return false
+        }
+
+        return try {
+            val requestRecords = requestManager.getByNextTryTime(nextTryTime, batchSize)
+
+            if (requestRecords.isEmpty()) {
+                return false
+            }
+
+            requestRecords.forEach { requestRecord ->
+                logger.info("请求执行补偿: {}", requestRecord)
+                requestManager.resume(requestRecord, nextTryTime)
+            }
+
+            true
+        } catch (ex: Exception) {
+            logger.error("请求执行补偿:异常失败", ex)
+            false
+        } finally {
+            locker.release(compensationLockerKey, pwd)
         }
     }
 
@@ -84,37 +86,36 @@ class JpaRequestScheduleService(
      * 本地请求库归档
      */
     fun archive(expireDays: Int, batchSize: Int, maxLockDuration: Duration) {
-
         val pwd = randomString(8, hasDigital = true, hasLetter = true)
-        val lockerKey = archiveLockerKey
 
-        if (!locker.acquire(lockerKey, pwd, maxLockDuration)) {
+        if (!locker.acquire(archiveLockerKey, pwd, maxLockDuration)) {
             return
         }
 
-        logger.info("请求归档")
+        try {
+            logger.info("请求归档")
 
-        val now = LocalDateTime.now()
-        var failCount = 0
+            val expireDate = LocalDateTime.now().minusDays(expireDays.toLong())
+            var failCount = 0
 
-        while (true) {
-            try {
-                val archivedCount =
-                    requestManager.archiveByExpireAt(now.plusDays(expireDays.toLong()), batchSize)
-                if (archivedCount == 0) {
-                    break
-                }
-            } catch (ex: Exception) {
-                failCount++
-                logger.error("请求归档:失败", ex)
-                if (failCount >= 3) {
-                    logger.info("请求归档:累计3次异常退出任务")
-                    break
+            while (true) {
+                try {
+                    val archivedCount = requestManager.archiveByExpireAt(expireDate, batchSize)
+                    if (archivedCount == 0) {
+                        break
+                    }
+                } catch (ex: Exception) {
+                    failCount++
+                    logger.error("请求归档:失败", ex)
+                    if (failCount >= 3) {
+                        logger.info("请求归档:累计3次异常退出任务")
+                        break
+                    }
                 }
             }
+        } finally {
+            locker.release(archiveLockerKey, pwd)
         }
-
-        locker.release(lockerKey, pwd)
     }
 
     /**

@@ -105,6 +105,21 @@ class Request {
         }
         private set
 
+    private fun loadRequestParam(requestParam: RequestParam<*>) {
+        this.requestParam = requestParam
+        this.param = JSON.toJSONString(
+            requestParam,
+            SerializerFeature.IgnoreNonFieldGetter,
+            SerializerFeature.SkipTransientField
+        )
+        this.paramType = requestParam.javaClass.name
+        val retry = requestParam.javaClass.getAnnotation(Retry::class.java)
+        if (retry != null) {
+            this.tryTimes = retry.retryTimes
+            this.expireAt = this.createAt.plusMinutes(retry.expireAfter.toLong())
+        }
+    }
+
     @Transient
     @JSONField(serialize = false)
     var requestResult: Any? = null
@@ -125,37 +140,21 @@ class Request {
         }
         private set
 
-    private fun loadRequestParam(requestParam: RequestParam<*>) {
-        this.requestParam = requestParam
-        this.param = JSON.toJSONString(
-            requestParam,
+    private fun loadRequestResult(result: Any) {
+        this.requestResult = result
+        this.result = JSON.toJSONString(
+            result,
             SerializerFeature.IgnoreNonFieldGetter,
             SerializerFeature.SkipTransientField
         )
-        this.paramType = requestParam.javaClass.name
-        val retry = requestParam.javaClass.getAnnotation(Retry::class.java)
-        if (retry != null) {
-            this.tryTimes = retry.retryTimes
-            this.expireAt = this.createAt.plusMinutes(retry.expireAfter.toLong())
-        }
-    }
-
-    private fun loadRequestResult(result: Any) {
-        this.requestResult = result
-        this.result =
-            JSON.toJSONString(result, SerializerFeature.IgnoreNonFieldGetter, SerializerFeature.SkipTransientField)
         this.resultType = result.javaClass.name
     }
 
     val isValid: Boolean
-        get() = RequestState.INIT == this.requestState ||
-                RequestState.EXECUTING == this.requestState ||
-                RequestState.EXCEPTION == this.requestState
+        get() = this.requestState in setOf(RequestState.INIT, RequestState.EXECUTING, RequestState.EXCEPTION)
 
     val isInvalid: Boolean
-        get() = RequestState.CANCEL == this.requestState ||
-                RequestState.EXPIRED == this.requestState ||
-                RequestState.EXHAUSTED == this.requestState
+        get() = this.requestState in setOf(RequestState.CANCEL, RequestState.EXPIRED, RequestState.EXHAUSTED)
 
     val isExecuting: Boolean
         get() = RequestState.EXECUTING == this.requestState
@@ -164,24 +163,23 @@ class Request {
         get() = RequestState.EXECUTED == this.requestState
 
     fun beginRequest(now: LocalDateTime): Boolean {
-        // 初始状态或者确认中或者异常
-        if (!isValid) {
-            return false
+        when {
+            // 初始状态或者确认中或者异常
+            !isValid -> return false
+            // 超过重试次数
+            this.triedTimes >= this.tryTimes -> {
+                this.requestState = RequestState.EXHAUSTED
+                return false
+            }
+            // 事件过期
+            now.isAfter(this.expireAt) -> {
+                this.requestState = RequestState.EXPIRED
+                return false
+            }
+            // 未到下次重试时间
+            this.lastTryTime != now && this.nextTryTime.isAfter(now) -> return false
         }
-        // 超过重试次数
-        if (this.triedTimes >= this.tryTimes) {
-            this.requestState = RequestState.EXHAUSTED
-            return false
-        }
-        // 事件过期
-        if (now.isAfter(this.expireAt)) {
-            this.requestState = RequestState.EXPIRED
-            return false
-        }
-        // 未到下次重试时间
-        if (this.lastTryTime != now && this.nextTryTime.isAfter(now)) {
-            return false
-        }
+
         this.requestState = RequestState.EXECUTING
         this.lastTryTime = now
         this.triedTimes += 1
@@ -268,17 +266,17 @@ class Request {
         EXECUTED(1, "executed");
 
         companion object {
-            fun valueOf(value: Int?): RequestState? {
+            fun valueOf(value: Int): RequestState? {
                 return entries.find { it.value == value }
             }
         }
 
         class Converter : AttributeConverter<RequestState, Int> {
-            override fun convertToDatabaseColumn(attribute: RequestState?): Int? {
-                return attribute?.value
+            override fun convertToDatabaseColumn(attribute: RequestState): Int {
+                return attribute.value
             }
 
-            override fun convertToEntityAttribute(dbData: Int?): RequestState? {
+            override fun convertToEntityAttribute(dbData: Int): RequestState? {
                 return valueOf(dbData)
             }
         }

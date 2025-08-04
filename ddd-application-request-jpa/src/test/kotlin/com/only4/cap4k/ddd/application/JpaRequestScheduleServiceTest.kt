@@ -357,7 +357,7 @@ class JpaRequestScheduleServiceTest {
 
             // Then
             val capturedExpireTime = expireTimeSlot.captured
-            val expectedExpireTime = LocalDateTime.now().plusDays(expireDays.toLong())
+            val expectedExpireTime = LocalDateTime.now().minusDays(expireDays.toLong())
 
             // 允许几秒钟的误差
             assertTrue(

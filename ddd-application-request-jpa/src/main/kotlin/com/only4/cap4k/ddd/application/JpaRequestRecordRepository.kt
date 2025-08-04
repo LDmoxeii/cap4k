@@ -28,9 +28,9 @@ open class JpaRequestRecordRepository(
 
     @Transactional(propagation = Propagation.REQUIRED)
     override fun save(requestRecord: RequestRecord) {
-        val requestRecordImpl = requestRecord as RequestRecordImpl
-        val updatedRequest = requestJpaRepository.saveAndFlush(requestRecordImpl.request)
-        requestRecordImpl.resume(updatedRequest)
+        val record = requestRecord as RequestRecordImpl
+        val request = requestJpaRepository.saveAndFlush(record.request)
+        record.resume(request)
     }
 
     override fun getById(id: String): RequestRecord {
