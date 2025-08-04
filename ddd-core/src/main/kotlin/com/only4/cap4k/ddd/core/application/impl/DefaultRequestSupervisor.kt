@@ -9,15 +9,13 @@ import com.only4.cap4k.ddd.core.application.query.Query
 import com.only4.cap4k.ddd.core.application.saga.SagaParam
 import com.only4.cap4k.ddd.core.application.saga.SagaSupervisor
 import com.only4.cap4k.ddd.core.share.DomainException
+import com.only4.cap4k.ddd.core.share.misc.createScheduledThreadPool
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import jakarta.validation.ConstraintViolationException
 import jakarta.validation.Validator
 import java.time.Duration
 import java.time.LocalDateTime
-import java.util.concurrent.Executors
-import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
-import org.springframework.objenesis.instantiator.util.ClassUtils as SpringClassUtils
 
 /**
  * 默认请求管理器
@@ -54,7 +52,7 @@ open class DefaultRequestSupervisor(
     }
 
     private val requestHandlerMap by lazy {
-        buildMap<Class<*>, RequestHandler<*, *>> {
+        buildMap {
             requestHandlers.forEach { requestHandler ->
                 val requestPayloadClass = resolveGenericTypeClass(
                     requestHandler, 0,
@@ -68,7 +66,7 @@ open class DefaultRequestSupervisor(
     }
 
     private val requestInterceptorMap by lazy {
-        buildMap<Class<*>, MutableList<RequestInterceptor<*, *>>> {
+        buildMap {
             // 初始化请求拦截器映射
             requestInterceptors.forEach { requestInterceptor ->
                 val requestPayloadClass = resolveGenericTypeClass(
@@ -82,28 +80,11 @@ open class DefaultRequestSupervisor(
     }
 
     private val executorService by lazy {
-        when {
-            threadFactoryClassName.isBlank() -> {
-                Executors.newScheduledThreadPool(threadPoolSize)
-            }
-
-            else -> {
-                try {
-                    val threadFactoryClass = SpringClassUtils.getExistingClass<ThreadFactory>(
-                        this::class.java.classLoader,
-                        threadFactoryClassName
-                    )
-                    val threadFactory = SpringClassUtils.newInstance(threadFactoryClass)
-                    if (threadFactory != null) {
-                        Executors.newScheduledThreadPool(threadPoolSize, threadFactory)
-                    } else {
-                        Executors.newScheduledThreadPool(threadPoolSize)
-                    }
-                } catch (e: Exception) {
-                    Executors.newScheduledThreadPool(threadPoolSize)
-                }
-            }
-        }
+        createScheduledThreadPool(
+            threadPoolSize,
+            threadFactoryClassName,
+            this::class.java.classLoader
+        )
     }
 
     fun init() {

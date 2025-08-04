@@ -4,13 +4,11 @@ import com.only4.cap4k.ddd.application.event.commands.IntegrationEventHttpCallba
 import com.only4.cap4k.ddd.core.Mediator
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
+import com.only4.cap4k.ddd.core.share.misc.createFixedThreadPool
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
 import org.slf4j.LoggerFactory
 import org.springframework.core.env.Environment
-import org.springframework.objenesis.instantiator.util.ClassUtils
 import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.ThreadFactory
 
 /**
  * 基于Http的集成事件发布器
@@ -28,22 +26,11 @@ class HttpIntegrationEventPublisher(
     private val logger = LoggerFactory.getLogger(HttpIntegrationEventPublisher::class.java)
 
     private val executorService: ExecutorService by lazy {
-        when {
-            threadFactoryClassName.isBlank() -> {
-                Executors.newFixedThreadPool(threadPoolSize)
-            }
-
-            else -> {
-                val threadFactoryClass = ClassUtils.getExistingClass<ThreadFactory>(
-                    javaClass.classLoader, threadFactoryClassName
-                )
-                val threadFactory = threadFactoryClass.getDeclaredConstructor().newInstance()
-
-                threadFactory.let {
-                    Executors.newFixedThreadPool(threadPoolSize, threadFactory)
-                } ?: Executors.newFixedThreadPool(threadPoolSize)
-            }
-        }
+        createFixedThreadPool(
+            threadPoolSize,
+            threadFactoryClassName,
+            javaClass.classLoader
+        )
     }
 
 

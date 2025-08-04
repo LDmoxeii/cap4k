@@ -11,15 +11,13 @@ import com.only4.cap4k.ddd.core.application.query.PageQuery
 import com.only4.cap4k.ddd.core.application.query.Query
 import com.only4.cap4k.ddd.core.application.saga.*
 import com.only4.cap4k.ddd.core.share.DomainException
+import com.only4.cap4k.ddd.core.share.misc.createScheduledThreadPool
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import jakarta.validation.ConstraintViolationException
 import jakarta.validation.Validator
 import java.time.Duration
 import java.time.LocalDateTime
-import java.util.concurrent.Executors
-import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
-import org.springframework.objenesis.instantiator.util.ClassUtils as SpringClassUtils
 
 /**
  * 默认Saga监督者实现
@@ -69,7 +67,7 @@ open class DefaultSagaSupervisor(
 
     // 使用lazy懒加载的成员变量
     private val requestHandlerMap by lazy {
-        buildMap<Class<*>, RequestHandler<*, *>> {
+        buildMap {
             requestHandlers.forEach { handler ->
                 val requestPayloadClass = resolveGenericTypeClass(
                     handler, 0,
@@ -84,7 +82,7 @@ open class DefaultSagaSupervisor(
     }
 
     private val requestInterceptorMap by lazy {
-        buildMap<Class<*>, MutableList<RequestInterceptor<*, *>>> {
+        buildMap {
             requestInterceptors.forEach { interceptor ->
                 val requestPayloadClass = resolveGenericTypeClass(
                     interceptor, 0,
@@ -97,30 +95,11 @@ open class DefaultSagaSupervisor(
     }
 
     private val executorService by lazy {
-        when {
-            threadFactoryClassName.isBlank() -> {
-                Executors.newScheduledThreadPool(threadPoolSize)
-            }
-
-            else -> {
-                try {
-                    val threadFactoryClass = SpringClassUtils.getExistingClass<ThreadFactory>(
-                        this::class.java.classLoader,
-                        threadFactoryClassName
-                    )
-                    val threadFactory = SpringClassUtils.newInstance(threadFactoryClass)
-
-                    if (threadFactory != null) {
-                        Executors.newScheduledThreadPool(threadPoolSize, threadFactory)
-                    } else {
-                        Executors.newScheduledThreadPool(threadPoolSize)
-                    }
-                } catch (e: Exception) {
-                    // 如果自定义ThreadFactory创建失败，使用默认的
-                    Executors.newScheduledThreadPool(threadPoolSize)
-                }
-            }
-        }
+        createScheduledThreadPool(
+            threadPoolSize,
+            threadFactoryClassName,
+            this::class.java.classLoader
+        )
     }
 
     fun init() {
