@@ -32,7 +32,7 @@ interface Aggregate<ENTITY : Any> {
             if (payload != null) {
                 require(payload is AggregatePayload<*>) { "payload must be AggregatePayload" }
                 @Suppress("UNCHECKED_CAST")
-                val root = Mediator.factories().create(payload as AggregatePayload<ENTITY>)
+                val root = Mediator.factories.create(payload as AggregatePayload<ENTITY>)
                 _wrap(root)
             }
         }

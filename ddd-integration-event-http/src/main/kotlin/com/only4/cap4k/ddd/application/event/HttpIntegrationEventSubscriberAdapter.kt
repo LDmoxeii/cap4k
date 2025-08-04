@@ -72,7 +72,7 @@ class HttpIntegrationEventSubscriberAdapter(
             if (!isRemote) {
                 httpIntegrationEventSubscriberRegister.subscribe(target, subscriber, eventCallbackUrl)
             } else {
-                Mediator.commands().send(
+                Mediator.commands.send(
                     IntegrationEventHttpSubscribeCommand.Request(
                         url = eventSourceRegisterUrl,
                         event = target,

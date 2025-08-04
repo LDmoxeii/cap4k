@@ -49,24 +49,24 @@ interface Mediator : AggregateFactorySupervisor,
         val instance: Mediator
             get() = MediatorSupport.instance
 
-        fun ioc(): ApplicationContext = MediatorSupport.ioc
-        fun factories(): AggregateFactorySupervisor = AggregateFactorySupervisor.instance
-        fun repositories(): RepositorySupervisor = RepositorySupervisor.instance
-        fun aggregates(): AggregateSupervisor = AggregateSupervisor.instance
-        fun services(): DomainServiceSupervisor = DomainServiceSupervisor.instance
-        fun events(): IntegrationEventSupervisor = IntegrationEventSupervisor.instance
-        fun requests(): RequestSupervisor = RequestSupervisor.instance
-        fun commands(): RequestSupervisor = requests()
-        fun queries(): RequestSupervisor = requests()
+        val ioc: ApplicationContext = MediatorSupport.ioc
+        val factories: AggregateFactorySupervisor = AggregateFactorySupervisor.instance
+        val repositories: RepositorySupervisor = RepositorySupervisor.instance
+        val aggregates: AggregateSupervisor = AggregateSupervisor.instance
+        val services: DomainServiceSupervisor = DomainServiceSupervisor.instance
+        val events: IntegrationEventSupervisor = IntegrationEventSupervisor.instance
+        val requests: RequestSupervisor = RequestSupervisor.instance
+        val commands: RequestSupervisor = requests
+        val queries: RequestSupervisor = requests
 
         // Shortcuts
-        fun fac(): AggregateFactorySupervisor = factories()
-        fun repo(): RepositorySupervisor = repositories()
-        fun agg(): AggregateSupervisor = aggregates()
-        fun svc(): DomainServiceSupervisor = services()
-        fun uow(): UnitOfWork = UnitOfWork.instance
-        fun req(): RequestSupervisor = requests()
-        fun cmd(): RequestSupervisor = requests()
-        fun qry(): RequestSupervisor = requests()
+        val fac: AggregateFactorySupervisor = factories
+        val repo: RepositorySupervisor = repositories
+        val agg: AggregateSupervisor = aggregates
+        val svc: DomainServiceSupervisor = services
+        val uow: UnitOfWork = UnitOfWork.instance
+        val req: RequestSupervisor = requests
+        val cmd: RequestSupervisor = requests
+        val qry: RequestSupervisor = requests
     }
 }

@@ -17,23 +17,23 @@ import org.springframework.context.ApplicationContext
  */
 interface X {
     companion object {
-        fun ioc(): ApplicationContext = Mediator.ioc()
-        fun factories(): AggregateFactorySupervisor = Mediator.factories()
-        fun repositories(): RepositorySupervisor = Mediator.repositories()
-        fun aggregates(): AggregateSupervisor = Mediator.aggregates()
-        fun services(): DomainServiceSupervisor = Mediator.services()
-        fun unitOfWork(): UnitOfWork = Mediator.uow()
-        fun events(): IntegrationEventSupervisor = Mediator.events()
-        fun requests(): RequestSupervisor = Mediator.requests()
-        fun commands(): RequestSupervisor = Mediator.commands()
-        fun queries(): RequestSupervisor = Mediator.queries()
-        fun fac(): AggregateFactorySupervisor = Mediator.fac()
-        fun repo(): RepositorySupervisor = Mediator.repo()
-        fun agg(): AggregateSupervisor = Mediator.agg()
-        fun svc(): DomainServiceSupervisor = Mediator.svc()
-        fun uow(): UnitOfWork = Mediator.uow()
-        fun req(): RequestSupervisor = Mediator.req()
-        fun cmd(): RequestSupervisor = Mediator.cmd()
-        fun qry(): RequestSupervisor = Mediator.qry()
+        val ioc: ApplicationContext = Mediator.ioc
+        val factories: AggregateFactorySupervisor = Mediator.factories
+        val repositories: RepositorySupervisor = Mediator.repositories
+        val aggregates: AggregateSupervisor = Mediator.aggregates
+        val services: DomainServiceSupervisor = Mediator.services
+        val unitOfWork: UnitOfWork = Mediator.uow
+        val events: IntegrationEventSupervisor = Mediator.events
+        val requests: RequestSupervisor = Mediator.requests
+        val commands: RequestSupervisor = Mediator.commands
+        val queries: RequestSupervisor = Mediator.queries
+        val fac: AggregateFactorySupervisor = Mediator.fac
+        val repo: RepositorySupervisor = Mediator.repo
+        val agg: AggregateSupervisor = Mediator.agg
+        val svc: DomainServiceSupervisor = Mediator.svc
+        val uow: UnitOfWork = Mediator.uow
+        val req: RequestSupervisor = Mediator.req
+        val cmd: RequestSupervisor = Mediator.cmd
+        val qry: RequestSupervisor = Mediator.qry
     }
 }

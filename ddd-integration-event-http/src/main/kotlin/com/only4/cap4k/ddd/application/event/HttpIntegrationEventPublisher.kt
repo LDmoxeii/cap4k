@@ -63,7 +63,7 @@ class HttpIntegrationEventPublisher(
             executorService.execute {
                 runCatching {
                     subscribers.forEach { subscriber ->
-                        Mediator.commands().async(
+                        Mediator.commands.async(
                             IntegrationEventHttpCallbackTriggerCommand.Request(
                                 url = subscriber.callbackUrl,
                                 uuid = event.id,
