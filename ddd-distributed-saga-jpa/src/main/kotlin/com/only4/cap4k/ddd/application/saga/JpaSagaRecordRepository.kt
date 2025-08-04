@@ -28,9 +28,9 @@ open class JpaSagaRecordRepository(
 
     @Transactional(propagation = Propagation.REQUIRED)
     override fun save(sagaRecord: SagaRecord) {
-        val sagaRecordImpl = sagaRecord as SagaRecordImpl
-        val updatedSaga = sagaJpaRepository.saveAndFlush(sagaRecordImpl.saga)
-        sagaRecordImpl.resume(updatedSaga)
+        val record = sagaRecord as SagaRecordImpl
+        val saga = sagaJpaRepository.saveAndFlush(record.saga)
+        record.resume(saga)
     }
 
     override fun getById(id: String): SagaRecord {

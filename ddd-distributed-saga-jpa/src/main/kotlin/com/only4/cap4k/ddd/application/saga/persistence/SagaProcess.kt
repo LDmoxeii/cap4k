@@ -103,12 +103,7 @@ class SagaProcess {
 
         companion object {
             fun valueOf(value: Int): SagaProcessState? {
-                for (state in entries) {
-                    if (state.value == value) {
-                        return state
-                    }
-                }
-                return null
+                return entries.find { it.value == value }
             }
         }
 

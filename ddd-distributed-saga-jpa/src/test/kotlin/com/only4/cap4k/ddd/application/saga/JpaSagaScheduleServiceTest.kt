@@ -244,7 +244,7 @@ class JpaSagaScheduleServiceTest {
             scheduleService.archive(expireDays, 100, Duration.ofMinutes(15))
 
             // Then
-            val expectedTime = LocalDateTime.now().plusDays(expireDays.toLong())
+            val expectedTime = LocalDateTime.now().minusDays(expireDays.toLong())
             assertTrue(timeSlot.captured.isAfter(expectedTime.minusSeconds(5)))
             assertTrue(timeSlot.captured.isBefore(expectedTime.plusSeconds(5)))
         }

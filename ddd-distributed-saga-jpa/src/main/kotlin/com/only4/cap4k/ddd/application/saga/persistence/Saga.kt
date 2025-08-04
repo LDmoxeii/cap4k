@@ -99,6 +99,18 @@ class Saga {
         }
         private set
 
+    private fun loadSagaParam(sagaParam: SagaParam<*>) {
+        this.sagaParam = sagaParam
+        this.param = JSON.toJSONString(sagaParam, IgnoreNonFieldGetter, SkipTransientField)
+        this.paramType = sagaParam.javaClass.name
+
+        val retry = sagaParam.javaClass.getAnnotation(Retry::class.java)
+        if (retry != null) {
+            this.tryTimes = retry.retryTimes
+            this.expireAt = this.createAt.plusMinutes(retry.expireAfter.toLong())
+        }
+    }
+
     @Transient
     @JSONField(serialize = false)
     var sagaResult: Any? = null
@@ -118,18 +130,6 @@ class Saga {
             return field
         }
         private set
-
-    private fun loadSagaParam(sagaParam: SagaParam<*>) {
-        this.sagaParam = sagaParam
-        this.param = JSON.toJSONString(sagaParam, IgnoreNonFieldGetter, SkipTransientField)
-        this.paramType = sagaParam.javaClass.name
-
-        val retry = sagaParam.javaClass.getAnnotation(Retry::class.java)
-        if (retry != null) {
-            this.tryTimes = retry.retryTimes
-            this.expireAt = this.createAt.plusMinutes(retry.expireAfter.toLong())
-        }
-    }
 
     private fun loadSagaResult(result: Any) {
         this.sagaResult = result
@@ -160,17 +160,11 @@ class Saga {
     }
 
     val isValid: Boolean
-        get() =
-            SagaState.INIT == this.sagaState ||
-                    SagaState.EXECUTING == this.sagaState ||
-                    SagaState.EXCEPTION == this.sagaState
+        get() = this.sagaState in setOf(SagaState.INIT, SagaState.EXECUTING, SagaState.EXCEPTION)
 
 
     val isInvalid: Boolean
-        get() =
-            SagaState.CANCEL == this.sagaState ||
-                    SagaState.EXPIRED == this.sagaState ||
-                    SagaState.EXHAUSTED == this.sagaState
+        get() = this.sagaState in setOf(SagaState.CANCEL, SagaState.EXPIRED, SagaState.EXHAUSTED)
 
     val isExecuting: Boolean
         get() = SagaState.EXECUTING == this.sagaState
@@ -179,24 +173,23 @@ class Saga {
         get() = SagaState.EXECUTED == this.sagaState
 
     fun beginSaga(now: LocalDateTime): Boolean {
-        // 初始状态或者确认中或者异常
-        if (!isValid) {
-            return false
+        when {
+            // 初始状态或者确认中或者异常
+            !isValid -> return false
+            // 超过重试次数
+            this.triedTimes >= this.tryTimes -> {
+                this.sagaState = SagaState.EXHAUSTED
+                return false
+            }
+            // 事件过期
+            now.isAfter(this.expireAt) -> {
+                this.sagaState = SagaState.EXPIRED
+                return false
+            }
+            // 未到下次重试时间
+            !this.lastTryTime.isEqual(now) && this.nextTryTime.isAfter(now) -> return false
         }
-        // 超过重试次数
-        if (this.triedTimes >= this.tryTimes) {
-            this.sagaState = SagaState.EXHAUSTED
-            return false
-        }
-        // 事件过期
-        if (now.isAfter(this.expireAt)) {
-            this.sagaState = SagaState.EXPIRED
-            return false
-        }
-        // 未到下次重试时间
-        if (!this.lastTryTime.isEqual(now) && this.nextTryTime.isAfter(now)) {
-            return false
-        }
+
         this.sagaState = SagaState.EXECUTING
         this.lastTryTime = now
         this.triedTimes++
@@ -228,7 +221,7 @@ class Saga {
     }
 
     private fun calculateNextTryTime(now: LocalDateTime): LocalDateTime {
-        val retry = sagaParam?.javaClass?.getAnnotation(Retry::class.java)
+        val retry = sagaParam!!.javaClass.getAnnotation(Retry::class.java)
         if (retry == null || retry.retryIntervals.isEmpty()) {
             return when {
                 this.triedTimes <= 10 -> now.plusMinutes(1)
@@ -236,12 +229,7 @@ class Saga {
                 else -> now.plusMinutes(10)
             }
         }
-        var index = this.triedTimes - 1
-        if (index >= retry.retryIntervals.size) {
-            index = retry.retryIntervals.size - 1
-        } else if (index < 0) {
-            index = 0
-        }
+        val index = (this.triedTimes - 1).coerceIn(0, retry.retryIntervals.lastIndex)
         return now.plusMinutes(retry.retryIntervals[index].toLong())
     }
 
@@ -287,12 +275,7 @@ class Saga {
 
         companion object {
             fun valueOf(value: Int): SagaState? {
-                for (state in entries) {
-                    if (state.value == value) {
-                        return state
-                    }
-                }
-                return null
+                return entries.find { it.value == value }
             }
         }
 
