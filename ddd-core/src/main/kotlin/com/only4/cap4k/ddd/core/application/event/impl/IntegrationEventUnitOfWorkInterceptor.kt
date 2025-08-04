@@ -21,15 +21,15 @@ class IntegrationEventUnitOfWorkInterceptor(
         // 空实现
     }
 
+    override fun postEntitiesPersisted(entities: Set<Any>) {
+        // 空实现
+    }
+
     override fun postInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
         integrationEventManager.release()
     }
 
     override fun afterTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
-        // 空实现
-    }
-
-    override fun postEntitiesPersisted(entities: Set<Any>) {
         // 空实现
     }
 }

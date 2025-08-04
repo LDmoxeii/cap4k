@@ -21,16 +21,16 @@ class DomainEventUnitOfWorkInterceptor(
         // 在事务执行最初不需要特殊处理
     }
 
+    override fun postEntitiesPersisted(entities: Set<Any>) {
+        // 实体持久化之后，发布领域事件
+        domainEventManager.release(entities)
+    }
+
     override fun postInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
         // 在事务执行之后不需要特殊处理
     }
 
     override fun afterTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
         // 在事务结束后不需要特殊处理
-    }
-
-    override fun postEntitiesPersisted(entities: Set<Any>) {
-        // 实体持久化之后，发布领域事件
-        domainEventManager.release(entities)
     }
 }

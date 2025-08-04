@@ -33,16 +33,15 @@ class SpecificationUnitOfWorkInterceptor(
         }
     }
 
+    override fun postEntitiesPersisted(entities: Set<Any>) {
+        // Empty implementation
+    }
 
     override fun postInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
         // Empty implementation
     }
 
     override fun afterTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
-        // Empty implementation
-    }
-
-    override fun postEntitiesPersisted(entities: Set<Any>) {
         // Empty implementation
     }
 }
