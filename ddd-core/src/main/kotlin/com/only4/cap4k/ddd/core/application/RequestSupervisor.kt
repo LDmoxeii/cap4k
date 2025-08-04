@@ -69,7 +69,7 @@ interface RequestSupervisor {
      * @param requestId 请求ID
      * @return 请求结果
     </R> */
-    fun <R: Any> result(requestId: String): R
+    fun <R : Any> result(requestId: String): R?
 
     companion object {
         /**

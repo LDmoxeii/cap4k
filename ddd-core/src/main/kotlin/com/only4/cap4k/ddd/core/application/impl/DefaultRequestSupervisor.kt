@@ -67,7 +67,6 @@ open class DefaultRequestSupervisor(
 
     private val requestInterceptorMap by lazy {
         buildMap {
-            // 初始化请求拦截器映射
             requestInterceptors.forEach { requestInterceptor ->
                 val requestPayloadClass = resolveGenericTypeClass(
                     requestInterceptor, 0,
@@ -93,14 +92,12 @@ open class DefaultRequestSupervisor(
         executorService
     }
 
-    override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> send(request: REQUEST): RESPONSE {
-        // 如果是Saga请求，委托给SagaSupervisor处理
+    override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE : Any> send(request: REQUEST): RESPONSE {
         if (request is SagaParam<*>) {
             @Suppress("UNCHECKED_CAST")
             return SagaSupervisor.instance.send(request as SagaParam<RESPONSE>)
         }
 
-        // 参数验证
         validator?.validate(request)?.takeIf { it.isNotEmpty() }?.let { violations ->
             throw ConstraintViolationException(violations)
         }
@@ -108,16 +105,14 @@ open class DefaultRequestSupervisor(
         return internalSend(request)
     }
 
-    override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> schedule(
+    override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE : Any> schedule(
         request: REQUEST,
         schedule: LocalDateTime
     ): String {
-        // 如果是Saga请求，委托给SagaSupervisor处理
         if (request is SagaParam<*>) {
             return SagaSupervisor.instance.schedule(request as SagaParam<*>, schedule)
         }
 
-        // 参数验证
         validator?.validate(request)?.takeIf { it.isNotEmpty() }?.let { violations ->
             throw ConstraintViolationException(violations)
         }
@@ -135,16 +130,18 @@ open class DefaultRequestSupervisor(
         return requestRecord.id
     }
 
-    override fun <R: Any> result(requestId: String): R = requestRecordRepository.getById(requestId).getResult()
+    override fun <R : Any> result(requestId: String): R? = requestRecordRepository.getById(requestId).getResult()
 
     override fun resume(request: RequestRecord, minNextTryTime: LocalDateTime) {
         val now = LocalDateTime.now()
-        val requestTime = if (request.nextTryTime.isAfter(now)) request.nextTryTime else now
+        val requestTime = Duration.between(request.nextTryTime, now).let {
+            if (it.isNegative) now else request.nextTryTime
+        }
 
         request.beginRequest(requestTime)
 
         var maxTry = 65535
-        while (request.nextTryTime.isBefore(minNextTryTime) && request.isValid) {
+        while (!(Duration.between(request.nextTryTime, minNextTryTime).isZero) && request.isValid) {
             request.beginRequest(request.nextTryTime)
             if (maxTry-- <= 0) {
                 throw DomainException("疑似死循环")
@@ -170,7 +167,6 @@ open class DefaultRequestSupervisor(
 
         val param = request.param
 
-        // 参数验证
         validator?.validate(request)?.takeIf { it.isNotEmpty() }?.let { violations ->
             throw ConstraintViolationException(violations)
         }
@@ -178,13 +174,11 @@ open class DefaultRequestSupervisor(
         internalSend(param, request)
     }
 
-    override fun getByNextTryTime(maxNextTryTime: LocalDateTime, limit: Int): List<RequestRecord> {
-        return requestRecordRepository.getByNextTryTime(svcName, maxNextTryTime, limit)
-    }
+    override fun getByNextTryTime(maxNextTryTime: LocalDateTime, limit: Int): List<RequestRecord> =
+        requestRecordRepository.getByNextTryTime(svcName, maxNextTryTime, limit)
 
-    override fun archiveByExpireAt(maxExpireAt: LocalDateTime, limit: Int): Int {
-        return requestRecordRepository.archiveByExpireAt(svcName, maxExpireAt, limit)
-    }
+    override fun archiveByExpireAt(maxExpireAt: LocalDateTime, limit: Int): Int =
+        requestRecordRepository.archiveByExpireAt(svcName, maxExpireAt, limit)
 
     protected open fun createRequestRecord(
         requestType: String,
@@ -203,9 +197,9 @@ open class DefaultRequestSupervisor(
         )
 
         val now = LocalDateTime.now()
-        val shouldExecuteImmediately = scheduleAt.isBefore(now) ||
-                Duration.between(now, scheduleAt)
-                    .toMinutes() < LOCAL_SCHEDULE_ON_INIT_TIME_THRESHOLDS_MINUTES
+        val shouldExecuteImmediately = Duration.between(now, scheduleAt).let {
+            it.isNegative || it.toMinutes() < LOCAL_SCHEDULE_ON_INIT_TIME_THRESHOLDS_MINUTES
+        }
 
         if (shouldExecuteImmediately) {
             requestRecord.beginRequest(scheduleAt)
@@ -219,11 +213,8 @@ open class DefaultRequestSupervisor(
         request: RequestParam<*>,
         requestRecord: RequestRecord
     ) {
-        val now = LocalDateTime.now()
-        val duration = if (now.isBefore(requestRecord.scheduleTime)) {
-            Duration.between(now, requestRecord.scheduleTime)
-        } else {
-            Duration.ZERO
+        val duration = Duration.between(LocalDateTime.now(), requestRecord.scheduleTime).let {
+            if (it.isNegative) Duration.ZERO else it
         }
 
         executorService.schedule({

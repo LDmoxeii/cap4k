@@ -98,7 +98,7 @@ class DefaultMediator : Mediator {
     ): String =
         RequestSupervisor.instance.schedule(request, schedule)
 
-    override fun <R: Any> result(requestId: String): R =
+    override fun <R : Any> result(requestId: String): R? =
         RequestSupervisor.instance.result(requestId)
 
     // IntegrationEventSupervisor methods

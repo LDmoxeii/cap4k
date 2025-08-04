@@ -65,7 +65,6 @@ open class DefaultSagaSupervisor(
         private val SAGA_RECORD_THREAD_LOCAL = ThreadLocal<SagaRecord>()
     }
 
-    // 使用lazy懒加载的成员变量
     private val requestHandlerMap by lazy {
         buildMap {
             requestHandlers.forEach { handler ->
@@ -116,8 +115,7 @@ open class DefaultSagaSupervisor(
 
         val sagaRecord = createSagaRecord(
             sagaType = request::class.java.name,
-            request = request,
-            scheduleAt = LocalDateTime.now()
+            request = request
         )
 
         return internalSend(request, sagaRecord)
@@ -127,7 +125,6 @@ open class DefaultSagaSupervisor(
         request: REQUEST,
         schedule: LocalDateTime
     ): String {
-        // 参数验证
         validator?.validate(request)?.takeIf { it.isNotEmpty() }?.let { violations ->
             throw ConstraintViolationException(violations)
         }
@@ -138,7 +135,6 @@ open class DefaultSagaSupervisor(
             scheduleAt = schedule
         )
 
-        // 如果Saga正在执行且需要延迟调度
         if (sagaRecord.isExecuting) {
             scheduleExecution(request, sagaRecord)
         }
@@ -151,13 +147,14 @@ open class DefaultSagaSupervisor(
 
     override fun resume(saga: SagaRecord, minNextTryTime: LocalDateTime) {
         val now = LocalDateTime.now()
-        val sagaTime = if (saga.nextTryTime.isAfter(now)) saga.nextTryTime else now
+        val sagaTime = Duration.between(saga.nextTryTime, now).let {
+            if (it.isNegative) now else saga.nextTryTime
+        }
 
         saga.beginSaga(sagaTime)
 
-        // 解决请求重试间隔配置过小造成连续重试
         var maxTry = 65535
-        while (saga.nextTryTime.isBefore(minNextTryTime) && saga.isValid) {
+        while (!(Duration.between(saga.nextTryTime, minNextTryTime).isZero) && saga.isValid) {
             saga.beginSaga(saga.nextTryTime)
             if (maxTry-- <= 0) {
                 throw DomainException("疑似死循环")
@@ -167,7 +164,6 @@ open class DefaultSagaSupervisor(
 
         val param = saga.param
 
-        // 参数验证
         validator?.validate(saga)?.takeIf { it.isNotEmpty() }?.let { violations ->
             throw ConstraintViolationException(violations)
         }
@@ -182,7 +178,6 @@ open class DefaultSagaSupervisor(
 
         val param = saga.param
 
-        // 参数验证
         validator?.validate(saga)?.takeIf { it.isNotEmpty() }?.let { violations ->
             throw ConstraintViolationException(violations)
         }
@@ -190,13 +185,11 @@ open class DefaultSagaSupervisor(
         internalSend(param, saga)
     }
 
-    override fun getByNextTryTime(maxNextTryTime: LocalDateTime, limit: Int): List<SagaRecord> {
-        return sagaRecordRepository.getByNextTryTime(svcName, maxNextTryTime, limit)
-    }
+    override fun getByNextTryTime(maxNextTryTime: LocalDateTime, limit: Int): List<SagaRecord> =
+        sagaRecordRepository.getByNextTryTime(svcName, maxNextTryTime, limit)
 
-    override fun archiveByExpireAt(maxExpireAt: LocalDateTime, limit: Int): Int {
-        return sagaRecordRepository.archiveByExpireAt(svcName, maxExpireAt, limit)
-    }
+    override fun archiveByExpireAt(maxExpireAt: LocalDateTime, limit: Int): Int =
+        sagaRecordRepository.archiveByExpireAt(svcName, maxExpireAt, limit)
 
     override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> sendProcess(
         processCode: String,
@@ -237,7 +230,7 @@ open class DefaultSagaSupervisor(
     protected open fun createSagaRecord(
         sagaType: String,
         request: SagaParam<out Any>,
-        scheduleAt: LocalDateTime
+        scheduleAt: LocalDateTime = LocalDateTime.now()
     ): SagaRecord {
         val sagaRecord = sagaRecordRepository.create()
 
@@ -252,8 +245,9 @@ open class DefaultSagaSupervisor(
 
         // 如果调度时间已过或在阈值时间内，立即开始执行
         val now = LocalDateTime.now()
-        val shouldExecuteImmediately = scheduleAt.isBefore(now) ||
-                Duration.between(now, scheduleAt).toMinutes() < LOCAL_SCHEDULE_ON_INIT_TIME_THRESHOLD_MINUTES
+        val shouldExecuteImmediately = Duration.between(now, scheduleAt).let {
+            it.isNegative || it.toMinutes() < LOCAL_SCHEDULE_ON_INIT_TIME_THRESHOLD_MINUTES
+        }
 
         if (shouldExecuteImmediately) {
             sagaRecord.beginSaga(scheduleAt)

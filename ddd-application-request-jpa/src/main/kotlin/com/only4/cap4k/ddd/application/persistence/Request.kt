@@ -213,7 +213,7 @@ class Request {
     }
 
     private fun calculateNextTryTime(now: LocalDateTime): LocalDateTime {
-        val retry = requestParam?.javaClass?.getAnnotation(Retry::class.java)
+        val retry = requestParam!!.javaClass.getAnnotation(Retry::class.java)
         if (retry == null || retry.retryIntervals.isEmpty()) {
             return when {
                 this.triedTimes <= 10 -> now.plusMinutes(1)
@@ -221,11 +221,7 @@ class Request {
                 else -> now.plusMinutes(10)
             }
         }
-        val index = when {
-            this.triedTimes - 1 >= retry.retryIntervals.size -> retry.retryIntervals.size - 1
-            this.triedTimes - 1 < 0 -> 0
-            else -> this.triedTimes - 1
-        }
+        val index = (this.triedTimes - 1).coerceIn(0, retry.retryIntervals.lastIndex)
         return now.plusMinutes(retry.retryIntervals[index].toLong())
     }
 
