@@ -11,7 +11,7 @@ import java.time.LocalDateTime
  */
 interface EventRecordRepository {
     fun create(): EventRecord
-    fun save(event: EventRecord)
+    fun save(eventRecord: EventRecord)
     fun getById(id: String): EventRecord
     fun getByNextTryTime(svcName: String, maxNextTryTime: LocalDateTime, limit: Int): List<EventRecord>
     fun archiveByExpireAt(svcName: String, maxExpireAt: LocalDateTime, limit: Int): Int

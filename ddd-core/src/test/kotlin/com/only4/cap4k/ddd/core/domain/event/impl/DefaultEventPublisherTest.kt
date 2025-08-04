@@ -449,7 +449,7 @@ class DefaultEventPublisherTest {
         every { eventRecord.payload } returns payload
         every { eventRecord.id } returns "test-id"
         every { eventRecord.markPersist(any()) } just Runs
-        every { eventRecord.confirmedDelivery(any()) } just Runs
+        every { eventRecord.endDelivery(any()) } just Runs
         every { eventRecord.occurredException(any(), any()) } just Runs
         every { eventRecord.nextTryTime } returns LocalDateTime.now().plusMinutes(10) // 设置为未来时间避免死循环
         every { eventRecord.isValid } returns true

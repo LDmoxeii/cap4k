@@ -29,7 +29,6 @@ class EventRecordImpl : EventRecord {
     private val logger = LoggerFactory.getLogger(EventRecordImpl::class.java)
     lateinit var event: Event
     private var persist = false
-    private var _message: Message<Any>? = null
 
     /**
      * 恢复事件
@@ -74,6 +73,7 @@ class EventRecordImpl : EventRecord {
     override val isPersist: Boolean
         get() = persist
 
+    private var _message: Message<Any>? = null
     override val message: Message<Any>
         get() {
             if (this._message != null) {
@@ -120,16 +120,19 @@ class EventRecordImpl : EventRecord {
         }
 
     override val isValid: Boolean
-        get() = event.isValid()
+        get() = event.isValid
 
     override val isInvalid: Boolean
-        get() = event.isInvalid()
+        get() = event.isInvalid
+
+    override val isDelivering: Boolean
+        get() = event.isDelivering
 
     override val isDelivered: Boolean
-        get() = event.isDelivered()
+        get() = event.isDelivered
 
     override fun beginDelivery(now: LocalDateTime): Boolean {
-        return event.holdState4Delivery(now)
+        return event.beginDelivery(now)
     }
 
     override fun cancelDelivery(now: LocalDateTime): Boolean {
@@ -140,7 +143,7 @@ class EventRecordImpl : EventRecord {
         event.occurredException(now, throwable)
     }
 
-    override fun confirmedDelivery(now: LocalDateTime) {
-        event.confirmedDelivery(now)
+    override fun endDelivery(now: LocalDateTime) {
+        event.endDelivery(now)
     }
 }

@@ -149,7 +149,7 @@ open class DefaultEventPublisher(
             // 进程内消息
             val now = LocalDateTime.now()
             eventSubscriberManager.dispatch(event.payload)
-            event.confirmedDelivery(now)
+            event.endDelivery(now)
 
             if (persist) {
                 domainEventInterceptorManager.orderedEventInterceptors4DomainEvent

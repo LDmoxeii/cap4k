@@ -88,6 +88,12 @@ interface EventRecord {
     val isInvalid: Boolean
 
     /**
+     * 是否正在发送
+     * @return
+     */
+    val isDelivering: Boolean
+
+    /**
      * 是否已发送
      * @return
      */
@@ -111,7 +117,7 @@ interface EventRecord {
      * 确认事件已发出
      * @param now
      */
-    fun confirmedDelivery(now: LocalDateTime)
+    fun endDelivery(now: LocalDateTime)
 
     /**
      * 发生异常

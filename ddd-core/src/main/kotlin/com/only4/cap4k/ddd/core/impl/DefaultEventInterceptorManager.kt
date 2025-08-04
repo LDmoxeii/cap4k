@@ -68,7 +68,7 @@ class DefaultEventInterceptorManager(
         val now = LocalDateTime.now()
 
         // 修改事件消费状态
-        event.confirmedDelivery(now)
+        event.endDelivery(now)
 
         orderedEventInterceptors4IntegrationEvent.forEach { interceptor: EventInterceptor ->
             interceptor.prePersist(

@@ -44,42 +44,44 @@ class JpaEventScheduleService(
         }
 
         compensationRunning = true
-        val pwd = randomString(8, hasDigital = true, hasLetter = true)
-        val lockerKey = compensationLockerKey
-
         try {
-            var noneEvent = false
             val now = LocalDateTime.now()
+            val nextTryTime = now.plus(interval)
 
-            while (!noneEvent) {
-                var lockAcquired = false
-                try {
-                    if (!locker.acquire(lockerKey, pwd, maxLockDuration)) {
-                        return
-                    }
-                    lockAcquired = true
-
-                    val eventRecords = eventRecordRepository.getByNextTryTime(svcName, now.plus(interval), batchSize)
-
-                    if (eventRecords.isEmpty()) {
-                        noneEvent = true
-                        continue
-                    }
-
-                    for (eventRecord in eventRecords) {
-                        logger.info("事件发送补偿: {}", eventRecord)
-                        eventPublisher.resume(eventRecord, now.plus(interval))
-                    }
-                } catch (ex: Exception) {
-                    logger.error("事件发送补偿:异常失败", ex)
-                } finally {
-                    if (lockAcquired) {
-                        locker.release(lockerKey, pwd)
-                    }
-                }
+            while (true) {
+                val processed = processEventBatch(batchSize, nextTryTime, maxLockDuration)
+                if (!processed) break
             }
         } finally {
             compensationRunning = false
+        }
+    }
+
+    private fun processEventBatch(batchSize: Int, nextTryTime: LocalDateTime, maxLockDuration: Duration): Boolean {
+        val pwd = randomString(8, hasDigital = true, hasLetter = true)
+
+        if (!locker.acquire(compensationLockerKey, pwd, maxLockDuration)) {
+            return false
+        }
+
+        return try {
+            val eventRecords = eventRecordRepository.getByNextTryTime(svcName, nextTryTime, batchSize)
+
+            if (eventRecords.isEmpty()) {
+                return false
+            }
+
+            eventRecords.forEach { eventRecord ->
+                logger.info("事件发送补偿: {}", eventRecord)
+                eventPublisher.resume(eventRecord, nextTryTime)
+            }
+
+            true
+        } catch (ex: Exception) {
+            logger.error("事件发送补偿:异常失败", ex)
+            false
+        } finally {
+            locker.release(compensationLockerKey, pwd)
         }
     }
 
@@ -87,37 +89,36 @@ class JpaEventScheduleService(
      * 本地事件库归档
      */
     fun archive(expireDays: Int, batchSize: Int, maxLockDuration: Duration) {
-
         val pwd = randomString(8, hasDigital = true, hasLetter = true)
-        val lockerKey = archiveLockerKey
 
-        if (!locker.acquire(lockerKey, pwd, maxLockDuration)) {
+        if (!locker.acquire(archiveLockerKey, pwd, maxLockDuration)) {
             return
         }
 
-        logger.info("事件归档")
+        try {
+            logger.info("事件归档")
 
-        val now = LocalDateTime.now()
-        var failCount = 0
+            val expireDate = LocalDateTime.now().minusDays(expireDays.toLong())
+            var failCount = 0
 
-        while (true) {
-            try {
-                val archivedCount =
-                    eventRecordRepository.archiveByExpireAt(svcName, now.plusDays(expireDays.toLong()), batchSize)
-                if (archivedCount == 0) {
-                    break
-                }
-            } catch (ex: Exception) {
-                failCount++
-                logger.error("事件归档:失败", ex)
-                if (failCount >= 3) {
-                    logger.info("事件归档:累计3次异常退出任务")
-                    break
+            while (true) {
+                try {
+                    val archivedCount = eventRecordRepository.archiveByExpireAt(svcName, expireDate, batchSize)
+                    if (archivedCount == 0) {
+                        break
+                    }
+                } catch (ex: Exception) {
+                    failCount++
+                    logger.error("事件归档:失败", ex)
+                    if (failCount >= 3) {
+                        logger.info("事件归档:累计3次异常退出任务")
+                        break
+                    }
                 }
             }
+        } finally {
+            locker.release(archiveLockerKey, pwd)
         }
-
-        locker.release(lockerKey, pwd)
     }
 
     /**

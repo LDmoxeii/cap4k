@@ -378,7 +378,7 @@ class EventRecordImplTest {
         @DisplayName("应该能够确认发送")
         fun `should be able to confirm delivery`() {
             // When
-            eventRecord.confirmedDelivery(testTime.plusMinutes(1))
+            eventRecord.endDelivery(testTime.plusMinutes(1))
 
             // Then
             assertTrue(eventRecord.isDelivered)

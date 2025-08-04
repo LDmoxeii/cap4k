@@ -215,23 +215,23 @@ class EventTest {
         fun `should return correct isValid status`() {
             // INIT状态
             event.eventState = Event.EventState.INIT
-            assertTrue(event.isValid())
+            assertTrue(event.isValid)
 
             // DELIVERING状态
             event.eventState = Event.EventState.DELIVERING
-            assertTrue(event.isValid())
+            assertTrue(event.isValid)
 
             // EXCEPTION状态
             event.eventState = Event.EventState.EXCEPTION
-            assertTrue(event.isValid())
+            assertTrue(event.isValid)
 
             // DELIVERED状态
             event.eventState = Event.EventState.DELIVERED
-            assertFalse(event.isValid())
+            assertFalse(event.isValid)
 
             // CANCEL状态
             event.eventState = Event.EventState.CANCEL
-            assertFalse(event.isValid())
+            assertFalse(event.isValid)
         }
 
         @Test
@@ -239,19 +239,19 @@ class EventTest {
         fun `should return correct isInvalid status`() {
             // CANCEL状态
             event.eventState = Event.EventState.CANCEL
-            assertTrue(event.isInvalid())
+            assertTrue(event.isInvalid)
 
             // EXPIRED状态
             event.eventState = Event.EventState.EXPIRED
-            assertTrue(event.isInvalid())
+            assertTrue(event.isInvalid)
 
             // EXHAUSTED状态
             event.eventState = Event.EventState.EXHAUSTED
-            assertTrue(event.isInvalid())
+            assertTrue(event.isInvalid)
 
             // INIT状态
             event.eventState = Event.EventState.INIT
-            assertFalse(event.isInvalid())
+            assertFalse(event.isInvalid)
         }
 
         @Test
@@ -259,13 +259,13 @@ class EventTest {
         fun `should return correct isDelivered status`() {
             // DELIVERED状态
             event.eventState = Event.EventState.DELIVERED
-            assertTrue(event.isDelivered())
+            assertTrue(event.isDelivered)
 
             // 其他状态
             Event.EventState.entries.forEach { state ->
                 if (state != Event.EventState.DELIVERED) {
                     event.eventState = state
-                    assertFalse(event.isDelivered(), "State $state should not be delivered")
+                    assertFalse(event.isDelivered, "State $state should not be delivered")
                 }
             }
         }
@@ -277,7 +277,7 @@ class EventTest {
             val confirmTime = testTime.plusMinutes(5)
 
             // When
-            event.confirmedDelivery(confirmTime)
+            event.endDelivery(confirmTime)
 
             // Then
             assertEquals(Event.EventState.DELIVERED, event.eventState)
@@ -347,7 +347,7 @@ class EventTest {
             event.nextTryTime = deliveryTime.minusMinutes(1) // 已到重试时间
 
             // When
-            val result = event.holdState4Delivery(deliveryTime)
+            val result = event.beginDelivery(deliveryTime)
 
             // Then
             assertTrue(result)
@@ -365,7 +365,7 @@ class EventTest {
             val deliveryTime = testTime.plusMinutes(5)
 
             // When
-            val result = event.holdState4Delivery(deliveryTime)
+            val result = event.beginDelivery(deliveryTime)
 
             // Then
             assertFalse(result)
@@ -380,7 +380,7 @@ class EventTest {
             val deliveryTime = testTime.plusMinutes(15) // 超过过期时间
 
             // When
-            val result = event.holdState4Delivery(deliveryTime)
+            val result = event.beginDelivery(deliveryTime)
 
             // Then
             assertFalse(result)
@@ -396,7 +396,7 @@ class EventTest {
             event.nextTryTime = LocalDateTime.of(2025, 1, 15, 11, 0, 0) // 设置为具体时间
 
             // When
-            val result = event.holdState4Delivery(deliveryTime)
+            val result = event.beginDelivery(deliveryTime)
 
             // Then
             assertFalse(result)
@@ -411,7 +411,7 @@ class EventTest {
             event.nextTryTime = LocalDateTime.of(1, 1, 1, 0, 0, 0) // 特殊值
 
             // When
-            val result = event.holdState4Delivery(deliveryTime)
+            val result = event.beginDelivery(deliveryTime)
 
             // Then
             assertTrue(result) // 特殊值应该允许立即执行
@@ -425,7 +425,7 @@ class EventTest {
             val deliveryTime = testTime.plusMinutes(5)
 
             // When
-            val result = event.holdState4Delivery(deliveryTime)
+            val result = event.beginDelivery(deliveryTime)
 
             // Then
             assertFalse(result)
@@ -505,12 +505,12 @@ class EventTest {
 
             // Test different tried times
             val testCases = mapOf(
-                1 to 1L,    // triedTimes=1, 计算时仍为1: <= 10: 1分钟
-                5 to 1L,    // triedTimes=5, 计算时仍为5: <= 10: 1分钟
-                10 to 1L,   // triedTimes=10, 计算时仍为10: <= 10: 1分钟
-                11 to 5L,   // triedTimes=11, 计算时仍为11: > 10, <= 20: 5分钟
-                20 to 5L,   // triedTimes=20, 计算时仍为20: <= 20: 5分钟
-                21 to 10L   // triedTimes=21, 计算时仍为21: > 20: 10分钟
+                1 to 1L,    // triedTimes=1, 计算时为2: <= 10: 1分钟
+                5 to 1L,    // triedTimes=5, 计算时为6: <= 10: 1分钟
+                10 to 5L,   // triedTimes=10, 计算时为11: > 10, <= 20: 5分钟
+                11 to 5L,   // triedTimes=11, 计算时为12: > 10, <= 20: 5分钟
+                20 to 10L,  // triedTimes=20, 计算时为21: > 20: 10分钟
+                21 to 10L   // triedTimes=21, 计算时为22: > 20: 10分钟
             )
 
             testCases.forEach { (initialTriedTimes, expectedMinutes) ->
@@ -521,7 +521,7 @@ class EventTest {
 
                 val currentTime = testTime.plusMinutes(10)
 
-                event.holdState4Delivery(currentTime)
+                event.beginDelivery(currentTime)
 
                 val expectedNextTry = currentTime.plusMinutes(expectedMinutes)
                 assertEquals(
@@ -539,10 +539,10 @@ class EventTest {
 
             // Since the Retry annotation sets retryTimes=5, we need to test with triedTimes < 5
             val testCases = mapOf(
-                1 to 1L,   // triedTimes=1, index=0: intervals[0] = 1
-                2 to 2L,   // triedTimes=2, index=1: intervals[1] = 2
-                3 to 5L,   // triedTimes=3, index=2: intervals[2] = 5
-                4 to 10L   // triedTimes=4, index=3: intervals[3] = 10
+                1 to 2L,   // triedTimes=1, index=1: intervals[1] = 2
+                2 to 5L,   // triedTimes=2, index=2: intervals[2] = 5
+                3 to 10L,  // triedTimes=3, index=3: intervals[3] = 10
+                4 to 15L   // triedTimes=4, index=4: intervals[4] = 15
                 // Cannot test triedTimes=5 because it would be >= tryTimes(5) and would fail
             )
 
@@ -563,10 +563,10 @@ class EventTest {
 
                 val currentTime = testTime.plusMinutes(10)
 
-                val result = event.holdState4Delivery(currentTime)
+                val result = event.beginDelivery(currentTime)
                 assertTrue(
                     result,
-                    "holdState4Delivery should succeed for triedTimes=$initialTriedTimes (< tryTimes=${event.tryTimes})"
+                    "beginDelivery should succeed for triedTimes=$initialTriedTimes (< tryTimes=${event.tryTimes})"
                 )
 
                 val expectedNextTry = currentTime.plusMinutes(expectedMinutes)
@@ -587,7 +587,7 @@ class EventTest {
 
             // When
             val currentTime = testTime.plusMinutes(10)
-            event.holdState4Delivery(currentTime)
+            event.beginDelivery(currentTime)
 
             // Then - 应该使用第一个间隔值
             val expectedNextTry = currentTime.plusMinutes(1)
@@ -684,12 +684,12 @@ class EventTest {
 
             // 验证初始状态
             assertEquals(Event.EventState.INIT, event.eventState)
-            assertTrue(event.isValid())
-            assertFalse(event.isDelivered())
+            assertTrue(event.isValid)
+            assertFalse(event.isDelivered)
 
             // When - 第一次尝试发送
             val firstTry = testTime.plusMinutes(1)
-            assertTrue(event.holdState4Delivery(firstTry))
+            assertTrue(event.beginDelivery(firstTry))
             assertEquals(Event.EventState.DELIVERING, event.eventState)
             assertEquals(2, event.triedTimes)
 
@@ -700,18 +700,18 @@ class EventTest {
 
             // When - 第二次尝试发送
             val secondTry = firstTry.plusMinutes(2)
-            assertTrue(event.holdState4Delivery(secondTry))
+            assertTrue(event.beginDelivery(secondTry))
             assertEquals(Event.EventState.DELIVERING, event.eventState)
             assertEquals(3, event.triedTimes)
 
             // 发送成功
-            event.confirmedDelivery(secondTry)
+            event.endDelivery(secondTry)
             assertEquals(Event.EventState.DELIVERED, event.eventState)
-            assertTrue(event.isDelivered())
-            assertFalse(event.isValid())
+            assertTrue(event.isDelivered)
+            assertFalse(event.isValid)
 
             // 之后的操作应该无效
-            assertFalse(event.holdState4Delivery(secondTry.plusMinutes(1)))
+            assertFalse(event.beginDelivery(secondTry.plusMinutes(1)))
             assertFalse(event.cancelDelivery(secondTry.plusMinutes(1)))
         }
 
@@ -724,12 +724,12 @@ class EventTest {
 
             // When - 事件过期后尝试发送
             val expiredTime = testTime.plusMinutes(15)
-            val result = event.holdState4Delivery(expiredTime)
+            val result = event.beginDelivery(expiredTime)
 
             // Then
             assertFalse(result)
             assertEquals(Event.EventState.EXPIRED, event.eventState)
-            assertTrue(event.isInvalid())
+            assertTrue(event.isInvalid)
         }
 
         @Test
@@ -741,16 +741,16 @@ class EventTest {
 
             // When - 执行所有重试
             // 第一次重试（triedTimes从1变为2）
-            assertTrue(event.holdState4Delivery(testTime.plusMinutes(1)))
+            assertTrue(event.beginDelivery(testTime.plusMinutes(1)))
             assertEquals(2, event.triedTimes)
 
             // 第二次重试会失败，因为triedTimes(2) >= tryTimes(2)
-            val result = event.holdState4Delivery(testTime.plusMinutes(2))
+            val result = event.beginDelivery(testTime.plusMinutes(2))
 
             // Then
             assertFalse(result)
             assertEquals(Event.EventState.EXHAUSTED, event.eventState)
-            assertTrue(event.isInvalid())
+            assertTrue(event.isInvalid)
         }
     }
 

@@ -27,10 +27,10 @@ open class JpaEventRecordRepository(
     override fun create(): EventRecord = EventRecordImpl()
 
     @Transactional(propagation = Propagation.REQUIRED)
-    override fun save(event: EventRecord) {
-        val eventRecordImpl = event as EventRecordImpl
-        val updatedEvent = eventJpaRepository.saveAndFlush(eventRecordImpl.event)
-        eventRecordImpl.resume(updatedEvent)
+    override fun save(eventRecord: EventRecord) {
+        val record = eventRecord as EventRecordImpl
+        val event = eventJpaRepository.saveAndFlush(record.event)
+        record.resume(event)
     }
 
     override fun getById(id: String): EventRecord {
