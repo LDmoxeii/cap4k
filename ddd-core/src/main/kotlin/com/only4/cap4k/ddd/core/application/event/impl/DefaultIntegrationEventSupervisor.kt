@@ -67,7 +67,7 @@ open class DefaultIntegrationEventSupervisor(
     }
 
     override fun <EVENT : Any> attach(schedule: LocalDateTime, eventPayloadSupplier: () -> EVENT) {
-        attach(eventPayload = eventPayloadSupplier.invoke(), schedule = schedule)
+        attach(eventPayload = eventPayloadSupplier, schedule = schedule)
     }
 
     override fun <EVENT : Any> detach(eventPayload: EVENT) {
@@ -152,13 +152,13 @@ open class DefaultIntegrationEventSupervisor(
      * @param eventPayload 事件负载
      * @param schedule 调度时间
      */
-    protected open fun putDeliverTime(eventPayload: Any, schedule: LocalDateTime?) {
+    protected open fun putDeliverTime(eventPayload: Any, schedule: LocalDateTime) {
         val eventScheduleMap = TL_EVENT_SCHEDULE_MAP.get() ?: run {
             val newMap = mutableMapOf<Any, LocalDateTime>()
             TL_EVENT_SCHEDULE_MAP.set(newMap)
             newMap
         }
-        schedule?.let { eventScheduleMap[eventPayload] = it }
+        eventScheduleMap[eventPayload] = schedule
     }
 
     protected open fun getDeliverTime(eventPayload: Any): LocalDateTime {
