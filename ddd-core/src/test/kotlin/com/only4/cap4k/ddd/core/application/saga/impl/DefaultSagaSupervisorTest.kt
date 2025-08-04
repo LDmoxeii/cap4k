@@ -51,7 +51,8 @@ class DefaultSagaSupervisorTest {
             validator = mockValidator,
             sagaRecordRepository = mockSagaRecordRepository,
             svcName = testSvcName,
-            threadPoolSize = testThreadPoolSize
+            threadPoolSize = testThreadPoolSize,
+            threadFactoryClassName = ""
         )
 
         // 设置默认 Mock 行为
@@ -174,8 +175,14 @@ class DefaultSagaSupervisorTest {
         // 准备
         val minNextTryTime = LocalDateTime.now().plusMinutes(5)
         val nextTryTime = LocalDateTime.now().plusMinutes(10) // 大于minNextTryTime
-        every { mockSagaRecord.nextTryTime } returns nextTryTime
-        every { mockSagaRecord.beginSaga(any()) } returns true
+
+        // 配置mock，使得beginSaga后nextTryTime等于minNextTryTime，这样可以跳出while循环
+        every { mockSagaRecord.nextTryTime } returnsMany listOf(nextTryTime, minNextTryTime)
+        every { mockSagaRecord.beginSaga(any()) } answers {
+            // 模拟beginSaga会更新nextTryTime
+            every { mockSagaRecord.nextTryTime } returns minNextTryTime
+            true
+        }
         every { mockSagaRecord.isExecuting } returns false
         every { mockSagaRecord.isValid } returns true
         every { mockSagaRecord.scheduleTime } returns LocalDateTime.now().plusMinutes(1)
@@ -192,9 +199,11 @@ class DefaultSagaSupervisorTest {
     @Test
     @DisplayName("测试resume方法处理连续重试")
     fun `test resume method handles continuous retry`() {
-        // 准备 - 简化测试，只验证基本调用
+        // 准备 - 模拟需要多次重试的场景
         val minNextTryTime = LocalDateTime.now().plusMinutes(10)
-        val nextTryTime = LocalDateTime.now().plusMinutes(15) // 大于minNextTryTime，不会进入while循环
+        val nextTryTime1 = LocalDateTime.now().plusMinutes(15) // 大于minNextTryTime
+        val nextTryTime2 = LocalDateTime.now().plusMinutes(12) // 仍大于minNextTryTime
+        val finalNextTryTime = minNextTryTime // 等于minNextTryTime，跳出循环
 
         // 重新配置mock
         clearMocks(mockSagaRecord)
@@ -203,15 +212,28 @@ class DefaultSagaSupervisorTest {
         every { mockSagaRecord.isExecuting } returns false
         every { mockSagaRecord.endSaga(any(), any()) } just Runs
         every { mockSagaRecord.occurredException(any(), any()) } just Runs
-        every { mockSagaRecord.nextTryTime } returns nextTryTime
         every { mockSagaRecord.isValid } returns true
-        every { mockSagaRecord.beginSaga(any()) } returns true
+
+        // 配置nextTryTime返回序列：第一次调用返回nextTryTime1，第二次返回nextTryTime2，第三次返回finalNextTryTime
+        every { mockSagaRecord.nextTryTime } returnsMany listOf(nextTryTime1, nextTryTime2, finalNextTryTime)
+
+        var callCount = 0
+        every { mockSagaRecord.beginSaga(any()) } answers {
+            callCount++
+            // 根据调用次数更新nextTryTime的返回值
+            when (callCount) {
+                1 -> every { mockSagaRecord.nextTryTime } returns nextTryTime2
+                2 -> every { mockSagaRecord.nextTryTime } returns finalNextTryTime
+                else -> every { mockSagaRecord.nextTryTime } returns finalNextTryTime
+            }
+            true
+        }
 
         // 执行
         supervisor.resume(mockSagaRecord, minNextTryTime)
 
-        // 验证 - 应该只调用1次beginSaga (因为nextTryTime > minNextTryTime，不进入while循环)
-        verify(exactly = 1) { mockSagaRecord.beginSaga(any()) }
+        // 验证 - 应该调用多次beginSaga直到nextTryTime == minNextTryTime
+        verify(atLeast = 2) { mockSagaRecord.beginSaga(any()) }
         verify { mockValidator.validate(mockSagaRecord) }
         verify { mockSagaRecordRepository.save(mockSagaRecord) }
     }

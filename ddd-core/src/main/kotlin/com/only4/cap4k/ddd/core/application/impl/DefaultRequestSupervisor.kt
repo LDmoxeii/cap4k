@@ -52,7 +52,7 @@ open class DefaultRequestSupervisor(
     }
 
     private val requestHandlerMap by lazy {
-        buildMap {
+        buildMap<Class<*>, RequestHandler<*, *>> {
             requestHandlers.forEach { requestHandler ->
                 val requestPayloadClass = resolveGenericTypeClass(
                     requestHandler, 0,
@@ -66,7 +66,8 @@ open class DefaultRequestSupervisor(
     }
 
     private val requestInterceptorMap by lazy {
-        buildMap {
+        buildMap<Class<*>, MutableList<RequestInterceptor<*, *>>> {
+            // 初始化请求拦截器映射
             requestInterceptors.forEach { requestInterceptor ->
                 val requestPayloadClass = resolveGenericTypeClass(
                     requestInterceptor, 0,

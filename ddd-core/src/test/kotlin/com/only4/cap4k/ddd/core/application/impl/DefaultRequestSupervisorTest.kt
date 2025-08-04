@@ -418,8 +418,15 @@ class DefaultRequestSupervisorTest {
             val minNextTryTime = LocalDateTime.now().plusMinutes(5)
             val nextTryTime = LocalDateTime.now().plusMinutes(10) // 设置为大于minNextTryTime的时间
             every { mockRequestRecord.param } returns request
-            every { mockRequestRecord.nextTryTime } returns nextTryTime
-            every { mockRequestRecord.beginRequest(any()) } returns true
+
+            // 配置nextTryTime的返回序列，第一次调用返回nextTryTime，之后返回minNextTryTime
+            every { mockRequestRecord.nextTryTime } returnsMany listOf(nextTryTime, minNextTryTime)
+
+            every { mockRequestRecord.beginRequest(any()) } answers {
+                // 模拟beginRequest会更新nextTryTime为minNextTryTime，这样可以跳出while循环
+                every { mockRequestRecord.nextTryTime } returns minNextTryTime
+                true
+            }
             every { mockRequestRecord.isExecuting } returns true
             every { mockRequestRecord.isValid } returns true
 
@@ -447,8 +454,15 @@ class DefaultRequestSupervisorTest {
             )
             val minNextTryTime = LocalDateTime.now().plusMinutes(5)
             val nextTryTime = LocalDateTime.now().plusMinutes(10) // 设置为大于minNextTryTime的时间
-            every { mockRequestRecord.nextTryTime } returns nextTryTime
-            every { mockRequestRecord.beginRequest(any()) } returns false
+
+            // 配置nextTryTime的返回序列，第一次调用返回nextTryTime，之后返回minNextTryTime
+            every { mockRequestRecord.nextTryTime } returnsMany listOf(nextTryTime, minNextTryTime)
+
+            every { mockRequestRecord.beginRequest(any()) } answers {
+                // 模拟beginRequest会更新nextTryTime为minNextTryTime，这样可以跳出while循环
+                every { mockRequestRecord.nextTryTime } returns minNextTryTime
+                false // 返回false表示beginRequest失败
+            }
             every { mockRequestRecord.isExecuting } returns false
             every { mockRequestRecord.isValid } returns true
 

@@ -66,7 +66,7 @@ open class DefaultSagaSupervisor(
     }
 
     private val requestHandlerMap by lazy {
-        buildMap {
+        buildMap<Class<*>, RequestHandler<*, *>> {
             requestHandlers.forEach { handler ->
                 val requestPayloadClass = resolveGenericTypeClass(
                     handler, 0,
@@ -81,7 +81,7 @@ open class DefaultSagaSupervisor(
     }
 
     private val requestInterceptorMap by lazy {
-        buildMap {
+        buildMap<Class<*>, MutableList<RequestInterceptor<*, *>>> {
             requestInterceptors.forEach { interceptor ->
                 val requestPayloadClass = resolveGenericTypeClass(
                     interceptor, 0,
