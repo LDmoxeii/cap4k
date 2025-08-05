@@ -44,6 +44,7 @@ open class DefaultDomainEventSupervisor(
         /**
          * 重置线程本地变量
          */
+        @JvmStatic
         fun reset() {
             TL_ENTITY_EVENT_PAYLOADS.remove()
             TL_EVENT_SCHEDULE_MAP.remove()

@@ -78,6 +78,7 @@ interface RequestSupervisor {
          *
          * @return 请求监督者实例
          */
+        @JvmStatic
         val instance: RequestSupervisor
             get() = RequestSupervisorSupport.instance
     }

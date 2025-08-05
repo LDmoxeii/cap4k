@@ -49,18 +49,21 @@ open class PageData<T : Any> protected constructor(
         /**
          * 生成空分页返回
          */
+        @JvmStatic
         fun <T : Any> empty(pageSize: Int = 10, pageNum: Int = 1): PageData<T> =
             PageData(pageNum, pageSize, 0L, emptyList())
 
         /**
          * 新建分页结果
          */
+        @JvmStatic
         fun <T : Any> create(pageParam: PageParam, totalCount: Long, list: List<T>): PageData<T> =
             PageData(pageParam.pageNum, pageParam.pageSize, totalCount, list)
 
         /**
          * 新建分页结果
          */
+        @JvmStatic
         fun <T : Any> create(pageSize: Int, pageNum: Int, totalCount: Long, list: List<T>): PageData<T> =
             PageData(pageSize, pageNum, totalCount, list)
     }

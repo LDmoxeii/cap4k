@@ -26,14 +26,15 @@ class JpaPredicate<ENTITY : Any>(
 
 
     companion object {
+        @JvmStatic
         fun <ENTITY : Any> byId(entityClass: Class<ENTITY>, id: Any): JpaPredicate<ENTITY> =
             JpaPredicate(entityClass, ids = listOf(id))
 
-
+        @JvmStatic
         fun <ENTITY : Any> byIds(entityClass: Class<ENTITY>, ids: Iterable<Any>): JpaPredicate<ENTITY> =
             JpaPredicate(entityClass, ids = ids)
 
-
+        @JvmStatic
         fun <VALUE_OBJECT : ValueObject<*>> byValueObject(valueObject: VALUE_OBJECT): JpaPredicate<VALUE_OBJECT> =
             JpaPredicate(
                 valueObject.javaClass,
@@ -41,7 +42,7 @@ class JpaPredicate<ENTITY : Any>(
                 valueObject = valueObject
             )
 
-
+        @JvmStatic
         fun <ENTITY : Any> bySpecification(
             entityClass: Class<ENTITY>,
             specification: Specification<ENTITY>

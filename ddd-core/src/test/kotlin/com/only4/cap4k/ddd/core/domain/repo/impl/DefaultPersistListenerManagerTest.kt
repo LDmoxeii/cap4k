@@ -278,6 +278,7 @@ class DefaultPersistListenerManagerTest {
     // 测试持久化监听器基类，用于记录调用顺序
     abstract class TestPersistListenerBase : PersistListener<TestEntity> {
         companion object {
+            @JvmStatic
             val callOrder = mutableListOf<Int>()
         }
 

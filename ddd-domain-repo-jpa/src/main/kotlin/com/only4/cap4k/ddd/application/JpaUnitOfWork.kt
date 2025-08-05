@@ -36,7 +36,6 @@ open class JpaUnitOfWork(
         private val log = LoggerFactory.getLogger(JpaUnitOfWork::class.java)
 
         lateinit var instance: JpaUnitOfWork
-            private set
 
         fun fixAopWrapper(unitOfWork: JpaUnitOfWork) {
             instance = unitOfWork
@@ -49,6 +48,7 @@ open class JpaUnitOfWork(
 
         private val entityInformationCache = ConcurrentHashMap<Class<*>, EntityInformation<*, *>>()
 
+        @JvmStatic
         fun reset() {
             persistEntitiesThreadLocal.remove()
             removeEntitiesThreadLocal.remove()

@@ -65,6 +65,7 @@ interface DomainEventSupervisor {
     )
 
     companion object {
+        @JvmStatic
         val instance: DomainEventSupervisor
             /**
              * 获取领域事件管理器
@@ -72,6 +73,7 @@ interface DomainEventSupervisor {
              */
             get() = DomainEventSupervisorSupport.instance
 
+        @JvmStatic
         val manager: DomainEventManager
             /**
              * 获取领域事件发布管理器

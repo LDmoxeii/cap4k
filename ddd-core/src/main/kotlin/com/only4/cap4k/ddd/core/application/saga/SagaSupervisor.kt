@@ -17,6 +17,7 @@ interface SagaSupervisor {
          *
          * @return 请求管理器实例
          */
+        @JvmStatic
         val instance: SagaSupervisor
             get() = SagaSupervisorSupport.instance
     }

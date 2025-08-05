@@ -274,6 +274,7 @@ class Saga {
         EXECUTED(1, "executed");
 
         companion object {
+            @JvmStatic
             fun valueOf(value: Int): SagaState? {
                 return entries.find { it.value == value }
             }

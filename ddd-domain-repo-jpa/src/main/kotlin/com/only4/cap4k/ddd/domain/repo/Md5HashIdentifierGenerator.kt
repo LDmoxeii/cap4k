@@ -28,8 +28,8 @@ class Md5HashIdentifierGenerator : IdentifierGenerator {
         private val instance: Md5HashIdentifierGenerator by lazy { Md5HashIdentifierGenerator() }
 
         var ID_FIELD_NAME: String = DEFAULT_ID_FIELD_NAME
-            private set
 
+        @JvmStatic
         fun configure(idFieldName: String) {
             ID_FIELD_NAME = idFieldName
         }

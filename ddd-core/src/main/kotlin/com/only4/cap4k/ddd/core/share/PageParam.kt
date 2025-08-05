@@ -102,12 +102,14 @@ open class PageParam protected constructor(
         /**
          * 创建分页参数
          */
+        @JvmStatic
         fun of(pageNum: Int, pageSize: Int, sort: MutableList<OrderInfo> = mutableListOf()): PageParam =
             PageParam(pageNum, pageSize, sort)
 
         /**
          * 创建分页参数，pageNum=1
          */
+        @JvmStatic
         fun limit(pageSize: Int, sort: MutableList<OrderInfo> = mutableListOf()): PageParam =
             PageParam(1, pageSize, sort)
     }

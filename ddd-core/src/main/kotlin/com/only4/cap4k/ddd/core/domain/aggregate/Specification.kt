@@ -36,10 +36,12 @@ interface Specification<in Entity : Any> {
         val message: String = ""
     ) {
         companion object {
+            @JvmStatic
             fun pass(): Result {
                 return Result(true)
             }
 
+            @JvmStatic
             fun fail(message: String = ""): Result {
                 return Result(false, message)
             }

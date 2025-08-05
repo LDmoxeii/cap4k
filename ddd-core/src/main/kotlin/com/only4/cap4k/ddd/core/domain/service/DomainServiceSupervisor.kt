@@ -16,6 +16,7 @@ interface DomainServiceSupervisor {
     fun <DOMAIN_SERVICE> getService(domainServiceClass: Class<DOMAIN_SERVICE>): DOMAIN_SERVICE?
 
     companion object {
+        @JvmStatic
         val instance: DomainServiceSupervisor
             get() = DomainServiceSupervisorSupport.instance
     }

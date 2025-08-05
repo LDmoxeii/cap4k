@@ -102,6 +102,7 @@ class SagaProcess {
         EXECUTED(1, "executed");
 
         companion object {
+            @JvmStatic
             fun valueOf(value: Int): SagaProcessState? {
                 return entries.find { it.value == value }
             }

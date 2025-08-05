@@ -14,26 +14,31 @@ open class OrderInfo protected constructor(
         /**
          * 升序
          */
+        @JvmStatic
         fun asc(field: String): OrderInfo = OrderInfo(field, false)
 
         /**
          * 升序
          */
+        @JvmStatic
         fun asc(field: Any): OrderInfo = asc(field.toString())
 
         /**
          * 降序
          */
+        @JvmStatic
         fun desc(field: String): OrderInfo = OrderInfo(field, true)
 
         /**
          * 降序
          */
+        @JvmStatic
         fun desc(field: Any): OrderInfo = desc(field.toString())
 
         /**
          * 构建器
          */
+        @JvmStatic
         fun builder(): OrderInfosBuilder = OrderInfosBuilder()
     }
 

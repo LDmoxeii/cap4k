@@ -30,6 +30,7 @@ class JpaAggregatePredicate<AGGREGATE : Aggregate<ENTITY>, ENTITY : Any>(
             ) as Class<ENTITY>
         }
 
+        @JvmStatic
         fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> byId(
             aggregateClass: Class<AGGREGATE>,
             id: Any
@@ -38,6 +39,7 @@ class JpaAggregatePredicate<AGGREGATE : Aggregate<ENTITY>, ENTITY : Any>(
             JpaPredicate.byId(getEntityClass(aggregateClass), id)
         )
 
+        @JvmStatic
         fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> byIds(
             aggregateClass: Class<AGGREGATE>,
             ids: Iterable<Any>
@@ -47,6 +49,7 @@ class JpaAggregatePredicate<AGGREGATE : Aggregate<ENTITY>, ENTITY : Any>(
                 JpaPredicate.byIds(getEntityClass(aggregateClass), ids)
             )
 
+        @JvmStatic
         fun <AGGREGATE : Aggregate<VALUE_OBJECT>, VALUE_OBJECT : ValueObject<*>> byValueObject(
             valueObject: AGGREGATE
         ): AggregatePredicate<AGGREGATE, VALUE_OBJECT> =
@@ -55,6 +58,7 @@ class JpaAggregatePredicate<AGGREGATE : Aggregate<ENTITY>, ENTITY : Any>(
                 JpaPredicate.byValueObject(valueObject._unwrap())
             )
 
+        @JvmStatic
         fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> bySpecification(
             aggregateClass: Class<AGGREGATE>,
             specification: Specification<ENTITY>
@@ -64,6 +68,7 @@ class JpaAggregatePredicate<AGGREGATE : Aggregate<ENTITY>, ENTITY : Any>(
                 JpaPredicate.bySpecification(getEntityClass(aggregateClass), specification)
             )
 
+        @JvmStatic
         fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> byPredicate(
             aggregateClass: Class<AGGREGATE>,
             predicate: Predicate<ENTITY>

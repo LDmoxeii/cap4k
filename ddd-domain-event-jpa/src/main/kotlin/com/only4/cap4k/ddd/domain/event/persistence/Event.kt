@@ -225,6 +225,7 @@ class Event {
         DELIVERED(1, "delivered");
 
         companion object {
+            @JvmStatic
             fun valueOf(value: Int): EventState? {
                 return entries.find { it.value == value }
             }

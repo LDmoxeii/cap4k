@@ -33,9 +33,11 @@ class QuerydslPredicate<ENTITY : Any>(
     }
 
     companion object {
+        @JvmStatic
         fun <ENTITY : Any> of(entityClass: Class<ENTITY>): QuerydslPredicate<ENTITY> =
             QuerydslPredicate(entityClass)
 
+        @JvmStatic
         fun <ENTITY : Any> byPredicate(entityClass: Class<ENTITY>, predicate: Predicate): QuerydslPredicate<ENTITY> =
             QuerydslPredicate(entityClass, BooleanBuilder(predicate))
     }

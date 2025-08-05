@@ -266,6 +266,7 @@ class Request {
         EXECUTED(1, "executed");
 
         companion object {
+            @JvmStatic
             fun valueOf(value: Int): RequestState? {
                 return entries.find { it.value == value }
             }

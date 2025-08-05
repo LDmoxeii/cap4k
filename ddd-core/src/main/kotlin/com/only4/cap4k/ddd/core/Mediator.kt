@@ -46,27 +46,60 @@ interface Mediator : AggregateFactorySupervisor,
         get() = RequestSupervisor.instance
 
     companion object {
+        @JvmStatic
         val instance: Mediator
             get() = MediatorSupport.instance
 
+        @JvmStatic
         val ioc: ApplicationContext = MediatorSupport.ioc
+
+        @JvmStatic
         val factories: AggregateFactorySupervisor = AggregateFactorySupervisor.instance
+
+        @JvmStatic
         val repositories: RepositorySupervisor = RepositorySupervisor.instance
+
+        @JvmStatic
         val aggregates: AggregateSupervisor = AggregateSupervisor.instance
+
+        @JvmStatic
         val services: DomainServiceSupervisor = DomainServiceSupervisor.instance
+
+        @JvmStatic
         val events: IntegrationEventSupervisor = IntegrationEventSupervisor.instance
+
+        @JvmStatic
         val requests: RequestSupervisor = RequestSupervisor.instance
+
+        @JvmStatic
         val commands: RequestSupervisor = requests
+
+        @JvmStatic
         val queries: RequestSupervisor = requests
 
         // Shortcuts
+        @JvmStatic
         val fac: AggregateFactorySupervisor = factories
+
+        @JvmStatic
         val repo: RepositorySupervisor = repositories
+
+        @JvmStatic
         val agg: AggregateSupervisor = aggregates
+
+        @JvmStatic
         val svc: DomainServiceSupervisor = services
+
+        @JvmStatic
         val uow: UnitOfWork = UnitOfWork.instance
+
+        @JvmStatic
         val req: RequestSupervisor = requests
+
+        @JvmStatic
         val cmd: RequestSupervisor = requests
+
+        @JvmStatic
         val qry: RequestSupervisor = requests
     }
 }

@@ -43,6 +43,7 @@ open class DefaultIntegrationEventSupervisor(
          */
         private const val DEFAULT_EVENT_RETRY_TIMES = 200
 
+        @JvmStatic
         fun reset() {
             TL_EVENT_PAYLOADS.remove()
             TL_EVENT_SCHEDULE_MAP.remove()
