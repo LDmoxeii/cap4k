@@ -27,7 +27,6 @@ class DefaultEventInterceptorManager(
 ) : EventMessageInterceptorManager, DomainEventInterceptorManager, IntegrationEventInterceptorManager,
     IntegrationEventPublisher.PublishCallback {
 
-    // 使用延迟委托进行线程安全的单例初始化
     override val orderedEventMessageInterceptors: Set<EventMessageInterceptor> by lazy {
         eventMessageInterceptors
             .sortedBy { OrderUtils.getOrder(it::class.java, Ordered.LOWEST_PRECEDENCE) }
@@ -62,12 +61,11 @@ class DefaultEventInterceptorManager(
             .toLinkedSet()
     }
 
-    // 扩展函数：将列表转换为LinkedHashSet以保持顺序
     private fun <T> List<T>.toLinkedSet(): Set<T> = toCollection(LinkedHashSet())
+
     override fun onSuccess(event: EventRecord) {
         val now = LocalDateTime.now()
 
-        // 修改事件消费状态
         event.endDelivery(now)
 
         orderedEventInterceptors4IntegrationEvent.forEach { interceptor: EventInterceptor ->
@@ -75,7 +73,9 @@ class DefaultEventInterceptorManager(
                 event
             )
         }
+
         eventRecordRepository.save(event)
+
         orderedEventInterceptors4IntegrationEvent.forEach { interceptor: EventInterceptor ->
             interceptor.postPersist(
                 event
@@ -98,7 +98,6 @@ class DefaultEventInterceptorManager(
     override fun onException(event: EventRecord, throwable: Throwable) {
         val now = LocalDateTime.now()
 
-        // 修改事件异常状态
         event.occurredException(now, throwable)
 
         orderedEventInterceptors4IntegrationEvent.forEach { interceptor: EventInterceptor ->
@@ -106,7 +105,9 @@ class DefaultEventInterceptorManager(
                 event
             )
         }
+
         eventRecordRepository.save(event)
+
         orderedEventInterceptors4IntegrationEvent.forEach { interceptor: EventInterceptor ->
             interceptor.postPersist(
                 event

@@ -35,7 +35,6 @@ class HttpIntegrationEventSubscriberAdapter(
     private val logger = LoggerFactory.getLogger(HttpIntegrationEventSubscriberAdapter::class.java)
     private val eventPayloadClassMap = mutableMapOf<String, Class<*>>()
 
-    // 延迟初始化的排序拦截器
     private val orderedEventMessageInterceptors by lazy {
         eventMessageInterceptors.sortedBy { interceptor ->
             OrderUtils.getOrder(interceptor.javaClass, Ordered.LOWEST_PRECEDENCE)
@@ -58,8 +57,7 @@ class HttpIntegrationEventSubscriberAdapter(
                 applicationName
             }.let { resolvePlaceholderWithCache(it, environment) }
 
-            val target = integrationEvent.value.split("@")[0]
-                .let { resolvePlaceholderWithCache(it, environment) }
+            val target = resolvePlaceholderWithCache(integrationEvent.value.split("@")[0], environment)
 
             val eventSourceRegisterUrl = if (isRemote) {
                 integrationEvent.value.split("@")[1]
