@@ -128,11 +128,4 @@ interface Repository<ENTITY : Any> {
      * @return
      */
     fun exists(predicate: Predicate<ENTITY>): Boolean
-
-    //**
-    //     * 通过ID判断实体是否存在
-    //     * @param id
-    //     * @return
-    //     */
-    //    boolean existsById(Object id);
 }

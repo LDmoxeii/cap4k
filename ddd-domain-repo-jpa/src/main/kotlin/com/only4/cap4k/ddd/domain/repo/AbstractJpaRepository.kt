@@ -43,85 +43,6 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
 
     override fun supportPredicateClass(): Class<*> = JpaPredicate::class.java
 
-    override fun findOne(predicate: Predicate<ENTITY>, persist: Boolean): Optional<ENTITY> {
-        val entity = when {
-            JpaPredicateSupport.resumeId<ENTITY, ID>(predicate) != null -> {
-                jpaRepository.findById(JpaPredicateSupport.resumeId(predicate)!!)
-            }
-
-            JpaPredicateSupport.resumeSpecification(predicate) != null -> {
-                jpaSpecificationExecutor.findOne(JpaPredicateSupport.resumeSpecification(predicate)!!)
-            }
-
-            else -> Optional.empty()
-        }
-
-        if (!persist) {
-            entity.ifPresent { entityManager.detach(it) }
-        }
-        return entity
-    }
-
-    override fun findFirst(
-        predicate: Predicate<ENTITY>,
-        orders: Collection<OrderInfo>,
-        persist: Boolean
-    ): Optional<ENTITY> {
-        val entity = when {
-            JpaPredicateSupport.resumeId<ENTITY, ID>(predicate) != null -> {
-                jpaRepository.findById(JpaPredicateSupport.resumeId(predicate)!!)
-            }
-
-            JpaPredicateSupport.resumeSpecification(predicate) != null -> {
-                val page = PageParam.limit(1).apply {
-                    orders.forEach { orderBy(it.field, it.desc) }
-                }
-                jpaSpecificationExecutor.findAll(
-                    JpaPredicateSupport.resumeSpecification(predicate)!!,
-                    toSpringData(page)
-                ).stream().findFirst()
-            }
-
-            else -> Optional.empty()
-        }
-
-        if (!persist) {
-            entity.ifPresent { entityManager.detach(it) }
-        }
-        return entity
-    }
-
-    override fun findPage(predicate: Predicate<ENTITY>, pageParam: PageParam, persist: Boolean): PageData<ENTITY> {
-        val pageData = when {
-            JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate) != null -> {
-                val ids = JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate)!!
-                if (ids.iterator().hasNext()) {
-                    val entities = jpaRepository.findAllById(ids)
-                        .drop((pageParam.pageNum - 1) * pageParam.pageSize)
-                        .take(pageParam.pageSize)
-                    PageData.create(pageParam, entities.size.toLong(), entities)
-                } else {
-                    PageData.empty(pageParam.pageSize)
-                }
-            }
-
-            JpaPredicateSupport.resumeSpecification(predicate) != null -> {
-                val page = jpaSpecificationExecutor.findAll(
-                    JpaPredicateSupport.resumeSpecification(predicate)!!,
-                    toSpringData(pageParam)
-                )
-                fromSpringData(page)
-            }
-
-            else -> PageData.empty(pageParam.pageSize)
-        }
-
-        if (!persist && pageData.list.isNotEmpty()) {
-            pageData.list.forEach { entityManager.detach(it) }
-        }
-        return pageData
-    }
-
     override fun find(predicate: Predicate<ENTITY>, orders: Collection<OrderInfo>, persist: Boolean): List<ENTITY> {
         val entities = when {
             JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate) != null -> {
@@ -172,9 +93,88 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
         }
 
         if (!persist && entities.isNotEmpty()) {
-            entities.forEach { entityManager.detach(it) }
+            entities.forEach(entityManager::detach)
         }
         return entities
+    }
+
+    override fun findOne(predicate: Predicate<ENTITY>, persist: Boolean): Optional<ENTITY> {
+        val entity = when {
+            JpaPredicateSupport.resumeId<ENTITY, ID>(predicate) != null -> {
+                jpaRepository.findById(JpaPredicateSupport.resumeId(predicate)!!)
+            }
+
+            JpaPredicateSupport.resumeSpecification(predicate) != null -> {
+                jpaSpecificationExecutor.findOne(JpaPredicateSupport.resumeSpecification(predicate)!!)
+            }
+
+            else -> Optional.empty()
+        }
+
+        if (!persist) {
+            entity.ifPresent(entityManager::detach)
+        }
+        return entity
+    }
+
+    override fun findFirst(
+        predicate: Predicate<ENTITY>,
+        orders: Collection<OrderInfo>,
+        persist: Boolean
+    ): Optional<ENTITY> {
+        val entity = when {
+            JpaPredicateSupport.resumeId<ENTITY, ID>(predicate) != null -> {
+                jpaRepository.findById(JpaPredicateSupport.resumeId(predicate)!!)
+            }
+
+            JpaPredicateSupport.resumeSpecification(predicate) != null -> {
+                val page = PageParam.limit(1).apply {
+                    orders.forEach { orderBy(it.field, it.desc) }
+                }
+                jpaSpecificationExecutor.findAll(
+                    JpaPredicateSupport.resumeSpecification(predicate)!!,
+                    toSpringData(page)
+                ).stream().findFirst()
+            }
+
+            else -> Optional.empty()
+        }
+
+        if (!persist) {
+            entity.ifPresent(entityManager::detach)
+        }
+        return entity
+    }
+
+    override fun findPage(predicate: Predicate<ENTITY>, pageParam: PageParam, persist: Boolean): PageData<ENTITY> {
+        val pageData = when {
+            JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate) != null -> {
+                val ids = JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate)!!
+                if (ids.iterator().hasNext()) {
+                    val entities = jpaRepository.findAllById(ids)
+                        .drop((pageParam.pageNum - 1) * pageParam.pageSize)
+                        .take(pageParam.pageSize)
+                    PageData.create(pageParam, entities.size.toLong(), entities)
+                } else {
+                    PageData.empty(pageParam.pageSize)
+                }
+            }
+
+            JpaPredicateSupport.resumeSpecification(predicate) != null -> {
+                val page = jpaSpecificationExecutor.findAll(
+                    JpaPredicateSupport.resumeSpecification(predicate)!!,
+                    toSpringData(pageParam)
+                )
+                fromSpringData(page)
+            }
+
+            else -> PageData.empty(pageParam.pageSize)
+        }
+
+        if (!persist && pageData.list.isNotEmpty()) {
+            pageData.list.forEach(entityManager::detach)
+        }
+        return pageData
     }
 
     override fun count(predicate: Predicate<ENTITY>): Long {
