@@ -159,7 +159,7 @@ class DefaultSnowflakeWorkerIdDispatcher(
     private fun logSqlIfEnabled(sql: String, params: List<Any>) {
         if (showSql) {
             logger.debug(sql)
-            logger.debug("binding parameters: $params")
+            logger.debug("binding parameters: {}", params)
         }
     }
 }
