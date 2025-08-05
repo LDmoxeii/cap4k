@@ -229,7 +229,7 @@ open class DefaultSagaSupervisor(
      */
     protected open fun createSagaRecord(
         sagaType: String,
-        request: SagaParam<out Any>,
+        request: SagaParam<*>,
         scheduleAt: LocalDateTime = LocalDateTime.now()
     ): SagaRecord {
         val sagaRecord = sagaRecordRepository.create()
@@ -306,7 +306,7 @@ open class DefaultSagaSupervisor(
     /**
      * 调度Saga执行
      */
-    private fun scheduleExecution(request: SagaParam<out Any>, sagaRecord: SagaRecord) {
+    private fun scheduleExecution(request: SagaParam<*>, sagaRecord: SagaRecord) {
         val now = LocalDateTime.now()
         val delay = if (now.isBefore(sagaRecord.scheduleTime)) {
             Duration.between(now, sagaRecord.scheduleTime)

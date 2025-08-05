@@ -20,10 +20,10 @@ import com.only4.cap4k.ddd.core.domain.repo.Predicate as DomainPredicate
 object QuerydslPredicateSupport {
 
     fun resumeSort(
-        predicate: DomainPredicate<out Any>,
+        predicate: DomainPredicate<*>,
         orders: Collection<OrderInfo> = emptyList()
     ): Sort {
-        val querydslPredicate = predicate as? QuerydslPredicate<out Any>
+        val querydslPredicate = predicate as? QuerydslPredicate<*>
             ?: throw DomainException("Unsupported predicate type: ${predicate::class.java.name}")
         return when {
             querydslPredicate.orderSpecifiers.isNotEmpty() -> QSort(querydslPredicate.orderSpecifiers)
@@ -31,8 +31,8 @@ object QuerydslPredicateSupport {
         }
     }
 
-    fun resumePageable(predicate: DomainPredicate<out Any>, pageParam: PageParam): Pageable {
-        val querydslPredicate = predicate as? QuerydslPredicate<out Any>
+    fun resumePageable(predicate: DomainPredicate<*>, pageParam: PageParam): Pageable {
+        val querydslPredicate = predicate as? QuerydslPredicate<*>
             ?: throw DomainException("Unsupported predicate type: ${predicate::class.java.name}")
         return when {
             querydslPredicate.orderSpecifiers.isNotEmpty() ->

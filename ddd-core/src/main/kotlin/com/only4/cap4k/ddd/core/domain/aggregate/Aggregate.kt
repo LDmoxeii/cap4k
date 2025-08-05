@@ -71,7 +71,7 @@ interface Aggregate<ENTITY : Any> {
          *
          * @param eventSupplier
          */
-        protected open fun registerDomainEvent(eventSupplier: Supplier<out Any>) {
+        protected open fun registerDomainEvent(eventSupplier: Supplier<*>) {
             events().attach(eventSupplier, this.root)
         }
 

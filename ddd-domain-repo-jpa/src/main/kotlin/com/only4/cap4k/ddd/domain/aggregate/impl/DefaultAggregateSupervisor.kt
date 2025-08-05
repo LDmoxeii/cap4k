@@ -25,7 +25,7 @@ class DefaultAggregateSupervisor(
 
     companion object {
         @Suppress("UNCHECKED_CAST")
-        private fun <AGGREGATE : Aggregate<out Any>> newInstance(
+        private fun <AGGREGATE : Aggregate<*>> newInstance(
             clazz: Class<AGGREGATE>,
             entity: Any
         ): AGGREGATE =
@@ -37,7 +37,7 @@ class DefaultAggregateSupervisor(
                 throw RuntimeException(ex)
             }
 
-        private fun <AGGREGATE : Aggregate<out Any>, PAYLOAD> newInstanceByPayload(
+        private fun <AGGREGATE : Aggregate<*>, PAYLOAD> newInstanceByPayload(
             clazz: Class<AGGREGATE>,
             payloadClass: Class<PAYLOAD>,
             payload: PAYLOAD
@@ -78,8 +78,8 @@ class DefaultAggregateSupervisor(
         return find(predicate = aggregatePredicate, persist = persist)
     }
 
-    override fun <AGGREGATE : Aggregate<out Any>> find(
-        predicate: AggregatePredicate<AGGREGATE, out Any>,
+    override fun <AGGREGATE : Aggregate<*>> find(
+        predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo>,
         persist: Boolean
     ): List<AGGREGATE> {
@@ -89,8 +89,8 @@ class DefaultAggregateSupervisor(
         return entities.map { entity -> newInstance(clazz, entity) }
     }
 
-    override fun <AGGREGATE : Aggregate<out Any>> find(
-        predicate: AggregatePredicate<AGGREGATE, out Any>,
+    override fun <AGGREGATE : Aggregate<*>> find(
+        predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
         persist: Boolean
     ): List<AGGREGATE> {
@@ -100,8 +100,8 @@ class DefaultAggregateSupervisor(
         return entities.map { entity -> newInstance(clazz, entity) }
     }
 
-    override fun <AGGREGATE : Aggregate<out Any>> findOne(
-        predicate: AggregatePredicate<AGGREGATE, out Any>,
+    override fun <AGGREGATE : Aggregate<*>> findOne(
+        predicate: AggregatePredicate<AGGREGATE, *>,
         persist: Boolean
     ): Optional<AGGREGATE> {
         val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(predicate)
@@ -114,8 +114,8 @@ class DefaultAggregateSupervisor(
         }
     }
 
-    override fun <AGGREGATE : Aggregate<out Any>> findFirst(
-        predicate: AggregatePredicate<AGGREGATE, out Any>,
+    override fun <AGGREGATE : Aggregate<*>> findFirst(
+        predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo>,
         persist: Boolean
     ): Optional<AGGREGATE> {
@@ -129,8 +129,8 @@ class DefaultAggregateSupervisor(
         }
     }
 
-    override fun <AGGREGATE : Aggregate<out Any>> findPage(
-        predicate: AggregatePredicate<AGGREGATE, out Any>,
+    override fun <AGGREGATE : Aggregate<*>> findPage(
+        predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
         persist: Boolean
     ): PageData<AGGREGATE> {
@@ -159,8 +159,8 @@ class DefaultAggregateSupervisor(
         return remove(aggregatePredicate)
     }
 
-    override fun <AGGREGATE : Aggregate<out Any>> remove(
-        predicate: AggregatePredicate<AGGREGATE, out Any>
+    override fun <AGGREGATE : Aggregate<*>> remove(
+        predicate: AggregatePredicate<AGGREGATE, *>
     ): List<AGGREGATE> {
         val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(predicate)
         val pred = JpaAggregatePredicateSupport.getPredicate(predicate)
@@ -168,8 +168,8 @@ class DefaultAggregateSupervisor(
         return entities.map { entity -> newInstance(clazz, entity) }
     }
 
-    override fun <AGGREGATE : Aggregate<out Any>> remove(
-        predicate: AggregatePredicate<AGGREGATE, out Any>,
+    override fun <AGGREGATE : Aggregate<*>> remove(
+        predicate: AggregatePredicate<AGGREGATE, *>,
         limit: Int
     ): List<AGGREGATE> {
         val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(predicate)
@@ -178,15 +178,15 @@ class DefaultAggregateSupervisor(
         return entities.map { entity -> newInstance(clazz, entity) }
     }
 
-    override fun <AGGREGATE : Aggregate<out Any>> count(
-        predicate: AggregatePredicate<AGGREGATE, out Any>
+    override fun <AGGREGATE : Aggregate<*>> count(
+        predicate: AggregatePredicate<AGGREGATE, *>
     ): Long {
         val pred = JpaAggregatePredicateSupport.getPredicate(predicate)
         return repositorySupervisor.count(pred)
     }
 
-    override fun <AGGREGATE : Aggregate<out Any>> exists(
-        predicate: AggregatePredicate<AGGREGATE, out Any>
+    override fun <AGGREGATE : Aggregate<*>> exists(
+        predicate: AggregatePredicate<AGGREGATE, *>
     ): Boolean {
         val pred = JpaAggregatePredicateSupport.getPredicate(predicate)
         return repositorySupervisor.exists(pred)

@@ -142,7 +142,7 @@ class RocketMqIntegrationEventSubscriberAdapter(
     }
 
     private fun onMessage(
-        integrationEventClass: Class<out Any>,
+        integrationEventClass: Class<*>,
         msgs: List<MessageExt>,
         context: ConsumeConcurrentlyContext
     ): ConsumeConcurrentlyStatus {

@@ -57,8 +57,8 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取聚合列表
      */
-    fun <AGGREGATE : Aggregate<out Any>> find(
-        predicate: AggregatePredicate<AGGREGATE, out Any>,
+    fun <AGGREGATE : Aggregate<*>> find(
+        predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo> = emptyList(),
         persist: Boolean = true
     ): List<AGGREGATE>
@@ -66,8 +66,8 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取聚合列表
      */
-    fun <AGGREGATE : Aggregate<out Any>> find(
-        predicate: AggregatePredicate<AGGREGATE, out Any>,
+    fun <AGGREGATE : Aggregate<*>> find(
+        predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
         persist: Boolean = true
     ): List<AGGREGATE>
@@ -75,16 +75,16 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取单个实体
      */
-    fun <AGGREGATE : Aggregate<out Any>> findOne(
-        predicate: AggregatePredicate<AGGREGATE, out Any>,
+    fun <AGGREGATE : Aggregate<*>> findOne(
+        predicate: AggregatePredicate<AGGREGATE, *>,
         persist: Boolean = true
     ): Optional<AGGREGATE>
 
     /**
      * 根据条件获取实体
      */
-    fun <AGGREGATE : Aggregate<out Any>> findFirst(
-        predicate: AggregatePredicate<AGGREGATE, out Any>,
+    fun <AGGREGATE : Aggregate<*>> findFirst(
+        predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo> = emptyList(),
         persist: Boolean = true
     ): Optional<AGGREGATE>
@@ -101,8 +101,8 @@ interface AggregateSupervisor {
     /**
      * 根据条件获取实体分页列表
      */
-    fun <AGGREGATE : Aggregate<out Any>> findPage(
-        predicate: AggregatePredicate<AGGREGATE, out Any>,
+    fun <AGGREGATE : Aggregate<*>> findPage(
+        predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
         persist: Boolean = true
     ): PageData<AGGREGATE>
@@ -127,23 +127,23 @@ interface AggregateSupervisor {
     /**
      * 根据条件删除实体
      */
-    fun <AGGREGATE : Aggregate<out Any>> remove(predicate: AggregatePredicate<AGGREGATE, out Any>): List<AGGREGATE>
+    fun <AGGREGATE : Aggregate<*>> remove(predicate: AggregatePredicate<AGGREGATE, *>): List<AGGREGATE>
 
     /**
      * 根据条件删除实体
      */
-    fun <AGGREGATE : Aggregate<out Any>> remove(
-        predicate: AggregatePredicate<AGGREGATE, out Any>,
+    fun <AGGREGATE : Aggregate<*>> remove(
+        predicate: AggregatePredicate<AGGREGATE, *>,
         limit: Int
     ): List<AGGREGATE>
 
     /**
      * 根据条件获取实体计数
      */
-    fun <AGGREGATE : Aggregate<out Any>> count(predicate: AggregatePredicate<AGGREGATE, out Any>): Long
+    fun <AGGREGATE : Aggregate<*>> count(predicate: AggregatePredicate<AGGREGATE, *>): Long
 
     /**
      * 根据条件判断实体是否存在
      */
-    fun <AGGREGATE : Aggregate<out Any>> exists(predicate: AggregatePredicate<AGGREGATE, out Any>): Boolean
+    fun <AGGREGATE : Aggregate<*>> exists(predicate: AggregatePredicate<AGGREGATE, *>): Boolean
 }

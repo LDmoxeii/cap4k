@@ -54,7 +54,7 @@ class Saga {
     }
 
     fun init(
-        sagaParam: SagaParam<out Any>,
+        sagaParam: SagaParam<*>,
         svcName: String,
         sagaType: String,
         scheduleAt: LocalDateTime,
@@ -81,19 +81,19 @@ class Saga {
 
     @Transient
     @JSONField(serialize = false)
-    var sagaParam: SagaParam<out Any>? = null
+    var sagaParam: SagaParam<*>? = null
         get() {
             if (field != null) {
                 return field
             }
             if (paramType.isNotBlank()) {
-                var dataClass: Class<out Any>? = null
+                var dataClass: Class<*>? = null
                 try {
                     dataClass = Class.forName(paramType)
                 } catch (e: ClassNotFoundException) {
                     log.error("参数类型解析错误", e)
                 }
-                field = JSON.parseObject(param, dataClass, Feature.SupportNonPublicField) as SagaParam<out Any>?
+                field = JSON.parseObject(param, dataClass, Feature.SupportNonPublicField) as SagaParam<*>?
             }
             return field
         }
@@ -140,7 +140,7 @@ class Saga {
 
     fun getSagaProcess(processCode: String): SagaProcess? = sagaProcesses.find { it.processCode == processCode }
 
-    fun beginSagaProcess(now: LocalDateTime, processCode: String, param: RequestParam<out Any>) {
+    fun beginSagaProcess(now: LocalDateTime, processCode: String, param: RequestParam<*>) {
         var sagaProcess = getSagaProcess(processCode)
         if (sagaProcess == null) {
             sagaProcess = SagaProcess().apply {

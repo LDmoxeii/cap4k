@@ -55,7 +55,7 @@ class SagaProcess {
         }
         private set
 
-    fun beginProcess(now: LocalDateTime, param: RequestParam<out Any>) {
+    fun beginProcess(now: LocalDateTime, param: RequestParam<*>) {
         this.param = JSON.toJSONString(param, IgnoreNonFieldGetter, SkipTransientField)
         this.paramType = param.javaClass.name
         this.processState = SagaProcessState.EXECUTING

@@ -27,7 +27,7 @@ class SagaRecordImpl : SagaRecord {
     override fun toString(): String = saga.toString()
 
     override fun init(
-        sagaParam: SagaParam<out Any>,
+        sagaParam: SagaParam<*>,
         svcName: String,
         sagaType: String,
         scheduleAt: LocalDateTime,
@@ -44,7 +44,7 @@ class SagaRecordImpl : SagaRecord {
     override val type: String
         get() = saga.sagaType
 
-    override val param: SagaParam<out Any>
+    override val param: SagaParam<*>
         get() = saga.sagaParam!!
 
     override fun <R : Any> getResult(): R? {
@@ -86,7 +86,7 @@ class SagaRecordImpl : SagaRecord {
         saga.occurredException(now, throwable)
     }
 
-    override fun beginSagaProcess(now: LocalDateTime, processCode: String, param: RequestParam<out Any>) {
+    override fun beginSagaProcess(now: LocalDateTime, processCode: String, param: RequestParam<*>) {
         saga.beginSagaProcess(now, processCode, param)
     }
 
