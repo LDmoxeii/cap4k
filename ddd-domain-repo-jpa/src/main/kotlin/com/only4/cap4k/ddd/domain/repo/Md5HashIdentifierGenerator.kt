@@ -25,11 +25,7 @@ class Md5HashIdentifierGenerator : IdentifierGenerator {
     companion object {
         private const val DEFAULT_ID_FIELD_NAME = "id"
 
-        @Volatile
-        private var instance: Md5HashIdentifierGenerator? = null
-            get() = field ?: synchronized(this) {
-                field ?: Md5HashIdentifierGenerator().also { field = it }
-            }
+        private val instance: Md5HashIdentifierGenerator by lazy { Md5HashIdentifierGenerator() }
 
         var ID_FIELD_NAME: String = DEFAULT_ID_FIELD_NAME
             private set
@@ -39,30 +35,34 @@ class Md5HashIdentifierGenerator : IdentifierGenerator {
         }
 
         fun hash(obj: Any, idFieldName: String = ID_FIELD_NAME): Serializable {
-            val jsonObject = JSON.toJSON(obj) as JSONObject
-
-            jsonObject.removeFieldRecursively(idFieldName)
+            val jsonObject = (JSON.toJSON(obj) as JSONObject).apply {
+                removeFieldRecursively(idFieldName)
+            }
             val json = jsonObject.toString(SerializerFeature.SortField)
+            val jsonBytes = json.toByteArray(StandardCharsets.UTF_8)
 
             val idFieldType = resolveGenericTypeClass(obj, 0, ValueObject::class.java)
-
-            val hashBytes = DigestUtils.md5Digest(json.toByteArray(StandardCharsets.UTF_8))
+            val hashBytes = DigestUtils.md5Digest(jsonBytes)
 
             return when (idFieldType) {
-                String::class.java -> DigestUtils.md5DigestAsHex(json.toByteArray(StandardCharsets.UTF_8))
-                Int::class.java, Integer::class.java -> bytesToInteger(hashBytes)
-                Long::class.java -> bytesToLong(hashBytes)
-                BigInteger::class.java -> BigInteger.valueOf(bytesToLong(hashBytes))
-                BigDecimal::class.java -> BigDecimal.valueOf(bytesToLong(hashBytes))
+                String::class.java -> DigestUtils.md5DigestAsHex(jsonBytes)
+                Int::class.java, Integer::class.java -> hashBytes.toInt()
+                Long::class.java -> hashBytes.toLong()
+                BigInteger::class.java -> BigInteger(hashBytes.toLong().toString())
+                BigDecimal::class.java -> hashBytes.toLong().toBigDecimal()
                 else -> convertToTargetType(hashBytes, idFieldType)
             }
         }
 
         private fun convertToTargetType(hashBytes: ByteArray, idFieldType: Class<*>): Serializable {
-            return if (Number::class.java.isAssignableFrom(idFieldType)) {
-                    NumberUtils.convertNumberToTargetClass(bytesToLong(hashBytes), idFieldType as Class<out Number>)
-            } else {
-                bytesToLong(hashBytes)
+            return when {
+                Number::class.java.isAssignableFrom(idFieldType) ->
+                    NumberUtils.convertNumberToTargetClass(
+                        hashBytes.toLong(),
+                        idFieldType as Class<out Number>
+                    )
+
+                else -> hashBytes.toLong()
             }
         }
 
@@ -73,22 +73,22 @@ class Md5HashIdentifierGenerator : IdentifierGenerator {
             }
         }
 
-        private fun bytesToLong(bytes: ByteArray): Long {
-            require(bytes.isNotEmpty()) { "Byte array cannot be empty" }
+        private fun ByteArray.toLong(): Long {
+            require(isNotEmpty()) { "Byte array cannot be empty" }
             var result = 0L
-            val limit = minOf(8, bytes.size)
+            val limit = minOf(8, size)
             for (i in 0 until limit) {
-                result = result or ((bytes[i].toLong() and 0xFF) shl (8 * i))
+                result = result or ((this[i].toLong() and 0xFF) shl (8 * i))
             }
             return result
         }
 
-        private fun bytesToInteger(bytes: ByteArray): Int {
-            require(bytes.isNotEmpty()) { "Byte array cannot be empty" }
+        private fun ByteArray.toInt(): Int {
+            require(isNotEmpty()) { "Byte array cannot be empty" }
             var result = 0
-            val limit = minOf(4, bytes.size)
+            val limit = minOf(4, size)
             for (i in 0 until limit) {
-                result = result or ((bytes[i].toInt() and 0xFF) shl (8 * i))
+                result = result or ((this[i].toInt() and 0xFF) shl (8 * i))
             }
             return result
         }
