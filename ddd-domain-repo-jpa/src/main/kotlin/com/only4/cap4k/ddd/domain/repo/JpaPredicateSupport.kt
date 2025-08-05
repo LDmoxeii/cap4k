@@ -50,7 +50,7 @@ object JpaPredicateSupport {
      * 获取断言实体类型
      */
     @Suppress("UNCHECKED_CAST")
-    fun <ENTITY : Any> reflectEntityClass(predicate: Predicate<ENTITY>): Class<ENTITY>? {
+    fun <ENTITY : Any> reflectEntityClass(predicate: Predicate<ENTITY>): Class<ENTITY> {
         predicate as? JpaPredicate<ENTITY>
             ?: throw DomainException("Unsupported predicate type: ${predicate::class.java.name}")
 

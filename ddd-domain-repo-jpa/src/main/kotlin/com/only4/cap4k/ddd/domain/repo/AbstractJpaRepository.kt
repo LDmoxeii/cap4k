@@ -20,7 +20,7 @@ import java.util.*
  * @author LD_moxeii
  * @date 2025/07/29
  */
-class AbstractJpaRepository<ENTITY : Any, ID>(
+open class AbstractJpaRepository<ENTITY : Any, ID>(
     private val jpaSpecificationExecutor: JpaSpecificationExecutor<ENTITY>,
     private val jpaRepository: JpaRepository<ENTITY, ID>
 ) : Repository<ENTITY> {

@@ -56,13 +56,13 @@ class DefaultRepositorySupervisor(
     }
 
     companion object {
-        private val predicateClass2EntityClassReflector = ConcurrentHashMap<Class<*>, (Predicate<*>) -> Class<*>?>()
+        private val predicateClass2EntityClassReflector = ConcurrentHashMap<Class<*>, (Predicate<*>) -> Class<*>>()
         private val repositoryClass2EntityClassReflector = ConcurrentHashMap<Class<*>, (Repository<*>) -> Class<*>>()
 
         @JvmStatic
         fun registerPredicateEntityClassReflector(
             predicateClass: Class<*>,
-            entityClassReflector: (Predicate<*>) -> Class<*>?
+            entityClassReflector: (Predicate<*>) -> Class<*>
         ) {
             predicateClass2EntityClassReflector.putIfAbsent(predicateClass, entityClassReflector)
         }
@@ -103,8 +103,7 @@ class DefaultRepositorySupervisor(
         val reflector = predicateClass2EntityClassReflector[predicate.javaClass]
             ?: throw DomainException("实体断言类型不支持：${predicate.javaClass.name}")
 
-        return (reflector(predicate)
-            ?: throw DomainException("无法解析实体类型：${predicate.javaClass.name}")) as Class<ENTITY>
+        return reflector(predicate) as Class<ENTITY>
     }
 
     override fun <ENTITY : Any> find(

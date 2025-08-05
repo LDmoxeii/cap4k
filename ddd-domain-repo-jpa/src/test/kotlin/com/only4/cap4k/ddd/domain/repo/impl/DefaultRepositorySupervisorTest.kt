@@ -268,8 +268,8 @@ class DefaultRepositorySupervisorTest {
     @Test
     @DisplayName("注册谓词实体类反射器不应该替换现有反射器")
     fun `registerPredicateEntityClassReflector should not replace existing reflector`() {
-        val originalReflector: (Predicate<*>) -> Class<*>? = { TestEntity::class.java }
-        val newReflector: (Predicate<*>) -> Class<*>? = { AnotherEntity::class.java }
+        val originalReflector: (Predicate<*>) -> Class<*> = { TestEntity::class.java }
+        val newReflector: (Predicate<*>) -> Class<*> = { AnotherEntity::class.java }
 
         class NewPredicateType : Predicate<TestEntity>
 
