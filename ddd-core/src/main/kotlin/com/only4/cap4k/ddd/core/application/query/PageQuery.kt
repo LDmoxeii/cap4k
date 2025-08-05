@@ -13,5 +13,5 @@ import com.only4.cap4k.ddd.core.share.PageData
  * @param ITEM 分页数据项类型
  * @param PARAM 查询参数类型，必须实现RequestParam接口
  */
-interface PageQuery<in PARAM : RequestParam<out PageData<ITEM>>, ITEM : Any> :
+interface PageQuery<PARAM : RequestParam<PageData<ITEM>>, ITEM : Any> :
     Query<PARAM, PageData<ITEM>>

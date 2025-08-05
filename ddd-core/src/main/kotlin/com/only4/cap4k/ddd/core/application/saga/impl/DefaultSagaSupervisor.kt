@@ -107,7 +107,7 @@ open class DefaultSagaSupervisor(
         executorService
     }
 
-    override fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> send(request: REQUEST): RESPONSE {
+    override fun <REQUEST : SagaParam<RESPONSE>, RESPONSE : Any> send(request: REQUEST): RESPONSE {
         // 参数验证
         validator?.validate(request)?.takeIf { it.isNotEmpty() }?.let { violations ->
             throw ConstraintViolationException(violations)
@@ -121,7 +121,7 @@ open class DefaultSagaSupervisor(
         return internalSend(request, sagaRecord)
     }
 
-    override fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE: Any> schedule(
+    override fun <REQUEST : SagaParam<RESPONSE>, RESPONSE : Any> schedule(
         request: REQUEST,
         schedule: LocalDateTime
     ): String {
@@ -191,7 +191,7 @@ open class DefaultSagaSupervisor(
     override fun archiveByExpireAt(maxExpireAt: LocalDateTime, limit: Int): Int =
         sagaRecordRepository.archiveByExpireAt(svcName, maxExpireAt, limit)
 
-    override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE: Any> sendProcess(
+    override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> sendProcess(
         processCode: String,
         request: REQUEST
     ): RESPONSE? {
@@ -260,7 +260,7 @@ open class DefaultSagaSupervisor(
     /**
      * 内部执行Saga逻辑
      */
-    protected open fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE : Any> internalSend(
+    protected open fun <REQUEST : SagaParam<RESPONSE>, RESPONSE : Any> internalSend(
         request: REQUEST,
         sagaRecord: SagaRecord
     ): RESPONSE {
@@ -280,7 +280,7 @@ open class DefaultSagaSupervisor(
         }
     }
 
-    protected open fun <REQUEST : SagaParam<out RESPONSE>, RESPONSE : Any> internalSend(request: REQUEST): RESPONSE {
+    protected open fun <REQUEST : SagaParam<RESPONSE>, RESPONSE : Any> internalSend(request: REQUEST): RESPONSE {
         val requestClass = request::class.java
         val interceptors = getInterceptorsForRequest(requestClass)
         val handler = getHandlerForRequest(requestClass)

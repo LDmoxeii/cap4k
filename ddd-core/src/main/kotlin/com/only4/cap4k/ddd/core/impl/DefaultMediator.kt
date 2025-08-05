@@ -25,7 +25,7 @@ import java.util.*
 class DefaultMediator : Mediator {
 
     // AggregateFactorySupervisor methods
-    override fun <ENTITY_PAYLOAD : AggregatePayload<out ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY =
+    override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY =
         AggregateFactorySupervisor.instance.create(entityPayload)
 
     // RepositorySupervisor methods
@@ -89,10 +89,10 @@ class DefaultMediator : Mediator {
     }
 
     // RequestSupervisor methods
-    override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE : Any> send(request: REQUEST): RESPONSE =
+    override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> send(request: REQUEST): RESPONSE =
         RequestSupervisor.instance.send(request)
 
-    override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE : Any> schedule(
+    override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> schedule(
         request: REQUEST,
         schedule: LocalDateTime
     ): String =
@@ -119,13 +119,13 @@ class DefaultMediator : Mediator {
     }
 
     // AggregateSupervisor methods
-    override fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY_PAYLOAD : AggregatePayload<out ENTITY>, ENTITY : Any> create(
+    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(
         clazz: Class<AGGREGATE>,
         payload: ENTITY_PAYLOAD
     ): AGGREGATE =
         AggregateSupervisor.instance.create(clazz, payload)
 
-    override fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any> getByIds(
+    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getByIds(
         ids: Iterable<Id<AGGREGATE, *>>,
         persist: Boolean
     ): List<AGGREGATE> =

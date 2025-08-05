@@ -9,7 +9,7 @@ import com.only4.cap4k.ddd.core.application.RequestParam
  * @author LD_moxeii
  * @date 2025/07/26
  */
-interface SagaHandler<in REQUEST : SagaParam<out RESPONSE>, out RESPONSE : Any> : RequestHandler<REQUEST, RESPONSE> {
+interface SagaHandler<REQUEST : SagaParam<RESPONSE>, RESPONSE : Any> : RequestHandler<REQUEST, RESPONSE> {
 
     /**
      * 执行流程子环节
@@ -18,7 +18,7 @@ interface SagaHandler<in REQUEST : SagaParam<out RESPONSE>, out RESPONSE : Any> 
      * @param request 请求参数
      * @return 子流程执行结果
      */
-    fun <SUB_REQUEST : RequestParam<out SUB_RESPONSE>, SUB_RESPONSE : Any> execProcess(
+    fun <SUB_REQUEST : RequestParam<SUB_RESPONSE>, SUB_RESPONSE : Any> execProcess(
         subCode: String,
         request: SUB_REQUEST
     ): SUB_RESPONSE? = SagaProcessSupervisor.instance.sendProcess(subCode, request)

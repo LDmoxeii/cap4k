@@ -14,13 +14,13 @@ import org.springframework.data.jpa.domain.Specification
  * @author LD_moxeii
  * @date 2025/07/28
  */
-class JpaAggregatePredicate<AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any>(
+class JpaAggregatePredicate<AGGREGATE : Aggregate<ENTITY>, ENTITY : Any>(
     val aggregateClass: Class<AGGREGATE>,
     val predicate: Predicate<ENTITY>
 ) : AggregatePredicate<AGGREGATE, ENTITY>, Predicate<ENTITY> {
 
     companion object {
-        private fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any> getEntityClass(
+        private fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getEntityClass(
             aggregateClass: Class<AGGREGATE>
         ): Class<ENTITY> {
             @Suppress("UNCHECKED_CAST")
@@ -30,7 +30,7 @@ class JpaAggregatePredicate<AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any>(
             ) as Class<ENTITY>
         }
 
-        fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any> byId(
+        fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> byId(
             aggregateClass: Class<AGGREGATE>,
             id: Any
         ): AggregatePredicate<AGGREGATE, ENTITY> = JpaAggregatePredicate(
@@ -38,7 +38,7 @@ class JpaAggregatePredicate<AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any>(
             JpaPredicate.byId(getEntityClass(aggregateClass), id)
         )
 
-        fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any> byIds(
+        fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> byIds(
             aggregateClass: Class<AGGREGATE>,
             ids: Iterable<Any>
         ): AggregatePredicate<AGGREGATE, ENTITY> =
@@ -47,7 +47,7 @@ class JpaAggregatePredicate<AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any>(
                 JpaPredicate.byIds(getEntityClass(aggregateClass), ids)
             )
 
-        fun <AGGREGATE : Aggregate<out VALUE_OBJECT>, VALUE_OBJECT : ValueObject<*>> byValueObject(
+        fun <AGGREGATE : Aggregate<VALUE_OBJECT>, VALUE_OBJECT : ValueObject<*>> byValueObject(
             valueObject: AGGREGATE
         ): AggregatePredicate<AGGREGATE, VALUE_OBJECT> =
             JpaAggregatePredicate(
@@ -55,7 +55,7 @@ class JpaAggregatePredicate<AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any>(
                 JpaPredicate.byValueObject(valueObject._unwrap())
             )
 
-        fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any> bySpecification(
+        fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> bySpecification(
             aggregateClass: Class<AGGREGATE>,
             specification: Specification<ENTITY>
         ): AggregatePredicate<AGGREGATE, ENTITY> =
@@ -64,7 +64,7 @@ class JpaAggregatePredicate<AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any>(
                 JpaPredicate.bySpecification(getEntityClass(aggregateClass), specification)
             )
 
-        fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any> byPredicate(
+        fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> byPredicate(
             aggregateClass: Class<AGGREGATE>,
             predicate: Predicate<ENTITY>
         ): AggregatePredicate<AGGREGATE, ENTITY> =

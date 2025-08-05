@@ -93,7 +93,7 @@ open class DefaultRequestSupervisor(
         executorService
     }
 
-    override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE : Any> send(request: REQUEST): RESPONSE {
+    override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> send(request: REQUEST): RESPONSE {
         if (request is SagaParam<*>) {
             @Suppress("UNCHECKED_CAST")
             return SagaSupervisor.instance.send(request as SagaParam<RESPONSE>)
@@ -106,7 +106,7 @@ open class DefaultRequestSupervisor(
         return internalSend(request)
     }
 
-    override fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE : Any> schedule(
+    override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> schedule(
         request: REQUEST,
         schedule: LocalDateTime
     ): String {
@@ -223,7 +223,7 @@ open class DefaultRequestSupervisor(
         }, duration.toMillis(), TimeUnit.MILLISECONDS)
     }
 
-    protected open fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE : Any> internalSend(
+    protected open fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> internalSend(
         request: REQUEST,
         requestRecord: RequestRecord
     ): RESPONSE {
@@ -239,7 +239,7 @@ open class DefaultRequestSupervisor(
         }
     }
 
-    protected open fun <REQUEST : RequestParam<out RESPONSE>, RESPONSE : Any> internalSend(request: REQUEST): RESPONSE {
+    protected open fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> internalSend(request: REQUEST): RESPONSE {
         val requestClass = request::class.java
         val interceptors = requestInterceptorMap[requestClass] ?: emptyList()
 

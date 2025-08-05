@@ -49,7 +49,7 @@ class DefaultAggregateSupervisor(
             }
     }
 
-    override fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY_PAYLOAD : AggregatePayload<out ENTITY>, ENTITY : Any> create(
+    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(
         clazz: Class<AGGREGATE>,
         payload: ENTITY_PAYLOAD
     ): AGGREGATE {
@@ -58,7 +58,7 @@ class DefaultAggregateSupervisor(
         return aggregate
     }
 
-    override fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any> getByIds(
+    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getByIds(
         ids: Iterable<Id<AGGREGATE, *>>,
         persist: Boolean
     ): List<AGGREGATE> {

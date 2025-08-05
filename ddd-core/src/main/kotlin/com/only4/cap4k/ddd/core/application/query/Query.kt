@@ -14,7 +14,7 @@ import com.only4.cap4k.ddd.core.application.RequestParam
  * @param RESULT 查询结果类型，表示查询操作返回的数据类型
  * @param PARAM 查询参数类型，必须实现RequestParam接口，用于定义查询条件
  */
-interface Query<in PARAM : RequestParam<out RESULT>, out RESULT: Any> :
+interface Query<PARAM : RequestParam<RESULT>, RESULT : Any> :
     RequestHandler<PARAM, RESULT> {
     /**
      * 执行查询操作

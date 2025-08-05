@@ -17,7 +17,7 @@ interface AggregateSupervisor {
         val instance: AggregateSupervisor = AggregateSupervisorSupport.instance
     }
 
-    fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY_PAYLOAD : AggregatePayload<out ENTITY>, ENTITY : Any> create(
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(
         clazz: Class<AGGREGATE>,
         payload: ENTITY_PAYLOAD
     ): AGGREGATE
@@ -40,7 +40,7 @@ interface AggregateSupervisor {
     /**
      * 根据id获取聚合
      */
-    fun <AGGREGATE : Aggregate<out ENTITY>, ENTITY : Any> getByIds(
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getByIds(
         ids: Iterable<Id<AGGREGATE, *>>,
         persist: Boolean = true
     ): List<AGGREGATE>

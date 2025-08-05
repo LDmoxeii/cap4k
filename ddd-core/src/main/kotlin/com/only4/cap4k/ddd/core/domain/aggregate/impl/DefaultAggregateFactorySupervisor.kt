@@ -28,7 +28,7 @@ class DefaultAggregateFactorySupervisor(
         factoryMap
     }
 
-    override fun <ENTITY_PAYLOAD : AggregatePayload<out ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY {
+    override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY {
         val factory = factoryMap[entityPayload::class.java]
             ?: throw DomainException("No factory found for payload: ${entityPayload::class.java.name}")
 
