@@ -16,14 +16,14 @@ class SnowflakeIdentifierGenerator : IdentifierGenerator {
 
     companion object {
         @JvmStatic
-        private lateinit var snowflakeIdGeneratorImpl: SnowflakeIdGenerator
+        private lateinit var snowflakeIdGenerator: SnowflakeIdGenerator
 
         /**
          * 配置雪花ID生成器实现
          */
         @JvmStatic
         fun configure(snowflakeIdGenerator: SnowflakeIdGenerator) {
-            snowflakeIdGeneratorImpl = snowflakeIdGenerator
+            this.snowflakeIdGenerator = snowflakeIdGenerator
         }
     }
 
@@ -32,6 +32,6 @@ class SnowflakeIdentifierGenerator : IdentifierGenerator {
      */
     @Throws(HibernateException::class)
     override fun generate(session: SharedSessionContractImplementor, obj: Any): Serializable {
-        return snowflakeIdGeneratorImpl.nextId()
+        return snowflakeIdGenerator.nextId()
     }
 }
