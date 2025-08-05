@@ -1,29 +1,32 @@
 package com.only4.cap4k.ddd.core.share
 
-import kotlin.properties.Delegates
-
 /**
  * 分页参数
  *
  * @author LD_moxeii
  * @date 2025/07/21
  */
-open class PageParam {
-
+open class PageParam protected constructor(
     /**
      * 页码
      */
-    var pageNum by Delegates.notNull<Int>()
+    var pageNum: Int = 1,
 
     /**
      * 页大小
      */
-    var pageSize by Delegates.notNull<Int>()
+    var pageSize: Int = 10,
 
     /**
      * 排序
      */
-    var sort: MutableCollection<OrderInfo> = mutableListOf()
+    val sort: MutableList<OrderInfo> = mutableListOf()
+) {
+
+    init {
+        require(pageNum > 0) { "页码必须大于0" }
+        require(pageSize > 0) { "页大小必须大于0" }
+    }
 
     /**
      * 添加排序字段
@@ -50,81 +53,62 @@ open class PageParam {
     }
 
     /**
-     * 添加排序字段
-     *
-     * @param field
-     * @return
+     * 降序排序
      */
-    fun orderByDesc(field: String): PageParam {
-        return orderBy(field, true)
-    }
+    fun orderByDesc(field: String): PageParam = orderBy(field, true)
 
     /**
-     * 添加排序字段
-     *
-     * @param field
-     * @return
+     * 降序排序
      */
-    fun orderByDesc(field: Any): PageParam {
-        return orderBy(field, true)
-    }
+    fun orderByDesc(field: Any): PageParam = orderBy(field, true)
 
     /**
-     * 添加排序字段
-     *
-     * @param field
-     * @return
+     * 升序排序
      */
-    fun orderByAsc(field: String): PageParam {
-        return orderBy(field, false)
-    }
+    fun orderByAsc(field: String): PageParam = orderBy(field, false)
 
     /**
-     * 添加排序字段
-     *
-     * @param field
-     * @return
+     * 升序排序
      */
-    fun orderByAsc(field: Any): PageParam {
-        return orderBy(field, false)
-    }
+    fun orderByAsc(field: Any): PageParam = orderBy(field, false)
 
     /**
      * 重置排序字段
-     *
-     * @return
      */
     fun orderReset(): PageParam {
         sort.clear()
         return this
     }
 
+    /**
+     * 设置页码
+     */
+    fun page(pageNum: Int): PageParam {
+        require(pageNum > 0) { "页码必须大于0" }
+        this.pageNum = pageNum
+        return this
+    }
+
+    /**
+     * 设置页大小
+     */
+    fun size(pageSize: Int): PageParam {
+        require(pageSize > 0) { "页大小必须大于0" }
+        this.pageSize = pageSize
+        return this
+    }
+
     companion object {
         /**
          * 创建分页参数
-         *
-         * @param pageNum
-         * @param pageSize
-         * @param sort
-         * @return
          */
         fun of(pageNum: Int, pageSize: Int, sort: MutableList<OrderInfo> = mutableListOf()): PageParam =
-            PageParam().apply {
-                this.pageNum = pageNum
-                this.pageSize = pageSize
-                this.sort = sort
-            }
-
+            PageParam(pageNum, pageSize, sort)
 
         /**
          * 创建分页参数，pageNum=1
-         *
-         * @param pageSize
-         * @param sort
-         * @return
          */
-        fun limit(pageSize: Int, sort: MutableList<OrderInfo> = mutableListOf()): PageParam {
-            return of(1, pageSize, sort)
-        }
+        fun limit(pageSize: Int, sort: MutableList<OrderInfo> = mutableListOf()): PageParam =
+            PageParam(1, pageSize, sort)
     }
 }

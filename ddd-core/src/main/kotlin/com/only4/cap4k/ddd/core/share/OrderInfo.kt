@@ -1,103 +1,61 @@
 package com.only4.cap4k.ddd.core.share
 
-import kotlin.properties.Delegates
-
 /**
  * 排序定义
  *
  * @author LD_moxeii
  * @date 2025/07/21
  */
-class OrderInfo {
-
-    /**
-     * 排序字段
-     */
-    lateinit var field: String
-
-    /**
-     * 是否降序
-     */
-    var desc by Delegates.notNull<Boolean>()
-
-    class OrderInfosBuilder {
-        private val orderInfos: MutableList<OrderInfo> = ArrayList()
-
-        fun asc(field: String): OrderInfosBuilder {
-            orderInfos.add(Companion.asc(field))
-            return this
-        }
-
-        fun desc(field: String): OrderInfosBuilder {
-            orderInfos.add(Companion.desc(field))
-            return this
-        }
-
-        fun asc(field: Any): OrderInfosBuilder {
-            orderInfos.add(Companion.desc(field))
-            return this
-        }
-
-        fun desc(field: Any): OrderInfosBuilder {
-            orderInfos.add(Companion.desc(field))
-            return this
-        }
-
-        fun build(): Collection<OrderInfo> {
-            return orderInfos
-        }
-    }
-
+open class OrderInfo protected constructor(
+    val field: String,
+    val desc: Boolean = false
+) {
     companion object {
         /**
-         * 降序
-         *
-         * @param field
-         * @return
+         * 升序
          */
-        fun desc(field: Any): OrderInfo {
-            return desc(field.toString())
-        }
-
-        /**
-         * 降序
-         *
-         * @param field
-         * @return
-         */
-        fun desc(field: String): OrderInfo {
-            val orderInfo = OrderInfo()
-            orderInfo.field = field
-            orderInfo.desc = true
-            return orderInfo
-        }
-
+        fun asc(field: String): OrderInfo = OrderInfo(field, false)
 
         /**
          * 升序
-         *
-         * @param field
-         * @return
          */
-        fun asc(field: Any): OrderInfo {
-            return asc(field.toString())
-        }
+        fun asc(field: Any): OrderInfo = asc(field.toString())
 
         /**
-         * 升序
-         *
-         * @param field
-         * @return
+         * 降序
          */
-        fun asc(field: String): OrderInfo {
-            val orderInfo = OrderInfo()
-            orderInfo.field = field
-            orderInfo.desc = false
-            return orderInfo
-        }
+        fun desc(field: String): OrderInfo = OrderInfo(field, true)
+
+        /**
+         * 降序
+         */
+        fun desc(field: Any): OrderInfo = desc(field.toString())
+
+        /**
+         * 构建器
+         */
+        fun builder(): OrderInfosBuilder = OrderInfosBuilder()
     }
 
-    fun sortBuilder(): OrderInfosBuilder {
-        return OrderInfosBuilder()
+    class OrderInfosBuilder {
+        private val orderInfos = mutableListOf<OrderInfo>()
+
+        fun asc(field: String): OrderInfosBuilder = apply {
+            orderInfos.add(OrderInfo.asc(field))
+        }
+
+        fun asc(field: Any): OrderInfosBuilder = apply {
+            orderInfos.add(OrderInfo.asc(field))
+        }
+
+        fun desc(field: String): OrderInfosBuilder = apply {
+            orderInfos.add(OrderInfo.desc(field))
+        }
+
+        fun desc(field: Any): OrderInfosBuilder = apply {
+            orderInfos.add(OrderInfo.desc(field))
+        }
+
+        fun build(): List<OrderInfo> = orderInfos.toList()
     }
 }
