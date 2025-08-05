@@ -70,25 +70,21 @@ open class JpaUnitOfWork(
     }
 
     private fun isExists(entity: Any): Boolean {
-        val entityInformation = getEntityInformation(entity.javaClass)
-        val isValueObject = entity is ValueObject<*>
-
-        if (!isValueObject && entityInformation.isNew(entity)) {
-            return false
+        val id = when (entity) {
+            is ValueObject<*> -> entity.hash()
+            else -> {
+                val entityInformation = getEntityInformation(entity.javaClass)
+                if (entityInformation.isNew(entity)) return false
+                entityInformation.getId(entity)
+            }
         }
 
-        val id = if (isValueObject) {
-            (entity as ValueObject<*>).hash()
-        } else {
-            entityInformation.getId(entity)
-        }
-
-        return id != null && entityManager.find(entity.javaClass, id) != null
+        return entityManager.find(entity.javaClass, id) != null
     }
 
     protected open fun persistenceContextEntities(): List<Any> = try {
-        val sessionImplementor = entityManager.delegate as SessionImplementor
-        if (!sessionImplementor.isClosed) {
+        val sessionImplementor = entityManager.unwrap(SessionImplementor::class.java)
+        if (sessionImplementor.isOpen) {
             sessionImplementor.persistenceContext
                 .reentrantSafeEntityEntries()
                 .map { it.key }
@@ -96,7 +92,7 @@ open class JpaUnitOfWork(
             emptyList()
         }
     } catch (ex: Exception) {
-        log.debug("跟踪实体获取失败", ex)
+        log.debug("获取持久化上下文实体失败", ex)
         emptyList()
     }
 
@@ -146,123 +142,122 @@ open class JpaUnitOfWork(
         removeEntitiesThreadLocal.get().add(unwrappedEntity)
     }
 
-    private fun pushProcessingEntities(
+    private fun pushProcessingEntity(
         entity: Any,
         currentProcessedPersistenceContextEntities: MutableSet<Any>
     ): Boolean {
-        return if (entity !in processingEntitiesThreadLocal.get()) {
-            processingEntitiesThreadLocal.get().add(entity)
-            currentProcessedPersistenceContextEntities.add(entity)
-            true
-        } else {
-            false
-        }
+        val processingEntities = processingEntitiesThreadLocal.get()
+        val added = processingEntities.add(entity)
+        if (added) currentProcessedPersistenceContextEntities.add(entity)
+        return added
     }
 
     private fun popProcessingEntities(currentProcessedPersistenceContextEntities: Set<Any>): Boolean =
-        if (currentProcessedPersistenceContextEntities.isNotEmpty()) {
+        currentProcessedPersistenceContextEntities.isEmpty() ||
             processingEntitiesThreadLocal.get().removeAll(currentProcessedPersistenceContextEntities)
-        } else {
-            true
-        }
 
     override fun save(propagation: Propagation) {
         val currentProcessedEntitySet = LinkedHashSet<Any>()
-        val persistEntitySet = persistEntitiesThreadLocal.get()
 
-        if (persistEntitySet.isNotEmpty()) {
+        val persistEntitySet = persistEntitiesThreadLocal.get().takeIf { it.isNotEmpty() }?.also { entities ->
             persistEntitiesThreadLocal.remove()
-            persistEntitySet.forEach { pushProcessingEntities(it, currentProcessedEntitySet) }
-        }
+            entities.forEach { pushProcessingEntity(it, currentProcessedEntitySet) }
+        } ?: emptySet()
 
-        val deleteEntitySet = removeEntitiesThreadLocal.get()
-        if (deleteEntitySet.isNotEmpty()) {
+        val deleteEntitySet = removeEntitiesThreadLocal.get().takeIf { it.isNotEmpty() }?.also { entities ->
             removeEntitiesThreadLocal.remove()
-            deleteEntitySet.forEach { pushProcessingEntities(it, currentProcessedEntitySet) }
-        }
+            entities.forEach { pushProcessingEntity(it, currentProcessedEntitySet) }
+        } ?: emptySet()
 
         uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
 
-        val saveAndDeleteEntities = arrayOf(persistEntitySet, deleteEntitySet, currentProcessedEntitySet)
+        try {
+            save(arrayOf(persistEntitySet, deleteEntitySet, currentProcessedEntitySet), propagation) { input ->
+                val (persistEntities, deleteEntities, processedEntities) = input
 
-        save(saveAndDeleteEntities, propagation) { input ->
-            val (persistEntities, deleteEntities, processedEntities) = input
-            val createdEntities = LinkedHashSet<Any>()
-            val updatedEntities = LinkedHashSet<Any>()
-            val deletedEntities = LinkedHashSet<Any>()
+                val results = object {
+                    val created = LinkedHashSet<Any>()
+                    val updated = LinkedHashSet<Any>()
+                    val deleted = LinkedHashSet<Any>()
+                    var needsFlush = false
+                    var refreshList: MutableList<Any>? = null
+                }
 
-            uowInterceptors.forEach { it.preInTransaction(persistEntities, deleteEntities) }
+                uowInterceptors.forEach { it.preInTransaction(persistEntities, deleteEntities) }
 
-            var flush = false
-            var refreshEntityList: MutableList<Any>? = null
-
-            if (persistEntities.isNotEmpty()) {
-                flush = true
-                for (entity in persistEntities) {
-                    if (supportValueObjectExistsCheckOnSave && entity is ValueObject<*>) {
-                        if (!isExists(entity)) {
-                            entityManager.persist(entity)
-                            createdEntities.add(entity)
+                // 处理持久化实体
+                persistEntities.takeIf { it.isNotEmpty() }?.let { entities ->
+                    results.needsFlush = true
+                    entities.forEach { entity ->
+                        when {
+                            // ValueObject 存在性检查
+                            supportValueObjectExistsCheckOnSave && entity is ValueObject<*> -> {
+                                if (!isExists(entity)) {
+                                    entityManager.persist(entity)
+                                    results.created.add(entity)
+                                }
+                            }
+                            // 新实体处理
+                            getEntityInformation(entity.javaClass).isNew(entity) -> {
+                                if (!entityManager.contains(entity)) {
+                                    entityManager.persist(entity)
+                                }
+                                results.refreshList = (results.refreshList ?: mutableListOf()).apply { add(entity) }
+                                results.created.add(entity)
+                            }
+                            // 现有实体处理
+                            else -> {
+                                if (!entityManager.contains(entity)) {
+                                    entityManager.merge(entity).also { merged -> updateWrappedEntity(entity, merged) }
+                                }
+                                results.updated.add(entity)
+                            }
                         }
-                        continue
                     }
+                }
 
-                    val entityInformation = getEntityInformation(entity.javaClass)
-                    if (entityInformation.isNew(entity)) {
-                        if (!entityManager.contains(entity)) {
-                            entityManager.persist(entity)
+                // 处理删除实体
+                deleteEntities.takeIf { it.isNotEmpty() }?.let { entities ->
+                    results.needsFlush = true
+                    entities.forEach { entity ->
+                        when {
+                            entityManager.contains(entity) -> entityManager.remove(entity)
+                            else -> {
+                                entityManager.merge(entity).also { merged ->
+                                    updateWrappedEntity(entity, merged)
+                                    entityManager.remove(merged)
+                                }
+                            }
                         }
-                        if (refreshEntityList == null) {
-                            refreshEntityList = mutableListOf()
-                        }
-                        refreshEntityList.add(entity)
-                        createdEntities.add(entity)
-                    } else {
-                        if (!entityManager.contains(entity)) {
-                            val mergedEntity = entityManager.merge(entity)
-                            updateWrappedEntity(entity, mergedEntity)
-                        }
-                        updatedEntities.add(entity)
+                        results.deleted.add(entity)
                     }
+                }
+
+                // 刷新和回调处理
+                if (results.needsFlush) {
+                    entityManager.flush()
+                    results.refreshList?.forEach { entityManager.refresh(it) }
+                    onEntitiesFlushed(results.created, results.updated, results.deleted)
+                }
+
+                // 后处理
+                buildSet {
+                    addAll(persistEntities)
+                    addAll(deleteEntities)
+                    persistenceContextEntities().forEach {
+                        pushProcessingEntity(it, processedEntities as MutableSet<Any>)
+                    }
+                    addAll(processedEntities)
+                }.let { allEntities ->
+                    uowInterceptors.forEach { it.postEntitiesPersisted(allEntities) }
+                    uowInterceptors.forEach { it.postInTransaction(persistEntities, deleteEntities) }
                 }
             }
 
-            if (deleteEntities.isNotEmpty()) {
-                flush = true
-                for (entity in deleteEntities) {
-                    if (entityManager.contains(entity)) {
-                        entityManager.remove(entity)
-                    } else {
-                        val mergedEntity = entityManager.merge(entity)
-                        updateWrappedEntity(entity, mergedEntity)
-                        entityManager.remove(mergedEntity)
-                    }
-                    deletedEntities.add(entity)
-                }
-            }
-
-            if (flush) {
-                entityManager.flush()
-                refreshEntityList?.forEach { entityManager.refresh(it) }
-                onEntitiesFlushed(createdEntities, updatedEntities, deletedEntities)
-            }
-
-            val entities = LinkedHashSet<Any>().apply {
-                addAll(persistEntities)
-                addAll(deleteEntities)
-            }
-
-            persistenceContextEntities().forEach {
-                pushProcessingEntities(it, processedEntities as MutableSet<Any>)
-            }
-            entities.addAll(processedEntities)
-
-            uowInterceptors.forEach { it.postEntitiesPersisted(entities) }
-            uowInterceptors.forEach { it.postInTransaction(persistEntities, deleteEntities) }
+            uowInterceptors.forEach { it.afterTransaction(persistEntitySet, deleteEntitySet) }
+        } finally {
+            popProcessingEntities(currentProcessedEntitySet)
         }
-
-        uowInterceptors.forEach { it.afterTransaction(persistEntitySet, deleteEntitySet) }
-        popProcessingEntities(currentProcessedEntitySet)
     }
 
     fun interface TransactionHandler<I, O> {
