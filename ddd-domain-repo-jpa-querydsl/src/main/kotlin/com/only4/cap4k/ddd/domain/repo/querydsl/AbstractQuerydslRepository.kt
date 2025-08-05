@@ -20,7 +20,7 @@ import java.util.*
  * @author LD_moxeii
  * @date 2025/07/31
  */
-abstract class AbstractQuerydslRepository<ENTITY : Any>(
+open class AbstractQuerydslRepository<ENTITY : Any>(
     private val querydslPredicateExecutor: QuerydslPredicateExecutor<ENTITY>
 ) : Repository<ENTITY> {
 
