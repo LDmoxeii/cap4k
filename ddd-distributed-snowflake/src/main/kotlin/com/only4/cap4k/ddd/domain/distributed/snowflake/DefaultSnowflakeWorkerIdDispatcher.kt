@@ -21,7 +21,7 @@ class DefaultSnowflakeWorkerIdDispatcher(
     private val showSql: Boolean = false
 ) : SnowflakeWorkerIdDispatcher {
 
-    private val logger = LoggerFactory.getLogger(DefaultSnowflakeWorkerIdDispatcher::class.java)
+    private val log = LoggerFactory.getLogger(DefaultSnowflakeWorkerIdDispatcher::class.java)
     private var cachedWorkerId: Long? = null
 
     /**
@@ -158,8 +158,8 @@ class DefaultSnowflakeWorkerIdDispatcher(
 
     private fun logSqlIfEnabled(sql: String, params: List<Any>) {
         if (showSql) {
-            logger.debug(sql)
-            logger.debug("binding parameters: {}", params)
+            log.debug(sql)
+            log.debug("binding parameters: {}", params)
         }
     }
 }

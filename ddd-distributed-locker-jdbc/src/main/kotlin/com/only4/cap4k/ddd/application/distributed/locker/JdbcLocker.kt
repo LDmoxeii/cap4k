@@ -22,7 +22,7 @@ class JdbcLocker(
     private val showSql: Boolean = false
 ) : Locker {
 
-    private val logger = LoggerFactory.getLogger(JdbcLocker::class.java)
+    private val log = LoggerFactory.getLogger(JdbcLocker::class.java)
 
     override fun acquire(key: String, pwd: String, expireDuration: Duration): Boolean {
         val now = LocalDateTime.now()
@@ -80,8 +80,8 @@ class JdbcLocker(
 
     private fun logSqlIfEnabled(sql: String, params: List<Any>) {
         if (showSql) {
-            logger.debug(sql)
-            logger.debug("binding parameters: {}", params)
+            log.debug(sql)
+            log.debug("binding parameters: {}", params)
         }
     }
 }

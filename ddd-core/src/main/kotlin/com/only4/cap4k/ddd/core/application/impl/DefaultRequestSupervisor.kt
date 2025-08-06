@@ -52,31 +52,28 @@ open class DefaultRequestSupervisor(
     }
 
     private val requestHandlerMap by lazy {
-        buildMap<Class<*>, RequestHandler<*, *>> {
-            requestHandlers.forEach { requestHandler ->
-                val requestPayloadClass = resolveGenericTypeClass(
-                    requestHandler, 0,
-                    RequestHandler::class.java,
-                    Command::class.java, NoneResultCommandParam::class.java,
-                    Query::class.java, ListQuery::class.java, PageQuery::class.java
-                )
-                put(requestPayloadClass, requestHandler)
-            }
-        }.toMap()
+        requestHandlers.associateBy { handler ->
+            // 获取请求处理器的请求参数类型
+            resolveGenericTypeClass(
+                handler, 0,
+                RequestHandler::class.java,
+                Command::class.java, NoneResultCommandParam::class.java,
+                Query::class.java, ListQuery::class.java, PageQuery::class.java
+            )
+        }
     }
 
     private val requestInterceptorMap by lazy {
-        buildMap<Class<*>, MutableList<RequestInterceptor<*, *>>> {
-            // 初始化请求拦截器映射
-            requestInterceptors.forEach { requestInterceptor ->
-                val requestPayloadClass = resolveGenericTypeClass(
+        requestInterceptors
+            .groupBy { requestInterceptor ->
+                // 获取请求拦截器的请求参数类型
+                resolveGenericTypeClass(
                     requestInterceptor, 0,
-                    RequestInterceptor::class.java
+                    RequestInterceptor::class.java,
+                    Command::class.java, NoneResultCommandParam::class.java,
+                    Query::class.java, ListQuery::class.java, PageQuery::class.java
                 )
-                computeIfAbsent(requestPayloadClass) { mutableListOf() }
-                    .add(requestInterceptor)
             }
-        }.toMap()
     }
 
     private val executorService by lazy {

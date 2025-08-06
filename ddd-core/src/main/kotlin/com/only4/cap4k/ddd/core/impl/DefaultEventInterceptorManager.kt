@@ -94,7 +94,6 @@ class DefaultEventInterceptorManager(
         }
     }
 
-
     override fun onException(event: EventRecord, throwable: Throwable) {
         val now = LocalDateTime.now()
 

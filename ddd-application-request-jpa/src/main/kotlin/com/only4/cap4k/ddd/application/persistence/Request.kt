@@ -40,7 +40,7 @@ import java.util.*
 @DynamicUpdate
 class Request {
     companion object {
-        private val logger = LoggerFactory.getLogger(Request::class.java)
+        private val log = LoggerFactory.getLogger(Request::class.java)
 
         const val F_REQUEST_UUID = "requestUuid"
         const val F_SVC_NAME = "svcName"
@@ -96,7 +96,7 @@ class Request {
                 val dataClass = try {
                     Class.forName(paramType)
                 } catch (e: ClassNotFoundException) {
-                    logger.error("参数类型解析错误", e)
+                    log.error("参数类型解析错误", e)
                     throw DomainException("参数类型解析错误: $paramType", e)
                 }
                 field = JSON.parseObject(param, dataClass, Feature.SupportNonPublicField) as RequestParam<*>
@@ -131,7 +131,7 @@ class Request {
                 val dataClass = try {
                     Class.forName(resultType)
                 } catch (e: ClassNotFoundException) {
-                    logger.error("返回类型解析错误", e)
+                    log.error("返回类型解析错误", e)
                     throw DomainException("返回类型解析错误: $resultType", e)
                 }
                 field = JSON.parseObject(result, dataClass, Feature.SupportNonPublicField)

@@ -36,7 +36,7 @@ import java.util.*
 @DynamicUpdate
 class Event {
     companion object {
-        private val logger = LoggerFactory.getLogger(Event::class.java)
+        private val log = LoggerFactory.getLogger(Event::class.java)
 
         const val F_EVENT_UUID = "eventUuid"
         const val F_SVC_NAME = "svcName"
@@ -86,7 +86,7 @@ class Event {
                 val dataClass: Class<*> = try {
                     Class.forName(dataType)
                 } catch (e: ClassNotFoundException) {
-                    logger.error("事件类型解析错误", e)
+                    log.error("事件类型解析错误", e)
                     throw DomainException("事件数据类型解析错误: $dataType", e)
                 }
                 field = JSON.parseObject(data, dataClass, Feature.SupportNonPublicField)

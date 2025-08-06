@@ -51,7 +51,6 @@ open class DefaultIntegrationEventSupervisor(
     }
 
     override fun <EVENT : Any> attach(eventPayload: EVENT, schedule: LocalDateTime) {
-        // 判断集成事件，仅支持集成事件。
         if (!eventPayload::class.java.isAnnotationPresent(IntegrationEvent::class.java)) {
             throw DomainException("事件类型必须为集成事件")
         }
@@ -80,7 +79,7 @@ open class DefaultIntegrationEventSupervisor(
     }
 
     override fun release() {
-        val eventPayloads = popEvents().toMutableSet()
+        val eventPayloads = popEvents()
         val persistedEvents = mutableListOf<EventRecord>()
 
         for (eventPayload in eventPayloads) {
@@ -136,23 +135,12 @@ open class DefaultIntegrationEventSupervisor(
         }
     }
 
-    /**
-     * 弹出事件列表
-     *
-     * @return 事件列表
-     */
     protected open fun popEvents(): Set<Any> {
         val eventPayloads = TL_EVENT_PAYLOADS.get() ?: return emptySet()
         TL_EVENT_PAYLOADS.remove()
         return eventPayloads.map { if (it is Function0<*>) it.invoke()!! else it }.toSet()
     }
 
-    /**
-     * 记录事件发送时间
-     *
-     * @param eventPayload 事件负载
-     * @param schedule 调度时间
-     */
     protected open fun putDeliverTime(eventPayload: Any, schedule: LocalDateTime) {
         val eventScheduleMap = TL_EVENT_SCHEDULE_MAP.get() ?: run {
             val newMap = mutableMapOf<Any, LocalDateTime>()

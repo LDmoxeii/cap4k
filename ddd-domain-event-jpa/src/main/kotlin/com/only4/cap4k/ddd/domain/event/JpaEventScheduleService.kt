@@ -27,7 +27,7 @@ class JpaEventScheduleService(
     private val enableAddPartition: Boolean,
     private val jdbcTemplate: JdbcTemplate
 ) {
-    private val logger = LoggerFactory.getLogger(JpaEventScheduleService::class.java)
+    private val log = LoggerFactory.getLogger(JpaEventScheduleService::class.java)
     private var compensationRunning = false
 
     fun init() {
@@ -39,7 +39,7 @@ class JpaEventScheduleService(
      */
     fun compense(batchSize: Int, maxConcurrency: Int, interval: Duration, maxLockDuration: Duration) {
         if (compensationRunning) {
-            logger.info("事件发送补偿:上次事件发送补偿仍未结束，跳过")
+            log.info("事件发送补偿:上次事件发送补偿仍未结束，跳过")
             return
         }
 
@@ -72,13 +72,13 @@ class JpaEventScheduleService(
             }
 
             eventRecords.forEach { eventRecord ->
-                logger.info("事件发送补偿: {}", eventRecord)
+                log.info("事件发送补偿: {}", eventRecord)
                 eventPublisher.resume(eventRecord, nextTryTime)
             }
 
             true
         } catch (ex: Exception) {
-            logger.error("事件发送补偿:异常失败", ex)
+            log.error("事件发送补偿:异常失败", ex)
             false
         } finally {
             locker.release(compensationLockerKey, pwd)
@@ -96,7 +96,7 @@ class JpaEventScheduleService(
         }
 
         try {
-            logger.info("事件归档")
+            log.info("事件归档")
 
             val expireDate = LocalDateTime.now().minusDays(expireDays.toLong())
             var failCount = 0
@@ -109,9 +109,9 @@ class JpaEventScheduleService(
                     }
                 } catch (ex: Exception) {
                     failCount++
-                    logger.error("事件归档:失败", ex)
+                    log.error("事件归档:失败", ex)
                     if (failCount >= 3) {
-                        logger.info("事件归档:累计3次异常退出任务")
+                        log.info("事件归档:累计3次异常退出任务")
                         break
                     }
                 }
@@ -148,7 +148,7 @@ class JpaEventScheduleService(
             jdbcTemplate.execute(sql)
         } catch (ex: Exception) {
             if (ex.message?.contains("Duplicate partition") != true) {
-                logger.error(
+                log.error(
                     "分区创建异常 table = $table partition = p${date.format(DateTimeFormatter.ofPattern("yyyyMM"))}",
                     ex
                 )

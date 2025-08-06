@@ -12,7 +12,7 @@ import com.only4.cap4k.ddd.core.domain.event.EventInterceptor
 interface IntegrationEventInterceptorManager {
     /**
      * 获取有序的集成事件拦截器集合
-     * 拦截器按照org.springframework.core.annotation.Order注解的优先级排序
+     * 拦截器按照 [org.springframework.core.annotation.Order] 注解的优先级排序
      * 优先级值越小，拦截器执行顺序越靠前
      *
      * @return 有序的集成事件拦截器集合
@@ -21,7 +21,7 @@ interface IntegrationEventInterceptorManager {
 
     /**
      * 获取有序的事件拦截器集合（用于集成事件）
-     * 拦截器按照org.springframework.core.annotation.Order注解的优先级排序
+     * 拦截器按照 [org.springframework.core.annotation.Order] 注解的优先级排序
      * 优先级值越小，拦截器执行顺序越靠前
      *
      * @return 有序的事件拦截器集合

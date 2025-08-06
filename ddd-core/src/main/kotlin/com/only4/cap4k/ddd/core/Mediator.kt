@@ -29,7 +29,6 @@ interface Mediator : AggregateFactorySupervisor,
     val aggregateFactorySupervisor: AggregateFactorySupervisor
         get() = AggregateFactorySupervisor.instance
 
-
     val repositorySupervisor: RepositorySupervisor
         get() = RepositorySupervisor.instance
 

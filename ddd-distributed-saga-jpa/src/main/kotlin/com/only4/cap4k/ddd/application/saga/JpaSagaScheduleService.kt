@@ -24,7 +24,7 @@ class JpaSagaScheduleService(
     private val enableAddPartition: Boolean,
     private val jdbcTemplate: JdbcTemplate
 ) {
-    private val logger = LoggerFactory.getLogger(JpaSagaScheduleService::class.java)
+    private val log = LoggerFactory.getLogger(JpaSagaScheduleService::class.java)
     private var compensationRunning = false
 
     fun init() {
@@ -36,7 +36,7 @@ class JpaSagaScheduleService(
      */
     fun compense(batchSize: Int, maxConcurrency: Int, interval: Duration, maxLockDuration: Duration) {
         if (compensationRunning) {
-            logger.info("Saga执行补偿:上次Saga执行补偿仍未结束，跳过")
+            log.info("Saga执行补偿:上次Saga执行补偿仍未结束，跳过")
             return
         }
 
@@ -70,19 +70,19 @@ class JpaSagaScheduleService(
                 }
 
                 sagaRecords.forEach { sagaRecord ->
-                    logger.info("Saga执行补偿: {}", sagaRecord)
+                    log.info("Saga执行补偿: {}", sagaRecord)
                     sagaManager.resume(sagaRecord, nextTryTime)
                 }
 
                 true
             } catch (ex: Exception) {
-                logger.error("Saga执行补偿:异常失败", ex)
+                log.error("Saga执行补偿:异常失败", ex)
                 false
             } finally {
                 locker.release(compensationLockerKey, pwd)
             }
         } catch (ex: Exception) {
-            logger.error("Saga执行补偿:锁获取异常", ex)
+            log.error("Saga执行补偿:锁获取异常", ex)
             false
         }
     }
@@ -98,7 +98,7 @@ class JpaSagaScheduleService(
         }
 
         try {
-            logger.info("Saga归档")
+            log.info("Saga归档")
 
             val expireDate = LocalDateTime.now().minusDays(expireDays.toLong())
             var failCount = 0
@@ -111,9 +111,9 @@ class JpaSagaScheduleService(
                     }
                 } catch (ex: Exception) {
                     failCount++
-                    logger.error("Saga归档:失败", ex)
+                    log.error("Saga归档:失败", ex)
                     if (failCount >= 3) {
-                        logger.info("Saga归档:累计3次异常退出任务")
+                        log.info("Saga归档:累计3次异常退出任务")
                         break
                     }
                 }
@@ -150,7 +150,7 @@ class JpaSagaScheduleService(
             jdbcTemplate.execute(sql)
         } catch (ex: Exception) {
             if (ex.message?.contains("Duplicate partition") != true) {
-                logger.error(
+                log.error(
                     "分区创建异常 table = $table partition = p${date.format(DateTimeFormatter.ofPattern("yyyyMM"))}",
                     ex
                 )

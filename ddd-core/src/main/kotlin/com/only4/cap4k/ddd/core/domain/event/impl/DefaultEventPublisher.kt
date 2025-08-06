@@ -43,7 +43,6 @@ open class DefaultEventPublisher(
     }
 
     fun init() {
-        // 预热执行器，触发lazy初始化
         executor
     }
 

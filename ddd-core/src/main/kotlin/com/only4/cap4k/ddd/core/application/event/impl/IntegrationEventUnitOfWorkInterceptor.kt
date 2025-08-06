@@ -13,23 +13,15 @@ class IntegrationEventUnitOfWorkInterceptor(
     private val integrationEventManager: IntegrationEventManager
 ) : UnitOfWorkInterceptor {
 
-    override fun beforeTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
-        // 空实现
-    }
+    override fun beforeTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {}
 
-    override fun preInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
-        // 空实现
-    }
+    override fun preInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {}
 
-    override fun postEntitiesPersisted(entities: Set<Any>) {
-        // 空实现
-    }
+    override fun postEntitiesPersisted(entities: Set<Any>) {}
 
     override fun postInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
         integrationEventManager.release()
     }
 
-    override fun afterTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
-        // 空实现
-    }
+    override fun afterTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {}
 }

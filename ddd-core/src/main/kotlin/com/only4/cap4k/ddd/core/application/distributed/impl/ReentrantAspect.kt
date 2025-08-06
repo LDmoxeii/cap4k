@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
 class ReentrantAspect(
     private val distributedLocker: Locker
 ) {
-    private val logger = LoggerFactory.getLogger(ReentrantAspect::class.java)
+    private val log = LoggerFactory.getLogger(ReentrantAspect::class.java)
     private val localLocker: Locker = MemoryLocker()
 
     companion object {
@@ -51,17 +51,17 @@ class ReentrantAspect(
         val expire = parseDuration(reentrant.expire)
 
         return if (locker.acquire(lockKey, lockPwd, expire)) {
-            logger.debug("获取锁成功:{}", lockKey)
+            log.debug("获取锁成功:{}", lockKey)
             try {
                 joinPoint.proceed()
             } catch (e: Throwable) {
                 throw RuntimeException(e)
             } finally {
                 locker.release(lockKey, lockPwd)
-                logger.debug("释放锁成功:{}", lockKey)
+                log.debug("释放锁成功:{}", lockKey)
             }
         } else {
-            logger.debug("获取锁失败:{}", lockKey)
+            log.debug("获取锁失败:{}", lockKey)
             null
         }
     }
