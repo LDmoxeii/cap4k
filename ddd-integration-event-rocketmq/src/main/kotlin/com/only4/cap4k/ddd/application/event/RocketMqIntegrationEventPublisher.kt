@@ -37,7 +37,7 @@ class RocketMqIntegrationEventPublisher(
             var destination = event.type
             destination = resolvePlaceholderWithCache(destination, environment)
 
-            if (destination.isEmpty()) {
+            if (destination.isBlank()) {
                 throw DomainException("集成事件发布失败: ${event.id} 缺失topic")
             }
 
@@ -81,8 +81,8 @@ class RocketMqIntegrationEventPublisher(
                 }"
                 log.error(msg, throwable)
                 publishCallback.onException(event, throwable)
-            } catch (throwable1: Throwable) {
-                log.error("回调失败（事件发送异常）", throwable1)
+            } catch (e: Throwable) {
+                log.error("回调失败（事件发送异常）", e)
             }
         }
     }

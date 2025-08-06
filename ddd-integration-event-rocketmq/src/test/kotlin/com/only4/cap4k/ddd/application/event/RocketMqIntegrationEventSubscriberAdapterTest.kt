@@ -16,7 +16,6 @@ import org.springframework.core.env.Environment
 import org.springframework.messaging.Message
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 
 @DisplayName("RocketMQ集成事件订阅适配器测试")
 class RocketMqIntegrationEventSubscriberAdapterTest {
@@ -61,26 +60,6 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
         assertNotNull(annotation)
         assertEquals("test-topic", annotation.value)
         assertEquals("test-subscriber", annotation.subscriber)
-    }
-
-    @Test
-    @DisplayName("应该为没有注解的类返回null消费者")
-    fun `should return null consumer for class without annotation`() {
-        // when
-        val consumer = adapter.createDefaultConsumer(String::class.java)
-
-        // then
-        assertNull(consumer)
-    }
-
-    @Test
-    @DisplayName("应该为NONE_SUBSCRIBER的类返回null消费者")
-    fun `should return null consumer for NONE_SUBSCRIBER class`() {
-        // when
-        val consumer = adapter.createDefaultConsumer(NoneSubscriberEvent::class.java)
-
-        // then
-        assertNull(consumer)
     }
 
     @Test

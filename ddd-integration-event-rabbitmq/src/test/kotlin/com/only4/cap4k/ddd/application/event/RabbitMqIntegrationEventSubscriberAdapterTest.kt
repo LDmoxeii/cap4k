@@ -80,36 +80,6 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
     }
 
     @Test
-    @DisplayName("当集成事件注解为空时返回null")
-    fun shouldReturnNullWhenIntegrationEventAnnotationIsNull() {
-        // Act
-        val result = adapter.createDefaultConsumer(NonIntegrationEvent::class.java)
-
-        // Assert
-        assertEquals(null, result)
-    }
-
-    @Test
-    @DisplayName("当集成事件值为空时返回null")
-    fun shouldReturnNullWhenIntegrationEventValueIsBlank() {
-        // Act
-        val result = adapter.createDefaultConsumer(EmptyValueIntegrationEvent::class.java)
-
-        // Assert
-        assertEquals(null, result)
-    }
-
-    @Test
-    @DisplayName("当订阅者标记为NONE时返回null")
-    fun shouldReturnNullWhenSubscriberIsNone() {
-        // Act
-        val result = adapter.createDefaultConsumer(NoneSubscriberIntegrationEvent::class.java)
-
-        // Assert
-        assertEquals(null, result)
-    }
-
-    @Test
     @DisplayName("解析目标地址包含冒号")
     fun shouldParseTargetWithColon() {
         // Arrange

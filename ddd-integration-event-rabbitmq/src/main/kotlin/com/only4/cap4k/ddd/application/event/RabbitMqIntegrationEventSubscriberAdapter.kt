@@ -41,35 +41,34 @@ class RabbitMqIntegrationEventSubscriberAdapter(
 ) {
 
     companion object {
-        private val logger = LoggerFactory.getLogger(RabbitMqIntegrationEventSubscriberAdapter::class.java)
+        private val log = LoggerFactory.getLogger(RabbitMqIntegrationEventSubscriberAdapter::class.java)
     }
 
     private val simpleMessageListenerContainers by lazy {
-        val containers = mutableListOf<SimpleMessageListenerContainer>()
-        val classes = findIntegrationEventClasses(scanPath)
+        findIntegrationEventClasses(scanPath)
+            .filter { cls ->
+                val integrationEvent = cls.getAnnotation(IntegrationEvent::class.java)
+                integrationEvent != null &&
+                        integrationEvent.value.isNotEmpty() &&
+                        !IntegrationEvent.NONE_SUBSCRIBER.equals(integrationEvent.subscriber, ignoreCase = true)
+            }
+            .mapNotNull { integrationEventClass ->
+                val container = rabbitMqIntegrationEventConfigure?.get(integrationEventClass)
+                    ?: createDefaultConsumer(integrationEventClass)
 
-        classes.filter { cls ->
-            val integrationEvent = cls.getAnnotation(IntegrationEvent::class.java)
-            integrationEvent != null &&
-                    integrationEvent.value.isNotEmpty() &&
-                    !IntegrationEvent.NONE_SUBSCRIBER.equals(integrationEvent.subscriber, ignoreCase = true)
-        }.forEach { integrationEventClass ->
-            val container = rabbitMqIntegrationEventConfigure?.get(integrationEventClass)
-                ?: createDefaultConsumer(integrationEventClass)
-
-            container?.let {
                 try {
-                    it.setMessageListener(ChannelAwareMessageListener { message, channel ->
-                        onMessage(integrationEventClass, message, channel!!)
-                    })
-                    it.start()
-                    containers.add(it)
+                    if (container.messageListener == null) {
+                        container.messageListener = ChannelAwareMessageListener { message, channel ->
+                            onMessage(integrationEventClass, message, channel!!)
+                        }
+                    }
+                    container.start()
+                    container
                 } catch (e: AmqpException) {
-                    logger.error("集成事件消息监听启动失败", e)
+                    log.error("集成事件消息监听启动失败", e)
+                    null
                 }
             }
-        }
-        containers
     }
 
     fun init() {
@@ -87,7 +86,7 @@ class RabbitMqIntegrationEventSubscriberAdapter(
     }
 
     fun shutdown() {
-        logger.info("集成事件消息监听退出...")
+        log.info("集成事件消息监听退出...")
         if (simpleMessageListenerContainers.isEmpty()) {
             return
         }
@@ -96,21 +95,13 @@ class RabbitMqIntegrationEventSubscriberAdapter(
             try {
                 container.shutdown()
             } catch (ex: Exception) {
-                logger.error("集成事件消息监听退出异常", ex)
+                log.error("集成事件消息监听退出异常", ex)
             }
         }
     }
 
-    fun createDefaultConsumer(integrationEventClass: Class<*>): SimpleMessageListenerContainer? {
+    fun createDefaultConsumer(integrationEventClass: Class<*>): SimpleMessageListenerContainer {
         val integrationEvent = integrationEventClass.getAnnotation(IntegrationEvent::class.java)
-            ?: return null
-
-        if (integrationEvent.value.isBlank() ||
-            IntegrationEvent.NONE_SUBSCRIBER.equals(integrationEvent.subscriber, ignoreCase = true)
-        ) {
-            // 不是集成事件, 或显式标明无订阅
-            return null
-        }
 
         val target = resolvePlaceholderWithCache(integrationEvent.value, environment)
         val subscriber = resolvePlaceholderWithCache(integrationEvent.subscriber, environment)
@@ -127,84 +118,70 @@ class RabbitMqIntegrationEventSubscriberAdapter(
         }
     }
 
-    private fun parseTarget(target: String): Pair<String, String> {
-        return if (target.contains(':')) {
-            val lastColonIndex = target.lastIndexOf(':')
-            target.substring(0, lastColonIndex) to target.substring(lastColonIndex + 1)
+    private fun parseTarget(target: String): Pair<String, String> = target.split(':', limit = 2).let { parts ->
+        if (parts.size == 2) {
+            parts[0] to parts[1]
         } else {
             target to ""
         }
+    }
+
+    private fun org.springframework.amqp.core.Message.parseEventPayload(integrationEventClass: Class<*>): Any {
+        val strMsg = String(this.body, charset(msgCharset))
+        return JSON.parseObject(strMsg, integrationEventClass, Feature.SupportNonPublicField)
+    }
+
+    private fun processWithInterceptors(msg: org.springframework.amqp.core.Message, eventPayload: Any) {
+        val message: Message<Any> = GenericMessage(
+            eventPayload,
+            EventMessageInterceptor.ModifiableMessageHeaders(msg.messageProperties.headers)
+        )
+
+        orderedEventMessageInterceptors.forEach { it.preSubscribe(message) }
+        eventSubscriberManager.dispatch(message.payload)
+        orderedEventMessageInterceptors.forEach { it.postSubscribe(message) }
     }
 
     private fun onMessage(
         integrationEventClass: Class<*>,
         msg: org.springframework.amqp.core.Message,
         channel: Channel
-    ) {
-        try {
-            logger.info("集成事件消费，messageId=${msg.messageProperties.messageId}")
-            val strMsg = String(msg.body, charset(msgCharset))
-            var eventPayload = JSON.parseObject(strMsg, integrationEventClass, Feature.SupportNonPublicField)
+    ) = runCatching {
+        log.info("集成事件消费，messageId=${msg.messageProperties.messageId}")
+        val eventPayload = msg.parseEventPayload(integrationEventClass)
 
-            val orderedInterceptors = orderedEventMessageInterceptors
-            if (orderedInterceptors.isEmpty()) {
-                eventSubscriberManager.dispatch(eventPayload)
-            } else {
-                val message: Message<Any> = GenericMessage(
-                    eventPayload,
-                    EventMessageInterceptor.ModifiableMessageHeaders(msg.messageProperties.headers)
-                )
-
-                // 前置拦截
-                orderedInterceptors.forEach { interceptor ->
-                    interceptor.preSubscribe(message)
-                }
-
-                // 拦截器可能修改消息，重新赋值
-                eventPayload = message.payload
-                eventSubscriberManager.dispatch(eventPayload)
-
-                // 后置拦截
-                orderedInterceptors.forEach { interceptor ->
-                    interceptor.postSubscribe(message)
-                }
-            }
-
-            channel.basicAck(msg.messageProperties.deliveryTag, false)
-        } catch (ex: Exception) {
-            logger.error("集成事件消息消费失败", ex)
-            channel.basicReject(msg.messageProperties.deliveryTag, true)
+        if (orderedEventMessageInterceptors.isEmpty()) {
+            eventSubscriberManager.dispatch(eventPayload)
+        } else {
+            processWithInterceptors(msg, eventPayload)
         }
+
+        channel.basicAck(msg.messageProperties.deliveryTag, false)
+    }.getOrElse { ex ->
+        log.error("集成事件消息消费失败", ex)
+        channel.basicReject(msg.messageProperties.deliveryTag, true)
     }
 
-    private fun getExchangeConsumerQueueName(exchange: String, defaultVal: String?): String {
-        val queueName = if (defaultVal.isNullOrBlank()) {
-            "$exchange-4-$applicationName"
-        } else {
-            defaultVal
-        }
-        return resolvePlaceholderWithCache(
-            "\${rabbitmq.$exchange.consumer.queue:$queueName}",
+    private fun getExchangeConsumerQueueName(exchange: String, defaultVal: String?): String =
+        resolvePlaceholderWithCache(
+            "\${rabbitmq.$exchange.consumer.queue:${defaultVal.takeIf { !it.isNullOrBlank() } ?: "$exchange-4-$applicationName"}}",
             environment
         )
-    }
 
-    private fun tryDeclareQueue(queue: String, exchange: String, routingKey: String) {
-        try {
-            val exchangeType = resolvePlaceholderWithCache(
-                "\${rabbitmq.$exchange.type:direct}",
-                environment
-            )
+    private fun tryDeclareQueue(queue: String, exchange: String, routingKey: String) = runCatching {
+        val exchangeType = resolvePlaceholderWithCache(
+            "\${rabbitmq.$exchange.type:direct}",
+            environment
+        )
 
-            connectionFactory.createConnection().use { connection ->
-                connection.createChannel(false).use { channel ->
-                    channel.queueDeclare(queue, true, false, false, null)
-                    channel.queueBind(queue, exchange, routingKey)
-                }
+        connectionFactory.createConnection().use { connection ->
+            connection.createChannel(false).use { channel ->
+                channel.queueDeclare(queue, true, false, false, null)
+                channel.queueBind(queue, exchange, routingKey)
             }
-        } catch (e: Exception) {
-            logger.error("创建消息队列失败", e)
-            throw RuntimeException(e)
         }
+    }.getOrElse { e ->
+        log.error("创建消息队列失败", e)
+        throw RuntimeException(e)
     }
 }

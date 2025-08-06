@@ -9,7 +9,6 @@ import com.only4.cap4k.ddd.core.share.misc.findIntegrationEventClasses
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
 import org.apache.commons.lang3.StringUtils
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer
-import org.apache.rocketmq.client.consumer.MQPushConsumer
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus
 import org.apache.rocketmq.client.exception.MQClientException
@@ -43,19 +42,16 @@ class RocketMqIntegrationEventSubscriberAdapter(
     }
 
     private val mqPushConsumers by lazy {
-        val consumers = mutableListOf<MQPushConsumer>()
-        val classes = findIntegrationEventClasses(scanPath)
-
-        classes.filter { cls ->
-            val integrationEvent = cls.getAnnotation(IntegrationEvent::class.java)
-            integrationEvent != null &&
-                    StringUtils.isNotEmpty(integrationEvent.value) &&
+        findIntegrationEventClasses(scanPath)
+            .filter { cls ->
+                val integrationEvent = cls.getAnnotation(IntegrationEvent::class.java)
+                StringUtils.isNotEmpty(integrationEvent.value) &&
                     !IntegrationEvent.NONE_SUBSCRIBER.equals(integrationEvent.subscriber, ignoreCase = true)
-        }.forEach { integrationEventClass ->
-            val mqPushConsumer = rocketMqIntegrationEventConfigure?.get(integrationEventClass)
-                ?: createDefaultConsumer(integrationEventClass)
+            }
+            .mapNotNull { integrationEventClass ->
+                val consumer = rocketMqIntegrationEventConfigure?.get(integrationEventClass)
+                    ?: createDefaultConsumer(integrationEventClass)
 
-            mqPushConsumer?.let { consumer ->
                 try {
                     if (consumer is DefaultMQPushConsumer && consumer.messageListener == null) {
                         consumer.registerMessageListener { msgs: List<MessageExt>, context: ConsumeConcurrentlyContext ->
@@ -63,13 +59,12 @@ class RocketMqIntegrationEventSubscriberAdapter(
                         }
                     }
                     consumer.start()
-                    consumers.add(consumer)
+                    consumer
                 } catch (e: MQClientException) {
                     log.error("集成事件消息监听启动失败", e)
+                    null
                 }
             }
-        }
-        consumers
     }
 
     /**
@@ -83,7 +78,6 @@ class RocketMqIntegrationEventSubscriberAdapter(
     }
 
     fun init() {
-        // 触发lazy初始化
         mqPushConsumers
     }
 
@@ -102,29 +96,13 @@ class RocketMqIntegrationEventSubscriberAdapter(
         }
     }
 
-    fun createDefaultConsumer(integrationEventClass: Class<*>): DefaultMQPushConsumer? {
+    fun createDefaultConsumer(integrationEventClass: Class<*>): DefaultMQPushConsumer {
         val integrationEvent = integrationEventClass.getAnnotation(IntegrationEvent::class.java)
-            ?: return null
-
-        if (StringUtils.isBlank(integrationEvent.value) ||
-            IntegrationEvent.NONE_SUBSCRIBER.equals(integrationEvent.subscriber, ignoreCase = true)
-        ) {
-            // 不是集成事件, 或显式标明无订阅
-            return null
-        }
 
         val target = resolvePlaceholderWithCache(integrationEvent.value, environment)
+        val (topic, tag) = parseTarget(target)
+
         val subscriber = resolvePlaceholderWithCache(integrationEvent.subscriber, environment)
-        val topic = if (target.lastIndexOf(':') > 0) {
-            target.substring(0, target.lastIndexOf(':'))
-        } else {
-            target
-        }
-        val tag = if (target.lastIndexOf(':') > 0) {
-            target.substring(target.lastIndexOf(':') + 1)
-        } else {
-            ""
-        }
 
         return DefaultMQPushConsumer().apply {
             consumerGroup = getTopicConsumerGroup(topic, subscriber)
@@ -141,60 +119,60 @@ class RocketMqIntegrationEventSubscriberAdapter(
         }
     }
 
+    private fun parseTarget(target: String): Pair<String, String> = target.split(':', limit = 2).let { parts ->
+        if (parts.size == 2) {
+            parts[0] to parts[1]
+        } else {
+            target to ""
+        }
+    }
+
     private fun onMessage(
         integrationEventClass: Class<*>,
         msgs: List<MessageExt>,
         context: ConsumeConcurrentlyContext
-    ): ConsumeConcurrentlyStatus {
-        return try {
-            msgs.forEach { msg ->
-                log.info("集成事件消费，msgId=${msg.msgId}")
-                val strMsg = String(msg.body, charset(msgCharset))
-                val eventPayload = JSON.parseObject(strMsg, integrationEventClass, Feature.SupportNonPublicField)
+    ): ConsumeConcurrentlyStatus = runCatching {
+        msgs.forEach { msg ->
+            log.info("集成事件消费，msgId=${msg.msgId}")
+            val eventPayload = msg.parseEventPayload(integrationEventClass)
 
-                if (orderedEventMessageInterceptors.isEmpty()) {
-                    eventSubscriberManager.dispatch(eventPayload)
-                } else {
-                    val headers = mutableMapOf<String, Any>().apply {
-                        putAll(msg.properties)
-                    }
-                    val message =
-                        GenericMessage(eventPayload, EventMessageInterceptor.ModifiableMessageHeaders(headers))
-
-                    orderedEventMessageInterceptors.forEach { interceptor ->
-                        interceptor.preSubscribe(message)
-                    }
-
-                    // 拦截器可能修改消息，重新赋值
-                    val modifiedEventPayload = message.payload
-                    eventSubscriberManager.dispatch(modifiedEventPayload)
-
-                    orderedEventMessageInterceptors.forEach { interceptor ->
-                        interceptor.postSubscribe(message)
-                    }
-                }
+            if (orderedEventMessageInterceptors.isEmpty()) {
+                eventSubscriberManager.dispatch(eventPayload)
+            } else {
+                processWithInterceptors(msg, eventPayload)
             }
-            ConsumeConcurrentlyStatus.CONSUME_SUCCESS
-        } catch (ex: Exception) {
-            log.error("集成事件消息消费异常", ex)
-            ConsumeConcurrentlyStatus.RECONSUME_LATER
         }
+        ConsumeConcurrentlyStatus.CONSUME_SUCCESS
+    }.getOrElse { ex ->
+        log.error("集成事件消息消费异常", ex)
+        ConsumeConcurrentlyStatus.RECONSUME_LATER
     }
 
-    private fun getTopicConsumerGroup(topic: String, defaultVal: String): String {
-        val actualDefaultVal = defaultVal.takeIf { StringUtils.isNotBlank(it) }
-            ?: "$topic-4-$applicationName"
-        return resolvePlaceholderWithCache(
-            "\${rocketmq.$topic.consumer.group:$actualDefaultVal}",
-            environment
-        )
+    private fun MessageExt.parseEventPayload(integrationEventClass: Class<*>): Any {
+        val strMsg = String(this.body, charset(msgCharset))
+        return JSON.parseObject(strMsg, integrationEventClass, Feature.SupportNonPublicField)
     }
 
-    private fun getTopicNamesrvAddr(topic: String, defaultVal: String): String {
-        val actualDefaultVal = defaultVal.takeIf { StringUtils.isNotBlank(it) } ?: defaultNameSrv
-        return resolvePlaceholderWithCache(
-            "\${rocketmq.$topic.name-server:$actualDefaultVal}",
+    private fun processWithInterceptors(msg: MessageExt, eventPayload: Any) {
+        val message = GenericMessage(
+            eventPayload,
+            EventMessageInterceptor.ModifiableMessageHeaders(msg.properties.toMutableMap())
+        )
+
+        orderedEventMessageInterceptors.forEach { it.preSubscribe(message) }
+        eventSubscriberManager.dispatch(message.payload)
+        orderedEventMessageInterceptors.forEach { it.postSubscribe(message) }
+    }
+
+    private fun getTopicConsumerGroup(topic: String, defaultVal: String): String =
+        resolvePlaceholderWithCache(
+            "\${rocketmq.$topic.consumer.group:${defaultVal.takeIf { it.isNotBlank() } ?: "$topic-4-$applicationName"}}",
             environment
         )
-    }
+
+    private fun getTopicNamesrvAddr(topic: String, defaultVal: String): String =
+        resolvePlaceholderWithCache(
+            "\${rocketmq.$topic.name-server:${defaultVal.takeIf { it.isNotBlank() } ?: defaultNameSrv}}",
+            environment
+        )
 }
