@@ -49,7 +49,7 @@ class RabbitMqIntegrationEventSubscriberAdapter(
             .filter { cls ->
                 val integrationEvent = cls.getAnnotation(IntegrationEvent::class.java)
                 integrationEvent != null &&
-                        integrationEvent.value.isNotEmpty() &&
+                        integrationEvent.value.isNotBlank() &&
                         !IntegrationEvent.NONE_SUBSCRIBER.equals(integrationEvent.subscriber, ignoreCase = true)
             }
             .mapNotNull { integrationEventClass ->

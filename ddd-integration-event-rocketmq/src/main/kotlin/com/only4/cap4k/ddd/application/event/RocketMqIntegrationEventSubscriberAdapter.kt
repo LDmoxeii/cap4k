@@ -7,7 +7,6 @@ import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
 import com.only4.cap4k.ddd.core.share.misc.findIntegrationEventClasses
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
-import org.apache.commons.lang3.StringUtils
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus
@@ -45,7 +44,7 @@ class RocketMqIntegrationEventSubscriberAdapter(
         findIntegrationEventClasses(scanPath)
             .filter { cls ->
                 val integrationEvent = cls.getAnnotation(IntegrationEvent::class.java)
-                StringUtils.isNotEmpty(integrationEvent.value) &&
+                integrationEvent.value.isNotBlank() &&
                     !IntegrationEvent.NONE_SUBSCRIBER.equals(integrationEvent.subscriber, ignoreCase = true)
             }
             .mapNotNull { integrationEventClass ->
