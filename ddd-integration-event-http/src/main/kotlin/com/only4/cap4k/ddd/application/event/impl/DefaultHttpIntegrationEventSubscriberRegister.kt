@@ -35,9 +35,7 @@ class DefaultHttpIntegrationEventSubscriberRegister : HttpIntegrationEventSubscr
         }
     }
 
-    override fun events(): List<String> {
-        return subscriberMap.keys.toList()
-    }
+    override fun events(): List<String> = subscriberMap.keys.toList()
 
     override fun subscribers(event: String): List<SubscriberInfo> {
         val eventSubscriberMap = subscriberMap[event] ?: return emptyList()

@@ -26,33 +26,14 @@ object IntegrationEventHttpCallbackTriggerCommand {
         private val eventIdParamName: String
     ) : Command<Request, Response> {
 
-        private val logger = LoggerFactory.getLogger(IntegrationEventHttpCallbackTriggerCommand::class.java)
+        private val log = LoggerFactory.getLogger(IntegrationEventHttpCallbackTriggerCommand::class.java)
 
         override fun exec(param: Request): Response {
-            val uriParams = buildMap {
-                put(eventParamName, URLEncoder.encode(param.event, StandardCharsets.UTF_8))
-                put(eventIdParamName, URLEncoder.encode(param.uuid, StandardCharsets.UTF_8))
-            }
-
-            val url = buildString {
-                append(param.url)
-                uriParams.forEach { (key, _) ->
-                    append(if (contains("?")) "&" else "?")
-                    append("$key={$key}")
-                }
-            }
+            val uriParams = buildUriParams(param)
+            val url = buildUrlWithParams(param.url, uriParams)
 
             return runCatching {
-                val payloadJsonStr = param.payload?.let { JSON.toJSONString(it) }
-                val headers = HttpHeaders().apply {
-                    contentType = MediaType.APPLICATION_JSON
-                }
-
-                val requestEntity = HttpEntity(
-                    payloadJsonStr?.toByteArray(StandardCharsets.UTF_8),
-                    headers
-                )
-
+                val requestEntity = createRequestEntity(param.payload)
                 val response = restTemplate.postForEntity(
                     url,
                     requestEntity,
@@ -60,30 +41,58 @@ object IntegrationEventHttpCallbackTriggerCommand {
                     uriParams
                 )
 
+                processResponse(response, param.uuid)
+            }.onFailure { throwable ->
+                log.error("集成事件触发失败, ${param.uuid} (Client)", throwable)
+            }.getOrThrow()
+        }
+
+        private fun buildUriParams(param: Request) = mapOf(
+            eventParamName to param.event.urlEncode(),
+            eventIdParamName to param.uuid.urlEncode()
+        )
+
+        private fun buildUrlWithParams(baseUrl: String, params: Map<String, String>) = buildString {
+            append(baseUrl)
+            params.keys.forEach { key ->
+                append(if (contains("?")) "&" else "?")
+                append("$key={$key}")
+            }
+        }
+
+        private fun createRequestEntity(payload: Any?) = HttpEntity(
+            payload?.let { JSON.toJSONString(it).toByteArray(StandardCharsets.UTF_8) },
+            HttpHeaders().apply { contentType = MediaType.APPLICATION_JSON }
+        )
+
+        private fun processResponse(
+            response: org.springframework.http.ResponseEntity<HttpIntegrationEventSubscriberAdapter.OperationResponse<out Any>>,
+            uuid: String
+        ): Response = when {
+            response.statusCode.is2xxSuccessful -> {
+                val body = response.body
                 when {
-                    response.statusCode.is2xxSuccessful -> {
-                        val body = response.body
-                        if (body?.success == true) {
-                            logger.info("集成事件触发成功, ${param.uuid}")
-                            Response(success = true)
-                        } else {
-                            val errorMsg = "集成事件触发失败, ${param.uuid} (Consume) ${body?.message}"
-                            logger.error(errorMsg)
-                            throw RuntimeException(errorMsg)
-                        }
+                    body?.success == true -> {
+                        log.info("集成事件触发成功, $uuid")
+                        Response(success = true)
                     }
 
                     else -> {
-                        val errorMsg =
-                            "集成事件触发失败, ${param.uuid} (Server) 集成事件HTTP消费失败:${response.statusCode.value()}"
-                        logger.error(errorMsg)
+                        val errorMsg = "集成事件触发失败, $uuid (Consume) ${body?.message}"
+                        log.error(errorMsg)
                         throw RuntimeException(errorMsg)
                     }
                 }
-            }.onFailure { throwable ->
-                logger.error("集成事件触发失败, ${param.uuid} (Client)", throwable)
-            }.getOrThrow()
+            }
+
+            else -> {
+                val errorMsg = "集成事件触发失败, $uuid (Server) 集成事件HTTP消费失败:${response.statusCode.value()}"
+                log.error(errorMsg)
+                throw RuntimeException(errorMsg)
+            }
         }
+
+        private fun String.urlEncode(): String = URLEncoder.encode(this, StandardCharsets.UTF_8)
     }
 
     data class Request(

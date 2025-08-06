@@ -25,29 +25,14 @@ object IntegrationEventHttpUnsubscribeCommand {
         private val subscriberParamName: String
     ) : Command<Request, Response> {
 
-        private val logger = LoggerFactory.getLogger(IntegrationEventHttpUnsubscribeCommand::class.java)
+        private val log = LoggerFactory.getLogger(IntegrationEventHttpUnsubscribeCommand::class.java)
 
         override fun exec(param: Request): Response {
-            val uriParams = buildMap {
-                put(eventParamName, URLEncoder.encode(param.event, StandardCharsets.UTF_8))
-                put(subscriberParamName, URLEncoder.encode(param.subscriber, StandardCharsets.UTF_8))
-            }
-
-            val url = buildString {
-                append(param.url)
-                uriParams.forEach { (key, _) ->
-                    append(if (contains("?")) "&" else "?")
-                    append("$key={$key}")
-                }
-            }
+            val uriParams = buildUriParams(param)
+            val url = buildUrlWithParams(param.url, uriParams)
 
             return runCatching {
-                val headers = HttpHeaders().apply {
-                    contentType = MediaType.APPLICATION_JSON
-                }
-
-                val requestEntity = HttpEntity("", headers)
-
+                val requestEntity = createRequestEntity()
                 val response = restTemplate.postForEntity(
                     url,
                     requestEntity,
@@ -55,29 +40,59 @@ object IntegrationEventHttpUnsubscribeCommand {
                     uriParams
                 )
 
+                processResponse(response, param.event, "退订")
+            }.onFailure { throwable ->
+                log.error("集成事件HTTP退订失败, ${param.event} (Client)", throwable)
+            }.getOrThrow()
+        }
+
+        private fun buildUriParams(param: Request) = mapOf(
+            eventParamName to param.event.urlEncode(),
+            subscriberParamName to param.subscriber.urlEncode()
+        )
+
+        private fun buildUrlWithParams(baseUrl: String, params: Map<String, String>) = buildString {
+            append(baseUrl)
+            params.keys.forEach { key ->
+                append(if (contains("?")) "&" else "?")
+                append("$key={$key}")
+            }
+        }
+
+        private fun createRequestEntity() = HttpEntity(
+            "",
+            HttpHeaders().apply { contentType = MediaType.APPLICATION_JSON }
+        )
+
+        private fun processResponse(
+            response: org.springframework.http.ResponseEntity<HttpIntegrationEventSubscriberAdapter.OperationResponse<out Any>>,
+            event: String,
+            operation: String
+        ): Response = when {
+            response.statusCode.is2xxSuccessful -> {
+                val body = response.body
                 when {
-                    response.statusCode.is2xxSuccessful -> {
-                        val body = response.body
-                        if (body?.success == true) {
-                            logger.info("集成事件HTTP退订成功, ${param.event}")
-                            Response(success = true)
-                        } else {
-                            val errorMsg = "集成事件HTTP退订失败, ${param.event} (Consume) ${body?.message}"
-                            logger.error(errorMsg)
-                            throw RuntimeException(errorMsg)
-                        }
+                    body?.success == true -> {
+                        log.info("集成事件HTTP${operation}成功, $event")
+                        Response(success = true)
                     }
 
                     else -> {
-                        val errorMsg = "集成事件HTTP退订失败, ${param.event} (Server) ${response.statusCode.value()}"
-                        logger.error(errorMsg)
+                        val errorMsg = "集成事件HTTP${operation}失败, $event (Consume) ${body?.message}"
+                        log.error(errorMsg)
                         throw RuntimeException(errorMsg)
                     }
                 }
-            }.onFailure { throwable ->
-                logger.error("集成事件HTTP退订失败, ${param.event} (Client)", throwable)
-            }.getOrThrow()
+            }
+
+            else -> {
+                val errorMsg = "集成事件HTTP${operation}失败, $event (Server) ${response.statusCode.value()}"
+                log.error(errorMsg)
+                throw RuntimeException(errorMsg)
+            }
         }
+
+        private fun String.urlEncode(): String = URLEncoder.encode(this, StandardCharsets.UTF_8)
     }
 
     data class Request(

@@ -23,7 +23,7 @@ class HttpIntegrationEventPublisher(
     private val threadFactoryClassName: String = ""
 ) : IntegrationEventPublisher {
 
-    private val logger = LoggerFactory.getLogger(HttpIntegrationEventPublisher::class.java)
+    private val log = LoggerFactory.getLogger(HttpIntegrationEventPublisher::class.java)
 
     private val executorService: ExecutorService by lazy {
         createFixedThreadPool(
@@ -61,7 +61,7 @@ class HttpIntegrationEventPublisher(
                     }
                     publishCallback.onSuccess(event)
                 }.onFailure { throwable ->
-                    logger.error("集成事件发布失败, ${event.id}", throwable)
+                    log.error("集成事件发布失败, ${event.id}", throwable)
                     publishCallback.onException(event, throwable)
                 }
             }
