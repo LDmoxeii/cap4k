@@ -24,9 +24,137 @@ import java.time.LocalDateTime
 @Table(name = "`__archived_request`")
 @DynamicInsert
 @DynamicUpdate
-class ArchivedRequest {
+class ArchivedRequest(
+    // 【字段映射开始】本段落由[cap4j-ddd-codegen-maven-plugin]维护，请不要手工改动
+    /**
+     * bigint
+     */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "`id`")
+    var id: Long? = null,
+
+    /**
+     * REQUEST uuid
+     * varchar(64)  NOT NULL DEFAULT ''
+     */
+    @Column(name = "`request_uuid`")
+    var requestUuid: String = "",
+
+    /**
+     * 服务
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`svc_name`")
+    var svcName: String = "",
+
+    /**
+     * REQUEST类型
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`request_type`")
+    var requestType: String = "",
+
+    /**
+     * 参数
+     * text
+     */
+    @Column(name = "`param`")
+    var param: String = "",
+
+    /**
+     * 参数类型
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`param_type`")
+    var paramType: String = "",
+
+    /**
+     * 结果
+     * text
+     */
+    @Column(name = "`result`")
+    var result: String = "",
+
+    /**
+     * 结果类型
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`result_type`")
+    var resultType: String = "",
+
+    /**
+     * 执行异常
+     * text
+     */
+    @Column(name = "`exception`")
+    var exception: String? = null,
+
+    /**
+     * 过期时间
+     * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
+     */
+    @Column(name = "`expire_at`")
+    var expireAt: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 创建时间
+     * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
+     */
+    @Column(name = "`create_at`")
+    var createAt: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 执行状态@E=0:INIT:init|-1:EXECUTING:executing|-2:CANCEL:cancel|-3:EXPIRED:expired|-4:EXHAUSTED:exhausted|-9:EXCEPTION:exception|1:EXECUTED:executed;@T=RequestState;
+     * int          NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`request_state`")
+    @Convert(converter = RequestState.Converter::class)
+    var requestState: RequestState = RequestState.INIT,
+
+    /**
+     * 上次尝试时间
+     * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
+     */
+    @Column(name = "`last_try_time`")
+    var lastTryTime: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 下次尝试时间
+     * datetime     NOT NULL DEFAULT '0001-01-01 00:00:00'
+     */
+    @Column(name = "`next_try_time`")
+    var nextTryTime: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 已尝试次数
+     * int(11)      NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`tried_times`")
+    var triedTimes: Int = 0,
+
+    /**
+     * 尝试次数
+     * int(11)      NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`try_times`")
+    var tryTimes: Int = 0,
+
+    /**
+     * 数据版本（支持乐观锁）
+     * int          NOT NULL DEFAULT '0'
+     */
+    @Version
+    @Column(name = "`version`")
+    var version: Int = 0,
+    // 【字段映射结束】本段落由[cap4j-ddd-codegen-maven-plugin]维护，请不要手工改动
+) {
     // 【行为方法开始】
-    fun archiveFrom(request: Request) {
+
+    /**
+     * 从请求复制数据到归档记录
+     */
+    fun archiveFrom(request: Request): ArchivedRequest = apply {
         this.id = request.id
         this.requestUuid = request.requestUuid
         this.svcName = request.svcName
@@ -39,134 +167,12 @@ class ArchivedRequest {
         this.expireAt = request.expireAt
         this.createAt = request.createAt
         this.requestState = request.requestState
+        this.lastTryTime = request.lastTryTime
         this.nextTryTime = request.nextTryTime
         this.triedTimes = request.triedTimes
         this.tryTimes = request.tryTimes
         this.version = request.version
     }
+
     // 【行为方法结束】
-
-    // 【字段映射开始】本段落由[cap4j-ddd-codegen-maven-plugin]维护，请不要手工改动
-    /**
-     * bigint
-     */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "`id`")
-    var id: Long? = null
-
-    /**
-     * REQUEST uuid
-     * varchar(64)  NOT NULL DEFAULT ''
-     */
-    @Column(name = "`request_uuid`")
-    lateinit var requestUuid: String
-
-    /**
-     * 服务
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`svc_name`")
-    lateinit var svcName: String
-
-    /**
-     * REQUEST类型
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`request_type`")
-    lateinit var requestType: String
-
-    /**
-     * 参数
-     * text
-     */
-    @Column(name = "`param`")
-    lateinit var param: String
-
-    /**
-     * 参数类型
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`param_type`")
-    lateinit var paramType: String
-
-    /**
-     * 结果
-     * text
-     */
-    @Column(name = "`result`")
-    lateinit var result: String
-
-    /**
-     * 结果类型
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`result_type`")
-    lateinit var resultType: String
-
-    /**
-     * 执行异常
-     * text
-     */
-    @Column(name = "`exception`")
-    var exception: String? = null
-
-    /**
-     * 过期时间
-     * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
-     */
-    @Column(name = "`expire_at`")
-    lateinit var expireAt: LocalDateTime
-
-    /**
-     * 创建时间
-     * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
-     */
-    @Column(name = "`create_at`")
-    lateinit var createAt: LocalDateTime
-
-    /**
-     * 执行状态@E=0:INIT:init|-1:EXECUTING:executing|-2:CANCEL:cancel|-3:EXPIRED:expired|-4:EXHAUSTED:exhausted|-9:EXCEPTION:exception|1:EXECUTED:executed;@T=RequestState;
-     * int          NOT NULL DEFAULT '0'
-     */
-    @Column(name = "`request_state`")
-    @Convert(converter = RequestState.Converter::class)
-    lateinit var requestState: RequestState
-
-    /**
-     * 上次尝试时间
-     * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
-     */
-    @Column(name = "`last_try_time`")
-    lateinit var lastTryTime: LocalDateTime
-
-    /**
-     * 下次尝试时间
-     * datetime     NOT NULL DEFAULT '0001-01-01 00:00:00'
-     */
-    @Column(name = "`next_try_time`")
-    lateinit var nextTryTime: LocalDateTime
-
-    /**
-     * 已尝试次数
-     * int(11)      NOT NULL DEFAULT '0'
-     */
-    @Column(name = "`tried_times`")
-    var triedTimes: Int = 0
-
-    /**
-     * 尝试次数
-     * int(11)      NOT NULL DEFAULT '0'
-     */
-    @Column(name = "`try_times`")
-    var tryTimes: Int = 0
-
-    /**
-     * 数据版本（支持乐观锁）
-     * int          NOT NULL DEFAULT '0'
-     */
-    @Version
-    @Column(name = "`version`")
-    var version: Int = 0
-    // 【字段映射结束】本段落由[cap4j-ddd-codegen-maven-plugin]维护，请不要手工改动
 }

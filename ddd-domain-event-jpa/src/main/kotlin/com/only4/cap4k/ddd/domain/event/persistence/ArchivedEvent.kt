@@ -19,68 +19,67 @@ import java.time.LocalDateTime
 @Table(name = "`__archived_event`")
 @DynamicInsert
 @DynamicUpdate
-class ArchivedEvent {
-
+class ArchivedEvent(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "`id`")
-    var id: Long? = null
+    var id: Long? = null,
 
     /**
      * 事件uuid
      * varchar(64) NOT NULL DEFAULT ''
      */
     @Column(name = "`event_uuid`", nullable = false)
-    lateinit var eventUuid: String
+    var eventUuid: String = "",
 
     /**
      * 服务
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`svc_name`", nullable = false)
-    lateinit var svcName: String
+    var svcName: String = "",
 
     /**
      * 事件类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`event_type`", nullable = false)
-    lateinit var eventType: String
+    var eventType: String = "",
 
     /**
      * 事件数据
      * text (nullable)
      */
     @Column(name = "`data`")
-    lateinit var data: String
+    var data: String = "",
 
     /**
      * 事件数据类型
      * varchar(255) NOT NULL DEFAULT ''
      */
     @Column(name = "`data_type`", nullable = false)
-    lateinit var dataType: String
+    var dataType: String = "",
 
     /**
      * 异常信息
      * text (nullable)
      */
     @Column(name = "`exception`")
-    var exception: String? = null
+    var exception: String? = null,
 
     /**
      * 过期时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`expire_at`")
-    lateinit var expireAt: LocalDateTime
+    var expireAt: LocalDateTime = LocalDateTime.now(),
 
     /**
      * 创建时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`create_at`")
-    lateinit var createAt: LocalDateTime
+    var createAt: LocalDateTime = LocalDateTime.now(),
 
     /**
      * 分发状态
@@ -88,35 +87,35 @@ class ArchivedEvent {
      */
     @Column(name = "`event_state`", nullable = false)
     @Convert(converter = EventState.Converter::class)
-    lateinit var eventState: EventState
+    var eventState: EventState = EventState.INIT,
 
     /**
      * 上次尝试时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`last_try_time`")
-    lateinit var lastTryTime: LocalDateTime
+    var lastTryTime: LocalDateTime = LocalDateTime.now(),
 
     /**
      * 下次尝试时间
      * datetime NOT NULL DEFAULT '0001-01-01 00:00:00'
      */
     @Column(name = "`next_try_time`")
-    lateinit var nextTryTime: LocalDateTime
+    var nextTryTime: LocalDateTime = LocalDateTime.now(),
 
     /**
      * 已尝试次数
      * int(11) NOT NULL DEFAULT '0'
      */
     @Column(name = "`tried_times`", nullable = false)
-    var triedTimes: Int = 0
+    var triedTimes: Int = 0,
 
     /**
      * 尝试次数
      * int(11) NOT NULL DEFAULT '0'
      */
     @Column(name = "`try_times`", nullable = false)
-    var tryTimes: Int = 0
+    var tryTimes: Int = 0,
 
     /**
      * 乐观锁
@@ -124,23 +123,50 @@ class ArchivedEvent {
      */
     @Version
     @Column(name = "`version`", nullable = false)
-    var version: Int = 0
+    var version: Int = 0,
 
     /**
      * 创建时间（数据库自动维护）
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`db_created_at`", insertable = false, updatable = false)
-    lateinit var dbCreatedAt: LocalDateTime
+    var dbCreatedAt: LocalDateTime = LocalDateTime.now(),
 
     /**
      * 更新时间（数据库自动维护）
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
      */
     @Column(name = "`db_updated_at`", insertable = false, updatable = false)
-    lateinit var dbUpdatedAt: LocalDateTime
+    var dbUpdatedAt: LocalDateTime = LocalDateTime.now(),
+) {
 
-    fun archiveFrom(event: Event) {
+    companion object {
+        /**
+         * 从Event创建存档实体
+         */
+        fun fromEvent(event: Event): ArchivedEvent = ArchivedEvent().apply {
+            archiveFrom(event)
+        }
+
+        /**
+         * 创建新的存档Event实例
+         */
+        fun create(
+            eventUuid: String,
+            svcName: String,
+            eventType: String,
+            data: String = "",
+            dataType: String = "",
+        ): ArchivedEvent = ArchivedEvent(
+            eventUuid = eventUuid,
+            svcName = svcName,
+            eventType = eventType,
+            data = data,
+            dataType = dataType
+        )
+    }
+
+    fun archiveFrom(event: Event): ArchivedEvent = apply {
         this.id = event.id
         this.eventUuid = event.eventUuid
         this.svcName = event.svcName
@@ -156,6 +182,19 @@ class ArchivedEvent {
         this.lastTryTime = event.lastTryTime
         this.nextTryTime = event.nextTryTime
         this.version = event.version
+    }
+
+    fun updateEventState(newState: EventState): ArchivedEvent = apply {
+        this.eventState = newState
+    }
+
+    fun updateException(exception: String?): ArchivedEvent = apply {
+        this.exception = exception
+    }
+
+    fun incrementTriedTimes(): ArchivedEvent = apply {
+        this.triedTimes++
+        this.lastTryTime = LocalDateTime.now()
     }
 
     override fun toString(): String {
