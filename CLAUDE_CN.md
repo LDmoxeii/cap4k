@@ -223,6 +223,7 @@ val users = repository.find(predicate, persist = false)
 - 启用构建缓存和配置缓存
 - `buildSrc/` 中的约定插件用于共享构建逻辑
 - Spring Boot BOM 用于依赖版本管理
+- **Kotlin JPA 插件** - 自动生成无参构造函数并为 JPA 兼容性使类/属性开放
 
 ### 构建系统
 
@@ -230,6 +231,7 @@ val users = repository.find(predicate, persist = false)
 
 - **约定插件**：`buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts` 提供共享构建逻辑
 - **Kotlin Spring 插件**：自动为 Spring 注解类添加 `open` 修饰符以支持代理兼容性
+- **Kotlin JPA 插件**：自动生成无参构造函数并为 Hibernate 代理兼容性使 JPA 实体 `open`
 - **版本目录**：`gradle/libs.versions.toml` 集中管理依赖版本
 - **平台依赖**：使用 Spring Boot BOM 确保依赖版本一致性
 - **测试配置**：增强的测试设置，包括 2GB 堆内存、10 分钟超时和全面日志记录

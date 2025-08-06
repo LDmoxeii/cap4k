@@ -10,6 +10,8 @@ plugins {
     kotlin("jvm")
     // Apply the Kotlin Spring plugin for better Spring framework integration.
     kotlin("plugin.spring")
+    // Apply the Kotlin JPA plugin for JPA entity class generation.
+    kotlin("plugin.jpa")
 }
 
 kotlin {

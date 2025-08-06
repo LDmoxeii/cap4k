@@ -14,4 +14,6 @@ dependencies {
     implementation(libs.kotlinGradlePlugin)
     // Add a dependency on the Kotlin Spring plugin for Spring framework integration.
     implementation("org.jetbrains.kotlin:kotlin-allopen:2.1.20")
+    // Add a dependency on the Kotlin JPA plugin for JPA entity class generation.
+    implementation("org.jetbrains.kotlin:kotlin-noarg:2.1.20")
 }

@@ -227,6 +227,8 @@ HTTP-based integration event system for cross-service communication:
 - Build caching and configuration caching enabled
 - Convention plugins in `buildSrc/` for shared build logic
 - Spring Boot BOM for dependency version management
+- **Kotlin JPA Plugin** - Automatically generates no-arg constructors and makes classes/properties open for JPA
+  compatibility
 
 ### Build System
 
@@ -234,6 +236,8 @@ The project uses a sophisticated Gradle setup:
 
 - **Convention Plugin**: `buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts` provides shared build logic
 - **Kotlin Spring Plugin**: Automatically adds `open` modifier to Spring-annotated classes for proxy compatibility
+- **Kotlin JPA Plugin**: Automatically generates no-arg constructors and makes JPA entities `open` for Hibernate proxy
+  compatibility
 - **Version Catalog**: `gradle/libs.versions.toml` centralizes dependency versions
 - **Platform Dependencies**: Uses Spring Boot BOM for consistent dependency versions
 - **Test Configuration**: Enhanced test setup with 2GB heap, 10-minute timeout, and comprehensive logging
