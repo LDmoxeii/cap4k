@@ -15,6 +15,8 @@ dependencies {
     compileOnly(libs.springAmqp)
 
     // Test dependencies
+    testImplementation(libs.springAmqp)
+
     testImplementation(libs.mockk)
     testImplementation(libs.mockkAgentJvm)
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")

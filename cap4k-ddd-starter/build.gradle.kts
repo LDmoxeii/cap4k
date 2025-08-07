@@ -33,6 +33,8 @@ dependencies {
     compileOnly(libs.jpa)
     compileOnly(libs.validation)
     compileOnly(libs.slf4j)
+    compileOnly(libs.springAmqp)
+    compileOnly(libs.rocketmq)
 
     // Test dependencies - Platform
     testImplementation(platform(libs.springBootDependencies))
