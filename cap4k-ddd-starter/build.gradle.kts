@@ -5,18 +5,18 @@ plugins {
 
 dependencies {
     // Project dependencies
-    implementation(project(":ddd-core"))
-    implementation(project(":ddd-distributed-snowflake"))
-    implementation(project(":ddd-distributed-locker-jdbc"))
-    implementation(project(":ddd-distributed-saga-jpa"))
-    implementation(project(":ddd-domain-repo-jpa"))
-    implementation(project(":ddd-domain-repo-jpa-querydsl"))
-    implementation(project(":ddd-application-request-jpa"))
-    implementation(project(":ddd-integration-event-http"))
-    implementation(project(":ddd-integration-event-http-jpa"))
-    implementation(project(":ddd-integration-event-rocketmq"))
-    implementation(project(":ddd-integration-event-rabbitmq"))
-    implementation(project(":ddd-domain-event-jpa"))
+    api(project(":ddd-core"))
+    api(project(":ddd-distributed-snowflake"))
+    api(project(":ddd-distributed-locker-jdbc"))
+    api(project(":ddd-distributed-saga-jpa"))
+    api(project(":ddd-domain-repo-jpa"))
+    api(project(":ddd-domain-repo-jpa-querydsl"))
+    api(project(":ddd-application-request-jpa"))
+    api(project(":ddd-integration-event-http"))
+    api(project(":ddd-integration-event-http-jpa"))
+    api(project(":ddd-integration-event-rocketmq"))
+    api(project(":ddd-integration-event-rabbitmq"))
+    api(project(":ddd-domain-event-jpa"))
 
     // Implementation dependencies
     implementation(libs.fastjson)
