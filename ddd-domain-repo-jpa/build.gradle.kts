@@ -4,15 +4,19 @@ plugins {
 }
 
 dependencies {
-    // Project dependencies
-    implementation(project(":ddd-core"))
+    // Project dependencies - API exposure
+    api(project(":ddd-core"))
+
+    // Project dependencies - Implementation only
     implementation(project(":ddd-domain-event-jpa"))
 
+    // API dependencies exposed to consumers
+    api(libs.fastjson)
+
     // Implementation dependencies
-    implementation(libs.fastjson)
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
-    // Compile-only dependencies
+    // Compile-only dependencies for optional integration
     compileOnly(libs.jpa)
     compileOnly(libs.springMessaging)
 

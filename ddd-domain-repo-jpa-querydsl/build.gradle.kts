@@ -3,16 +3,18 @@ plugins {
     application
 }
 dependencies {
-    // Project dependencies
-    implementation(project(":ddd-core"))
+    // Project dependencies - API exposure
+    api(project(":ddd-core"))
+    api(project(":ddd-domain-repo-jpa"))
+
+    // Project dependencies - Implementation only
     implementation(project(":ddd-domain-event-jpa"))
-    implementation(project(":ddd-domain-repo-jpa"))
 
     // Implementation dependencies
     implementation(libs.fastjson)
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
-    // Compile-only dependencies
+    // Compile-only dependencies for optional integration
     compileOnly(libs.jpa)
     compileOnly(libs.querydsl)
 

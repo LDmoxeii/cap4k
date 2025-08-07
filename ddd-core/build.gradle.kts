@@ -4,19 +4,19 @@ plugins {
 }
 
 dependencies {
-    // Platform dependencies
+    // Platform dependencies for BOM management
     api(platform(libs.springBootDependencies))
+
+    // Core API dependencies that are exposed to consumers
+    api(libs.validation)
+    api(libs.slf4j)
 
     // Compile-only dependencies - Spring framework
     compileOnly(libs.springContext)
     compileOnly(libs.springTx)
     compileOnly(libs.springMessaging)
     compileOnly(libs.springData)
-
-    // Compile-only dependencies - Other
     compileOnly(libs.aspectjweaver)
-    compileOnly(libs.validation)
-    compileOnly(libs.slf4j)
 
     // Test dependencies - Spring framework
     testImplementation(libs.springContext)

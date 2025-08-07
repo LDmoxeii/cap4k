@@ -4,15 +4,15 @@ plugins {
 }
 dependencies {
     // Project dependencies
-    implementation(project(":ddd-core"))
+    api(project(":ddd-core"))
 
     // Implementation dependencies
     implementation(libs.fastjson)
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation(libs.springTx)
 
-    // API dependencies
-    api(libs.springAmqp)
+    // Compile-only dependencies for optional integration
+    compileOnly(libs.springAmqp)
 
     // Test dependencies
     testImplementation(libs.mockk)
