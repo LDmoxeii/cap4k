@@ -1,39 +1,52 @@
 // The code in this file is a convention plugin - a Gradle mechanism for sharing reusable build logic.
-// `buildSrc` is a Gradle-recognized directory and every plugin there will be easily available in the rest of the build.
 package buildsrc.convention
 
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import java.time.Duration
 
 plugins {
-    // Apply the Kotlin JVM plugin to add support for Kotlin in JVM projects.
     kotlin("jvm")
-    // Apply the Kotlin Spring plugin for better Spring framework integration.
     kotlin("plugin.spring")
-    // Apply the Kotlin JPA plugin for JPA entity class generation.
     kotlin("plugin.jpa")
+    `maven-publish`
+}
+
+group = "com.only4"
+version = "1.2.3"
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+            groupId = project.group.toString()
+            artifactId = project.name
+            version = project.version.toString()
+        }
+    }
+    repositories {
+        maven {
+            name = "AliYunMaven"
+            url = uri("https://packages.aliyun.com/67053c6149e9309ce56b9e9e/maven/cap4k")
+            credentials {
+                username = providers.gradleProperty("aliyun.maven.username").orNull ?: "defaultUsername"
+                password = providers.gradleProperty("aliyun.maven.password").orNull ?: "defaultPassword"
+            }
+        }
+    }
 }
 
 kotlin {
-    // Use a specific Java version to make it easier to work in different environments.
     jvmToolchain(17)
 }
 
 tasks.withType<Test>().configureEach {
-    // Configure all test Gradle tasks to use JUnitPlatform.
     useJUnitPlatform()
-
-    // 增加测试超时时间（10分钟）
     timeout.set(Duration.ofMinutes(10))
-
-    // 配置JVM内存和参数
     jvmArgs(
-        "-Xmx2g",           // 最大堆内存2GB
-        "-Xms512m",         // 初始堆内存512MB
-        "-XX:MaxMetaspaceSize=512m"  // 元空间最大512MB
+        "-Xmx2g",
+        "-Xms512m",
+        "-XX:MaxMetaspaceSize=512m"
     )
-
-    // Log information about all test results, not only the failed ones.
     testLogging {
         events(
             TestLogEvent.FAILED,
