@@ -31,8 +31,130 @@ import java.util.*
 @Table(name = "`__saga`")
 @DynamicInsert
 @DynamicUpdate
-class Saga {
+class Saga(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "`id`")
+    var id: Long? = null,
 
+    /**
+     * SAGA uuid
+     * varchar(64) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`saga_uuid`", nullable = false)
+    var sagaUuid: String = "",
+
+    /**
+     * 服务
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`svc_name`", nullable = false)
+    var svcName: String = "",
+
+    /**
+     * SAGA类型
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`saga_type`", nullable = false)
+    var sagaType: String = "",
+
+    /**
+     * 参数
+     * text (nullable)
+     */
+    @Column(name = "`param`")
+    var param: String = "",
+
+    /**
+     * 参数类型
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`param_type`", nullable = false)
+    var paramType: String = "",
+
+    /**
+     * 结果
+     * text (nullable)
+     */
+    @Column(name = "`result`")
+    var result: String = "",
+
+    /**
+     * 结果类型
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`result_type`", nullable = false)
+    var resultType: String = "",
+
+    /**
+     * 异常信息
+     * text (nullable)
+     */
+    @Column(name = "`exception`")
+    var exception: String? = null,
+
+    /**
+     * 过期时间
+     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+     */
+    @Column(name = "`expire_at`")
+    var expireAt: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 创建时间
+     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+     */
+    @Column(name = "`create_at`")
+    var createAt: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 执行状态
+     * int NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`saga_state`", nullable = false)
+    @Convert(converter = SagaState.Converter::class)
+    var sagaState: SagaState = SagaState.INIT,
+
+    /**
+     * 上次尝试时间
+     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+     */
+    @Column(name = "`last_try_time`")
+    var lastTryTime: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 下次尝试时间
+     * datetime NOT NULL DEFAULT '0001-01-01 00:00:00'
+     */
+    @Column(name = "`next_try_time`")
+    var nextTryTime: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 已尝试次数
+     * int NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`tried_times`", nullable = false)
+    var triedTimes: Int = 0,
+
+    /**
+     * 尝试次数
+     * int NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`try_times`", nullable = false)
+    var tryTimes: Int = 0,
+
+    /**
+     * 乐观锁
+     * int NOT NULL DEFAULT '0'
+     */
+    @Version
+    @Column(name = "`version`", nullable = false)
+    var version: Int = 0,
+
+    @OneToMany(cascade = [CascadeType.ALL], fetch = FetchType.EAGER, orphanRemoval = true)
+    @JoinColumn(name = "`saga_id`", nullable = false)
+    var sagaProcesses: MutableList<SagaProcess> = mutableListOf(),
+) {
     companion object {
         private val log = LoggerFactory.getLogger(Saga::class.java)
 
@@ -59,8 +181,8 @@ class Saga {
         sagaType: String,
         scheduleAt: LocalDateTime,
         expireAfter: Duration,
-        retryTimes: Int
-    ) {
+        retryTimes: Int,
+    ): Saga = apply {
         this.sagaUuid = UUID.randomUUID().toString()
         this.svcName = svcName
         this.sagaType = sagaType
@@ -137,7 +259,6 @@ class Saga {
         this.resultType = result.javaClass.name
     }
 
-
     fun getSagaProcess(processCode: String): SagaProcess? = sagaProcesses.find { it.processCode == processCode }
 
     fun beginSagaProcess(now: LocalDateTime, processCode: String, param: RequestParam<*>) {
@@ -161,7 +282,6 @@ class Saga {
 
     val isValid: Boolean
         get() = this.sagaState in setOf(SagaState.INIT, SagaState.EXECUTING, SagaState.EXCEPTION)
-
 
     val isInvalid: Boolean
         get() = this.sagaState in setOf(SagaState.CANCEL, SagaState.EXPIRED, SagaState.EXHAUSTED)
@@ -290,127 +410,4 @@ class Saga {
             }
         }
     }
-
-    @OneToMany(cascade = [CascadeType.ALL], fetch = FetchType.EAGER, orphanRemoval = true)
-    @JoinColumn(name = "`saga_id`", nullable = false)
-    var sagaProcesses: MutableList<SagaProcess> = mutableListOf()
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "`id`")
-    var id: Long? = null
-
-    /**
-     * SAGA uuid
-     * varchar(64) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`saga_uuid`", nullable = false)
-    lateinit var sagaUuid: String
-
-    /**
-     * 服务
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`svc_name`", nullable = false)
-    lateinit var svcName: String
-
-    /**
-     * SAGA类型
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`saga_type`", nullable = false)
-    lateinit var sagaType: String
-
-    /**
-     * 参数
-     * text (nullable)
-     */
-    @Column(name = "`param`")
-    lateinit var param: String
-
-    /**
-     * 参数类型
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`param_type`", nullable = false)
-    lateinit var paramType: String
-
-    /**
-     * 结果
-     * text (nullable)
-     */
-    @Column(name = "`result`")
-    lateinit var result: String
-
-    /**
-     * 结果类型
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`result_type`", nullable = false)
-    lateinit var resultType: String
-
-    /**
-     * 异常信息
-     * text (nullable)
-     */
-    @Column(name = "`exception`")
-    var exception: String? = null
-
-    /**
-     * 过期时间
-     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
-     */
-    @Column(name = "`expire_at`")
-    lateinit var expireAt: LocalDateTime
-
-    /**
-     * 创建时间
-     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
-     */
-    @Column(name = "`create_at`")
-    lateinit var createAt: LocalDateTime
-
-    /**
-     * 执行状态
-     * int NOT NULL DEFAULT '0'
-     */
-    @Column(name = "`saga_state`", nullable = false)
-    @Convert(converter = SagaState.Converter::class)
-    lateinit var sagaState: SagaState
-
-    /**
-     * 上次尝试时间
-     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
-     */
-    @Column(name = "`last_try_time`")
-    lateinit var lastTryTime: LocalDateTime
-
-    /**
-     * 下次尝试时间
-     * datetime NOT NULL DEFAULT '0001-01-01 00:00:00'
-     */
-    @Column(name = "`next_try_time`")
-    lateinit var nextTryTime: LocalDateTime
-
-    /**
-     * 已尝试次数
-     * int NOT NULL DEFAULT '0'
-     */
-    @Column(name = "`tried_times`", nullable = false)
-    var triedTimes: Int = 0
-
-    /**
-     * 尝试次数
-     * int NOT NULL DEFAULT '0'
-     */
-    @Column(name = "`try_times`", nullable = false)
-    var tryTimes: Int = 0
-
-    /**
-     * 乐观锁
-     * int NOT NULL DEFAULT '0'
-     */
-    @Version
-    @Column(name = "`version`", nullable = false)
-    var version: Int = 0
 }

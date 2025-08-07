@@ -33,7 +33,86 @@ import java.time.LocalDateTime
 @Table(name = "`__saga_process`")
 @DynamicInsert
 @DynamicUpdate
-class SagaProcess {
+class SagaProcess(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "`id`")
+    var id: Long? = null,
+
+    /**
+     * SAGA处理环节代码
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`process_code`", nullable = false)
+    var processCode: String = "",
+
+    /**
+     * 参数
+     * text (nullable)
+     */
+    @Column(name = "`param`")
+    var param: String = "",
+
+    /**
+     * 参数类型
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`param_type`", nullable = false)
+    var paramType: String = "",
+
+    /**
+     * 结果
+     * text (nullable)
+     */
+    @Column(name = "`result`")
+    var result: String = "",
+
+    /**
+     * 结果类型
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`result_type`", nullable = false)
+    var resultType: String = "",
+
+    /**
+     * 异常信息
+     * text (nullable)
+     */
+    @Column(name = "`exception`")
+    var exception: String? = null,
+
+    /**
+     * 执行状态
+     * int NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`process_state`", nullable = false)
+    @Convert(converter = SagaProcessState.Converter::class)
+    var processState: SagaProcessState = SagaProcessState.INIT,
+
+    /**
+     * 创建时间
+     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+     */
+    @Column(name = "`create_at`", insertable = false, updatable = true)
+    var createAt: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 上次尝试时间
+     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+     */
+    @Column(name = "`last_try_time`", insertable = false, updatable = true)
+    var lastTryTime: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 尝试次数
+     * int NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`tried_times`", nullable = false)
+    var triedTimes: Int = 0,
+) {
+    companion object {
+        private val log = LoggerFactory.getLogger(SagaProcess::class.java)
+    }
 
     @Transient
     @JSONField(serialize = false)
@@ -55,14 +134,14 @@ class SagaProcess {
         }
         private set
 
-    fun beginProcess(now: LocalDateTime, param: RequestParam<*>) {
+    fun beginProcess(now: LocalDateTime, param: RequestParam<*>): SagaProcess = apply {
         this.param = JSON.toJSONString(param, IgnoreNonFieldGetter, SkipTransientField)
         this.paramType = param.javaClass.name
         this.processState = SagaProcessState.EXECUTING
         this.lastTryTime = now
     }
 
-    fun endProcess(now: LocalDateTime, result: Any) {
+    fun endProcess(now: LocalDateTime, result: Any): SagaProcess = apply {
         this.sagaProcessResult = result
         this.result = JSON.toJSONString(result, IgnoreNonFieldGetter, SkipTransientField)
         this.resultType = result.javaClass.name
@@ -70,7 +149,7 @@ class SagaProcess {
         this.lastTryTime = now
     }
 
-    fun occurredException(now: LocalDateTime, ex: Throwable) {
+    fun occurredException(now: LocalDateTime, ex: Throwable): SagaProcess = apply {
         this.result = JSON.toJSONString(null)
         this.resultType = Any::class.java.name
         this.processState = SagaProcessState.EXCEPTION
@@ -78,7 +157,6 @@ class SagaProcess {
         ex.printStackTrace(PrintWriter(sw, true))
         this.exception = sw.toString()
     }
-
 
     enum class SagaProcessState(val value: Int, val stateName: String) {
         /**
@@ -118,84 +196,4 @@ class SagaProcess {
             }
         }
     }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(SagaProcess::class.java)
-    }
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "`id`")
-    var id: Long? = null
-
-    /**
-     * SAGA处理环节代码
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`process_code`", nullable = false)
-    lateinit var processCode: String
-
-    /**
-     * 参数
-     * text (nullable)
-     */
-    @Column(name = "`param`")
-    lateinit var param: String
-
-    /**
-     * 参数类型
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`param_type`", nullable = false)
-    lateinit var paramType: String
-
-    /**
-     * 结果
-     * text (nullable)
-     */
-    @Column(name = "`result`")
-    lateinit var result: String
-
-    /**
-     * 结果类型
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`result_type`", nullable = false)
-    lateinit var resultType: String
-
-    /**
-     * 异常信息
-     * text (nullable)
-     */
-    @Column(name = "`exception`")
-    var exception: String? = null
-
-    /**
-     * 执行状态
-     * int NOT NULL DEFAULT '0'
-     */
-    @Column(name = "`process_state`", nullable = false)
-    @Convert(converter = SagaProcessState.Converter::class)
-    lateinit var processState: SagaProcessState
-
-    /**
-     * 创建时间
-     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
-     */
-    @Column(name = "`create_at`", insertable = false, updatable = true)
-    lateinit var createAt: LocalDateTime
-
-    /**
-     * 上次尝试时间
-     * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
-     */
-    @Column(name = "`last_try_time`", insertable = false, updatable = true)
-    lateinit var lastTryTime: LocalDateTime
-
-    /**
-     * 尝试次数
-     * int NOT NULL DEFAULT '0'
-     */
-    @Column(name = "`tried_times`", nullable = false)
-    var triedTimes: Int = 0
 }

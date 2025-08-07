@@ -34,7 +34,115 @@ import java.util.*
 @Table(name = "`__event`")
 @DynamicInsert
 @DynamicUpdate
-class Event {
+class Event(
+    /**
+     * bigint
+     */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "`id`")
+    var id: Long? = null,
+
+    /**
+     * 事件uuid
+     * varchar(64)  NOT NULL DEFAULT ''
+     */
+    @Column(name = "`event_uuid`")
+    var eventUuid: String = "",
+
+    /**
+     * 服务
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`svc_name`")
+    var svcName: String = "",
+
+    /**
+     * 事件类型
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`event_type`")
+    var eventType: String = "",
+
+    /**
+     * 事件数据
+     * text (nullable)
+     */
+    @Column(name = "`data`")
+    var data: String = "",
+
+    /**
+     * 事件数据类型
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`data_type`")
+    var dataType: String = "",
+
+    /**
+     * 异常信息
+     * text (nullable)
+     */
+    @Column(name = "`exception`")
+    var exception: String? = null,
+
+    /**
+     * 过期时间
+     * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
+     */
+    @Column(name = "`expire_at`")
+    var expireAt: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 创建时间
+     * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
+     */
+    @Column(name = "`create_at`")
+    var createAt: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 分发状态@E=0:INIT:init|-1:DELIVERING:delivering|-2:CANCEL:cancel|-3:EXPIRED:expired|-4:EXHAUSTED:exhausted|-9:EXCEPTION:exception|1:DELIVERED:delivered;@T=EventState;
+     * int          NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`event_state`")
+    @Convert(converter = EventState.Converter::class)
+    var eventState: EventState = EventState.INIT,
+
+    /**
+     * 上次尝试时间
+     * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
+     */
+    @Column(name = "`last_try_time`")
+    var lastTryTime: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 下次尝试时间
+     * datetime     NOT NULL DEFAULT '0001-01-01 00:00:00'
+     */
+    @Column(name = "`next_try_time`")
+    var nextTryTime: LocalDateTime = LocalDateTime.now(),
+
+    /**
+     * 已尝试次数
+     * int(11)      NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`tried_times`")
+    var triedTimes: Int = 0,
+
+    /**
+     * 尝试次数
+     * int(11)      NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`try_times`")
+    var tryTimes: Int = 0,
+
+    /**
+     * 数据版本（支持乐观锁）
+     * int          NOT NULL DEFAULT '0'
+     */
+    @Version
+    @Column(name = "`version`")
+    var version: Int = 0,
+) {
     companion object {
         private val log = LoggerFactory.getLogger(Event::class.java)
 
@@ -59,8 +167,8 @@ class Event {
         svcName: String,
         scheduleAt: LocalDateTime,
         expireAfter: Duration,
-        retryTimes: Int
-    ) {
+        retryTimes: Int,
+    ): Event = apply {
         this.eventUuid = UUID.randomUUID().toString()
         this.svcName = svcName
         this.createAt = scheduleAt
@@ -128,7 +236,7 @@ class Event {
     val isDelivered: Boolean
         get() = EventState.DELIVERED == this.eventState
 
-    fun beginDelivery(now: LocalDateTime): Boolean {
+    fun beginDelivery(now: LocalDateTime): Boolean = apply {
         when {
             // 初始状态或者确认中或者异常
             !isValid -> return false
@@ -150,24 +258,22 @@ class Event {
         this.lastTryTime = now
         this.triedTimes += 1
         this.nextTryTime = calculateNextTryTime(now)
-        return true
-    }
+    }.let { true }
 
-    fun endDelivery(now: LocalDateTime) {
+    fun endDelivery(now: LocalDateTime): Event = apply {
         this.eventState = EventState.DELIVERED
     }
 
-    fun cancelDelivery(now: LocalDateTime): Boolean {
+    fun cancelDelivery(now: LocalDateTime): Boolean = apply {
         if (isDelivered || isInvalid) {
             return false
         }
         this.eventState = EventState.CANCEL
-        return true
-    }
+    }.let { true }
 
-    fun occurredException(now: LocalDateTime, ex: Throwable) {
+    fun occurredException(now: LocalDateTime, ex: Throwable): Event = apply {
         if (isDelivered) {
-            return
+            return@apply
         }
         this.eventState = EventState.EXCEPTION
         val sw = StringWriter()
@@ -241,114 +347,4 @@ class Event {
             }
         }
     }
-
-    // 【字段映射开始】本段落由[cap4j-ddd-codegen-maven-plugin]维护，请不要手工改动
-    /**
-     * bigint
-     */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "`id`")
-    var id: Long? = null
-
-    /**
-     * 事件uuid
-     * varchar(64)  NOT NULL DEFAULT ''
-     */
-    @Column(name = "`event_uuid`")
-    lateinit var eventUuid: String
-
-    /**
-     * 服务
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`svc_name`")
-    lateinit var svcName: String
-
-    /**
-     * 事件类型
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`event_type`")
-    lateinit var eventType: String
-
-    /**
-     * 事件数据
-     * text (nullable)
-     */
-    @Column(name = "`data`")
-    lateinit var data: String
-
-    /**
-     * 事件数据类型
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`data_type`")
-    lateinit var dataType: String
-
-    /**
-     * 异常信息
-     * text (nullable)
-     */
-    @Column(name = "`exception`")
-    var exception: String? = null
-
-    /**
-     * 过期时间
-     * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
-     */
-    @Column(name = "`expire_at`")
-    lateinit var expireAt: LocalDateTime
-
-    /**
-     * 创建时间
-     * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
-     */
-    @Column(name = "`create_at`")
-    lateinit var createAt: LocalDateTime
-
-    /**
-     * 分发状态@E=0:INIT:init|-1:DELIVERING:delivering|-2:CANCEL:cancel|-3:EXPIRED:expired|-4:EXHAUSTED:exhausted|-9:EXCEPTION:exception|1:DELIVERED:delivered;@T=EventState;
-     * int          NOT NULL DEFAULT '0'
-     */
-    @Column(name = "`event_state`")
-    @Convert(converter = EventState.Converter::class)
-    lateinit var eventState: EventState
-
-    /**
-     * 上次尝试时间
-     * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
-     */
-    @Column(name = "`last_try_time`")
-    lateinit var lastTryTime: LocalDateTime
-
-    /**
-     * 下次尝试时间
-     * datetime     NOT NULL DEFAULT '0001-01-01 00:00:00'
-     */
-    @Column(name = "`next_try_time`")
-    lateinit var nextTryTime: LocalDateTime
-
-    /**
-     * 已尝试次数
-     * int(11)      NOT NULL DEFAULT '0'
-     */
-    @Column(name = "`tried_times`")
-    var triedTimes: Int = 0
-
-    /**
-     * 尝试次数
-     * int(11)      NOT NULL DEFAULT '0'
-     */
-    @Column(name = "`try_times`")
-    var tryTimes: Int = 0
-
-    /**
-     * 数据版本（支持乐观锁）
-     * int          NOT NULL DEFAULT '0'
-     */
-    @Version
-    @Column(name = "`version`")
-    var version: Int = 0
-    // 【字段映射结束】本段落由[cap4j-ddd-codegen-maven-plugin]维护，请不要手工改动
 }
