@@ -36,6 +36,9 @@ publishing {
 }
 
 kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xcontext-parameters")
+    }
     jvmToolchain(17)
 }
 
@@ -45,7 +48,7 @@ tasks.withType<Test>().configureEach {
     jvmArgs(
         "-Xmx2g",
         "-Xms512m",
-        "-XX:MaxMetaspaceSize=512m"
+        "-XX:MaxMetaspaceSize=512m",
     )
     testLogging {
         events(

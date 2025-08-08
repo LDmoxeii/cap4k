@@ -14,7 +14,7 @@ dependencies {
     api(libs.fastjson)
 
     // Implementation dependencies
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation(kotlin("reflect"))
 
     // Compile-only dependencies for optional integration
     compileOnly(libs.jpa)

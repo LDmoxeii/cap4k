@@ -8,7 +8,7 @@ dependencies {
 
     // Implementation dependencies
     implementation(libs.fastjson)
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation(kotlin("reflect"))
     implementation(libs.springTx)
 
     // Compile-only dependencies for optional integration

@@ -9,7 +9,7 @@ dependencies {
 
     // Implementation dependencies
     implementation(libs.fastjson)
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation(kotlin("reflect"))
 
     // Compile-only dependencies
     compileOnly(libs.jpa)
