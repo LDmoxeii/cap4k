@@ -17,8 +17,7 @@ interface SagaProcessSupervisor {
          * @return Saga子环节执行管理器实例
          */
         @JvmStatic
-        val instance: SagaProcessSupervisor
-            get() = SagaSupervisorSupport.sagaProcessSupervisor
+        val instance: SagaProcessSupervisor by lazy { SagaSupervisorSupport.sagaProcessSupervisor }
 
     }
 

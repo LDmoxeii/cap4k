@@ -14,7 +14,7 @@ import java.util.*
 interface AggregateSupervisor {
 
     companion object {
-        val instance: AggregateSupervisor = AggregateSupervisorSupport.instance
+        val instance: AggregateSupervisor by lazy { AggregateSupervisorSupport.instance }
     }
 
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(

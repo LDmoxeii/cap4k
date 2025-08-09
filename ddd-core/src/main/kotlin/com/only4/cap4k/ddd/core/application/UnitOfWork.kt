@@ -55,7 +55,6 @@ interface UnitOfWork {
          * @return 工作单元实例
          */
         @JvmStatic
-        val instance: UnitOfWork
-            get() = UnitOfWorkSupport.instance
+        val instance: UnitOfWork by lazy { UnitOfWorkSupport.instance }
     }
 }

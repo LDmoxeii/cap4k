@@ -24,7 +24,6 @@ interface AggregateFactorySupervisor {
          * @return 聚合工厂管理器实例
          */
         @JvmStatic
-        val instance: AggregateFactorySupervisor
-            get() = AggregateFactorySupervisorSupport.instance
+        val instance: AggregateFactorySupervisor by lazy { AggregateFactorySupervisorSupport.instance }
     }
 }

@@ -15,7 +15,7 @@ interface RepositorySupervisor {
 
     companion object {
         @JvmStatic
-        val instance: RepositorySupervisor = RepositorySupervisorSupport.instance
+        val instance: RepositorySupervisor by lazy { RepositorySupervisorSupport.instance }
     }
 
     /**
