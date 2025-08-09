@@ -12,7 +12,7 @@ plugins {
 }
 
 group = "com.only4"
-version = "0.1.3-SNAPSHOT"
+version = "0.1.8-SNAPSHOT"
 
 publishing {
     publications {

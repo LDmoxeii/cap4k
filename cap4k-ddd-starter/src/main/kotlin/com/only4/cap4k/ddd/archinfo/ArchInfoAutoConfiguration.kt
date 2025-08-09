@@ -29,9 +29,9 @@ class ArchInfoAutoConfiguration {
 
     @Bean
     fun archInfoManager(
-        @Value("\$$CONFIG_KEY_4_SVC_NAME") name: String,
-        @Value("\$$CONFIG_KEY_4_SVC_VERSION") version: String,
-        archInfoProperties: ArchInfoProperties
+        @Value(CONFIG_KEY_4_SVC_NAME) name: String,
+        @Value(CONFIG_KEY_4_SVC_VERSION) version: String,
+        archInfoProperties: ArchInfoProperties,
     ): ArchInfoManager {
         return ArchInfoManager(name, version, archInfoProperties.basePackage)
     }

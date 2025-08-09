@@ -28,6 +28,10 @@ class QuerydslPredicate<ENTITY : Any>(
         predicate.and(filter)
     }
 
+    fun orWhere(filter: Predicate): QuerydslPredicate<ENTITY> = apply {
+        predicate.or(filter)
+    }
+
     fun orderBy(vararg orderSpecifiers: OrderSpecifier<*>): QuerydslPredicate<ENTITY> = apply {
         this.orderSpecifiers.addAll(orderSpecifiers)
     }

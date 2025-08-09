@@ -54,8 +54,8 @@ class SagaAutoConfiguration {
         requestInterceptors: List<RequestInterceptor<*, *>>,
         @Autowired(required = false) validator: Validator?,
         sagaRecordRepository: SagaRecordRepository,
-        @Value("\$$CONFIG_KEY_4_SVC_NAME") svcName: String,
-        sagaProperties: SagaProperties
+        @Value(CONFIG_KEY_4_SVC_NAME) svcName: String,
+        sagaProperties: SagaProperties,
     ): DefaultSagaSupervisor {
         return DefaultSagaSupervisor(
             requestHandlers,
