@@ -46,7 +46,7 @@ class DefaultPersistListenerManagerTest {
         every { DomainEventSupervisor.instance } returns mockDomainEventSupervisor
         every { DomainEventSupervisor.manager } returns mockDomainEventManager
 
-        every { mockDomainEventSupervisor.attach<Any, Any>(any(), any(), any<Duration>()) } just Runs
+        every { mockDomainEventSupervisor.attach<Any, Any>(any(), any<Duration>()) } just Runs
         every { mockDomainEventManager.release(any()) } just Runs
 
         // Mock扫描方法
