@@ -73,12 +73,11 @@ class DefaultPersistListenerManager(
                     if (type in autoAttach.persistType) {
                         @Suppress("UNCHECKED_CAST")
                         val domainEvent = converter.convert(entity)!!
-                        with(entity) {
-                            DomainEventSupervisor.instance.attach(
-                                domainEvent,
-                                Duration.ofSeconds(autoAttach.delayInSeconds.toLong())
-                            )
-                        }
+                        DomainEventSupervisor.instance.attach(
+                            domainEvent,
+                            entity,
+                            Duration.ofSeconds(autoAttach.delayInSeconds.toLong())
+                        )
                         DomainEventSupervisor.manager.release(setOf(entity))
                     }
                 }

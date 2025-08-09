@@ -2,7 +2,7 @@ package com.only4.cap4k.ddd.core.domain.aggregate
 
 import com.only4.cap4k.ddd.core.Mediator
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisorSupport.events
-import java.time.LocalDateTime
+import java.util.function.Supplier
 
 /**
  * 聚合封装
@@ -61,10 +61,9 @@ interface Aggregate<ENTITY : Any> {
          *
          * @param event
          */
-        protected open fun registerDomainEvent(event: Any, schedule: LocalDateTime = LocalDateTime.now()) {
-            with(this.root) {
-                events().attach(domainEventPayload = event, schedule)
-            }
+        protected open fun registerDomainEvent(event: Any) {
+            events().attach(domainEventPayload = event, entity = this)
+
         }
 
         /**
@@ -72,13 +71,8 @@ interface Aggregate<ENTITY : Any> {
          *
          * @param eventSupplier
          */
-        protected open fun registerDomainEvent(
-            schedule: LocalDateTime = LocalDateTime.now(),
-            eventSupplier: () -> Any,
-        ) {
-            with(this.root) {
-                events().attach(schedule, eventSupplier)
-            }
+        protected open fun registerDomainEvent(eventSupplier: Supplier<*>) {
+            events().attach(eventSupplier, this.root)
         }
 
         /**
@@ -87,9 +81,7 @@ interface Aggregate<ENTITY : Any> {
          * @param event
          */
         protected open fun cancelDomainEvent(event: Any) {
-            with(this.root) {
-                events().detach(event)
-            }
+            events().detach(event, this)
         }
     }
 }

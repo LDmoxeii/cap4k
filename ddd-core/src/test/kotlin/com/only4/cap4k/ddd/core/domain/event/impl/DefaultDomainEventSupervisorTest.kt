@@ -78,9 +78,7 @@ class DefaultDomainEventSupervisorTest {
             val schedule = LocalDateTime.now()
 
             // when
-            with(entity) {
-                supervisor.attach(event, schedule)
-            }
+            supervisor.attach(event, entity, schedule)
 
             // then
             verify {
@@ -98,9 +96,7 @@ class DefaultDomainEventSupervisorTest {
 
             // when & then
             assertThrows<DomainException> {
-                with(entity) {
-                    supervisor.attach(integrationEvent, schedule)
-                }
+                supervisor.attach(integrationEvent, entity, schedule)
             }
         }
 
@@ -114,10 +110,8 @@ class DefaultDomainEventSupervisorTest {
             val schedule = LocalDateTime.now()
 
             // when
-            with(entity) {
-                supervisor.attach(event1, schedule)
-                supervisor.attach(event2, schedule)
-            }
+            supervisor.attach(event1, entity, schedule)
+            supervisor.attach(event2, entity, schedule)
 
             // then
             verify(exactly = 2) {
@@ -135,9 +129,7 @@ class DefaultDomainEventSupervisorTest {
             aggregate._wrap(TestEntity("agg1"))
 
             // when
-            with(aggregate) {
-                supervisor.attach(event, schedule)
-            }
+            supervisor.attach(event, aggregate, schedule)
 
             // then
             verify {
@@ -158,14 +150,10 @@ class DefaultDomainEventSupervisorTest {
             val entity = TestEntity("entity1")
             val schedule = LocalDateTime.now()
 
-            with(entity) {
-                supervisor.attach(event, schedule)
-            }
+            supervisor.attach(event, entity, schedule)
 
             // when
-            with(entity) {
-                supervisor.detach(event)
-            }
+            supervisor.detach(event, entity)
 
             // then
             verify {
@@ -181,9 +169,7 @@ class DefaultDomainEventSupervisorTest {
             val entity = TestEntity("entity1")
 
             // when & then - 不应该抛出异常
-            with(entity) {
-                supervisor.detach(event)
-            }
+            supervisor.detach(event, entity)
         }
     }
 
@@ -206,12 +192,8 @@ class DefaultDomainEventSupervisorTest {
             every { mockEventRecord.init(any(), any(), any(), any(), any()) } just Runs
             every { mockEventRecord.markPersist(any()) } just Runs
 
-            with(entity1) {
-                supervisor.attach(event1, schedule)
-            }
-            with(entity2) {
-                supervisor.attach(event2, schedule)
-            }
+            supervisor.attach(event1, entity1, schedule)
+            supervisor.attach(event2, entity2, schedule)
 
             // when
             supervisor.release(setOf(entity1, entity2))
@@ -249,9 +231,7 @@ class DefaultDomainEventSupervisorTest {
             every { mockEventRecord.markPersist(any()) } just Runs
             every { eventRecordRepository.save(any()) } just Runs
 
-            with(entity) {
-                supervisor.attach(event, schedule)
-            }
+            supervisor.attach(event, entity, schedule)
 
             // when
             supervisor.release(setOf(entity))
@@ -300,9 +280,7 @@ class DefaultDomainEventSupervisorTest {
             every { mockEventRecord.markPersist(any()) } just Runs
             every { eventRecordRepository.save(any()) } just Runs
 
-            with(entity) {
-                supervisor.attach(event, futureSchedule)
-            }
+            supervisor.attach(event, entity, futureSchedule)
 
             // when
             supervisor.release(setOf(entity))
@@ -320,9 +298,7 @@ class DefaultDomainEventSupervisorTest {
             val entity = TestEntity("entity1")
             val specificTime = LocalDateTime.of(2025, 7, 24, 10, 30, 0)
 
-            with(entity) {
-                supervisor.attach(event, specificTime)
-            }
+            supervisor.attach(event, entity, specificTime)
 
             // when
             val deliveryTime = supervisor.getDeliverTime(event)
@@ -346,9 +322,7 @@ class DefaultDomainEventSupervisorTest {
 
             every { eventRecordRepository.create() } throws RuntimeException("Repository error")
 
-            with(entity) {
-                supervisor.attach(event, schedule)
-            }
+            supervisor.attach(event, entity, schedule)
 
             // when & then
             assertThrows<RuntimeException> {
@@ -370,9 +344,7 @@ class DefaultDomainEventSupervisorTest {
             val schedule = LocalDateTime.now()
 
             // when
-            with(entity) {
-                supervisor.attach(event, schedule)
-            }
+            supervisor.attach(event, entity, schedule)
             DefaultDomainEventSupervisor.reset()
 
             // 重置后再次发布应该不包含之前的事件
@@ -398,16 +370,12 @@ class DefaultDomainEventSupervisorTest {
 
             // when
             val thread1 = Thread {
-                with(entity) {
-                    supervisor.attach(event1, schedule)
-                }
+                supervisor.attach(event1, entity, schedule)
                 supervisor.release(setOf(entity))
             }
 
             val thread2 = Thread {
-                with(entity) {
-                    supervisor.attach(event2, schedule)
-                }
+                supervisor.attach(event2, entity, schedule)
                 supervisor.release(setOf(entity))
             }
 
@@ -524,9 +492,7 @@ class DefaultDomainEventSupervisorTest {
             val entity = TestEntity("entity1")
             val schedule = LocalDateTime.now()
 
-            with(entity) {
-                supervisor.attach(event, schedule)
-            }
+            supervisor.attach(event, entity, schedule)
 
             // Use reflection to access protected method
             val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents", Any::class.java)

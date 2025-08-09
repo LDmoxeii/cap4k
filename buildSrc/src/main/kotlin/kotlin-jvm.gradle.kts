@@ -36,9 +36,6 @@ publishing {
 }
 
 kotlin {
-    compilerOptions {
-        freeCompilerArgs.add("-Xcontext-parameters")
-    }
     jvmToolchain(17)
 }
 
