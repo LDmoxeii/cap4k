@@ -17,23 +17,23 @@ import org.springframework.context.ApplicationContext
  */
 interface X {
     companion object {
-        val ioc: ApplicationContext = Mediator.ioc
-        val factories: AggregateFactorySupervisor = Mediator.factories
-        val repositories: RepositorySupervisor = Mediator.repositories
-        val aggregates: AggregateSupervisor = Mediator.aggregates
-        val services: DomainServiceSupervisor = Mediator.services
-        val unitOfWork: UnitOfWork = Mediator.uow
-        val events: IntegrationEventSupervisor = Mediator.events
-        val requests: RequestSupervisor = Mediator.requests
-        val commands: RequestSupervisor = Mediator.commands
-        val queries: RequestSupervisor = Mediator.queries
-        val fac: AggregateFactorySupervisor = Mediator.fac
-        val repo: RepositorySupervisor = Mediator.repo
-        val agg: AggregateSupervisor = Mediator.agg
-        val svc: DomainServiceSupervisor = Mediator.svc
-        val uow: UnitOfWork = Mediator.uow
-        val req: RequestSupervisor = Mediator.req
-        val cmd: RequestSupervisor = Mediator.cmd
-        val qry: RequestSupervisor = Mediator.qry
+        val ioc: ApplicationContext by lazy { Mediator.ioc }
+        val factories: AggregateFactorySupervisor by lazy { Mediator.factories }
+        val repositories: RepositorySupervisor by lazy { Mediator.repositories }
+        val aggregates: AggregateSupervisor by lazy { Mediator.aggregates }
+        val services: DomainServiceSupervisor by lazy { Mediator.services }
+        val unitOfWork: UnitOfWork by lazy { Mediator.uow }
+        val events: IntegrationEventSupervisor by lazy { Mediator.events }
+        val requests: RequestSupervisor by lazy { Mediator.requests }
+        val commands: RequestSupervisor by lazy { Mediator.commands }
+        val queries: RequestSupervisor by lazy { Mediator.queries }
+        val fac: AggregateFactorySupervisor by lazy { Mediator.fac }
+        val repo: RepositorySupervisor by lazy { Mediator.repo }
+        val agg: AggregateSupervisor by lazy { Mediator.agg }
+        val svc: DomainServiceSupervisor by lazy { Mediator.svc }
+        val uow: UnitOfWork by lazy { Mediator.uow }
+        val req: RequestSupervisor by lazy { Mediator.req }
+        val cmd: RequestSupervisor by lazy { Mediator.cmd }
+        val qry: RequestSupervisor by lazy { Mediator.qry }
     }
 }

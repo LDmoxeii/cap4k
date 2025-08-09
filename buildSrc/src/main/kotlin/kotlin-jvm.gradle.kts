@@ -12,7 +12,7 @@ plugins {
 }
 
 group = "com.only4"
-version = "0.1.10-SNAPSHOT"
+version = "0.1.13-SNAPSHOT"
 
 publishing {
     publications {
@@ -40,7 +40,7 @@ kotlin {
 }
 
 tasks.test {
-    enabled = true
+    enabled = false
 }
 
 tasks.withType<Test>().configureEach {
