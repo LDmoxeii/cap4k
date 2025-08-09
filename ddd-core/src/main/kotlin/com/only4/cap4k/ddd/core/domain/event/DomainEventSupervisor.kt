@@ -43,13 +43,13 @@ interface DomainEventSupervisor {
     fun <DOMAIN_EVENT : Any, ENTITY : Any> attach(
         entity: ENTITY,
         schedule: LocalDateTime = LocalDateTime.now(),
-        domainEventPayloadSupplier: () -> (DOMAIN_EVENT)
+        domainEventPayloadSupplier: () -> DOMAIN_EVENT,
     )
 
     fun <DOMAIN_EVENT : Any, ENTITY : Any> attach(
         entity: ENTITY,
         delay: Duration,
-        domainEventPayloadSupplier: () -> (DOMAIN_EVENT)
+        domainEventPayloadSupplier: () -> DOMAIN_EVENT,
     ) {
         attach(entity, LocalDateTime.now().plus(delay), domainEventPayloadSupplier)
     }

@@ -50,55 +50,72 @@ interface Mediator : AggregateFactorySupervisor,
             get() = MediatorSupport.instance
 
         @JvmStatic
-        val ioc: ApplicationContext = MediatorSupport.ioc
+        val ioc: ApplicationContext
+            get() = MediatorSupport.ioc
 
         @JvmStatic
-        val factories: AggregateFactorySupervisor = AggregateFactorySupervisor.instance
+        val factories: AggregateFactorySupervisor
+            get() = AggregateFactorySupervisor.instance
 
         @JvmStatic
-        val repositories: RepositorySupervisor = RepositorySupervisor.instance
+        val repositories: RepositorySupervisor
+            get() = RepositorySupervisor.instance
 
         @JvmStatic
-        val aggregates: AggregateSupervisor = AggregateSupervisor.instance
+        val aggregates: AggregateSupervisor
+            get() = AggregateSupervisor.instance
 
         @JvmStatic
-        val services: DomainServiceSupervisor = DomainServiceSupervisor.instance
+        val services: DomainServiceSupervisor
+            get() = DomainServiceSupervisor.instance
 
         @JvmStatic
-        val events: IntegrationEventSupervisor = IntegrationEventSupervisor.instance
+        val events: IntegrationEventSupervisor
+            get() = IntegrationEventSupervisor.instance
 
         @JvmStatic
-        val requests: RequestSupervisor = RequestSupervisor.instance
+        val requests: RequestSupervisor
+            get() = RequestSupervisor.instance
 
         @JvmStatic
-        val commands: RequestSupervisor = requests
+        val commands: RequestSupervisor
+            get() = requests
 
         @JvmStatic
-        val queries: RequestSupervisor = requests
+        val queries: RequestSupervisor
+            get() = requests
 
         // Shortcuts
         @JvmStatic
-        val fac: AggregateFactorySupervisor = factories
+        val fac: AggregateFactorySupervisor
+            get() = factories
 
         @JvmStatic
-        val repo: RepositorySupervisor = repositories
+        val repo: RepositorySupervisor
+            get() = repositories
 
         @JvmStatic
-        val agg: AggregateSupervisor = aggregates
+        val agg: AggregateSupervisor
+            get() = aggregates
 
         @JvmStatic
-        val svc: DomainServiceSupervisor = services
+        val svc: DomainServiceSupervisor
+            get() = services
 
         @JvmStatic
-        val uow: UnitOfWork = UnitOfWork.instance
+        val uow: UnitOfWork
+            get() = UnitOfWork.instance
 
         @JvmStatic
-        val req: RequestSupervisor = requests
+        val req: RequestSupervisor
+            get() = requests
 
         @JvmStatic
-        val cmd: RequestSupervisor = requests
+        val cmd: RequestSupervisor
+            get() = requests
 
         @JvmStatic
-        val qry: RequestSupervisor = requests
+        val qry: RequestSupervisor
+            get() = requests
     }
 }
