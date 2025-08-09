@@ -5,6 +5,8 @@ import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.share.DomainException
 import io.mockk.*
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -14,8 +16,6 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.core.env.Environment
 import java.util.concurrent.ExecutorService
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 @DisplayName("RabbitMQ集成事件发布器测试")
 class RabbitMqIntegrationEventPublisherTest {

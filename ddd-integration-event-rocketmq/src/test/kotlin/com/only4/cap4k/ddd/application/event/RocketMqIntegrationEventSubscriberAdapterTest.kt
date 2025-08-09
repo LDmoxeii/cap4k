@@ -7,6 +7,8 @@ import io.mockk.*
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus
 import org.apache.rocketmq.common.message.MessageExt
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -14,8 +16,6 @@ import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
 import org.springframework.core.env.Environment
 import org.springframework.messaging.Message
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 @DisplayName("RocketMQ集成事件订阅适配器测试")
 class RocketMqIntegrationEventSubscriberAdapterTest {

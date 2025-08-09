@@ -7,14 +7,12 @@ import com.only4.cap4k.ddd.core.share.Constants
 import com.only4.cap4k.ddd.core.share.DomainException
 import io.mockk.*
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.*
 import org.springframework.messaging.Message
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledThreadPoolExecutor
-import kotlin.test.assertEquals
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 /**
  * DefaultEventPublisher测试
@@ -138,7 +136,7 @@ class DefaultEventPublisherTest {
 
             // 验证线程池大小配置正确
             assertTrue(executor1 is ScheduledThreadPoolExecutor)
-            assertEquals(2, executor1.corePoolSize)
+            assertEquals(2, (executor1 as ScheduledThreadPoolExecutor).corePoolSize)
         }
     }
 

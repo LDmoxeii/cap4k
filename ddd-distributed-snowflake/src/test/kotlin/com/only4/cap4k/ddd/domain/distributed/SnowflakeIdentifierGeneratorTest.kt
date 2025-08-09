@@ -6,7 +6,8 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.hibernate.engine.spi.SharedSessionContractImplementor
 import org.junit.jupiter.api.*
-import kotlin.test.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 
 @DisplayName("Hibernate雪花ID生成器测试")
 class SnowflakeIdentifierGeneratorTest {
@@ -180,8 +181,8 @@ class SnowflakeIdentifierGeneratorTest {
         val ids = mutableSetOf<Long>()
         repeat(100) {
             val id = identifierGenerator.generate(mockSession, Any()) as Long
-            kotlin.test.assertTrue(ids.add(id), "生成的ID应该是唯一的")
-            kotlin.test.assertTrue(id > 0, "生成的ID应该是正数")
+            assertTrue(ids.add(id), "生成的ID应该是唯一的")
+            assertTrue(id > 0, "生成的ID应该是正数")
         }
 
         assertEquals(100, ids.size)
@@ -203,7 +204,7 @@ class SnowflakeIdentifierGeneratorTest {
                     synchronized(ids) {
                         val identifierGen = SnowflakeIdentifierGenerator()
                         val id = identifierGen.generate(mockSession, Any()) as Long
-                        kotlin.test.assertTrue(ids.add(id), "并发生成的ID应该是唯一的: $id (thread: $threadIndex)")
+                        assertTrue(ids.add(id), "并发生成的ID应该是唯一的: $id (thread: $threadIndex)")
                     }
                 }
             }
@@ -227,8 +228,8 @@ class SnowflakeIdentifierGeneratorTest {
         SnowflakeIdentifierGenerator.configure(realGenerator)
 
         val result = identifierGenerator.generate(mockSession, Any())
-        kotlin.test.assertTrue(result is Long)
-        kotlin.test.assertTrue((result as Long) > 0)
+        assertTrue(result is Long)
+        assertTrue((result as Long) > 0)
     }
 
     @Test
@@ -242,7 +243,7 @@ class SnowflakeIdentifierGeneratorTest {
         val result = identifierGenerator.generate(mockSession, testObject)
 
         // 验证返回值是Serializable
-        kotlin.test.assertTrue(result is java.io.Serializable)
+        assertTrue(result is java.io.Serializable)
         assertEquals(Long.MAX_VALUE, result)
 
         // 验证调用了生成器

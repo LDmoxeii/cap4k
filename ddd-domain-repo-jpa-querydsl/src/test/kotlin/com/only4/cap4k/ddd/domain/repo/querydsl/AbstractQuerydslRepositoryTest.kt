@@ -1,10 +1,10 @@
 package com.only4.cap4k.ddd.domain.repo.querydsl
 
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.data.querydsl.QuerydslPredicateExecutor
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 @DisplayName("AbstractQuerydslRepository 测试")
 class AbstractQuerydslRepositoryTest {

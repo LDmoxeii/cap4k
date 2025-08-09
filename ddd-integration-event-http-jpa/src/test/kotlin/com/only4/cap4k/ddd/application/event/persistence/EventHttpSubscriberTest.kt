@@ -1,12 +1,10 @@
 package com.only4.cap4k.ddd.application.event.persistence
 
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.assertNull
 
 @DisplayName("EventHttpSubscriber实体测试")
 class EventHttpSubscriberTest {

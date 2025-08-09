@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.application.distributed.locker
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -10,9 +11,6 @@ import org.junit.jupiter.api.Test
 import org.springframework.dao.DataAccessResourceFailureException
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.Duration
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 @DisplayName("JDBC分布式锁测试")
 class JdbcLockerTest {

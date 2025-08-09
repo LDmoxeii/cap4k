@@ -1,11 +1,9 @@
 package com.only4.cap4k.ddd.domain.distributed.snowflake
 
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
 
 @DisplayName("雪花ID生成器测试")
 class SnowflakeIdGeneratorTest {

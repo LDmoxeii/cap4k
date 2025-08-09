@@ -11,10 +11,8 @@ import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicateSupport
 import io.mockk.*
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.*
 import java.util.*
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 class DefaultAggregateSupervisorTest {
 

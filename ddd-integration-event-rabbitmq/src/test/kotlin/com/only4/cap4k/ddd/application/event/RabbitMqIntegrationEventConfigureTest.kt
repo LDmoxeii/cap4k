@@ -2,11 +2,11 @@ package com.only4.cap4k.ddd.application.event
 
 import io.mockk.every
 import io.mockk.mockk
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertNull
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 @DisplayName("RabbitMQ集成事件配置接口测试")
 class RabbitMqIntegrationEventConfigureTest {

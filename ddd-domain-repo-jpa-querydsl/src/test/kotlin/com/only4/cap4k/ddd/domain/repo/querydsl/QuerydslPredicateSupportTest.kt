@@ -3,11 +3,11 @@ package com.only4.cap4k.ddd.domain.repo.querydsl
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.PageParam
 import com.querydsl.core.types.dsl.Expressions
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertNotNull
 import org.junit.jupiter.api.assertThrows
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 import com.only4.cap4k.ddd.core.domain.repo.Predicate as DomainPredicate
 
 @DisplayName("QuerydslPredicateSupport 测试")

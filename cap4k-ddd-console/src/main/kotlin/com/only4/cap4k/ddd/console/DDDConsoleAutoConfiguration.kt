@@ -21,7 +21,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 @Configuration
-open class DDDConsoleAutoConfiguration {
+class DDDConsoleAutoConfiguration {
 
     companion object {
         const val DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss"
@@ -30,27 +30,27 @@ open class DDDConsoleAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(EventConsoleService::class)
-    open fun eventConsoleService(jdbcTemplate: JdbcTemplate, eventPublisher: EventPublisher) =
+    fun eventConsoleService(jdbcTemplate: JdbcTemplate, eventPublisher: EventPublisher) =
         EventConsoleService(jdbcTemplate, eventPublisher)
 
     @Bean
     @ConditionalOnMissingBean(RequestConsoleService::class)
-    open fun requestConsoleService(jdbcTemplate: JdbcTemplate, requestManager: RequestManager) =
+    fun requestConsoleService(jdbcTemplate: JdbcTemplate, requestManager: RequestManager) =
         RequestConsoleService(jdbcTemplate, requestManager)
 
     @Bean
     @ConditionalOnMissingBean(SagaConsoleService::class)
-    open fun sagaConsoleService(jdbcTemplate: JdbcTemplate, sagaManager: SagaManager) =
+    fun sagaConsoleService(jdbcTemplate: JdbcTemplate, sagaManager: SagaManager) =
         SagaConsoleService(jdbcTemplate, sagaManager)
 
     @Bean
     @ConditionalOnMissingBean(LockerConsoleService::class)
-    open fun lockerConsoleService(jdbcTemplate: JdbcTemplate) =
+    fun lockerConsoleService(jdbcTemplate: JdbcTemplate) =
         LockerConsoleService(jdbcTemplate)
 
     @Bean
     @ConditionalOnMissingBean(SnowflakeConsoleService::class)
-    open fun snowflakeConsoleService(jdbcTemplate: JdbcTemplate) =
+    fun snowflakeConsoleService(jdbcTemplate: JdbcTemplate) =
         SnowflakeConsoleService(jdbcTemplate)
 
     data class OperationResponse<T>(
@@ -60,10 +60,10 @@ open class DDDConsoleAutoConfiguration {
     )
 
     @Bean(name = ["/cap4j/console/event/search"])
-    open fun eventSearch(
+    fun eventSearch(
         eventConsoleService: EventConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
         log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/event/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}")
 
@@ -108,10 +108,10 @@ open class DDDConsoleAutoConfiguration {
     }
 
     @Bean(name = ["/cap4j/console/event/retry"])
-    open fun eventRetry(
+    fun eventRetry(
         eventConsoleService: EventConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
         log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/event/retry?uuid={uuid}")
 
@@ -142,10 +142,10 @@ open class DDDConsoleAutoConfiguration {
     }
 
     @Bean(name = ["/cap4j/console/request/search"])
-    open fun requestSearch(
+    fun requestSearch(
         requestConsoleService: RequestConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
         log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/request/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}")
 
@@ -189,10 +189,10 @@ open class DDDConsoleAutoConfiguration {
     }
 
     @Bean(name = ["/cap4j/console/request/retry"])
-    open fun requestRetry(
+    fun requestRetry(
         requestConsoleService: RequestConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
         log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/request/retry?uuid={uuid}")
 
@@ -223,10 +223,10 @@ open class DDDConsoleAutoConfiguration {
     }
 
     @Bean(name = ["/cap4j/console/saga/search"])
-    open fun sagaSearch(
+    fun sagaSearch(
         sagaConsoleService: SagaConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
         log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/saga/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}")
 
@@ -270,10 +270,10 @@ open class DDDConsoleAutoConfiguration {
     }
 
     @Bean(name = ["/cap4j/console/saga/retry"])
-    open fun sagaRetry(
+    fun sagaRetry(
         sagaConsoleService: SagaConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
         log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/saga/retry?uuid={uuid}")
 
@@ -304,10 +304,10 @@ open class DDDConsoleAutoConfiguration {
     }
 
     @Bean(name = ["/cap4j/console/locker/search"])
-    open fun lockerSearch(
+    fun lockerSearch(
         lockerConsoleService: LockerConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
         log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/locker/search?name={name}&lock={true|false}&pageSize={pageSize}&pageNum={pageNum}")
 
@@ -343,10 +343,10 @@ open class DDDConsoleAutoConfiguration {
     }
 
     @Bean(name = ["/cap4j/console/locker/unlock"])
-    open fun lockerUnlock(
+    fun lockerUnlock(
         lockerConsoleService: LockerConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
         log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/locker/unlock?name={name}&pwd={pwd}")
 
@@ -378,10 +378,10 @@ open class DDDConsoleAutoConfiguration {
     }
 
     @Bean(name = ["/cap4j/console/snowflake/search"])
-    open fun snowflakeSearch(
+    fun snowflakeSearch(
         snowflakeConsoleService: SnowflakeConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
         log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/snowflake/search?free={true|false}&dispatchTo={dispatchTo}&pageSize={pageSize}&pageNum={pageNum}")
 

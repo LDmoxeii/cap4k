@@ -1,11 +1,10 @@
 plugins {
     id("buildsrc.convention.kotlin-jvm")
-    application
 }
 dependencies {
     // Project dependencies - API exposure
-    api(project(":ddd-core"))
-    api(project(":ddd-domain-repo-jpa"))
+    implementation(project(":ddd-core"))
+    implementation(project(":ddd-domain-repo-jpa"))
 
     // Project dependencies - Implementation only
     implementation(project(":ddd-domain-event-jpa"))
@@ -19,14 +18,20 @@ dependencies {
     compileOnly(libs.querydsl)
 
     // Test dependencies
+    implementation(libs.slf4j)
+
+    // Test dependencies
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.mockk) {
+        exclude(group = "org.slf4j", module = "slf4j-api")
+    }
+    testImplementation("org.junit.jupiter:junit-jupiter-api")
+    testImplementation("org.junit.jupiter:junit-jupiter-params")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+
     testImplementation(libs.jpa)
     testImplementation(libs.querydsl)
-    testImplementation(libs.springData)
-    testImplementation(libs.hibernateCore)
-    testImplementation(libs.mockk)
-    testImplementation(libs.mockkAgentJvm)
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
-    testImplementation("org.jetbrains.kotlin:kotlin-test")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
 }
 

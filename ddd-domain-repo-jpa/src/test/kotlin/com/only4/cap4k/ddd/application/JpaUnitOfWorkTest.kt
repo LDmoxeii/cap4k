@@ -9,10 +9,8 @@ import jakarta.persistence.EntityManager
 import org.hibernate.engine.spi.PersistenceContext
 import org.hibernate.engine.spi.SessionImplementor
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.*
 import org.springframework.transaction.annotation.Propagation
-import kotlin.test.assertEquals
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 @DisplayName("JpaUnitOfWork 测试")
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)

@@ -5,12 +5,12 @@ import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import io.mockk.*
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.core.env.Environment
-import kotlin.test.assertTrue
 
 @ExtendWith(MockKExtension::class)
 @DisplayName("HTTP集成事件发布器测试")

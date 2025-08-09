@@ -10,12 +10,10 @@ import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.share.DomainException
 import io.mockk.*
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.*
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.AbstractAggregateRoot
 import java.time.LocalDateTime
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /**
  * DefaultDomainEventSupervisor测试

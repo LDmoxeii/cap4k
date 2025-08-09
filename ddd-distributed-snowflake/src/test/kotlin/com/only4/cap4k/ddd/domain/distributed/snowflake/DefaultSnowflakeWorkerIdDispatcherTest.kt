@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.domain.distributed.snowflake
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -10,9 +11,6 @@ import org.junit.jupiter.api.assertThrows
 import org.springframework.dao.DataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.LocalDateTime
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 @DisplayName("默认雪花WorkerId分配器测试")
 class DefaultSnowflakeWorkerIdDispatcherTest {
