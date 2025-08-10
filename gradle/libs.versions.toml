@@ -50,11 +50,11 @@ kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = 
 spring-context = { module = "org.springframework:spring-context" }
 spring-auto-configuration = { module = "org.springframework.boot:spring-boot-autoconfigure" }
 spring-tomcat = { module = "org.springframework.boot:spring-boot-starter-tomcat" }
-spring-web = { module = "org.springframework:spring-web" }
+spring-messaging = { module = "org.springframework:spring-messaging", version.ref = "spring-boot" }
+spring-web = { module = "org.springframework:spring-web", version.ref = "spring-boot" }
 spring-web-mvc = { module = "org.springframework:spring-webmvc" }
 spring-tx = { module = "org.springframework:spring-tx" }
 spring-amqp = { module = "org.springframework.boot:spring-boot-starter-amqp" }
-spring-messaging = { module = "org.springframework:spring-messaging" }
 spring-data = { module = "org.springframework.data:spring-data-commons" }
 spring-jdbc = { module = "org.springframework:spring-jdbc" }
 spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" }
