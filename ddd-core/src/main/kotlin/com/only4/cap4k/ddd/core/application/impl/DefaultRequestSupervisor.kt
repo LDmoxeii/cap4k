@@ -139,7 +139,7 @@ open class DefaultRequestSupervisor(
         request.beginRequest(requestTime)
 
         var maxTry = 65535
-        while (!(Duration.between(request.nextTryTime, minNextTryTime).isZero) && request.isValid) {
+        while (request.nextTryTime.isBefore(minNextTryTime) && request.isValid) {
             request.beginRequest(request.nextTryTime)
             if (maxTry-- <= 0) {
                 throw DomainException("疑似死循环")

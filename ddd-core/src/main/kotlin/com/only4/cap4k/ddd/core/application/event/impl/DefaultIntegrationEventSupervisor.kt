@@ -129,9 +129,9 @@ open class DefaultIntegrationEventSupervisor(
         fallbackExecution = true,
         classes = [IntegrationEventAttachedTransactionCommittedEvent::class]
     )
-    fun IntegrationEventAttachedTransactionCommittedEvent.onTransactionCommitted() = apply {
-        events.forEach { event ->
-            eventPublisher.publish(event)
+    fun onTransactionCommitted(event: IntegrationEventAttachedTransactionCommittedEvent) {
+        event.events.forEach { eventRecord ->
+            eventPublisher.publish(eventRecord)
         }
     }
 
