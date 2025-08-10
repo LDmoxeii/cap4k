@@ -12,6 +12,7 @@ ksp = "2.2.0-2.0.2"
 spring-boot = "3.1.12"
 
 # Logging
+slf4j = "2.0.13"
 kotlin-logging = "7.0.12"
 
 # Persistence and data
@@ -38,7 +39,7 @@ kotlin-allopen-plugin = { module = "org.jetbrains.kotlin:kotlin-allopen", versio
 kotlin-noarg-plugin = { module = "org.jetbrains.kotlin:kotlin-noarg", version.ref = "kotlin" }
 
 # Logging
-slf4j = { module = "org.slf4j:slf4j-api" }
+slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 
 # Spring framework
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }

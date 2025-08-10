@@ -12,12 +12,19 @@ plugins {
 }
 
 group = "com.only4"
-version = "0.1.13-SNAPSHOT"
+version = "0.1.15-SNAPSHOT"
+
+// 添加源码 jar 任务
+val sourcesJar by tasks.creating(Jar::class) {
+    archiveClassifier.set("sources")
+    from(sourceSets.main.get().allSource)
+}
 
 publishing {
     publications {
         create<MavenPublication>("maven") {
             from(components["java"])
+            artifact(sourcesJar)
             groupId = project.group.toString()
             artifactId = project.name
             version = project.version.toString()
@@ -40,7 +47,7 @@ kotlin {
 }
 
 tasks.test {
-    enabled = false
+    enabled = true
 }
 
 tasks.withType<Test>().configureEach {
