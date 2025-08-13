@@ -21,7 +21,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 @Configuration
-open class DDDConsoleAutoConfiguration {
+class DDDConsoleAutoConfiguration {
 
     companion object {
         const val DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss"
@@ -30,43 +30,41 @@ open class DDDConsoleAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(EventConsoleService::class)
-    open fun eventConsoleService(jdbcTemplate: JdbcTemplate, eventPublisher: EventPublisher) =
+    fun eventConsoleService(jdbcTemplate: JdbcTemplate, eventPublisher: EventPublisher) =
         EventConsoleService(jdbcTemplate, eventPublisher)
 
     @Bean
     @ConditionalOnMissingBean(RequestConsoleService::class)
-    open fun requestConsoleService(jdbcTemplate: JdbcTemplate, requestManager: RequestManager) =
+    fun requestConsoleService(jdbcTemplate: JdbcTemplate, requestManager: RequestManager) =
         RequestConsoleService(jdbcTemplate, requestManager)
 
     @Bean
     @ConditionalOnMissingBean(SagaConsoleService::class)
-    open fun sagaConsoleService(jdbcTemplate: JdbcTemplate, sagaManager: SagaManager) =
+    fun sagaConsoleService(jdbcTemplate: JdbcTemplate, sagaManager: SagaManager) =
         SagaConsoleService(jdbcTemplate, sagaManager)
 
     @Bean
     @ConditionalOnMissingBean(LockerConsoleService::class)
-    open fun lockerConsoleService(jdbcTemplate: JdbcTemplate) =
+    fun lockerConsoleService(jdbcTemplate: JdbcTemplate) =
         LockerConsoleService(jdbcTemplate)
 
     @Bean
     @ConditionalOnMissingBean(SnowflakeConsoleService::class)
-    open fun snowflakeConsoleService(jdbcTemplate: JdbcTemplate) =
+    fun snowflakeConsoleService(jdbcTemplate: JdbcTemplate) =
         SnowflakeConsoleService(jdbcTemplate)
 
     data class OperationResponse<T>(
         val success: Boolean,
         val message: String,
-        val data: T? = null
+        val data: T? = null,
     )
 
     @Bean(name = ["/cap4j/console/event/search"])
-    open fun eventSearch(
+    fun eventSearch(
         eventConsoleService: EventConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
-        log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/event/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}")
-
         val param = EventConsoleService.SearchParam().apply {
             uuid = req.getParameter("uuid")
             type = req.getParameter("type")
@@ -105,16 +103,14 @@ open class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/event/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}") }
 
     @Bean(name = ["/cap4j/console/event/retry"])
-    open fun eventRetry(
+    fun eventRetry(
         eventConsoleService: EventConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
-        log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/event/retry?uuid={uuid}")
-
         val uuid = req.getParameter("uuid")
         val result = try {
             eventConsoleService.retry(uuid)
@@ -139,16 +135,14 @@ open class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/event/retry?uuid={uuid}") }
 
     @Bean(name = ["/cap4j/console/request/search"])
-    open fun requestSearch(
+    fun requestSearch(
         requestConsoleService: RequestConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
-        log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/request/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}")
-
         val param = RequestConsoleService.SearchParam().apply {
             uuid = req.getParameter("uuid")
             type = req.getParameter("type")
@@ -186,16 +180,14 @@ open class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/request/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}") }
 
     @Bean(name = ["/cap4j/console/request/retry"])
-    open fun requestRetry(
+    fun requestRetry(
         requestConsoleService: RequestConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
-        log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/request/retry?uuid={uuid}")
-
         val uuid = req.getParameter("uuid")
         val result = try {
             requestConsoleService.retry(uuid)
@@ -220,16 +212,14 @@ open class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/request/retry?uuid={uuid}") }
 
     @Bean(name = ["/cap4j/console/saga/search"])
-    open fun sagaSearch(
+    fun sagaSearch(
         sagaConsoleService: SagaConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
-        log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/saga/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}")
-
         val param = SagaConsoleService.SearchParam().apply {
             uuid = req.getParameter("uuid")
             type = req.getParameter("type")
@@ -267,16 +257,14 @@ open class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/saga/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}") }
 
     @Bean(name = ["/cap4j/console/saga/retry"])
-    open fun sagaRetry(
+    fun sagaRetry(
         sagaConsoleService: SagaConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
-        log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/saga/retry?uuid={uuid}")
-
         val uuid = req.getParameter("uuid")
         val result = try {
             sagaConsoleService.retry(uuid)
@@ -301,16 +289,14 @@ open class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/saga/retry?uuid={uuid}") }
 
     @Bean(name = ["/cap4j/console/locker/search"])
-    open fun lockerSearch(
+    fun lockerSearch(
         lockerConsoleService: LockerConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
-        log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/locker/search?name={name}&lock={true|false}&pageSize={pageSize}&pageNum={pageNum}")
-
         val param = LockerConsoleService.SearchParam().apply {
             name = req.getParameter("name")
             lock = req.getParameter("lock")?.toBoolean()
@@ -340,16 +326,14 @@ open class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/locker/search?name={name}&lock={true|false}&pageSize={pageSize}&pageNum={pageNum}") }
 
     @Bean(name = ["/cap4j/console/locker/unlock"])
-    open fun lockerUnlock(
+    fun lockerUnlock(
         lockerConsoleService: LockerConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
-        log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/locker/unlock?name={name}&pwd={pwd}")
-
         val name = req.getParameter("name")
         val pwd = req.getParameter("pwd")
         val result = try {
@@ -375,16 +359,14 @@ open class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/locker/unlock?name={name}&pwd={pwd}") }
 
     @Bean(name = ["/cap4j/console/snowflake/search"])
-    open fun snowflakeSearch(
+    fun snowflakeSearch(
         snowflakeConsoleService: SnowflakeConsoleService,
         @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContentPath: String
+        @Value("\${server.servlet.context-path:}") serverServletContentPath: String,
     ) = HttpRequestHandler { req, res ->
-        log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/snowflake/search?free={true|false}&dispatchTo={dispatchTo}&pageSize={pageSize}&pageNum={pageNum}")
-
         val param = SnowflakeConsoleService.SearchParam().apply {
             free = req.getParameter("free")?.toBoolean()
             dispatchTo = req.getParameter("dispatchTo")
@@ -414,5 +396,5 @@ open class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/snowflake/search?free={true|false}&dispatchTo={dispatchTo}&pageSize={pageSize}&pageNum={pageNum}") }
 }

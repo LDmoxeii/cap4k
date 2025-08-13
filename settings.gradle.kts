@@ -30,7 +30,7 @@ include("ddd-core")
 include("ddd-distributed-saga-jpa")
 include("ddd-application-request-jpa")
 include("ddd-distributed-locker-jdbc", "ddd-distributed-snowflake")
-include("ddd-domain-event-jpa", "ddd-domain-repo-jpa", "ddd-domain-repo-jpa-querydsl", "ddd-domain-repo-jpa-querydsl")
+include("ddd-domain-event-jpa", "ddd-domain-repo-jpa", "ddd-domain-repo-jpa-querydsl")
 include(
     "ddd-integration-event-http",
     "ddd-integration-event-http-jpa",

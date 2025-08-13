@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.domain.event
 
+import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.application.distributed.Locker
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
@@ -14,6 +15,7 @@ import com.only4.cap4k.ddd.domain.event.configure.EventProperties
 import com.only4.cap4k.ddd.domain.event.configure.EventScheduleProperties
 import com.only4.cap4k.ddd.domain.event.persistence.ArchivedEventJpaRepository
 import com.only4.cap4k.ddd.domain.event.persistence.EventJpaRepository
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.domain.EntityScan
@@ -57,7 +59,7 @@ class DomainEventAutoConfiguration {
         domainEventInterceptorManager: DomainEventInterceptorManager,
         eventPublisher: EventPublisher,
         applicationEventPublisher: ApplicationEventPublisher,
-        @Value("\$$CONFIG_KEY_4_SVC_NAME") svcName: String
+        @Value(CONFIG_KEY_4_SVC_NAME) svcName: String,
     ): DefaultDomainEventSupervisor {
         return DefaultDomainEventSupervisor(
             eventRecordRepository,
@@ -94,11 +96,11 @@ class DomainEventAutoConfiguration {
         eventPublisher: EventPublisher,
         eventRecordRepository: EventRecordRepository,
         locker: Locker,
-        @Value("\$$CONFIG_KEY_4_SVC_NAME") svcName: String,
-        @Value("\$$CONFIG_KEY_4_EVENT_COMPENSE_LOCKER_KEY") compensationLockerKey: String,
-        @Value("\$$CONFIG_KEY_4_EVENT_ARCHIVE_LOCKER_KEY") archiveLockerKey: String,
+        @Value(CONFIG_KEY_4_SVC_NAME) svcName: String,
+        @Value(CONFIG_KEY_4_EVENT_COMPENSE_LOCKER_KEY) compensationLockerKey: String,
+        @Value(CONFIG_KEY_4_EVENT_ARCHIVE_LOCKER_KEY) archiveLockerKey: String,
         eventScheduleProperties: EventScheduleProperties,
-        jdbcTemplate: JdbcTemplate
+        jdbcTemplate: JdbcTemplate,
     ): JpaEventScheduleService {
         return JpaEventScheduleService(
             eventPublisher,

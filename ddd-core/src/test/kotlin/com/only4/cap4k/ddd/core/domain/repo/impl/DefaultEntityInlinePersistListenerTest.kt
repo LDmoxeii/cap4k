@@ -2,8 +2,8 @@ package com.only4.cap4k.ddd.core.domain.repo.impl
 
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.assertEquals
 import java.lang.reflect.InvocationTargetException
-import kotlin.test.assertEquals
 
 @DisplayName("DefaultEntityInlinePersistListener 测试")
 class DefaultEntityInlinePersistListenerTest {

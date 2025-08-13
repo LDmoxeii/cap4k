@@ -12,12 +12,19 @@ plugins {
 }
 
 group = "com.only4"
-version = "1.2.3"
+version = "0.2.2-SNAPSHOT"
+
+// 添加源码 jar 任务
+val sourcesJar by tasks.creating(Jar::class) {
+    archiveClassifier.set("sources")
+    from(sourceSets.main.get().allSource)
+}
 
 publishing {
     publications {
         create<MavenPublication>("maven") {
             from(components["java"])
+            artifact(sourcesJar)
             groupId = project.group.toString()
             artifactId = project.name
             version = project.version.toString()
@@ -39,13 +46,17 @@ kotlin {
     jvmToolchain(17)
 }
 
+tasks.test {
+    enabled = true
+}
+
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     timeout.set(Duration.ofMinutes(10))
     jvmArgs(
         "-Xmx2g",
         "-Xms512m",
-        "-XX:MaxMetaspaceSize=512m"
+        "-XX:MaxMetaspaceSize=512m",
     )
     testLogging {
         events(

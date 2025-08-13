@@ -9,12 +9,12 @@ import com.only4.cap4k.ddd.core.share.misc.newConverterInstance
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import io.mockk.*
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
 import org.springframework.core.annotation.OrderUtils
 import org.springframework.core.convert.converter.Converter
 import java.time.Duration
-import kotlin.test.assertEquals
 
 @DisplayName("DefaultPersistListenerManager 测试")
 class DefaultPersistListenerManagerTest {

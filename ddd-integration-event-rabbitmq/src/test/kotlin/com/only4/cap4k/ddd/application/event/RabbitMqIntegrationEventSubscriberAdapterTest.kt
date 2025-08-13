@@ -7,6 +7,8 @@ import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
 import com.rabbitmq.client.Channel
 import io.mockk.*
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -20,8 +22,6 @@ import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.OrderUtils
 import org.springframework.core.env.Environment
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 @DisplayName("RabbitMQ集成事件订阅适配器测试")
 class RabbitMqIntegrationEventSubscriberAdapterTest {

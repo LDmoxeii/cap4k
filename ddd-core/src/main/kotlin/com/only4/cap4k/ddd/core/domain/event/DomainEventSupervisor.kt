@@ -43,13 +43,13 @@ interface DomainEventSupervisor {
     fun <DOMAIN_EVENT : Any, ENTITY : Any> attach(
         entity: ENTITY,
         schedule: LocalDateTime = LocalDateTime.now(),
-        domainEventPayloadSupplier: () -> (DOMAIN_EVENT)
+        domainEventPayloadSupplier: () -> DOMAIN_EVENT,
     )
 
     fun <DOMAIN_EVENT : Any, ENTITY : Any> attach(
         entity: ENTITY,
         delay: Duration,
-        domainEventPayloadSupplier: () -> (DOMAIN_EVENT)
+        domainEventPayloadSupplier: () -> DOMAIN_EVENT,
     ) {
         attach(entity, LocalDateTime.now().plus(delay), domainEventPayloadSupplier)
     }
@@ -65,20 +65,18 @@ interface DomainEventSupervisor {
     )
 
     companion object {
+        /**
+         * 获取领域事件管理器
+         * @return 领域事件管理器
+         */
         @JvmStatic
-        val instance: DomainEventSupervisor
-            /**
-             * 获取领域事件管理器
-             * @return 领域事件管理器
-             */
-            get() = DomainEventSupervisorSupport.instance
+        val instance: DomainEventSupervisor by lazy { DomainEventSupervisorSupport.instance }
 
+        /**
+         * 获取领域事件发布管理器
+         * @return
+         */
         @JvmStatic
-        val manager: DomainEventManager
-            /**
-             * 获取领域事件发布管理器
-             * @return
-             */
-            get() = DomainEventSupervisorSupport.manager
+        val manager: DomainEventManager by lazy { DomainEventSupervisorSupport.manager }
     }
 }

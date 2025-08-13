@@ -75,15 +75,13 @@ interface IntegrationEventSupervisor {
          * 获取集成事件监督者实例
          */
         @JvmStatic
-        val instance: IntegrationEventSupervisor
-            get() = IntegrationEventSupervisorSupport.instance
+        val instance: IntegrationEventSupervisor by lazy { IntegrationEventSupervisorSupport.instance }
 
         /**
          * 获取集成事件管理器实例
          */
         @JvmStatic
-        val manager: IntegrationEventManager
-            get() = IntegrationEventSupervisorSupport.manager
+        val manager: IntegrationEventManager by lazy { IntegrationEventSupervisorSupport.manager }
     }
 }
 

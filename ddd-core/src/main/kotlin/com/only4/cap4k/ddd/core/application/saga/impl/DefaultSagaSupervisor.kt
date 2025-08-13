@@ -154,7 +154,7 @@ open class DefaultSagaSupervisor(
         saga.beginSaga(sagaTime)
 
         var maxTry = 65535
-        while (!(Duration.between(saga.nextTryTime, minNextTryTime).isZero) && saga.isValid) {
+        while (saga.nextTryTime.isBefore(minNextTryTime) && saga.isValid) {
             saga.beginSaga(saga.nextTryTime)
             if (maxTry-- <= 0) {
                 throw DomainException("疑似死循环")

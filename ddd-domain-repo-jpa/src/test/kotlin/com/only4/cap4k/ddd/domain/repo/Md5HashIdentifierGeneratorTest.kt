@@ -6,17 +6,13 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
 import org.hibernate.engine.spi.SharedSessionContractImplementor
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import java.io.Serializable
 import java.math.BigDecimal
 import java.math.BigInteger
-import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
 class Md5HashIdentifierGeneratorTest {
 
@@ -112,7 +108,7 @@ class Md5HashIdentifierGeneratorTest {
 
         assertNotNull(result)
         assertTrue(result is String)
-        assertEquals(32, result.length) // MD5 hex string length
+        assertEquals(32, (result as String).length) // MD5 hex string length
     }
 
     @Test

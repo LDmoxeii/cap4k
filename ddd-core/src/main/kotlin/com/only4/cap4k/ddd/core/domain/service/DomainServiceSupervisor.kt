@@ -17,7 +17,6 @@ interface DomainServiceSupervisor {
 
     companion object {
         @JvmStatic
-        val instance: DomainServiceSupervisor
-            get() = DomainServiceSupervisorSupport.instance
+        val instance: DomainServiceSupervisor by lazy { DomainServiceSupervisorSupport.instance }
     }
 }

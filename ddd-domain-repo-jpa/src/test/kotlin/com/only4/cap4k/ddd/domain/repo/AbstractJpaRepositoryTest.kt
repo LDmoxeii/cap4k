@@ -8,6 +8,7 @@ import com.only4.cap4k.ddd.domain.repo.impl.DefaultRepositorySupervisor
 import io.mockk.*
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -18,9 +19,6 @@ import org.springframework.data.jpa.domain.Specification
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import java.util.*
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 class AbstractJpaRepositoryTest {
 

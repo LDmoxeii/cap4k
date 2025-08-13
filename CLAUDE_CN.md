@@ -250,7 +250,7 @@ dependencies {
     
     // 实现依赖
     implementation(libs.fastjson)
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation(kotlin("reflect"))
     
     // 编译时依赖
     compileOnly(libs.springContext)

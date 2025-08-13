@@ -1,31 +1,36 @@
 plugins {
     id("buildsrc.convention.kotlin-jvm")
-    application
 }
 
 dependencies {
-    // Project dependencies
-    implementation(project(":ddd-core"))
+    // Project dependencies - API exposure
+    api(project(":ddd-core"))
+
+    // Project dependencies - Implementation only
     implementation(project(":ddd-domain-event-jpa"))
 
-    // Implementation dependencies
     implementation(libs.fastjson)
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation(kotlin("reflect"))
 
-    // Compile-only dependencies
+    // Compile-only dependencies for optional integration
     compileOnly(libs.jpa)
-    compileOnly(libs.springMessaging)
+    compileOnly(libs.spring.messaging)
+
+
+    // Common dependencies
+    implementation(libs.slf4j)
 
     // Test dependencies
-    testImplementation(libs.jpa)
-    testImplementation(libs.springMessaging)
-    testImplementation(libs.springData)
-    testImplementation(libs.hibernateCore)
-    testImplementation(libs.mockk)
-    testImplementation(libs.mockkAgentJvm)
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.mockk) {
+        exclude(group = "org.slf4j", module = "slf4j-api")
+    }
     testImplementation("org.junit.jupiter:junit-jupiter-api")
-    testImplementation("org.junit.jupiter:junit-jupiter-engine")
-    testImplementation("org.jetbrains.kotlin:kotlin-test")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testImplementation("org.junit.jupiter:junit-jupiter-params")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+
+    testImplementation(libs.jpa)
+    testImplementation(libs.spring.messaging)
 }
 

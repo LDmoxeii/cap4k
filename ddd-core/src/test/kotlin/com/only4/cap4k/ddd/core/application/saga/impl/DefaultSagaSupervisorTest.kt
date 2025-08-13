@@ -9,9 +9,8 @@ import jakarta.validation.ConstraintViolation
 import jakarta.validation.ConstraintViolationException
 import jakarta.validation.Validator
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.assertEquals
 import java.time.LocalDateTime
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 /**
  * DefaultSagaSupervisor 简化测试用例

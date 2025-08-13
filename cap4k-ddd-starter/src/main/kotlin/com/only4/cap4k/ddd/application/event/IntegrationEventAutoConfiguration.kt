@@ -61,7 +61,7 @@ class IntegrationEventAutoConfiguration {
         integrationEventInterceptorManager: IntegrationEventInterceptorManager,
         applicationEventPublisher: ApplicationEventPublisher,
         @Value(CONFIG_KEY_4_SVC_NAME)
-        svcName: String
+        svcName: String,
     ): DefaultIntegrationEventSupervisor {
         val defaultIntegrationEventSupervisor = DefaultIntegrationEventSupervisor(
             eventPublisher,
@@ -78,7 +78,7 @@ class IntegrationEventAutoConfiguration {
 
     @Bean
     fun integrationEventUnitOfWorkInterceptor(
-        integrationEventManager: IntegrationEventManager
+        integrationEventManager: IntegrationEventManager,
     ): IntegrationEventUnitOfWorkInterceptor {
         return IntegrationEventUnitOfWorkInterceptor(integrationEventManager)
     }
@@ -115,7 +115,7 @@ class IntegrationEventAutoConfiguration {
         class JpaHttpIntegrationEventSubscriberRegisterLauncher {
             @Bean
             fun jpaHttpIntegrationEventSubscriberRegister(
-                eventHttpSubscriberJpaRepository: EventHttpSubscriberJpaRepository
+                eventHttpSubscriberJpaRepository: EventHttpSubscriberJpaRepository,
             ): JpaHttpIntegrationEventSubscriberRegister {
                 return JpaHttpIntegrationEventSubscriberRegister(eventHttpSubscriberJpaRepository)
             }
@@ -159,7 +159,7 @@ class IntegrationEventAutoConfiguration {
         fun httpIntegrationEventPublisher(
             subscriberRegister: HttpIntegrationEventSubscriberRegister,
             environment: Environment,
-            httpIntegrationEventAdapterProperties: HttpIntegrationEventAdapterProperties
+            httpIntegrationEventAdapterProperties: HttpIntegrationEventAdapterProperties,
         ): HttpIntegrationEventPublisher {
             val httpIntegrationEventPublisher = HttpIntegrationEventPublisher(
                 subscriberRegister,
@@ -185,7 +185,7 @@ class IntegrationEventAutoConfiguration {
             @Value("\${server.port:80}")
             serverPort: String,
             @Value("\${server.servlet.context-path:}")
-            serverServletContentPath: String
+            serverServletContentPath: String,
         ): HttpIntegrationEventSubscriberAdapter {
             val baseUrl = "http://localhost:$serverPort$serverServletContentPath"
             return HttpIntegrationEventSubscriberAdapter(
@@ -210,7 +210,7 @@ class IntegrationEventAutoConfiguration {
             @Value("\${server.port:80}")
             serverPort: String,
             @Value("\${server.servlet.context-path:}")
-            serverServletContentPath: String
+            serverServletContentPath: String,
         ): HttpRequestHandler {
             log.info("IntegrationEvent subscribe URL: http://localhost:$serverPort$serverServletContentPath$SUBSCRIBE_PATH?$EVENT_PARAM={event}&$SUBSCRIBER_PARAM={subscriber}")
             return HttpRequestHandler { req, res ->
@@ -256,7 +256,7 @@ class IntegrationEventAutoConfiguration {
             @Value("\${server.port:80}")
             serverPort: String,
             @Value("\${server.servlet.context-path:}")
-            serverServletContentPath: String
+            serverServletContentPath: String,
         ): HttpRequestHandler {
             log.info("IntegrationEvent unsubscribe URL: http://localhost:$serverPort$serverServletContentPath$UNSUBSCRIBE_PATH?$EVENT_PARAM={event}&$SUBSCRIBER_PARAM={subscriber}")
             return HttpRequestHandler { req, res ->
@@ -285,7 +285,7 @@ class IntegrationEventAutoConfiguration {
             @Value("\${server.port:80}")
             serverPort: String,
             @Value("\${server.servlet.context-path:}")
-            serverServletContentPath: String
+            serverServletContentPath: String,
         ): HttpRequestHandler {
             log.info("IntegrationEvent events URL: http://localhost:$serverPort$serverServletContentPath$EVENTS_PATH")
             return HttpRequestHandler { req, res ->
@@ -320,7 +320,7 @@ class IntegrationEventAutoConfiguration {
             @Value("\${server.port:80}")
             serverPort: String,
             @Value("\${server.servlet.context-path:}")
-            serverServletContentPath: String
+            serverServletContentPath: String,
         ): HttpRequestHandler {
             log.info("IntegrationEvent subscribers URL: http://localhost:$serverPort$serverServletContentPath$SUBSCRIBERS_PATH?$EVENT_PARAM={event}")
             return HttpRequestHandler { req, res ->
@@ -355,7 +355,7 @@ class IntegrationEventAutoConfiguration {
             @Value("\${server.port:80}")
             serverPort: String,
             @Value("\${server.servlet.context-path:}")
-            serverServletContentPath: String
+            serverServletContentPath: String,
         ): HttpRequestHandler {
             log.info("IntegrationEvent consume URL: http://localhost:$serverPort$serverServletContentPath$CONSUME_PATH?$EVENT_PARAM={event}&$EVENT_ID_PARAM={uuid}")
             return HttpRequestHandler { req, res ->
@@ -414,7 +414,7 @@ class IntegrationEventAutoConfiguration {
     }
 
     @Configuration
-    @ConditionalOnClass(name = ["com.only4.cap4k.ddd.application.event.RocketMqIntegrationEventSubscriberAdapter"])
+    @ConditionalOnClass(name = ["org.apache.rocketmq.spring.autoconfigure.RocketMQAutoConfiguration", "com.only4.cap4k.ddd.application.event.RocketMqIntegrationEventSubscriberAdapter"])
     @ImportAutoConfiguration(RocketMQAutoConfiguration::class)
     class RocketMqAdapterLauncher {
 
@@ -427,7 +427,7 @@ class IntegrationEventAutoConfiguration {
         @ConditionalOnMissingBean(IntegrationEventPublisher::class)
         fun rocketMqIntegrationEventPublisher(
             rocketMQTemplate: RocketMQTemplate,
-            environment: Environment
+            environment: Environment,
         ): RocketMqIntegrationEventPublisher {
             return RocketMqIntegrationEventPublisher(rocketMQTemplate, environment)
         }
@@ -446,7 +446,7 @@ class IntegrationEventAutoConfiguration {
             @Value(CONFIG_KEY_4_ROCKETMQ_NAME_SERVER)
             defaultNameSrv: String,
             @Value(CONFIG_KEY_4_ROCKETMQ_MSG_CHARSET)
-            msgCharset: String
+            msgCharset: String,
         ): RocketMqIntegrationEventSubscriberAdapter {
             return RocketMqIntegrationEventSubscriberAdapter(
                 eventSubscriberManager,
@@ -474,17 +474,20 @@ class IntegrationEventAutoConfiguration {
 
         @Bean
         @ConditionalOnProperty(name = ["spring.rabbitmq.host"])
-        @ConditionalOnClass(name = ["org.springframework.amqp.rabbit.connection.ConnectionFactory"])
+        @ConditionalOnClass(name = ["org.springframework.amqp.rabbit.core.RabbitTemplate"])
         @ConditionalOnMissingBean(IntegrationEventPublisher::class)
         fun rabbitMqIntegrationEventPublisher(
-            rabbitTemplate: RabbitTemplate,
-            connectionFactory: ConnectionFactory,
+            rabbitTemplate: Any,
+            connectionFactory: Any,
             environment: Environment,
-            rabbitMqIntegrationEventAdapterProperties: RabbitMqIntegrationEventAdapterProperties
-        ): RabbitMqIntegrationEventPublisher {
+            rabbitMqIntegrationEventAdapterProperties: RabbitMqIntegrationEventAdapterProperties,
+        ): Any {
+            val template = rabbitTemplate as RabbitTemplate
+            val factory = connectionFactory as ConnectionFactory
+
             return RabbitMqIntegrationEventPublisher(
-                rabbitTemplate,
-                connectionFactory,
+                template,
+                factory,
                 environment,
                 rabbitMqIntegrationEventAdapterProperties.publishThreadPoolSize,
                 rabbitMqIntegrationEventAdapterProperties.publishThreadFactoryClassName,
@@ -503,22 +506,25 @@ class IntegrationEventAutoConfiguration {
             eventMessageInterceptors: List<EventMessageInterceptor>,
             @Autowired(required = false)
             rabbitMqIntegrationEventConfigure: RabbitMqIntegrationEventConfigure?,
-            simpleRabbitListenerContainerFactory: SimpleRabbitListenerContainerFactory,
-            connectionFactory: ConnectionFactory,
+            simpleRabbitListenerContainerFactory: Any,
+            connectionFactory: Any,
             environment: Environment,
             eventProperties: EventProperties,
             @Value(CONFIG_KEY_4_SVC_NAME)
             svcName: String,
             @Value(CONFIG_KEY_4_ROCKETMQ_MSG_CHARSET)
             msgCharset: String,
-            rabbitMqIntegrationEventAdapterProperties: RabbitMqIntegrationEventAdapterProperties
-        ): RabbitMqIntegrationEventSubscriberAdapter {
+            rabbitMqIntegrationEventAdapterProperties: RabbitMqIntegrationEventAdapterProperties,
+        ): Any {
+            val factory = simpleRabbitListenerContainerFactory as SimpleRabbitListenerContainerFactory
+            val connection = connectionFactory as ConnectionFactory
+
             return RabbitMqIntegrationEventSubscriberAdapter(
                 eventSubscriberManager,
                 eventMessageInterceptors,
                 rabbitMqIntegrationEventConfigure,
-                simpleRabbitListenerContainerFactory,
-                connectionFactory,
+                factory,
+                connection,
                 environment,
                 eventProperties.eventScanPackage,
                 svcName,

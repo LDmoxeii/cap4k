@@ -1,12 +1,10 @@
 package com.only4.cap4k.ddd.application.event.impl
 
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 @DisplayName("默认HTTP集成事件订阅注册器测试")
 class DefaultHttpIntegrationEventSubscriberRegisterTest {

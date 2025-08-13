@@ -46,59 +46,58 @@ interface Mediator : AggregateFactorySupervisor,
 
     companion object {
         @JvmStatic
-        val instance: Mediator
-            get() = MediatorSupport.instance
+        val instance: Mediator by lazy { MediatorSupport.instance }
 
         @JvmStatic
-        val ioc: ApplicationContext = MediatorSupport.ioc
+        val ioc: ApplicationContext by lazy { MediatorSupport.ioc }
 
         @JvmStatic
-        val factories: AggregateFactorySupervisor = AggregateFactorySupervisor.instance
+        val factories: AggregateFactorySupervisor by lazy { AggregateFactorySupervisor.instance }
 
         @JvmStatic
-        val repositories: RepositorySupervisor = RepositorySupervisor.instance
+        val repositories: RepositorySupervisor by lazy { RepositorySupervisor.instance }
 
         @JvmStatic
-        val aggregates: AggregateSupervisor = AggregateSupervisor.instance
+        val aggregates: AggregateSupervisor by lazy { AggregateSupervisor.instance }
 
         @JvmStatic
-        val services: DomainServiceSupervisor = DomainServiceSupervisor.instance
+        val services: DomainServiceSupervisor by lazy { DomainServiceSupervisor.instance }
 
         @JvmStatic
-        val events: IntegrationEventSupervisor = IntegrationEventSupervisor.instance
+        val events: IntegrationEventSupervisor by lazy { IntegrationEventSupervisor.instance }
 
         @JvmStatic
-        val requests: RequestSupervisor = RequestSupervisor.instance
+        val requests: RequestSupervisor by lazy { RequestSupervisor.instance }
 
         @JvmStatic
-        val commands: RequestSupervisor = requests
+        val commands: RequestSupervisor by lazy { requests }
 
         @JvmStatic
-        val queries: RequestSupervisor = requests
+        val queries: RequestSupervisor by lazy { requests }
 
         // Shortcuts
         @JvmStatic
-        val fac: AggregateFactorySupervisor = factories
+        val fac: AggregateFactorySupervisor by lazy { factories }
 
         @JvmStatic
-        val repo: RepositorySupervisor = repositories
+        val repo: RepositorySupervisor by lazy { repositories }
 
         @JvmStatic
-        val agg: AggregateSupervisor = aggregates
+        val agg: AggregateSupervisor by lazy { aggregates }
 
         @JvmStatic
-        val svc: DomainServiceSupervisor = services
+        val svc: DomainServiceSupervisor by lazy { services }
 
         @JvmStatic
-        val uow: UnitOfWork = UnitOfWork.instance
+        val uow: UnitOfWork by lazy { UnitOfWork.instance }
 
         @JvmStatic
-        val req: RequestSupervisor = requests
+        val req: RequestSupervisor by lazy { requests }
 
         @JvmStatic
-        val cmd: RequestSupervisor = requests
+        val cmd: RequestSupervisor by lazy { requests }
 
         @JvmStatic
-        val qry: RequestSupervisor = requests
+        val qry: RequestSupervisor by lazy { requests }
     }
 }

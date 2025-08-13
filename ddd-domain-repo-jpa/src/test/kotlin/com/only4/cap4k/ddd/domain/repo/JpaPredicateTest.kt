@@ -4,12 +4,12 @@ import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
 import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
 import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
 import io.mockk.mockk
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertNotNull
+import org.junit.jupiter.api.assertNull
 import org.springframework.data.jpa.domain.Specification
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 
 class JpaPredicateTest {
 

@@ -15,13 +15,9 @@ import com.only4.cap4k.ddd.core.archinfo.model.elements.reqres.QueryElement
 import com.only4.cap4k.ddd.core.archinfo.model.elements.reqres.RequestElement
 import com.only4.cap4k.ddd.core.archinfo.model.elements.reqres.SagaElement
 import com.only4.cap4k.ddd.core.share.Constants.ARCH_INFO_VERSION
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 
 @DisplayName("ArchInfoManager 测试")
 class ArchInfoManagerTest {

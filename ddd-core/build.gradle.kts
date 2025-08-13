@@ -1,38 +1,38 @@
 plugins {
     id("buildsrc.convention.kotlin-jvm")
-    application
 }
 
 dependencies {
-    // Platform dependencies
-    api(platform(libs.springBootDependencies))
+    // Platform dependencies for BOM management
+    api(platform(libs.spring.boot.dependencies))
+
+    // Core API dependencies that are exposed to consumers
+    api(libs.validation)
 
     // Compile-only dependencies - Spring framework
-    compileOnly(libs.springContext)
-    compileOnly(libs.springTx)
-    compileOnly(libs.springMessaging)
-    compileOnly(libs.springData)
-
-    // Compile-only dependencies - Other
+    compileOnly(libs.spring.context)
+    compileOnly(libs.spring.tx)
+    compileOnly(libs.spring.messaging)
+    // 由 Spring-Data-JPA 替换而成
+    compileOnly(libs.jpa)
     compileOnly(libs.aspectjweaver)
-    compileOnly(libs.validation)
-    compileOnly(libs.slf4j)
 
-    // Test dependencies - Spring framework
-    testImplementation(libs.springContext)
-    testImplementation(libs.springTx)
-    testImplementation(libs.springMessaging)
-    testImplementation(libs.springData)
+    // Common dependencies
+    implementation(libs.slf4j)
 
-    // Test dependencies - Other
-    testImplementation(libs.aspectjweaver)
-    testImplementation(libs.validation)
-    testImplementation(libs.slf4j)
-
-    // Test framework dependencies
-    testImplementation(libs.mockk)
-    testImplementation(libs.mockkAgentJvm)
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
-    testImplementation("org.jetbrains.kotlin:kotlin-test")
+    // Test dependencies
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.mockk) {
+        exclude(group = "org.slf4j", module = "slf4j-api")
+    }
+    testImplementation("org.junit.jupiter:junit-jupiter-api")
+    testImplementation("org.junit.jupiter:junit-jupiter-params")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+
+    testImplementation(libs.spring.context)
+    testImplementation(libs.spring.tx)
+    testImplementation(libs.spring.messaging)
+    testImplementation(libs.jpa)
+    testImplementation(libs.aspectjweaver)
 }

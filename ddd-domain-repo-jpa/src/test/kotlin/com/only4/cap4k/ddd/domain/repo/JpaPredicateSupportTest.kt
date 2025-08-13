@@ -3,12 +3,13 @@ package com.only4.cap4k.ddd.domain.repo
 import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import io.mockk.mockk
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertNull
+import org.junit.jupiter.api.assertThrows
 import org.springframework.data.jpa.domain.Specification
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertSame
 
 class JpaPredicateSupportTest {
 
@@ -86,7 +87,7 @@ class JpaPredicateSupportTest {
         val nonJpaPredicate = NonJpaPredicate()
 
         // 执行和验证
-        kotlin.test.assertFailsWith<com.only4.cap4k.ddd.core.share.DomainException> {
+        assertThrows<com.only4.cap4k.ddd.core.share.DomainException> {
             JpaPredicateSupport.resumeId<TestEntity, Long>(nonJpaPredicate)
         }
     }
@@ -140,7 +141,7 @@ class JpaPredicateSupportTest {
         val nonJpaPredicate = NonJpaPredicate()
 
         // 执行和验证
-        kotlin.test.assertFailsWith<com.only4.cap4k.ddd.core.share.DomainException> {
+        assertThrows<com.only4.cap4k.ddd.core.share.DomainException> {
             JpaPredicateSupport.resumeIds<TestEntity, Long>(nonJpaPredicate)
         }
     }
@@ -179,7 +180,7 @@ class JpaPredicateSupportTest {
         val nonJpaPredicate = NonJpaPredicate()
 
         // 执行和验证
-        kotlin.test.assertFailsWith<com.only4.cap4k.ddd.core.share.DomainException> {
+        assertThrows<com.only4.cap4k.ddd.core.share.DomainException> {
             JpaPredicateSupport.resumeSpecification(nonJpaPredicate)
         }
     }
@@ -204,7 +205,7 @@ class JpaPredicateSupportTest {
         val nonJpaPredicate = NonJpaPredicate()
 
         // 执行和验证
-        kotlin.test.assertFailsWith<com.only4.cap4k.ddd.core.share.DomainException> {
+        assertThrows<com.only4.cap4k.ddd.core.share.DomainException> {
             JpaPredicateSupport.reflectEntityClass(nonJpaPredicate)
         }
     }

@@ -2,12 +2,10 @@ package com.only4.cap4k.ddd.domain.repo.querydsl
 
 import com.querydsl.core.BooleanBuilder
 import com.querydsl.core.types.dsl.Expressions
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.assertNotNull
 
 @DisplayName("QuerydslPredicate 测试")
 class QuerydslPredicateTest {

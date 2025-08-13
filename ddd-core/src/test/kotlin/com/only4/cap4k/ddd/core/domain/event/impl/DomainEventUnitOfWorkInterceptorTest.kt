@@ -2,14 +2,9 @@ package com.only4.cap4k.ddd.core.domain.event.impl
 
 import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
 import io.mockk.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 
 /**
  * DomainEventUnitOfWorkInterceptor测试
@@ -197,7 +192,7 @@ class DomainEventUnitOfWorkInterceptorTest {
             every { domainEventManager.release(any()) } throws exception
 
             // when & then
-            val thrownException = assertFailsWith<RuntimeException> {
+            val thrownException = assertThrows<RuntimeException> {
                 interceptor.postEntitiesPersisted(entities)
             }
 

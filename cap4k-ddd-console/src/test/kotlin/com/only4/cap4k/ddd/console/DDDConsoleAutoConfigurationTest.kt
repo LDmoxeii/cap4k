@@ -9,12 +9,13 @@ import com.only4.cap4k.ddd.core.application.RequestManager
 import com.only4.cap4k.ddd.core.application.saga.SagaManager
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import io.mockk.mockk
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertNotNull
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.web.HttpRequestHandler
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
 @DisplayName("DDD控制台自动配置测试")
 class DDDConsoleAutoConfigurationTest {
@@ -155,7 +156,7 @@ class DDDConsoleAutoConfigurationTest {
             data = "测试数据"
         )
         assertTrue(response.success)
-        kotlin.test.assertEquals("成功", response.message)
-        kotlin.test.assertEquals("测试数据", response.data)
+        assertEquals("成功", response.message)
+        assertEquals("测试数据", response.data)
     }
 }
