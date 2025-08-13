@@ -2,21 +2,15 @@ plugins {
     id("buildsrc.convention.kotlin-jvm")
 }
 dependencies {
-    // Project dependencies
     implementation(project(":ddd-core"))
 
-    // Implementation dependencies
     implementation(libs.fastjson)
     implementation(kotlin("reflect"))
 
-    // API dependencies
-    compileOnly(libs.spring.tx)
-    compileOnly(libs.rocketmq)
+    implementation(libs.rocketmq)
 
-    // Common dependencies
     implementation(libs.slf4j)
 
-    // Test dependencies
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.mockk) {
         exclude(group = "org.slf4j", module = "slf4j-api")

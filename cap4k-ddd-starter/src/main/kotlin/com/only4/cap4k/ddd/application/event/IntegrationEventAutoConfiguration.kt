@@ -62,26 +62,23 @@ class IntegrationEventAutoConfiguration {
         applicationEventPublisher: ApplicationEventPublisher,
         @Value(CONFIG_KEY_4_SVC_NAME)
         svcName: String,
-    ): DefaultIntegrationEventSupervisor {
-        val defaultIntegrationEventSupervisor = DefaultIntegrationEventSupervisor(
-            eventPublisher,
-            eventRecordRepository,
-            integrationEventInterceptorManager,
-            applicationEventPublisher,
-            svcName
-        )
-
-        IntegrationEventSupervisorSupport.configure(defaultIntegrationEventSupervisor as IntegrationEventSupervisor)
-        IntegrationEventSupervisorSupport.configure(defaultIntegrationEventSupervisor as IntegrationEventManager)
-        return defaultIntegrationEventSupervisor
+    ): DefaultIntegrationEventSupervisor = DefaultIntegrationEventSupervisor(
+        eventPublisher,
+        eventRecordRepository,
+        integrationEventInterceptorManager,
+        applicationEventPublisher,
+        svcName
+    ).also {
+        IntegrationEventSupervisorSupport.configure(it as IntegrationEventSupervisor)
+        IntegrationEventSupervisorSupport.configure(it as IntegrationEventManager)
     }
+
 
     @Bean
     fun integrationEventUnitOfWorkInterceptor(
         integrationEventManager: IntegrationEventManager,
-    ): IntegrationEventUnitOfWorkInterceptor {
-        return IntegrationEventUnitOfWorkInterceptor(integrationEventManager)
-    }
+    ): IntegrationEventUnitOfWorkInterceptor = IntegrationEventUnitOfWorkInterceptor(integrationEventManager)
+
 
     @Configuration
     @ConditionalOnClass(name = ["com.only4.cap4k.ddd.application.event.HttpIntegrationEventSubscriberAdapter"])
@@ -414,7 +411,7 @@ class IntegrationEventAutoConfiguration {
     }
 
     @Configuration
-    @ConditionalOnClass(name = ["org.apache.rocketmq.spring.autoconfigure.RocketMQAutoConfiguration", "com.only4.cap4k.ddd.application.event.RocketMqIntegrationEventSubscriberAdapter"])
+    @ConditionalOnClass(name = ["com.only4.cap4k.ddd.application.event.RocketMqIntegrationEventSubscriberAdapter"])
     @ImportAutoConfiguration(RocketMQAutoConfiguration::class)
     class RocketMqAdapterLauncher {
 

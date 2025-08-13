@@ -22,9 +22,8 @@ class DomainServiceAutoConfiguration {
      * @return
      */
     @Bean
-    fun defaultDomainServiceSupervisor(applicationContext: ApplicationContext): DefaultDomainServiceSupervisor {
-        return DefaultDomainServiceSupervisor(applicationContext).apply {
-            DomainServiceSupervisorSupport.configure(this)
+    fun defaultDomainServiceSupervisor(applicationContext: ApplicationContext): DefaultDomainServiceSupervisor =
+        DefaultDomainServiceSupervisor(applicationContext).also {
+            DomainServiceSupervisorSupport.configure(it)
         }
-    }
 }

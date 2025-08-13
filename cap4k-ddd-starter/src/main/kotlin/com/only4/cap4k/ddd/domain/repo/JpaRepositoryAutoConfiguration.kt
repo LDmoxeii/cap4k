@@ -40,66 +40,60 @@ class JpaRepositoryAutoConfiguration {
     fun defaultRepositorySupervisor(
         repositories: List<Repository<*>>,
         unitOfWork: JpaUnitOfWork
-    ): DefaultRepositorySupervisor {
-        return DefaultRepositorySupervisor(repositories, unitOfWork).apply {
-            init()
-            RepositorySupervisorSupport.configure(this)
-        }
+    ): DefaultRepositorySupervisor = DefaultRepositorySupervisor(repositories, unitOfWork).apply {
+        init()
+        RepositorySupervisorSupport.configure(this)
     }
+
 
     @Bean
     fun defaultAggregateSupervisor(
         repositorySupervisor: DefaultRepositorySupervisor,
         jpaUnitOfWork: JpaUnitOfWork
-    ): DefaultAggregateSupervisor {
-        return DefaultAggregateSupervisor(
-            repositorySupervisor,
-            jpaUnitOfWork
-        ).apply {
-            AggregateSupervisorSupport.configure(this)
-        }
+    ): DefaultAggregateSupervisor = DefaultAggregateSupervisor(
+        repositorySupervisor,
+        jpaUnitOfWork
+    ).also {
+        AggregateSupervisorSupport.configure(it)
     }
+
 
     @Bean
     fun defaultAggregateFactorySupervisor(
         factories: List<AggregateFactory<*, *>>,
         jpaUnitOfWork: JpaUnitOfWork
-    ): DefaultAggregateFactorySupervisor {
-        return DefaultAggregateFactorySupervisor(
-            factories,
-            jpaUnitOfWork
-        ).apply {
-            init()
-            AggregateFactorySupervisorSupport.configure(this)
-        }
+    ): DefaultAggregateFactorySupervisor = DefaultAggregateFactorySupervisor(
+        factories,
+        jpaUnitOfWork
+    ).apply {
+        init()
+        AggregateFactorySupervisorSupport.configure(this)
     }
+
 
     @Bean
     fun jpaUnitOfWork(
         unitOfWorkInterceptors: List<UnitOfWorkInterceptor>,
         persistListenerManager: PersistListenerManager,
         jpaUnitOfWorkProperties: JpaUnitOfWorkProperties
-    ): JpaUnitOfWork {
-        return JpaUnitOfWork(
-            unitOfWorkInterceptors,
-            persistListenerManager,
-            jpaUnitOfWorkProperties.supportEntityInlinePersistListener,
-            jpaUnitOfWorkProperties.supportValueObjectExistsCheckOnSave
-        ).apply {
-            UnitOfWorkSupport.configure(this)
-            JpaQueryUtils.configure(this, jpaUnitOfWorkProperties.retrieveCountWarnThreshold)
-            Md5HashIdentifierGenerator.configure(jpaUnitOfWorkProperties.generalIdFieldName)
-        }
+    ): JpaUnitOfWork = JpaUnitOfWork(
+        unitOfWorkInterceptors,
+        persistListenerManager,
+        jpaUnitOfWorkProperties.supportEntityInlinePersistListener,
+        jpaUnitOfWorkProperties.supportValueObjectExistsCheckOnSave
+    ).also {
+        UnitOfWorkSupport.configure(it)
+        JpaQueryUtils.configure(it, jpaUnitOfWorkProperties.retrieveCountWarnThreshold)
+        Md5HashIdentifierGenerator.configure(jpaUnitOfWorkProperties.generalIdFieldName)
     }
+
 
     @Configuration
     class JpaUnitOfWorkLoader(
         @Autowired(required = false) jpaUnitOfWork: JpaUnitOfWork?
     ) {
         init {
-            if (jpaUnitOfWork != null) {
-                JpaUnitOfWork.fixAopWrapper(jpaUnitOfWork)
-            }
+            jpaUnitOfWork?.let { JpaUnitOfWork.fixAopWrapper(it) }
         }
     }
 
@@ -108,27 +102,26 @@ class JpaRepositoryAutoConfiguration {
     fun defaultPersistListenerManager(
         persistListeners: List<PersistListener<*>>,
         eventProperties: EventProperties
-    ): DefaultPersistListenerManager {
-        return DefaultPersistListenerManager(
+    ): DefaultPersistListenerManager =
+        DefaultPersistListenerManager(
             persistListeners,
             eventProperties.eventScanPackage
         ).apply {
             init()
         }
-    }
 
     @Bean
     @ConditionalOnMissingBean(SpecificationManager::class)
-    fun defaultSpecificationManager(specifications: List<Specification<*>>): DefaultSpecificationManager {
-        return DefaultSpecificationManager(specifications).apply {
+    fun defaultSpecificationManager(specifications: List<Specification<*>>): DefaultSpecificationManager =
+        DefaultSpecificationManager(specifications).apply {
             init()
         }
-    }
+
 
     @Bean
-    fun specificationUnitOfWorkInterceptor(specificationManager: SpecificationManager): SpecificationUnitOfWorkInterceptor {
-        return SpecificationUnitOfWorkInterceptor(specificationManager)
-    }
+    fun specificationUnitOfWorkInterceptor(specificationManager: SpecificationManager): SpecificationUnitOfWorkInterceptor =
+        SpecificationUnitOfWorkInterceptor(specificationManager)
+
 
     @Bean
     @ConditionalOnProperty(
@@ -136,7 +129,7 @@ class JpaRepositoryAutoConfiguration {
         havingValue = "true",
         matchIfMissing = true
     )
-    fun defaultEntityInlinePersistListener(): DefaultEntityInlinePersistListener {
-        return DefaultEntityInlinePersistListener()
-    }
+    fun defaultEntityInlinePersistListener(): DefaultEntityInlinePersistListener =
+        DefaultEntityInlinePersistListener()
+
 }

@@ -19,10 +19,9 @@ class MediatorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(Mediator::class)
-    fun defaultMediator(applicationContext: ApplicationContext): DefaultMediator {
-        val defaultMediator = DefaultMediator()
-        MediatorSupport.configure(defaultMediator)
-        MediatorSupport.configure(applicationContext)
-        return defaultMediator
-    }
+    fun defaultMediator(applicationContext: ApplicationContext): DefaultMediator =
+        DefaultMediator().also {
+            MediatorSupport.configure(it)
+            MediatorSupport.configure(applicationContext)
+        }
 }

@@ -1,6 +1,5 @@
 package com.only4.cap4k.ddd.domain.event
 
-import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.application.distributed.Locker
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
@@ -15,7 +14,6 @@ import com.only4.cap4k.ddd.domain.event.configure.EventProperties
 import com.only4.cap4k.ddd.domain.event.configure.EventScheduleProperties
 import com.only4.cap4k.ddd.domain.event.persistence.ArchivedEventJpaRepository
 import com.only4.cap4k.ddd.domain.event.persistence.EventJpaRepository
-import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.domain.EntityScan
@@ -60,35 +58,31 @@ class DomainEventAutoConfiguration {
         eventPublisher: EventPublisher,
         applicationEventPublisher: ApplicationEventPublisher,
         @Value(CONFIG_KEY_4_SVC_NAME) svcName: String,
-    ): DefaultDomainEventSupervisor {
-        return DefaultDomainEventSupervisor(
+    ): DefaultDomainEventSupervisor =
+        DefaultDomainEventSupervisor(
             eventRecordRepository,
             domainEventInterceptorManager,
             eventPublisher,
             applicationEventPublisher,
             svcName
-        ).apply {
-            DomainEventSupervisorSupport.configure(this as DomainEventSupervisor)
-            DomainEventSupervisorSupport.configure(this as DomainEventManager)
+        ).also {
+            DomainEventSupervisorSupport.configure(it as DomainEventSupervisor)
+            DomainEventSupervisorSupport.configure(it as DomainEventManager)
         }
-    }
 
     @Bean
-    fun domainEventUnitOfWorkInterceptor(domainEventManager: DomainEventManager): DomainEventUnitOfWorkInterceptor {
-        return DomainEventUnitOfWorkInterceptor(domainEventManager)
-    }
+    fun domainEventUnitOfWorkInterceptor(domainEventManager: DomainEventManager): DomainEventUnitOfWorkInterceptor =
+        DomainEventUnitOfWorkInterceptor(domainEventManager)
 
     @Bean
     @ConditionalOnMissingBean(EventRecordRepository::class)
     fun jpaEventRecordRepository(
         eventJpaRepository: EventJpaRepository,
         archivedEventJpaRepository: ArchivedEventJpaRepository
-    ): JpaEventRecordRepository {
-        return JpaEventRecordRepository(
-            eventJpaRepository,
-            archivedEventJpaRepository
-        )
-    }
+    ): JpaEventRecordRepository = JpaEventRecordRepository(
+        eventJpaRepository,
+        archivedEventJpaRepository
+    )
 
     @Bean
     @ConditionalOnMissingBean(JpaEventScheduleService::class)
@@ -101,20 +95,19 @@ class DomainEventAutoConfiguration {
         @Value(CONFIG_KEY_4_EVENT_ARCHIVE_LOCKER_KEY) archiveLockerKey: String,
         eventScheduleProperties: EventScheduleProperties,
         jdbcTemplate: JdbcTemplate,
-    ): JpaEventScheduleService {
-        return JpaEventScheduleService(
-            eventPublisher,
-            eventRecordRepository,
-            locker,
-            svcName,
-            compensationLockerKey,
-            archiveLockerKey,
-            eventScheduleProperties.addPartitionEnable,
-            jdbcTemplate
-        ).apply {
-            init()
-        }
+    ): JpaEventScheduleService = JpaEventScheduleService(
+        eventPublisher,
+        eventRecordRepository,
+        locker,
+        svcName,
+        compensationLockerKey,
+        archiveLockerKey,
+        eventScheduleProperties.addPartitionEnable,
+        jdbcTemplate
+    ).apply {
+        init()
     }
+
 
     /**
      * 领域事件定时补偿任务
@@ -170,20 +163,19 @@ class DomainEventAutoConfiguration {
         integrationEventInterceptorManager: IntegrationEventInterceptorManager,
         integrationEventPublishCallback: IntegrationEventPublisher.PublishCallback,
         eventProperties: EventProperties
-    ): DefaultEventPublisher {
-        return DefaultEventPublisher(
-            eventSubscriberManager,
-            integrationEventPublishers,
-            eventRecordRepository,
-            eventMessageInterceptorManager,
-            domainEventInterceptorManager,
-            integrationEventInterceptorManager,
-            integrationEventPublishCallback,
-            eventProperties.publisherThreadPoolSize
-        ).apply {
-            init()
-        }
+    ): DefaultEventPublisher = DefaultEventPublisher(
+        eventSubscriberManager,
+        integrationEventPublishers,
+        eventRecordRepository,
+        eventMessageInterceptorManager,
+        domainEventInterceptorManager,
+        integrationEventInterceptorManager,
+        integrationEventPublishCallback,
+        eventProperties.publisherThreadPoolSize
+    ).apply {
+        init()
     }
+
 
     @Bean
     @ConditionalOnMissingBean(EventSubscriberManager::class)
@@ -191,15 +183,14 @@ class DomainEventAutoConfiguration {
         subscribers: List<EventSubscriber<*>>,
         applicationEventPublisher: ApplicationEventPublisher,
         eventProperties: EventProperties
-    ): DefaultEventSubscriberManager {
-        return DefaultEventSubscriberManager(
-            subscribers,
-            applicationEventPublisher,
-            eventProperties.eventScanPackage
-        ).apply {
-            init()
-        }
+    ): DefaultEventSubscriberManager = DefaultEventSubscriberManager(
+        subscribers,
+        applicationEventPublisher,
+        eventProperties.eventScanPackage
+    ).apply {
+        init()
     }
+
 
     @Bean
     @ConditionalOnMissingBean(DefaultEventInterceptorManager::class)
@@ -207,11 +198,10 @@ class DomainEventAutoConfiguration {
         eventMessageInterceptors: List<EventMessageInterceptor>,
         interceptors: List<EventInterceptor>,
         eventRecordRepository: EventRecordRepository
-    ): DefaultEventInterceptorManager {
-        return DefaultEventInterceptorManager(
-            eventMessageInterceptors,
-            interceptors,
-            eventRecordRepository
-        )
-    }
+    ): DefaultEventInterceptorManager = DefaultEventInterceptorManager(
+        eventMessageInterceptors,
+        interceptors,
+        eventRecordRepository
+    )
+
 }

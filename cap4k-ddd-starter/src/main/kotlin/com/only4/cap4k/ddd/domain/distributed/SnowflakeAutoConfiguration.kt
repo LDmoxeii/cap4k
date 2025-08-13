@@ -67,8 +67,7 @@ class SnowflakeAutoConfiguration(
         val snowflakeIdGenerator = SnowflakeIdGenerator(
             workerId % (1 shl SnowflakeIdGenerator.WORKER_ID_BITS.toInt()),
             workerId shr 5
-        )
-        SnowflakeIdentifierGenerator.configure(snowflakeIdGenerator)
+        ).also { SnowflakeIdentifierGenerator.configure(it) }
         return snowflakeIdGenerator
     }
 
@@ -78,21 +77,20 @@ class SnowflakeAutoConfiguration(
         properties: SnowflakeProperties,
         jdbcTemplate: JdbcTemplate,
         @Value(CONFIG_KEY_4_JPA_SHOW_SQL) showSql: Boolean
-    ): DefaultSnowflakeWorkerIdDispatcher {
-        return DefaultSnowflakeWorkerIdDispatcher(
-            jdbcTemplate,
-            properties.table,
-            properties.fieldDatacenterId,
-            properties.fieldWorkerId,
-            properties.fieldDispatchTo,
-            properties.fieldDispatchAt,
-            properties.fieldExpireAt,
-            properties.expireMinutes,
-            properties.localHostIdentify,
-            showSql
-        ).apply {
-            init()
-            snowflakeWorkerIdDispatcher = this
-        }
+    ): DefaultSnowflakeWorkerIdDispatcher = DefaultSnowflakeWorkerIdDispatcher(
+        jdbcTemplate,
+        properties.table,
+        properties.fieldDatacenterId,
+        properties.fieldWorkerId,
+        properties.fieldDispatchTo,
+        properties.fieldDispatchAt,
+        properties.fieldExpireAt,
+        properties.expireMinutes,
+        properties.localHostIdentify,
+        showSql
+    ).apply {
+        init()
+        snowflakeWorkerIdDispatcher = this
     }
+
 }

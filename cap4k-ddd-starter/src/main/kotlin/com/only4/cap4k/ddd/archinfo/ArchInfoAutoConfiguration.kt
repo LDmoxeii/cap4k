@@ -32,9 +32,8 @@ class ArchInfoAutoConfiguration {
         @Value(CONFIG_KEY_4_SVC_NAME) name: String,
         @Value(CONFIG_KEY_4_SVC_VERSION) version: String,
         archInfoProperties: ArchInfoProperties,
-    ): ArchInfoManager {
-        return ArchInfoManager(name, version, archInfoProperties.basePackage)
-    }
+    ): ArchInfoManager = ArchInfoManager(name, version, archInfoProperties.basePackage)
+
 
     @ConditionalOnWebApplication
     @ConditionalOnProperty(name = ["cap4k.ddd.archinfo.enabled"], havingValue = "true")
@@ -43,17 +42,15 @@ class ArchInfoAutoConfiguration {
         archInfoManager: ArchInfoManager,
         @Value("\${server.port:80}") serverPort: String,
         @Value("\${server.servlet.context-path:}") serverServletContentPath: String
-    ): HttpRequestHandler {
-        log.info("ArchInfo URL: http://localhost:$serverPort$serverServletContentPath/cap4k/archinfo")
-        return HttpRequestHandler { req, res ->
-            val archInfo = archInfoManager.getArchInfo()
-            res.characterEncoding = StandardCharsets.UTF_8.name()
-            res.contentType = "application/json; charset=utf-8"
-            res.writer.apply {
-                println(JSON.toJSONString(archInfo))
-                flush()
-                close()
-            }
+    ): HttpRequestHandler = HttpRequestHandler { req, res ->
+        val archInfo = archInfoManager.getArchInfo()
+        res.characterEncoding = StandardCharsets.UTF_8.name()
+        res.contentType = "application/json; charset=utf-8"
+        res.writer.apply {
+            println(JSON.toJSONString(archInfo))
+            flush()
+            close()
         }
-    }
+    }.apply { log.info("ArchInfo URL: http://localhost:$serverPort$serverServletContentPath/cap4k/archinfo") }
+
 }

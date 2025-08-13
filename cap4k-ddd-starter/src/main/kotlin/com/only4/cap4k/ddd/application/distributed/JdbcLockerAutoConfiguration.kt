@@ -29,20 +29,19 @@ class JdbcLockerAutoConfiguration(
     fun jdbcLocker(
         properties: JdbcLockerProperties,
         @Value(CONFIG_KEY_4_JPA_SHOW_SQL) showSql: Boolean
-    ): JdbcLocker {
-        return JdbcLocker(
-            jdbcTemplate = jdbcTemplate,
-            table = properties.table,
-            fieldName = properties.fieldName,
-            fieldPwd = properties.fieldPwd,
-            fieldLockAt = properties.fieldLockAt,
-            fieldUnlockAt = properties.fieldUnlockAt,
-            showSql = showSql
-        )
-    }
+    ): JdbcLocker = JdbcLocker(
+        jdbcTemplate = jdbcTemplate,
+        table = properties.table,
+        fieldName = properties.fieldName,
+        fieldPwd = properties.fieldPwd,
+        fieldLockAt = properties.fieldLockAt,
+        fieldUnlockAt = properties.fieldUnlockAt,
+        showSql = showSql
+    )
+
 
     @Bean
-    fun reentrantAspect(locker: Locker): ReentrantAspect {
-        return ReentrantAspect(locker)
-    }
+    fun reentrantAspect(locker: Locker): ReentrantAspect =
+        ReentrantAspect(locker)
+
 }
