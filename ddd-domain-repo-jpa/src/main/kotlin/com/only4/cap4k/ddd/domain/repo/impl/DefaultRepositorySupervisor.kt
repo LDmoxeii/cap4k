@@ -8,6 +8,7 @@ import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
+import com.only4.cap4k.ddd.core.share.PageParam.Companion.limit
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
 import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicateSupport
@@ -110,84 +111,60 @@ class DefaultRepositorySupervisor(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean
-    ): List<ENTITY> {
-        val entityClass = reflectEntityClass<ENTITY>(predicate)
-        return repo(entityClass, predicate).find(predicate, orders, persist)
-    }
+    ): List<ENTITY> =
+        repo(reflectEntityClass<ENTITY>(predicate), predicate).find(predicate, orders, persist)
+            .also { if (persist) it.forEach(unitOfWork::persist) }
+
 
     override fun <ENTITY : Any> find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
         persist: Boolean
-    ): List<ENTITY> {
-        val entityClass = reflectEntityClass<ENTITY>(predicate)
-        val list = repo(entityClass, predicate).find(predicate, pageParam, persist)
-        if (persist) {
-            list.forEach(unitOfWork::persist)
-        }
-        return list
-    }
+    ): List<ENTITY> = repo(reflectEntityClass<ENTITY>(predicate), predicate)
+        .find(predicate, pageParam, persist)
+        .also { if (persist) it.forEach(unitOfWork::persist) }
 
     override fun <ENTITY : Any> findOne(
         predicate: Predicate<ENTITY>,
         persist: Boolean
-    ): Optional<ENTITY> {
-        val entityClass = reflectEntityClass<ENTITY>(predicate)
-        val entity = repo(entityClass, predicate).findOne(predicate, persist)
-        if (persist) {
-            entity.ifPresent(unitOfWork::persist)
-        }
-        return entity
-    }
+    ): Optional<ENTITY> = repo(reflectEntityClass<ENTITY>(predicate), predicate)
+        .findOne(predicate, persist)
+        .also { if (persist) it.ifPresent(unitOfWork::persist) }
 
     override fun <ENTITY : Any> findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean
-    ): Optional<ENTITY> {
-        val entityClass = reflectEntityClass<ENTITY>(predicate)
-        val entity = repo(entityClass, predicate).findFirst(predicate, orders, persist)
-        if (persist) {
-            entity.ifPresent(unitOfWork::persist)
-        }
-        return entity
-    }
+    ): Optional<ENTITY> = repo(reflectEntityClass<ENTITY>(predicate), predicate)
+        .findFirst(predicate, orders, persist)
+        .also { if (persist) it.ifPresent(unitOfWork::persist) }
 
     override fun <ENTITY : Any> findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
         persist: Boolean
-    ): PageData<ENTITY> {
-        val entityClass = reflectEntityClass<ENTITY>(predicate)
-        val pageData = repo(entityClass, predicate).findPage(predicate, pageParam, persist)
-        if (persist && pageData.list.isNotEmpty()) {
-            pageData.list.forEach(unitOfWork::persist)
-        }
-        return pageData
-    }
+    ): PageData<ENTITY> =
+        repo(reflectEntityClass<ENTITY>(predicate), predicate)
+            .findPage(predicate, pageParam, persist)
+            .apply { if (persist) list.forEach(unitOfWork::persist) }
 
-    override fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>): List<ENTITY> {
-        val entityClass = reflectEntityClass<ENTITY>(predicate)
-        val entities = repo(entityClass, predicate).find(predicate)
-        entities.forEach(unitOfWork::remove)
-        return entities
-    }
+    override fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>): List<ENTITY> =
+        repo(reflectEntityClass<ENTITY>(predicate), predicate)
+            .find(predicate)
+            .onEach(unitOfWork::remove)
 
-    override fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>, limit: Int): List<ENTITY> {
-        val entityClass = reflectEntityClass<ENTITY>(predicate)
-        val pageParam = PageParam.limit(limit)
-        val entities = repo(entityClass, predicate).findPage(predicate, pageParam)
-        entities.list.forEach(unitOfWork::remove)
-        return entities.list
-    }
 
-    override fun <ENTITY : Any> count(predicate: Predicate<ENTITY>): Long {
-        val entityClass = reflectEntityClass<ENTITY>(predicate)
-        return repo(entityClass, predicate).count(predicate)
-    }
+    override fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>, limit: Int): List<ENTITY> =
+        repo(reflectEntityClass<ENTITY>(predicate), predicate)
+            .findPage(predicate, limit(limit))
+            .list
+            .onEach(unitOfWork::remove)
 
-    override fun <ENTITY : Any> exists(predicate: Predicate<ENTITY>): Boolean {
-        val entityClass = reflectEntityClass<ENTITY>(predicate)
-        return repo(entityClass, predicate).exists(predicate)
-    }
+    override fun <ENTITY : Any> count(predicate: Predicate<ENTITY>): Long =
+        repo(reflectEntityClass<ENTITY>(predicate), predicate)
+            .count(predicate)
+
+
+    override fun <ENTITY : Any> exists(predicate: Predicate<ENTITY>): Boolean =
+        repo(reflectEntityClass<ENTITY>(predicate), predicate).exists(predicate)
 }
