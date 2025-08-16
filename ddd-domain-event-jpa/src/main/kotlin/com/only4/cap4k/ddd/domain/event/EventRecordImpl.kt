@@ -3,13 +3,13 @@ package com.only4.cap4k.ddd.domain.event
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4J_EVENT_ID
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4J_EVENT_TYPE
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4J_PERSIST
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4J_SCHEDULE
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4J_TIMESTAMP
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_DOMAIN
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_INTEGRATION
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EVENT_ID
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EVENT_TYPE
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_PERSIST
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_SCHEDULE
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_TIMESTAMP
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION
 import com.only4.cap4k.ddd.domain.event.persistence.Event
 import org.slf4j.LoggerFactory
 import org.springframework.messaging.Message
@@ -95,21 +95,21 @@ class EventRecordImpl : EventRecord {
                     )
                 ).apply {
                     headers.apply {
-                        put(HEADER_KEY_CAP4J_EVENT_ID, event.eventUuid)
+                        put(HEADER_KEY_CAP4K_EVENT_ID, event.eventUuid)
                         put(
-                            HEADER_KEY_CAP4J_EVENT_TYPE, if (isIntegrationEvent)
-                                HEADER_VALUE_CAP4J_EVENT_TYPE_INTEGRATION
+                            HEADER_KEY_CAP4K_EVENT_TYPE, if (isIntegrationEvent)
+                                HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION
                             else
-                                HEADER_VALUE_CAP4J_EVENT_TYPE_DOMAIN
+                                HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN
                         )
-                        put(HEADER_KEY_CAP4J_PERSIST, this@EventRecordImpl.persist)
+                        put(HEADER_KEY_CAP4K_PERSIST, this@EventRecordImpl.persist)
 
                         val now = LocalDateTime.now()
-                        put(HEADER_KEY_CAP4J_TIMESTAMP, now.toEpochSecond(ZoneOffset.UTC))
+                        put(HEADER_KEY_CAP4K_TIMESTAMP, now.toEpochSecond(ZoneOffset.UTC))
 
                         if (this@EventRecordImpl.scheduleTime.isAfter(now)) {
                             put(
-                                HEADER_KEY_CAP4J_SCHEDULE,
+                                HEADER_KEY_CAP4K_SCHEDULE,
                                 this@EventRecordImpl.scheduleTime.toEpochSecond(ZoneOffset.UTC)
                             )
                         }

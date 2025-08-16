@@ -28,7 +28,7 @@ CREATE TABLE `__saga`
     KEY             `idx_create_at` (`create_at`),
     KEY             `idx_expire_at` (`expire_at`),
     KEY             `idx_next_try_time` (`next_try_time`)
-    ) COMMENT='SAGA事务 support by cap4j\n@I;'
+    ) COMMENT='SAGA事务 support by cap4k\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;
@@ -54,7 +54,7 @@ CREATE TABLE `__saga_process`
     KEY             `idx_db_created_at` (`db_created_at`),
     KEY             `idx_db_updated_at` (`db_updated_at`),
     KEY             `idx_saga_id` (`saga_id`)
-    ) COMMENT='SAGA事务-子环节 support by cap4j\n@I;'
+    ) COMMENT='SAGA事务-子环节 support by cap4k\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;
@@ -89,7 +89,7 @@ CREATE TABLE `__archived_saga`
     KEY             `idx_create_at` (`create_at`),
     KEY             `idx_expire_at` (`expire_at`),
     KEY             `idx_next_try_time` (`next_try_time`)
-    ) COMMENT='SAGA事务(存档) support by cap4j\n@I;'
+    ) COMMENT='SAGA事务(存档) support by cap4k\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;
@@ -115,7 +115,7 @@ CREATE TABLE `__archived_saga_process`
     KEY             `idx_db_created_at` (`db_created_at`),
     KEY             `idx_db_updated_at` (`db_updated_at`),
     KEY             `idx_saga_id` (`saga_id`)
-    ) COMMENT='SAGA事务-子环节(存档) support by cap4j\n@I;'
+    ) COMMENT='SAGA事务-子环节(存档) support by cap4k\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;

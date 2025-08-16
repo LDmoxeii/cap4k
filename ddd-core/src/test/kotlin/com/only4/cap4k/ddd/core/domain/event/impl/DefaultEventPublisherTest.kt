@@ -149,7 +149,7 @@ class DefaultEventPublisherTest {
         fun `should publish regular domain events`() {
             // given
             val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_DOMAIN,
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
                 persist = false
             )
 
@@ -167,7 +167,7 @@ class DefaultEventPublisherTest {
         fun `should publish persistent domain events`() {
             // given
             val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_DOMAIN,
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
                 persist = true
             )
 
@@ -187,7 +187,7 @@ class DefaultEventPublisherTest {
         fun `should handle domain event publishing exceptions`() {
             // given
             val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_DOMAIN
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN
             )
             every { eventSubscriberManager.dispatch(any()) } throws RuntimeException("Dispatch failed")
 
@@ -205,7 +205,7 @@ class DefaultEventPublisherTest {
             // given
             val futureTime = LocalDateTime.now().plusMinutes(5)
             val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_DOMAIN,
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
                 scheduleTime = futureTime
             )
 
@@ -227,7 +227,7 @@ class DefaultEventPublisherTest {
         fun `should publish integration events`() {
             // given
             val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_INTEGRATION
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION
             )
 
             // when
@@ -244,7 +244,7 @@ class DefaultEventPublisherTest {
         fun `should handle integration event publishing exceptions`() {
             // given
             val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_INTEGRATION
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION
             )
             every { integrationEventPublishers[0].publish(any(), any()) } throws RuntimeException("Publish failed")
 
@@ -262,7 +262,7 @@ class DefaultEventPublisherTest {
             // given
             val futureTime = LocalDateTime.now().plusMinutes(5)
             val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_INTEGRATION,
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION,
                 scheduleTime = futureTime
             )
 
@@ -339,7 +339,7 @@ class DefaultEventPublisherTest {
             every { domainEventInterceptorManager.orderedEventInterceptors4DomainEvent } returns setOf(domainInterceptor)
 
             val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_DOMAIN,
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
                 persist = true
             )
 
@@ -367,7 +367,7 @@ class DefaultEventPublisherTest {
             every { domainEventInterceptorManager.orderedEventInterceptors4DomainEvent } returns setOf(domainInterceptor)
 
             val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_DOMAIN
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN
             )
 
             // when & then
@@ -426,21 +426,21 @@ class DefaultEventPublisherTest {
     // 辅助方法
     private fun createTestEventRecord(
         payload: String = "test payload",
-        eventType: String = Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_DOMAIN,
+        eventType: String = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
         persist: Boolean = false,
-        scheduleTime: LocalDateTime? = null
+        scheduleTime: LocalDateTime? = null,
     ): EventRecord {
         val eventRecord = mockk<EventRecord>()
         val message = mockk<Message<Any>>()
         val headers = mutableMapOf<String, Any>()
 
 
-        headers[Constants.HEADER_KEY_CAP4J_EVENT_TYPE] = eventType
+        headers[Constants.HEADER_KEY_CAP4K_EVENT_TYPE] = eventType
         if (persist) {
-            headers[Constants.HEADER_KEY_CAP4J_PERSIST] = true
+            headers[Constants.HEADER_KEY_CAP4K_PERSIST] = true
         }
         if (scheduleTime != null) {
-            headers[Constants.HEADER_KEY_CAP4J_SCHEDULE] = scheduleTime.toEpochSecond(ZoneOffset.UTC)
+            headers[Constants.HEADER_KEY_CAP4K_SCHEDULE] = scheduleTime.toEpochSecond(ZoneOffset.UTC)
         }
 
         every { eventRecord.message } returns message

@@ -218,10 +218,10 @@ class EventRecordImplTest {
 
             // 验证消息头
             val headers = message.headers
-            assertNotNull(headers[Constants.HEADER_KEY_CAP4J_EVENT_ID])
-            assertEquals(Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_DOMAIN, headers[Constants.HEADER_KEY_CAP4J_EVENT_TYPE])
-            assertEquals(false, headers[Constants.HEADER_KEY_CAP4J_PERSIST])
-            assertNotNull(headers[Constants.HEADER_KEY_CAP4J_TIMESTAMP])
+            assertNotNull(headers[Constants.HEADER_KEY_CAP4K_EVENT_ID])
+            assertEquals(Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN, headers[Constants.HEADER_KEY_CAP4K_EVENT_TYPE])
+            assertEquals(false, headers[Constants.HEADER_KEY_CAP4K_PERSIST])
+            assertNotNull(headers[Constants.HEADER_KEY_CAP4K_TIMESTAMP])
         }
 
         @Test
@@ -237,8 +237,8 @@ class EventRecordImplTest {
             // Then
             val headers = message.headers
             assertEquals(
-                Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_INTEGRATION,
-                headers[Constants.HEADER_KEY_CAP4J_EVENT_TYPE]
+                Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION,
+                headers[Constants.HEADER_KEY_CAP4K_EVENT_TYPE]
             )
         }
 
@@ -254,7 +254,7 @@ class EventRecordImplTest {
 
             // Then
             val headers = message.headers
-            assertEquals(Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_DOMAIN, headers[Constants.HEADER_KEY_CAP4J_EVENT_TYPE])
+            assertEquals(Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN, headers[Constants.HEADER_KEY_CAP4K_EVENT_TYPE])
         }
 
         @Test
@@ -269,7 +269,7 @@ class EventRecordImplTest {
             val message = eventRecord.message
 
             // Then
-            assertEquals(true, message.headers[Constants.HEADER_KEY_CAP4J_PERSIST])
+            assertEquals(true, message.headers[Constants.HEADER_KEY_CAP4K_PERSIST])
         }
 
         @Test
@@ -284,7 +284,7 @@ class EventRecordImplTest {
             val message = eventRecord.message
 
             // Then
-            val scheduleHeader = message.headers[Constants.HEADER_KEY_CAP4J_SCHEDULE]
+            val scheduleHeader = message.headers[Constants.HEADER_KEY_CAP4K_SCHEDULE]
             assertNotNull(scheduleHeader)
             assertEquals(futureTime.toEpochSecond(ZoneOffset.UTC), scheduleHeader)
         }

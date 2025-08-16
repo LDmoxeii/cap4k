@@ -13,5 +13,5 @@ CREATE TABLE `__event_http_subscriber`
     KEY             `idx_db_created_at` (`db_created_at`),
     KEY             `idx_db_updated_at` (`db_updated_at`),
     KEY             `idx_event` (`event`)
-    ) COMMENT ='事件HTTP订阅 support by cap4j\n@I;'
+    ) COMMENT ='事件HTTP订阅 support by cap4k\n@I;'
 ;

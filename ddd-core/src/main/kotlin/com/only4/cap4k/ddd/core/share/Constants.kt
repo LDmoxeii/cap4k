@@ -16,37 +16,37 @@ object Constants {
     /**
      * 事件ID的消息头键
      */
-    const val HEADER_KEY_CAP4J_EVENT_ID = "cap4j-event-id"
+    const val HEADER_KEY_CAP4K_EVENT_ID = "cap4k-event-id"
 
     /**
      * 事件类型的消息头键
      */
-    const val HEADER_KEY_CAP4J_EVENT_TYPE = "cap4j-event-type"
+    const val HEADER_KEY_CAP4K_EVENT_TYPE = "cap4k-event-type"
 
     /**
      * 领域事件类型值
      */
-    const val HEADER_VALUE_CAP4J_EVENT_TYPE_DOMAIN = "domain"
+    const val HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN = "domain"
 
     /**
      * 集成事件类型值
      */
-    const val HEADER_VALUE_CAP4J_EVENT_TYPE_INTEGRATION = "integration"
+    const val HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION = "integration"
 
     /**
      * 时间戳的消息头键
      */
-    const val HEADER_KEY_CAP4J_TIMESTAMP = "cap4j-timestamp"
+    const val HEADER_KEY_CAP4K_TIMESTAMP = "cap4k-timestamp"
 
     /**
      * 调度时间的消息头键
      */
-    const val HEADER_KEY_CAP4J_SCHEDULE = "cap4j-schedule"
+    const val HEADER_KEY_CAP4K_SCHEDULE = "cap4k-schedule"
 
     /**
      * 持久化标志的消息头键
      */
-    const val HEADER_KEY_CAP4J_PERSIST = "cap4j-persist"
+    const val HEADER_KEY_CAP4K_PERSIST = "cap4k-persist"
 
     /**
      * 服务名称配置键

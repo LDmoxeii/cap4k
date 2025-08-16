@@ -3,11 +3,11 @@ package com.only4.cap4k.ddd.core.domain.event.impl
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.*
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4J_EVENT_TYPE
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4J_PERSIST
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4J_SCHEDULE
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_DOMAIN
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_VALUE_CAP4J_EVENT_TYPE_INTEGRATION
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EVENT_TYPE
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_PERSIST
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_SCHEDULE
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION
 import com.only4.cap4k.ddd.core.share.DomainException
 import org.slf4j.LoggerFactory
 import java.time.Duration
@@ -56,12 +56,12 @@ open class DefaultEventPublisher(
             .forEach { interceptor -> interceptor.initPublish(message) }
 
         // 填入消息头
-        val eventType = message.headers[HEADER_KEY_CAP4J_EVENT_TYPE] as? String
+        val eventType = message.headers[HEADER_KEY_CAP4K_EVENT_TYPE] as? String
         var delay = Duration.ZERO
 
-        if (message.headers.containsKey(HEADER_KEY_CAP4J_SCHEDULE)) {
+        if (message.headers.containsKey(HEADER_KEY_CAP4K_SCHEDULE)) {
             val scheduleAt = LocalDateTime.ofEpochSecond(
-                message.headers[HEADER_KEY_CAP4J_SCHEDULE] as Long,
+                message.headers[HEADER_KEY_CAP4K_SCHEDULE] as Long,
                 0,
                 ZoneOffset.UTC
             )
@@ -72,7 +72,7 @@ open class DefaultEventPublisher(
 
         // 根据事件类型，选择不同的发布方式
         when (eventType) {
-            HEADER_VALUE_CAP4J_EVENT_TYPE_INTEGRATION -> {
+            HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION -> {
                 if (delay.isNegative || delay.isZero) {
                     internalPublish4IntegrationEvent(event)
                 } else {
@@ -82,9 +82,9 @@ open class DefaultEventPublisher(
                 }
             }
 
-            HEADER_VALUE_CAP4J_EVENT_TYPE_DOMAIN, null -> {
+            HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN, null -> {
                 if (delay.isNegative || delay.isZero) {
-                    val persist = message.headers[HEADER_KEY_CAP4J_PERSIST] as? Boolean ?: false
+                    val persist = message.headers[HEADER_KEY_CAP4K_PERSIST] as? Boolean ?: false
                     if (persist) {
                         executor.submit {
                             internalPublish4DomainEvent(event)
@@ -138,7 +138,7 @@ open class DefaultEventPublisher(
     protected open fun internalPublish4DomainEvent(event: EventRecord) {
         try {
             val message = event.message
-            val persist = message.headers[HEADER_KEY_CAP4J_PERSIST] as? Boolean ?: false
+            val persist = message.headers[HEADER_KEY_CAP4K_PERSIST] as? Boolean ?: false
 
             domainEventInterceptorManager.orderedEventInterceptors4DomainEvent
                 .forEach { interceptor -> interceptor.preRelease(event) }

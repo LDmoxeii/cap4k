@@ -12,4 +12,4 @@ CREATE TABLE `__worker_id`
     PRIMARY KEY (`id`),
     KEY             `idx_db_created_at` (`db_created_at`),
     KEY             `idx_db_updated_at` (`db_updated_at`)
-    ) COMMENT='雪花机器码 support by cap4j\n@I;';
+    ) COMMENT='雪花机器码 support by cap4k\n@I;';

@@ -28,7 +28,7 @@ CREATE TABLE `__request`
     KEY             `idx_create_at` (`create_at`),
     KEY             `idx_expire_at` (`expire_at`),
     KEY             `idx_next_try_time` (`next_try_time`)
-    ) COMMENT ='请求 support by cap4j\n@I;'
+    ) COMMENT ='请求 support by cap4k\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;
@@ -62,7 +62,7 @@ CREATE TABLE `__archived_request`
     KEY             `idx_create_at` (`create_at`),
     KEY             `idx_expire_at` (`expire_at`),
     KEY             `idx_next_try_time` (`next_try_time`)
-    ) COMMENT ='请求(存档) support by cap4j\n@I;'
+    ) COMMENT ='请求(存档) support by cap4k\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;

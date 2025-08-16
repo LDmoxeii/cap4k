@@ -582,14 +582,14 @@ class ArchInfoManager(
 
     private fun resolveRequestClass(requestHandlerCls: Class<*>): Type {
         val method = findMethod(requestHandlerCls, "exec") { m ->
-            m.parameterCount == 1
+            m.parameterCount == 1 && m.modifiers == 1
         }!!
         return method.genericParameterTypes[0]
     }
 
     private fun resolveResponseClass(requestHandlerCls: Class<*>): Type {
         val method = findMethod(requestHandlerCls, "exec") { m ->
-            m.parameterCount == 1
+            m.parameterCount == 1 && m.modifiers == 1
         }!!
         return method.genericReturnType
     }
