@@ -1,8 +1,11 @@
 plugins {
     id("buildsrc.convention.kotlin-jvm")
+    kotlin("kapt")
 }
 
 dependencies {
+    kapt("org.springframework.boot:spring-boot-configuration-processor:3.1.12")
+
     api(project(":ddd-core"))
     api(project(":ddd-distributed-snowflake"))
     api(project(":ddd-distributed-locker-jdbc"))
