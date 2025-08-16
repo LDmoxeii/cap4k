@@ -30,7 +30,7 @@ import java.time.LocalDateTime
     description = "SAGA事务-子环节"
 )
 @Entity
-@Table(name = "`__saga_process`")
+@Table(name = "__saga_process")
 @DynamicInsert
 @DynamicUpdate
 class SagaProcess(

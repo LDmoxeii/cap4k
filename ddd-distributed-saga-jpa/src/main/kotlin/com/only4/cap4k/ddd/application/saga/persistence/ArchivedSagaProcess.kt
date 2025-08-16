@@ -24,7 +24,7 @@ import java.time.LocalDateTime
     description = "SAGA事务-子环节(存档)"
 )
 @Entity
-@Table(name = "`__archived_saga_process`")
+@Table(name = "__archived_saga_process")
 @DynamicInsert
 @DynamicUpdate
 class ArchivedSagaProcess(

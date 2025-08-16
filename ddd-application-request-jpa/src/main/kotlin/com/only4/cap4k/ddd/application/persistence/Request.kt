@@ -35,7 +35,7 @@ import java.util.*
     description = "请求记录"
 )
 @Entity
-@Table(name = "`__request`")
+@Table(name = "__request")
 @DynamicInsert
 @DynamicUpdate
 class Request(

@@ -21,7 +21,7 @@ import java.time.LocalDateTime
     description = "请求记录"
 )
 @Entity
-@Table(name = "`__archived_request`")
+@Table(name = "__archived_request")
 @DynamicInsert
 @DynamicUpdate
 class ArchivedRequest(

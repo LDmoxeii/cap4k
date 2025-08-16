@@ -28,7 +28,7 @@ import java.util.*
  */
 @Aggregate(aggregate = "saga", name = "Saga", root = true, type = Aggregate.TYPE_ENTITY, description = "SAGA事务")
 @Entity
-@Table(name = "`__saga`")
+@Table(name = "__saga")
 @DynamicInsert
 @DynamicUpdate
 class Saga(

@@ -31,7 +31,7 @@ import java.util.*
  */
 @Aggregate(aggregate = "event", name = "Event", root = true, type = Aggregate.TYPE_ENTITY, description = "事件")
 @Entity
-@Table(name = "`__event`")
+@Table(name = "__event")
 @DynamicInsert
 @DynamicUpdate
 class Event(

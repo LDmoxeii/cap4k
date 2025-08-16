@@ -201,9 +201,7 @@ open class DefaultDomainEventSupervisor(
     }
 
     private fun publish(events: List<EventRecord>) {
-        if (events.isNotEmpty()) {
-            events.forEach { event -> eventPublisher.publish(event) }
-        }
+        events.forEach(eventPublisher::publish)
     }
 
     /**
