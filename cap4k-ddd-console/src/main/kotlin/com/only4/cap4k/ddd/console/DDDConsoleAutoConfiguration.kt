@@ -59,7 +59,7 @@ class DDDConsoleAutoConfiguration {
         val data: T? = null,
     )
 
-    @Bean(name = ["/cap4j/console/event/search"])
+    @Bean(name = ["/cap4k/console/event/search"])
     fun eventSearch(
         eventConsoleService: EventConsoleService,
         @Value("\${server.port:80}") serverPort: String,
@@ -103,9 +103,9 @@ class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/event/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}") }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4k/console/event/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}") }
 
-    @Bean(name = ["/cap4j/console/event/retry"])
+    @Bean(name = ["/cap4k/console/event/retry"])
     fun eventRetry(
         eventConsoleService: EventConsoleService,
         @Value("\${server.port:80}") serverPort: String,
@@ -135,9 +135,9 @@ class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/event/retry?uuid={uuid}") }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4k/console/event/retry?uuid={uuid}") }
 
-    @Bean(name = ["/cap4j/console/request/search"])
+    @Bean(name = ["/cap4k/console/request/search"])
     fun requestSearch(
         requestConsoleService: RequestConsoleService,
         @Value("\${server.port:80}") serverPort: String,
@@ -180,9 +180,9 @@ class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/request/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}") }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4k/console/request/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}") }
 
-    @Bean(name = ["/cap4j/console/request/retry"])
+    @Bean(name = ["/cap4k/console/request/retry"])
     fun requestRetry(
         requestConsoleService: RequestConsoleService,
         @Value("\${server.port:80}") serverPort: String,
@@ -212,9 +212,9 @@ class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/request/retry?uuid={uuid}") }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4k/console/request/retry?uuid={uuid}") }
 
-    @Bean(name = ["/cap4j/console/saga/search"])
+    @Bean(name = ["/cap4k/console/saga/search"])
     fun sagaSearch(
         sagaConsoleService: SagaConsoleService,
         @Value("\${server.port:80}") serverPort: String,
@@ -257,9 +257,9 @@ class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/saga/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}") }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4k/console/saga/search?uuid={uuid}&type={type}&state={state}&scheduleAt={scheduleAtBegin}&scheduleAt={scheduleAtEnd}&pageSize={pageSize}&pageNum={pageNum}") }
 
-    @Bean(name = ["/cap4j/console/saga/retry"])
+    @Bean(name = ["/cap4k/console/saga/retry"])
     fun sagaRetry(
         sagaConsoleService: SagaConsoleService,
         @Value("\${server.port:80}") serverPort: String,
@@ -289,9 +289,9 @@ class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/saga/retry?uuid={uuid}") }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4k/console/saga/retry?uuid={uuid}") }
 
-    @Bean(name = ["/cap4j/console/locker/search"])
+    @Bean(name = ["/cap4k/console/locker/search"])
     fun lockerSearch(
         lockerConsoleService: LockerConsoleService,
         @Value("\${server.port:80}") serverPort: String,
@@ -326,9 +326,9 @@ class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/locker/search?name={name}&lock={true|false}&pageSize={pageSize}&pageNum={pageNum}") }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4k/console/locker/search?name={name}&lock={true|false}&pageSize={pageSize}&pageNum={pageNum}") }
 
-    @Bean(name = ["/cap4j/console/locker/unlock"])
+    @Bean(name = ["/cap4k/console/locker/unlock"])
     fun lockerUnlock(
         lockerConsoleService: LockerConsoleService,
         @Value("\${server.port:80}") serverPort: String,
@@ -359,9 +359,9 @@ class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/locker/unlock?name={name}&pwd={pwd}") }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4k/console/locker/unlock?name={name}&pwd={pwd}") }
 
-    @Bean(name = ["/cap4j/console/snowflake/search"])
+    @Bean(name = ["/cap4k/console/snowflake/search"])
     fun snowflakeSearch(
         snowflakeConsoleService: SnowflakeConsoleService,
         @Value("\${server.port:80}") serverPort: String,
@@ -396,5 +396,5 @@ class DDDConsoleAutoConfiguration {
                 close()
             }
         }
-    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4j/console/snowflake/search?free={true|false}&dispatchTo={dispatchTo}&pageSize={pageSize}&pageNum={pageNum}") }
+    }.apply { log.info("DDD Console URL: http://localhost:$serverPort$serverServletContentPath/cap4k/console/snowflake/search?free={true|false}&dispatchTo={dispatchTo}&pageSize={pageSize}&pageNum={pageNum}") }
 }

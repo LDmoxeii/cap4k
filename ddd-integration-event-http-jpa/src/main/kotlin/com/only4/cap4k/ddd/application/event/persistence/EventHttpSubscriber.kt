@@ -7,12 +7,6 @@ import org.hibernate.annotations.DynamicUpdate
 import org.hibernate.annotations.SQLDelete
 import org.hibernate.annotations.Where
 
-/**
- * 集成事件HTTP订阅
- *
- * @author binking338
- * @date 2025/5/23
- */
 @Aggregate(
     aggregate = "event_http_subscriber",
     name = "EventHttpSubscriber",
@@ -21,7 +15,7 @@ import org.hibernate.annotations.Where
     description = "集成事件订阅"
 )
 @Entity
-@Table(name = "__event_http_subscriber")
+@Table(name = "`__event_http_subscriber`")
 @DynamicInsert
 @DynamicUpdate
 @SQLDelete(sql = "update `__event_http_subscriber` set `db_deleted` = 1 where `id` = ? and `version` = ? ")

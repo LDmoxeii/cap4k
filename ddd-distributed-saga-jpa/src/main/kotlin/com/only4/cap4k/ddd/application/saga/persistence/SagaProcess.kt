@@ -15,12 +15,6 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.time.LocalDateTime
 
-/**
- * SAGA事务-子环节
- *
- * @author LD_moxeii
- * @date 2025/08/01
- */
 @Aggregate(
     aggregate = "saga",
     name = "SagaProcess",
@@ -30,7 +24,7 @@ import java.time.LocalDateTime
     description = "SAGA事务-子环节"
 )
 @Entity
-@Table(name = "__saga_process")
+@Table(name = "`__saga_process`")
 @DynamicInsert
 @DynamicUpdate
 class SagaProcess(

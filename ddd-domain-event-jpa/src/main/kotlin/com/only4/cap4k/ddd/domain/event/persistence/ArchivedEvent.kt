@@ -9,14 +9,8 @@ import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
 import java.time.LocalDateTime
 
-/**
- * 归档事件
- *
- * @author LD_moxeii
- * @date 2025/07/27
- */
 @Entity
-@Table(name = "__archived_event")
+@Table(name = "`__archived_event`")
 @DynamicInsert
 @DynamicUpdate
 class ArchivedEvent(

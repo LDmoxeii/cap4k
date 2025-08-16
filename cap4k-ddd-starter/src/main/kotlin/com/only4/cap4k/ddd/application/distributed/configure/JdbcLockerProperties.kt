@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration
  * @date 2025/08/03
  */
 @Configuration
-@ConfigurationProperties("cap4j.ddd.distributed.locker.jdbc")
+@ConfigurationProperties("cap4k.ddd.distributed.locker.jdbc")
 class JdbcLockerProperties(
     /**
      * 锁表名

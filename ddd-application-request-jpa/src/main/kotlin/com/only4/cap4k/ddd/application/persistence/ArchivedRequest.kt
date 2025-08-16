@@ -7,12 +7,6 @@ import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
 import java.time.LocalDateTime
 
-/**
- * 归档请求实体
- *
- * @author binking338
- * @date 2025/5/16
- */
 @Aggregate(
     aggregate = "archived_request",
     name = "ArchivedRequest",
@@ -21,11 +15,10 @@ import java.time.LocalDateTime
     description = "请求记录"
 )
 @Entity
-@Table(name = "__archived_request")
+@Table(name = "`__archived_request`")
 @DynamicInsert
 @DynamicUpdate
 class ArchivedRequest(
-    // 【字段映射开始】本段落由[cap4j-ddd-codegen-maven-plugin]维护，请不要手工改动
     /**
      * bigint
      */
@@ -147,10 +140,7 @@ class ArchivedRequest(
     @Version
     @Column(name = "`version`")
     var version: Int = 0,
-    // 【字段映射结束】本段落由[cap4j-ddd-codegen-maven-plugin]维护，请不要手工改动
 ) {
-    // 【行为方法开始】
-
     /**
      * 从请求复制数据到归档记录
      */
@@ -173,6 +163,4 @@ class ArchivedRequest(
         this.tryTimes = request.tryTimes
         this.version = request.version
     }
-
-    // 【行为方法结束】
 }

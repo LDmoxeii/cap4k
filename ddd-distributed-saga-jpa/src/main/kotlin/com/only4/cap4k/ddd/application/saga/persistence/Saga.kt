@@ -20,15 +20,9 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
 
-/**
- * SAGA事务
- *
- * @author LD_moxeii
- * @date 2025/08/01
- */
 @Aggregate(aggregate = "saga", name = "Saga", root = true, type = Aggregate.TYPE_ENTITY, description = "SAGA事务")
 @Entity
-@Table(name = "__saga")
+@Table(name = "`__saga`")
 @DynamicInsert
 @DynamicUpdate
 class Saga(

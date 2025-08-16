@@ -10,12 +10,6 @@ import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
 import java.time.LocalDateTime
 
-/**
- * SAGA事务(存档)
- *
- * @author LD_moxeii
- * @date 2025/08/01
- */
 @Aggregate(
     aggregate = "archived_saga",
     name = "ArchivedSaga",
@@ -24,7 +18,7 @@ import java.time.LocalDateTime
     description = "SAGA事务(存档)"
 )
 @Entity
-@Table(name = "__archived_saga")
+@Table(name = "`__archived_saga`")
 @DynamicInsert
 @DynamicUpdate
 class ArchivedSaga(

@@ -20,18 +20,9 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
 
-/**
- * 事件
- *
- * 本文件由[cap4j-ddd-codegen-maven-plugin]生成
- * 警告：请勿手工修改该文件的字段声明，重新生成会覆盖字段声明
- *
- * @author LD_moxeii
- * @date 2025/07/27
- */
 @Aggregate(aggregate = "event", name = "Event", root = true, type = Aggregate.TYPE_ENTITY, description = "事件")
 @Entity
-@Table(name = "__event")
+@Table(name = "`__event`")
 @DynamicInsert
 @DynamicUpdate
 class Event(
@@ -161,7 +152,6 @@ class Event(
         const val F_NEXT_TRY_TIME = "nextTryTime"
     }
 
-    // 【行为方法开始】
     fun init(
         payload: Any,
         svcName: String,
@@ -297,8 +287,6 @@ class Event(
     override fun toString(): String {
         return JSON.toJSONString(this, IgnoreNonFieldGetter, SkipTransientField)
     }
-
-    // 【行为方法结束】
 
     enum class EventState(val value: Int, val stateName: String) {
         /**

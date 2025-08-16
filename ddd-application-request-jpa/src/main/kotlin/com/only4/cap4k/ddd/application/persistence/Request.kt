@@ -18,15 +18,6 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
 
-/**
- * 请求记录
- *
- * 本文件由[cap4j-ddd-codegen-maven-plugin]生成
- * 警告：请勿手工修改该文件的字段声明，重新生成会覆盖字段声明
- *
- * @author cap4j-ddd-codegen
- * @date 2024/10/14
- */
 @Aggregate(
     aggregate = "request",
     name = "Request",
@@ -35,11 +26,10 @@ import java.util.*
     description = "请求记录"
 )
 @Entity
-@Table(name = "__request")
+@Table(name = "`__request`")
 @DynamicInsert
 @DynamicUpdate
 class Request(
-    // 【字段映射开始】本段落由[cap4j-ddd-codegen-maven-plugin]维护，请不要手工改动
     /**
      * bigint
      */
@@ -161,7 +151,6 @@ class Request(
     @Version
     @Column(name = "`version`")
     var version: Int = 0,
-    // 【字段映射结束】本段落由[cap4j-ddd-codegen-maven-plugin]维护，请不要手工改动
 ) {
     companion object {
         private val log = LoggerFactory.getLogger(Request::class.java)
@@ -182,8 +171,6 @@ class Request(
         const val F_LAST_TRY_TIME = "lastTryTime"
         const val F_NEXT_TRY_TIME = "nextTryTime"
     }
-
-    // 【行为方法开始】
 
     fun init(
         requestParam: RequestParam<*>,
@@ -351,8 +338,6 @@ class Request(
     override fun toString(): String {
         return JSON.toJSONString(this, SerializerFeature.IgnoreNonFieldGetter, SerializerFeature.SkipTransientField)
     }
-
-    // 【行为方法结束】
 
     enum class RequestState(val value: Int, val stateName: String) {
         /**
