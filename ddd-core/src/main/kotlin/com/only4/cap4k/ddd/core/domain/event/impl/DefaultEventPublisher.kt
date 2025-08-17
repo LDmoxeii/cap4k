@@ -120,7 +120,7 @@ open class DefaultEventPublisher(
         }
 
         eventRecordRepository.save(eventRecord)
-        if (eventRecord.isDelivered) {
+        if (eventRecord.isDelivering) {
             eventRecord.markPersist(true)
             publish(eventRecord)
         }

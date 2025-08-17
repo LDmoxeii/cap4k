@@ -130,9 +130,7 @@ open class DefaultIntegrationEventSupervisor(
         classes = [IntegrationEventAttachedTransactionCommittedEvent::class]
     )
     fun onTransactionCommitted(event: IntegrationEventAttachedTransactionCommittedEvent) {
-        event.events.forEach { eventRecord ->
-            eventPublisher.publish(eventRecord)
-        }
+        event.events.forEach(eventPublisher::publish)
     }
 
     protected open fun popEvents(): Set<Any> {
