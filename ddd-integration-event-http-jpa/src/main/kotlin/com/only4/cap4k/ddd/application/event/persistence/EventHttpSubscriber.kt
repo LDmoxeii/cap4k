@@ -48,7 +48,7 @@ data class EventHttpSubscriber(
      * varchar(1023)
      */
     @Column(name = "callback_url")
-    val callbackUrl: String,
+    var callbackUrl: String,
 
     /**
      * 数据版本（支持乐观锁）
@@ -56,7 +56,7 @@ data class EventHttpSubscriber(
      */
     @Version
     @Column(name = "version")
-    val version: Int = 0
+    val version: Int = 0,
 ) {
     companion object {
         const val F_ID = "id"

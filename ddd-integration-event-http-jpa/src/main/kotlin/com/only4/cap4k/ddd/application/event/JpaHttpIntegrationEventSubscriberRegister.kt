@@ -6,8 +6,8 @@ import com.only4.cap4k.ddd.application.event.persistence.EventHttpSubscriberJpaR
 /**
  * JPA集成事件订阅注册器实现
  *
- * @author binking338
- * @date 2025/5/23
+ * @author LD_moxeii
+ * @date 2025/08/17
  */
 class JpaHttpIntegrationEventSubscriberRegister(
     private val eventHttpSubscriberJpaRepository: EventHttpSubscriberJpaRepository
@@ -21,20 +21,33 @@ class JpaHttpIntegrationEventSubscriberRegister(
             )
         }
 
-        if (existingSubscriber.isPresent) {
-            return false
+        return when {
+            existingSubscriber.isPresent && existingSubscriber.get().callbackUrl == callbackUrl -> {
+                false
+            }
+
+            existingSubscriber.isPresent -> {
+                existingSubscriber.get().apply {
+                    this.callbackUrl = callbackUrl
+                }.let {
+                    eventHttpSubscriberJpaRepository.saveAndFlush(it)
+                }
+                true
+            }
+
+            else -> {
+                eventHttpSubscriberJpaRepository.saveAndFlush(
+                    EventHttpSubscriber(
+                        id = null,
+                        event = event,
+                        subscriber = subscriber,
+                        callbackUrl = callbackUrl,
+                        version = 0
+                    )
+                )
+                true
+            }
         }
-
-        val eventHttpSubscriber = EventHttpSubscriber(
-            id = null,
-            event = event,
-            subscriber = subscriber,
-            callbackUrl = callbackUrl,
-            version = 0
-        )
-
-        eventHttpSubscriberJpaRepository.saveAndFlush(eventHttpSubscriber)
-        return true
     }
 
     override fun unsubscribe(event: String, subscriber: String): Boolean {
