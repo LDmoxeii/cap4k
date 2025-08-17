@@ -39,7 +39,7 @@ class JpaRepositoryAutoConfiguration {
     @Bean
     fun defaultRepositorySupervisor(
         repositories: List<Repository<*>>,
-        unitOfWork: JpaUnitOfWork
+        unitOfWork: JpaUnitOfWork,
     ): DefaultRepositorySupervisor = DefaultRepositorySupervisor(repositories, unitOfWork).apply {
         init()
         RepositorySupervisorSupport.configure(this)
@@ -49,7 +49,7 @@ class JpaRepositoryAutoConfiguration {
     @Bean
     fun defaultAggregateSupervisor(
         repositorySupervisor: DefaultRepositorySupervisor,
-        jpaUnitOfWork: JpaUnitOfWork
+        jpaUnitOfWork: JpaUnitOfWork,
     ): DefaultAggregateSupervisor = DefaultAggregateSupervisor(
         repositorySupervisor,
         jpaUnitOfWork
@@ -61,7 +61,7 @@ class JpaRepositoryAutoConfiguration {
     @Bean
     fun defaultAggregateFactorySupervisor(
         factories: List<AggregateFactory<*, *>>,
-        jpaUnitOfWork: JpaUnitOfWork
+        jpaUnitOfWork: JpaUnitOfWork,
     ): DefaultAggregateFactorySupervisor = DefaultAggregateFactorySupervisor(
         factories,
         jpaUnitOfWork
@@ -75,7 +75,7 @@ class JpaRepositoryAutoConfiguration {
     fun jpaUnitOfWork(
         unitOfWorkInterceptors: List<UnitOfWorkInterceptor>,
         persistListenerManager: PersistListenerManager,
-        jpaUnitOfWorkProperties: JpaUnitOfWorkProperties
+        jpaUnitOfWorkProperties: JpaUnitOfWorkProperties,
     ): JpaUnitOfWork = JpaUnitOfWork(
         unitOfWorkInterceptors,
         persistListenerManager,
@@ -90,7 +90,7 @@ class JpaRepositoryAutoConfiguration {
 
     @Configuration
     class JpaUnitOfWorkLoader(
-        @Autowired(required = false) jpaUnitOfWork: JpaUnitOfWork?
+        @Autowired(required = false) jpaUnitOfWork: JpaUnitOfWork?,
     ) {
         init {
             jpaUnitOfWork?.let { JpaUnitOfWork.fixAopWrapper(it) }
@@ -101,14 +101,13 @@ class JpaRepositoryAutoConfiguration {
     @ConditionalOnMissingBean(PersistListenerManager::class)
     fun defaultPersistListenerManager(
         persistListeners: List<PersistListener<*>>,
-        eventProperties: EventProperties
-    ): DefaultPersistListenerManager =
-        DefaultPersistListenerManager(
-            persistListeners,
-            eventProperties.eventScanPackage
-        ).apply {
-            init()
-        }
+        eventProperties: EventProperties,
+    ): DefaultPersistListenerManager = DefaultPersistListenerManager(
+        persistListeners,
+        eventProperties.eventScanPackage
+    ).apply {
+        init()
+    }
 
     @Bean
     @ConditionalOnMissingBean(SpecificationManager::class)

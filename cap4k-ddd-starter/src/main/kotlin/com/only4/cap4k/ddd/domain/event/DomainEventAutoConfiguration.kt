@@ -58,17 +58,16 @@ class DomainEventAutoConfiguration {
         eventPublisher: EventPublisher,
         applicationEventPublisher: ApplicationEventPublisher,
         @Value(CONFIG_KEY_4_SVC_NAME) svcName: String,
-    ): DefaultDomainEventSupervisor =
-        DefaultDomainEventSupervisor(
-            eventRecordRepository,
-            domainEventInterceptorManager,
-            eventPublisher,
-            applicationEventPublisher,
-            svcName
-        ).also {
-            DomainEventSupervisorSupport.configure(it as DomainEventSupervisor)
-            DomainEventSupervisorSupport.configure(it as DomainEventManager)
-        }
+    ): DefaultDomainEventSupervisor = DefaultDomainEventSupervisor(
+        eventRecordRepository,
+        domainEventInterceptorManager,
+        eventPublisher,
+        applicationEventPublisher,
+        svcName
+    ).also {
+        DomainEventSupervisorSupport.configure(it as DomainEventSupervisor)
+        DomainEventSupervisorSupport.configure(it as DomainEventManager)
+    }
 
     @Bean
     fun domainEventUnitOfWorkInterceptor(domainEventManager: DomainEventManager): DomainEventUnitOfWorkInterceptor =
@@ -78,7 +77,7 @@ class DomainEventAutoConfiguration {
     @ConditionalOnMissingBean(EventRecordRepository::class)
     fun jpaEventRecordRepository(
         eventJpaRepository: EventJpaRepository,
-        archivedEventJpaRepository: ArchivedEventJpaRepository
+        archivedEventJpaRepository: ArchivedEventJpaRepository,
     ): JpaEventRecordRepository = JpaEventRecordRepository(
         eventJpaRepository,
         archivedEventJpaRepository
@@ -116,7 +115,7 @@ class DomainEventAutoConfiguration {
     @EnableScheduling
     private class DomainEventScheduleLoader(
         private val eventScheduleProperties: EventScheduleProperties,
-        private val scheduleService: JpaEventScheduleService?
+        private val scheduleService: JpaEventScheduleService?,
     ) {
         companion object {
             private const val CONFIG_KEY_4_COMPENSE_CRON =
@@ -128,28 +127,22 @@ class DomainEventAutoConfiguration {
         }
 
         @Scheduled(cron = CONFIG_KEY_4_COMPENSE_CRON)
-        fun compensation() {
-            scheduleService?.compense(
-                eventScheduleProperties.compenseBatchSize,
-                eventScheduleProperties.compenseMaxConcurrency,
-                Duration.ofSeconds(eventScheduleProperties.compenseIntervalSeconds.toLong()),
-                Duration.ofSeconds(eventScheduleProperties.compenseMaxLockSeconds.toLong())
-            )
-        }
+        fun compensation() = scheduleService?.compense(
+            eventScheduleProperties.compenseBatchSize,
+            eventScheduleProperties.compenseMaxConcurrency,
+            Duration.ofSeconds(eventScheduleProperties.compenseIntervalSeconds.toLong()),
+            Duration.ofSeconds(eventScheduleProperties.compenseMaxLockSeconds.toLong())
+        )
 
         @Scheduled(cron = CONFIG_KEY_4_ARCHIVE_CRON)
-        fun archive() {
-            scheduleService?.archive(
-                eventScheduleProperties.archiveExpireDays,
-                eventScheduleProperties.archiveBatchSize,
-                Duration.ofSeconds(eventScheduleProperties.archiveMaxLockSeconds.toLong())
-            )
-        }
+        fun archive() = scheduleService?.archive(
+            eventScheduleProperties.archiveExpireDays,
+            eventScheduleProperties.archiveBatchSize,
+            Duration.ofSeconds(eventScheduleProperties.archiveMaxLockSeconds.toLong())
+        )
 
         @Scheduled(cron = CONFIG_KEY_4_ADD_PARTITION_CRON)
-        fun addTablePartition() {
-            scheduleService?.addPartition()
-        }
+        fun addTablePartition() = scheduleService?.addPartition()
     }
 
     @Bean
@@ -162,7 +155,7 @@ class DomainEventAutoConfiguration {
         domainEventInterceptorManager: DomainEventInterceptorManager,
         integrationEventInterceptorManager: IntegrationEventInterceptorManager,
         integrationEventPublishCallback: IntegrationEventPublisher.PublishCallback,
-        eventProperties: EventProperties
+        eventProperties: EventProperties,
     ): DefaultEventPublisher = DefaultEventPublisher(
         eventSubscriberManager,
         integrationEventPublishers,
@@ -182,7 +175,7 @@ class DomainEventAutoConfiguration {
     fun defaultEventSubscriberManager(
         subscribers: List<EventSubscriber<*>>,
         applicationEventPublisher: ApplicationEventPublisher,
-        eventProperties: EventProperties
+        eventProperties: EventProperties,
     ): DefaultEventSubscriberManager = DefaultEventSubscriberManager(
         subscribers,
         applicationEventPublisher,
@@ -197,7 +190,7 @@ class DomainEventAutoConfiguration {
     fun defaultEventInterceptorManager(
         eventMessageInterceptors: List<EventMessageInterceptor>,
         interceptors: List<EventInterceptor>,
-        eventRecordRepository: EventRecordRepository
+        eventRecordRepository: EventRecordRepository,
     ): DefaultEventInterceptorManager = DefaultEventInterceptorManager(
         eventMessageInterceptors,
         interceptors,

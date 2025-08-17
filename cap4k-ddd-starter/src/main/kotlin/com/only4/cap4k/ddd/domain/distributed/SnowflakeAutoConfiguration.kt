@@ -39,9 +39,7 @@ class SnowflakeAutoConfiguration(
     private var pongContinuousErrorCount = 0
     private lateinit var snowflakeWorkerIdDispatcher: SnowflakeWorkerIdDispatcher
 
-    fun shutdown() {
-        snowflakeWorkerIdDispatcher.release()
-    }
+    fun shutdown() = snowflakeWorkerIdDispatcher.release()
 
     @Scheduled(cron = "0 */1 * * * ?")
     fun pong() {
@@ -64,11 +62,10 @@ class SnowflakeAutoConfiguration(
         properties: SnowflakeProperties
     ): SnowflakeIdGenerator {
         val workerId = snowflakeWorkerIdDispatcher.acquire(properties.workerId, properties.datacenterId)
-        val snowflakeIdGenerator = SnowflakeIdGenerator(
+        return SnowflakeIdGenerator(
             workerId % (1 shl SnowflakeIdGenerator.WORKER_ID_BITS.toInt()),
             workerId shr 5
         ).also { SnowflakeIdentifierGenerator.configure(it) }
-        return snowflakeIdGenerator
     }
 
     @Bean

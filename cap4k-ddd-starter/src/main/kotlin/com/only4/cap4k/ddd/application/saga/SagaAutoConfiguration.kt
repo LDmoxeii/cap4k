@@ -56,54 +56,48 @@ class SagaAutoConfiguration {
         sagaRecordRepository: SagaRecordRepository,
         @Value(CONFIG_KEY_4_SVC_NAME) svcName: String,
         sagaProperties: SagaProperties,
-    ): DefaultSagaSupervisor {
-        return DefaultSagaSupervisor(
-            requestHandlers,
-            requestInterceptors,
-            validator,
-            sagaRecordRepository,
-            svcName,
-            sagaProperties.asyncThreadPoolSize,
-            sagaProperties.asyncThreadFactoryClassName
-        ).apply {
-            SagaSupervisorSupport.configure(this as SagaSupervisor)
-            SagaSupervisorSupport.configure(this as SagaProcessSupervisor)
-            SagaSupervisorSupport.configure(this as SagaManager)
-            init()
-        }
+    ): DefaultSagaSupervisor = DefaultSagaSupervisor(
+        requestHandlers,
+        requestInterceptors,
+        validator,
+        sagaRecordRepository,
+        svcName,
+        sagaProperties.asyncThreadPoolSize,
+        sagaProperties.asyncThreadFactoryClassName
+    ).apply {
+        SagaSupervisorSupport.configure(this as SagaSupervisor)
+        SagaSupervisorSupport.configure(this as SagaProcessSupervisor)
+        SagaSupervisorSupport.configure(this as SagaManager)
+        init()
     }
 
     @Bean
     @ConditionalOnMissingBean(SagaRecordRepository::class)
     fun jpaSagaRecordRepository(
         sagaJpaRepository: SagaJpaRepository,
-        archivedSagaJpaRepository: ArchivedSagaJpaRepository
-    ): JpaSagaRecordRepository {
-        return JpaSagaRecordRepository(
-            sagaJpaRepository,
-            archivedSagaJpaRepository
-        )
-    }
+        archivedSagaJpaRepository: ArchivedSagaJpaRepository,
+    ): JpaSagaRecordRepository = JpaSagaRecordRepository(
+        sagaJpaRepository,
+        archivedSagaJpaRepository
+    )
 
     @Bean
     fun jpaSagaScheduleService(
         sagaManager: SagaManager,
         locker: Locker,
-        @Value("\$$CONFIG_KEY_4_SAGA_COMPENSE_LOCKER_KEY") compensationLockerKey: String,
-        @Value("\$$CONFIG_KEY_4_SAGA_ARCHIVE_LOCKER_KEY") archiveLockerKey: String,
+        @Value(CONFIG_KEY_4_SAGA_COMPENSE_LOCKER_KEY) compensationLockerKey: String,
+        @Value(CONFIG_KEY_4_SAGA_ARCHIVE_LOCKER_KEY) archiveLockerKey: String,
         sagaScheduleProperties: SagaScheduleProperties,
-        jdbcTemplate: JdbcTemplate
-    ): JpaSagaScheduleService {
-        return JpaSagaScheduleService(
-            sagaManager,
-            locker,
-            compensationLockerKey,
-            archiveLockerKey,
-            sagaScheduleProperties.addPartitionEnable,
-            jdbcTemplate
-        ).apply {
-            init()
-        }
+        jdbcTemplate: JdbcTemplate,
+    ): JpaSagaScheduleService = JpaSagaScheduleService(
+        sagaManager,
+        locker,
+        compensationLockerKey,
+        archiveLockerKey,
+        sagaScheduleProperties.addPartitionEnable,
+        jdbcTemplate
+    ).apply {
+        init()
     }
 
     /**
@@ -125,27 +119,21 @@ class SagaAutoConfiguration {
         }
 
         @Scheduled(cron = CONFIG_KEY_4_COMPENSE_CRON)
-        fun compensation() {
-            scheduleService.compense(
-                sagaScheduleProperties.compenseBatchSize,
-                sagaScheduleProperties.compenseMaxConcurrency,
-                Duration.ofSeconds(sagaScheduleProperties.compenseIntervalSeconds.toLong()),
-                Duration.ofSeconds(sagaScheduleProperties.compenseMaxLockSeconds.toLong())
-            )
-        }
+        fun compensation() = scheduleService.compense(
+            sagaScheduleProperties.compenseBatchSize,
+            sagaScheduleProperties.compenseMaxConcurrency,
+            Duration.ofSeconds(sagaScheduleProperties.compenseIntervalSeconds.toLong()),
+            Duration.ofSeconds(sagaScheduleProperties.compenseMaxLockSeconds.toLong())
+        )
 
         @Scheduled(cron = CONFIG_KEY_4_ARCHIVE_CRON)
-        fun archive() {
-            scheduleService.archive(
-                sagaScheduleProperties.archiveExpireDays,
-                sagaScheduleProperties.archiveBatchSize,
-                Duration.ofSeconds(sagaScheduleProperties.archiveMaxLockSeconds.toLong())
-            )
-        }
+        fun archive() = scheduleService.archive(
+            sagaScheduleProperties.archiveExpireDays,
+            sagaScheduleProperties.archiveBatchSize,
+            Duration.ofSeconds(sagaScheduleProperties.archiveMaxLockSeconds.toLong())
+        )
 
         @Scheduled(cron = CONFIG_KEY_4_ADD_PARTITION_CRON)
-        fun addTablePartition() {
-            scheduleService.addPartition()
-        }
+        fun addTablePartition() = scheduleService.addPartition()
     }
 }

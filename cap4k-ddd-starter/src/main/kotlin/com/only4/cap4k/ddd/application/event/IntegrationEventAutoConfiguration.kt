@@ -113,43 +113,38 @@ class IntegrationEventAutoConfiguration {
             @Bean
             fun jpaHttpIntegrationEventSubscriberRegister(
                 eventHttpSubscriberJpaRepository: EventHttpSubscriberJpaRepository,
-            ): JpaHttpIntegrationEventSubscriberRegister {
-                return JpaHttpIntegrationEventSubscriberRegister(eventHttpSubscriberJpaRepository)
-            }
+            ): JpaHttpIntegrationEventSubscriberRegister =
+                JpaHttpIntegrationEventSubscriberRegister(eventHttpSubscriberJpaRepository)
         }
 
         @Bean
-        fun httpIntegrationEventCallbackTriggerCommandHandler(): IntegrationEventHttpCallbackTriggerCommand.Handler {
-            return IntegrationEventHttpCallbackTriggerCommand.Handler(
+        fun httpIntegrationEventCallbackTriggerCommandHandler(): IntegrationEventHttpCallbackTriggerCommand.Handler =
+            IntegrationEventHttpCallbackTriggerCommand.Handler(
                 RestTemplate(),
                 EVENT_PARAM,
                 EVENT_ID_PARAM
             )
-        }
 
         @Bean
-        fun httpIntegrationEventSubscribeCommandHandler(): IntegrationEventHttpSubscribeCommand.Handler {
-            return IntegrationEventHttpSubscribeCommand.Handler(
+        fun httpIntegrationEventSubscribeCommandHandler(): IntegrationEventHttpSubscribeCommand.Handler =
+            IntegrationEventHttpSubscribeCommand.Handler(
                 RestTemplate(),
                 EVENT_PARAM,
                 SUBSCRIBER_PARAM
             )
-        }
 
         @Bean
-        fun httpIntegrationEventUnsubscribeCommandHandler(): IntegrationEventHttpUnsubscribeCommand.Handler {
-            return IntegrationEventHttpUnsubscribeCommand.Handler(
+        fun httpIntegrationEventUnsubscribeCommandHandler(): IntegrationEventHttpUnsubscribeCommand.Handler =
+            IntegrationEventHttpUnsubscribeCommand.Handler(
                 RestTemplate(),
                 EVENT_PARAM,
                 SUBSCRIBER_PARAM
             )
-        }
 
         @Bean
         @ConditionalOnMissingBean(HttpIntegrationEventSubscriberRegister::class)
-        fun httpIntegrationEventSubscriberRegister(): DefaultHttpIntegrationEventSubscriberRegister {
-            return DefaultHttpIntegrationEventSubscriberRegister()
-        }
+        fun httpIntegrationEventSubscriberRegister(): DefaultHttpIntegrationEventSubscriberRegister =
+            DefaultHttpIntegrationEventSubscriberRegister()
 
         @Bean
         @ConditionalOnMissingBean(IntegrationEventPublisher::class)
@@ -157,17 +152,14 @@ class IntegrationEventAutoConfiguration {
             subscriberRegister: HttpIntegrationEventSubscriberRegister,
             environment: Environment,
             httpIntegrationEventAdapterProperties: HttpIntegrationEventAdapterProperties,
-        ): HttpIntegrationEventPublisher {
-            val httpIntegrationEventPublisher = HttpIntegrationEventPublisher(
-                subscriberRegister,
-                environment,
-                httpIntegrationEventAdapterProperties.publishThreadPoolSize,
-                httpIntegrationEventAdapterProperties.publishThreadFactoryClassName
-            ).apply {
-                init()
-            }
+        ): HttpIntegrationEventPublisher = HttpIntegrationEventPublisher(
+            subscriberRegister,
+            environment,
+            httpIntegrationEventAdapterProperties.publishThreadPoolSize,
+            httpIntegrationEventAdapterProperties.publishThreadFactoryClassName
+        ).apply {
+            init()
             log.info("集成事件适配类型：HTTP")
-            return httpIntegrationEventPublisher
         }
 
         @Bean
@@ -183,21 +175,18 @@ class IntegrationEventAutoConfiguration {
             serverPort: String,
             @Value("\${server.servlet.context-path:}")
             serverServletContentPath: String,
-        ): HttpIntegrationEventSubscriberAdapter {
-            val baseUrl = "http://localhost:$serverPort$serverServletContentPath"
-            return HttpIntegrationEventSubscriberAdapter(
-                eventSubscriberManager,
-                eventMessageInterceptors,
-                httpIntegrationEventSubscriberRegister,
-                environment,
-                eventProperties.eventScanPackage,
-                svcName,
-                baseUrl,
-                SUBSCRIBE_PATH,
-                CONSUME_PATH
-            ).apply {
-                init()
-            }
+        ): HttpIntegrationEventSubscriberAdapter = HttpIntegrationEventSubscriberAdapter(
+            eventSubscriberManager,
+            eventMessageInterceptors,
+            httpIntegrationEventSubscriberRegister,
+            environment,
+            eventProperties.eventScanPackage,
+            svcName,
+            "http://localhost:$serverPort$serverServletContentPath",
+            SUBSCRIBE_PATH,
+            CONSUME_PATH
+        ).apply {
+            init()
         }
 
         @ConditionalOnWebApplication
@@ -208,43 +197,41 @@ class IntegrationEventAutoConfiguration {
             serverPort: String,
             @Value("\${server.servlet.context-path:}")
             serverServletContentPath: String,
-        ): HttpRequestHandler {
-            log.info("IntegrationEvent subscribe URL: http://localhost:$serverPort$serverServletContentPath$SUBSCRIBE_PATH?$EVENT_PARAM={event}&$SUBSCRIBER_PARAM={subscriber}")
-            return HttpRequestHandler { req, res ->
-                val event = req.getParameter(EVENT_PARAM)
-                val subscriber = req.getParameter(SUBSCRIBER_PARAM)
-                val scanner = Scanner(req.inputStream, StandardCharsets.UTF_8.name())
-                val stringBuilder = StringBuilder()
-                while (scanner.hasNextLine()) {
-                    stringBuilder.append(scanner.nextLine())
-                }
-                val callbackUrl = JSON.parseObject(stringBuilder.toString(), String::class.java)
-
-                val operationResponse = if (event.isNotBlank() &&
-                    subscriber.isNotBlank() &&
-                    callbackUrl.isNotBlank()
-                ) {
-                    val success = httpIntegrationEventSubscriberRegister.subscribe(event, subscriber, callbackUrl)
-                    HttpIntegrationEventSubscriberAdapter.OperationResponse<Any>(
-                        success = success,
-                        message = if (success) "ok" else "fail",
-                    )
-                } else {
-                    HttpIntegrationEventSubscriberAdapter.OperationResponse<Any>(
-                        success = false,
-                        message = "必要参数缺失"
-                    )
-                }
-
-                res.apply {
-                    characterEncoding = StandardCharsets.UTF_8.name()
-                    contentType = "application/json; charset=utf-8"
-                    writer.write(JSON.toJSONString(operationResponse))
-                    writer.flush()
-                    writer.close()
-                }
+        ): HttpRequestHandler = HttpRequestHandler { req, res ->
+            val event = req.getParameter(EVENT_PARAM)
+            val subscriber = req.getParameter(SUBSCRIBER_PARAM)
+            val scanner = Scanner(req.inputStream, StandardCharsets.UTF_8.name())
+            val stringBuilder = StringBuilder()
+            while (scanner.hasNextLine()) {
+                stringBuilder.append(scanner.nextLine())
             }
-        }
+            val callbackUrl = JSON.parseObject(stringBuilder.toString(), String::class.java)
+
+            val operationResponse = if (event.isNotBlank() &&
+                subscriber.isNotBlank() &&
+                callbackUrl.isNotBlank()
+            ) {
+                val success = httpIntegrationEventSubscriberRegister.subscribe(event, subscriber, callbackUrl)
+                HttpIntegrationEventSubscriberAdapter.OperationResponse<Any>(
+                    success = success,
+                    message = if (success) "ok" else "fail",
+                )
+            } else {
+                HttpIntegrationEventSubscriberAdapter.OperationResponse<Any>(
+                    success = false,
+                    message = "必要参数缺失"
+                )
+            }
+
+            res.apply {
+                characterEncoding = StandardCharsets.UTF_8.name()
+                contentType = "application/json; charset=utf-8"
+                writer.write(JSON.toJSONString(operationResponse))
+                writer.flush()
+                writer.close()
+            }
+        }.apply { log.info("IntegrationEvent subscribe URL: http://localhost:$serverPort$serverServletContentPath$SUBSCRIBE_PATH?$EVENT_PARAM={event}&$SUBSCRIBER_PARAM={subscriber}") }
+
 
         @ConditionalOnWebApplication
         @Bean(name = [UNSUBSCRIBE_PATH])
@@ -254,26 +241,24 @@ class IntegrationEventAutoConfiguration {
             serverPort: String,
             @Value("\${server.servlet.context-path:}")
             serverServletContentPath: String,
-        ): HttpRequestHandler {
-            log.info("IntegrationEvent unsubscribe URL: http://localhost:$serverPort$serverServletContentPath$UNSUBSCRIBE_PATH?$EVENT_PARAM={event}&$SUBSCRIBER_PARAM={subscriber}")
-            return HttpRequestHandler { req, res ->
-                val event = req.getParameter(EVENT_PARAM)
-                val subscriber = req.getParameter(SUBSCRIBER_PARAM)
-                val success = httpIntegrationEventSubscriberRegister.unsubscribe(event, subscriber)
-                val operationResponse = HttpIntegrationEventSubscriberAdapter.OperationResponse<Any>(
-                    success = success,
-                    message = if (success) "ok" else "fail"
-                )
+        ): HttpRequestHandler = HttpRequestHandler { req, res ->
+            val event = req.getParameter(EVENT_PARAM)
+            val subscriber = req.getParameter(SUBSCRIBER_PARAM)
+            val success = httpIntegrationEventSubscriberRegister.unsubscribe(event, subscriber)
+            val operationResponse = HttpIntegrationEventSubscriberAdapter.OperationResponse<Any>(
+                success = success,
+                message = if (success) "ok" else "fail"
+            )
 
-                res.apply {
-                    characterEncoding = StandardCharsets.UTF_8.name()
-                    contentType = "application/json; charset=utf-8"
-                    writer.write(JSON.toJSONString(operationResponse))
-                    writer.flush()
-                    writer.close()
-                }
+            res.apply {
+                characterEncoding = StandardCharsets.UTF_8.name()
+                contentType = "application/json; charset=utf-8"
+                writer.write(JSON.toJSONString(operationResponse))
+                writer.flush()
+                writer.close()
             }
-        }
+        }.apply { log.info("IntegrationEvent unsubscribe URL: http://localhost:$serverPort$serverServletContentPath$UNSUBSCRIBE_PATH?$EVENT_PARAM={event}&$SUBSCRIBER_PARAM={subscriber}") }
+
 
         @ConditionalOnWebApplication
         @Bean(name = [EVENTS_PATH])
@@ -283,32 +268,30 @@ class IntegrationEventAutoConfiguration {
             serverPort: String,
             @Value("\${server.servlet.context-path:}")
             serverServletContentPath: String,
-        ): HttpRequestHandler {
-            log.info("IntegrationEvent events URL: http://localhost:$serverPort$serverServletContentPath$EVENTS_PATH")
-            return HttpRequestHandler { req, res ->
-                val operationResponse = try {
-                    val events = httpIntegrationEventSubscriberRegister.events()
-                    HttpIntegrationEventSubscriberAdapter.OperationResponse(
-                        success = true,
-                        message = "ok",
-                        data = events
-                    )
-                } catch (throwable: Throwable) {
-                    HttpIntegrationEventSubscriberAdapter.OperationResponse(
-                        success = false,
-                        message = throwable.message
-                    )
-                }
-
-                res.apply {
-                    characterEncoding = StandardCharsets.UTF_8.name()
-                    contentType = "application/json; charset=utf-8"
-                    writer.write(JSON.toJSONString(operationResponse))
-                    writer.flush()
-                    writer.close()
-                }
+        ): HttpRequestHandler = HttpRequestHandler { req, res ->
+            val operationResponse = try {
+                val events = httpIntegrationEventSubscriberRegister.events()
+                HttpIntegrationEventSubscriberAdapter.OperationResponse(
+                    success = true,
+                    message = "ok",
+                    data = events
+                )
+            } catch (throwable: Throwable) {
+                HttpIntegrationEventSubscriberAdapter.OperationResponse(
+                    success = false,
+                    message = throwable.message
+                )
             }
-        }
+
+            res.apply {
+                characterEncoding = StandardCharsets.UTF_8.name()
+                contentType = "application/json; charset=utf-8"
+                writer.write(JSON.toJSONString(operationResponse))
+                writer.flush()
+                writer.close()
+            }
+        }.apply { log.info("IntegrationEvent events URL: http://localhost:$serverPort$serverServletContentPath$EVENTS_PATH") }
+
 
         @ConditionalOnWebApplication
         @Bean(name = [SUBSCRIBERS_PATH])
@@ -318,32 +301,29 @@ class IntegrationEventAutoConfiguration {
             serverPort: String,
             @Value("\${server.servlet.context-path:}")
             serverServletContentPath: String,
-        ): HttpRequestHandler {
-            log.info("IntegrationEvent subscribers URL: http://localhost:$serverPort$serverServletContentPath$SUBSCRIBERS_PATH?$EVENT_PARAM={event}")
-            return HttpRequestHandler { req, res ->
-                val event = req.getParameter(EVENT_PARAM)
-                val operationResponse = try {
-                    val subscribers = httpIntegrationEventSubscriberRegister.subscribers(event)
-                    HttpIntegrationEventSubscriberAdapter.OperationResponse(
-                        success = true,
-                        message = "ok",
-                        data = subscribers
-                    )
-                } catch (throwable: Throwable) {
-                    HttpIntegrationEventSubscriberAdapter.OperationResponse(
-                        success = false, message = throwable.message
-                    )
-                }
-
-                res.apply {
-                    characterEncoding = StandardCharsets.UTF_8.name()
-                    contentType = "application/json; charset=utf-8"
-                    writer.write(JSON.toJSONString(operationResponse))
-                    writer.flush()
-                    writer.close()
-                }
+        ): HttpRequestHandler = HttpRequestHandler { req, res ->
+            val event = req.getParameter(EVENT_PARAM)
+            val operationResponse = try {
+                val subscribers = httpIntegrationEventSubscriberRegister.subscribers(event)
+                HttpIntegrationEventSubscriberAdapter.OperationResponse(
+                    success = true,
+                    message = "ok",
+                    data = subscribers
+                )
+            } catch (throwable: Throwable) {
+                HttpIntegrationEventSubscriberAdapter.OperationResponse(
+                    success = false, message = throwable.message
+                )
             }
-        }
+
+            res.apply {
+                characterEncoding = StandardCharsets.UTF_8.name()
+                contentType = "application/json; charset=utf-8"
+                writer.write(JSON.toJSONString(operationResponse))
+                writer.flush()
+                writer.close()
+            }
+        }.apply { log.info("IntegrationEvent subscribers URL: http://localhost:$serverPort$serverServletContentPath$SUBSCRIBERS_PATH?$EVENT_PARAM={event}") }
 
         @ConditionalOnWebApplication
         @Bean(name = [CONSUME_PATH])
@@ -353,61 +333,58 @@ class IntegrationEventAutoConfiguration {
             serverPort: String,
             @Value("\${server.servlet.context-path:}")
             serverServletContentPath: String,
-        ): HttpRequestHandler {
-            log.info("IntegrationEvent consume URL: http://localhost:$serverPort$serverServletContentPath$CONSUME_PATH?$EVENT_PARAM={event}&$EVENT_ID_PARAM={uuid}")
-            return HttpRequestHandler { req, res ->
-                val scanner = Scanner(req.inputStream, StandardCharsets.UTF_8.name())
-                val stringBuilder = StringBuilder()
-                while (scanner.hasNextLine()) {
-                    stringBuilder.append(scanner.nextLine())
-                }
-                val eventId = req.getParameter(EVENT_ID_PARAM)
-                val event = req.getParameter(EVENT_PARAM)
-                log.info("IntegrationEvent uuid={} event={}", eventId, event)
-
-                val headers = mutableMapOf<String, Any>()
-                headers[EVENT_ID_PARAM] = eventId
-
-                try {
-                    val headerNames = req.headerNames
-                    while (headerNames.hasMoreElements()) {
-                        val headerName = headerNames.nextElement()
-                        val headerValueEnumeration = req.getHeaders(headerName)
-                        if (headerValueEnumeration.hasMoreElements()) {
-                            val headerValues = mutableListOf<String>()
-                            while (headerValueEnumeration.hasMoreElements()) {
-                                headerValues.add(headerValueEnumeration.nextElement())
-                            }
-                            val headerValue = if (headerValues.size == 1) {
-                                headerValues[0]
-                            } else {
-                                headerValues
-                            }
-                            headers[headerName] = headerValue
-                        }
-                    }
-                } catch (e: Exception) {
-                    log.warn("读取请求头异常", e)
-                    /* don't care */
-                }
-
-                val success = httpIntegrationEventSubscriberAdapter.consume(
-                    event, stringBuilder.toString(), headers
-                )
-                val operationResponse = HttpIntegrationEventSubscriberAdapter.OperationResponse<Any>(
-                    success = success,
-                    message = if (success) "ok" else "fail"
-                )
-
-                res.apply {
-                    characterEncoding = StandardCharsets.UTF_8.name()
-                    contentType = "application/json; charset=utf-8"
-                    writer.write(JSON.toJSONString(operationResponse))
-                    writer.flush()
-                    writer.close()
-                }
+        ): HttpRequestHandler = HttpRequestHandler { req, res ->
+            val scanner = Scanner(req.inputStream, StandardCharsets.UTF_8.name())
+            val stringBuilder = StringBuilder()
+            while (scanner.hasNextLine()) {
+                stringBuilder.append(scanner.nextLine())
             }
-        }
+            val eventId = req.getParameter(EVENT_ID_PARAM)
+            val event = req.getParameter(EVENT_PARAM)
+            log.info("IntegrationEvent uuid={} event={}", eventId, event)
+
+            val headers = mutableMapOf<String, Any>()
+            headers[EVENT_ID_PARAM] = eventId
+
+            try {
+                val headerNames = req.headerNames
+                while (headerNames.hasMoreElements()) {
+                    val headerName = headerNames.nextElement()
+                    val headerValueEnumeration = req.getHeaders(headerName)
+                    if (headerValueEnumeration.hasMoreElements()) {
+                        val headerValues = mutableListOf<String>()
+                        while (headerValueEnumeration.hasMoreElements()) {
+                            headerValues.add(headerValueEnumeration.nextElement())
+                        }
+                        val headerValue = if (headerValues.size == 1) {
+                            headerValues[0]
+                        } else {
+                            headerValues
+                        }
+                        headers[headerName] = headerValue
+                    }
+                }
+            } catch (e: Exception) {
+                log.warn("读取请求头异常", e)
+                /* don't care */
+            }
+
+            val success = httpIntegrationEventSubscriberAdapter.consume(
+                event, stringBuilder.toString(), headers
+            )
+            val operationResponse = HttpIntegrationEventSubscriberAdapter.OperationResponse<Any>(
+                success = success,
+                message = if (success) "ok" else "fail"
+            )
+
+            res.apply {
+                characterEncoding = StandardCharsets.UTF_8.name()
+                contentType = "application/json; charset=utf-8"
+                writer.write(JSON.toJSONString(operationResponse))
+                writer.flush()
+                writer.close()
+            }
+        }.apply { log.info("IntegrationEvent consume URL: http://localhost:$serverPort$serverServletContentPath$CONSUME_PATH?$EVENT_PARAM={event}&$EVENT_ID_PARAM={uuid}") }
     }
 
     @Configuration
@@ -425,9 +402,7 @@ class IntegrationEventAutoConfiguration {
         fun rocketMqIntegrationEventPublisher(
             rocketMQTemplate: RocketMQTemplate,
             environment: Environment,
-        ): RocketMqIntegrationEventPublisher {
-            return RocketMqIntegrationEventPublisher(rocketMQTemplate, environment)
-        }
+        ): RocketMqIntegrationEventPublisher = RocketMqIntegrationEventPublisher(rocketMQTemplate, environment)
 
         @Bean
         @ConditionalOnProperty(name = ["rocketmq.name-server"])
@@ -444,20 +419,18 @@ class IntegrationEventAutoConfiguration {
             defaultNameSrv: String,
             @Value(CONFIG_KEY_4_ROCKETMQ_MSG_CHARSET)
             msgCharset: String,
-        ): RocketMqIntegrationEventSubscriberAdapter {
-            return RocketMqIntegrationEventSubscriberAdapter(
-                eventSubscriberManager,
-                eventMessageInterceptors,
-                rocketMqIntegrationEventConfigure,
-                environment,
-                eventProperties.eventScanPackage,
-                svcName,
-                defaultNameSrv,
-                msgCharset
-            ).apply {
-                init()
-                log.info("集成事件适配类型：RocketMQ")
-            }
+        ): RocketMqIntegrationEventSubscriberAdapter = RocketMqIntegrationEventSubscriberAdapter(
+            eventSubscriberManager,
+            eventMessageInterceptors,
+            rocketMqIntegrationEventConfigure,
+            environment,
+            eventProperties.eventScanPackage,
+            svcName,
+            defaultNameSrv,
+            msgCharset
+        ).apply {
+            init()
+            log.info("集成事件适配类型：RocketMQ")
         }
     }
 
@@ -474,25 +447,20 @@ class IntegrationEventAutoConfiguration {
         @ConditionalOnClass(name = ["org.springframework.amqp.rabbit.core.RabbitTemplate"])
         @ConditionalOnMissingBean(IntegrationEventPublisher::class)
         fun rabbitMqIntegrationEventPublisher(
-            rabbitTemplate: Any,
-            connectionFactory: Any,
+            rabbitTemplate: RabbitTemplate,
+            connectionFactory: ConnectionFactory,
             environment: Environment,
             rabbitMqIntegrationEventAdapterProperties: RabbitMqIntegrationEventAdapterProperties,
-        ): Any {
-            val template = rabbitTemplate as RabbitTemplate
-            val factory = connectionFactory as ConnectionFactory
-
-            return RabbitMqIntegrationEventPublisher(
-                template,
-                factory,
-                environment,
-                rabbitMqIntegrationEventAdapterProperties.publishThreadPoolSize,
-                rabbitMqIntegrationEventAdapterProperties.publishThreadFactoryClassName,
-                rabbitMqIntegrationEventAdapterProperties.autoDeclareExchange,
-                rabbitMqIntegrationEventAdapterProperties.defaultExchangeType
-            ).apply {
-                init()
-            }
+        ): RabbitMqIntegrationEventPublisher = RabbitMqIntegrationEventPublisher(
+            rabbitTemplate,
+            connectionFactory,
+            environment,
+            rabbitMqIntegrationEventAdapterProperties.publishThreadPoolSize,
+            rabbitMqIntegrationEventAdapterProperties.publishThreadFactoryClassName,
+            rabbitMqIntegrationEventAdapterProperties.autoDeclareExchange,
+            rabbitMqIntegrationEventAdapterProperties.defaultExchangeType
+        ).apply {
+            init()
         }
 
         @Bean
@@ -503,8 +471,8 @@ class IntegrationEventAutoConfiguration {
             eventMessageInterceptors: List<EventMessageInterceptor>,
             @Autowired(required = false)
             rabbitMqIntegrationEventConfigure: RabbitMqIntegrationEventConfigure?,
-            simpleRabbitListenerContainerFactory: Any,
-            connectionFactory: Any,
+            simpleRabbitListenerContainerFactory: SimpleRabbitListenerContainerFactory,
+            connectionFactory: ConnectionFactory,
             environment: Environment,
             eventProperties: EventProperties,
             @Value(CONFIG_KEY_4_SVC_NAME)
@@ -512,25 +480,20 @@ class IntegrationEventAutoConfiguration {
             @Value(CONFIG_KEY_4_ROCKETMQ_MSG_CHARSET)
             msgCharset: String,
             rabbitMqIntegrationEventAdapterProperties: RabbitMqIntegrationEventAdapterProperties,
-        ): Any {
-            val factory = simpleRabbitListenerContainerFactory as SimpleRabbitListenerContainerFactory
-            val connection = connectionFactory as ConnectionFactory
-
-            return RabbitMqIntegrationEventSubscriberAdapter(
-                eventSubscriberManager,
-                eventMessageInterceptors,
-                rabbitMqIntegrationEventConfigure,
-                factory,
-                connection,
-                environment,
-                eventProperties.eventScanPackage,
-                svcName,
-                msgCharset,
-                rabbitMqIntegrationEventAdapterProperties.autoDeclareQueue
-            ).apply {
-                init()
-                log.info("集成事件适配类型：RabbitMQ")
-            }
+        ): RabbitMqIntegrationEventSubscriberAdapter = RabbitMqIntegrationEventSubscriberAdapter(
+            eventSubscriberManager,
+            eventMessageInterceptors,
+            rabbitMqIntegrationEventConfigure,
+            simpleRabbitListenerContainerFactory,
+            connectionFactory,
+            environment,
+            eventProperties.eventScanPackage,
+            svcName,
+            msgCharset,
+            rabbitMqIntegrationEventAdapterProperties.autoDeclareQueue
+        ).apply {
+            init()
+            log.info("集成事件适配类型：RabbitMQ")
         }
     }
 }

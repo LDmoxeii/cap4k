@@ -52,10 +52,8 @@ class RequestAutoConfiguration {
     @ConditionalOnMissingBean(RequestRecordRepository::class)
     fun jpaRequestRecordRepository(
         requestJpaRepository: RequestJpaRepository,
-        archivedRequestJpaRepository: ArchivedRequestJpaRepository
-    ): JpaRequestRecordRepository {
-        return JpaRequestRecordRepository(requestJpaRepository, archivedRequestJpaRepository)
-    }
+        archivedRequestJpaRepository: ArchivedRequestJpaRepository,
+    ): JpaRequestRecordRepository = JpaRequestRecordRepository(requestJpaRepository, archivedRequestJpaRepository)
 
     @Bean
     fun defaultRequestSupervisor(
@@ -64,21 +62,19 @@ class RequestAutoConfiguration {
         @Autowired(required = false) validator: Validator?,
         requestProperties: RequestProperties,
         requestRecordRepository: RequestRecordRepository,
-        @Value(CONFIG_KEY_4_SVC_NAME) svcName: String
-    ): DefaultRequestSupervisor {
-        return DefaultRequestSupervisor(
-            requestHandlers,
-            requestInterceptors,
-            validator,
-            requestRecordRepository,
-            svcName,
-            requestProperties.requestScheduleThreadPoolSize,
-            requestProperties.requestScheduleThreadFactoryClassName
-        ).apply {
-            init()
-            RequestSupervisorSupport.configure(this as RequestSupervisor)
-            RequestSupervisorSupport.configure(this as RequestManager)
-        }
+        @Value(CONFIG_KEY_4_SVC_NAME) svcName: String,
+    ): DefaultRequestSupervisor = DefaultRequestSupervisor(
+        requestHandlers,
+        requestInterceptors,
+        validator,
+        requestRecordRepository,
+        svcName,
+        requestProperties.requestScheduleThreadPoolSize,
+        requestProperties.requestScheduleThreadFactoryClassName
+    ).apply {
+        init()
+        RequestSupervisorSupport.configure(this as RequestSupervisor)
+        RequestSupervisorSupport.configure(this as RequestManager)
     }
 
     @Bean
@@ -88,18 +84,16 @@ class RequestAutoConfiguration {
         @Value(CONFIG_KEY_4_REQUEST_COMPENSE_LOCKER_KEY) compensationLockerKey: String,
         @Value(CONFIG_KEY_4_REQUEST_ARCHIVE_LOCKER_KEY) archiveLockerKey: String,
         requestScheduleProperties: RequestScheduleProperties,
-        jdbcTemplate: JdbcTemplate
-    ): JpaRequestScheduleService {
-        return JpaRequestScheduleService(
-            requestManager,
-            locker,
-            compensationLockerKey,
-            archiveLockerKey,
-            requestScheduleProperties.addPartitionEnable,
-            jdbcTemplate
-        ).apply {
-            init()
-        }
+        jdbcTemplate: JdbcTemplate,
+    ): JpaRequestScheduleService = JpaRequestScheduleService(
+        requestManager,
+        locker,
+        compensationLockerKey,
+        archiveLockerKey,
+        requestScheduleProperties.addPartitionEnable,
+        jdbcTemplate
+    ).apply {
+        init()
     }
 
     /**
@@ -121,27 +115,21 @@ class RequestAutoConfiguration {
         }
 
         @Scheduled(cron = CONFIG_KEY_4_COMPENSE_CRON)
-        fun compensation() {
-            scheduleService.compense(
-                requestScheduleProperties.compenseBatchSize,
-                requestScheduleProperties.compenseMaxConcurrency,
-                Duration.ofSeconds(requestScheduleProperties.compenseIntervalSeconds.toLong()),
-                Duration.ofSeconds(requestScheduleProperties.compenseMaxLockSeconds.toLong())
-            )
-        }
+        fun compensation() = scheduleService.compense(
+            requestScheduleProperties.compenseBatchSize,
+            requestScheduleProperties.compenseMaxConcurrency,
+            Duration.ofSeconds(requestScheduleProperties.compenseIntervalSeconds.toLong()),
+            Duration.ofSeconds(requestScheduleProperties.compenseMaxLockSeconds.toLong())
+        )
 
         @Scheduled(cron = CONFIG_KEY_4_ARCHIVE_CRON)
-        fun archive() {
-            scheduleService.archive(
-                requestScheduleProperties.archiveExpireDays,
-                requestScheduleProperties.archiveBatchSize,
-                Duration.ofSeconds(requestScheduleProperties.archiveMaxLockSeconds.toLong())
-            )
-        }
+        fun archive() = scheduleService.archive(
+            requestScheduleProperties.archiveExpireDays,
+            requestScheduleProperties.archiveBatchSize,
+            Duration.ofSeconds(requestScheduleProperties.archiveMaxLockSeconds.toLong())
+        )
 
         @Scheduled(cron = CONFIG_KEY_4_ADD_PARTITION_CRON)
-        fun addTablePartition() {
-            scheduleService.addPartition()
-        }
+        fun addTablePartition() = scheduleService.addPartition()
     }
 }
