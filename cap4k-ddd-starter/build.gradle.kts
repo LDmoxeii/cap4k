@@ -23,6 +23,7 @@ dependencies {
 
     implementation(libs.fastjson)
     implementation(kotlin("reflect"))
+    implementation(libs.spring.messaging)
 
     compileOnly(libs.spring.boot.starter)
     compileOnly(libs.spring.tomcat)

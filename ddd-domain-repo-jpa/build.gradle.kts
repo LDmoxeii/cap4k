@@ -14,8 +14,6 @@ dependencies {
 
     // Compile-only dependencies for optional integration
     compileOnly(libs.jpa)
-    compileOnly(libs.spring.messaging)
-
 
     // Common dependencies
     implementation(libs.slf4j)
