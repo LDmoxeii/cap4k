@@ -135,11 +135,10 @@ class DefaultEventSubscriberManager(
 
             subscribeInternal(map, autoRelease.sourceDomainEventClass.java) { domainEvent ->
                 val integrationEvent = converter.convert(domainEvent)!!
-                IntegrationEventSupervisor.instance.attach(
+                IntegrationEventSupervisor.instance.publish(
                     integrationEvent,
                     Duration.ofSeconds(autoRelease.delayInSeconds)
                 )
-                IntegrationEventSupervisor.manager.release()
             }
         }
     }
