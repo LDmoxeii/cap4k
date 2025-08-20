@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.application
 import com.only4.cap4k.ddd.application.persistence.Request
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestRecord
+import com.only4.cap4k.ddd.core.share.DomainException
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -47,7 +48,11 @@ class RequestRecordImpl : RequestRecord {
 
     override fun <R : Any> getResult(): R? {
         @Suppress("UNCHECKED_CAST")
-        return request.requestResult as? R
+        val result = request.requestResult as? R
+        if (result == null && !request.exception.isNullOrEmpty()) {
+            throw DomainException(request.exception!!)
+        }
+        return result
     }
 
     override val scheduleTime: LocalDateTime

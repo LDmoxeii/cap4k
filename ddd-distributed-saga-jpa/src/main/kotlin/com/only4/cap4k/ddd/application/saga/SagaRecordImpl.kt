@@ -5,6 +5,7 @@ import com.only4.cap4k.ddd.application.saga.persistence.SagaProcess
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.saga.SagaParam
 import com.only4.cap4k.ddd.core.application.saga.SagaRecord
+import com.only4.cap4k.ddd.core.share.DomainException
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -49,7 +50,11 @@ class SagaRecordImpl : SagaRecord {
 
     override fun <R : Any> getResult(): R? {
         @Suppress("UNCHECKED_CAST")
-        return saga.sagaResult as? R
+        val result = saga.sagaResult as? R
+        if (result == null && !saga.exception.isNullOrEmpty()) {
+            throw DomainException(saga.exception!!)
+        }
+        return result
     }
 
     override val scheduleTime: LocalDateTime
@@ -106,6 +111,10 @@ class SagaRecordImpl : SagaRecord {
     override fun <R : Any> getSagaProcessResult(processCode: String): R? {
         val sagaProcess = saga.getSagaProcess(processCode) ?: return null
         @Suppress("UNCHECKED_CAST")
-        return sagaProcess.sagaProcessResult as? R
+        val result = sagaProcess.sagaProcessResult as? R
+        if (result == null && !sagaProcess.exception.isNullOrEmpty()) {
+            throw DomainException(sagaProcess.exception!!)
+        }
+        return result
     }
 }
