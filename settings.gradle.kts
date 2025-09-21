@@ -37,6 +37,6 @@ include(
     "ddd-integration-event-rabbitmq",
     "ddd-integration-event-rocketmq"
 )
-include("cap4k-ddd-console", "cap4k-ddd-starter")
+include("cap4k-ddd-console", "cap4k-ddd-starter", "cap4k-ddd-codegen-gradle-plugin")
 
 rootProject.name = "cap4k"

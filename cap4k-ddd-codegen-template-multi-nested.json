@@ -1,0 +1,564 @@
+{
+  "type": "root",
+  "children": [
+    {
+      "type": "dir",
+      "name": "${artifactId}-adapter",
+      "children": [
+        {
+          "type": "file",
+          "name": "build.gradle.kts",
+          "format": "url",
+          "data": "template/build.gradle-adapter.kts"
+        },
+        {
+          "type": "dir",
+          "name": "src",
+          "children": [
+            {
+              "type": "dir",
+              "name": "main",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "kotlin",
+                  "children": [
+                    {
+                      "type": "dir",
+                      "name": "${basePackage}",
+                      "children": [
+                        {
+                          "type": "dir",
+                          "name": "adapter",
+                          "children": [
+                            {
+                              "type": "dir",
+                              "name": "application",
+                              "children": [
+                                {
+                                  "type": "dir",
+                                  "name": "_share",
+                                  "children": [
+                                    {
+                                      "type": "dir",
+                                      "name": "configure",
+                                      "children": [
+                                        {
+                                          "type": "file",
+                                          "name": "MyIntegrationEventInterceptor.kt",
+                                          "format": "url",
+                                          "data": "template/src/main/kotlin/adapter/application/_share/configure/MyIntegrationEventInterceptor.kt"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "distributed",
+                                  "children": [
+                                    {
+                                      "type": "dir",
+                                      "name": "clients",
+                                      "tag": "client_handler"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "queries",
+                                  "tag": "query_handler"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "domain",
+                              "children": [
+                                {
+                                  "type": "dir",
+                                  "name": "_share",
+                                  "children": [
+                                    {
+                                      "type": "dir",
+                                      "name": "configure",
+                                      "children": [
+                                        {
+                                          "type": "file",
+                                          "name": "MyDomainEventInterceptor.kt",
+                                          "format": "url",
+                                          "data": "template/src/main/kotlin/adapter/domain/_share/configure/MyDomainEventInterceptor.kt"
+                                        },
+                                        {
+                                          "type": "file",
+                                          "name": "MyEventMessageInterceptor.kt",
+                                          "format": "url",
+                                          "data": "template/src/main/kotlin/adapter/domain/_share/configure/MyEventMessageInterceptor.kt"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "repositories"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "infra",
+                              "children": [
+                                {
+                                  "type": "dir",
+                                  "name": "_share"
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "jpa",
+                                  "children": [
+                                    {
+                                      "type": "file",
+                                      "name": "QueryDslConfig.kt",
+                                      "format": "url",
+                                      "data": "template/src/main/kotlin/adapter/infra/jpa/QueryDslConfig.kt"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "portal",
+                              "children": [
+                                {
+                                  "type": "dir",
+                                  "name": "api",
+                                  "children": [
+                                    {
+                                      "type": "dir",
+                                      "name": "_share",
+                                      "children": [
+                                        {
+                                          "type": "dir",
+                                          "name": "configure",
+                                          "children": [
+                                            {
+                                              "type": "file",
+                                              "name": "DomainContextConfig.kt",
+                                              "format": "url",
+                                              "data": "template/src/main/kotlin/adapter/portal/api/DomainContextConfig.kt"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "jobs",
+                                  "children": [
+                                    {
+                                      "type": "dir",
+                                      "name": "_share"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "queues"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "resources",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": "test",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "kotlin",
+                  "children": [
+                    {
+                      "type": "dir",
+                      "name": "${basePackage}",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "name": "${artifactId}-application",
+      "children": [
+        {
+          "type": "file",
+          "name": "build.gradle.kts",
+          "format": "url",
+          "data": "template/build.gradle-application.kts"
+        },
+        {
+          "type": "dir",
+          "name": "src",
+          "children": [
+            {
+              "type": "dir",
+              "name": "main",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "dto",
+                  "children": []
+                },
+                {
+                  "type": "dir",
+                  "name": "kotlin",
+                  "children": [
+                    {
+                      "type": "dir",
+                      "name": "${basePackage}",
+                      "children": [
+                        {
+                          "type": "dir",
+                          "name": "application",
+                          "children": [
+                            {
+                              "type": "dir",
+                              "name": "_share",
+                              "children": [
+                                {
+                                  "type": "dir",
+                                  "name": "enums"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "commands",
+                              "tag": "command"
+                            },
+                            {
+                              "type": "dir",
+                              "name": "distributed",
+                              "children": [
+                                {
+                                  "type": "dir",
+                                  "name": "clients",
+                                  "tag": "client"
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "events",
+                                  "tag": "integration_event"
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "sagas",
+                                  "tag": "saga"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "dir",
+                              "name": "queries",
+                              "tag": "query"
+                            },
+                            {
+                              "type": "dir",
+                              "name": "subscribers",
+                              "children": [
+                                {
+                                  "type": "dir",
+                                  "name": "domain",
+                                  "tag": "domain_event_handler"
+                                },
+                                {
+                                  "type": "dir",
+                                  "name": "integration",
+                                  "tag": "integration_event_handler"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "resources",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": "test",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "kotlin",
+                  "children": [
+                    {
+                      "type": "dir",
+                      "name": "${basePackage}",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "name": "${artifactId}-domain",
+      "children": [
+        {
+          "type": "file",
+          "name": "build.gradle.kts",
+          "format": "url",
+          "data": "template/build.gradle-domain.kts"
+        },
+        {
+          "type": "dir",
+          "name": "src",
+          "children": [
+            {
+              "type": "dir",
+              "name": "main",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "kotlin",
+                  "children": [
+                    {
+                      "type": "dir",
+                      "name": "${basePackage}",
+                      "children": [
+                        {
+                          "type": "dir",
+                          "name": "domain",
+                          "children": [
+                            {
+                              "type": "dir",
+                              "name": "_share"
+                            },
+                            {
+                              "type": "dir",
+                              "name": "aggregates",
+                              "tag": "aggregate,domain_event,factory,specification"
+                            },
+                            {
+                              "type": "dir",
+                              "name": "services",
+                              "tag": "domain_service"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "resources",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "type": "dir",
+              "name": "test",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "kotlin",
+                  "children": [
+                    {
+                      "type": "dir",
+                      "name": "${basePackage}",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "name": "${artifactId}-start",
+      "children": [
+        {
+          "type": "file",
+          "name": "build.gradle.kts",
+          "format": "url",
+          "data": "template/build.gradle-start.kts"
+        },
+        {
+          "type": "dir",
+          "name": "src",
+          "children": [
+            {
+              "type": "dir",
+              "name": "main",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "kotlin",
+                  "children": [
+                    {
+                      "type": "dir",
+                      "name": "${basePackage}",
+                      "children": [
+                        {
+                          "type": "file",
+                          "name": "StartApplication.kt",
+                          "format": "url",
+                          "data": "template/src/main/kotlin/StartApplication.kt"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "dir",
+                  "name": "resources",
+                  "children": [
+                    {
+                      "type": "dir",
+                      "name": "db.migration",
+                      "children": [
+                        {
+                          "type": "file",
+                          "name": "V2025.0217.000000__frame_init.sql",
+                          "format": "url",
+                          "data": "template/src/main/resources/db.migration/V2025.0217.000000__frame_init.sql"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "file",
+                      "name": "application.yml",
+                      "format": "url",
+                      "data": "template/src/main/resources/application.yml"
+                    },
+                    {
+                      "type": "file",
+                      "name": "logback.xml",
+                      "format": "url",
+                      "data": "template/src/main/resources/logback.xml"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "file",
+      "name": ".gitignore",
+      "format": "url",
+      "data": "template/.gitignore"
+    },
+    {
+      "type": "dir",
+      "name": "gradle",
+      "children": [
+        {
+          "type": "file",
+          "name": "libs.versions.toml",
+          "format": "url",
+          "data": "template/libs.versions.toml"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "name": "design",
+      "children": []
+    },
+    {
+      "type": "dir",
+      "name": "buildSrc",
+      "children": [
+        {
+          "type": "dir",
+          "name": "src",
+          "children": [
+            {
+              "type": "dir",
+              "name": "main",
+              "children": [
+                {
+                  "type": "dir",
+                  "name": "kotlin",
+                  "children": [
+                    {
+                      "type": "file",
+                      "name": "kotlin-jvm.gradle.kts",
+                      "format": "url",
+                      "data": "template/buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "file",
+          "name": "build.gradle.kts",
+          "format": "url",
+          "data": "template/buildSrc/build.gradle.kts"
+        },
+        {
+          "type": "file",
+          "name": "settings.gradle.kts",
+          "format": "url",
+          "data": "template/buildSrc/settings.gradle.kts"
+        }
+      ]
+    },
+    {
+      "type": "file",
+      "name": "build.gradle.kts",
+      "format": "url",
+      "conflict": "overwrite",
+      "data": "template/build.gradle.kts"
+    },
+    {
+      "type": "file",
+      "name": "settings.gradle.kts",
+      "format": "url",
+      "conflict": "overwrite",
+      "data": "template/settings.gradle.kts"
+    }
+  ]
+}

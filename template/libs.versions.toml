@@ -1,0 +1,75 @@
+#<!-- [cap4j-ddd-codegen-maven-plugin:do-not-overwrite] -->
+# Version catalog is a central place for you to declare and version dependencies
+# https://docs.gradle.org/current/userguide/platforms.html#sub:version-catalog
+# https://docs.gradle.org/current/userguide/platforms.html#sub::toml-dependencies-format
+
+[versions]
+# Kotlin ecosystem
+kotlin = "2.1.20"
+ksp = "2.2.0-2.0.2"
+
+# Spring framework
+spring-boot = "3.1.12"
+spring-dependency-management = "1.1.3"
+blazebit = "1.6.12"
+
+only-engine = "0.0.11-SNAPSHOT"
+cap4k = "0.2.12-SNAPSHOT"
+jimmer = "0.9.106"
+
+hibernate-core = "7.0.10.Final"
+
+# Testing
+junit = "5.13.4"
+mockk = "1.13.8"
+kotlin-compile-testing = "0.8.0"
+
+[libraries]
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+kotlin-allopen-plugin = { module = "org.jetbrains.kotlin:kotlin-allopen", version.ref = "kotlin" }
+kotlin-noarg-plugin = { module = "org.jetbrains.kotlin:kotlin-noarg", version.ref = "kotlin" }
+
+# Spring framework
+spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
+spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter", version.ref = "spring-boot" }
+spring-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+spring-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor" }
+spring-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-data = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+
+annotation = { module = "jakarta.annotation:jakarta.annotation-api" }
+blazebit-persistence-querydsl = { module = "com.blazebit:blaze-persistence-integration-querydsl-expressions-jakarta", version.ref = "blazebit" }
+blazebit-persistence-hibernate = { module = "com.blazebit:blaze-persistence-integration-hibernate-6.2", version.ref = "blazebit" }
+
+engine-common = { module = "com.only4:engine-common", version.ref = "only-engine" }
+engine-web-starter = { module = "com.only4:engine-web-starter", version.ref = "only-engine" }
+
+cap4k-console = { module = "com.only4:cap4k-ddd-console", version.ref = "cap4k" }
+ddd-starter = { module = "com.only4:cap4k-ddd-starter", version.ref = "cap4k" }
+ddd-integration-event-http = { module = "com.only4:ddd-integration-event-http", version.ref = "cap4k" }
+ddd-integration-event-http-jpa = { module = "com.only4:ddd-integration-event-http-jpa", version.ref = "cap4k" }
+
+jimmer-starter = { module = "org.babyfish.jimmer:jimmer-spring-boot-starter", version.ref = "jimmer" }
+jimmer-core = { module = "org.babyfish.jimmer:jimmer-core-kotlin", version.ref = "jimmer" }
+jimmer-sql = { module = "org.babyfish.jimmer:jimmer-sql-kotlin", version.ref = "jimmer" }
+jimmer-ksp = { module = "org.babyfish.jimmer:jimmer-ksp", version.ref = "jimmer" }
+
+hibernate-processor = { module = "org.hibernate.orm:hibernate-processor", version.ref = "hibernate-core" }
+
+druid = { module = "com.alibaba:druid-spring-boot-starter", version = "1.2.8" }
+mysql = { module = "com.mysql:mysql-connector-j", version = "8.1.0" }
+
+# Testing
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+kotlin-compile-testing = { module = "dev.zacsweers.kctfork:ksp", version.ref = "kotlin-compile-testing" }
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+
+[plugins]
+kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+kotlin-jpa = { id = "org.jetbrains.kotlin.plugin.jpa", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
