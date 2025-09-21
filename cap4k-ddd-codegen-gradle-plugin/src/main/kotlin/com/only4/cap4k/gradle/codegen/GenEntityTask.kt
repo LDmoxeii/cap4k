@@ -1,7 +1,9 @@
 package com.only4.cap4k.gradle.codegen
 
 import com.only4.cap4k.gradle.codegen.misc.NamingUtils
+import com.only4.cap4k.gradle.codegen.misc.SourceFileUtils
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils
+import com.only4.cap4k.gradle.codegen.template.TemplateNode
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
@@ -46,12 +48,16 @@ open class GenEntityTask : AbstractCodegenTask() {
     val enumTableNameMap = mutableMapOf<String, String>()
     val entityTypeMap = mutableMapOf<String, String>()
 
-    val annotationsCache = mutableMapOf<String, String>()
+    val annotationsCache = mutableMapOf<String, Map<String, String>>()
 
     var dbType = "mysql"
+
     var aggregatesPath = ""
     var schemaPath = ""
     var subscriberPath = ""
+
+    val templateNodeMap = mutableMapOf<String, MutableList<TemplateNode>>()
+
 
     @TaskAction
     fun generate() {
@@ -71,6 +77,19 @@ open class GenEntityTask : AbstractCodegenTask() {
         logger.info("包含表：${ext.database.tables.get()}")
         logger.info("忽略表：${ext.database.ignoreTables.get()}")
         logger.info("乐观锁字段：${ext.generation.versionField.get()}")
+        logger.info("逻辑删除字段：${ext.generation.deletedField.get()}")
+        logger.info("只读字段：${ext.generation.readonlyFields.get()}")
+        logger.info("忽略字段：${ext.generation.ignoreFields.get()}")
+        if (ext.generation.entityBaseClass.get().isBlank()) {
+            ext.generation.entityBaseClass.set(SourceFileUtils.resolveDefaultBasePackage(getDomainModulePath()))
+        }
+        logger.info("实体类基类：${ext.generation.entityBaseClass.get()}")
+        logger.info("聚合根标注注解: ${getAggregateRootAnnotation()}")
+        logger.info("主键ID生成器: ${ext.generation.idGenerator}")
+        logger.info("日期类型映射: ${ext.generation.datePackage.get()}")
+        logger.info("枚举值字段名称: ${ext.generation.enumValueField.get()}")
+        logger.info("枚举名字段名称: ${ext.generation.enumNameField.get()}")
+        logger.info("枚举不匹配是否抛出异常: ${ext.generation.enumUnmatchedThrowException.get()}")
 
         try {
             // 获取数据库信息
@@ -102,9 +121,6 @@ open class GenEntityTask : AbstractCodegenTask() {
 
         for (table in tables) {
             val tableName = SqlSchemaUtils.getTableName(table)
-            val comment = SqlSchemaUtils.getTableComment(table)
-
-            logger.info("处理表: $tableName - $comment")
 
             // 缓存表信息
             tableMap[tableName] = table
@@ -112,15 +128,14 @@ open class GenEntityTask : AbstractCodegenTask() {
             // 获取表的列信息
             val columns = allColumns.filter { column ->
                 SqlSchemaUtils.isColumnInTable(column, table)
-            }.sortedBy { SqlSchemaUtils.getOrdinalPosition(it) }
+            }.sortedBy { SqlSchemaUtils.getOridinalPosition(it) }
 
             columnsMap[tableName] = columns
+        }
 
-            // 解析枚举配置
-            parseEnumConfigs(tableName, columns)
-
-            // 生成实体Java类型映射
-            entityTypeMap[tableName] = NamingUtils.toUpperCamelCase(tableName) ?: tableName
+        for (table in tableMap.values) {
+            val tableColumns = columnsMap[SqlSchemaUtils.getTableName(table)]!!
+            val relationTable = resolveRelationTable(table, tableColumns)
         }
 
         // 延迟解析模块和聚合信息，确保所有表都已缓存
@@ -128,6 +143,72 @@ open class GenEntityTask : AbstractCodegenTask() {
 
         logger.info("数据库结构解析完成，共处理 ${tables.size} 张表")
     }
+
+    private fun resolveRelationTable(
+        table: Map<String, Any?>,
+        columns: List<Map<String, Any?>>,
+    ): Map<String, Map<String, String>> {
+        val result = mutableMapOf<String, MutableMap<String, String>>()
+        val tableName = SqlSchemaUtils.getTableName(table)
+
+        if (isIgnoreTable(table)) return result
+
+        if (!SqlSchemaUtils.isAggregateRoot(table)) {
+            val parent = SqlSchemaUtils.getParent(table)
+
+            result.putIfAbsent(parent, mutableMapOf())
+
+            var rewrited = false
+            columns.forEach { column ->
+                if (SqlSchemaUtils.hasReference(column)) {
+                    if (parent.equals(SqlSchemaUtils.getReference(column), ignoreCase = true)) {
+                        val lazy = SqlSchemaUtils.isLazy(
+                            column,
+                            "LAZY".equals(getExtension().generation.fetchType.get(), ignoreCase = true)
+                        )
+                        result[parent]!!.putIfAbsent(
+                            tableName,
+                            "OneToMany;${SqlSchemaUtils.getColumnName(column)}${if (lazy) ";LAZY" else ""}"
+                        )
+                        if (getExtension().generation.generateParent.get()) {
+                            result.putIfAbsent(tableName, mutableMapOf())
+                            result[tableName]!!.putIfAbsent(
+                                parent,
+                                "*ManyToOne;${SqlSchemaUtils.getColumnName(column)}${if (lazy) ";LAZY" else ""}"
+                            )
+                        }
+                    }
+                }
+            }
+            if (!rewrited) {
+                val column = columns.firstOrNull { SqlSchemaUtils.getColumnName(it).equals("${parent}_id") }
+                if (column != null) {
+                    val lazy = SqlSchemaUtils.isLazy(
+                        column,
+                        "LAZY".equals(getExtension().generation.fetchType.get(), ignoreCase = true)
+                    )
+                    result[parent]!!.putIfAbsent(
+                        tableName,
+                        "OneToMany;${SqlSchemaUtils.getColumnName(column)}${if (lazy) ";LAZY" else ""}"
+                    )
+                    if (getExtension().generation.generateParent.get()) {
+                        result.putIfAbsent(tableName, mutableMapOf())
+                        result[tableName]!!.putIfAbsent(
+                            parent,
+                            "*ManyToOne;${SqlSchemaUtils.getColumnName(column)}${if (lazy) ";LAZY" else ""}"
+                        )
+                    }
+                }
+
+            }
+        }
+
+        if (SqlSchemaUtils.hasRelation(table)) {
+
+        }
+    }
+
+    private fun isIgnoreTable(table: Map<String, Any?>): Boolean = SqlSchemaUtils.isIgnore(table)
 
     /**
      * 解析模块和聚合信息
@@ -236,18 +317,39 @@ open class GenEntityTask : AbstractCodegenTask() {
      */
     private fun parseEnumConfigs(tableName: String, columns: List<Map<String, Any?>>) {
         for (column in columns) {
-            if (SqlSchemaUtils.hasEnum(column)) {
-                val columnName = SqlSchemaUtils.getColumnName(column)
+            if (SqlSchemaUtils.hasEnum(column) && !isIgnoreColumn(column)) {
                 val enumConfig = SqlSchemaUtils.getEnum(column)
-                val enumKey = "${tableName}_${columnName}"
+                if (enumConfig.isEmpty()) {
+                    continue
+                }
+                val enumKey = SqlSchemaUtils.getType(column)
 
                 enumConfigMap[enumKey] = enumConfig
-                enumPackageMap[enumKey] = DEFAULT_ENUM_PACKAGE
+                var enumPackage = if (templateNodeMap.containsKey("enum") && templateNodeMap["enum"]!!.isNotEmpty()) {
+                    templateNodeMap["enum"]!![0].name!!
+                } else {
+                    DEFAULT_ENUM_PACKAGE
+                }
+
+                if (enumPackage.isNotBlank()) {
+                    enumPackage = ".$enumPackage"
+                }
+                enumPackageMap[enumKey] =
+                    "${getExtension()}.${getEntityPackage(SqlSchemaUtils.getTableName())}$enumPackage"
                 enumTableNameMap[enumKey] = tableName
 
                 logger.debug("发现枚举配置: $enumKey -> $enumConfig")
             }
         }
+    }
+
+    private fun isIgnoreColumn(column: Map<String, Any?>): Boolean {
+        if (SqlSchemaUtils.isIgnore(column)) {
+            return true
+        }
+        val columnName = SqlSchemaUtils.getColumnName(column).lowercase()
+        return getExtension().generation.ignoreFields.get().map { it.lowercase().split(PATTERN_SPLITTER) }.flatten()
+            .any { columnName.matches(it.replace("%", ".*").toRegex()) }
     }
 
     /**

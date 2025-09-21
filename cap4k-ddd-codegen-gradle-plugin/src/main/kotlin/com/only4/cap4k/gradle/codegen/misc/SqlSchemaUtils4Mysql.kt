@@ -114,22 +114,6 @@ object SqlSchemaUtils4Mysql {
         }
     }
 
-    fun getComment(tableOrColumn: Map<String, Any?>, cleanAnnotations: Boolean): String {
-        val comment = if (tableOrColumn.containsKey("TABLE_COMMENT")) {
-            tableOrColumn["TABLE_COMMENT"] as String? ?: ""
-        } else if (tableOrColumn.containsKey("COLUMN_COMMENT")) {
-            tableOrColumn["COLUMN_COMMENT"] as String? ?: ""
-        } else {
-            ""
-        }
-
-        return if (cleanAnnotations) {
-            SqlSchemaUtils.ANNOTATION_PATTERN.matcher(comment).replaceAll("")
-        } else {
-            comment.trim()
-        }
-    }
-
     fun getColumnDefaultLiteral(column: Map<String, Any?>): String {
         val columnDefault = column["COLUMN_DEFAULT"] as String? ?: return "null"
         return when (SqlSchemaUtils.getColumnType(column)) {
@@ -198,5 +182,42 @@ object SqlSchemaUtils4Mysql {
 
     fun getOrdinalPosition(column: Map<String, Any?>): Int = column["ORDINAL_POSITION"] as Int
 
+    fun hasColumn(columnName: String, columns: List<Map<String, Any?>>): Boolean =
+        columns.any { it["COLUMN_NAME"].toString().equals(columnName, ignoreCase = true) }
 
+    fun getName(tableOrColumn: Map<String, Any?>): String {
+        return if (tableOrColumn.containsKey("COLUMN_NAME")) {
+            getColumnName(tableOrColumn)
+        } else getTableName(tableOrColumn)
+    }
+
+    fun getColumnName(column: Map<String, Any?>): String = column["COLUMN_NAME"] as String
+
+    fun getTableName(table: Map<String, Any?>): String = table["TABLE_NAME"] as String
+
+    fun getColumnDbType(column: Map<String, Any?>): String = column["COLUMN_TYPE"] as String
+
+    fun getColumnDbDataType(column: Map<String, Any?>): String = column["DATA_TYPE"] as String
+
+    fun isColumnNullable(column: Map<String, Any?>): Boolean =
+        (column["IS_NULLABLE"] as String).equals("YES", ignoreCase = true)
+
+    fun isColumnPrimaryKey(column: Map<String, Any?>): Boolean =
+        (column["COLUMN_KEY"] as String).equals("PRI", ignoreCase = true)
+
+    fun getComment(tableOrColumn: Map<String, Any?>, cleanAnnotations: Boolean): String {
+        val comment = if (tableOrColumn.containsKey("TABLE_COMMENT")) {
+            tableOrColumn["TABLE_COMMENT"] as String? ?: ""
+        } else if (tableOrColumn.containsKey("COLUMN_COMMENT")) {
+            tableOrColumn["COLUMN_COMMENT"] as String? ?: ""
+        } else {
+            ""
+        }
+
+        return if (cleanAnnotations) {
+            SqlSchemaUtils.ANNOTATION_PATTERN.matcher(comment).replaceAll("")
+        } else {
+            comment.trim()
+        }
+    }
 }

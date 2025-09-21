@@ -2,6 +2,7 @@ package com.only4.cap4k.gradle.codegen
 
 import org.gradle.api.Action
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import javax.inject.Inject
 
@@ -9,16 +10,6 @@ import javax.inject.Inject
  * Cap4k DDD 代码生成插件配置扩展
  */
 open class Cap4kCodegenExtension @Inject constructor(objects: ObjectFactory) {
-
-    /**
-     * 基础包路径
-     */
-    val basePackage: Property<String> = objects.property(String::class.java)
-
-    /**
-     * 是否为多模块项目
-     */
-    val multiModule: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 
     /**
      * 架构模板文件路径
@@ -36,9 +27,14 @@ open class Cap4kCodegenExtension @Inject constructor(objects: ObjectFactory) {
     val outputEncoding: Property<String> = objects.property(String::class.java).convention("UTF-8")
 
     /**
-     * 设计配置文件路径
+     * 基础包路径
      */
-    val designFile: Property<String> = objects.property(String::class.java)
+    val basePackage: Property<String> = objects.property(String::class.java)
+
+    /**
+     * 是否为多模块项目
+     */
+    val multiModule: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 
     /**
      * adapter模块名称后缀
@@ -54,6 +50,11 @@ open class Cap4kCodegenExtension @Inject constructor(objects: ObjectFactory) {
      * application模块名称后缀
      */
     val moduleNameSuffix4Application: Property<String> = objects.property(String::class.java).convention("-application")
+
+    /**
+     * 设计配置文件路径
+     */
+    val designFile: Property<String> = objects.property(String::class.java)
 
     /**
      * 数据库连接配置
@@ -151,30 +152,23 @@ open class GenerationConfig @Inject constructor(objects: ObjectFactory) {
      */
     val rootEntityBaseClass: Property<String> = objects.property(String::class.java).convention("")
 
-    /**
-     * 是否生成Schema辅助类
-     */
-    val generateSchema: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val entityClassExtraImports: Property<String> = objects.property(String::class.java).convention("")
 
     /**
-     * 是否生成聚合封装类
+     * 实体Schema输出模式 ref | abs
      */
-    val generateAggregate: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val entitySchemaOutputMode: Property<String> = objects.property(String::class.java).convention("ref")
 
     /**
-     * 是否生成关联父实体字段
+     * 实体Schema输出包
      */
-    val generateParent: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val entitySchemaOutputPackage: Property<String> =
+        objects.property(String::class.java).convention("domain._share.meta")
 
     /**
-     * 是否生成默认值
+     * 实体Schema类名模板
      */
-    val generateDefault: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-
-    /**
-     * 是否在注释中包含数据库字段类型
-     */
-    val generateDbType: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val entitySchemaNameTemplate: Property<String> = objects.property(String::class.java).convention("S\${Entity}")
 
     /**
      * 关联实体加载模式 LAZY | EAGER
@@ -190,6 +184,11 @@ open class GenerationConfig @Inject constructor(objects: ObjectFactory) {
      * 值对象主键生成器
      */
     val idGenerator4ValueObject: Property<String> = objects.property(String::class.java).convention("")
+
+    /**
+     * 哈希值计算方法
+     */
+    val hashMethod4ValueObject: Property<String> = objects.property(String::class.java).convention("")
 
     /**
      * 枚举值字段名
@@ -212,13 +211,54 @@ open class GenerationConfig @Inject constructor(objects: ObjectFactory) {
     val datePackage: Property<String> = objects.property(String::class.java).convention("java.time")
 
     /**
+     * 类型映射
+     */
+    val typeRemapping: MapProperty<String, String> =
+        objects.mapProperty(String::class.java, String::class.java).convention(mutableMapOf())
+
+    /**
+     * 是否生成默认值
+     */
+    val generateDefault: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+
+    /**
+     * 是否在注释中包含数据库字段类型
+     */
+    val generateDbType: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+
+    /**
+     * 是否生成Schema辅助类
+     */
+    val generateSchema: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+
+    /**
+     * 是否生成聚合封装类
+     */
+    val generateAggregate: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+
+    /**
+     * 是否生成关联父实体字段
+     */
+    val generateParent: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+
+    /**
      * 仓储名称模板
      */
     val repositoryNameTemplate: Property<String> =
         objects.property(String::class.java).convention("\${Entity}Repository")
 
     /**
+     * 仓储是否支持Querydsl
+     */
+    val repositorySupportQuerydsl: Property<Boolean> = objects.property(Boolean::class.java).convention(true)
+
+    /**
      * 聚合名称模板
      */
     val aggregateNameTemplate: Property<String> = objects.property(String::class.java).convention("Agg\${Entity}")
+
+    /**
+     * 聚合根注解
+     */
+    val aggregateRootAnnotation: Property<String> = objects.property(String::class.java).convention("")
 }

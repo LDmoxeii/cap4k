@@ -39,9 +39,6 @@ object SqlSchemaUtils {
         }
     }
 
-    /**
-     * 识别数据库类型
-     */
     fun recognizeDbType(connectionString: String): String {
         return try {
             connectionString.split(":")[1]
@@ -51,9 +48,6 @@ object SqlSchemaUtils {
         }
     }
 
-    /**
-     * 处理数据库方言语法配置
-     */
     fun processSqlDialect(dbType: String) {
         when (dbType) {
             DB_TYPE_MYSQL -> {
@@ -79,9 +73,6 @@ object SqlSchemaUtils {
         }
     }
 
-    /**
-     * 执行SQL查询
-     */
     fun executeQuery(sql: String, connectionString: String, user: String, pwd: String): List<Map<String, Any?>> {
         val result = mutableListOf<Map<String, Any?>>()
         try {
@@ -118,9 +109,6 @@ object SqlSchemaUtils {
         return result
     }
 
-    /**
-     * 获取表的信息
-     */
     fun resolveTables(connectionString: String, user: String, pwd: String): List<Map<String, Any?>> {
         return when (recognizeDbType(connectionString)) {
             DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.resolveTables(connectionString, user, pwd)
@@ -129,59 +117,12 @@ object SqlSchemaUtils {
         }
     }
 
-    /**
-     * 获取列的信息
-     */
     fun resolveColumns(connectionString: String, user: String, pwd: String): List<Map<String, Any?>> {
         return when (recognizeDbType(connectionString)) {
             DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.resolveColumns(connectionString, user, pwd)
             DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列信息获取未实现")
             else -> SqlSchemaUtils4Mysql.resolveColumns(connectionString, user, pwd)
         }
-    }
-
-    /**
-     * 获取表注释
-     */
-    fun getTableComment(table: Map<String, Any?>): String {
-        return table["TABLE_COMMENT"]?.toString() ?: table["table_comment"]?.toString() ?: ""
-    }
-
-    /**
-     * 获取列注释
-     */
-    fun getColumnComment(column: Map<String, Any?>): String {
-        return column["COLUMN_COMMENT"]?.toString() ?: column["column_comment"]?.toString() ?: ""
-    }
-
-    private fun hasAnyAnnotation(
-        columnOrTable: Map<String, Any?>,
-        annotations: List<String>,
-    ): Boolean = annotations.any { hasAnnotation(columnOrTable, it) }
-
-    private fun hasAnnotation(columnOrTable: Map<String, Any?>, annotation: String): Boolean =
-        getAnnotations(columnOrTable).containsKey(annotation)
-
-    private fun getAnnotations(columnOrTable: Map<String, Any?>): Map<String, String> {
-        val comment = getComment(columnOrTable, false)
-        if (task!!.annotationsCache.containsKey(comment)) {
-            return task!!.annotationsCache[comment]!!
-        }
-        val annotations = mutableMapOf<String, String>()
-        val matcher = ANNOTATION_PATTERN.matcher(comment)
-        while (matcher.find()) {
-            if (matcher.groupCount() > 1 && matcher.group(1).isNotBlank()) {
-                val name = matcher.group(1)
-                val value = matcher.group(2)
-                if (value.isNotBlank() && value.length > 1) {
-                    annotations[name] = value.removePrefix("=")
-                } else {
-                    annotations[name] = ""
-                }
-            }
-        }
-        task!!.annotationsCache.putIfAbsent(comment, annotations)
-        return annotations
     }
 
     fun getColumnType(column: Map<String, Any?>): String {
@@ -312,6 +253,43 @@ object SqlSchemaUtils {
         }
     }
 
+    fun getAnnotations(columnOrTable: Map<String, Any?>): Map<String, String> {
+        val comment = getComment(columnOrTable, false)
+        if (task!!.annotationsCache.containsKey(comment)) {
+            return task!!.annotationsCache[comment]!!
+        }
+        val annotations = mutableMapOf<String, String>()
+        val matcher = ANNOTATION_PATTERN.matcher(comment)
+        while (matcher.find()) {
+            if (matcher.groupCount() > 1 && matcher.group(1).isNotBlank()) {
+                val name = matcher.group(1)
+                val value = matcher.group(2)
+                if (value.isNotBlank() && value.length > 1) {
+                    annotations[name] = value.removePrefix("=")
+                } else {
+                    annotations[name] = ""
+                }
+            }
+        }
+        task!!.annotationsCache.putIfAbsent(comment, annotations)
+        return annotations
+    }
+
+    fun hasAnnotation(columnOrTable: Map<String, Any?>, annotation: String): Boolean =
+        getAnnotations(columnOrTable).containsKey(annotation)
+
+    fun hasAnyAnnotation(
+        columnOrTable: Map<String, Any?>,
+        annotations: List<String>,
+    ): Boolean = annotations.any { hasAnnotation(columnOrTable, it) }
+
+    fun getAnyAnnotation(
+        tableOrColumn: Map<String, Any?>,
+        annotations: List<String>,
+    ): String = annotations.find { hasAnnotation(tableOrColumn, it) }?.let {
+        getAnnotations(tableOrColumn)[it]!!
+    } ?: ""
+
     fun hasLazy(table: Map<String, Any?>): Boolean = hasAnyAnnotation(table, listOf("Lazy", "L"))
 
     fun isLazy(table: Map<String, Any?>, defaultLazy: Boolean = false): Boolean {
@@ -336,6 +314,8 @@ object SqlSchemaUtils {
     fun isValueObject(table: Map<String, Any?>): Boolean = hasAnyAnnotation(table, listOf("ValueObject", "VO"))
 
     fun hasParent(table: Map<String, Any?>): Boolean = hasAnyAnnotation(table, listOf("Parent", "P"))
+
+    fun getParent(table: Map<String, Any?>) = getAnyAnnotation(table, listOf("Parent", "P"))
 
     fun getModule(table: Map<String, Any?>): Boolean = hasAnyAnnotation(table, listOf("Module", "M"))
 
@@ -377,80 +357,69 @@ object SqlSchemaUtils {
 
     fun hasEnum(columnOrTable: Map<String, Any?>) = hasAnyAnnotation(columnOrTable, listOf("Enum", "E"))
 
-    fun getEnum(columnOrTable: Map<String, Any?>): String {
-        val enumsConfig = getAnyAnnotation(columnOrTable)
-    }
-
-
-    private fun getAnyAnnotation(
-        tableOrColumn: Map<String, Any?>,
-        annotations: List<String>,
-    ): String = annotations.find { hasAnnotation(tableOrColumn, it) }?.let {
-        getAnnotations(tableOrColumn)[it]!!
-    } ?: ""
-
-    /**
-     * 获取列的默认值
-     */
-    fun getColumnDefault(column: Map<String, Any?>): String? {
-        return column["COLUMN_DEFAULT"]?.toString() ?: column["column_default"]?.toString()
-    }
-
-    /**
-     * 获取列的序号位置
-     */
-    fun getOrdinalPosition(column: Map<String, Any?>): Int {
-        val position = column["ORDINAL_POSITION"] ?: column["ordinal_position"]
-        return when (position) {
-            is Number -> position.toInt()
-            is String -> position.toIntOrNull() ?: 1
-            else -> 1
-        }
-    }
-
-    /**
-     * 解析注解信息
-     */
-    fun parseAnnotations(comment: String): Map<String, String> {
-        val annotations = mutableMapOf<String, String>()
-        val matcher = ANNOTATION_PATTERN.matcher(comment)
-        while (matcher.find()) {
-            val name = matcher.group(1)
-            val value = matcher.group(2)?.removePrefix("=") ?: ""
-            annotations[name] = value
-        }
-        return annotations
-    }
-
-    /**
-     * 获取父表名称
-     */
-    fun getParent(table: Map<String, Any?>): String {
-        val comment = getTableComment(table)
-        val annotations = parseAnnotations(comment)
-        return annotations["P"] ?: annotations["Parent"] ?: ""
-    }
-
-    /**
-     * 获取枚举配置
-     */
-    fun getEnum(column: Map<String, Any?>): Map<Int, Array<String>> {
-        val comment = getColumnComment(column)
-        val enumValues = parseAnnotations(comment)["Enum"] ?: return emptyMap()
-
+    fun getEnum(columnOrTable: Map<String, Any?>): Map<Int, Array<String>> {
+        val enumsConfig = getAnyAnnotation(columnOrTable, listOf("Enum", "E"))
         val result = mutableMapOf<Int, Array<String>>()
-        // 解析枚举值格式: "1:Active:激活,2:Inactive:未激活"
-        enumValues.split(",").forEach { item ->
-            val parts = item.split(":")
-            if (parts.size >= 3) {
-                val value = parts[0].toIntOrNull()
-                if (value != null) {
-                    result[value] = arrayOf(parts[1], parts[2])
+        if (enumsConfig.isNotBlank()) {
+            val enumsConfigs = enumsConfig.splitWithTrim("\\|")
+            enumsConfigs.forEachIndexed { i, it ->
+                val pair = it.split("\\:")
+                    .map { c ->
+                        c.trim()
+                            .replace("\n", "")
+                            .replace("\r", "")
+                            .replace("\t", "")
+                    }
+                when (pair.size) {
+                    0 -> return@forEachIndexed
+                    1 -> {
+                        if (pair[0].matches("^[-+]?[0-9]+$".toRegex())) {
+                            return@forEachIndexed
+                        } else {
+                            result.put(i, arrayOf(pair[0], pair[0]))
+                        }
+                    }
+
+                    2 -> {
+                        if (pair[0].matches("^[-+]?[0-9]+$".toRegex())) {
+                            result.put(pair[0].toInt(), arrayOf(pair[1], pair[1]))
+                        } else {
+                            result.put(i, arrayOf(pair[0], pair[1]))
+                        }
+                    }
+
+                    else -> {
+                        if (pair[0].matches("^[-+]?[0-9]+$".toRegex())) {
+                            result.put(pair[0].toInt(), arrayOf(pair[1], pair[2]))
+                        } else {
+                            result.put(i, arrayOf(pair[0], pair[1]))
+                        }
+                    }
                 }
             }
         }
         return result
     }
 
+    fun hasFactory(table: Map<String, Any?>): Boolean = hasAnyAnnotation(table, listOf("Factory", "Fac"))
 
+    fun hasSpecification(table: Map<String, Any?>): Boolean =
+        hasAnyAnnotation(table, listOf("Specification", "Spec", "Spe"))
+
+    fun hasDomainEvent(table: Map<String, Any?>): Boolean =
+        hasAnyAnnotation(table, listOf("DomainEvent", "DE", "Event", "Evt"))
+
+    fun getDomainEvents(table: Map<String, Any?>): List<String> {
+        if (!isAggregateRoot(table)) {
+            return emptyList()
+        }
+        return getAnyAnnotation(table, listOf("DomainEvent", "DE", "Event", "Evt")).splitWithTrim("\\|")
+            .filter { it.isNotBlank() }
+    }
+
+
+}
+
+private fun String.splitWithTrim(regexSplitter: String): List<String> {
+    return this.split(regexSplitter).map { it.trim() }
 }

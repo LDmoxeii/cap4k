@@ -1,11 +1,10 @@
 package com.only4.cap4k.gradle.codegen.misc
 
-import java.io.*
+import java.io.File
+import java.io.IOException
 import java.net.URL
 import java.nio.file.Files
-import java.nio.file.Path
 import java.nio.file.Paths
-import kotlin.collections.LinkedHashMap
 
 /**
  * 源文件工具类
@@ -271,5 +270,28 @@ object SourceFileUtils {
                 }
             }
         }
+    }
+
+    fun resolveDefaultBasePackage(baseDir: String): String {
+        val file = loadFiles(
+            File(baseDir).canonicalPath + File.separator + SRC_MAIN_KOTLIN.replace(
+                PACKAGE_SPLITTER,
+                File.separator
+            )
+        ).firstOrNull { it.isFile && it.extension == "kt" }
+
+        file ?: throw RuntimeException("解析默认basePackage失败")
+
+        val packageName = resolvePackage(file.canonicalPath)
+        val packages = packageName.split("\\.")
+        return when (packages.size) {
+            0 -> throw RuntimeException("解析默认basePackage失败")
+            1 -> packages[0]
+            2 -> packages[0] + PACKAGE_SPLITTER + packages[1]
+            else -> {
+                packages[0] + PACKAGE_SPLITTER + packages[1] + PACKAGE_SPLITTER + packages[2]
+            }
+        }
+
     }
 }

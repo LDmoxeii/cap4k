@@ -11,7 +11,6 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
-import org.gradle.api.tasks.Optional
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -125,52 +124,73 @@ abstract class AbstractCodegenTask : DefaultTask() {
         val ext = getExtension()
         val context = mutableMapOf<String, String?>()
 
-        // 基础配置
-        context["basePackage"] = ext.basePackage.get()
-        context["basePackage__as_path"] = ext.basePackage.get().replace(".", File.separator)
-        context["multiModule"] = ext.multiModule.get().toString()
-        context["archTemplateEncoding"] = ext.archTemplateEncoding.get()
-        context["outputEncoding"] = ext.outputEncoding.get()
-
         // 项目相关配置
         context["artifactId"] = projectName.get()
         context["groupId"] = projectGroup.get()
         context["version"] = projectVersion.get()
-        context["projectName"] = projectName.get()
 
-        // 调试输出
-        logger.info("Context variables:")
-        logger.info("- artifactId: ${context["artifactId"]}")
-        logger.info("- groupId: ${context["groupId"]}")
-        logger.info("- version: ${context["version"]}")
-        logger.info("- basePackage: ${context["basePackage"]}")
+        // 基础配置
+        context["archTemplate"] = ext.archTemplate.get()
+        context["archTemplateEncoding"] = ext.archTemplateEncoding.get()
+        context["outputEncoding"] = ext.outputEncoding.get()
+        context["designFile"] = ext.designFile.get()
+        context["basePackage"] = ext.basePackage.get()
+        context["basePackage__as_path"] = ext.basePackage.get().replace(".", File.separator)
+        context["multiModule"] = ext.multiModule.get().toString()
 
         // 模块路径
         context["adapterModulePath"] = getAdapterModulePath()
         context["applicationModulePath"] = getApplicationModulePath()
         context["domainModulePath"] = getDomainModulePath()
 
+        // 数据库配置
+        context["dbUrl"] = ext.database.url.get()
+        context["dbUsername"] = ext.database.username.get()
+        context["dbPassword"] = ext.database.password.get()
+        context["dbSchema"] = ext.database.schema.orNull
+        context["dbTables"] = ext.database.tables.get()
+        context["dbIgnoreTables"] = ext.database.ignoreTables.get()
+
+        // 生成配置
+        context["versionField"] = ext.generation.versionField.get()
+        context["deletedField"] = ext.generation.deletedField.get()
+        context["readonlyFields"] = ext.generation.readonlyFields.get()
+        context["ignoreFields"] = ext.generation.ignoreFields.get()
+        context["entityBaseClass"] = ext.generation.entityBaseClass.get()
+        context["rootEntityBaseClass"] = ext.generation.rootEntityBaseClass.get()
+        context["entityClassExtraImports"] = ext.generation.entityClassExtraImports.get()
+        context["entitySchemaOutputPackage"] = ext.generation.entitySchemaOutputPackage.get()
+        context["entitySchemaOutputMode"] = ext.generation.entitySchemaOutputMode.get()
+        context["entitySchemaNameTemplate"] = ext.generation.entitySchemaNameTemplate.get()
+        context["aggregateNameTemplate"] = ext.generation.aggregateNameTemplate.get()
+        context["idGenerator"] = ext.generation.idGenerator.get()
+        context["idGenerator4ValueObject"] = ext.generation.idGenerator4ValueObject.get()
+        context["hashMethod4ValueObject"] = ext.generation.hashMethod4ValueObject.get()
+        context["fetchType"] = ext.generation.fetchType.get()
+        context["enumValueField"] = ext.generation.enumValueField.get()
+
+        context["enumNameField"] = ext.generation.enumNameField.get()
+
+        context["enumUnmatchedThrowException"] = ext.generation.enumUnmatchedThrowException.get().toString()
+        context["datePackage"] = ext.generation.datePackage.get()
+        context["typeRemapping"] = stringfyTypeRemapping()
+        context["generateDefault"] = ext.generation.generateDefault.get().toString()
+        context["generateDbType"] = ext.generation.generateDbType.get().toString()
+        context["generateSchema"] = ext.generation.generateSchema.get().toString()
+        context["generateAggregate"] = ext.generation.generateAggregate.get().toString()
+        context["generateParent"] = ext.generation.generateParent.get().toString()
+        context["aggregateRootAnnotation"] = getAggregateRootAnnotation()
+        context["aggregateNameTemplate"] = ext.generation.aggregateNameTemplate.get()
+        context["repositoryNameTemplate"] = ext.generation.repositoryNameTemplate.get()
+        context["repositorySupportQuerydsl"] = ext.generation.repositorySupportQuerydsl.get().toString()
+        context["date"] = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))
+        context["SEPARATOR"] = File.separator
+        context["separator"] = File.separator
+
+
         // 包名相关
         context["lastPackageName"] = getLastPackageName(ext.basePackage.get())
         context["parentPackageName"] = getParentPackageName(ext.basePackage.get())
-
-        // 时间相关
-        val now = LocalDateTime.now()
-        context["currentDate"] = now.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))
-        context["currentTime"] = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-        context["currentYear"] = now.year.toString()
-
-        // 数据库配置
-        context["dbUrl"] = ext.database.url.orNull
-        context["dbUsername"] = ext.database.username.orNull
-        context["dbPassword"] = ext.database.password.orNull
-        context["dbSchema"] = ext.database.schema.orNull
-
-        // 生成配置
-        context["generateSchema"] = ext.generation.generateSchema.get().toString()
-        context["generateAggregate"] = ext.generation.generateAggregate.get().toString()
-        context["entityBaseClass"] = ext.generation.entityBaseClass.get()
-        context["rootEntityBaseClass"] = ext.generation.rootEntityBaseClass.get()
 
         return context
     }
@@ -189,75 +209,122 @@ abstract class AbstractCodegenTask : DefaultTask() {
         return NamingUtils.parentPackageName(packageName)
     }
 
+    fun stringfyTypeRemapping(): String {
+        val typeRemapping = getExtension().generation.typeRemapping.get()
+        var result = ""
+        typeRemapping.forEach { (k, v) ->
+            result += "<$k>$v</$k>"
+        }
+        return result
+    }
+
     /**
      * 渲染模板并生成文件
      */
     @Throws(Exception::class)
-    protected fun render(pathNode: PathNode, outputDir: String) {
+    protected fun render(pathNode: PathNode, parentPath: String): String {
+        var path = parentPath
         when (pathNode.type) {
             "root" -> {
                 pathNode.children?.forEach { child ->
-                    render(child, outputDir)
+                    render(child, parentPath)
                 }
             }
 
             "dir" -> {
-                val dirPath = "$outputDir${File.separator}${pathNode.name}"
-                val dir = File(dirPath)
-                if (!dir.exists()) {
-                    dir.mkdirs()
-                    logger.info("创建目录: $dirPath")
-                }
+                path = renderDir(pathNode, parentPath)
                 pathNode.children?.forEach { child ->
-                    render(child, dirPath)
+                    render(child, path)
                 }
             }
 
             "file" -> {
-                val filePath = "$outputDir${File.separator}${pathNode.name}"
-                val file = File(filePath)
-
-                // 检查冲突处理策略
-                if (file.exists()) {
-                    when (pathNode.conflict) {
-                        "skip" -> {
-                            logger.info("文件已存在，跳过: $filePath")
-                            return
-                        }
-
-                        "warn" -> {
-                            logger.warn("文件已存在，覆盖: $filePath")
-                        }
-
-                        "overwrite" -> {
-                            logger.info("覆盖文件: $filePath")
-                        }
-                    }
-                }
-
-                // 检查是否包含不覆盖标记
-                if (file.exists()) {
-                    val content = file.readText()
-                    if (content.contains(FLAG_DO_NOT_OVERWRITE)) {
-                        logger.info("文件包含不覆盖标记，跳过: $filePath")
-                        return
-                    }
-                }
-
-                // 创建父目录
-                file.parentFile?.mkdirs()
-
-                // 写入文件
-                val encoding = pathNode.encoding ?: getExtension().outputEncoding.get()
-                file.writeText(pathNode.data ?: "", charset(encoding))
-                logger.info("生成文件: $filePath")
-            }
-
-            "segment" -> {
-                // segment类型节点用于代码片段，不直接生成文件
-                logger.debug("处理代码片段: ${pathNode.name}")
+                path = renderFile(pathNode, parentPath)
             }
         }
+        return path
+    }
+
+    fun renderDir(pathNode: PathNode, parentPath: String): String {
+        require("dir".equals(pathNode.type, ignoreCase = true)) { "pathNode must be a directory type" }
+        if (pathNode.name?.isBlank() == true) return parentPath
+
+        val path = "$parentPath${File.separator}${pathNode.name}"
+
+        if (File(path).exists()) {
+            when (pathNode.conflict) {
+                "skip" -> {
+                    logger.info("目录已存在，跳过: $path")
+                }
+
+                "warn" -> {
+                    logger.warn("目录已存在，继续: $path")
+                }
+
+                "overwrite" -> {
+                    logger.info("目录覆盖: $path")
+                    File(path).delete()
+                    File(path).mkdirs()
+                }
+            }
+        } else {
+            File(path).mkdirs()
+            logger.info("创建目录: $path")
+        }
+
+        if (pathNode.tag?.isBlank() == true) return path
+
+        pathNode.tag!!.split(PATTERN_SPLITTER)
+            .forEach { tag ->
+                renderTemplate(template!!.select(tag), path)
+            }
+
+        return path
+    }
+
+    fun renderFile(pathNode: PathNode, parentPath: String): String {
+        require("file".equals(pathNode.type, ignoreCase = true)) { "pathNode must be a directory type" }
+        require(!(pathNode.name.isNullOrBlank())) { "pathNode name must not be blank" }
+
+        val path = "$parentPath${File.separator}${pathNode.name}"
+
+        val content = pathNode.data!!
+        val encoding = pathNode.encoding ?: getExtension().outputEncoding.get()
+
+        val file = File(path)
+        if (file.exists()) {
+            when (pathNode.conflict) {
+                "skip" -> {
+                    logger.info("文件已存在，跳过: $path")
+                }
+
+                "warn" -> {
+                    logger.warn("文件已存在，继续: $path")
+                }
+
+                "overwrite" -> {
+                    if (file.reader(charset(encoding)).readText().contains(FLAG_DO_NOT_OVERWRITE)) {
+                        logger.warn("文件已存在且包含保护标记，跳过: $path")
+                    } else {
+                        logger.info("文件覆盖: $path")
+                        file.delete()
+                        file.writeText(content, charset(encoding))
+                    }
+                }
+            }
+        } else {
+            file.mkdirs()
+            file.writeText(content, charset(encoding))
+            logger.info("创建目录: $path")
+        }
+
+        return path
+    }
+
+    fun renderTemplate(
+        templateNodes: List<TemplateNode>,
+        parentPath: String,
+    ) {
     }
 
     /**
@@ -349,13 +416,15 @@ abstract class AbstractCodegenTask : DefaultTask() {
         return filtered
     }
 
-    /**
-     * 获取指定表的列信息
-     */
-    protected fun getColumnsForTable(tableName: String, allColumns: List<Map<String, Any?>>): List<Map<String, Any?>> {
-        return allColumns.filter { column ->
-            val columnTableName = SqlSchemaUtils.getColumnName(column)
-            columnTableName.equals(tableName, ignoreCase = true)
-        }.sortedBy { SqlSchemaUtils.getOrdinalPosition(it) }
+    fun getAggregateRootAnnotation(): String {
+        if (getExtension().generation.aggregateRootAnnotation.get().isNotEmpty()) {
+            getExtension().generation.aggregateRootAnnotation.set(
+                getExtension().generation.aggregateRootAnnotation.get().trim()
+            )
+            if (!getExtension().generation.aggregateRootAnnotation.get().startsWith("@")) {
+                getExtension().generation.aggregateRootAnnotation.set("@${getExtension().generation.aggregateRootAnnotation.get()}")
+            }
+        }
+        return getExtension().generation.aggregateRootAnnotation.get()
     }
 }
