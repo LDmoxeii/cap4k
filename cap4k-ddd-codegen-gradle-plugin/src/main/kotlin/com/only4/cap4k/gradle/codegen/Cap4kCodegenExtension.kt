@@ -209,7 +209,7 @@ open class GenerationConfig @Inject constructor(objects: ObjectFactory) {
     /**
      * 日期类型映射使用的包
      */
-    val datePackage4Java: Property<String> = objects.property(String::class.java).convention("java.time")
+    val datePackage: Property<String> = objects.property(String::class.java).convention("java.time")
 
     /**
      * 仓储名称模板

@@ -23,7 +23,7 @@ kotlin {
 cap4kCodegen {
     basePackage.set("${basePackage}")
     multiModule.set(true)
-    archTemplate.set("C:\\Users\\LD_moxeii\\Documents\\code\\cap\\cap4k\\cap4k-ddd-codegen-template-multi-nested.json")
+    archTemplate.set("cap4k-ddd-codegen-template-multi-nested.json")
 
     database {
         url.set("jdbc:mysql://localhost:3306/demo_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai")

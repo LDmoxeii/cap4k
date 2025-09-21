@@ -1,7 +1,8 @@
 package com.only4.cap4k.gradle.codegen.misc
 
+import com.only4.cap4k.gradle.codegen.GenEntityTask
 import org.gradle.api.logging.Logger
-import java.sql.*
+import java.sql.DriverManager
 import java.util.regex.Pattern
 
 /**
@@ -21,15 +22,13 @@ object SqlSchemaUtils {
     var LEFT_QUOTES_4_LITERAL_STRING = "'"
     var RIGHT_QUOTES_4_LITERAL_STRING = "'"
 
-    private var logger: Logger? = null
-    private val ANNOTATION_PATTERN = Pattern.compile("@([A-Za-z]+)(\\=[^;]+)?;?")
+    var logger: Logger? = null
+    val ANNOTATION_PATTERN: Pattern = Pattern.compile("@([A-Za-z]+)(\\=[^;]+)?;?")
+
+    var task: GenEntityTask? = null
 
     fun setLogger(logger: Logger) {
         this.logger = logger
-    }
-
-    private fun log(message: String) {
-        logger?.info(message)
     }
 
     private fun logError(message: String, throwable: Throwable? = null) {
@@ -124,9 +123,9 @@ object SqlSchemaUtils {
      */
     fun resolveTables(connectionString: String, user: String, pwd: String): List<Map<String, Any?>> {
         return when (recognizeDbType(connectionString)) {
-            DB_TYPE_MYSQL -> resolveMysqlTables(connectionString, user, pwd)
-            DB_TYPE_POSTGRESQL -> resolvePostgresqlTables(connectionString, user, pwd)
-            else -> resolveMysqlTables(connectionString, user, pwd)
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.resolveTables(connectionString, user, pwd)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列信息获取未实现")
+            else -> SqlSchemaUtils4Mysql.resolveTables(connectionString, user, pwd)
         }
     }
 
@@ -135,95 +134,10 @@ object SqlSchemaUtils {
      */
     fun resolveColumns(connectionString: String, user: String, pwd: String): List<Map<String, Any?>> {
         return when (recognizeDbType(connectionString)) {
-            DB_TYPE_MYSQL -> resolveMysqlColumns(connectionString, user, pwd)
-            DB_TYPE_POSTGRESQL -> resolvePostgresqlColumns(connectionString, user, pwd)
-            else -> resolveMysqlColumns(connectionString, user, pwd)
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.resolveColumns(connectionString, user, pwd)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列信息获取未实现")
+            else -> SqlSchemaUtils4Mysql.resolveColumns(connectionString, user, pwd)
         }
-    }
-
-    // MySQL 实现
-    private fun resolveMysqlTables(connectionString: String, user: String, pwd: String): List<Map<String, Any?>> {
-        val sql = """
-            SELECT
-                TABLE_NAME,
-                TABLE_COMMENT,
-                TABLE_SCHEMA
-            FROM information_schema.TABLES
-            WHERE TABLE_SCHEMA = DATABASE()
-            ORDER BY TABLE_NAME
-        """.trimIndent()
-        return executeQuery(sql, connectionString, user, pwd)
-    }
-
-    private fun resolveMysqlColumns(connectionString: String, user: String, pwd: String): List<Map<String, Any?>> {
-        val sql = """
-            SELECT
-                COLUMN_NAME,
-                DATA_TYPE,
-                COLUMN_TYPE,
-                IS_NULLABLE,
-                COLUMN_DEFAULT,
-                COLUMN_COMMENT,
-                TABLE_NAME,
-                TABLE_SCHEMA,
-                ORDINAL_POSITION,
-                COLUMN_KEY,
-                EXTRA
-            FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE()
-            ORDER BY TABLE_NAME, ORDINAL_POSITION
-        """.trimIndent()
-        return executeQuery(sql, connectionString, user, pwd)
-    }
-
-    // PostgreSQL 实现
-    private fun resolvePostgresqlTables(connectionString: String, user: String, pwd: String): List<Map<String, Any?>> {
-        val sql = """
-            SELECT
-                t.table_name,
-                obj_description(pgc.oid) as table_comment,
-                t.table_schema
-            FROM information_schema.tables t
-            LEFT JOIN pg_class pgc ON pgc.relname = t.table_name
-            WHERE t.table_schema = 'public'
-            ORDER BY t.table_name
-        """.trimIndent()
-        return executeQuery(sql, connectionString, user, pwd)
-    }
-
-    private fun resolvePostgresqlColumns(connectionString: String, user: String, pwd: String): List<Map<String, Any?>> {
-        val sql = """
-            SELECT
-                c.column_name,
-                c.data_type,
-                c.udt_name as column_type,
-                c.is_nullable,
-                c.column_default,
-                col_description(pgc.oid, c.ordinal_position) as column_comment,
-                c.table_name,
-                c.table_schema,
-                c.ordinal_position,
-                CASE WHEN pk.column_name IS NOT NULL THEN 'PRI' ELSE '' END as column_key,
-                '' as extra
-            FROM information_schema.columns c
-            LEFT JOIN pg_class pgc ON pgc.relname = c.table_name
-            LEFT JOIN (
-                SELECT ku.table_name, ku.column_name
-                FROM information_schema.table_constraints tc
-                JOIN information_schema.key_column_usage ku ON tc.constraint_name = ku.constraint_name
-                WHERE tc.constraint_type = 'PRIMARY KEY'
-            ) pk ON pk.table_name = c.table_name AND pk.column_name = c.column_name
-            WHERE c.table_schema = 'public'
-            ORDER BY c.table_name, c.ordinal_position
-        """.trimIndent()
-        return executeQuery(sql, connectionString, user, pwd)
-    }
-
-    /**
-     * 获取表名
-     */
-    fun getTableName(table: Map<String, Any?>): String {
-        return table["TABLE_NAME"]?.toString() ?: table["table_name"]?.toString() ?: ""
     }
 
     /**
@@ -234,64 +148,246 @@ object SqlSchemaUtils {
     }
 
     /**
-     * 获取列名
-     */
-    fun getColumnName(column: Map<String, Any?>): String {
-        return column["COLUMN_NAME"]?.toString() ?: column["column_name"]?.toString() ?: ""
-    }
-
-    /**
      * 获取列注释
      */
     fun getColumnComment(column: Map<String, Any?>): String {
         return column["COLUMN_COMMENT"]?.toString() ?: column["column_comment"]?.toString() ?: ""
     }
 
-    /**
-     * 获取列的Java类型
-     */
-    fun getColumnJavaType(column: Map<String, Any?>): String {
-        val dataType = (column["DATA_TYPE"]?.toString() ?: column["data_type"]?.toString() ?: "").lowercase()
-        val columnType = (column["COLUMN_TYPE"]?.toString() ?: column["column_type"]?.toString() ?: "").lowercase()
+    private fun hasAnyAnnotation(
+        columnOrTable: Map<String, Any?>,
+        annotations: List<String>,
+    ): Boolean = annotations.any { hasAnnotation(columnOrTable, it) }
 
-        return when {
-            dataType.contains("int") && !dataType.contains("bigint") -> "Int"
-            dataType.contains("bigint") -> "Long"
-            dataType.contains("decimal") || dataType.contains("numeric") -> "java.math.BigDecimal"
-            dataType.contains("float") -> "Float"
-            dataType.contains("double") -> "Double"
-            dataType.contains("varchar") || dataType.contains("text") || dataType.contains("char") -> "String"
-            dataType.contains("date") && !dataType.contains("datetime") -> "java.time.LocalDate"
-            dataType.contains("datetime") || dataType.contains("timestamp") -> "java.time.LocalDateTime"
-            dataType.contains("time") -> "java.time.LocalTime"
-            dataType.contains("boolean") || dataType.contains("tinyint(1)") -> "Boolean"
-            dataType.contains("blob") || dataType.contains("bytea") -> "ByteArray"
-            else -> "String"
+    private fun hasAnnotation(columnOrTable: Map<String, Any?>, annotation: String): Boolean =
+        getAnnotations(columnOrTable).containsKey(annotation)
+
+    private fun getAnnotations(columnOrTable: Map<String, Any?>): Map<String, String> {
+        val comment = getComment(columnOrTable, false)
+        if (task!!.annotationsCache.containsKey(comment)) {
+            return task!!.annotationsCache[comment]!!
+        }
+        val annotations = mutableMapOf<String, String>()
+        val matcher = ANNOTATION_PATTERN.matcher(comment)
+        while (matcher.find()) {
+            if (matcher.groupCount() > 1 && matcher.group(1).isNotBlank()) {
+                val name = matcher.group(1)
+                val value = matcher.group(2)
+                if (value.isNotBlank() && value.length > 1) {
+                    annotations[name] = value.removePrefix("=")
+                } else {
+                    annotations[name] = ""
+                }
+            }
+        }
+        task!!.annotationsCache.putIfAbsent(comment, annotations)
+        return annotations
+    }
+
+    fun getColumnType(column: Map<String, Any?>): String {
+        if (hasType(column)) {
+            val customerType = getType(column)
+            if (hasEnum(column) && task!!.enumPackageMap.containsKey(customerType)) {
+                return "${task!!.enumPackageMap[customerType]!!}.$customerType"
+            }
+            return customerType
+        }
+
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getColumnType(column)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.getColumnType(column)
         }
     }
 
-    /**
-     * 获取列的数据库数据类型
-     */
+    fun getColumnDefaultLiteral(column: Map<String, Any?>): String {
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getColumnDefaultLiteral(column)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.getColumnDefaultLiteral(column)
+        }
+    }
+
+    fun isAutoUpdateDateColumn(column: Map<String, Any?>): Boolean {
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.isAutoUpdateDateColumn(column)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.isAutoUpdateDateColumn(column)
+        }
+    }
+
+    fun isAutoInsertDateColumn(column: Map<String, Any?>): Boolean {
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.isAutoInsertDateColumn(column)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.isAutoInsertDateColumn(column)
+        }
+    }
+
+    fun isColumnInTable(column: Map<String, Any?>, table: Map<String, Any?>): Boolean {
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.isColumnInTable(column, table)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.isColumnInTable(column, table)
+        }
+    }
+
+    fun getOridinalPosition(column: Map<String, Any?>): Int {
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getOrdinalPosition(column)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.getOrdinalPosition(column)
+        }
+    }
+
+    fun hasColumn(columnName: String, columns: List<Map<String, Any?>>): Boolean {
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.hasColumn(columnName, columns)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.hasColumn(columnName, columns)
+        }
+    }
+
+    fun getName(tableOrColumn: Map<String, Any?>): String {
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getName(tableOrColumn)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.getName(tableOrColumn)
+        }
+    }
+
+    fun getColumnName(column: Map<String, Any?>): String {
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getColumnName(column)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.getColumnName(column)
+        }
+    }
+
+    fun getTableName(table: Map<String, Any?>): String {
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getTableName(table)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.getTableName(table)
+        }
+    }
+
+    fun getColumnDbType(column: Map<String, Any?>): String {
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getColumnDbType(column)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.getColumnDbType(column)
+        }
+    }
+
     fun getColumnDbDataType(column: Map<String, Any?>): String {
-        return column["COLUMN_TYPE"]?.toString() ?: column["column_type"]?.toString() ?: ""
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getColumnDbDataType(column)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.getColumnDbDataType(column)
+        }
     }
 
-    /**
-     * 是否是主键列
-     */
-    fun isColumnPrimaryKey(column: Map<String, Any?>): Boolean {
-        val columnKey = column["COLUMN_KEY"]?.toString() ?: column["column_key"]?.toString() ?: ""
-        return columnKey.equals("PRI", ignoreCase = true)
-    }
-
-    /**
-     * 是否是可空列
-     */
     fun isColumnNullable(column: Map<String, Any?>): Boolean {
-        val isNullable = column["IS_NULLABLE"]?.toString() ?: column["is_nullable"]?.toString() ?: ""
-        return isNullable.equals("YES", ignoreCase = true)
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.isColumnNullable(column)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.isColumnNullable(column)
+        }
     }
+
+    fun isColumnPrimaryKey(column: Map<String, Any?>): Boolean {
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.isColumnPrimaryKey(column)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.isColumnPrimaryKey(column)
+        }
+    }
+
+    fun getComment(tableOrColumn: Map<String, Any?>, cleanAnnotations: Boolean = true): String {
+        return when (task!!.dbType) {
+            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getComment(tableOrColumn, cleanAnnotations)
+            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
+            else -> SqlSchemaUtils4Mysql.getComment(tableOrColumn, cleanAnnotations)
+        }
+    }
+
+    fun hasLazy(table: Map<String, Any?>): Boolean = hasAnyAnnotation(table, listOf("Lazy", "L"))
+
+    fun isLazy(table: Map<String, Any?>, defaultLazy: Boolean = false): Boolean {
+        val value = getAnyAnnotation(table, listOf("Lazy", "L"))
+        return when {
+            value.equals("true", ignoreCase = true) || value.equals("0", ignoreCase = true) -> true
+            value.equals("false", ignoreCase = true) || value.equals("1", ignoreCase = true) -> false
+            else -> defaultLazy
+        }
+    }
+
+    fun countIsOne(table: Map<String, Any?>): Boolean {
+        val value = getAnyAnnotation(table, listOf("Count", "C"))
+        return "one".equals(value, ignoreCase = true) || "1".equals(value, ignoreCase = true)
+    }
+
+    fun isIgnore(tableOrColumn: Map<String, Any?>) = hasAnyAnnotation(tableOrColumn, listOf("Ignore", "I"))
+
+    fun isAggregateRoot(table: Map<String, Any?>): Boolean =
+        !hasParent(table) || hasAnyAnnotation(table, listOf("AggregateRoot", "Root", "R"))
+
+    fun isValueObject(table: Map<String, Any?>): Boolean = hasAnyAnnotation(table, listOf("ValueObject", "VO"))
+
+    fun hasParent(table: Map<String, Any?>): Boolean = hasAnyAnnotation(table, listOf("Parent", "P"))
+
+    fun getModule(table: Map<String, Any?>): Boolean = hasAnyAnnotation(table, listOf("Module", "M"))
+
+    fun getAggregate(table: Map<String, Any?>): String = getAnyAnnotation(table, listOf("Aggregate", "A"))
+
+    fun hasIgnoreInsert(column: Map<String, Any?>): Boolean = hasAnyAnnotation(column, listOf("IgnoreInsert", "II"))
+
+    fun hasIgnoreUpdate(column: Map<String, Any?>): Boolean = hasAnyAnnotation(column, listOf("IgnoreUpdate", "IU"))
+
+    fun hasReadOnly(column: Map<String, Any?>): Boolean = hasAnyAnnotation(column, listOf("ReadOnly", "RO"))
+
+    fun hasRelation(column: Map<String, Any?>): Boolean = hasAnyAnnotation(column, listOf("Relation", "Rel"))
+
+    fun getRelation(column: Map<String, Any?>): String = getAnyAnnotation(column, listOf("Relation", "Rel"))
+
+    fun hasReference(column: Map<String, Any?>): Boolean = hasAnyAnnotation(column, listOf("Reference", "Ref"))
+
+    fun getReference(column: Map<String, Any?>): String {
+        var ref = getAnyAnnotation(column, listOf("Reference", "Ref"))
+        val columnName = getColumnName(column).lowercase()
+        if (ref.isBlank() && columnName.endsWith("_id")) {
+            ref = columnName.removeSuffix("_id")
+        } else if (ref.isBlank() && columnName.endsWith("id")) {
+            ref = columnName.removeSuffix("id")
+        }
+        if (ref.isBlank()) {
+            return columnName
+        }
+        return ref
+    }
+
+    fun hasIdGenerator(column: Map<String, Any?>): Boolean = hasAnyAnnotation(column, listOf("IdGenerator", "IG"))
+
+    fun getIdGenerator(column: Map<String, Any?>): String = getAnyAnnotation(column, listOf("IdGenerator", "IG"))
+
+    fun hasType(columnOrTable: Map<String, Any?>): Boolean = hasAnyAnnotation(columnOrTable, listOf("Type", "T"))
+
+    fun getType(columnOrTable: Map<String, Any?>): String = getAnyAnnotation(columnOrTable, listOf("Type", "T"))
+
+    fun hasEnum(columnOrTable: Map<String, Any?>) = hasAnyAnnotation(columnOrTable, listOf("Enum", "E"))
+
+    fun getEnum(columnOrTable: Map<String, Any?>): String {
+        val enumsConfig = getAnyAnnotation(columnOrTable)
+    }
+
+
+    private fun getAnyAnnotation(
+        tableOrColumn: Map<String, Any?>,
+        annotations: List<String>,
+    ): String = annotations.find { hasAnnotation(tableOrColumn, it) }?.let {
+        getAnnotations(tableOrColumn)[it]!!
+    } ?: ""
 
     /**
      * 获取列的默认值
@@ -313,22 +409,6 @@ object SqlSchemaUtils {
     }
 
     /**
-     * 判断列是否在指定表中
-     */
-    fun isColumnInTable(column: Map<String, Any?>, table: Map<String, Any?>): Boolean {
-        val columnTableName = column["TABLE_NAME"]?.toString() ?: column["table_name"]?.toString() ?: ""
-        val tableName = getTableName(table)
-        return columnTableName.equals(tableName, ignoreCase = true)
-    }
-
-    /**
-     * 检查表是否有指定列
-     */
-    fun hasColumn(columnName: String, columns: List<Map<String, Any?>>): Boolean {
-        return columns.any { getColumnName(it).equals(columnName, ignoreCase = true) }
-    }
-
-    /**
      * 解析注解信息
      */
     fun parseAnnotations(comment: String): Map<String, String> {
@@ -343,60 +423,12 @@ object SqlSchemaUtils {
     }
 
     /**
-     * 是否是聚合根
-     */
-    fun isAggregateRoot(table: Map<String, Any?>): Boolean {
-        val comment = getTableComment(table)
-        return parseAnnotations(comment).containsKey("AggregateRoot") ||
-                parseAnnotations(comment).containsKey("Root")
-    }
-
-    /**
-     * 是否是值对象
-     */
-    fun isValueObject(table: Map<String, Any?>): Boolean {
-        val comment = getTableComment(table)
-        return parseAnnotations(comment).containsKey("ValueObject")
-    }
-
-    /**
-     * 获取模块名称
-     */
-    fun getModule(table: Map<String, Any?>): String {
-        val comment = getTableComment(table)
-        return parseAnnotations(comment)["Module"] ?: ""
-    }
-
-    /**
-     * 获取聚合名称
-     */
-    fun getAggregate(table: Map<String, Any?>): String {
-        val comment = getTableComment(table)
-        return parseAnnotations(comment)["Aggregate"] ?: ""
-    }
-
-    /**
      * 获取父表名称
      */
     fun getParent(table: Map<String, Any?>): String {
         val comment = getTableComment(table)
-        return parseAnnotations(comment)["Parent"] ?: ""
-    }
-
-    /**
-     * 获取实体类型
-     */
-    fun getType(table: Map<String, Any?>): String {
-        val comment = getTableComment(table)
-        return parseAnnotations(comment)["Type"] ?: ""
-    }
-
-    /**
-     * 是否包含枚举
-     */
-    fun hasEnum(column: Map<String, Any?>): Boolean {
-        val comment = getColumnComment(column)
-        return parseAnnotations(comment).containsKey("Enum")
+        val annotations = parseAnnotations(comment)
+        return annotations["P"] ?: annotations["Parent"] ?: ""
     }
 
     /**
@@ -419,4 +451,6 @@ object SqlSchemaUtils {
         }
         return result
     }
+
+
 }

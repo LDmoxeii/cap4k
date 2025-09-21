@@ -2,7 +2,6 @@ package com.only4.cap4k.gradle.codegen
 
 import com.only4.cap4k.gradle.codegen.misc.NamingUtils
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils
-import com.only4.cap4k.gradle.codegen.template.TemplateNode
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
@@ -38,31 +37,32 @@ open class GenEntityTask : AbstractCodegenTask() {
         const val DEFAULT_SCHEMA_BASE_CLASS_NAME = "Schema"
     }
 
-    private val tableMap = mutableMapOf<String, Map<String, Any?>>()
-    private val tableModuleMap = mutableMapOf<String, String>()
-    private val tableAggregateMap = mutableMapOf<String, String>()
-    private val columnsMap = mutableMapOf<String, List<Map<String, Any?>>>()
-    private val enumConfigMap = mutableMapOf<String, Map<Int, Array<String>>>()
-    private val enumPackageMap = mutableMapOf<String, String>()
-    private val enumTableNameMap = mutableMapOf<String, String>()
-    private val entityJavaTypeMap = mutableMapOf<String, String>()
-    private val templateNodeMap = mutableMapOf<String, MutableList<TemplateNode>>()
+    val tableMap = mutableMapOf<String, Map<String, Any?>>()
+    val tableModuleMap = mutableMapOf<String, String>()
+    val tableAggregateMap = mutableMapOf<String, String>()
+    val columnsMap = mutableMapOf<String, List<Map<String, Any?>>>()
+    val enumConfigMap = mutableMapOf<String, Map<Int, Array<String>>>()
+    val enumPackageMap = mutableMapOf<String, String>()
+    val enumTableNameMap = mutableMapOf<String, String>()
+    val entityTypeMap = mutableMapOf<String, String>()
 
-    private var dbType = "mysql"
-    private var aggregatesPath = ""
-    private var schemaPath = ""
-    private var subscriberPath = ""
+    val annotationsCache = mutableMapOf<String, String>()
+
+    var dbType = "mysql"
+    var aggregatesPath = ""
+    var schemaPath = ""
+    var subscriberPath = ""
 
     @TaskAction
     fun generate() {
         logger.info("生成实体类...")
 
         val ext = getExtension()
-
         // 设置数据库类型和方言
         val (url, username, password) = getDatabaseConfig()
         dbType = SqlSchemaUtils.recognizeDbType(url)
         SqlSchemaUtils.processSqlDialect(dbType)
+        SqlSchemaUtils.task = this
 
         logger.info("数据库连接：$url")
         logger.info("数据库账号：$username")
@@ -109,18 +109,6 @@ open class GenEntityTask : AbstractCodegenTask() {
             // 缓存表信息
             tableMap[tableName] = table
 
-            // 解析表注解
-            val annotations = SqlSchemaUtils.parseAnnotations(comment)
-            val module = annotations["Module"] ?: ""
-            val aggregate = annotations["Aggregate"] ?: ""
-
-            if (module.isNotEmpty()) {
-                tableModuleMap[tableName] = module
-            }
-            if (aggregate.isNotEmpty()) {
-                tableAggregateMap[tableName] = aggregate
-            }
-
             // 获取表的列信息
             val columns = allColumns.filter { column ->
                 SqlSchemaUtils.isColumnInTable(column, table)
@@ -132,10 +120,115 @@ open class GenEntityTask : AbstractCodegenTask() {
             parseEnumConfigs(tableName, columns)
 
             // 生成实体Java类型映射
-            entityJavaTypeMap[tableName] = NamingUtils.toUpperCamelCase(tableName) ?: tableName
+            entityTypeMap[tableName] = NamingUtils.toUpperCamelCase(tableName) ?: tableName
         }
 
+        // 延迟解析模块和聚合信息，确保所有表都已缓存
+        parseModuleAndAggregateInfo(tables)
+
         logger.info("数据库结构解析完成，共处理 ${tables.size} 张表")
+    }
+
+    /**
+     * 解析模块和聚合信息
+     */
+    private fun parseModuleAndAggregateInfo(tables: List<Map<String, Any?>>) {
+        logger.info("解析模块和聚合信息...")
+
+        for (table in tables) {
+            val tableName = SqlSchemaUtils.getTableName(table)
+
+            // 解析模块信息
+            getModule(tableName)
+
+            // 解析聚合信息
+            getAggregate(tableName)
+        }
+    }
+
+    /**
+     * 获取模块（类似Maven版本）
+     */
+    private fun getModule(tableName: String): String {
+        return tableModuleMap.computeIfAbsent(tableName) {
+            var currentTable = tableMap[tableName]
+            var module = currentTable?.let { SqlSchemaUtils.getModule(it) } ?: ""
+
+            logger.info("尝试解析模块: $tableName ${if (module.isBlank()) "[缺失]" else module}")
+
+            while (currentTable != null && !SqlSchemaUtils.isAggregateRoot(currentTable) && module.isBlank()) {
+                val parent = SqlSchemaUtils.getParent(currentTable)
+                if (parent.isBlank()) {
+                    break
+                }
+                currentTable = tableMap[parent]
+                if (currentTable == null) {
+                    logger.error("表 $tableName @Parent 注解值填写错误，不存在表名为 $parent 的表")
+                    break
+                }
+                module = SqlSchemaUtils.getModule(currentTable)
+                logger.info("尝试父表模块: ${SqlSchemaUtils.getTableName(currentTable)} ${if (module.isBlank()) "[缺失]" else module}")
+            }
+
+            logger.info("模块解析结果: $tableName ${if (module.isBlank()) "[无]" else module}")
+            module
+        }
+    }
+
+    /**
+     * 获取聚合（类似Maven版本）
+     */
+    private fun getAggregate(tableName: String): String {
+        return tableAggregateMap.computeIfAbsent(tableName) {
+            var currentTable = tableMap[tableName]
+            var aggregate = currentTable?.let { SqlSchemaUtils.getAggregate(it) } ?: ""
+            var aggregateRootTableName = tableName
+
+            logger.info("尝试解析聚合: $tableName ${if (aggregate.isBlank()) "[缺失]" else aggregate}")
+
+            while (currentTable != null && !SqlSchemaUtils.isAggregateRoot(currentTable) && aggregate.isBlank()) {
+                val parent = SqlSchemaUtils.getParent(currentTable)
+                if (parent.isBlank()) {
+                    break
+                }
+                currentTable = tableMap[parent]
+                if (currentTable == null) {
+                    logger.error("表 $tableName @Parent 注解值填写错误，不存在表名为 $parent 的表")
+                    break
+                }
+                aggregateRootTableName = SqlSchemaUtils.getTableName(currentTable)
+                aggregate = SqlSchemaUtils.getAggregate(currentTable)
+                logger.info("尝试父表聚合: ${aggregateRootTableName} ${if (aggregate.isBlank()) "[缺失]" else aggregate}")
+            }
+
+            if (aggregate.isBlank()) {
+                aggregate = NamingUtils.toSnakeCase(getEntityJavaType(aggregateRootTableName)) ?: ""
+            }
+
+            logger.info("聚合解析结果: $tableName ${if (aggregate.isBlank()) "[缺失]" else aggregate}")
+            aggregate
+        }
+    }
+
+    /**
+     * 获取实体类 Class.SimpleName
+     */
+    private fun getEntityJavaType(tableName: String): String {
+        return entityTypeMap.computeIfAbsent(tableName) {
+            val table = tableMap[tableName]
+            var type = table?.let { SqlSchemaUtils.getType(it) } ?: ""
+            if (type.isBlank()) {
+                type = NamingUtils.toUpperCamelCase(tableName) ?: ""
+            }
+            if (type.isNotBlank()) {
+                if (table != null) {
+                    logger.info("解析实体类名: ${SqlSchemaUtils.getTableName(table)} --> $type")
+                }
+                type
+            } else {
+                throw RuntimeException("实体类名未生成")
+            }
+        }
     }
 
     /**
@@ -171,8 +264,8 @@ open class GenEntityTask : AbstractCodegenTask() {
             try {
                 generateEntityClass(tableName, table)
 
-                // 如果配置了生成聚合
-                if (ext.generation.generateAggregate.get()) {
+                // 如果配置了生成聚合，且当前表是聚合根
+                if (ext.generation.generateAggregate.get() && SqlSchemaUtils.isAggregateRoot(table)) {
                     generateAggregateClass(tableName, table)
                 }
 
@@ -202,7 +295,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val columns = columnsMap[tableName] ?: return
 
         // 确定输出路径
-        val packageName = buildPackageName(tableName, "entities")
+        val packageName = buildPackageName(tableName, "")
         val outputDir = getDomainModulePath()
         val filePath = "${outputDir}/src/main/kotlin/${packageName.replace('.', File.separatorChar)}/${entityName}.kt"
 
@@ -282,18 +375,20 @@ open class GenEntityTask : AbstractCodegenTask() {
         val module = tableModuleMap[tableName]
         val aggregate = tableAggregateMap[tableName]
 
+        val suffix = if (subPackage.isNotEmpty()) ".$subPackage" else ""
+
         return when {
             module?.isNotEmpty() == true && aggregate?.isNotEmpty() == true ->
-                "$basePackage.domain.$module.$aggregate.$subPackage"
+                "$basePackage.${AGGREGATE_PACKAGE}.$module.${aggregate.lowercase()}$suffix"
 
             aggregate?.isNotEmpty() == true ->
-                "$basePackage.domain.$aggregate.$subPackage"
+                "$basePackage.${AGGREGATE_PACKAGE}.${aggregate.lowercase()}$suffix"
 
             module?.isNotEmpty() == true ->
-                "$basePackage.domain.$module.$subPackage"
+                "$basePackage.${AGGREGATE_PACKAGE}.$module$suffix"
 
             else ->
-                "$basePackage.domain.$subPackage"
+                "$basePackage.${AGGREGATE_PACKAGE}$suffix"
         }
     }
 
@@ -338,7 +433,9 @@ open class GenEntityTask : AbstractCodegenTask() {
         }
 
         // Annotations
-        val aggregateName = annotations["Aggregate"] ?: NamingUtils.toLowerCamelCase(tableName) ?: tableName
+        val resolvedAggregate = getAggregate(tableName)
+        val aggregateName =
+            annotations["Aggregate"] ?: resolvedAggregate ?: NamingUtils.toLowerCamelCase(tableName) ?: tableName
         val type = when {
             isRoot -> "entity"
             isValueObject -> "value-object"
@@ -383,7 +480,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         for (column in columns) {
             val columnName = SqlSchemaUtils.getColumnName(column)
             val propertyName = NamingUtils.toLowerCamelCase(columnName) ?: columnName
-            val javaType = SqlSchemaUtils.getColumnJavaType(column)
+            val javaType = SqlSchemaUtils.getColumnType(column)
             val isPrimaryKey = SqlSchemaUtils.isColumnPrimaryKey(column)
             val isNullable = SqlSchemaUtils.isColumnNullable(column)
             val comment = SqlSchemaUtils.getColumnComment(column)
@@ -465,6 +562,7 @@ open class GenEntityTask : AbstractCodegenTask() {
     ): String {
         val entityName = NamingUtils.toUpperCamelCase(tableName) ?: tableName
         val comment = SqlSchemaUtils.getTableComment(table)
+        val resolvedAggregate = getAggregate(tableName)
 
         return """
             package $packageName
@@ -474,7 +572,7 @@ open class GenEntityTask : AbstractCodegenTask() {
             /**
              * $comment 聚合
              */
-            @Aggregate(aggregate = "${NamingUtils.toLowerCamelCase(tableName)}", type = "aggregate")
+            @Aggregate(aggregate = "$resolvedAggregate", type = "aggregate")
             class $aggregateName {
                 // TODO: 实现聚合逻辑
             }

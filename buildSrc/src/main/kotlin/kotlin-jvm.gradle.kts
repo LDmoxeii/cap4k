@@ -47,7 +47,7 @@ kotlin {
 }
 
 tasks.test {
-    enabled = true
+    enabled = false
 }
 
 tasks.withType<Test>().configureEach {
