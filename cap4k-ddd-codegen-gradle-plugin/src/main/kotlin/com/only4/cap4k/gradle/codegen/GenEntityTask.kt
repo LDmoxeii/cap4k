@@ -1,14 +1,20 @@
 package com.only4.cap4k.gradle.codegen
 
+import com.alibaba.fastjson.JSON
+import com.only4.cap4k.gradle.codegen.misc.Inflector
 import com.only4.cap4k.gradle.codegen.misc.NamingUtils
 import com.only4.cap4k.gradle.codegen.misc.SourceFileUtils
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils
+import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.hasColumn
 import com.only4.cap4k.gradle.codegen.template.TemplateNode
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 import java.io.BufferedWriter
 import java.io.File
+import java.io.StringWriter
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.stream.Collectors
 
@@ -61,6 +67,41 @@ open class GenEntityTask : AbstractCodegenTask() {
 
     val templateNodeMap = mutableMapOf<String, MutableList<TemplateNode>>()
 
+    fun alias4Design(name: String): String {
+        return when (name.lowercase()) {
+            "entity", "aggregate", "entities", "aggregates" -> "aggregate"
+            "schema", "schemas" -> "schema"
+            "enum", "enums" -> "enum"
+            "enumitem", "enum_item" -> "enum_item"
+            "factories", "factory", "fac" -> "factory"
+            "specifications", "specification", "specs", "spec", "spe" -> "specification"
+            "domain_events", "domain_event", "d_e", "de" -> "domain_event"
+            "domain_event_handlers", "domain_event_handler", "d_e_h", "deh",
+            "domain_event_subscribers", "domain_event_subscriber", "d_e_s", "des" -> "domain_event_handler"
+
+            "domain_service", "service", "svc" -> "domain_service"
+            else -> name
+        }
+    }
+
+    override fun renderTemplate(
+        templateNodes: List<TemplateNode>,
+        parentPath: String
+    ) {
+        for (templateNode in templateNodes) {
+            val alias = alias4Design(templateNode.tag!!)
+            when (alias) {
+                "aggregate" -> aggregatesPath = parentPath
+                "schema_base" -> schemaPath = parentPath
+                "domain_event_handler" -> subscriberPath = parentPath
+            }
+
+            if (!templateNodeMap.containsKey(alias)) {
+                templateNodeMap[alias] = mutableListOf()
+            }
+            templateNodeMap[alias]!!.add(templateNode)
+        }
+    }
 
     @TaskAction
     fun generate() {
@@ -428,7 +469,7 @@ open class GenEntityTask : AbstractCodegenTask() {
     /**
      * 获取实体类 Class.SimpleName
      */
-    private fun getEntityType(tableName: String): String {
+    fun getEntityType(tableName: String): String {
         return entityTypeMap.computeIfAbsent(tableName) {
             val table = tableMap[tableName]!!
             var type = SqlSchemaUtils.getType(table)
@@ -445,18 +486,9 @@ open class GenEntityTask : AbstractCodegenTask() {
     }
 
     /**
-     * 解析实体类全路径包名，含basePackage
-     */
-    private fun resolveEntityFullPackage(table: Map<String, Any?>, basePackage: String, baseDir: String): String {
-        val tableName = SqlSchemaUtils.getTableName(table)
-        val packageName = SourceFileUtils.concatPackage(basePackage, getEntityPackage(tableName))
-        return packageName
-    }
-
-    /**
      * 获取实体类所在包，不包含basePackage
      */
-    private fun getEntityPackage(tableName: String): String {
+    fun getEntityPackage(tableName: String): String {
         val module = getModule(tableName)
         val aggregate = getAggregate(tableName)
         return SourceFileUtils.concatPackage(
@@ -516,7 +548,7 @@ open class GenEntityTask : AbstractCodegenTask() {
     fun isColumnNeedGenerate(
         table: Map<String, Any?>,
         column: Map<String, Any?>,
-        relations: MutableMap<String?, MutableMap<String?, String?>?>
+        relations: Map<String, Map<String, String?>?>
     ): Boolean {
         val tableName: String = SqlSchemaUtils.getTableName(table)
         val columnName: String = SqlSchemaUtils.getColumnName(column)
@@ -639,6 +671,15 @@ open class GenEntityTask : AbstractCodegenTask() {
 
     /**
      * 解析实体类全路径包名，含basePackage
+     */
+    fun resolveEntityFullPackage(table: Map<String, Any?>, basePackage: String, baseDir: String): String {
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val packageName = SourceFileUtils.concatPackage(basePackage, getEntityPackage(tableName))
+        return packageName
+    }
+
+    /**
+     * 解析实体类全路径包名，含basePackage
      *
      * @param table
      * @param basePackage
@@ -655,7 +696,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         return packageName
     }
 
-    private fun resolveRelationTable(
+    fun resolveRelationTable(
         table: Map<String, Any?>,
         columns: List<Map<String, Any?>>,
     ): Map<String, Map<String, String>> {
@@ -805,50 +846,596 @@ open class GenEntityTask : AbstractCodegenTask() {
 
     fun readEntityCustomerSourceFile(
         filePath: String,
-        importLines: List<String>,
-        annotationLinens: List<String>,
-        customerLinens: List<String>
+        importLines: MutableList<String>,
+        annotationLines: MutableList<String>,
+        customerLines: MutableList<String>
     ): Boolean {
-        TODO()
+        val file = File(filePath)
+        if (file.exists()) {
+            val content = file.readText(charset(getExtension().outputEncoding.get()))
+            val lines = content.replace("\r\n", "\n").split("\n")
+
+            var startMapperLine = 0
+            var endMapperLine = 0
+            var startClassLine = 0
+
+            for (i in 1 until lines.size) {
+                val line = lines[i]
+                when {
+                    line.contains("【字段映射开始】") -> {
+                        startMapperLine = i
+                    }
+
+                    line.contains("【字段映射结束】") -> {
+                        endMapperLine = i
+                    }
+
+                    line.trim().startsWith("public") && startClassLine == 0 -> {
+                        startClassLine = i
+                    }
+
+                    (line.trim().startsWith("@") || annotationLines.isNotEmpty()) && startClassLine == 0 -> {
+                        annotationLines.add(line)
+                        logger.debug("[annotation] $line")
+                    }
+
+                    annotationLines.isEmpty() && startClassLine == 0 -> {
+                        importLines.add(line)
+                        logger.debug("[import] $line")
+                    }
+
+                    startClassLine > 0 && (startMapperLine == 0 || endMapperLine > 0) -> {
+                        customerLines.add(line)
+                    }
+                }
+            }
+
+            // 处理customerLines，移除末尾的大括号
+            for (i in customerLines.size - 1 downTo 0) {
+                val line = customerLines[i]
+                if (line.contains("}")) {
+                    customerLines.removeAt(i)
+                    if (!line.equals("}", ignoreCase = true)) {
+                        customerLines.add(i, line.substring(0, line.lastIndexOf("}")))
+                    }
+                    break
+                }
+                customerLines.removeAt(i)
+            }
+
+            customerLines.forEach { line ->
+                logger.debug("[customer] $line")
+            }
+
+            if (startMapperLine == 0 || endMapperLine == 0) {
+                return false
+            }
+
+            file.delete()
+        }
+        return true
     }
 
-    fun processImportLines(table: Map<String, Any?>, importLines: List<String>, content: String) {
-        TODO()
+    fun processImportLines(table: Map<String, Any?>, importLines: MutableList<String>, content: String) {
+        val importEmpty = importLines.size == 0
+        if (importEmpty) {
+            importLines.add("")
+        }
+
+        val entityClassExtraImports = getEntityClassExtraImports().toMutableList()
+        if (SqlSchemaUtils.isValueObject(table)) {
+            val idx = entityClassExtraImports.indexOf("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate")
+            if (idx > 0) {
+                entityClassExtraImports.add(idx, "com.only4.cap4k.ddd.core.domain.aggregate.ValueObject")
+            } else {
+                entityClassExtraImports.add("com.only4.cap4k.ddd.core.domain.aggregate.ValueObject")
+            }
+        }
+
+        if (importEmpty) {
+            var breakLine = false
+            for (entityClassExtraImport in entityClassExtraImports) {
+                if (entityClassExtraImport.startsWith("javax") && !breakLine) {
+                    breakLine = true
+                    importLines.add("")
+                }
+                importLines.add("import $entityClassExtraImport")
+            }
+            importLines.add("")
+            importLines.add("/**")
+
+            val tableComment = SqlSchemaUtils.getComment(table)
+            for (comment in tableComment.split(Regex(PATTERN_LINE_BREAK))) {
+                if (comment.isEmpty()) {
+                    continue
+                }
+                importLines.add(" * $comment")
+            }
+            importLines.add(" *")
+            importLines.add(" * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成")
+            importLines.add(" * 警告：请勿手工修改该文件的字段声明，重新生成会覆盖字段声明")
+            importLines.add(" * @author cap4k-ddd-codegen")
+            importLines.add(" * @date ${LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))}")
+            importLines.add(" */")
+        } else {
+            for (entityClassExtraImport in entityClassExtraImports) {
+                SourceFileUtils.addIfNone(
+                    importLines,
+                    "\\s*import\\s+" + entityClassExtraImport
+                        .replace(".", "\\.")
+                        .replace("*", "\\*") + "\\s*",
+                    "import $entityClassExtraImport"
+                ) { list, line ->
+                    val firstLargeLine = list.firstOrNull { l -> l.isNotEmpty() && l.compareTo(line) > 0 }
+                    if (firstLargeLine != null) {
+                        list.indexOf(firstLargeLine)
+                    } else {
+                        val imports =
+                            list.filter { l -> l.isNotEmpty() && !l.contains(" java") && l.startsWith("import") }
+                        if (imports.isNotEmpty()) {
+                            list.indexOf(imports.last()) + 1
+                        } else {
+                            list.size
+                        }
+                    }
+                }
+            }
+        }
+
+        // 移除未使用的 Hibernate 注解导入
+        var i = 0
+        while (i < importLines.size) {
+            val importLine = importLines[i]
+            if (importLine.contains(" org.hibernate.annotations.") && !importLine.contains("*")) {
+                val hibernateAnnotation = importLine.substring(importLine.lastIndexOf(".") + 1).replace(";", "").trim()
+                if (!content.contains(hibernateAnnotation)) {
+                    importLines.removeAt(i)
+                    continue
+                }
+            }
+            i++
+        }
     }
 
     fun processAnnotationLines(
         table: Map<String, Any?>,
         columns: List<Map<String, Any?>>,
-        annotationLines: List<String>
+        annotationLines: MutableList<String>
     ) {
-        TODO()
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val annotationEmpty = annotationLines.size == 0
+
+        // 移除并重新添加 @Aggregate 注解
+        SourceFileUtils.removeText(annotationLines, "@Aggregate\\(.*\\)")
+        SourceFileUtils.addIfNone(
+            annotationLines,
+            "@Aggregate\\(.*\\)",
+            "@Aggregate(" +
+                    "aggregate = \"${NamingUtils.toUpperCamelCase(getAggregateWithModule(tableName))}\", " +
+                    "name = \"${getEntityType(tableName)}\", " +
+                    "root = ${SqlSchemaUtils.isAggregateRoot(table)}, " +
+                    "type = ${if (SqlSchemaUtils.isValueObject(table)) "Aggregate.TYPE_VALUE_OBJECT" else "Aggregate.TYPE_ENTITY"}, " +
+                    (if (SqlSchemaUtils.isAggregateRoot(table)) "" else "relevant = { \"${
+                        getEntityType(
+                            SqlSchemaUtils.getParent(
+                                table
+                            )
+                        )
+                    }\" }, ") +
+                    "description = \"${
+                        SqlSchemaUtils.getComment(table).replace(Regex(PATTERN_LINE_BREAK), "\\\\n")
+                    }\"" +
+                    ")"
+        ) { _, _ -> 0 }
+
+        // 处理聚合根注解
+        val aggregateRootAnnotation = getAggregateRootAnnotation()
+        if (aggregateRootAnnotation.isNotBlank()) {
+            if (SqlSchemaUtils.isAggregateRoot(table)) {
+                SourceFileUtils.addIfNone(
+                    annotationLines,
+                    "$aggregateRootAnnotation(\\(.*\\))?",
+                    aggregateRootAnnotation
+                )
+            } else {
+                SourceFileUtils.removeText(annotationLines, "$aggregateRootAnnotation(\\(.*\\))?")
+                SourceFileUtils.removeText(annotationLines, "@AggregateRoot(\\(.*\\))?")
+            }
+        }
+
+        // 添加 JPA 基本注解
+        SourceFileUtils.addIfNone(annotationLines, "@Entity(\\(.*\\))?", "@Entity")
+
+        val ids = getIdColumns(columns)
+        if (ids.size > 1) {
+            SourceFileUtils.addIfNone(
+                annotationLines,
+                "@IdClass(\\(.*\\))",
+                "@IdClass(${getEntityType(tableName)}.${DEFAULT_MUL_PRI_KEY_NAME}::class)"
+            )
+        }
+
+        val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+        val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+
+        SourceFileUtils.addIfNone(
+            annotationLines,
+            "@Table(\\(.*\\))?",
+            "@Table(name = \"$leftQuote$tableName$rightQuote\")"
+        )
+
+        // 添加 Hibernate 动态注解（注意：Kotlin 项目可能不使用这些注解）
+        // SourceFileUtils.addIfNone(annotationLines, "@DynamicInsert(\\(.*\\))?", "@DynamicInsert")
+        // SourceFileUtils.addIfNone(annotationLines, "@DynamicUpdate(\\(.*\\))?", "@DynamicUpdate")
+
+        // 处理软删除相关注解
+        val ext = getExtension()
+        val deletedField = ext.generation.deletedField.get()
+        val versionField = ext.generation.versionField.get()
+
+        if (deletedField.isNotBlank() && hasColumn(deletedField, columns)) {
+            if (ids.isEmpty()) {
+                throw RuntimeException("实体缺失【主键】：$tableName")
+            }
+
+            val idFieldName = if (ids.size == 1) {
+                NamingUtils.toLowerCamelCase(SqlSchemaUtils.getColumnName(ids[0]))
+                    ?: SqlSchemaUtils.getColumnName(ids[0])
+            } else {
+                "(" + ids.joinToString(", ") {
+                    NamingUtils.toLowerCamelCase(SqlSchemaUtils.getColumnName(it)) ?: SqlSchemaUtils.getColumnName(it)
+                } + ")"
+            }
+
+            val idFieldValue = if (ids.size == 1) "?" else "(" + ids.joinToString(", ") { "?" } + ")"
+
+            if (hasColumn(versionField, columns)) {
+                SourceFileUtils.addIfNone(
+                    annotationLines,
+                    "@SQLDelete(\\(.*\\))?",
+                    "@SQLDelete(sql = \"update $leftQuote$tableName$rightQuote" +
+                            " set $leftQuote$deletedField$rightQuote = 1" +
+                            " where $leftQuote$idFieldName$rightQuote = $idFieldValue" +
+                            " and $leftQuote$versionField$rightQuote = ? \")"
+                )
+            } else {
+                SourceFileUtils.addIfNone(
+                    annotationLines,
+                    "@SQLDelete(\\(.*\\))?",
+                    "@SQLDelete(sql = \"update $leftQuote$tableName$rightQuote" +
+                            " set $leftQuote$deletedField$rightQuote = 1" +
+                            " where $leftQuote$idFieldName$rightQuote = $idFieldValue \")"
+                )
+            }
+
+            if (hasColumn(versionField, columns) && !SourceFileUtils.hasLine(
+                    annotationLines,
+                    "@SQLDelete(\\(.*$versionField.*\\))"
+                )
+            ) {
+                SourceFileUtils.replaceText(
+                    annotationLines,
+                    "@SQLDelete(\\(.*\\))?",
+                    "@SQLDelete(sql = \"update $leftQuote$tableName$rightQuote" +
+                            " set $leftQuote$deletedField$rightQuote = 1" +
+                            " where $leftQuote$idFieldName$rightQuote = $idFieldValue" +
+                            " and $leftQuote$versionField$rightQuote = ? \")"
+                )
+            }
+
+            SourceFileUtils.addIfNone(
+                annotationLines,
+                "@Where(\\(.*\\))?",
+                "@Where(clause = \"$leftQuote$deletedField$rightQuote = 0\")"
+            )
+        }
+
+        if (annotationEmpty) {
+            annotationLines.add("")
+        }
+
+        // 移除 Lombok 相关注解（Kotlin 项目通常使用 data class）
+        SourceFileUtils.removeText(annotationLines, "@AllArgsConstructor(\\(.*\\))?")
+        SourceFileUtils.removeText(annotationLines, "@NoArgsConstructor(\\(.*\\))?")
+        SourceFileUtils.removeText(annotationLines, "@Builder(\\(.*\\))?")
+        SourceFileUtils.removeText(annotationLines, "@Getter(\\(.*\\))?")
+        SourceFileUtils.removeText(annotationLines, "@Setter(\\(.*\\))?")
+        SourceFileUtils.removeText(annotationLines, "@Data(\\(.*\\))?")
+        SourceFileUtils.removeText(annotationLines, "@lombok\\.Setter(\\(.*\\))?")
+        SourceFileUtils.removeText(annotationLines, "@lombok\\.Data(\\(.*\\))?")
     }
 
     fun buildEntitySourceFile(
         table: Map<String, Any?>,
         columns: List<Map<String, Any?>>,
-        tablePackageMap: Map<String, Any?>,
-        relations: Map<String, Map<String, Any?>>,
+        tablePackageMap: Map<String, String>,
+        relations: Map<String, Map<String, String>>,
         basePackage: String,
         baseDir: String
     ) {
-        TODO()
+        val tableName = SqlSchemaUtils.getTableName(table)
+
+        if (isIgnoreTable(table)) {
+            logger.info("跳过忽略表：$tableName")
+            return
+        }
+
+        if (SqlSchemaUtils.hasRelation(table)) {
+            logger.info("跳过关系表：$tableName")
+            return
+        }
+
+        val ids = getIdColumns(columns)
+        if (ids.isEmpty()) {
+            logger.error("跳过问题表：${tableName}缺失主键")
+            return
+        }
+
+        val entityType = getEntityType(tableName)
+        val entityFullPackage = tablePackageMap[tableName] ?: return
+
+        // 创建输出目录
+        File(SourceFileUtils.resolveDirectory(baseDir, entityFullPackage)).mkdirs()
+
+        val filePath = SourceFileUtils.resolveSourceFile(baseDir, entityFullPackage, entityType)
+
+        val enums = mutableListOf<String>()
+        val importLines = mutableListOf<String>()
+        val annotationLines = mutableListOf<String>()
+        val customerLines = mutableListOf<String>()
+
+        if (!readEntityCustomerSourceFile(filePath, importLines, annotationLines, customerLines)) {
+            logger.warn("文件被改动，无法自动更新！$filePath")
+            return
+        }
+
+        processAnnotationLines(table, columns, annotationLines)
+        val mainSource =
+            writeEntityClass(table, columns, tablePackageMap, relations, enums, annotationLines, customerLines)
+        processImportLines(table, importLines, mainSource)
+
+        logger.info("开始生成实体文件：$filePath")
+
+        val file = File(filePath)
+        if (!file.exists() || !file.readText(charset(getExtension().outputEncoding.get()))
+                .contains(FLAG_DO_NOT_OVERWRITE)
+        ) {
+            file.writeText(
+                "package $entityFullPackage\n\n" +
+                        importLines.joinToString("\n") + "\n\n" +
+                        mainSource + "\n",
+                charset(getExtension().outputEncoding.get())
+            )
+        }
+
+        val ext = getExtension()
+        if (ext.generation.generateSchema.get()) {
+            writeSchemaSourceFile(table, columns, tablePackageMap, relations, basePackage, baseDir)
+        }
+
+        if (SqlSchemaUtils.isAggregateRoot(table)) {
+            if (ext.generation.generateAggregate.get()) {
+                writeAggregateSourceFile(table, columns, tablePackageMap, baseDir)
+            }
+            if (SqlSchemaUtils.hasFactory(table) || ext.generation.generateAggregate.get()) {
+                writeFactorySourceFile(table, tablePackageMap, baseDir)
+            }
+            if (SqlSchemaUtils.hasSpecification(table) || ext.generation.generateAggregate.get()) {
+                writeSpecificationSourceFile(table, tablePackageMap, baseDir)
+            }
+            if (SqlSchemaUtils.hasDomainEvent(table)) {
+                val domainEvents = SqlSchemaUtils.getDomainEvents(table)
+                for (domainEvent in domainEvents) {
+                    if (domainEvent.isBlank()) {
+                        continue
+                    }
+                    val segments = domainEvent.split(":")
+                    val domainEventClassName = generateDomainEventName(segments[0])
+                    val domainEventDescription = if (segments.size > 1) segments[1] else "todo: 领域事件说明"
+                    writeDomainEventSourceFile(
+                        table,
+                        tablePackageMap,
+                        domainEventClassName,
+                        domainEventDescription,
+                        baseDir
+                    )
+                }
+            }
+        }
     }
 
     fun writeEntityClass(
         table: Map<String, Any?>,
         columns: List<Map<String, Any?>>,
-        tablePackageMap: Map<String, Any?>,
-        relations: Map<String, Map<String, Any?>>,
-        enums: List<String>,
+        tablePackageMap: Map<String, String>,
+        relations: Map<String, Map<String, String>>,
+        enums: MutableList<String>,
         annotationLines: List<String>,
-        customerLinens: List<String>
-    ) {
-        TODO()
+        customerLines: List<String>
+    ): String {
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val entityType = getEntityType(tableName)
+        val ids = getIdColumns(columns)
+
+        if (ids.isEmpty()) {
+            throw RuntimeException("实体缺失【主键】：$tableName")
+        }
+
+        val identityType = if (ids.size != 1) "Long" else SqlSchemaUtils.getColumnType(ids[0])
+
+        val stringWriter = StringWriter()
+        val out = BufferedWriter(stringWriter)
+
+        // Write annotation lines
+        annotationLines.forEach { line -> SourceFileUtils.writeLine(out, line) }
+
+        // Determine base class
+        var baseClass: String? = null
+        when {
+            SqlSchemaUtils.isAggregateRoot(table) && getExtension().generation.rootEntityBaseClass.get()
+                .isNotBlank() -> {
+                baseClass = getExtension().generation.rootEntityBaseClass.get()
+            }
+
+            getExtension().generation.entityBaseClass.get().isNotBlank() -> {
+                baseClass = getExtension().generation.entityBaseClass.get()
+            }
+        }
+
+        baseClass?.let {
+            baseClass = it
+                .replace("\${Entity}", entityType)
+                .replace("\${IdentityType}", identityType)
+        }
+
+        // Write class declaration (adapted for Kotlin)
+        val extendsClause = if (baseClass?.isNotBlank() == true) " : $baseClass()" else ""
+        val implementsClause = if (SqlSchemaUtils.isValueObject(table)) ", ValueObject<$identityType>" else ""
+
+        SourceFileUtils.writeLine(out, "open class $entityType$extendsClause$implementsClause {")
+
+        // Write customer lines or default behavior methods
+        if (customerLines.isNotEmpty()) {
+            customerLines.forEach { line -> SourceFileUtils.writeLine(out, line) }
+        } else {
+            SourceFileUtils.writeLine(out, "")
+            SourceFileUtils.writeLine(out, "    // 【行为方法开始】")
+            SourceFileUtils.writeLine(out, "")
+            SourceFileUtils.writeLine(out, "")
+            SourceFileUtils.writeLine(out, "")
+            SourceFileUtils.writeLine(out, "    // 【行为方法结束】")
+            SourceFileUtils.writeLine(out, "")
+            SourceFileUtils.writeLine(out, "")
+            SourceFileUtils.writeLine(out, "")
+        }
+
+        SourceFileUtils.writeLine(
+            out,
+            "    // 【字段映射开始】本段落由[cap4k-ddd-codegen-gradle-plugin]维护，请不要手工改动"
+        )
+
+        // Value object implementation
+        if (SqlSchemaUtils.isValueObject(table)) {
+            val idFieldName =
+                if (ids.size != 1) "" else NamingUtils.toLowerCamelCase(SqlSchemaUtils.getColumnName(ids[0]))
+                    ?: SqlSchemaUtils.getColumnName(ids[0])
+            val idTypeName = if (ids.size != 1) "Long" else SqlSchemaUtils.getColumnType(ids[0])
+
+            val hashTemplate = when {
+                getExtension().generation.hashMethod4ValueObject.get().isNotBlank() -> {
+                    "    " + getExtension().generation.hashMethod4ValueObject.get().trim()
+                }
+
+                ids.size != 1 -> {
+                    """    override fun hash(): Long {
+        return ${getEntityIdGenerator(table)}.hash(this, "") as Long
+    }"""
+                }
+
+                else -> {
+                    """    override fun hash(): $idTypeName {
+        if ($idFieldName == null) {
+            $idFieldName = ${getEntityIdGenerator(table)}.hash(this, "$idFieldName") as $idTypeName
+        }
+        return $idFieldName!!
+    }"""
+                }
+            }
+
+            SourceFileUtils.writeLine(out, "")
+            SourceFileUtils.writeLine(
+                out, hashTemplate
+                    .replace("\${idField}", idFieldName)
+                    .replace("\${IdField}", idFieldName)
+                    .replace("\${ID_FIELD}", idFieldName)
+                    .replace("\${id_field}", idFieldName)
+                    .replace("\${idTypeName}", idTypeName)
+                    .replace("\${IdType}", idTypeName)
+                    .replace("\${ID_TYPE}", idTypeName)
+                    .replace("\${id_type}", idTypeName)
+            )
+
+            SourceFileUtils.writeLine(out, "")
+            SourceFileUtils.writeLine(
+                out, """    override fun equals(other: Any?): Boolean {
+        if (other == null) {
+            return false
+        }
+        if (other !is $entityType) {
+            return false
+        }
+        return hashCode() == other.hashCode()
+    }
+
+    override fun hashCode(): Int {
+        return hash().hashCode()
+    }"""
+            )
+            SourceFileUtils.writeLine(out, "")
+        }
+
+        // Multiple primary keys (adapted for Kotlin data class)
+        if (ids.size > 1) {
+            SourceFileUtils.writeLine(out, "")
+            SourceFileUtils.writeLine(out, "    data class $DEFAULT_MUL_PRI_KEY_NAME(")
+            ids.forEachIndexed { index, id ->
+                val columnName = SqlSchemaUtils.getColumnName(id)
+                val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                val type = SqlSchemaUtils.getColumnType(id)
+                val fieldName = NamingUtils.toLowerCamelCase(columnName) ?: columnName
+
+                SourceFileUtils.writeLine(out, "        @Column(name = \"$leftQuote$columnName$rightQuote\")")
+                val suffix = if (index == ids.size - 1) "" else ","
+                SourceFileUtils.writeLine(out, "        val $fieldName: $type$suffix")
+            }
+            SourceFileUtils.writeLine(out, "    ) : java.io.Serializable")
+        }
+
+        // Write relation properties
+        writeRelationProperty(out, table, relations, tablePackageMap)
+
+        // Write column properties
+        for (column in columns) {
+            writeColumnProperty(out, table, column, ids, relations, enums)
+        }
+
+        SourceFileUtils.writeLine(out, "")
+        SourceFileUtils.writeLine(
+            out,
+            "    // 【字段映射结束】本段落由[cap4k-ddd-codegen-gradle-plugin]维护，请不要手工改动"
+        )
+        SourceFileUtils.writeLine(out, "}")
+        SourceFileUtils.writeLine(out, "")
+
+        out.flush()
+        out.close()
+        return stringWriter.toString()
     }
 
     fun getEntityIdGenerator(table: Map<String, Any?>): String {
-        TODO()
+        return when {
+            SqlSchemaUtils.hasIdGenerator(table) -> {
+                SqlSchemaUtils.getIdGenerator(table)
+            }
+
+            SqlSchemaUtils.isValueObject(table) -> {
+                if (getExtension().generation.idGenerator4ValueObject.get().isNotBlank()) {
+                    getExtension().generation.idGenerator4ValueObject.get()
+                } else {
+                    // ValueObject 值对象 默认使用MD5
+                    "com.only4.cap4k.ddd.domain.repo.Md5HashIdentifierGenerator"
+                }
+            }
+
+            else -> {
+                if (getExtension().generation.idGenerator.get().isNotBlank()) {
+                    getExtension().generation.idGenerator.get()
+                } else {
+                    ""
+                }
+            }
+        }
     }
 
     fun writeColumnProperty(
@@ -856,17 +1443,117 @@ open class GenEntityTask : AbstractCodegenTask() {
         table: Map<String, Any?>,
         column: Map<String, Any?>,
         ids: List<Map<String, Any?>>,
-        relations: Map<String, Map<String, Any?>>,
-        enums: List<String>,
+        relations: Map<String, Map<String, String>>,
+        enums: MutableList<String>,
     ) {
-        TODO()
+        val columnName = SqlSchemaUtils.getColumnName(column)
+        val columnType = SqlSchemaUtils.getColumnType(column)
+
+        if (!isColumnNeedGenerate(
+                table,
+                column,
+                relations
+            ) && columnName != getExtension().generation.versionField.get()
+        ) {
+            return
+        }
+
+        var updatable = true
+        var insertable = true
+
+        if (SqlSchemaUtils.getColumnType(column).contains("Date")) {
+            updatable = !SqlSchemaUtils.isAutoUpdateDateColumn(column)
+            insertable = !SqlSchemaUtils.isAutoInsertDateColumn(column)
+        }
+
+        if (isReadOnlyColumn(column)) {
+            insertable = false
+            updatable = false
+        }
+
+        if (SqlSchemaUtils.hasIgnoreInsert(column)) {
+            insertable = false
+        }
+
+        if (SqlSchemaUtils.hasIgnoreUpdate(column)) {
+            updatable = false
+        }
+
+        SourceFileUtils.writeLine(out, "")
+        writeFieldComment(out, column)
+
+        // ID annotation
+        if (isIdColumn(column)) {
+            SourceFileUtils.writeLine(out, "    @Id")
+            if (ids.size == 1) {
+                val entityIdGenerator = getEntityIdGenerator(table)
+                when {
+                    SqlSchemaUtils.isValueObject(table) -> {
+                        // 不使用ID生成器
+                    }
+
+                    entityIdGenerator.isNotEmpty() -> {
+                        SourceFileUtils.writeLine(out, "    @GeneratedValue(generator = \"$entityIdGenerator\")")
+                        SourceFileUtils.writeLine(
+                            out,
+                            "    @GenericGenerator(name = \"$entityIdGenerator\", strategy = \"$entityIdGenerator\")"
+                        )
+                    }
+
+                    else -> {
+                        // 无ID生成器 使用数据库自增
+                        SourceFileUtils.writeLine(out, "    @GeneratedValue(strategy = GenerationType.IDENTITY)")
+                    }
+                }
+            }
+        }
+
+        // Version annotation
+        if (isVersionColumn(column)) {
+            SourceFileUtils.writeLine(out, "    @Version")
+        }
+
+        // Enum converter annotation
+        if (SqlSchemaUtils.hasEnum(column)) {
+            enums.add(columnType)
+            SourceFileUtils.writeLine(out, "    @Convert(converter = $columnType.Converter::class)")
+        }
+
+        // Column annotation
+        val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+        val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+
+        if (!updatable || !insertable) {
+            SourceFileUtils.writeLine(
+                out,
+                "    @Column(name = \"$leftQuote$columnName$rightQuote\", insertable = $insertable, updatable = $updatable)"
+            )
+        } else {
+            SourceFileUtils.writeLine(out, "    @Column(name = \"$leftQuote$columnName$rightQuote\")")
+        }
+
+        // Property declaration with default value if needed
+        val fieldName = NamingUtils.toLowerCamelCase(columnName) ?: columnName
+        if (getExtension().generation.generateDefault.get()) {
+            val defaultJavaLiteral = SqlSchemaUtils.getColumnDefaultLiteral(column)
+            if (defaultJavaLiteral.isNotBlank()) {
+                SourceFileUtils.writeLine(out, "    // @Builder.Default equivalent for Kotlin")
+            }
+            val defaultValue = if (defaultJavaLiteral.isNotBlank()) " = $defaultJavaLiteral" else ""
+            SourceFileUtils.writeLine(out, "    var $fieldName: $columnType$defaultValue")
+        } else {
+            SourceFileUtils.writeLine(out, "    var $fieldName: $columnType? = null")
+        }
     }
 
     fun writeFieldComment(
         out: BufferedWriter,
         column: Map<String, Any?>,
     ) {
-        TODO()
+        val comments = generateFieldComment(column)
+        for (line in comments) {
+            SourceFileUtils.writeLine(out, "    $line")
+        }
     }
 
     fun writeRelationProperty(
@@ -875,7 +1562,212 @@ open class GenEntityTask : AbstractCodegenTask() {
         relations: Map<String, Map<String, String>>,
         tablePackageMap: Map<String, String>,
     ) {
-        TODO()
+        val tableName = SqlSchemaUtils.getTableName(table)
+
+        if (!relations.containsKey(tableName)) {
+            return
+        }
+
+        for ((refTableName, relationInfo) in relations[tableName]!!) {
+            val refInfos = relationInfo.split(";")
+            val navTable = tableMap[refTableName] ?: continue
+
+            val fetchType = when {
+                relationInfo.endsWith(";LAZY") -> "LAZY"
+                SqlSchemaUtils.hasLazy(navTable) -> if (SqlSchemaUtils.isLazy(navTable, false)) "LAZY" else "EAGER"
+                else -> "EAGER"
+            }
+
+            val relation = refInfos[0]
+            val joinColumn = refInfos[1]
+            val fetchAnnotation = "" // For Kotlin, we might not need Hibernate fetch annotations
+
+            SourceFileUtils.writeLine(out, "")
+
+            when (relation) {
+                "OneToMany" -> {
+                    // 专属聚合内关系
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    @${relation}(cascade = [CascadeType.ALL], fetch = FetchType.$fetchType, orphanRemoval = true)$fetchAnnotation"
+                    )
+                    SourceFileUtils.writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
+                    val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false)"
+                    )
+
+                    val countIsOne = SqlSchemaUtils.countIsOne(navTable)
+                    if (countIsOne) {
+                        SourceFileUtils.writeLine(
+                            out,
+                            "    // @Getter(AccessLevel.PROTECTED) equivalent for Kotlin - use private setter"
+                        )
+                    }
+
+                    val fieldName = Inflector.pluralize(
+                        NamingUtils.toLowerCamelCase(getEntityType(refTableName)) ?: getEntityType(refTableName)
+                    )
+                    val entityPackage = tablePackageMap[refTableName] ?: ""
+                    val entityType = getEntityType(refTableName)
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    var $fieldName: MutableList<$entityPackage.$entityType> = mutableListOf()"
+                    )
+
+                    if (countIsOne) {
+                        SourceFileUtils.writeLine(out, "")
+                        SourceFileUtils.writeLine(out, "    fun get$entityType(): $entityPackage.$entityType? {")
+                        SourceFileUtils.writeLine(
+                            out,
+                            "        return if ($fieldName.isEmpty()) null else $fieldName[0]"
+                        )
+                        SourceFileUtils.writeLine(out, "    }")
+                    }
+                }
+
+                "*ManyToOne" -> {
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    @${relation.replace("*", "")}(cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
+                    )
+                    val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false, insertable = false, updatable = false)"
+                    )
+                    val entityPackage = tablePackageMap[refTableName] ?: ""
+                    val entityType = getEntityType(refTableName)
+                    val fieldName = NamingUtils.toLowerCamelCase(entityType) ?: entityType
+                    SourceFileUtils.writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
+                }
+
+                "ManyToOne" -> {
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    @${relation}(cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
+                    )
+                    val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false)"
+                    )
+                    val entityPackage = tablePackageMap[refTableName] ?: ""
+                    val entityType = getEntityType(refTableName)
+                    val fieldName = NamingUtils.toLowerCamelCase(entityType) ?: entityType
+                    SourceFileUtils.writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
+                }
+
+                "*OneToMany" -> {
+                    // 当前不会用到，无法控制集合数量规模
+                    val entityTypeName = getEntityType(tableName)
+                    val fieldNameFromTable = NamingUtils.toLowerCamelCase(entityTypeName) ?: entityTypeName
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    @${
+                            relation.replace(
+                                "*",
+                                ""
+                            )
+                        }(mappedBy = \"$fieldNameFromTable\", cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
+                    )
+                    SourceFileUtils.writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
+                    val entityPackage = tablePackageMap[refTableName] ?: ""
+                    val entityType = getEntityType(refTableName)
+                    val fieldName = Inflector.pluralize(NamingUtils.toLowerCamelCase(entityType) ?: entityType)
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    var $fieldName: MutableList<$entityPackage.$entityType> = mutableListOf()"
+                    )
+                }
+
+                "OneToOne" -> {
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    @${relation}(cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
+                    )
+                    val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false)"
+                    )
+                    val entityPackage = tablePackageMap[refTableName] ?: ""
+                    val entityType = getEntityType(refTableName)
+                    val fieldName = NamingUtils.toLowerCamelCase(entityType) ?: entityType
+                    SourceFileUtils.writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
+                }
+
+                "*OneToOne" -> {
+                    val entityTypeName = getEntityType(tableName)
+                    val fieldNameFromTable = NamingUtils.toLowerCamelCase(entityTypeName) ?: entityTypeName
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    @${
+                            relation.replace(
+                                "*",
+                                ""
+                            )
+                        }(mappedBy = \"$fieldNameFromTable\", cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
+                    )
+                    val entityPackage = tablePackageMap[refTableName] ?: ""
+                    val entityType = getEntityType(refTableName)
+                    val fieldName = NamingUtils.toLowerCamelCase(entityType) ?: entityType
+                    SourceFileUtils.writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
+                }
+
+                "ManyToMany" -> {
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    @${relation}(cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
+                    )
+                    SourceFileUtils.writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
+                    val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val joinTableName = refInfos[3]
+                    val inverseJoinColumn = refInfos[2]
+                    SourceFileUtils.writeLine(
+                        out, "    @JoinTable(name = \"$leftQuote$joinTableName$rightQuote\", " +
+                                "joinColumns = [JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false)], " +
+                                "inverseJoinColumns = [JoinColumn(name = \"$leftQuote$inverseJoinColumn$rightQuote\", nullable = false)])"
+                    )
+                    val entityPackage = tablePackageMap[refTableName] ?: ""
+                    val entityType = getEntityType(refTableName)
+                    val fieldName = Inflector.pluralize(NamingUtils.toLowerCamelCase(entityType) ?: entityType)
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    var $fieldName: MutableList<$entityPackage.$entityType> = mutableListOf()"
+                    )
+                }
+
+                "*ManyToMany" -> {
+                    val entityTypeName = getEntityType(tableName)
+                    val fieldNameFromTable =
+                        Inflector.pluralize(NamingUtils.toLowerCamelCase(entityTypeName) ?: entityTypeName)
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    @${
+                            relation.replace(
+                                "*",
+                                ""
+                            )
+                        }(mappedBy = \"$fieldNameFromTable\", cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
+                    )
+                    SourceFileUtils.writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
+                    val entityPackage = tablePackageMap[refTableName] ?: ""
+                    val entityType = getEntityType(refTableName)
+                    val fieldName = Inflector.pluralize(NamingUtils.toLowerCamelCase(entityType) ?: entityType)
+                    SourceFileUtils.writeLine(
+                        out,
+                        "    var $fieldName: MutableList<$entityPackage.$entityType> = mutableListOf()"
+                    )
+                }
+            }
+        }
     }
 
     fun writeAggregateSourceFile(
@@ -884,7 +1776,73 @@ open class GenEntityTask : AbstractCodegenTask() {
         tablePackageMap: Map<String, String>,
         baseDir: String
     ) {
-        TODO()
+        val tag = "aggregate"
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val aggregate = getAggregateWithModule(tableName)
+
+        val entityFullPackage = tablePackageMap[tableName] ?: return
+        val entityType = getEntityType(tableName)
+        val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
+
+        val ids = getIdColumns(columns)
+        if (ids.isEmpty()) {
+            throw RuntimeException("实体缺失【主键】：$tableName")
+        }
+        val identityType = if (ids.size != 1) "Long" else SqlSchemaUtils.getColumnType(ids[0])
+        val comment = SqlSchemaUtils.getComment(table).replace(Regex(PATTERN_LINE_BREAK), " ")
+
+        val context = getEscapeContext().toMutableMap()
+        putContext(tag, "Name", entityType, context)
+        putContext(tag, "Entity", entityType, context)
+        putContext(tag, "AggregateRoot", context["Entity"] ?: "", context)
+        putContext(tag, "templatePackage", SourceFileUtils.refPackage(getAggregatesPackage()), context)
+        putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
+        putContext(tag, "path", aggregate.replace(".", File.separator), context)
+        putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
+        putContext(tag, "Comment", comment, context)
+        putContext(tag, "CommentEscaped", comment.replace(Regex(PATTERN_LINE_BREAK), "  "), context)
+        putContext(
+            tag,
+            "entityPackage",
+            SourceFileUtils.refPackage(entityFullPackage, getExtension().basePackage.get()),
+            context
+        )
+        putContext(tag, "EntityVar", entityVar, context)
+        putContext(tag, "IdentityType", identityType, context)
+
+        val aggregateTemplateNodes = if (templateNodeMap.containsKey(tag)) {
+            templateNodeMap[tag]!!
+        } else {
+            listOf(getDefaultAggregateTemplateNode())
+        }
+
+        try {
+            for (templateNode in aggregateTemplateNodes) {
+                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val path = forceRender(
+                    pathNode,
+                    SourceFileUtils.resolveDirectory(
+                        baseDir,
+                        SourceFileUtils.concatPackage(
+                            getExtension().basePackage.get(),
+                            context["templatePackage"] ?: ""
+                        )
+                    )
+                )
+                logger.info(
+                    SourceFileUtils.resolveDirectory(
+                        baseDir,
+                        SourceFileUtils.concatPackage(
+                            getExtension().basePackage.get(),
+                            context["templatePackage"] ?: ""
+                        )
+                    )
+                )
+                logger.info("开始生成聚合封装类：$path")
+            }
+        } catch (e: Exception) {
+            logger.error("聚合封装模板文件写入失败！", e)
+        }
     }
 
     fun writeFactorySourceFile(
@@ -892,7 +1850,66 @@ open class GenEntityTask : AbstractCodegenTask() {
         tablePackageMap: Map<String, String>,
         baseDir: String
     ) {
-        TODO()
+        val tag = "factory"
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val aggregate = getAggregateWithModule(tableName)
+
+        val entityFullPackage = tablePackageMap[tableName] ?: return
+        val entityType = getEntityType(tableName)
+        val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
+
+        val context = getEscapeContext().toMutableMap()
+        putContext(tag, "Name", "${entityType}Factory", context)
+        putContext(tag, "Factory", context["Name"] ?: "", context)
+        putContext(tag, "templatePackage", SourceFileUtils.refPackage(getAggregatesPackage()), context)
+        putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
+        putContext(tag, "path", aggregate.replace(".", File.separator), context)
+        putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
+        putContext(tag, "Comment", "", context)
+        putContext(tag, "CommentEscaped", "", context)
+        putContext(
+            tag,
+            "entityPackage",
+            SourceFileUtils.refPackage(entityFullPackage, getExtension().basePackage.get()),
+            context
+        )
+        putContext(tag, "Entity", entityType, context)
+        putContext(tag, "AggregateRoot", context["Entity"] ?: "", context)
+        putContext(tag, "EntityVar", entityVar, context)
+
+        val factoryTemplateNodes = if (templateNodeMap.containsKey(tag)) {
+            templateNodeMap[tag]!!
+        } else {
+            listOf(getDefaultFactoryPayloadTemplateNode(), getDefaultFactoryTemplateNode())
+        }
+
+        try {
+            for (templateNode in factoryTemplateNodes) {
+                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val path = forceRender(
+                    pathNode,
+                    SourceFileUtils.resolveDirectory(
+                        baseDir,
+                        SourceFileUtils.concatPackage(
+                            getExtension().basePackage.get(),
+                            context["templatePackage"] ?: ""
+                        )
+                    )
+                )
+                logger.info(
+                    SourceFileUtils.resolveDirectory(
+                        baseDir,
+                        SourceFileUtils.concatPackage(
+                            getExtension().basePackage.get(),
+                            context["templatePackage"] ?: ""
+                        )
+                    )
+                )
+                logger.info("开始生成聚合工厂：$path")
+            }
+        } catch (e: Exception) {
+            logger.error("聚合工厂模板文件写入失败！", e)
+        }
     }
 
     fun writeSpecificationSourceFile(
@@ -900,20 +1917,152 @@ open class GenEntityTask : AbstractCodegenTask() {
         tablePackageMap: Map<String, String>,
         baseDir: String
     ) {
-        TODO()
+        val tag = "specification"
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val aggregate = getAggregateWithModule(tableName)
+
+        val entityFullPackage = tablePackageMap[tableName] ?: return
+        val entityType = getEntityType(tableName)
+        val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
+
+        val context = getEscapeContext().toMutableMap()
+        putContext(tag, "Name", "${entityType}Specification", context)
+        putContext(tag, "Specification", context["Name"] ?: "", context)
+        putContext(tag, "templatePackage", SourceFileUtils.refPackage(getAggregatesPackage()), context)
+        putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
+        putContext(tag, "path", aggregate.replace(".", File.separator), context)
+        putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
+        putContext(tag, "Comment", "", context)
+        putContext(tag, "CommentEscaped", "", context)
+        putContext(
+            tag,
+            "entityPackage",
+            SourceFileUtils.refPackage(entityFullPackage, getExtension().basePackage.get()),
+            context
+        )
+        putContext(tag, "Entity", entityType, context)
+        putContext(tag, "AggregateRoot", context["Entity"] ?: "", context)
+        putContext(tag, "EntityVar", entityVar, context)
+
+        val specificationTemplateNodes = if (templateNodeMap.containsKey(tag)) {
+            templateNodeMap[tag]!!
+        } else {
+            listOf(getDefaultSpecificationTemplateNode())
+        }
+
+        try {
+            for (templateNode in specificationTemplateNodes) {
+                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val path = forceRender(
+                    pathNode,
+                    SourceFileUtils.resolveDirectory(
+                        baseDir,
+                        SourceFileUtils.concatPackage(
+                            getExtension().basePackage.get(),
+                            context["templatePackage"] ?: ""
+                        )
+                    )
+                )
+                logger.info("开始生成实体规约：$path")
+            }
+        } catch (e: Exception) {
+            logger.error("实体规约模板文件写入失败！", e)
+        }
     }
 
-    private fun writeDomainEventSourceFile(
+    fun writeDomainEventSourceFile(
         table: Map<String, Any?>,
         tablePackageMap: Map<String, String>,
         domainEventClassName: String,
         domainEventDescription: String,
         baseDir: String
     ) {
-        TODO()
+        val tag = "domain_event"
+        val handlerTag = "domain_event_handler"
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val aggregate = getAggregateWithModule(tableName)
+
+        val entityFullPackage = tablePackageMap[tableName] ?: return
+        val entityType = getEntityType(tableName)
+        val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
+
+        val domainEventDescEscaped = domainEventDescription.replace(Regex(PATTERN_LINE_BREAK), "\\n")
+
+        val context = getEscapeContext().toMutableMap()
+        putContext(tag, "Name", domainEventClassName, context)
+        putContext(tag, "DomainEvent", context["Name"] ?: "", context)
+        putContext(tag, "domainEventPackage", SourceFileUtils.refPackage(getAggregatesPackage()), context)
+        putContext(tag, "domainEventHandlerPackage", SourceFileUtils.refPackage(getSubscriberPackage()), context)
+        putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
+        putContext(tag, "path", aggregate.replace(".", File.separator), context)
+        putContext(tag, "persist", "false", context)
+        putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
+        putContext(tag, "Comment", domainEventDescEscaped, context)
+        putContext(tag, "CommentEscaped", domainEventDescEscaped, context)
+        putContext(
+            tag,
+            "entityPackage",
+            SourceFileUtils.refPackage(entityFullPackage, getExtension().basePackage.get()),
+            context
+        )
+        putContext(tag, "Entity", entityType, context)
+        putContext(tag, "AggregateRoot", context["Entity"] ?: "", context)
+        putContext(tag, "EntityVar", entityVar, context)
+
+        putContext(tag, "templatePackage", context["domainEventPackage"] ?: "", context)
+        val domainEventTemplateNodes = if (templateNodeMap.containsKey(tag)) {
+            templateNodeMap[tag]!!
+        } else {
+            listOf(getDefaultDomainEventTemplateNode())
+        }
+
+        try {
+            for (templateNode in domainEventTemplateNodes) {
+                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val path = forceRender(
+                    pathNode,
+                    SourceFileUtils.resolveDirectory(
+                        baseDir,
+                        SourceFileUtils.concatPackage(
+                            getExtension().basePackage.get(),
+                            context["templatePackage"] ?: ""
+                        )
+                    )
+                )
+                logger.info("开始生成领域事件文件：$path")
+            }
+        } catch (e: Exception) {
+            logger.error("领域事件模板文件写入失败！", e)
+        }
+
+        putContext(tag, "templatePackage", context["domainEventHandlerPackage"] ?: "", context)
+        val domainEventHandlerTemplateNodes = if (templateNodeMap.containsKey(handlerTag)) {
+            templateNodeMap[handlerTag]!!
+        } else {
+            listOf(getDefaultDomainEventHandlerTemplateNode())
+        }
+
+        try {
+            for (templateNode in domainEventHandlerTemplateNodes) {
+                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val path = forceRender(
+                    pathNode,
+                    SourceFileUtils.resolveDirectory(
+                        baseDir,
+                        SourceFileUtils.concatPackage(
+                            getExtension().basePackage.get(),
+                            context["templatePackage"] ?: ""
+                        )
+                    )
+                )
+                logger.info("开始生成领域事件处理器文件：$path")
+            }
+        } catch (e: Exception) {
+            logger.error("领域事件处理器模板文件写入失败！", e)
+        }
     }
 
-    private fun writeEnumSourceFile(
+    fun writeEnumSourceFile(
         enumConfig: Map<Int, Array<String>>,
         enumClassName: String,
         enumValueField: String,
@@ -921,18 +2070,85 @@ open class GenEntityTask : AbstractCodegenTask() {
         tablePackageMap: Map<String, String>,
         baseDir: String
     ) {
+        val tag = "enum"
+        val itemTag = "enum_item"
         val tableName = enumTableNameMap[enumClassName] ?: return
-        val packageName = enumPackageMap[enumClassName] ?: return
+        val aggregate = getAggregateWithModule(tableName)
 
-//        val enumCode = buildEnumCode(enumClassName, enumConfig, packageName)
-        val outputDir = SourceFileUtils.resolveDirectory(baseDir, packageName)
-        val filePath = "$outputDir${File.separator}$enumClassName.kt"
+        val entityFullPackage = tablePackageMap[tableName] ?: return
+        val entityType = getEntityType(tableName)
+        val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
 
-//        writeCodeToFile(filePath, enumCode)
-        logger.info("生成枚举文件：$filePath")
+        val context = getEscapeContext().toMutableMap()
+        putContext(tag, "templatePackage", SourceFileUtils.refPackage(getAggregatesPackage()), context)
+        putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
+        putContext(tag, "path", aggregate.replace(".", File.separator), context)
+        putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
+        putContext(tag, "Comment", "", context)
+        putContext(tag, "CommentEscaped", "", context)
+        putContext(
+            tag,
+            "entityPackage",
+            SourceFileUtils.refPackage(entityFullPackage, getExtension().basePackage.get()),
+            context
+        )
+        putContext(tag, "Entity", entityType, context)
+        putContext(tag, "AggregateRoot", context["Entity"] ?: "", context)
+        putContext(tag, "EntityVar", entityVar, context)
+        putContext(tag, "Enum", enumClassName, context)
+        putContext(tag, "EnumValueField", enumValueField, context)
+        putContext(tag, "EnumNameField", enumNameField, context)
+
+        var enumItems = ""
+        for ((key, value) in enumConfig) {
+            val itemValue = key.toString()
+            val itemName = value[0]
+            val itemDesc = value[1]
+            logger.info("  $itemDesc : $itemName = $key")
+
+            val itemContext = context.toMutableMap()
+            putContext(itemTag, "itemName", itemName, itemContext)
+            putContext(itemTag, "itemValue", itemValue, itemContext)
+            putContext(itemTag, "itemDesc", itemDesc, itemContext)
+
+            val enumItemsPathNode =
+                (if (templateNodeMap.containsKey(itemTag) && templateNodeMap[itemTag]!!.isNotEmpty()) {
+                    templateNodeMap[itemTag]!![templateNodeMap[itemTag]!!.size - 1]
+                } else {
+                    getDefaultEnumItemTemplateNode()
+                }).cloneTemplateNode().resolve(itemContext)
+            enumItems += enumItemsPathNode.data
+        }
+        putContext(tag, "ENUM_ITEMS", enumItems, context)
+
+        val enumTemplateNodes = if (templateNodeMap.containsKey(tag)) {
+            templateNodeMap[tag]!!
+        } else {
+            listOf(getDefaultEnumTemplateNode())
+        }
+
+        try {
+            for (templateNode in enumTemplateNodes) {
+                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val path = forceRender(
+                    pathNode,
+                    SourceFileUtils.resolveDirectory(
+                        baseDir,
+                        SourceFileUtils.concatPackage(
+                            getExtension().basePackage.get(),
+                            context["templatePackage"] ?: ""
+                        )
+                    )
+                )
+                logger.info(JSON.toJSONString(context))
+                logger.info("开始生成枚举文件：$path")
+            }
+        } catch (e: Exception) {
+            logger.error("枚举模板文件写入失败！", e)
+        }
     }
 
-    private fun writeSchemaSourceFile(
+    fun writeSchemaSourceFile(
         table: Map<String, Any?>,
         columns: List<Map<String, Any?>>,
         tablePackageMap: Map<String, String>,
@@ -940,496 +2156,339 @@ open class GenEntityTask : AbstractCodegenTask() {
         basePackage: String,
         baseDir: String
     ) {
-        // TODO: 实现Schema源文件生成
-        logger.info("Schema源文件生成功能待实现")
-    }
+        val tag = "schema"
+        val fieldTag = "schema_field"
+        val joinTag = "schema_join"
+        val propertyNameTag = "schema_property_name"
+        val rootExtraExtensionTag = "root_schema_extra_extension"
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val aggregate = getAggregateWithModule(tableName)
 
-    private fun writeSchemaBaseSourceFile(baseDir: String) {
-        val ext = getExtension()
-        val packageName = SourceFileUtils.concatPackage(ext.basePackage.get(), getSchemaPackage())
-        val schemaBaseCode = buildSchemaBaseCode(packageName)
-        val outputDir = SourceFileUtils.resolveDirectory(baseDir, packageName)
-        val filePath = "$outputDir${File.separator}${DEFAULT_SCHEMA_BASE_CLASS_NAME}.kt"
+        val schemaPackage = if ("abs".equals(getEntitySchemaOutputMode(), ignoreCase = true)) {
+            getSchemaPackage()
+        } else {
+            getAggregatesPackage()
+        }
 
-//        writeCodeToFile(filePath, schemaBaseCode)
-        logger.info("生成Schema基类文件：$filePath")
-    }
+        val entityFullPackage = tablePackageMap[tableName] ?: return
+        val entityType = getEntityType(tableName)
+        val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
 
-    /**
-     * 生成领域事件名称
-     */
-    private fun generateDomainEventName(eventName: String): String {
-        return NamingUtils.toUpperCamelCase(eventName) ?: eventName
-    }
+        val comment = SqlSchemaUtils.getComment(table).replace(Regex(PATTERN_LINE_BREAK), " ")
 
-    /**
-     * 构建Schema基类代码
-     */
-    private fun buildSchemaBaseCode(packageName: String): String {
-        return """
-            package $packageName
+        val schemaBaseFullPackage = if (schemaPath.isNotBlank()) {
+            SourceFileUtils.resolvePackage(schemaPath)
+        } else {
+            SourceFileUtils.concatPackage(getExtension().basePackage.get(), getEntitySchemaOutputPackage())
+        }
 
-            /**
-             * 实体结构基类
-             *
-             * @author cap4k-ddd-codegen
-             */
-            abstract class ${DEFAULT_SCHEMA_BASE_CLASS_NAME} {
-                // TODO: 实现Schema基类逻辑
+        val context = getEscapeContext().toMutableMap()
+
+        putContext(tag, "templatePackage", SourceFileUtils.refPackage(schemaPackage), context)
+        putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
+        putContext(tag, "path", aggregate.replace(".", File.separator), context)
+        putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
+        putContext(tag, "isAggregateRoot", SqlSchemaUtils.isAggregateRoot(table).toString(), context)
+        putContext(tag, "Comment", comment, context)
+        putContext(tag, "CommentEscaped", comment.replace(Regex(PATTERN_LINE_BREAK), " "), context)
+        putContext(
+            tag,
+            "entityPackage",
+            SourceFileUtils.refPackage(entityFullPackage, getExtension().basePackage.get()),
+            context
+        )
+        putContext(tag, "Entity", entityType, context)
+        putContext(tag, "EntityVar", entityVar, context)
+        putContext(
+            tag,
+            "schemaBasePackage",
+            SourceFileUtils.refPackage(schemaBaseFullPackage, getExtension().basePackage.get()),
+            context
+        )
+        putContext(tag, "SchemaBase", DEFAULT_SCHEMA_BASE_CLASS_NAME, context)
+
+        var fieldItems = ""
+        var propertyNameItems = ""
+        for (column in columns) {
+            if (!isColumnNeedGenerate(table, column, relations)) {
+                continue
             }
-        """.trimIndent()
+            val fieldType = SqlSchemaUtils.getColumnType(column)
+            val fieldName =
+                NamingUtils.toLowerCamelCase(SqlSchemaUtils.getColumnName(column)) ?: SqlSchemaUtils.getColumnName(
+                    column
+                )
+            val fieldComment = generateFieldComment(column).joinToString("\n    ")
+            val fieldDescription = SqlSchemaUtils.getComment(column).replace(Regex(PATTERN_LINE_BREAK), "")
+
+            val itemContext = context.toMutableMap()
+            putContext(fieldTag, "fieldType", fieldType, itemContext)
+            putContext(fieldTag, "fieldName", fieldName, itemContext)
+            putContext(fieldTag, "fieldComment", fieldComment, itemContext)
+            putContext(fieldTag, "fieldDescription", fieldDescription, itemContext)
+
+            fieldItems += (if (templateNodeMap.containsKey(fieldTag) && templateNodeMap[fieldTag]!!.isNotEmpty()) {
+                templateNodeMap[fieldTag]!![templateNodeMap[fieldTag]!!.size - 1]
+            } else {
+                getDefaultSchemaFieldTemplateNode()
+            }).cloneTemplateNode().resolve(itemContext).data ?: ""
+
+            propertyNameItems += (if (templateNodeMap.containsKey(propertyNameTag) && templateNodeMap[propertyNameTag]!!.isNotEmpty()) {
+                templateNodeMap[propertyNameTag]!![templateNodeMap[propertyNameTag]!!.size - 1]
+            } else {
+                getDefaultSchemaPropertyNameTemplateNode()
+            }).cloneTemplateNode().resolve(itemContext).data ?: ""
+        }
+
+        var joinItems = ""
+        if (relations.containsKey(tableName)) {
+            for ((key, value) in relations[tableName]!!) {
+                val refInfos = value.split(";")
+                val joinContext = context.toMutableMap()
+                val itemContext = context.toMutableMap()
+                var fieldType: String
+                var fieldName: String
+                var fieldComment: String
+                var fieldDescription: String
+
+                when (refInfos[0]) {
+                    "OneToMany", "*OneToMany" -> {
+                        putContext(joinTag, "joinEntityPackage", tablePackageMap[key] ?: "", joinContext)
+                        putContext(joinTag, "joinEntityType", getEntityType(key), joinContext)
+                        putContext(
+                            joinTag,
+                            "joinEntityVars",
+                            Inflector.pluralize(NamingUtils.toLowerCamelCase(getEntityType(key)) ?: getEntityType(key)),
+                            joinContext
+                        )
+                        if (!("abs".equals(getEntitySchemaOutputMode(), ignoreCase = true))) {
+                            putContext(
+                                joinTag,
+                                "joinEntitySchemaPackage",
+                                "${SourceFileUtils.concatPackage(tablePackageMap[key] ?: "", DEFAULT_SCHEMA_PACKAGE)}.",
+                                joinContext
+                            )
+                        } else {
+                            putContext(joinTag, "joinEntitySchemaPackage", "", joinContext)
+                        }
+                        joinItems += (if (templateNodeMap.containsKey(joinTag) && templateNodeMap[joinTag]!!.isNotEmpty()) {
+                            templateNodeMap[joinTag]!![templateNodeMap[joinTag]!!.size - 1]
+                        } else {
+                            getDefaultSchemaJoinTemplateNode()
+                        }).cloneTemplateNode().resolve(joinContext).data ?: ""
+
+                        fieldType = "${tablePackageMap[key]}.${getEntityType(key)}"
+                        fieldName =
+                            Inflector.pluralize(NamingUtils.toLowerCamelCase(getEntityType(key)) ?: getEntityType(key))
+                        fieldComment = ""
+                        fieldDescription = ""
+                        putContext(fieldTag, "fieldType", "java.util.List<$fieldType>", itemContext)
+                        putContext(fieldTag, "fieldName", fieldName, itemContext)
+                        putContext(fieldTag, "fieldComment", fieldComment, itemContext)
+                        putContext(fieldTag, "fieldDescription", fieldDescription, itemContext)
+                        fieldItems += (if (templateNodeMap.containsKey(fieldTag) && templateNodeMap[fieldTag]!!.isNotEmpty()) {
+                            templateNodeMap[fieldTag]!![templateNodeMap[fieldTag]!!.size - 1]
+                        } else {
+                            getDefaultSchemaFieldTemplateNode()
+                        }).cloneTemplateNode().resolve(itemContext).data ?: ""
+                        propertyNameItems += (if (templateNodeMap.containsKey(propertyNameTag) && templateNodeMap[propertyNameTag]!!.isNotEmpty()) {
+                            templateNodeMap[propertyNameTag]!![templateNodeMap[propertyNameTag]!!.size - 1]
+                        } else {
+                            getDefaultSchemaPropertyNameTemplateNode()
+                        }).cloneTemplateNode().resolve(itemContext).data ?: ""
+                    }
+
+                    "OneToOne", "ManyToOne" -> {
+                        putContext(joinTag, "joinEntityPackage", tablePackageMap[key] ?: "", joinContext)
+                        putContext(joinTag, "joinEntityType", getEntityType(key), joinContext)
+                        putContext(
+                            joinTag,
+                            "joinEntityVars",
+                            NamingUtils.toLowerCamelCase(getEntityType(key)) ?: getEntityType(key),
+                            joinContext
+                        )
+                        if (!("abs".equals(getEntitySchemaOutputMode(), ignoreCase = true))) {
+                            putContext(
+                                joinTag,
+                                "joinEntitySchemaPackage",
+                                "${SourceFileUtils.concatPackage(tablePackageMap[key] ?: "", DEFAULT_SCHEMA_PACKAGE)}.",
+                                joinContext
+                            )
+                        }
+                        joinItems += (if (templateNodeMap.containsKey(joinTag) && templateNodeMap[joinTag]!!.isNotEmpty()) {
+                            templateNodeMap[joinTag]!![templateNodeMap[joinTag]!!.size - 1]
+                        } else {
+                            getDefaultSchemaJoinTemplateNode()
+                        }).cloneTemplateNode().resolve(joinContext).data ?: ""
+
+                        fieldType = "${tablePackageMap[key]}.${getEntityType(key)}"
+                        fieldName = NamingUtils.toLowerCamelCase(getEntityType(key)) ?: getEntityType(key)
+                        val refColumn = getColumn(columns, refInfos[1])
+                        fieldComment =
+                            if (refColumn != null) generateFieldComment(refColumn).joinToString("\n    ") else ""
+                        fieldDescription = if (refColumn != null) SqlSchemaUtils.getComment(refColumn)
+                            .replace(Regex(PATTERN_LINE_BREAK), "") else ""
+                        putContext(fieldTag, "fieldType", fieldType, itemContext)
+                        putContext(fieldTag, "fieldName", fieldName, itemContext)
+                        putContext(fieldTag, "fieldComment", fieldComment, itemContext)
+                        putContext(fieldTag, "fieldDescription", fieldDescription, itemContext)
+                        fieldItems += (if (templateNodeMap.containsKey(fieldTag) && templateNodeMap[fieldTag]!!.isNotEmpty()) {
+                            templateNodeMap[fieldTag]!![templateNodeMap[fieldTag]!!.size - 1]
+                        } else {
+                            getDefaultSchemaFieldTemplateNode()
+                        }).cloneTemplateNode().resolve(itemContext).data ?: ""
+                        propertyNameItems += (if (templateNodeMap.containsKey(propertyNameTag) && templateNodeMap[propertyNameTag]!!.isNotEmpty()) {
+                            templateNodeMap[propertyNameTag]!![templateNodeMap[propertyNameTag]!!.size - 1]
+                        } else {
+                            getDefaultSchemaPropertyNameTemplateNode()
+                        }).cloneTemplateNode().resolve(itemContext).data ?: ""
+                    }
+
+                    else -> {
+                        // 暂不支持
+                    }
+                }
+            }
+        }
+
+        putContext(tag, "PROPERTY_NAMES", propertyNameItems, context)
+        putContext(tag, "FIELD_ITEMS", fieldItems, context)
+        putContext(tag, "JOIN_ITEMS", joinItems, context)
+
+        var extraExtension = ""
+        try {
+            if (SqlSchemaUtils.isAggregateRoot(table)) {
+                val extraExtensionTemplateNodes = if (templateNodeMap.containsKey(rootExtraExtensionTag)) {
+                    templateNodeMap[rootExtraExtensionTag]!!
+                } else {
+                    listOf(getDefaultRootSchemaExtraExtenstionTemplateNode(getExtension().generation.generateAggregate.get()))
+                }
+                for (templateNode in extraExtensionTemplateNodes) {
+                    extraExtension += templateNode.cloneTemplateNode().resolve(context).data ?: ""
+                }
+            }
+        } catch (e: Exception) {
+            logger.error("SchemaExtraExtension模板文件生成失败！", e)
+        }
+        putContext(tag, "EXTRA_EXTENSION", extraExtension, context)
+
+        val schemaTemplateNodes = if (templateNodeMap.containsKey(tag)) {
+            templateNodeMap[tag]!!
+        } else {
+            listOf(getDefaultSchemaTemplateNode(SqlSchemaUtils.isAggregateRoot(table)))
+        }
+
+        try {
+            for (templateNode in schemaTemplateNodes) {
+                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val path = forceRender(
+                    pathNode,
+                    SourceFileUtils.resolveDirectory(
+                        baseDir,
+                        SourceFileUtils.concatPackage(
+                            getExtension().basePackage.get(),
+                            context["templatePackage"] ?: ""
+                        )
+                    )
+                )
+                logger.info("开始生成Schema文件：$path")
+            }
+        } catch (e: Exception) {
+            logger.error("Schema模板文件写入失败！", e)
+        }
     }
 
-//    /**
-//     * 构建实体源文件
-//     */
-//    private fun buildEntitySourceFile(
-//        table: Map<String, Any?>,
-//        columns: List<Map<String, Any?>>,
-//        tablePackageMap: Map<String, String>,
-//        relations: Map<String, Map<String, String>>,
-//        basePackage: String,
-//        baseDir: String
-//    ) {
-//        val tableName = SqlSchemaUtils.getTableName(table)
-//        if (isIgnoreTable(table)) {
-//            logger.info("跳过忽略表：$tableName")
-//            return
-//        }
-//
-//        if (SqlSchemaUtils.hasRelation(table)) {
-//            logger.info("跳过关系表：$tableName")
-//            return
-//        }
-//
-//        val ids = getIdColumns(columns)
-//        if (ids.isEmpty()) {
-//            logger.error("跳过问题表：$tableName 缺失主键")
-//            return
-//        }
-//
-//        val entityType = getEntityType(tableName)
-//        val entityFullPackage = tablePackageMap[tableName] ?: return
-//
-//        val outputDir = SourceFileUtils.resolveDirectory(baseDir, entityFullPackage)
-//        val filePath = "$outputDir${File.separator}$entityType.kt"
-//
-//        val entityCode = buildEntityCode(entityType, tableName, table, columns, entityFullPackage)
-//        writeCodeToFile(filePath, entityCode)
-//
-//        logger.info("生成实体文件：$filePath")
-//
-//        // 生成相关文件
-//        val ext = getExtension()
-//        if (ext.generation.generateSchema.get()) {
-//            writeSchemaSourceFile(table, columns, tablePackageMap, relations, basePackage, baseDir)
-//        }
-//
-//        if (SqlSchemaUtils.isAggregateRoot(table)) {
-//            if (ext.generation.generateAggregate.get()) {
-//                writeAggregateSourceFile(table, columns, tablePackageMap, baseDir)
-//            }
-//            if (SqlSchemaUtils.hasFactory(table) || ext.generation.generateAggregate.get()) {
-//                writeFactorySourceFile(table, tablePackageMap, baseDir)
-//            }
-//            if (SqlSchemaUtils.hasSpecification(table) || ext.generation.generateAggregate.get()) {
-//                writeSpecificationSourceFile(table, tablePackageMap, baseDir)
-//            }
-//            if (SqlSchemaUtils.hasDomainEvent(table)) {
-//                val domainEvents = SqlSchemaUtils.getDomainEvent(table)
-//                for (domainEvent in domainEvents) {
-//                    if (domainEvent.isNotBlank()) {
-//                        val segments = domainEvent.split(":")
-//                        val domainEventClassName = generateDomainEventName(segments[0])
-//                        val domainEventDescription = if (segments.size > 1) segments[1] else "todo: 领域事件说明"
-//                        writeDomainEventSourceFile(
-//                            table,
-//                            tablePackageMap,
-//                            domainEventClassName,
-//                            domainEventDescription,
-//                            baseDir
-//                        )
-//                    }
-//                }
-//            }
-//        }
-//    }
-//
-//    private fun generateEntityClass(tableName: String, table: Map<String, Any?>) {
-//        val ext = getExtension()
-//        val entityName = NamingUtils.toUpperCamelCase(tableName) ?: tableName
-//        val columns = columnsMap[tableName] ?: return
-//
-//        // 确定输出路径
-//        val packageName = buildPackageName(tableName, "")
-//        val outputDir = getDomainModulePath()
-//        val filePath = "${outputDir}/src/main/kotlin/${packageName.replace('.', File.separatorChar)}/${entityName}.kt"
-//
-//        // 生成实体代码
-//        val entityCode = buildEntityCode(entityName, tableName, table, columns, packageName)
-//
-//        // 写入文件
-//        writeCodeToFile(filePath, entityCode)
-//
-//        logger.info("生成实体类: $filePath")
-//    }
-//
-//    /**
-//     * 生成聚合类
-//     */
-//    private fun generateAggregateClass(tableName: String, table: Map<String, Any?>) {
-//        val aggregateName = getExtension().generation.aggregateNameTemplate.get()
-//            .replace("\${Entity}", NamingUtils.toUpperCamelCase(tableName) ?: tableName)
-//
-//        val packageName = buildPackageName(tableName, "aggregates")
-//        val outputDir = getDomainModulePath()
-//        val filePath =
-//            "${outputDir}/src/main/kotlin/${packageName.replace('.', File.separatorChar)}/${aggregateName}.kt"
-//
-//        val aggregateCode = buildAggregateCode(aggregateName, tableName, table, packageName)
-//        writeCodeToFile(filePath, aggregateCode)
-//
-//        logger.info("生成聚合类: $filePath")
-//    }
-//
-//    /**
-//     * 生成Schema类
-//     */
-//    private fun generateSchemaClass(tableName: String, table: Map<String, Any?>) {
-//        val schemaName = "${NamingUtils.toUpperCamelCase(tableName)}Schema"
-//        val columns = columnsMap[tableName] ?: return
-//
-//        val packageName = buildPackageName(tableName, DEFAULT_SCHEMA_PACKAGE)
-//        val outputDir = getDomainModulePath()
-//        val filePath = "${outputDir}/src/main/kotlin/${packageName.replace('.', File.separatorChar)}/${schemaName}.kt"
-//
-//        val schemaCode = buildSchemaCode(schemaName, tableName, columns, packageName)
-//        writeCodeToFile(filePath, schemaCode)
-//
-//        logger.info("生成Schema类: $filePath")
-//    }
-//
-//    /**
-//     * 生成枚举类
-//     */
-//    private fun generateEnumClasses(tableName: String) {
-//        val enumsForTable = enumConfigMap.filterKeys { it.startsWith("${tableName}_") }
-//
-//        for ((enumKey, enumConfig) in enumsForTable) {
-//            val columnName = enumKey.substringAfter("${tableName}_")
-//            val enumName = "${NamingUtils.toUpperCamelCase(tableName)}${NamingUtils.toUpperCamelCase(columnName)}"
-//
-//            val packageName = buildPackageName(tableName, DEFAULT_ENUM_PACKAGE)
-//            val outputDir = getDomainModulePath()
-//            val filePath = "${outputDir}/src/main/kotlin/${packageName.replace('.', File.separatorChar)}/${enumName}.kt"
-//
-//            val enumCode = buildEnumCode(enumName, enumConfig, packageName)
-//            writeCodeToFile(filePath, enumCode)
-//
-//            logger.info("生成枚举类: $filePath")
-//        }
-//    }
-//
-//    /**
-//     * 构建包名
-//     */
-//    private fun buildPackageName(tableName: String, subPackage: String): String {
-//        val ext = getExtension()
-//        val basePackage = ext.basePackage.get()
-//
-//        // 检查是否有模块配置
-//        val module = tableModuleMap[tableName]
-//        val aggregate = tableAggregateMap[tableName]
-//
-//        val suffix = if (subPackage.isNotEmpty()) ".$subPackage" else ""
-//
-//        return when {
-//            module?.isNotEmpty() == true && aggregate?.isNotEmpty() == true ->
-//                "$basePackage.${AGGREGATE_PACKAGE}.$module.${aggregate.lowercase()}$suffix"
-//
-//            aggregate?.isNotEmpty() == true ->
-//                "$basePackage.${AGGREGATE_PACKAGE}.${aggregate.lowercase()}$suffix"
-//
-//            module?.isNotEmpty() == true ->
-//                "$basePackage.${AGGREGATE_PACKAGE}.$module$suffix"
-//
-//            else ->
-//                "$basePackage.${AGGREGATE_PACKAGE}$suffix"
-//        }
-//    }
-//
-//    /**
-//     * 构建实体代码
-//     */
-//    private fun buildEntityCode(
-//        entityName: String,
-//        tableName: String,
-//        table: Map<String, Any?>,
-//        columns: List<Map<String, Any?>>,
-//        packageName: String,
-//    ): String {
-//        val ext = getExtension()
-//        val comment = SqlSchemaUtils.getTableComment(table)
-//        val annotations = SqlSchemaUtils.parseAnnotations(comment)
-//
-//        val imports = mutableSetOf<String>()
-//        imports.add("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate")
-//        imports.add("javax.persistence.*")
-//
-//        val isRoot = SqlSchemaUtils.isAggregateRoot(table)
-//        val isValueObject = SqlSchemaUtils.isValueObject(table)
-//
-//        val codeBuilder = StringBuilder()
-//
-//        // Package declaration
-//        codeBuilder.appendLine("package $packageName")
-//        codeBuilder.appendLine()
-//
-//        // Imports
-//        imports.sorted().forEach { import ->
-//            codeBuilder.appendLine("import $import")
-//        }
-//        codeBuilder.appendLine()
-//
-//        // Class comment
-//        if (comment.isNotEmpty()) {
-//            codeBuilder.appendLine("/**")
-//            codeBuilder.appendLine(" * $comment")
-//            codeBuilder.appendLine(" */")
-//        }
-//
-//        // Annotations
-//        val resolvedAggregate = getAggregate(tableName)
-//        val aggregateName =
-//            annotations["Aggregate"] ?: resolvedAggregate ?: NamingUtils.toLowerCamelCase(tableName) ?: tableName
-//        val type = when {
-//            isRoot -> "entity"
-//            isValueObject -> "value-object"
-//            else -> "entity"
-//        }
-//
-//        codeBuilder.appendLine("@Aggregate(aggregate = \"$aggregateName\", type = \"$type\", root = $isRoot)")
-//        codeBuilder.appendLine("@Entity")
-//        codeBuilder.appendLine("@Table(name = \"$tableName\")")
-//
-//        // Class declaration
-//        val baseClass = if (isRoot) {
-//            ext.generation.rootEntityBaseClass.get().ifEmpty { ext.generation.entityBaseClass.get() }
-//        } else {
-//            ext.generation.entityBaseClass.get()
-//        }
-//
-//        val classDeclaration = if (baseClass.isNotEmpty()) {
-//            "data class $entityName : $baseClass()"
-//        } else {
-//            "data class $entityName"
-//        }
-//
-//        codeBuilder.appendLine("$classDeclaration {")
-//
-//        // Properties
-//        generateEntityProperties(columns, codeBuilder, imports)
-//
-//        codeBuilder.appendLine("}")
-//
-//        return codeBuilder.toString()
-//    }
-//
-//    /**
-//     * 生成实体属性
-//     */
-//    private fun generateEntityProperties(
-//        columns: List<Map<String, Any?>>,
-//        codeBuilder: StringBuilder,
-//        imports: MutableSet<String>,
-//    ) {
-//        for (column in columns) {
-//            val columnName = SqlSchemaUtils.getColumnName(column)
-//            val propertyName = NamingUtils.toLowerCamelCase(columnName) ?: columnName
-//            val javaType = SqlSchemaUtils.getColumnType(column)
-//            val isPrimaryKey = SqlSchemaUtils.isColumnPrimaryKey(column)
-//            val isNullable = SqlSchemaUtils.isColumnNullable(column)
-//            val comment = SqlSchemaUtils.getColumnComment(column)
-//
-//            codeBuilder.appendLine()
-//
-//            // Property comment
-//            if (comment.isNotEmpty()) {
-//                codeBuilder.appendLine("    /**")
-//                codeBuilder.appendLine("     * $comment")
-//                codeBuilder.appendLine("     */")
-//            }
-//
-//            // Annotations
-//            if (isPrimaryKey) {
-//                codeBuilder.appendLine("    @Id")
-//                val idGenerator = getExtension().generation.idGenerator.get()
-//                if (idGenerator.isNotEmpty()) {
-//                    codeBuilder.appendLine("    @GeneratedValue(strategy = GenerationType.$idGenerator)")
-//                }
-//            }
-//
-//            codeBuilder.appendLine("    @Column(name = \"$columnName\")")
-//
-//            // Property declaration
-//            val kotlinType = convertToKotlinType(javaType, isNullable, imports)
-//            val defaultValue = if (isNullable) " = null" else ""
-//
-//            codeBuilder.appendLine("    var $propertyName: $kotlinType$defaultValue")
-//        }
-//    }
-//
-//    /**
-//     * 转换为Kotlin类型
-//     */
-//    private fun convertToKotlinType(javaType: String, isNullable: Boolean, imports: MutableSet<String>): String {
-//        val kotlinType = when (javaType) {
-//            "Int" -> "Int"
-//            "Long" -> "Long"
-//            "Float" -> "Float"
-//            "Double" -> "Double"
-//            "Boolean" -> "Boolean"
-//            "String" -> "String"
-//            "ByteArray" -> "ByteArray"
-//            "java.math.BigDecimal" -> {
-//                imports.add("java.math.BigDecimal")
-//                "BigDecimal"
-//            }
-//
-//            "java.time.LocalDate" -> {
-//                imports.add("java.time.LocalDate")
-//                "LocalDate"
-//            }
-//
-//            "java.time.LocalDateTime" -> {
-//                imports.add("java.time.LocalDateTime")
-//                "LocalDateTime"
-//            }
-//
-//            "java.time.LocalTime" -> {
-//                imports.add("java.time.LocalTime")
-//                "LocalTime"
-//            }
-//
-//            else -> "String"
-//        }
-//
-//        return if (isNullable) "$kotlinType?" else kotlinType
-//    }
-//
-//    /**
-//     * 构建聚合代码 (简化版本)
-//     */
-//    private fun buildAggregateCode(
-//        aggregateName: String,
-//        tableName: String,
-//        table: Map<String, Any?>,
-//        packageName: String,
-//    ): String {
-//        val entityName = NamingUtils.toUpperCamelCase(tableName) ?: tableName
-//        val comment = SqlSchemaUtils.getTableComment(table)
-//        val resolvedAggregate = getAggregate(tableName)
-//
-//        return """
-//            package $packageName
-//
-//            import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
-//
-//            /**
-//             * $comment 聚合
-//             */
-//            @Aggregate(aggregate = "$resolvedAggregate", type = "aggregate")
-//            class $aggregateName {
-//                // TODO: 实现聚合逻辑
-//            }
-//        """.trimIndent()
-//    }
-//
-//    /**
-//     * 构建Schema代码 (简化版本)
-//     */
-//    private fun buildSchemaCode(
-//        schemaName: String,
-//        tableName: String,
-//        columns: List<Map<String, Any?>>,
-//        packageName: String,
-//    ): String {
-//        return """
-//            package $packageName
-//
-//            /**
-//             * $tableName 表结构定义
-//             */
-//            object $schemaName {
-//                const val TABLE_NAME = "$tableName"
-//
-//                ${
-//            columns.joinToString("\n                ") {
-//                val columnName = SqlSchemaUtils.getColumnName(it)
-//                "const val ${columnName.uppercase()} = \"$columnName\""
-//            }
-//        }
-//            }
-//        """.trimIndent()
-//    }
-//
-//    /**
-//     * 构建枚举代码
-//     */
-//    private fun buildEnumCode(
-//        enumName: String,
-//        enumConfig: Map<Int, Array<String>>,
-//        packageName: String,
-//    ): String {
-//        val enumItems = enumConfig.entries.joinToString(",\n    ") { (value, names) ->
-//            "${names[0].uppercase()}($value, \"${names[0]}\", \"${names.getOrNull(1) ?: names[0]}\")"
-//        }
-//
-//        return """
-//            package $packageName
-//
-//            /**
-//             * $enumName 枚举
-//             */
-//            enum class $enumName(
-//                val value: Int,
-//                val code: String,
-//                val description: String
-//            ) {
-//                $enumItems;
-//
-//                companion object {
-//                    fun fromValue(value: Int): $enumName? {
-//                        return values().find { it.value == value }
-//                    }
-//
-//                    fun fromCode(code: String): $enumName? {
-//                        return values().find { it.code == code }
-//                    }
-//                }
-//            }
-//        """.trimIndent()
-//    }
-//
-//    /**
-//     * 写入代码到文件
-//     */
-//    private fun writeCodeToFile(filePath: String, code: String) {
-//        val file = File(filePath)
-//
-//        // 检查文件是否存在且包含不覆盖标记
-//        if (file.exists()) {
-//            val existingContent = file.readText()
-//            if (existingContent.contains(FLAG_DO_NOT_OVERWRITE)) {
-//                logger.info("文件包含不覆盖标记，跳过: $filePath")
-//                return
-//            }
-//        }
-//
-//        // 创建父目录
-//        file.parentFile?.mkdirs()
-//
-//        // 写入文件
-//        file.writeText(code, charset(getExtension().outputEncoding.get()))
-//    }
+    fun writeSchemaBaseSourceFile(baseDir: String) {
+        val tag = "schema_base"
+        val schemaFullPackage = SourceFileUtils.concatPackage(getExtension().basePackage.get(), getSchemaPackage())
+
+        val schemaBaseTemplateNodes = if (templateNodeMap.containsKey(tag)) {
+            templateNodeMap[tag]!!
+        } else {
+            listOf(getDefaultSchemaBaseTemplateNode())
+        }
+
+        val context = getEscapeContext().toMutableMap()
+        putContext(
+            tag,
+            "templatePackage",
+            SourceFileUtils.refPackage(schemaFullPackage, getExtension().basePackage.get()),
+            context
+        )
+        putContext(tag, "SchemaBase", DEFAULT_SCHEMA_BASE_CLASS_NAME, context)
+
+        try {
+            for (templateNode in schemaBaseTemplateNodes) {
+                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                forceRender(
+                    pathNode,
+                    SourceFileUtils.resolveDirectory(
+                        baseDir,
+                        SourceFileUtils.concatPackage(
+                            getExtension().basePackage.get(),
+                            context["templatePackage"] ?: ""
+                        )
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            logger.error("模板文件写入失败！", e)
+        }
+    }
+
+    fun getDefaultAggregateTemplateNode(): TemplateNode {
+        TODO()
+    }
+
+    fun getDefaultFactoryTemplateNode(): TemplateNode {
+        TODO()
+    }
+
+    fun getDefaultFactoryPayloadTemplateNode(): TemplateNode {
+        TODO()
+    }
+
+    fun getDefaultSpecificationTemplateNode(): TemplateNode {
+        TODO()
+    }
+
+    fun getDefaultDomainEventHandlerTemplateNode(): TemplateNode {
+        TODO()
+    }
+
+    fun getDefaultDomainEventTemplateNode(): TemplateNode {
+        TODO()
+    }
+
+    fun getDefaultEnumTemplateNode(): TemplateNode {
+        TODO()
+    }
+
+    fun getDefaultEnumItemTemplateNode(): TemplateNode {
+        TODO()
+    }
+
+    fun getDefaultSchemaFieldTemplateNode(): TemplateNode {
+        TODO()
+    }
+
+    fun getDefaultSchemaPropertyNameTemplateNode(): TemplateNode {
+        TODO()
+    }
+
+    fun getDefaultSchemaJoinTemplateNode(): TemplateNode {
+        TODO()
+    }
+
+    fun getDefaultSchemaTemplateNode(isAggregateRoot: Boolean): TemplateNode {
+        TODO()
+    }
+
+    fun getDefaultRootSchemaExtraExtenstionTemplateNode(generateAggregate: Boolean): TemplateNode {
+        TODO()
+    }
+
+    fun getDefaultSchemaBaseTemplateNode(): TemplateNode {
+        TODO()
+    }
 }

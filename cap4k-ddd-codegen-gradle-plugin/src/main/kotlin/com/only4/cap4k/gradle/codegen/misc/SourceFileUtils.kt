@@ -1,5 +1,6 @@
 package com.only4.cap4k.gradle.codegen.misc
 
+import java.io.BufferedWriter
 import java.io.File
 import java.io.IOException
 import java.net.URL
@@ -293,5 +294,17 @@ object SourceFileUtils {
             }
         }
 
+    }
+
+    /**
+     * 写入一行到缓冲写入器
+     */
+    fun writeLine(out: BufferedWriter, line: String) {
+        try {
+            out.write(line)
+            out.newLine()
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.only4.cap4k.gradle.codegen
 
 import com.alibaba.fastjson.JSON
+import com.only4.cap4k.gradle.codegen.misc.NamingUtils
 import com.only4.cap4k.gradle.codegen.misc.SourceFileUtils
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.gradle.codegen.template.PathNode
@@ -119,9 +120,9 @@ abstract class AbstractCodegenTask : DefaultTask() {
      * 获取上下文变量
      */
     @Internal
-    protected fun getEscapeContext(): Map<String, String?> {
+    protected fun getEscapeContext(): Map<String, String> {
         val ext = getExtension()
-        val context = mutableMapOf<String, String?>()
+        val context = mutableMapOf<String, String>()
 
         // 项目相关配置
         context["artifactId"] = projectName.get()
@@ -146,7 +147,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
         context["dbUrl"] = ext.database.url.get()
         context["dbUsername"] = ext.database.username.get()
         context["dbPassword"] = ext.database.password.get()
-        context["dbSchema"] = ext.database.schema.orNull
+        context["dbSchema"] = ext.database.schema.get()
         context["dbTables"] = ext.database.tables.get()
         context["dbIgnoreTables"] = ext.database.ignoreTables.get()
 
@@ -320,10 +321,255 @@ abstract class AbstractCodegenTask : DefaultTask() {
         return path
     }
 
-    fun renderTemplate(
+    /**
+     * 生成领域事件名称
+     */
+    fun generateDomainEventName(eventName: String): String {
+        var domainEventClassName = NamingUtils.toUpperCamelCase(eventName) ?: eventName
+        if (!domainEventClassName.endsWith("Event") && !domainEventClassName.endsWith("Evt")) {
+            domainEventClassName += "DomainEvent"
+        }
+        return domainEventClassName
+    }
+
+    fun generateDomainServiceName(svcName: String): String {
+        var serviceName = svcName
+        if (!serviceName.endsWith("Svc") && !serviceName.endsWith("Service")) {
+            serviceName += "DomainService"
+        }
+        return serviceName
+    }
+
+    fun alias4Template(tag: String, `var`: String): List<String> {
+        val key = "$tag.${`var`}"
+        return when (key) {
+            "schema.Comment", "enum.Comment", "domain_event.Comment", "domain_event_handler.Comment",
+            "specification.Comment", "factory.Comment", "domain_service.Comment", "integration_event.Comment",
+            "integration_event_handler.Comment", "client.Comment", "query.Comment", "command.Comment",
+            "client_handler.Comment", "query_handler.Comment", "command_handler.Comment", "saga.Comment" ->
+                listOf(`var`, "comment", "COMMENT")
+
+            "schema.CommentEscaped", "enum.CommentEscaped", "domain_event.CommentEscaped", "domain_event_handler.CommentEscaped",
+            "specification.CommentEscaped", "factory.CommentEscaped", "domain_service.CommentEscaped", "integration_event.CommentEscaped",
+            "integration_event_handler.CommentEscaped", "client.CommentEscaped", "query.CommentEscaped", "command.CommentEscaped",
+            "client_handler.CommentEscaped", "query_handler.CommentEscaped", "command_handler.CommentEscaped", "saga.CommentEscaped" ->
+                listOf(`var`, "commentEscaped", "COMMENT_ESCAPED", "Comment_Escaped")
+
+            "schema.Aggregate", "enum.Aggregate", "domain_event.Aggregate", "domain_event_handler.Aggregate",
+            "specification.Aggregate", "factory.Aggregate" ->
+                listOf(`var`, "aggregate", "AGGREGATE")
+
+            "schema.entityPackage", "enum.entityPackage", "domain_event.entityPackage", "domain_event_handler.entityPackage",
+            "specification.entityPackage", "factory.entityPackage" ->
+                listOf(`var`, "EntityPackage", "ENTITY_PACKAGE", "entity_package", "Entity_Package")
+
+            "schema.templatePackage", "enum.templatePackage", "domain_event.templatePackage", "domain_event_handler.templatePackage",
+            "specification.templatePackage", "factory.templatePackage" ->
+                listOf(`var`, "TemplatePackage", "TEMPLATE_PACKAGE", "template_package", "Template_Package")
+
+            "schema.Entity", "enum.Entity", "domain_event.Entity", "domain_event_handler.Entity",
+            "specification.Entity", "factory.Entity" ->
+                listOf(
+                    `var`,
+                    "entity",
+                    "ENTITY",
+                    "entityType",
+                    "EntityType",
+                    "ENTITY_TYPE",
+                    "Entity_Type",
+                    "entity_type"
+                )
+
+            "schema.EntityVar", "enum.EntityVar", "domain_event.EntityVar", "domain_event_handler.EntityVar",
+            "specification.EntityVar", "factory.EntityVar" ->
+                listOf(`var`, "entityVar", "ENTITY_VAR", "entity_var", "Entity_Var")
+
+            "schema_base.SchemaBase", "schema.SchemaBase" ->
+                listOf(`var`, "schema_base", "SCHEMA_BASE")
+
+            "schema.IdField" ->
+                listOf(`var`, "idField", "ID_FIELD", "id_field", "Id_Field")
+
+            "schema.FIELD_ITEMS" ->
+                listOf(`var`, "fieldItems", "field_items", "Field_Items")
+
+            "schema.JOIN_ITEMS" ->
+                listOf(`var`, "joinItems", "join_items", "Join_Items")
+
+            "schema_field.fieldType" ->
+                listOf(`var`, "FIELD_TYPE", "field_type", "Field_Type")
+
+            "schema_field.fieldName" ->
+                listOf(`var`, "FIELD_NAME", "field_name", "Field_Name")
+
+            "schema_field.fieldComment" ->
+                listOf(`var`, "FIELD_COMMENT", "field_comment", "Field_Comment")
+
+            "enum.Enum" ->
+                listOf(`var`, "enum", "ENUM", "EnumType", "enumType", "ENUM_TYPE", "enum_type", "Enum_Type")
+
+            "enum.EnumValueField" ->
+                listOf(`var`, "enumValueField", "ENUM_VALUE_FIELD", "enum_value_field", "Enum_Value_Field")
+
+            "enum.EnumNameField" ->
+                listOf(`var`, "enumNameField", "ENUM_NAME_FIELD", "enum_name_field", "Enum_Name_Field")
+
+            "enum.ENUM_ITEMS" ->
+                listOf(`var`, "enumItems", "enum_items", "Enum_Items")
+
+            "enum_item.itemName" ->
+                listOf(`var`, "ItemName", "ITEM_NAME", "item_name", "Item_Name")
+
+            "enum_item.itemValue" ->
+                listOf(`var`, "ItemValue", "ITEM_VALUE", "item_value", "Item_Value")
+
+            "enum_item.itemDesc" ->
+                listOf(`var`, "ItemDesc", "ITEM_DESC", "item_desc", "Item_Desc")
+
+            "domain_event.DomainEvent", "domain_event_handler.DomainEvent" ->
+                listOf(
+                    `var`,
+                    "domainEvent",
+                    "DOMAIN_EVENT",
+                    "domain_event",
+                    "Domain_Event",
+                    "Event",
+                    "EVENT",
+                    "event",
+                    "DE",
+                    "D_E",
+                    "de",
+                    "d_e"
+                )
+
+            "domain_event.persist", "domain_event_handler.persist" ->
+                listOf(`var`, "Persist", "PERSIST")
+
+            "domain_service.DomainService" ->
+                listOf(
+                    `var`,
+                    "domainService",
+                    "DOMAIN_SERVICE",
+                    "domain_service",
+                    "Domain_Service",
+                    "Service",
+                    "SERVICE",
+                    "service",
+                    "Svc",
+                    "SVC",
+                    "svc",
+                    "DS",
+                    "D_S",
+                    "ds",
+                    "d_s"
+                )
+
+            "specification.Specification" ->
+                listOf(`var`, "specification", "SPECIFICATION", "Spec", "SPEC", "spec")
+
+            "factory.Factory" ->
+                listOf(`var`, "factory", "FACTORY", "Fac", "FAC", "fac")
+
+            "integration_event.IntegrationEvent", "integration_event_handler.IntegrationEvent" ->
+                listOf(
+                    `var`,
+                    "integrationEvent",
+                    "integration_event",
+                    "INTEGRATION_EVENT",
+                    "Integration_Event",
+                    "Event",
+                    "EVENT",
+                    "event",
+                    "IE",
+                    "I_E",
+                    "ie",
+                    "i_e"
+                )
+
+            "specification.AggregateRoot", "factory.AggregateRoot", "domain_event.AggregateRoot", "domain_event_handler.AggregateRoot" ->
+                listOf(
+                    `var`,
+                    "aggregateRoot",
+                    "aggregate_root",
+                    "AGGREGATE_ROOT",
+                    "Aggregate_Root",
+                    "Root",
+                    "ROOT",
+                    "root",
+                    "AR",
+                    "A_R",
+                    "ar",
+                    "a_r"
+                )
+
+            "client.Client", "client_handler.Client" ->
+                listOf(`var`, "client", "CLIENT", "Cli", "CLI", "cli")
+
+            "query.Query", "query_handler.Query" ->
+                listOf(`var`, "query", "QUERY", "Qry", "QRY", "qry")
+
+            "command.Command", "command_handler.Command" ->
+                listOf(`var`, "command", "COMMAND", "Cmd", "CMD", "cmd")
+
+            "client.Request", "client_handler.Request", "query.Request", "query_handler.Request", "command.Request", "command_handler.Request" ->
+                listOf(`var`, "request", "REQUEST", "Req", "REQ", "req", "Param", "PARAM", "param")
+
+            "client.Response", "client_handler.Response", "query.Response", "query_handler.Response", "command.Response", "command_handler.Response", "saga.Response", "saga_handler.Response" ->
+                listOf(
+                    `var`,
+                    "response",
+                    "RESPONSE",
+                    "Res",
+                    "RES",
+                    "res",
+                    "ReturnType",
+                    "returnType",
+                    "RETURN_TYPE",
+                    "return_type",
+                    "Return_Type",
+                    "Return",
+                    "RETURN",
+                    "return"
+                )
+
+            else -> listOf(`var`)
+        }
+    }
+
+    fun putContext(tag: String, `var`: String, `val`: String, context: MutableMap<String, String>) {
+        val aliases = alias4Template(tag, `var`)
+        for (alias in aliases) {
+            context[alias] = `val`
+        }
+    }
+
+    fun escape(content: String): String {
+        return content
+            .replace("\\\\", "\${symbol_escape}")
+            .replace("\\:", "\${symbol_colon}")
+            .replace("\\,", "\${symbol_comma}")
+            .replace("\\;", "\${symbol_semicolon}")
+    }
+
+    fun unescape(content: String): String {
+        return content
+            .replace("\${symbol_escape}", "\\")
+            .replace("\${symbol_colon}", ":")
+            .replace("\${symbol_comma}", ",")
+            .replace("\${symbol_semicolon}", ";")
+    }
+
+    open fun renderTemplate(
         templateNodes: List<TemplateNode>,
         parentPath: String,
     ) {
+    }
+
+    /**
+     * 强制渲染路径节点（忽略renderFileSwitch设置）
+     */
+    fun forceRender(pathNode: PathNode, parentPath: String): String {
+        return render(pathNode, parentPath)
     }
 
     /**
