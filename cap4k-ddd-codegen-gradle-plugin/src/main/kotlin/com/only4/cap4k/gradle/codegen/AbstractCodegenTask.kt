@@ -1,7 +1,6 @@
 package com.only4.cap4k.gradle.codegen
 
 import com.alibaba.fastjson.JSON
-import com.only4.cap4k.gradle.codegen.misc.NamingUtils
 import com.only4.cap4k.gradle.codegen.misc.SourceFileUtils
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.gradle.codegen.template.PathNode
@@ -79,7 +78,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
         val ext = getExtension()
         return if (ext.multiModule.get()) {
             val baseDir = getProjectDir()
-            val moduleName = getLastPackageName(ext.basePackage.get()) + ext.moduleNameSuffix4Adapter.get()
+            val moduleName = "${projectName.get()}${ext.moduleNameSuffix4Adapter}"
             "$baseDir${File.separator}$moduleName"
         } else {
             getProjectDir()
@@ -94,7 +93,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
         val ext = getExtension()
         return if (ext.multiModule.get()) {
             val baseDir = getProjectDir()
-            val moduleName = getLastPackageName(ext.basePackage.get()) + ext.moduleNameSuffix4Application.get()
+            val moduleName = "${projectName.get()}${ext.moduleNameSuffix4Application}"
             "$baseDir${File.separator}$moduleName"
         } else {
             getProjectDir()
@@ -109,7 +108,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
         val ext = getExtension()
         return if (ext.multiModule.get()) {
             val baseDir = getProjectDir()
-            val moduleName = getLastPackageName(ext.basePackage.get()) + ext.moduleNameSuffix4Domain.get()
+            val moduleName = "${projectName.get()}${ext.moduleNameSuffix4Domain}"
             "$baseDir${File.separator}$moduleName"
         } else {
             getProjectDir()
@@ -189,25 +188,25 @@ abstract class AbstractCodegenTask : DefaultTask() {
 
 
         // 包名相关
-        context["lastPackageName"] = getLastPackageName(ext.basePackage.get())
-        context["parentPackageName"] = getParentPackageName(ext.basePackage.get())
+//        context["lastPackageName"] = getLastPackageName(ext.basePackage.get())
+//        context["parentPackageName"] = getParentPackageName(ext.basePackage.get())
 
         return context
     }
 
-    /**
-     * 获取最后一段包名
-     */
-    private fun getLastPackageName(packageName: String): String {
-        return NamingUtils.getLastPackageName(packageName)
-    }
-
-    /**
-     * 获取父包名
-     */
-    private fun getParentPackageName(packageName: String): String {
-        return NamingUtils.parentPackageName(packageName)
-    }
+//    /**
+//     * 获取最后一段包名
+//     */
+//    private fun getLastPackageName(packageName: String): String {
+//        return NamingUtils.getLastPackageName(packageName)
+//    }
+//
+//    /**
+//     * 获取父包名
+//     */
+//    private fun getParentPackageName(packageName: String): String {
+//        return NamingUtils.parentPackageName(packageName)
+//    }
 
     fun stringfyTypeRemapping(): String {
         val typeRemapping = getExtension().generation.typeRemapping.get()
@@ -416,15 +415,68 @@ abstract class AbstractCodegenTask : DefaultTask() {
         return filtered
     }
 
-    fun getAggregateRootAnnotation(): String {
-        if (getExtension().generation.aggregateRootAnnotation.get().isNotEmpty()) {
-            getExtension().generation.aggregateRootAnnotation.set(
-                getExtension().generation.aggregateRootAnnotation.get().trim()
+    /**
+     * 获取实体类额外导入包
+     */
+    @Internal
+    protected fun getEntityClassExtraImports(): List<String> {
+        val ext = getExtension()
+        val defaultImportList = listOf(
+            "com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate",
+            "javax.persistence.*"
+        )
+
+        val imports = mutableListOf<String>()
+        imports.addAll(defaultImportList)
+
+        val extraImports = ext.generation.entityClassExtraImports.get()
+        if (extraImports.isNotEmpty()) {
+            imports.addAll(
+                extraImports.split(";")
+                    .map { it.trim().replace(Regex(PATTERN_LINE_BREAK), "") }
+                    .map { if (it.startsWith("import ")) it.substring(6).trim() else it }
+                    .filter { it.isNotBlank() }
             )
-            if (!getExtension().generation.aggregateRootAnnotation.get().startsWith("@")) {
-                getExtension().generation.aggregateRootAnnotation.set("@${getExtension().generation.aggregateRootAnnotation.get()}")
+        }
+
+        return imports.distinct()
+    }
+
+    /**
+     * 获取实体Schema输出模式
+     */
+    @Internal
+    protected fun getEntitySchemaOutputMode(): String {
+        val ext = getExtension()
+        val mode = ext.generation.entitySchemaOutputMode.get()
+        return mode.ifBlank { "ref" }
+    }
+
+    /**
+     * 获取实体Schema输出包
+     */
+    @Internal
+    protected fun getEntitySchemaOutputPackage(): String {
+        val ext = getExtension()
+        val packageName = ext.generation.entitySchemaOutputPackage.get()
+        return packageName.ifBlank { "domain._share.meta" }
+    }
+
+    /**
+     * 获取聚合根注解
+     */
+    @Internal
+    protected fun getAggregateRootAnnotation(): String {
+        val ext = getExtension()
+        var annotation = ext.generation.aggregateRootAnnotation.get()
+
+        if (annotation.isNotEmpty()) {
+            annotation = annotation.trim()
+            if (!annotation.startsWith("@")) {
+                annotation = "@$annotation"
             }
         }
-        return getExtension().generation.aggregateRootAnnotation.get()
+
+        return annotation
     }
 }

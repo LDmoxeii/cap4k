@@ -317,7 +317,7 @@ object SqlSchemaUtils {
 
     fun getParent(table: Map<String, Any?>) = getAnyAnnotation(table, listOf("Parent", "P"))
 
-    fun getModule(table: Map<String, Any?>): Boolean = hasAnyAnnotation(table, listOf("Module", "M"))
+    fun getModule(table: Map<String, Any?>): String = getAnyAnnotation(table, listOf("Module", "M"))
 
     fun getAggregate(table: Map<String, Any?>): String = getAnyAnnotation(table, listOf("Aggregate", "A"))
 
