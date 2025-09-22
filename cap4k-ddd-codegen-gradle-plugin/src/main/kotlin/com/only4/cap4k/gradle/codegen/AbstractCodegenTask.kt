@@ -79,7 +79,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
         val ext = getExtension()
         return if (ext.multiModule.get()) {
             val baseDir = getProjectDir()
-            val moduleName = "${projectName.get()}${ext.moduleNameSuffix4Adapter}"
+            val moduleName = "${projectName.get()}${ext.moduleNameSuffix4Adapter.get()}"
             "$baseDir${File.separator}$moduleName"
         } else {
             getProjectDir()
@@ -94,7 +94,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
         val ext = getExtension()
         return if (ext.multiModule.get()) {
             val baseDir = getProjectDir()
-            val moduleName = "${projectName.get()}${ext.moduleNameSuffix4Application}"
+            val moduleName = "${projectName.get()}${ext.moduleNameSuffix4Application.get()}"
             "$baseDir${File.separator}$moduleName"
         } else {
             getProjectDir()
@@ -109,7 +109,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
         val ext = getExtension()
         return if (ext.multiModule.get()) {
             val baseDir = getProjectDir()
-            val moduleName = "${projectName.get()}${ext.moduleNameSuffix4Domain}"
+            val moduleName = "${projectName.get()}${ext.moduleNameSuffix4Domain.get()}"
             "$baseDir${File.separator}$moduleName"
         } else {
             getProjectDir()
@@ -313,9 +313,9 @@ abstract class AbstractCodegenTask : DefaultTask() {
                 }
             }
         } else {
-            file.mkdirs()
+            file.parentFile?.mkdirs()
             file.writeText(content, charset(encoding))
-            logger.info("创建目录: $path")
+            logger.info("创建文件: $path")
         }
 
         return path

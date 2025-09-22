@@ -16,8 +16,8 @@ import java.nio.file.Paths
 object SourceFileUtils {
     private const val PACKAGE_SPLITTER = "."
     private val cache = mutableMapOf<String, List<File>>()
-    private const val SRC_MAIN_KOTLIN = "src/main/kotlin/"
-    private const val SRC_TEST_KOTLIN = "src/test/kotlin/"
+    private const val SRC_MAIN_KOTLIN = "src.main.kotlin."
+    private const val SRC_TEST_KOTLIN = "src.test.kotlin."
 
     /**
      * 获取所有文件清单，含子目录中的文件
@@ -191,11 +191,25 @@ object SourceFileUtils {
      * 解析包名
      */
     fun resolvePackage(filePath: String): String {
-        val file = File(filePath)
-        val content = file.readText()
-        val packageRegex = Regex("^\\s*package\\s+([\\w\\.]+)", RegexOption.MULTILINE)
-        val match = packageRegex.find(content)
-        return match?.groupValues?.get(1) ?: ""
+        val className = resolveClassName(filePath)
+        val packageName = className.substring(0, className.lastIndexOf(PACKAGE_SPLITTER))
+        return packageName
+    }
+
+    private fun resolveClassName(filePath: String): String {
+        require(filePath.endsWith(".kt")) { "文件不是Kotlin源文件" }
+        var className = filePath.replace(File.separator, PACKAGE_SPLITTER)
+            .replace(Regex("\\.kt$"), "")
+        var idx = -1
+
+        idx = if (className.lastIndexOf(SRC_MAIN_KOTLIN) >= 0) {
+            className.lastIndexOf(SRC_MAIN_KOTLIN) + SRC_MAIN_KOTLIN.length
+        } else if (className.lastIndexOf(SRC_TEST_KOTLIN) >= 0) {
+            className.lastIndexOf(SRC_TEST_KOTLIN) + SRC_TEST_KOTLIN.length
+        } else return ""
+
+        className = className.substring(idx)
+        return className
     }
 
     /**
@@ -279,7 +293,7 @@ object SourceFileUtils {
                 PACKAGE_SPLITTER,
                 File.separator
             )
-        ).firstOrNull { it.isFile && it.extension == "kt" }
+        ).firstOrNull { it.isFile && it.extension == "kotlin" }
 
         file ?: throw RuntimeException("解析默认basePackage失败")
 

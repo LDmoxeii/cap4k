@@ -13,7 +13,7 @@ object SqlSchemaUtils4Mysql {
     fun resolveTables(connectionString: String, user: String, pwd: String): List<Map<String, Any?>> {
         var tableSql = """
                 select * from ${LEFT_QUOTES_4_ID_ALIAS}information_schema${RIGHT_QUOTES_4_ID_ALIAS}.${LEFT_QUOTES_4_ID_ALIAS}tables${RIGHT_QUOTES_4_ID_ALIAS}
-                    where table_schema = ${LEFT_QUOTES_4_ID_ALIAS}${task!!.extension.get().database.schema.get()}${RIGHT_QUOTES_4_ID_ALIAS}"
+                    where table_schema = ${LEFT_QUOTES_4_LITERAL_STRING}${task!!.extension.get().database.schema.get()}${RIGHT_QUOTES_4_LITERAL_STRING}
             """.trimIndent()
         if (task!!.extension.get().database.tables.get().isNotBlank()) {
             val whereClause = task!!.extension.get().database.tables.get()
@@ -33,7 +33,7 @@ object SqlSchemaUtils4Mysql {
     fun resolveColumns(connectionString: String, user: String, pwd: String): List<Map<String, Any?>> {
         var columnSql = """
                 select * from ${LEFT_QUOTES_4_ID_ALIAS}information_schema${RIGHT_QUOTES_4_ID_ALIAS}.${LEFT_QUOTES_4_ID_ALIAS}columns${RIGHT_QUOTES_4_ID_ALIAS}
-                    where table_schema = ${LEFT_QUOTES_4_ID_ALIAS}${task!!.extension.get().database.schema.get()}${RIGHT_QUOTES_4_ID_ALIAS}
+                    where table_schema = ${LEFT_QUOTES_4_LITERAL_STRING}${task!!.extension.get().database.schema.get()}${LEFT_QUOTES_4_LITERAL_STRING}
             """.trimIndent()
         if (task!!.extension.get().database.tables.get().isNotBlank()) {
             val whereClause = task!!.extension.get().database.tables.get()
@@ -51,8 +51,8 @@ object SqlSchemaUtils4Mysql {
     }
 
     fun getColumnType(column: Map<String, Any?>): String {
-        val dataType = (column["DATA_TYPE"] as String).lowercase()
-        val columnType = (column["COLUMN_TYPE"] as String).lowercase()
+        val dataType = (column["DATA_TYPE"].toString()).lowercase()
+        val columnType = (column["COLUMN_TYPE"].toString()).lowercase()
         val comment = SqlSchemaUtils.getComment(column)
         val columnName = SqlSchemaUtils.getColumnName(column).lowercase()
         if (task!!.extension.get().generation.typeRemapping.get()
@@ -168,19 +168,19 @@ object SqlSchemaUtils4Mysql {
     }
 
     fun isAutoUpdateDateColumn(column: Map<String, Any?>): Boolean {
-        val extra = column["EXTRA"] as String
+        val extra = column["EXTRA"].toString()
         return extra.contains("on update CURRENT_TIMESTAMP")
     }
 
     fun isAutoInsertDateColumn(column: Map<String, Any?>): Boolean {
-        val extra = column["COLUMN_DEFAULT"] as String
+        val extra = column["COLUMN_DEFAULT"].toString()
         return extra.contains("CURRENT_TIMESTAMP")
     }
 
     fun isColumnInTable(column: Map<String, Any?>, table: Map<String, Any?>): Boolean =
-        (column["TABLE_NAME"] as String).equals(table["TABLE_NAME"] as String, ignoreCase = true)
+        (column["TABLE_NAME"].toString()).equals(table["TABLE_NAME"].toString(), ignoreCase = true)
 
-    fun getOrdinalPosition(column: Map<String, Any?>): Int = column["ORDINAL_POSITION"] as Int
+    fun getOrdinalPosition(column: Map<String, Any?>): Int = (column["ORDINAL_POSITION"] as Number).toInt()
 
     fun hasColumn(columnName: String, columns: List<Map<String, Any?>>): Boolean =
         columns.any { it["COLUMN_NAME"].toString().equals(columnName, ignoreCase = true) }
@@ -191,19 +191,19 @@ object SqlSchemaUtils4Mysql {
         } else getTableName(tableOrColumn)
     }
 
-    fun getColumnName(column: Map<String, Any?>): String = column["COLUMN_NAME"] as String
+    fun getColumnName(column: Map<String, Any?>): String = column["COLUMN_NAME"].toString()
 
-    fun getTableName(table: Map<String, Any?>): String = table["TABLE_NAME"] as String
+    fun getTableName(table: Map<String, Any?>): String = table["TABLE_NAME"].toString()
 
-    fun getColumnDbType(column: Map<String, Any?>): String = column["COLUMN_TYPE"] as String
+    fun getColumnDbType(column: Map<String, Any?>): String = column["COLUMN_TYPE"].toString()
 
-    fun getColumnDbDataType(column: Map<String, Any?>): String = column["DATA_TYPE"] as String
+    fun getColumnDbDataType(column: Map<String, Any?>): String = column["DATA_TYPE"].toString()
 
     fun isColumnNullable(column: Map<String, Any?>): Boolean =
-        (column["IS_NULLABLE"] as String).equals("YES", ignoreCase = true)
+        (column["IS_NULLABLE"].toString()).equals("YES", ignoreCase = true)
 
     fun isColumnPrimaryKey(column: Map<String, Any?>): Boolean =
-        (column["COLUMN_KEY"] as String).equals("PRI", ignoreCase = true)
+        (column["COLUMN_KEY"].toString()).equals("PRI", ignoreCase = true)
 
     fun getComment(tableOrColumn: Map<String, Any?>, cleanAnnotations: Boolean): String {
         val comment = if (tableOrColumn.containsKey("TABLE_COMMENT")) {

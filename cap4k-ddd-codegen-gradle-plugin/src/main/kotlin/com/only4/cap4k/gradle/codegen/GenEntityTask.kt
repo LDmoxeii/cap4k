@@ -9,6 +9,7 @@ import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.hasColumn
 import com.only4.cap4k.gradle.codegen.template.TemplateNode
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 import java.io.BufferedWriter
 import java.io.File
@@ -48,23 +49,46 @@ open class GenEntityTask : AbstractCodegenTask() {
         const val DEFAULT_SCHEMA_BASE_CLASS_NAME = "Schema"
     }
 
+    @Internal
     val tableMap = mutableMapOf<String, Map<String, Any?>>()
+
+    @Internal
     val tableModuleMap = mutableMapOf<String, String>()
+
+    @Internal
     val tableAggregateMap = mutableMapOf<String, String>()
+
+    @Internal
     val columnsMap = mutableMapOf<String, List<Map<String, Any?>>>()
+
+    @Internal
     val enumConfigMap = mutableMapOf<String, Map<Int, Array<String>>>()
+
+    @Internal
     val enumPackageMap = mutableMapOf<String, String>()
+
+    @Internal
     val enumTableNameMap = mutableMapOf<String, String>()
+
+    @Internal
     val entityTypeMap = mutableMapOf<String, String>()
 
+    @Internal
     val annotationsCache = mutableMapOf<String, Map<String, String>>()
 
+    @Internal
     var dbType = "mysql"
 
+    @Internal
     var aggregatesPath = ""
+
+    @Internal
     var schemaPath = ""
+
+    @Internal
     var subscriberPath = ""
 
+    @Internal
     val templateNodeMap = mutableMapOf<String, MutableList<TemplateNode>>()
 
     fun alias4Design(name: String): String {
@@ -127,8 +151,8 @@ open class GenEntityTask : AbstractCodegenTask() {
         logger.info("")
 
         // 项目结构解析
-        if (ext.generation.entityBaseClass.get().isBlank()) {
-            ext.generation.entityBaseClass.set(SourceFileUtils.resolveDefaultBasePackage(getDomainModulePath()))
+        if (ext.basePackage.get().isBlank()) {
+            ext.basePackage.set(SourceFileUtils.resolveDefaultBasePackage(getDomainModulePath()))
         }
         logger.info("实体类基类：${ext.generation.entityBaseClass.get()}")
         logger.info("聚合根标注注解: ${getAggregateRootAnnotation()}")
@@ -137,6 +161,10 @@ open class GenEntityTask : AbstractCodegenTask() {
         logger.info("枚举值字段名称: ${ext.generation.enumValueField.get()}")
         logger.info("枚举名字段名称: ${ext.generation.enumNameField.get()}")
         logger.info("枚举不匹配是否抛出异常: ${ext.generation.enumUnmatchedThrowException.get()}")
+        logger.info("类型强制映射规则: ")
+        ext.generation.typeRemapping.get().forEach { (key, value) ->
+            logger.info("  $key <-> $value")
+        }
         logger.info("生成Schema：${if (ext.generation.generateSchema.get()) "是" else "否"}")
         if (ext.generation.generateSchema.get()) {
             logger.info("  输出模式：${getEntitySchemaOutputMode()}")
@@ -244,7 +272,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                             }
 
                             enumPackageMap[enumType] =
-                                "${ext.basePackage.get()}.${getEntityPackage(tableName)}$enumPackage"
+                                "${ext.basePackage.get()}.${resolveEntityPackage(tableName)}$enumPackage"
                             enumTableNameMap[enumType] = tableName
                         }
                     }
@@ -316,7 +344,7 @@ open class GenEntityTask : AbstractCodegenTask() {
     fun resolveAggregatesPath(): String {
         if (aggregatesPath.isNotBlank()) return aggregatesPath
 
-        return SourceFileUtils.resolveDirectory(
+        return SourceFileUtils.resolvePackageDirectory(
             getDomainModulePath(),
             "${extension.get().basePackage.get()}.${AGGREGATE_PACKAGE}"
         )
@@ -339,7 +367,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         if (schemaPath.isNotBlank()) {
             return schemaPath
         }
-        return SourceFileUtils.resolveDirectory(
+        return SourceFileUtils.resolvePackageDirectory(
             getDomainModulePath(),
             "${extension.get().basePackage.get()}.${getEntitySchemaOutputPackage()}"
         )
@@ -365,7 +393,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         if (subscriberPath.isNotBlank()) {
             return subscriberPath
         }
-        return SourceFileUtils.resolveDirectory(
+        return SourceFileUtils.resolvePackageDirectory(
             getApplicationModulePath(),
             "${extension.get().basePackage.get()}.${DOMAIN_EVENT_SUBSCRIBER_PACKAGE}"
         )
@@ -375,7 +403,7 @@ open class GenEntityTask : AbstractCodegenTask() {
      * 获取领域事件订阅者包名，不包含basePackage
      *
      */
-    fun getSubscriberPackage(): String {
+    fun resolveSubscriberPackage(): String {
         return SourceFileUtils.resolvePackage(
             "${resolveSubscriberPath()}${File.separator}X.kt"
         ).substring(extension.get().basePackage.get().length + 1)
@@ -384,7 +412,7 @@ open class GenEntityTask : AbstractCodegenTask() {
     /**
      * 获取模块
      */
-    private fun getModule(tableName: String): String {
+    private fun resolveModule(tableName: String): String {
         return tableModuleMap.computeIfAbsent(tableName) {
             var currentTable: Map<String, Any?>? = tableMap[tableName]!!
 
@@ -415,7 +443,7 @@ open class GenEntityTask : AbstractCodegenTask() {
      * 获取聚合
      * 格式: 模块.聚合
      */
-    private fun getAggregate(tableName: String): String {
+    private fun resolveAggregate(tableName: String): String {
         return tableAggregateMap.computeIfAbsent(tableName) {
             var currentTable: Map<String, Any?>? = tableMap[tableName]!!
             var aggregate = SqlSchemaUtils.getAggregate(currentTable!!)
@@ -439,7 +467,7 @@ open class GenEntityTask : AbstractCodegenTask() {
             }
 
             if (aggregate.isBlank()) {
-                aggregate = NamingUtils.toSnakeCase(getEntityType(aggregateRootTableName)) ?: ""
+                aggregate = NamingUtils.toSnakeCase(resolveEntityType(aggregateRootTableName)) ?: ""
             }
 
             logger.info("聚合解析结果: $tableName ${if (aggregate.isBlank()) "[缺失]" else aggregate}")
@@ -454,22 +482,22 @@ open class GenEntityTask : AbstractCodegenTask() {
      * @param tableName
      * @return
      */
-    fun getAggregateWithModule(tableName: String): String {
-        val module = getModule(tableName)
+    fun resolveAggregateWithModule(tableName: String): String {
+        val module = resolveModule(tableName)
         if (module.isNotBlank()) {
             return SourceFileUtils.concatPackage(
                 module,
-                getAggregate(tableName)
+                resolveAggregate(tableName)
             )
         } else {
-            return getAggregate(tableName)
+            return resolveAggregate(tableName)
         }
     }
 
     /**
      * 获取实体类 Class.SimpleName
      */
-    fun getEntityType(tableName: String): String {
+    fun resolveEntityType(tableName: String): String {
         return entityTypeMap.computeIfAbsent(tableName) {
             val table = tableMap[tableName]!!
             var type = SqlSchemaUtils.getType(table)
@@ -488,9 +516,9 @@ open class GenEntityTask : AbstractCodegenTask() {
     /**
      * 获取实体类所在包，不包含basePackage
      */
-    fun getEntityPackage(tableName: String): String {
-        val module = getModule(tableName)
-        val aggregate = getAggregate(tableName)
+    fun resolveEntityPackage(tableName: String): String {
+        val module = resolveModule(tableName)
+        val aggregate = resolveAggregate(tableName)
         return SourceFileUtils.concatPackage(
             resolveAggregatesPackage(),
             module,
@@ -587,7 +615,7 @@ open class GenEntityTask : AbstractCodegenTask() {
     /**
      * 获取ID列
      */
-    private fun getIdColumns(columns: List<Map<String, Any?>>): List<Map<String, Any?>> {
+    private fun resolveIdColumns(columns: List<Map<String, Any?>>): List<Map<String, Any?>> {
         return columns.filter { SqlSchemaUtils.isColumnPrimaryKey(it) }
     }
 
@@ -618,9 +646,9 @@ open class GenEntityTask : AbstractCodegenTask() {
      * @param columnName
      * @return
      */
-    private fun getColumn(
+    private fun resolveColumn(
         columns: List<Map<String, Any?>>,
-        columnName: String?
+        columnName: String?,
     ): Map<String, Any?>? {
         return columns.firstOrNull() {
             columnName == SqlSchemaUtils.getColumnName(it)
@@ -674,7 +702,7 @@ open class GenEntityTask : AbstractCodegenTask() {
      */
     fun resolveEntityFullPackage(table: Map<String, Any?>, basePackage: String, baseDir: String): String {
         val tableName = SqlSchemaUtils.getTableName(table)
-        val packageName = SourceFileUtils.concatPackage(basePackage, getEntityPackage(tableName))
+        val packageName = SourceFileUtils.concatPackage(basePackage, resolveEntityPackage(tableName))
         return packageName
     }
 
@@ -993,12 +1021,12 @@ open class GenEntityTask : AbstractCodegenTask() {
             annotationLines,
             "@Aggregate\\(.*\\)",
             "@Aggregate(" +
-                    "aggregate = \"${NamingUtils.toUpperCamelCase(getAggregateWithModule(tableName))}\", " +
-                    "name = \"${getEntityType(tableName)}\", " +
+                    "aggregate = \"${NamingUtils.toUpperCamelCase(resolveAggregateWithModule(tableName))}\", " +
+                    "name = \"${resolveEntityType(tableName)}\", " +
                     "root = ${SqlSchemaUtils.isAggregateRoot(table)}, " +
                     "type = ${if (SqlSchemaUtils.isValueObject(table)) "Aggregate.TYPE_VALUE_OBJECT" else "Aggregate.TYPE_ENTITY"}, " +
                     (if (SqlSchemaUtils.isAggregateRoot(table)) "" else "relevant = { \"${
-                        getEntityType(
+                        resolveEntityType(
                             SqlSchemaUtils.getParent(
                                 table
                             )
@@ -1028,12 +1056,12 @@ open class GenEntityTask : AbstractCodegenTask() {
         // 添加 JPA 基本注解
         SourceFileUtils.addIfNone(annotationLines, "@Entity(\\(.*\\))?", "@Entity")
 
-        val ids = getIdColumns(columns)
+        val ids = resolveIdColumns(columns)
         if (ids.size > 1) {
             SourceFileUtils.addIfNone(
                 annotationLines,
                 "@IdClass(\\(.*\\))",
-                "@IdClass(${getEntityType(tableName)}.${DEFAULT_MUL_PRI_KEY_NAME}::class)"
+                "@IdClass(${resolveEntityType(tableName)}.${DEFAULT_MUL_PRI_KEY_NAME}::class)"
             )
         }
 
@@ -1147,17 +1175,17 @@ open class GenEntityTask : AbstractCodegenTask() {
             return
         }
 
-        val ids = getIdColumns(columns)
+        val ids = resolveIdColumns(columns)
         if (ids.isEmpty()) {
             logger.error("跳过问题表：${tableName}缺失主键")
             return
         }
 
-        val entityType = getEntityType(tableName)
+        val entityType = resolveEntityType(tableName)
         val entityFullPackage = tablePackageMap[tableName] ?: return
 
         // 创建输出目录
-        File(SourceFileUtils.resolveDirectory(baseDir, entityFullPackage)).mkdirs()
+        File(SourceFileUtils.resolvePackageDirectory(baseDir, entityFullPackage)).mkdirs()
 
         val filePath = SourceFileUtils.resolveSourceFile(baseDir, entityFullPackage, entityType)
 
@@ -1236,8 +1264,8 @@ open class GenEntityTask : AbstractCodegenTask() {
         customerLines: List<String>
     ): String {
         val tableName = SqlSchemaUtils.getTableName(table)
-        val entityType = getEntityType(tableName)
-        val ids = getIdColumns(columns)
+        val entityType = resolveEntityType(tableName)
+        val ids = resolveIdColumns(columns)
 
         if (ids.isEmpty()) {
             throw RuntimeException("实体缺失【主键】：$tableName")
@@ -1310,14 +1338,14 @@ open class GenEntityTask : AbstractCodegenTask() {
 
                 ids.size != 1 -> {
                     """    override fun hash(): Long {
-        return ${getEntityIdGenerator(table)}.hash(this, "") as Long
+        return ${resolveEntityIdGenerator(table)}.hash(this, "") as Long
     }"""
                 }
 
                 else -> {
                     """    override fun hash(): $idTypeName {
         if ($idFieldName == null) {
-            $idFieldName = ${getEntityIdGenerator(table)}.hash(this, "$idFieldName") as $idTypeName
+            $idFieldName = ${resolveEntityIdGenerator(table)}.hash(this, "$idFieldName") as $idTypeName
         }
         return $idFieldName!!
     }"""
@@ -1395,7 +1423,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         return stringWriter.toString()
     }
 
-    fun getEntityIdGenerator(table: Map<String, Any?>): String {
+    fun resolveEntityIdGenerator(table: Map<String, Any?>): String {
         return when {
             SqlSchemaUtils.hasIdGenerator(table) -> {
                 SqlSchemaUtils.getIdGenerator(table)
@@ -1468,7 +1496,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         if (isIdColumn(column)) {
             SourceFileUtils.writeLine(out, "    @Id")
             if (ids.size == 1) {
-                val entityIdGenerator = getEntityIdGenerator(table)
+                val entityIdGenerator = resolveEntityIdGenerator(table)
                 when {
                     SqlSchemaUtils.isValueObject(table) -> {
                         // 不使用ID生成器
@@ -1590,10 +1618,10 @@ open class GenEntityTask : AbstractCodegenTask() {
                     }
 
                     val fieldName = Inflector.pluralize(
-                        NamingUtils.toLowerCamelCase(getEntityType(refTableName)) ?: getEntityType(refTableName)
+                        NamingUtils.toLowerCamelCase(resolveEntityType(refTableName)) ?: resolveEntityType(refTableName)
                     )
                     val entityPackage = tablePackageMap[refTableName] ?: ""
-                    val entityType = getEntityType(refTableName)
+                    val entityType = resolveEntityType(refTableName)
                     SourceFileUtils.writeLine(
                         out,
                         "    var $fieldName: MutableList<$entityPackage.$entityType> = mutableListOf()"
@@ -1622,7 +1650,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                         "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false, insertable = false, updatable = false)"
                     )
                     val entityPackage = tablePackageMap[refTableName] ?: ""
-                    val entityType = getEntityType(refTableName)
+                    val entityType = resolveEntityType(refTableName)
                     val fieldName = NamingUtils.toLowerCamelCase(entityType) ?: entityType
                     SourceFileUtils.writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
                 }
@@ -1639,14 +1667,14 @@ open class GenEntityTask : AbstractCodegenTask() {
                         "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false)"
                     )
                     val entityPackage = tablePackageMap[refTableName] ?: ""
-                    val entityType = getEntityType(refTableName)
+                    val entityType = resolveEntityType(refTableName)
                     val fieldName = NamingUtils.toLowerCamelCase(entityType) ?: entityType
                     SourceFileUtils.writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
                 }
 
                 "*OneToMany" -> {
                     // 当前不会用到，无法控制集合数量规模
-                    val entityTypeName = getEntityType(tableName)
+                    val entityTypeName = resolveEntityType(tableName)
                     val fieldNameFromTable = NamingUtils.toLowerCamelCase(entityTypeName) ?: entityTypeName
                     SourceFileUtils.writeLine(
                         out,
@@ -1659,7 +1687,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                     )
                     SourceFileUtils.writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
                     val entityPackage = tablePackageMap[refTableName] ?: ""
-                    val entityType = getEntityType(refTableName)
+                    val entityType = resolveEntityType(refTableName)
                     val fieldName = Inflector.pluralize(NamingUtils.toLowerCamelCase(entityType) ?: entityType)
                     SourceFileUtils.writeLine(
                         out,
@@ -1679,13 +1707,13 @@ open class GenEntityTask : AbstractCodegenTask() {
                         "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false)"
                     )
                     val entityPackage = tablePackageMap[refTableName] ?: ""
-                    val entityType = getEntityType(refTableName)
+                    val entityType = resolveEntityType(refTableName)
                     val fieldName = NamingUtils.toLowerCamelCase(entityType) ?: entityType
                     SourceFileUtils.writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
                 }
 
                 "*OneToOne" -> {
-                    val entityTypeName = getEntityType(tableName)
+                    val entityTypeName = resolveEntityType(tableName)
                     val fieldNameFromTable = NamingUtils.toLowerCamelCase(entityTypeName) ?: entityTypeName
                     SourceFileUtils.writeLine(
                         out,
@@ -1697,7 +1725,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                         }(mappedBy = \"$fieldNameFromTable\", cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
                     )
                     val entityPackage = tablePackageMap[refTableName] ?: ""
-                    val entityType = getEntityType(refTableName)
+                    val entityType = resolveEntityType(refTableName)
                     val fieldName = NamingUtils.toLowerCamelCase(entityType) ?: entityType
                     SourceFileUtils.writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
                 }
@@ -1718,7 +1746,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                                 "inverseJoinColumns = [JoinColumn(name = \"$leftQuote$inverseJoinColumn$rightQuote\", nullable = false)])"
                     )
                     val entityPackage = tablePackageMap[refTableName] ?: ""
-                    val entityType = getEntityType(refTableName)
+                    val entityType = resolveEntityType(refTableName)
                     val fieldName = Inflector.pluralize(NamingUtils.toLowerCamelCase(entityType) ?: entityType)
                     SourceFileUtils.writeLine(
                         out,
@@ -1727,7 +1755,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                 }
 
                 "*ManyToMany" -> {
-                    val entityTypeName = getEntityType(tableName)
+                    val entityTypeName = resolveEntityType(tableName)
                     val fieldNameFromTable =
                         Inflector.pluralize(NamingUtils.toLowerCamelCase(entityTypeName) ?: entityTypeName)
                     SourceFileUtils.writeLine(
@@ -1741,7 +1769,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                     )
                     SourceFileUtils.writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
                     val entityPackage = tablePackageMap[refTableName] ?: ""
-                    val entityType = getEntityType(refTableName)
+                    val entityType = resolveEntityType(refTableName)
                     val fieldName = Inflector.pluralize(NamingUtils.toLowerCamelCase(entityType) ?: entityType)
                     SourceFileUtils.writeLine(
                         out,
@@ -1760,13 +1788,13 @@ open class GenEntityTask : AbstractCodegenTask() {
     ) {
         val tag = "aggregate"
         val tableName = SqlSchemaUtils.getTableName(table)
-        val aggregate = getAggregateWithModule(tableName)
+        val aggregate = resolveAggregateWithModule(tableName)
 
         val entityFullPackage = tablePackageMap[tableName] ?: return
-        val entityType = getEntityType(tableName)
+        val entityType = resolveEntityType(tableName)
         val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
 
-        val ids = getIdColumns(columns)
+        val ids = resolveIdColumns(columns)
         if (ids.isEmpty()) {
             throw RuntimeException("实体缺失【主键】：$tableName")
         }
@@ -1795,7 +1823,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val aggregateTemplateNodes = if (templateNodeMap.containsKey(tag)) {
             templateNodeMap[tag]!!
         } else {
-            listOf(getDefaultAggregateTemplateNode())
+            listOf(resolveDefaultAggregateTemplateNode())
         }
 
         try {
@@ -1803,7 +1831,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                 val pathNode = templateNode.cloneTemplateNode().resolve(context)
                 val path = forceRender(
                     pathNode,
-                    SourceFileUtils.resolveDirectory(
+                    SourceFileUtils.resolvePackageDirectory(
                         baseDir,
                         SourceFileUtils.concatPackage(
                             getExtension().basePackage.get(),
@@ -1812,7 +1840,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                     )
                 )
                 logger.info(
-                    SourceFileUtils.resolveDirectory(
+                    SourceFileUtils.resolvePackageDirectory(
                         baseDir,
                         SourceFileUtils.concatPackage(
                             getExtension().basePackage.get(),
@@ -1834,10 +1862,10 @@ open class GenEntityTask : AbstractCodegenTask() {
     ) {
         val tag = "factory"
         val tableName = SqlSchemaUtils.getTableName(table)
-        val aggregate = getAggregateWithModule(tableName)
+        val aggregate = resolveAggregateWithModule(tableName)
 
         val entityFullPackage = tablePackageMap[tableName] ?: return
-        val entityType = getEntityType(tableName)
+        val entityType = resolveEntityType(tableName)
         val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
 
         val context = getEscapeContext().toMutableMap()
@@ -1862,7 +1890,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val factoryTemplateNodes = if (templateNodeMap.containsKey(tag)) {
             templateNodeMap[tag]!!
         } else {
-            listOf(getDefaultFactoryPayloadTemplateNode(), getDefaultFactoryTemplateNode())
+            listOf(resolveDefaultFactoryPayloadTemplateNode(), resolveDefaultFactoryTemplateNode())
         }
 
         try {
@@ -1870,7 +1898,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                 val pathNode = templateNode.cloneTemplateNode().resolve(context)
                 val path = forceRender(
                     pathNode,
-                    SourceFileUtils.resolveDirectory(
+                    SourceFileUtils.resolvePackageDirectory(
                         baseDir,
                         SourceFileUtils.concatPackage(
                             getExtension().basePackage.get(),
@@ -1879,7 +1907,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                     )
                 )
                 logger.info(
-                    SourceFileUtils.resolveDirectory(
+                    SourceFileUtils.resolvePackageDirectory(
                         baseDir,
                         SourceFileUtils.concatPackage(
                             getExtension().basePackage.get(),
@@ -1901,10 +1929,10 @@ open class GenEntityTask : AbstractCodegenTask() {
     ) {
         val tag = "specification"
         val tableName = SqlSchemaUtils.getTableName(table)
-        val aggregate = getAggregateWithModule(tableName)
+        val aggregate = resolveAggregateWithModule(tableName)
 
         val entityFullPackage = tablePackageMap[tableName] ?: return
-        val entityType = getEntityType(tableName)
+        val entityType = resolveEntityType(tableName)
         val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
 
         val context = getEscapeContext().toMutableMap()
@@ -1929,7 +1957,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val specificationTemplateNodes = if (templateNodeMap.containsKey(tag)) {
             templateNodeMap[tag]!!
         } else {
-            listOf(getDefaultSpecificationTemplateNode())
+            listOf(resolveDefaultSpecificationTemplateNode())
         }
 
         try {
@@ -1937,7 +1965,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                 val pathNode = templateNode.cloneTemplateNode().resolve(context)
                 val path = forceRender(
                     pathNode,
-                    SourceFileUtils.resolveDirectory(
+                    SourceFileUtils.resolvePackageDirectory(
                         baseDir,
                         SourceFileUtils.concatPackage(
                             getExtension().basePackage.get(),
@@ -1962,10 +1990,10 @@ open class GenEntityTask : AbstractCodegenTask() {
         val tag = "domain_event"
         val handlerTag = "domain_event_handler"
         val tableName = SqlSchemaUtils.getTableName(table)
-        val aggregate = getAggregateWithModule(tableName)
+        val aggregate = resolveAggregateWithModule(tableName)
 
         val entityFullPackage = tablePackageMap[tableName] ?: return
-        val entityType = getEntityType(tableName)
+        val entityType = resolveEntityType(tableName)
         val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
 
         val domainEventDescEscaped = domainEventDescription.replace(Regex(PATTERN_LINE_BREAK), "\\n")
@@ -1974,7 +2002,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         putContext(tag, "Name", domainEventClassName, context)
         putContext(tag, "DomainEvent", context["Name"] ?: "", context)
         putContext(tag, "domainEventPackage", SourceFileUtils.refPackage(resolveAggregatesPackage()), context)
-        putContext(tag, "domainEventHandlerPackage", SourceFileUtils.refPackage(getSubscriberPackage()), context)
+        putContext(tag, "domainEventHandlerPackage", SourceFileUtils.refPackage(resolveSubscriberPackage()), context)
         putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
         putContext(tag, "path", aggregate.replace(".", File.separator), context)
         putContext(tag, "persist", "false", context)
@@ -1995,7 +2023,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val domainEventTemplateNodes = if (templateNodeMap.containsKey(tag)) {
             templateNodeMap[tag]!!
         } else {
-            listOf(getDefaultDomainEventTemplateNode())
+            listOf(resolveDefaultDomainEventTemplateNode())
         }
 
         try {
@@ -2003,7 +2031,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                 val pathNode = templateNode.cloneTemplateNode().resolve(context)
                 val path = forceRender(
                     pathNode,
-                    SourceFileUtils.resolveDirectory(
+                    SourceFileUtils.resolvePackageDirectory(
                         baseDir,
                         SourceFileUtils.concatPackage(
                             getExtension().basePackage.get(),
@@ -2021,7 +2049,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val domainEventHandlerTemplateNodes = if (templateNodeMap.containsKey(handlerTag)) {
             templateNodeMap[handlerTag]!!
         } else {
-            listOf(getDefaultDomainEventHandlerTemplateNode())
+            listOf(resolveDefaultDomainEventHandlerTemplateNode())
         }
 
         try {
@@ -2029,7 +2057,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                 val pathNode = templateNode.cloneTemplateNode().resolve(context)
                 val path = forceRender(
                     pathNode,
-                    SourceFileUtils.resolveDirectory(
+                    SourceFileUtils.resolvePackageDirectory(
                         baseDir,
                         SourceFileUtils.concatPackage(
                             getExtension().basePackage.get(),
@@ -2055,10 +2083,10 @@ open class GenEntityTask : AbstractCodegenTask() {
         val tag = "enum"
         val itemTag = "enum_item"
         val tableName = enumTableNameMap[enumClassName] ?: return
-        val aggregate = getAggregateWithModule(tableName)
+        val aggregate = resolveAggregateWithModule(tableName)
 
         val entityFullPackage = tablePackageMap[tableName] ?: return
-        val entityType = getEntityType(tableName)
+        val entityType = resolveEntityType(tableName)
         val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
 
         val context = getEscapeContext().toMutableMap()
@@ -2097,7 +2125,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                 (if (templateNodeMap.containsKey(itemTag) && templateNodeMap[itemTag]!!.isNotEmpty()) {
                     templateNodeMap[itemTag]!![templateNodeMap[itemTag]!!.size - 1]
                 } else {
-                    getDefaultEnumItemTemplateNode()
+                    resolveDefaultEnumItemTemplateNode()
                 }).cloneTemplateNode().resolve(itemContext)
             enumItems += enumItemsPathNode.data
         }
@@ -2106,7 +2134,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val enumTemplateNodes = if (templateNodeMap.containsKey(tag)) {
             templateNodeMap[tag]!!
         } else {
-            listOf(getDefaultEnumTemplateNode())
+            listOf(resolveDefaultEnumTemplateNode())
         }
 
         try {
@@ -2114,7 +2142,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                 val pathNode = templateNode.cloneTemplateNode().resolve(context)
                 val path = forceRender(
                     pathNode,
-                    SourceFileUtils.resolveDirectory(
+                    SourceFileUtils.resolvePackageDirectory(
                         baseDir,
                         SourceFileUtils.concatPackage(
                             getExtension().basePackage.get(),
@@ -2144,7 +2172,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val propertyNameTag = "schema_property_name"
         val rootExtraExtensionTag = "root_schema_extra_extension"
         val tableName = SqlSchemaUtils.getTableName(table)
-        val aggregate = getAggregateWithModule(tableName)
+        val aggregate = resolveAggregateWithModule(tableName)
 
         val schemaPackage = if ("abs".equals(getEntitySchemaOutputMode(), ignoreCase = true)) {
             resolveSchemaPackage()
@@ -2153,7 +2181,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         }
 
         val entityFullPackage = tablePackageMap[tableName] ?: return
-        val entityType = getEntityType(tableName)
+        val entityType = resolveEntityType(tableName)
         val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
 
         val comment = SqlSchemaUtils.getComment(table).replace(Regex(PATTERN_LINE_BREAK), " ")
@@ -2212,13 +2240,13 @@ open class GenEntityTask : AbstractCodegenTask() {
             fieldItems += (if (templateNodeMap.containsKey(fieldTag) && templateNodeMap[fieldTag]!!.isNotEmpty()) {
                 templateNodeMap[fieldTag]!![templateNodeMap[fieldTag]!!.size - 1]
             } else {
-                getDefaultSchemaFieldTemplateNode()
+                resolveDefaultSchemaFieldTemplateNode()
             }).cloneTemplateNode().resolve(itemContext).data ?: ""
 
             propertyNameItems += (if (templateNodeMap.containsKey(propertyNameTag) && templateNodeMap[propertyNameTag]!!.isNotEmpty()) {
                 templateNodeMap[propertyNameTag]!![templateNodeMap[propertyNameTag]!!.size - 1]
             } else {
-                getDefaultSchemaPropertyNameTemplateNode()
+                resolveDefaultSchemaPropertyNameTemplateNode()
             }).cloneTemplateNode().resolve(itemContext).data ?: ""
         }
 
@@ -2236,11 +2264,13 @@ open class GenEntityTask : AbstractCodegenTask() {
                 when (refInfos[0]) {
                     "OneToMany", "*OneToMany" -> {
                         putContext(joinTag, "joinEntityPackage", tablePackageMap[key] ?: "", joinContext)
-                        putContext(joinTag, "joinEntityType", getEntityType(key), joinContext)
+                        putContext(joinTag, "joinEntityType", resolveEntityType(key), joinContext)
                         putContext(
                             joinTag,
                             "joinEntityVars",
-                            Inflector.pluralize(NamingUtils.toLowerCamelCase(getEntityType(key)) ?: getEntityType(key)),
+                            Inflector.pluralize(
+                                NamingUtils.toLowerCamelCase(resolveEntityType(key)) ?: resolveEntityType(key)
+                            ),
                             joinContext
                         )
                         if (!("abs".equals(getEntitySchemaOutputMode(), ignoreCase = true))) {
@@ -2256,12 +2286,14 @@ open class GenEntityTask : AbstractCodegenTask() {
                         joinItems += (if (templateNodeMap.containsKey(joinTag) && templateNodeMap[joinTag]!!.isNotEmpty()) {
                             templateNodeMap[joinTag]!![templateNodeMap[joinTag]!!.size - 1]
                         } else {
-                            getDefaultSchemaJoinTemplateNode()
+                            resolveDefaultSchemaJoinTemplateNode()
                         }).cloneTemplateNode().resolve(joinContext).data ?: ""
 
-                        fieldType = "${tablePackageMap[key]}.${getEntityType(key)}"
+                        fieldType = "${tablePackageMap[key]}.${resolveEntityType(key)}"
                         fieldName =
-                            Inflector.pluralize(NamingUtils.toLowerCamelCase(getEntityType(key)) ?: getEntityType(key))
+                            Inflector.pluralize(
+                                NamingUtils.toLowerCamelCase(resolveEntityType(key)) ?: resolveEntityType(key)
+                            )
                         fieldComment = ""
                         fieldDescription = ""
                         putContext(fieldTag, "fieldType", "java.util.List<$fieldType>", itemContext)
@@ -2271,22 +2303,22 @@ open class GenEntityTask : AbstractCodegenTask() {
                         fieldItems += (if (templateNodeMap.containsKey(fieldTag) && templateNodeMap[fieldTag]!!.isNotEmpty()) {
                             templateNodeMap[fieldTag]!![templateNodeMap[fieldTag]!!.size - 1]
                         } else {
-                            getDefaultSchemaFieldTemplateNode()
+                            resolveDefaultSchemaFieldTemplateNode()
                         }).cloneTemplateNode().resolve(itemContext).data ?: ""
                         propertyNameItems += (if (templateNodeMap.containsKey(propertyNameTag) && templateNodeMap[propertyNameTag]!!.isNotEmpty()) {
                             templateNodeMap[propertyNameTag]!![templateNodeMap[propertyNameTag]!!.size - 1]
                         } else {
-                            getDefaultSchemaPropertyNameTemplateNode()
+                            resolveDefaultSchemaPropertyNameTemplateNode()
                         }).cloneTemplateNode().resolve(itemContext).data ?: ""
                     }
 
                     "OneToOne", "ManyToOne" -> {
                         putContext(joinTag, "joinEntityPackage", tablePackageMap[key] ?: "", joinContext)
-                        putContext(joinTag, "joinEntityType", getEntityType(key), joinContext)
+                        putContext(joinTag, "joinEntityType", resolveEntityType(key), joinContext)
                         putContext(
                             joinTag,
                             "joinEntityVars",
-                            NamingUtils.toLowerCamelCase(getEntityType(key)) ?: getEntityType(key),
+                            NamingUtils.toLowerCamelCase(resolveEntityType(key)) ?: resolveEntityType(key),
                             joinContext
                         )
                         if (!("abs".equals(getEntitySchemaOutputMode(), ignoreCase = true))) {
@@ -2300,12 +2332,12 @@ open class GenEntityTask : AbstractCodegenTask() {
                         joinItems += (if (templateNodeMap.containsKey(joinTag) && templateNodeMap[joinTag]!!.isNotEmpty()) {
                             templateNodeMap[joinTag]!![templateNodeMap[joinTag]!!.size - 1]
                         } else {
-                            getDefaultSchemaJoinTemplateNode()
+                            resolveDefaultSchemaJoinTemplateNode()
                         }).cloneTemplateNode().resolve(joinContext).data ?: ""
 
-                        fieldType = "${tablePackageMap[key]}.${getEntityType(key)}"
-                        fieldName = NamingUtils.toLowerCamelCase(getEntityType(key)) ?: getEntityType(key)
-                        val refColumn = getColumn(columns, refInfos[1])
+                        fieldType = "${tablePackageMap[key]}.${resolveEntityType(key)}"
+                        fieldName = NamingUtils.toLowerCamelCase(resolveEntityType(key)) ?: resolveEntityType(key)
+                        val refColumn = resolveColumn(columns, refInfos[1])
                         fieldComment =
                             if (refColumn != null) generateFieldComment(refColumn).joinToString("\n    ") else ""
                         fieldDescription = if (refColumn != null) SqlSchemaUtils.getComment(refColumn)
@@ -2317,12 +2349,12 @@ open class GenEntityTask : AbstractCodegenTask() {
                         fieldItems += (if (templateNodeMap.containsKey(fieldTag) && templateNodeMap[fieldTag]!!.isNotEmpty()) {
                             templateNodeMap[fieldTag]!![templateNodeMap[fieldTag]!!.size - 1]
                         } else {
-                            getDefaultSchemaFieldTemplateNode()
+                            resolveDefaultSchemaFieldTemplateNode()
                         }).cloneTemplateNode().resolve(itemContext).data ?: ""
                         propertyNameItems += (if (templateNodeMap.containsKey(propertyNameTag) && templateNodeMap[propertyNameTag]!!.isNotEmpty()) {
                             templateNodeMap[propertyNameTag]!![templateNodeMap[propertyNameTag]!!.size - 1]
                         } else {
-                            getDefaultSchemaPropertyNameTemplateNode()
+                            resolveDefaultSchemaPropertyNameTemplateNode()
                         }).cloneTemplateNode().resolve(itemContext).data ?: ""
                     }
 
@@ -2343,7 +2375,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                 val extraExtensionTemplateNodes = if (templateNodeMap.containsKey(rootExtraExtensionTag)) {
                     templateNodeMap[rootExtraExtensionTag]!!
                 } else {
-                    listOf(getDefaultRootSchemaExtraExtenstionTemplateNode(getExtension().generation.generateAggregate.get()))
+                    listOf(resolveDefaultRootSchemaExtraExtenstionTemplateNode(getExtension().generation.generateAggregate.get()))
                 }
                 for (templateNode in extraExtensionTemplateNodes) {
                     extraExtension += templateNode.cloneTemplateNode().resolve(context).data ?: ""
@@ -2357,7 +2389,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val schemaTemplateNodes = if (templateNodeMap.containsKey(tag)) {
             templateNodeMap[tag]!!
         } else {
-            listOf(getDefaultSchemaTemplateNode(SqlSchemaUtils.isAggregateRoot(table)))
+            listOf(resolveDefaultSchemaTemplateNode(SqlSchemaUtils.isAggregateRoot(table)))
         }
 
         try {
@@ -2365,7 +2397,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                 val pathNode = templateNode.cloneTemplateNode().resolve(context)
                 val path = forceRender(
                     pathNode,
-                    SourceFileUtils.resolveDirectory(
+                    SourceFileUtils.resolvePackageDirectory(
                         baseDir,
                         SourceFileUtils.concatPackage(
                             getExtension().basePackage.get(),
@@ -2387,7 +2419,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val schemaBaseTemplateNodes = if (templateNodeMap.containsKey(tag)) {
             templateNodeMap[tag]!!
         } else {
-            listOf(getDefaultSchemaBaseTemplateNode())
+            listOf(resolveDefaultSchemaBaseTemplateNode())
         }
 
         val context = getEscapeContext().toMutableMap()
@@ -2404,7 +2436,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                 val pathNode = templateNode.cloneTemplateNode().resolve(context)
                 forceRender(
                     pathNode,
-                    SourceFileUtils.resolveDirectory(
+                    SourceFileUtils.resolvePackageDirectory(
                         baseDir,
                         SourceFileUtils.concatPackage(
                             getExtension().basePackage.get(),
@@ -2418,7 +2450,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         }
     }
 
-    fun getDefaultAggregateTemplateNode(): TemplateNode {
+    fun resolveDefaultAggregateTemplateNode(): TemplateNode {
         val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}
 
 import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
@@ -2466,7 +2498,7 @@ class ${'$'}{aggregateNameTemplate}(
         }
     }
 
-    fun getDefaultFactoryTemplateNode(): TemplateNode {
+    fun resolveDefaultFactoryTemplateNode(): TemplateNode {
         val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_FAC_PACKAGE}
 
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
@@ -2502,7 +2534,7 @@ class ${'$'}{Entity}Factory : AggregateFactory<${'$'}{Entity}Payload, ${'$'}{Ent
         }
     }
 
-    fun getDefaultFactoryPayloadTemplateNode(): TemplateNode {
+    fun resolveDefaultFactoryPayloadTemplateNode(): TemplateNode {
         val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_FAC_PACKAGE}
 
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
@@ -2532,7 +2564,7 @@ data class ${'$'}{Entity}Payload(
         }
     }
 
-    fun getDefaultSpecificationTemplateNode(): TemplateNode {
+    fun resolveDefaultSpecificationTemplateNode(): TemplateNode {
         val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_SPEC_PACKAGE}
 
 import com.only4.cap4k.ddd.core.domain.aggregate.Specification
@@ -2578,7 +2610,7 @@ class ${'$'}{Entity}Specification : Specification<${'$'}{Entity}> {
         }
     }
 
-    fun getDefaultDomainEventHandlerTemplateNode(): TemplateNode {
+    fun resolveDefaultDomainEventHandlerTemplateNode(): TemplateNode {
         val template = """package ${'$'}{basePackage}${'$'}{templatePackage}
 
 import ${'$'}{basePackage}${'$'}{domainEventPackage}${'$'}{package}.${'$'}{DomainEvent}
@@ -2620,7 +2652,7 @@ class ${'$'}{DomainEvent}Subscriber {
         }
     }
 
-    fun getDefaultDomainEventTemplateNode(): TemplateNode {
+    fun resolveDefaultDomainEventTemplateNode(): TemplateNode {
         val template =
             """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_DOMAIN_EVENT_PACKAGE}
 
@@ -2668,7 +2700,7 @@ class ${'$'}{DomainEvent}(
         }
     }
 
-    fun getDefaultEnumTemplateNode(): TemplateNode {
+    fun resolveDefaultEnumTemplateNode(): TemplateNode {
         val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_ENUM_PACKAGE}
 
 import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
@@ -2733,7 +2765,7 @@ ${'$'}{ENUM_ITEMS};
         }
     }
 
-    fun getDefaultEnumItemTemplateNode(): TemplateNode {
+    fun resolveDefaultEnumItemTemplateNode(): TemplateNode {
         val template = """    /**
      * ${'$'}{itemDesc}
      */
@@ -2749,7 +2781,7 @@ ${'$'}{ENUM_ITEMS};
         }
     }
 
-    fun getDefaultSchemaFieldTemplateNode(): TemplateNode {
+    fun resolveDefaultSchemaFieldTemplateNode(): TemplateNode {
         val template = """
     /**
      * ${'$'}{fieldDescription}
@@ -2769,7 +2801,7 @@ ${'$'}{ENUM_ITEMS};
         }
     }
 
-    fun getDefaultSchemaPropertyNameTemplateNode(): TemplateNode {
+    fun resolveDefaultSchemaPropertyNameTemplateNode(): TemplateNode {
         val template = """
         /**
          * ${'$'}{fieldDescription}
@@ -2786,19 +2818,51 @@ ${'$'}{ENUM_ITEMS};
         }
     }
 
-    fun getDefaultSchemaJoinTemplateNode(): TemplateNode {
-        TODO()
+    fun resolveDefaultSchemaJoinTemplateNode(): TemplateNode {
+        val template = """"""
+        return TemplateNode().apply {
+            type = "segment"
+            tag = "schema_property_name"
+            name = ""
+            format = "raw"
+            data = template
+            conflict = "skip"
+        }
     }
 
-    fun getDefaultSchemaTemplateNode(isAggregateRoot: Boolean): TemplateNode {
-        TODO()
+    fun resolveDefaultSchemaTemplateNode(isAggregateRoot: Boolean): TemplateNode {
+        val template = """"""
+        return TemplateNode().apply {
+            type = "segment"
+            tag = "schema_property_name"
+            name = ""
+            format = "raw"
+            data = template
+            conflict = "skip"
+        }
     }
 
-    fun getDefaultRootSchemaExtraExtenstionTemplateNode(generateAggregate: Boolean): TemplateNode {
-        TODO()
+    fun resolveDefaultRootSchemaExtraExtenstionTemplateNode(generateAggregate: Boolean): TemplateNode {
+        val template = """"""
+        return TemplateNode().apply {
+            type = "segment"
+            tag = "schema_property_name"
+            name = ""
+            format = "raw"
+            data = template
+            conflict = "skip"
+        }
     }
 
-    fun getDefaultSchemaBaseTemplateNode(): TemplateNode {
-        TODO()
+    fun resolveDefaultSchemaBaseTemplateNode(): TemplateNode {
+        val template = """"""
+        return TemplateNode().apply {
+            type = "segment"
+            tag = "schema_property_name"
+            name = ""
+            format = "raw"
+            data = template
+            conflict = "skip"
+        }
     }
 }

@@ -23,7 +23,7 @@ object SqlSchemaUtils {
     var RIGHT_QUOTES_4_LITERAL_STRING = "'"
 
     var logger: Logger? = null
-    val ANNOTATION_PATTERN: Pattern = Pattern.compile("@([A-Za-z]+)(\\=[^;]+)?;?")
+    val ANNOTATION_PATTERN: Pattern = Pattern.compile("@([A-Za-z]+)(=[^;]+)?;?")
 
     var task: GenEntityTask? = null
 
@@ -264,7 +264,7 @@ object SqlSchemaUtils {
             if (matcher.groupCount() > 1 && matcher.group(1).isNotBlank()) {
                 val name = matcher.group(1)
                 val value = matcher.group(2)
-                if (value.isNotBlank() && value.length > 1) {
+                if (!(value.isNullOrBlank())) {
                     annotations[name] = value.removePrefix("=")
                 } else {
                     annotations[name] = ""
