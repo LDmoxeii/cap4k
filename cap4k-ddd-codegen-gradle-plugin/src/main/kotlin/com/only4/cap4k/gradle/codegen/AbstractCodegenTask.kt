@@ -272,7 +272,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
             logger.info("创建目录: $path")
         }
 
-        if (pathNode.tag?.isBlank() == true) return path
+        if (pathNode.tag.isNullOrBlank()) return path
 
         pathNode.tag!!.split(PATTERN_SPLITTER)
             .forEach { tag ->
@@ -605,7 +605,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
      */
     @Internal
     protected fun getTables(): List<Map<String, Any?>> {
-        SqlSchemaUtils.setLogger(logger)
+        SqlSchemaUtils.loadLogger(logger)
         val (url, username, password) = getDatabaseConfig()
         return SqlSchemaUtils.resolveTables(url, username, password)
     }
@@ -615,7 +615,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
      */
     @Internal
     protected fun getColumns(): List<Map<String, Any?>> {
-        SqlSchemaUtils.setLogger(logger)
+        SqlSchemaUtils.loadLogger(logger)
         val (url, username, password) = getDatabaseConfig()
         return SqlSchemaUtils.resolveColumns(url, username, password)
     }

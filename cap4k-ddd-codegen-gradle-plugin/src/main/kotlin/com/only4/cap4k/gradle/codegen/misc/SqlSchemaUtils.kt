@@ -27,7 +27,7 @@ object SqlSchemaUtils {
 
     var task: GenEntityTask? = null
 
-    fun setLogger(logger: Logger) {
+    fun loadLogger(logger: Logger) {
         this.logger = logger
     }
 

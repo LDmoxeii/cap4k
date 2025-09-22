@@ -54,7 +54,7 @@ open class Cap4kCodegenExtension @Inject constructor(objects: ObjectFactory) {
     /**
      * 设计配置文件路径
      */
-    val designFile: Property<String> = objects.property(String::class.java)
+    val designFile: Property<String> = objects.property(String::class.java).convention("")
 
     /**
      * 数据库连接配置

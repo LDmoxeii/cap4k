@@ -313,7 +313,7 @@ open class GenEntityTask : AbstractCodegenTask() {
      * 获取聚合根文件目录
      *
      */
-    fun getAggregatesPath(): String {
+    fun resolveAggregatesPath(): String {
         if (aggregatesPath.isNotBlank()) return aggregatesPath
 
         return SourceFileUtils.resolveDirectory(
@@ -325,9 +325,9 @@ open class GenEntityTask : AbstractCodegenTask() {
     /**
      * 获取聚合根包名，不包含basePackage
      */
-    fun getAggregatesPackage(): String {
+    fun resolveAggregatesPackage(): String {
         return SourceFileUtils.resolvePackage(
-            "${getAggregatesPath()}${File.separator}X.kt"
+            "${resolveAggregatesPath()}${File.separator}X.kt"
         ).substring(extension.get().basePackage.get().length + 1)
     }
 
@@ -335,7 +335,7 @@ open class GenEntityTask : AbstractCodegenTask() {
      * 获取实体schema文件目录
      *
      */
-    fun getSchemaPath(): String? {
+    fun resolveSchemaPath(): String? {
         if (schemaPath.isNotBlank()) {
             return schemaPath
         }
@@ -349,9 +349,9 @@ open class GenEntityTask : AbstractCodegenTask() {
      * 获取schema包名，不包含basePackage
      *
      */
-    fun getSchemaPackage(): String {
+    fun resolveSchemaPackage(): String {
         return SourceFileUtils.resolvePackage(
-            "${getSchemaPath()}${File.separator}X.kt"
+            "${resolveSchemaPath()}${File.separator}X.kt"
         ).substring(
             if (extension.get().basePackage.get().isBlank()) 0 else (extension.get().basePackage.get().length + 1)
         )
@@ -361,7 +361,7 @@ open class GenEntityTask : AbstractCodegenTask() {
      * 获取领域事件订阅者文件目录
      *
      */
-    fun getSubscriberPath(): String? {
+    fun resolveSubscriberPath(): String? {
         if (subscriberPath.isNotBlank()) {
             return subscriberPath
         }
@@ -377,7 +377,7 @@ open class GenEntityTask : AbstractCodegenTask() {
      */
     fun getSubscriberPackage(): String {
         return SourceFileUtils.resolvePackage(
-            "${getSubscriberPath()}${File.separator}X.kt"
+            "${resolveSubscriberPath()}${File.separator}X.kt"
         ).substring(extension.get().basePackage.get().length + 1)
     }
 
@@ -492,7 +492,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val module = getModule(tableName)
         val aggregate = getAggregate(tableName)
         return SourceFileUtils.concatPackage(
-            getAggregatesPackage(),
+            resolveAggregatesPackage(),
             module,
             aggregate.lowercase()
         )
@@ -675,24 +675,6 @@ open class GenEntityTask : AbstractCodegenTask() {
     fun resolveEntityFullPackage(table: Map<String, Any?>, basePackage: String, baseDir: String): String {
         val tableName = SqlSchemaUtils.getTableName(table)
         val packageName = SourceFileUtils.concatPackage(basePackage, getEntityPackage(tableName))
-        return packageName
-    }
-
-    /**
-     * 解析实体类全路径包名，含basePackage
-     *
-     * @param table
-     * @param basePackage
-     * @param baseDir
-     * @return
-     */
-    fun resolveEntityFullPackage(table: Map<String, Any?>, basePackage: String?, baseDir: String?): String {
-        val tableName: String = SqlSchemaUtils.getTableName(table)
-        val simpleClassName: String = getEntityType(tableName)
-        val packageName: String = SourceFileUtils.concatPackage(
-            basePackage,
-            getEntityPackage(tableName)
-        )
         return packageName
     }
 
@@ -1795,7 +1777,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         putContext(tag, "Name", entityType, context)
         putContext(tag, "Entity", entityType, context)
         putContext(tag, "AggregateRoot", context["Entity"] ?: "", context)
-        putContext(tag, "templatePackage", SourceFileUtils.refPackage(getAggregatesPackage()), context)
+        putContext(tag, "templatePackage", SourceFileUtils.refPackage(resolveAggregatesPackage()), context)
         putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
         putContext(tag, "path", aggregate.replace(".", File.separator), context)
         putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
@@ -1861,7 +1843,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val context = getEscapeContext().toMutableMap()
         putContext(tag, "Name", "${entityType}Factory", context)
         putContext(tag, "Factory", context["Name"] ?: "", context)
-        putContext(tag, "templatePackage", SourceFileUtils.refPackage(getAggregatesPackage()), context)
+        putContext(tag, "templatePackage", SourceFileUtils.refPackage(resolveAggregatesPackage()), context)
         putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
         putContext(tag, "path", aggregate.replace(".", File.separator), context)
         putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
@@ -1928,7 +1910,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val context = getEscapeContext().toMutableMap()
         putContext(tag, "Name", "${entityType}Specification", context)
         putContext(tag, "Specification", context["Name"] ?: "", context)
-        putContext(tag, "templatePackage", SourceFileUtils.refPackage(getAggregatesPackage()), context)
+        putContext(tag, "templatePackage", SourceFileUtils.refPackage(resolveAggregatesPackage()), context)
         putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
         putContext(tag, "path", aggregate.replace(".", File.separator), context)
         putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
@@ -1991,7 +1973,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val context = getEscapeContext().toMutableMap()
         putContext(tag, "Name", domainEventClassName, context)
         putContext(tag, "DomainEvent", context["Name"] ?: "", context)
-        putContext(tag, "domainEventPackage", SourceFileUtils.refPackage(getAggregatesPackage()), context)
+        putContext(tag, "domainEventPackage", SourceFileUtils.refPackage(resolveAggregatesPackage()), context)
         putContext(tag, "domainEventHandlerPackage", SourceFileUtils.refPackage(getSubscriberPackage()), context)
         putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
         putContext(tag, "path", aggregate.replace(".", File.separator), context)
@@ -2080,7 +2062,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
 
         val context = getEscapeContext().toMutableMap()
-        putContext(tag, "templatePackage", SourceFileUtils.refPackage(getAggregatesPackage()), context)
+        putContext(tag, "templatePackage", SourceFileUtils.refPackage(resolveAggregatesPackage()), context)
         putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
         putContext(tag, "path", aggregate.replace(".", File.separator), context)
         putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
@@ -2165,9 +2147,9 @@ open class GenEntityTask : AbstractCodegenTask() {
         val aggregate = getAggregateWithModule(tableName)
 
         val schemaPackage = if ("abs".equals(getEntitySchemaOutputMode(), ignoreCase = true)) {
-            getSchemaPackage()
+            resolveSchemaPackage()
         } else {
-            getAggregatesPackage()
+            resolveAggregatesPackage()
         }
 
         val entityFullPackage = tablePackageMap[tableName] ?: return
@@ -2400,7 +2382,7 @@ open class GenEntityTask : AbstractCodegenTask() {
 
     fun writeSchemaBaseSourceFile(baseDir: String) {
         val tag = "schema_base"
-        val schemaFullPackage = SourceFileUtils.concatPackage(getExtension().basePackage.get(), getSchemaPackage())
+        val schemaFullPackage = SourceFileUtils.concatPackage(getExtension().basePackage.get(), resolveSchemaPackage())
 
         val schemaBaseTemplateNodes = if (templateNodeMap.containsKey(tag)) {
             templateNodeMap[tag]!!
@@ -2437,43 +2419,371 @@ open class GenEntityTask : AbstractCodegenTask() {
     }
 
     fun getDefaultAggregateTemplateNode(): TemplateNode {
-        TODO()
+        val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}
+
+import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
+import ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_FAC_PACKAGE}.${'$'}{Entity}Factory
+
+/**
+ * ${'$'}{Entity}聚合封装
+ * ${'$'}{CommentEscaped}
+ *
+ * @author cap4k-ddd-codegen
+ * @date ${'$'}{date}
+ */
+class ${'$'}{aggregateNameTemplate}(
+    payload: ${'$'}{Entity}Factory.Payload? = null,
+) : Aggregate.Default<${'$'}{Entity}>(payload) {
+
+    val id by lazy { root.id }
+
+    class Id(key: ${'$'}{IdentityType}) : com.only4.cap4k.ddd.core.domain.aggregate.Id.Default<${'$'}{aggregateNameTemplate}, ${'$'}{IdentityType}>(key) {
+        companion object {
+            fun of(key: ${'$'}{IdentityType}): Id {
+                return Id(key)
+            }
+        }
+    }
+
+    /**
+     * 获取聚合ID
+     */
+    fun getId(): Id {
+        return Id(root.id)
+    }
+
+    // TODO: 添加聚合业务方法
+
+}
+"""
+        return TemplateNode().apply {
+            type = "file"
+            tag = "aggregate"
+            name = "${'$'}{path}${'$'}{SEPARATOR}${getExtension().generation.aggregateNameTemplate.get()}.kt"
+            format = "raw"
+            data = template
+            conflict = "skip"
+        }
     }
 
     fun getDefaultFactoryTemplateNode(): TemplateNode {
-        TODO()
+        val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_FAC_PACKAGE}
+
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
+import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+import ${'$'}{basePackage}${'$'}{entityPackage}${'$'}{package}.${'$'}{Entity}
+import org.springframework.stereotype.Service
+
+/**
+ * ${'$'}{Entity}聚合工厂
+ * ${'$'}{Comment}
+ *
+ * @author cap4k-ddd-codegen
+ * @date ${'$'}{date}
+ */
+@Service
+@Aggregate(aggregate = "${'$'}{Aggregate}", name = "${'$'}{Entity}Factory", type = Aggregate.TYPE_FACTORY, description = "${'$'}{CommentEscaped}")
+class ${'$'}{Entity}Factory : AggregateFactory<${'$'}{Entity}Payload, ${'$'}{Entity}> {
+
+    override fun create(payload: ${'$'}{Entity}Payload): ${'$'}{Entity} {
+        return ${'$'}{Entity}(
+            // TODO: 根据 payload 构造实体属性
+        )
+    }
+}
+"""
+        return TemplateNode().apply {
+            type = "file"
+            tag = "factory"
+            name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_FAC_PACKAGE}${'$'}{SEPARATOR}${'$'}{Entity}Factory.kt"
+            format = "raw"
+            data = template
+            conflict = "skip"
+        }
     }
 
     fun getDefaultFactoryPayloadTemplateNode(): TemplateNode {
-        TODO()
+        val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_FAC_PACKAGE}
+
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
+import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+import ${'$'}{basePackage}${'$'}{entityPackage}${'$'}{package}.${'$'}{Entity}
+
+/**
+ * ${'$'}{Entity}工厂负载
+ * ${'$'}{Comment}
+ *
+ * @author cap4k-ddd-codegen
+ * @date ${'$'}{date}
+ */
+@Aggregate(aggregate = "${'$'}{Aggregate}", name = "${'$'}{Entity}Payload", type = Aggregate.TYPE_FACTORY_PAYLOAD, description = "${'$'}{CommentEscaped}")
+data class ${'$'}{Entity}Payload(
+    val name: String? = null,
+    // TODO: 添加其他属性
+) : AggregatePayload<${'$'}{Entity}>
+"""
+        return TemplateNode().apply {
+            type = "file"
+            tag = "factory"
+            name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_FAC_PACKAGE}${'$'}{SEPARATOR}${'$'}{Entity}Payload.kt"
+            format = "raw"
+            data = template
+            conflict = "skip"
+        }
     }
 
     fun getDefaultSpecificationTemplateNode(): TemplateNode {
-        TODO()
+        val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_SPEC_PACKAGE}
+
+import com.only4.cap4k.ddd.core.domain.aggregate.Specification
+import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+import ${'$'}{basePackage}${'$'}{entityPackage}${'$'}{package}.${'$'}{Entity}
+import org.springframework.stereotype.Service
+
+/**
+ * ${'$'}{Entity}规格约束
+ * ${'$'}{Comment}
+ *
+ * @author cap4k-ddd-codegen
+ * @date ${'$'}{date}
+ */
+@Service
+@Aggregate(aggregate = "${'$'}{Aggregate}", name = "${'$'}{Entity}Specification", type = Aggregate.TYPE_SPECIFICATION, description = "${'$'}{CommentEscaped}")
+class ${'$'}{Entity}Specification : Specification<${'$'}{Entity}> {
+
+    override fun specify(entity: ${'$'}{Entity}): Specification.Result {
+        // TODO: 实现业务规则验证逻辑
+
+        // 示例：检查必填字段
+        // if (entity.name.isNullOrBlank()) {
+        //     return Specification.Result.fail("名称不能为空")
+        // }
+
+        // 示例：检查业务规则
+        // if (entity.someField != null && entity.someField < 0) {
+        //     return Specification.Result.fail("字段值不能为负数")
+        // }
+
+        return Specification.Result.pass()
+    }
+}
+"""
+        return TemplateNode().apply {
+            type = "file"
+            tag = "specification"
+            name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_SPEC_PACKAGE}${'$'}{SEPARATOR}${'$'}{Entity}Specification.kt"
+            format = "raw"
+            data = template
+            conflict = "skip"
+        }
     }
 
     fun getDefaultDomainEventHandlerTemplateNode(): TemplateNode {
-        TODO()
+        val template = """package ${'$'}{basePackage}${'$'}{templatePackage}
+
+import ${'$'}{basePackage}${'$'}{domainEventPackage}${'$'}{package}.${'$'}{DomainEvent}
+import org.springframework.context.event.EventListener
+import org.springframework.stereotype.Service
+
+/**
+ * ${'$'}{Entity}.${'$'}{DomainEvent}领域事件订阅
+ * ${'$'}{Comment}
+ *
+ * @author cap4k-ddd-codegen
+ * @date ${'$'}{date}
+ */
+@Service
+class ${'$'}{DomainEvent}Subscriber {
+
+    @EventListener(${'$'}{DomainEvent}::class)
+    fun on(event: ${'$'}{DomainEvent}) {
+        // TODO: 实现领域事件处理逻辑
+
+        // 示例：记录日志
+        // logger.info("处理领域事件: {}", event)
+
+        // 示例：调用其他服务
+        // someService.handleEvent(event)
+
+        // 示例：发送集成事件
+        // integrationEventPublisher.publish(SomeIntegrationEvent(event))
+    }
+}
+"""
+        return TemplateNode().apply {
+            type = "file"
+            tag = "domain_event_handler"
+            name = "${'$'}{DomainEvent}Subscriber.kt"
+            format = "raw"
+            data = template
+            conflict = "skip"
+        }
     }
 
     fun getDefaultDomainEventTemplateNode(): TemplateNode {
-        TODO()
+        val template =
+            """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_DOMAIN_EVENT_PACKAGE}
+
+import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
+import ${'$'}{basePackage}${'$'}{entityPackage}${'$'}{package}.${'$'}{Entity}
+
+/**
+ * ${'$'}{Entity}.${'$'}{DomainEvent}领域事件
+ * ${'$'}{Comment}
+ *
+ * @author cap4k-ddd-codegen
+ * @date ${'$'}{date}
+ */
+@DomainEvent(persist = ${'$'}{persist})
+@Aggregate(
+    aggregate = "${'$'}{Aggregate}",
+    name = "${'$'}{DomainEvent}",
+    type = Aggregate.TYPE_DOMAIN_EVENT,
+    description = "${'$'}{CommentEscaped}"
+)
+class ${'$'}{DomainEvent}(
+    val entity: ${'$'}{Entity}
+) {
+    // TODO: 添加事件相关属性
+
+    // 示例：事件发生时间
+    // val occurredAt: LocalDateTime = LocalDateTime.now()
+
+    // 示例：操作用户ID
+    // val operatorId: String? = null
+
+    // 示例：变更前后的值（用于审计）
+    // val previousValue: Any? = null
+    // val newValue: Any? = null
+}
+"""
+        return TemplateNode().apply {
+            type = "file"
+            tag = "domain_event"
+            name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_DOMAIN_EVENT_PACKAGE}${'$'}{SEPARATOR}${'$'}{DomainEvent}.kt"
+            format = "raw"
+            data = template
+            conflict = "skip"
+        }
     }
 
     fun getDefaultEnumTemplateNode(): TemplateNode {
-        TODO()
+        val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_ENUM_PACKAGE}
+
+import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+import javax.persistence.AttributeConverter
+import javax.persistence.Converter
+
+/**
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * 警告：请勿手工修改该文件，重新生成会覆盖该文件
+ * @author cap4k-ddd-codegen
+ * @date ${'$'}{date}
+ */
+@Aggregate(aggregate = "${'$'}{Aggregate}", name = "${'$'}{Enum}", type = "enum", description = "${'$'}{CommentEscaped}")
+enum class ${'$'}{Enum}(
+    val ${'$'}{EnumValueField}: Int,
+    val ${'$'}{EnumNameField}: String
+) {
+${'$'}{ENUM_ITEMS};
+
+    companion object {
+        private val enumMap: Map<Int, ${'$'}{Enum}> by lazy {
+            values().associateBy { it.${'$'}{EnumValueField} }
+        }
+
+        fun valueOf(value: Int): ${'$'}{Enum}? {
+            return enumMap[value]${
+            if (getExtension().generation.enumUnmatchedThrowException.get()) {
+                " ?: throw IllegalArgumentException(\"枚举类型${'$'}{Enum}枚举值转换异常，不存在的值: \$value\")"
+            } else {
+                ""
+            }
+        }
+        }
+
+        fun valueOfOrNull(value: Int?): ${'$'}{Enum}? {
+            return if (value == null) null else valueOf(value)
+        }
+    }
+
+    /**
+     * JPA转换器
+     */
+    @Converter
+    class Converter : AttributeConverter<${'$'}{Enum}, Int> {
+        override fun convertToDatabaseColumn(attribute: ${'$'}{Enum}?): Int? {
+            return attribute?.${'$'}{EnumValueField}
+        }
+
+        override fun convertToEntityAttribute(dbData: Int?): ${'$'}{Enum}? {
+            return if (dbData == null) null else valueOf(dbData)
+        }
+    }
+}
+"""
+        return TemplateNode().apply {
+            type = "file"
+            tag = "enum"
+            name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_ENUM_PACKAGE}${'$'}{SEPARATOR}${'$'}{Enum}.kt"
+            format = "raw"
+            data = template
+            conflict = "skip"
+        }
     }
 
     fun getDefaultEnumItemTemplateNode(): TemplateNode {
-        TODO()
+        val template = """    /**
+     * ${'$'}{itemDesc}
+     */
+    ${'$'}{itemName}(${'$'}{itemValue}, "${'$'}{itemDesc}"),
+"""
+        return TemplateNode().apply {
+            type = "segment"
+            tag = "enum_item"
+            name = ""
+            format = "raw"
+            data = template
+            conflict = "skip"
+        }
     }
 
     fun getDefaultSchemaFieldTemplateNode(): TemplateNode {
-        TODO()
+        val template = """
+    /**
+     * ${'$'}{fieldDescription}
+     * ${'$'}{fieldComment}
+     */
+    fun ${'$'}{fieldName}(): Schema.Field<${'$'}{fieldType}> {
+        return Schema.Field(root.get(${'$'}{Entity}_.${'$'}{fieldName.uppercase()}), criteriaBuilder)
+    }
+"""
+        return TemplateNode().apply {
+            type = "segment"
+            tag = "schema_field"
+            name = ""
+            format = "raw"
+            data = template
+            conflict = "skip"
+        }
     }
 
     fun getDefaultSchemaPropertyNameTemplateNode(): TemplateNode {
-        TODO()
+        val template = """
+        /**
+         * ${'$'}{fieldDescription}
+         */
+        const val ${'$'}{fieldName}: String = "${'$'}{fieldName}"
+"""
+        return TemplateNode().apply {
+            type = "segment"
+            tag = "schema_property_name"
+            name = ""
+            format = "raw"
+            data = template
+            conflict = "skip"
+        }
     }
 
     fun getDefaultSchemaJoinTemplateNode(): TemplateNode {
