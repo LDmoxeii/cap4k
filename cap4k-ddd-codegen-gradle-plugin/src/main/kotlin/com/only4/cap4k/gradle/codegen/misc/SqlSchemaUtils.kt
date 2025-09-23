@@ -141,7 +141,7 @@ object SqlSchemaUtils {
         }
     }
 
-    fun getColumnDefaultLiteral(column: Map<String, Any?>): String {
+    fun getColumnDefaultLiteral(column: Map<String, Any?>): String? {
         return when (task!!.dbType) {
             DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getColumnDefaultLiteral(column)
             DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")

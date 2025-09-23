@@ -5,6 +5,8 @@ import com.only4.cap4k.gradle.codegen.misc.Inflector
 import com.only4.cap4k.gradle.codegen.misc.NamingUtils
 import com.only4.cap4k.gradle.codegen.misc.SourceFileUtils
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils
+import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS
+import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.hasColumn
 import com.only4.cap4k.gradle.codegen.template.TemplateNode
 import org.gradle.api.provider.Property
@@ -22,7 +24,7 @@ import java.util.stream.Collectors
 /**
  * 生成实体类任务
  */
-open class GenEntityTask : AbstractCodegenTask() {
+open class GenEntityTask : GenArchTask() {
 
     @get:Input
     override val extension: Property<Cap4kCodegenExtension> =
@@ -101,7 +103,8 @@ open class GenEntityTask : AbstractCodegenTask() {
             "specifications", "specification", "specs", "spec", "spe" -> "specification"
             "domain_events", "domain_event", "d_e", "de" -> "domain_event"
             "domain_event_handlers", "domain_event_handler", "d_e_h", "deh",
-            "domain_event_subscribers", "domain_event_subscriber", "d_e_s", "des" -> "domain_event_handler"
+            "domain_event_subscribers", "domain_event_subscriber", "d_e_s", "des",
+                -> "domain_event_handler"
 
             "domain_service", "service", "svc" -> "domain_service"
             else -> name
@@ -110,7 +113,7 @@ open class GenEntityTask : AbstractCodegenTask() {
 
     override fun renderTemplate(
         templateNodes: List<TemplateNode>,
-        parentPath: String
+        parentPath: String,
     ) {
         for (templateNode in templateNodes) {
             val alias = alias4Design(templateNode.tag!!)
@@ -128,7 +131,12 @@ open class GenEntityTask : AbstractCodegenTask() {
     }
 
     @TaskAction
-    fun generate() {
+    override fun generate() {
+        super.generate()
+        genEntity()
+    }
+
+    fun genEntity() {
         logger.info("生成实体类...")
 
         val ext = getExtension()
@@ -576,7 +584,7 @@ open class GenEntityTask : AbstractCodegenTask() {
     fun isColumnNeedGenerate(
         table: Map<String, Any?>,
         column: Map<String, Any?>,
-        relations: Map<String, Map<String, String?>?>
+        relations: Map<String, Map<String, String?>?>,
     ): Boolean {
         val tableName: String = SqlSchemaUtils.getTableName(table)
         val columnName: String = SqlSchemaUtils.getColumnName(column)
@@ -858,7 +866,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         filePath: String,
         importLines: MutableList<String>,
         annotationLines: MutableList<String>,
-        customerLines: MutableList<String>
+        customerLines: MutableList<String>,
     ): Boolean {
         val file = File(filePath)
         if (file.exists()) {
@@ -880,7 +888,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                         endMapperLine = i
                     }
 
-                    line.trim().startsWith("public") && startClassLine == 0 -> {
+                    line.trim().startsWith("class") && startClassLine == 0 -> {
                         startClassLine = i
                     }
 
@@ -894,7 +902,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                         logger.debug("[import] $line")
                     }
 
-                    startClassLine > 0 && (startMapperLine == 0 || endMapperLine > 0) -> {
+                    startMapperLine == 0 || endMapperLine > 0 -> {
                         customerLines.add(line)
                     }
                 }
@@ -927,7 +935,7 @@ open class GenEntityTask : AbstractCodegenTask() {
     }
 
     fun processImportLines(table: Map<String, Any?>, importLines: MutableList<String>, content: String) {
-        val importEmpty = importLines.size == 0
+        val importEmpty = importLines.isEmpty()
         if (importEmpty) {
             importLines.add("")
         }
@@ -945,7 +953,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         if (importEmpty) {
             var breakLine = false
             for (entityClassExtraImport in entityClassExtraImports) {
-                if (entityClassExtraImport.startsWith("javax") && !breakLine) {
+                if (entityClassExtraImport.startsWith("jakarta") && !breakLine) {
                     breakLine = true
                     importLines.add("")
                 }
@@ -971,12 +979,10 @@ open class GenEntityTask : AbstractCodegenTask() {
             for (entityClassExtraImport in entityClassExtraImports) {
                 SourceFileUtils.addIfNone(
                     importLines,
-                    "\\s*import\\s+" + entityClassExtraImport
-                        .replace(".", "\\.")
-                        .replace("*", "\\*") + "\\s*",
+                    """\s*import\s+${entityClassExtraImport}\s*""",
                     "import $entityClassExtraImport"
                 ) { list, line ->
-                    val firstLargeLine = list.firstOrNull { l -> l.isNotEmpty() && l.compareTo(line) > 0 }
+                    val firstLargeLine = list.firstOrNull { l -> l.isNotEmpty() && l > line }
                     if (firstLargeLine != null) {
                         list.indexOf(firstLargeLine)
                     } else {
@@ -1010,32 +1016,25 @@ open class GenEntityTask : AbstractCodegenTask() {
     fun processAnnotationLines(
         table: Map<String, Any?>,
         columns: List<Map<String, Any?>>,
-        annotationLines: MutableList<String>
+        annotationLines: MutableList<String>,
     ) {
         val tableName = SqlSchemaUtils.getTableName(table)
-        val annotationEmpty = annotationLines.size == 0
+        val annotationEmpty = annotationLines.isEmpty()
 
         // 移除并重新添加 @Aggregate 注解
-        SourceFileUtils.removeText(annotationLines, "@Aggregate\\(.*\\)")
+        SourceFileUtils.removeText(annotationLines, """@Aggregate\(.*\)""")
         SourceFileUtils.addIfNone(
             annotationLines,
-            "@Aggregate\\(.*\\)",
-            "@Aggregate(" +
-                    "aggregate = \"${NamingUtils.toUpperCamelCase(resolveAggregateWithModule(tableName))}\", " +
-                    "name = \"${resolveEntityType(tableName)}\", " +
-                    "root = ${SqlSchemaUtils.isAggregateRoot(table)}, " +
-                    "type = ${if (SqlSchemaUtils.isValueObject(table)) "Aggregate.TYPE_VALUE_OBJECT" else "Aggregate.TYPE_ENTITY"}, " +
-                    (if (SqlSchemaUtils.isAggregateRoot(table)) "" else "relevant = { \"${
-                        resolveEntityType(
-                            SqlSchemaUtils.getParent(
-                                table
-                            )
-                        )
-                    }\" }, ") +
-                    "description = \"${
-                        SqlSchemaUtils.getComment(table).replace(Regex(PATTERN_LINE_BREAK), "\\\\n")
-                    }\"" +
-                    ")"
+            """@Aggregate\(.*\)""",
+            """@Aggregate(aggregate = "${NamingUtils.toUpperCamelCase(resolveAggregateWithModule(tableName))}", name = "${
+                resolveEntityType(
+                    tableName
+                )
+            }", root = ${SqlSchemaUtils.isAggregateRoot(table)}, type = ${if (SqlSchemaUtils.isValueObject(table)) "Aggregate.TYPE_VALUE_OBJECT" else "Aggregate.TYPE_ENTITY"}, description = "${
+                SqlSchemaUtils.getComment(
+                    table
+                ).replace(Regex(PATTERN_LINE_BREAK), "\\\\n")
+            }")"""
         ) { _, _ -> 0 }
 
         // 处理聚合根注解
@@ -1044,39 +1043,35 @@ open class GenEntityTask : AbstractCodegenTask() {
             if (SqlSchemaUtils.isAggregateRoot(table)) {
                 SourceFileUtils.addIfNone(
                     annotationLines,
-                    "$aggregateRootAnnotation(\\(.*\\))?",
+                    """$aggregateRootAnnotation(\(.*\))?""",
                     aggregateRootAnnotation
                 )
             } else {
-                SourceFileUtils.removeText(annotationLines, "$aggregateRootAnnotation(\\(.*\\))?")
-                SourceFileUtils.removeText(annotationLines, "@AggregateRoot(\\(.*\\))?")
+                SourceFileUtils.removeText(annotationLines, """$aggregateRootAnnotation(\(.*\))?""")
+                SourceFileUtils.removeText(annotationLines, """@AggregateRoot(\(.*\))?""")
             }
         }
 
         // 添加 JPA 基本注解
-        SourceFileUtils.addIfNone(annotationLines, "@Entity(\\(.*\\))?", "@Entity")
+        SourceFileUtils.addIfNone(annotationLines, """@Entity(\(.*\))?""", "@Entity")
 
         val ids = resolveIdColumns(columns)
         if (ids.size > 1) {
             SourceFileUtils.addIfNone(
                 annotationLines,
-                "@IdClass(\\(.*\\))",
+                """@IdClass(\(.*\))""",
                 "@IdClass(${resolveEntityType(tableName)}.${DEFAULT_MUL_PRI_KEY_NAME}::class)"
             )
         }
 
-        val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
-        val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
-
         SourceFileUtils.addIfNone(
             annotationLines,
-            "@Table(\\(.*\\))?",
-            "@Table(name = \"$leftQuote$tableName$rightQuote\")"
+            """@Table(\(.*\))?""",
+            "@Table(name = \"$LEFT_QUOTES_4_ID_ALIAS$tableName$RIGHT_QUOTES_4_ID_ALIAS\")"
         )
 
-        // 添加 Hibernate 动态注解（注意：Kotlin 项目可能不使用这些注解）
-        // SourceFileUtils.addIfNone(annotationLines, "@DynamicInsert(\\(.*\\))?", "@DynamicInsert")
-        // SourceFileUtils.addIfNone(annotationLines, "@DynamicUpdate(\\(.*\\))?", "@DynamicUpdate")
+        SourceFileUtils.addIfNone(annotationLines, """@DynamicInsert(\(.*\))?""", "@DynamicInsert")
+        SourceFileUtils.addIfNone(annotationLines, """@DynamicUpdate(\(.*\))?""", "@DynamicUpdate")
 
         // 处理软删除相关注解
         val ext = getExtension()
@@ -1092,9 +1087,13 @@ open class GenEntityTask : AbstractCodegenTask() {
                 NamingUtils.toLowerCamelCase(SqlSchemaUtils.getColumnName(ids[0]))
                     ?: SqlSchemaUtils.getColumnName(ids[0])
             } else {
-                "(" + ids.joinToString(", ") {
-                    NamingUtils.toLowerCamelCase(SqlSchemaUtils.getColumnName(it)) ?: SqlSchemaUtils.getColumnName(it)
-                } + ")"
+                "(${
+                    ids.joinToString(", ") {
+                        NamingUtils.toLowerCamelCase(SqlSchemaUtils.getColumnName(it)) ?: SqlSchemaUtils.getColumnName(
+                            it
+                        )
+                    }
+                })"
             }
 
             val idFieldValue = if (ids.size == 1) "?" else "(" + ids.joinToString(", ") { "?" } + ")"
@@ -1102,57 +1101,37 @@ open class GenEntityTask : AbstractCodegenTask() {
             if (hasColumn(versionField, columns)) {
                 SourceFileUtils.addIfNone(
                     annotationLines,
-                    "@SQLDelete(\\(.*\\))?",
-                    "@SQLDelete(sql = \"update $leftQuote$tableName$rightQuote" +
-                            " set $leftQuote$deletedField$rightQuote = 1" +
-                            " where $leftQuote$idFieldName$rightQuote = $idFieldValue" +
-                            " and $leftQuote$versionField$rightQuote = ? \")"
+                    """@SQLDelete(\(.*\))?""",
+                    """@SQLDelete(sql = "update $LEFT_QUOTES_4_ID_ALIAS$tableName$RIGHT_QUOTES_4_ID_ALIAS set $LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS where $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS = $idFieldValue and $LEFT_QUOTES_4_ID_ALIAS$versionField$RIGHT_QUOTES_4_ID_ALIAS = ?)"""
                 )
             } else {
                 SourceFileUtils.addIfNone(
                     annotationLines,
-                    "@SQLDelete(\\(.*\\))?",
-                    "@SQLDelete(sql = \"update $leftQuote$tableName$rightQuote" +
-                            " set $leftQuote$deletedField$rightQuote = 1" +
-                            " where $leftQuote$idFieldName$rightQuote = $idFieldValue \")"
+                    """@SQLDelete(\(.*\))?""",
+                    """@SQLDelete(sql = "update $LEFT_QUOTES_4_ID_ALIAS$tableName$RIGHT_QUOTES_4_ID_ALIAS set $LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS where $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS = $idFieldValue)"""
                 )
             }
 
-            if (hasColumn(versionField, columns) && !SourceFileUtils.hasLine(
-                    annotationLines,
-                    "@SQLDelete(\\(.*$versionField.*\\))"
-                )
-            ) {
-                SourceFileUtils.replaceText(
-                    annotationLines,
-                    "@SQLDelete(\\(.*\\))?",
-                    "@SQLDelete(sql = \"update $leftQuote$tableName$rightQuote" +
-                            " set $leftQuote$deletedField$rightQuote = 1" +
-                            " where $leftQuote$idFieldName$rightQuote = $idFieldValue" +
-                            " and $leftQuote$versionField$rightQuote = ? \")"
-                )
-            }
+//            if (hasColumn(versionField, columns) && !SourceFileUtils.hasLine(
+//                    annotationLines,
+//                    "@SQLDelete(\\(.*$versionField.*\\))"
+//                )
+//            ) {
+//                SourceFileUtils.replaceText(
+//                    annotationLines,
+//                    "@SQLDelete(\\(.*\\))?",
+//                    """
+//                    "@SQLDelete(sql = "update $LEFT_QUOTES_4_ID_ALIAS$tableName$RIGHT_QUOTES_4_ID_ALIAS set $LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS where $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS = $idFieldValue)
+//                    """.trimIndent()
+//                )
+//            }
 
             SourceFileUtils.addIfNone(
                 annotationLines,
-                "@Where(\\(.*\\))?",
-                "@Where(clause = \"$leftQuote$deletedField$rightQuote = 0\")"
+                """@Where(\(.*\))?""",
+                """@Where(clause = "$LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = 0"""
             )
         }
-
-        if (annotationEmpty) {
-            annotationLines.add("")
-        }
-
-        // 移除 Lombok 相关注解（Kotlin 项目通常使用 data class）
-        SourceFileUtils.removeText(annotationLines, "@AllArgsConstructor(\\(.*\\))?")
-        SourceFileUtils.removeText(annotationLines, "@NoArgsConstructor(\\(.*\\))?")
-        SourceFileUtils.removeText(annotationLines, "@Builder(\\(.*\\))?")
-        SourceFileUtils.removeText(annotationLines, "@Getter(\\(.*\\))?")
-        SourceFileUtils.removeText(annotationLines, "@Setter(\\(.*\\))?")
-        SourceFileUtils.removeText(annotationLines, "@Data(\\(.*\\))?")
-        SourceFileUtils.removeText(annotationLines, "@lombok\\.Setter(\\(.*\\))?")
-        SourceFileUtils.removeText(annotationLines, "@lombok\\.Data(\\(.*\\))?")
     }
 
     fun buildEntitySourceFile(
@@ -1161,7 +1140,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         tablePackageMap: Map<String, String>,
         relations: Map<String, Map<String, String>>,
         basePackage: String,
-        baseDir: String
+        baseDir: String,
     ) {
         val tableName = SqlSchemaUtils.getTableName(table)
 
@@ -1211,9 +1190,9 @@ open class GenEntityTask : AbstractCodegenTask() {
                 .contains(FLAG_DO_NOT_OVERWRITE)
         ) {
             file.writeText(
-                "package $entityFullPackage\n\n" +
-                        importLines.joinToString("\n") + "\n\n" +
-                        mainSource + "\n",
+                """package $entityFullPackage
+                |${importLines.joinToString("\n")}
+                |$mainSource""".trimMargin(),
                 charset(getExtension().outputEncoding.get())
             )
         }
@@ -1261,7 +1240,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         relations: Map<String, Map<String, String>>,
         enums: MutableList<String>,
         annotationLines: List<String>,
-        customerLines: List<String>
+        customerLines: List<String>,
     ): String {
         val tableName = SqlSchemaUtils.getTableName(table)
         val entityType = resolveEntityType(tableName)
@@ -1302,9 +1281,30 @@ open class GenEntityTask : AbstractCodegenTask() {
         val extendsClause = if (baseClass?.isNotBlank() == true) " : $baseClass()" else ""
         val implementsClause = if (SqlSchemaUtils.isValueObject(table)) ", ValueObject<$identityType>" else ""
 
-        SourceFileUtils.writeLine(out, "open class $entityType$extendsClause$implementsClause {")
+        SourceFileUtils.writeLine(out, "class $entityType$extendsClause$implementsClause (")
 
-        // Write customer lines or default behavior methods
+        SourceFileUtils.writeLine(
+            out,
+            "    // 【字段映射开始】本段落由[cap4k-ddd-codegen-gradle-plugin]维护，请不要手工改动"
+        )
+
+        // Write column properties
+        for (column in columns) {
+            writeColumnProperty(out, table, column, ids, relations, enums)
+        }
+
+        SourceFileUtils.writeLine(out, ") {")
+
+        // Write relation properties
+        writeRelationProperty(out, table, relations, tablePackageMap)
+
+        SourceFileUtils.writeLine(out, "")
+        SourceFileUtils.writeLine(
+            out,
+            "    // 【字段映射结束】本段落由[cap4k-ddd-codegen-gradle-plugin]维护，请不要手工改动"
+        )
+
+//         Write customer lines or default behavior methods
         if (customerLines.isNotEmpty()) {
             customerLines.forEach { line -> SourceFileUtils.writeLine(out, line) }
         } else {
@@ -1315,108 +1315,94 @@ open class GenEntityTask : AbstractCodegenTask() {
             SourceFileUtils.writeLine(out, "")
             SourceFileUtils.writeLine(out, "    // 【行为方法结束】")
             SourceFileUtils.writeLine(out, "")
-            SourceFileUtils.writeLine(out, "")
-            SourceFileUtils.writeLine(out, "")
         }
 
-        SourceFileUtils.writeLine(
-            out,
-            "    // 【字段映射开始】本段落由[cap4k-ddd-codegen-gradle-plugin]维护，请不要手工改动"
-        )
-
-        // Value object implementation
-        if (SqlSchemaUtils.isValueObject(table)) {
-            val idFieldName =
-                if (ids.size != 1) "" else NamingUtils.toLowerCamelCase(SqlSchemaUtils.getColumnName(ids[0]))
-                    ?: SqlSchemaUtils.getColumnName(ids[0])
-            val idTypeName = if (ids.size != 1) "Long" else SqlSchemaUtils.getColumnType(ids[0])
-
-            val hashTemplate = when {
-                getExtension().generation.hashMethod4ValueObject.get().isNotBlank() -> {
-                    "    " + getExtension().generation.hashMethod4ValueObject.get().trim()
-                }
-
-                ids.size != 1 -> {
-                    """    override fun hash(): Long {
-        return ${resolveEntityIdGenerator(table)}.hash(this, "") as Long
-    }"""
-                }
-
-                else -> {
-                    """    override fun hash(): $idTypeName {
-        if ($idFieldName == null) {
-            $idFieldName = ${resolveEntityIdGenerator(table)}.hash(this, "$idFieldName") as $idTypeName
-        }
-        return $idFieldName!!
-    }"""
-                }
-            }
-
-            SourceFileUtils.writeLine(out, "")
-            SourceFileUtils.writeLine(
-                out, hashTemplate
-                    .replace("\${idField}", idFieldName)
-                    .replace("\${IdField}", idFieldName)
-                    .replace("\${ID_FIELD}", idFieldName)
-                    .replace("\${id_field}", idFieldName)
-                    .replace("\${idTypeName}", idTypeName)
-                    .replace("\${IdType}", idTypeName)
-                    .replace("\${ID_TYPE}", idTypeName)
-                    .replace("\${id_type}", idTypeName)
-            )
-
-            SourceFileUtils.writeLine(out, "")
-            SourceFileUtils.writeLine(
-                out, """    override fun equals(other: Any?): Boolean {
-        if (other == null) {
-            return false
-        }
-        if (other !is $entityType) {
-            return false
-        }
-        return hashCode() == other.hashCode()
-    }
-
-    override fun hashCode(): Int {
-        return hash().hashCode()
-    }"""
-            )
-            SourceFileUtils.writeLine(out, "")
-        }
-
-        // Multiple primary keys (adapted for Kotlin data class)
-        if (ids.size > 1) {
-            SourceFileUtils.writeLine(out, "")
-            SourceFileUtils.writeLine(out, "    data class $DEFAULT_MUL_PRI_KEY_NAME(")
-            ids.forEachIndexed { index, id ->
-                val columnName = SqlSchemaUtils.getColumnName(id)
-                val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
-                val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
-                val type = SqlSchemaUtils.getColumnType(id)
-                val fieldName = NamingUtils.toLowerCamelCase(columnName) ?: columnName
-
-                SourceFileUtils.writeLine(out, "        @Column(name = \"$leftQuote$columnName$rightQuote\")")
-                val suffix = if (index == ids.size - 1) "" else ","
-                SourceFileUtils.writeLine(out, "        val $fieldName: $type$suffix")
-            }
-            SourceFileUtils.writeLine(out, "    ) : java.io.Serializable")
-        }
-
-        // Write relation properties
-        writeRelationProperty(out, table, relations, tablePackageMap)
-
-        // Write column properties
-        for (column in columns) {
-            writeColumnProperty(out, table, column, ids, relations, enums)
-        }
-
-        SourceFileUtils.writeLine(out, "")
-        SourceFileUtils.writeLine(
-            out,
-            "    // 【字段映射结束】本段落由[cap4k-ddd-codegen-gradle-plugin]维护，请不要手工改动"
-        )
         SourceFileUtils.writeLine(out, "}")
         SourceFileUtils.writeLine(out, "")
+
+        // Value object implementation
+//        if (SqlSchemaUtils.isValueObject(table)) {
+//            val idFieldName =
+//                if (ids.size != 1) "" else NamingUtils.toLowerCamelCase(SqlSchemaUtils.getColumnName(ids[0]))
+//                    ?: SqlSchemaUtils.getColumnName(ids[0])
+//            val idTypeName = if (ids.size != 1) "Long" else SqlSchemaUtils.getColumnType(ids[0])
+//
+//            val hashTemplate = when {
+//                getExtension().generation.hashMethod4ValueObject.get().isNotBlank() -> {
+//                    "    " + getExtension().generation.hashMethod4ValueObject.get().trim()
+//                }
+//
+//                ids.size != 1 -> {
+//                    """
+//                    override fun hash(): Long {
+//                        return ${resolveEntityIdGenerator(table)}.hash(this, "") as Long
+//                    }""".trimIndent()
+//                }
+//
+//                else -> {
+//                    """
+//                    override fun hash(): $idTypeName {
+//                        if ($idFieldName == null) {
+//                            $idFieldName = ${resolveEntityIdGenerator(table)}.hash(this, "$idFieldName") as $idTypeName
+//                        }
+//                        return $idFieldName!!
+//                    }
+//                    """.trimIndent()
+//                }
+//            }
+//
+//            SourceFileUtils.writeLine(out, "")
+//            SourceFileUtils.writeLine(
+//                out, hashTemplate
+//                    .replace("\${idField}", idFieldName)
+//                    .replace("\${IdField}", idFieldName)
+//                    .replace("\${ID_FIELD}", idFieldName)
+//                    .replace("\${id_field}", idFieldName)
+//                    .replace("\${idTypeName}", idTypeName)
+//                    .replace("\${IdType}", idTypeName)
+//                    .replace("\${ID_TYPE}", idTypeName)
+//                    .replace("\${id_type}", idTypeName)
+//            )
+//
+//            SourceFileUtils.writeLine(out, "")
+//            SourceFileUtils.writeLine(
+//                out,
+//                """
+//                override fun equals(other: Any?): Boolean {
+//                    if (other == null) {
+//                        return false
+//                    }
+//                    if (other !is $entityType) {
+//                        return false
+//                    }
+//                    return hashCode() == other.hashCode()
+//                }
+//
+//                override fun hashCode(): Int {
+//                    return hash().hashCode()
+//                }
+//                """.trimIndent()
+//            )
+//            SourceFileUtils.writeLine(out, "")
+//        }
+
+        // Multiple primary keys (adapted for Kotlin data class)
+//        if (ids.size > 1) {
+//            SourceFileUtils.writeLine(out, "")
+//            SourceFileUtils.writeLine(out, "    data class $DEFAULT_MUL_PRI_KEY_NAME(")
+//            ids.forEachIndexed { index, id ->
+//                val columnName = SqlSchemaUtils.getColumnName(id)
+//                val leftQuote = LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+//                val rightQuote = RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+//                val type = SqlSchemaUtils.getColumnType(id)
+//                val fieldName = NamingUtils.toLowerCamelCase(columnName) ?: columnName
+//
+//                SourceFileUtils.writeLine(out, "        @Column(name = \"$leftQuote$columnName$rightQuote\")")
+//                val suffix = if (index == ids.size - 1) "" else ","
+//                SourceFileUtils.writeLine(out, "        val $fieldName: $type$suffix")
+//            }
+//            SourceFileUtils.writeLine(out, "    ) : java.io.Serializable")
+//        }
 
         out.flush()
         out.close()
@@ -1430,18 +1416,14 @@ open class GenEntityTask : AbstractCodegenTask() {
             }
 
             SqlSchemaUtils.isValueObject(table) -> {
-                if (getExtension().generation.idGenerator4ValueObject.get().isNotBlank()) {
-                    getExtension().generation.idGenerator4ValueObject.get()
-                } else {
+                getExtension().generation.idGenerator4ValueObject.get().ifBlank {
                     // ValueObject 值对象 默认使用MD5
                     "com.only4.cap4k.ddd.domain.repo.Md5HashIdentifierGenerator"
                 }
             }
 
             else -> {
-                if (getExtension().generation.idGenerator.get().isNotBlank()) {
-                    getExtension().generation.idGenerator.get()
-                } else {
+                getExtension().generation.idGenerator.get().ifBlank {
                     ""
                 }
             }
@@ -1530,8 +1512,8 @@ open class GenEntityTask : AbstractCodegenTask() {
         }
 
         // Column annotation
-        val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
-        val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+        val leftQuote = LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+        val rightQuote = RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
 
         if (!updatable || !insertable) {
             SourceFileUtils.writeLine(
@@ -1546,13 +1528,11 @@ open class GenEntityTask : AbstractCodegenTask() {
         val fieldName = NamingUtils.toLowerCamelCase(columnName) ?: columnName
         if (getExtension().generation.generateDefault.get()) {
             val defaultJavaLiteral = SqlSchemaUtils.getColumnDefaultLiteral(column)
-            if (defaultJavaLiteral.isNotBlank()) {
-                SourceFileUtils.writeLine(out, "    // @Builder.Default equivalent for Kotlin")
-            }
-            val defaultValue = if (defaultJavaLiteral.isNotBlank()) " = $defaultJavaLiteral" else ""
-            SourceFileUtils.writeLine(out, "    var $fieldName: $columnType$defaultValue")
+            val defaultValue =
+                if (defaultJavaLiteral.isNullOrBlank()) "? = $defaultJavaLiteral" else " = $defaultJavaLiteral"
+            SourceFileUtils.writeLine(out, "    var $fieldName: $columnType$defaultValue,")
         } else {
-            SourceFileUtils.writeLine(out, "    var $fieldName: $columnType? = null")
+            SourceFileUtils.writeLine(out, "    var $fieldName: $columnType? = null,")
         }
     }
 
@@ -1602,20 +1582,14 @@ open class GenEntityTask : AbstractCodegenTask() {
                         "    @${relation}(cascade = [CascadeType.ALL], fetch = FetchType.$fetchType, orphanRemoval = true)$fetchAnnotation"
                     )
                     SourceFileUtils.writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
-                    val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
-                    val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val leftQuote = LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val rightQuote = RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
                     SourceFileUtils.writeLine(
                         out,
                         "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false)"
                     )
 
                     val countIsOne = SqlSchemaUtils.countIsOne(navTable)
-                    if (countIsOne) {
-                        SourceFileUtils.writeLine(
-                            out,
-                            "    // @Getter(AccessLevel.PROTECTED) equivalent for Kotlin - use private setter"
-                        )
-                    }
 
                     val fieldName = Inflector.pluralize(
                         NamingUtils.toLowerCamelCase(resolveEntityType(refTableName)) ?: resolveEntityType(refTableName)
@@ -1629,7 +1603,7 @@ open class GenEntityTask : AbstractCodegenTask() {
 
                     if (countIsOne) {
                         SourceFileUtils.writeLine(out, "")
-                        SourceFileUtils.writeLine(out, "    fun get$entityType(): $entityPackage.$entityType? {")
+                        SourceFileUtils.writeLine(out, "    fun load$entityType(): $entityPackage.$entityType? {")
                         SourceFileUtils.writeLine(
                             out,
                             "        return if ($fieldName.isEmpty()) null else $fieldName[0]"
@@ -1643,8 +1617,8 @@ open class GenEntityTask : AbstractCodegenTask() {
                         out,
                         "    @${relation.replace("*", "")}(cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
                     )
-                    val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
-                    val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val leftQuote = LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val rightQuote = RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
                     SourceFileUtils.writeLine(
                         out,
                         "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false, insertable = false, updatable = false)"
@@ -1660,8 +1634,8 @@ open class GenEntityTask : AbstractCodegenTask() {
                         out,
                         "    @${relation}(cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
                     )
-                    val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
-                    val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val leftQuote = LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val rightQuote = RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
                     SourceFileUtils.writeLine(
                         out,
                         "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false)"
@@ -1700,8 +1674,8 @@ open class GenEntityTask : AbstractCodegenTask() {
                         out,
                         "    @${relation}(cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
                     )
-                    val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
-                    val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val leftQuote = LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val rightQuote = RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
                     SourceFileUtils.writeLine(
                         out,
                         "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false)"
@@ -1736,8 +1710,8 @@ open class GenEntityTask : AbstractCodegenTask() {
                         "    @${relation}(cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
                     )
                     SourceFileUtils.writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
-                    val leftQuote = SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
-                    val rightQuote = SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val leftQuote = LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
+                    val rightQuote = RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
                     val joinTableName = refInfos[3]
                     val inverseJoinColumn = refInfos[2]
                     SourceFileUtils.writeLine(
@@ -1784,7 +1758,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         table: Map<String, Any?>,
         columns: List<Map<String, Any?>>,
         tablePackageMap: Map<String, String>,
-        baseDir: String
+        baseDir: String,
     ) {
         val tag = "aggregate"
         val tableName = SqlSchemaUtils.getTableName(table)
@@ -1858,7 +1832,7 @@ open class GenEntityTask : AbstractCodegenTask() {
     fun writeFactorySourceFile(
         table: Map<String, Any?>,
         tablePackageMap: Map<String, String>,
-        baseDir: String
+        baseDir: String,
     ) {
         val tag = "factory"
         val tableName = SqlSchemaUtils.getTableName(table)
@@ -1925,7 +1899,7 @@ open class GenEntityTask : AbstractCodegenTask() {
     fun writeSpecificationSourceFile(
         table: Map<String, Any?>,
         tablePackageMap: Map<String, String>,
-        baseDir: String
+        baseDir: String,
     ) {
         val tag = "specification"
         val tableName = SqlSchemaUtils.getTableName(table)
@@ -1985,7 +1959,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         tablePackageMap: Map<String, String>,
         domainEventClassName: String,
         domainEventDescription: String,
-        baseDir: String
+        baseDir: String,
     ) {
         val tag = "domain_event"
         val handlerTag = "domain_event_handler"
@@ -2058,7 +2032,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                 val path = forceRender(
                     pathNode,
                     SourceFileUtils.resolvePackageDirectory(
-                        baseDir,
+                        getApplicationModulePath(),
                         SourceFileUtils.concatPackage(
                             getExtension().basePackage.get(),
                             context["templatePackage"] ?: ""
@@ -2078,7 +2052,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         enumValueField: String,
         enumNameField: String,
         tablePackageMap: Map<String, String>,
-        baseDir: String
+        baseDir: String,
     ) {
         val tag = "enum"
         val itemTag = "enum_item"
@@ -2164,7 +2138,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         tablePackageMap: Map<String, String>,
         relations: Map<String, Map<String, String>>,
         basePackage: String,
-        baseDir: String
+        baseDir: String,
     ) {
         val tag = "schema"
         val fieldTag = "schema_field"
@@ -2375,7 +2349,7 @@ open class GenEntityTask : AbstractCodegenTask() {
                 val extraExtensionTemplateNodes = if (templateNodeMap.containsKey(rootExtraExtensionTag)) {
                     templateNodeMap[rootExtraExtensionTag]!!
                 } else {
-                    listOf(resolveDefaultRootSchemaExtraExtenstionTemplateNode(getExtension().generation.generateAggregate.get()))
+                    listOf(resolveDefaultRootSchemaExtraExtensionTemplateNode(getExtension().generation.generateAggregate.get()))
                 }
                 for (templateNode in extraExtensionTemplateNodes) {
                     extraExtension += templateNode.cloneTemplateNode().resolve(context).data ?: ""
@@ -2389,7 +2363,7 @@ open class GenEntityTask : AbstractCodegenTask() {
         val schemaTemplateNodes = if (templateNodeMap.containsKey(tag)) {
             templateNodeMap[tag]!!
         } else {
-            listOf(resolveDefaultSchemaTemplateNode(SqlSchemaUtils.isAggregateRoot(table)))
+            listOf(resolveDefaultSchemaTemplateNode())
         }
 
         try {
@@ -2451,43 +2425,28 @@ open class GenEntityTask : AbstractCodegenTask() {
     }
 
     fun resolveDefaultAggregateTemplateNode(): TemplateNode {
-        val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}
-
-import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
-import ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_FAC_PACKAGE}.${'$'}{Entity}Factory
-
-/**
- * ${'$'}{Entity}聚合封装
- * ${'$'}{CommentEscaped}
- *
- * @author cap4k-ddd-codegen
- * @date ${'$'}{date}
- */
-class ${'$'}{aggregateNameTemplate}(
-    payload: ${'$'}{Entity}Factory.Payload? = null,
-) : Aggregate.Default<${'$'}{Entity}>(payload) {
-
-    val id by lazy { root.id }
-
-    class Id(key: ${'$'}{IdentityType}) : com.only4.cap4k.ddd.core.domain.aggregate.Id.Default<${'$'}{aggregateNameTemplate}, ${'$'}{IdentityType}>(key) {
-        companion object {
-            fun of(key: ${'$'}{IdentityType}): Id {
-                return Id(key)
-            }
-        }
-    }
-
-    /**
-     * 获取聚合ID
-     */
-    fun getId(): Id {
-        return Id(root.id)
-    }
-
-    // TODO: 添加聚合业务方法
-
-}
-"""
+        val template = """package ${'$'}{basePackage}.${'$'}{templatePackage}.${'$'}{package}
+                        |
+                        |import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
+                        |import ${'$'}{basePackage}.${'$'}{templatePackage}.${'$'}{package}.${DEFAULT_FAC_PACKAGE}.${'$'}{Entity}Factory
+                        |
+                        |/**
+                        | * ${'$'}{Entity}聚合封装
+                        | * ${'$'}{CommentEscaped}
+                        | *
+                        | * @author cap4k-ddd-codegen
+                        | * @date ${'$'}{date}
+                        | */
+                        |class ${'$'}{aggregateNameTemplate}(
+                        |    payload: ${'$'}{Entity}Factory.Payload? = null,
+                        |) : Aggregate.Default<${'$'}{Entity}>(payload) {
+                        |
+                        |    val id by lazy { root.id }
+                        |
+                        |    class Id(key: ${'$'}{IdentityType}) : com.only4.cap4k.ddd.core.domain.aggregate.Id.Default<${'$'}{aggregateNameTemplate}, ${'$'}{IdentityType}>(key)
+                        |
+                        |}
+                        """.trimMargin()
         return TemplateNode().apply {
             type = "file"
             tag = "aggregate"
@@ -2499,7 +2458,7 @@ class ${'$'}{aggregateNameTemplate}(
     }
 
     fun resolveDefaultFactoryTemplateNode(): TemplateNode {
-        val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_FAC_PACKAGE}
+        val template = """package ${'$'}{basePackage}.${'$'}{templatePackage}.${'$'}{package}.${DEFAULT_FAC_PACKAGE}
 
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
@@ -2535,7 +2494,7 @@ class ${'$'}{Entity}Factory : AggregateFactory<${'$'}{Entity}Payload, ${'$'}{Ent
     }
 
     fun resolveDefaultFactoryPayloadTemplateNode(): TemplateNode {
-        val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_FAC_PACKAGE}
+        val template = """package ${'$'}{basePackage}.${'$'}{templatePackage}.${'$'}{package}.${DEFAULT_FAC_PACKAGE}
 
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
@@ -2565,7 +2524,7 @@ data class ${'$'}{Entity}Payload(
     }
 
     fun resolveDefaultSpecificationTemplateNode(): TemplateNode {
-        val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_SPEC_PACKAGE}
+        val template = """package ${'$'}{basePackage}.${'$'}{templatePackage}.${'$'}{package}.${DEFAULT_SPEC_PACKAGE}
 
 import com.only4.cap4k.ddd.core.domain.aggregate.Specification
 import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
@@ -2654,7 +2613,7 @@ class ${'$'}{DomainEvent}Subscriber {
 
     fun resolveDefaultDomainEventTemplateNode(): TemplateNode {
         val template =
-            """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_DOMAIN_EVENT_PACKAGE}
+            """package ${'$'}{basePackage}.${'$'}{templatePackage}.${'$'}{package}.${DEFAULT_DOMAIN_EVENT_PACKAGE}
 
 import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
@@ -2701,7 +2660,7 @@ class ${'$'}{DomainEvent}(
     }
 
     fun resolveDefaultEnumTemplateNode(): TemplateNode {
-        val template = """package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_ENUM_PACKAGE}
+        val template = """package ${'$'}{basePackage}.${'$'}{templatePackage}.${'$'}{package}.${DEFAULT_ENUM_PACKAGE}
 
 import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
 import javax.persistence.AttributeConverter
@@ -2783,12 +2742,9 @@ ${'$'}{ENUM_ITEMS};
 
     fun resolveDefaultSchemaFieldTemplateNode(): TemplateNode {
         val template = """
-    /**
-     * ${'$'}{fieldDescription}
-     * ${'$'}{fieldComment}
-     */
-    fun ${'$'}{fieldName}(): Schema.Field<${'$'}{fieldType}> {
-        return Schema.Field(root.get(${'$'}{Entity}_.${'$'}{fieldName.uppercase()}), criteriaBuilder)
+    ${'$'}{fieldComment}
+    fun ${'$'}{fieldName}(): ${'$'}{SchemaBase}.Field<${'$'}{fieldType}> {
+        return ${'$'}{SchemaBase}.Field(root.get(props.${'$'}{fieldName}), this.criteriaBuilder)
     }
 """
         return TemplateNode().apply {
@@ -2806,7 +2762,7 @@ ${'$'}{ENUM_ITEMS};
         /**
          * ${'$'}{fieldDescription}
          */
-        const val ${'$'}{fieldName}: String = "${'$'}{fieldName}"
+        val ${'$'}{fieldName} = "${'$'}{fieldName}"
 """
         return TemplateNode().apply {
             type = "segment"
@@ -2819,10 +2775,24 @@ ${'$'}{ENUM_ITEMS};
     }
 
     fun resolveDefaultSchemaJoinTemplateNode(): TemplateNode {
-        val template = """"""
+        val joinEntitySchema =
+            getExtension().generation.entitySchemaNameTemplate.get().replace("\${Entity}", "\${joinEntityType}")
+        val template = """
+    /**
+     * ${'$'}{joinEntityType} 关联查询条件定义
+     *
+     * @param joinType
+     * @return
+     */
+    fun join${'$'}{joinEntityType}(joinType: ${'$'}{SchemaBase}.JoinType): ${'$'}{joinEntitySchemaPackage}$joinEntitySchema {
+        val type = joinType.toJpaJoinType()
+        val join = (this.root as Root<${'$'}{Entity}>).join<${'$'}{Entity}, ${'$'}{joinEntityPackage}.${'$'}{joinEntityType}>("${'$'}{joinEntityVars}", type)
+        val schema = ${'$'}{joinEntitySchemaPackage}$joinEntitySchema(join, this.criteriaBuilder)
+        return schema
+    }"""
         return TemplateNode().apply {
             type = "segment"
-            tag = "schema_property_name"
+            tag = "schema_join"
             name = ""
             format = "raw"
             data = template
@@ -2830,23 +2800,593 @@ ${'$'}{ENUM_ITEMS};
         }
     }
 
-    fun resolveDefaultSchemaTemplateNode(isAggregateRoot: Boolean): TemplateNode {
-        val template = """"""
-        return TemplateNode().apply {
-            type = "segment"
-            tag = "schema_property_name"
-            name = ""
-            format = "raw"
-            data = template
-            conflict = "skip"
+    fun resolveDefaultSchemaTemplateNode(): TemplateNode {
+        val ext = getExtension()
+        val entitySchemaNameTemplate = ext.generation.entitySchemaNameTemplate.get()
+        val supportQuerydsl = ext.generation.repositorySupportQuerydsl.get()
+
+        val template = """package ${'$'}{basePackage}.${'$'}{templatePackage}.${'$'}{package}.${DEFAULT_SCHEMA_PACKAGE}
+
+${if (supportQuerydsl) "import com.querydsl.core.types.OrderSpecifier" else ""}
+import com.only4.cap4k.ddd.domain.repo.JpaPredicate
+${if (supportQuerydsl) "import com.only4.cap4k.ddd.domain.repo.querydsl.QuerydslPredicate" else ""}
+import ${'$'}{basePackage}${'$'}{schemaBasePackage}.${'$'}{SchemaBase}
+import ${'$'}{basePackage}${'$'}{entityPackage}.${'$'}{Entity}
+${if (supportQuerydsl) "import ${'$'}{basePackage}${'$'}{entityPackage}.Q${'$'}{Entity}" else ""}
+import org.springframework.data.jpa.domain.Specification
+
+import jakarta.persistence.criteria.*
+import java.util.Arrays
+import java.util.Collections
+import java.util.List
+import java.util.stream.Collectors
+
+/**
+ * ${'$'}{Comment}
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * 警告：请勿手工修改该文件，重新生成会覆盖该文件
+ * @author cap4k-ddd-codegen
+ * @date ${'$'}{date}
+ */
+class $entitySchemaNameTemplate(
+    private val root: Path<${'$'}{Entity}>,
+    private val criteriaBuilder: CriteriaBuilder,
+) {
+
+    companion object {
+        /**
+         * 构建查询条件
+         *
+         * @param builder where条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>): Specification<${'$'}{Entity}> {
+            return specify(builder, false, emptyList())
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder  where条件构造器
+         * @param distinct 是否去重
+         * @return
+         */
+        @JvmStatic
+        fun specify(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>, distinct: Boolean): Specification<${'$'}{Entity}> {
+            return specify(builder, distinct, emptyList())
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       where条件构造器
+         * @param orderBuilders 排序条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(
+            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
+            vararg orderBuilders: ${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>,
+        ): Specification<${'$'}{Entity}> {
+            return specify(builder, orderBuilders.toList())
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       where条件构造器
+         * @param orderBuilders 排序条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(
+            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
+            orderBuilders: List<${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>>,
+        ): Specification<${'$'}{Entity}> {
+            return specify(builder, false, orderBuilders)
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       where条件构造器
+         * @param distinct      是否去重
+         * @param orderBuilders 排序条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(
+            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
+            distinct: Boolean,
+            vararg orderBuilders: ${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>,
+        ): Specification<${'$'}{Entity}> {
+            return specify(builder, distinct, orderBuilders.toList())
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       where条件构造器
+         * @param distinct      是否去重
+         * @param orderBuilders 排序条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(
+            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
+            distinct: Boolean,
+            orderBuilders: List<${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>>,
+        ): Specification<${'$'}{Entity}> {
+            return specify { schema, criteriaQuery, criteriaBuilder ->
+                criteriaQuery.where(builder.build(schema))
+                criteriaQuery.distinct(distinct)
+                if (orderBuilders.isNotEmpty()) {
+                    criteriaQuery.orderBy(orderBuilders.map { it.build(schema) })
+                }
+                null
+            }
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param specifier 查询条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(specifier: ${'$'}{SchemaBase}.Specification<${'$'}{Entity}, $entitySchemaNameTemplate>): Specification<${'$'}{Entity}> {
+            return Specification { root, criteriaQuery, criteriaBuilder ->
+                val schema = $entitySchemaNameTemplate(root, criteriaBuilder)
+                specifier.toPredicate(schema, criteriaQuery, criteriaBuilder)
+            }
+        }
+
+        /**
+         * 构建子查询
+         *
+         * @param resultClass      返回结果类型
+         * @param selectBuilder    select条件构造器
+         * @param predicateBuilder where条件构造器
+         * @param criteriaBuilder
+         * @param criteriaQuery
+         * @param <E>
+         * @return
+         */
+        @JvmStatic
+        fun <E> subquery(
+            resultClass: Class<E>,
+            selectBuilder: ${'$'}{SchemaBase}.ExpressionBuilder<$entitySchemaNameTemplate, E>,
+            predicateBuilder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
+            criteriaBuilder: CriteriaBuilder,
+            criteriaQuery: CriteriaQuery<*>,
+        ): Subquery<E> {
+            return subquery(resultClass, { sq, schema ->
+                sq.select(selectBuilder.build(schema))
+                sq.where(predicateBuilder.build(schema))
+            }, criteriaBuilder, criteriaQuery)
+        }
+
+        /**
+         * 构建子查询
+         *
+         * @param resultClass       返回结果类型
+         * @param subqueryConfigure 子查询配置
+         * @param criteriaBuilder
+         * @param criteriaQuery
+         * @param <E>
+         * @return
+         */
+        @JvmStatic
+        fun <E> subquery(
+            resultClass: Class<E>,
+            subqueryConfigure: ${'$'}{SchemaBase}.SubqueryConfigure<E, $entitySchemaNameTemplate>,
+            criteriaBuilder: CriteriaBuilder,
+            criteriaQuery: CriteriaQuery<*>,
+        ): Subquery<E> {
+            val sq = criteriaQuery.subquery(resultClass)
+            val root = sq.from(${'$'}{Entity}::class.java)
+            val schema = $entitySchemaNameTemplate(root, criteriaBuilder)
+            subqueryConfigure.configure(sq, schema)
+            return sq
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param id 主键
+         * @return
+         */
+        @JvmStatic
+        fun predicateById(id: Any): JpaPredicate<${'$'}{Entity}> {
+            return JpaPredicate.byId(${'$'}{Entity}::class.java, id)
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param ids 主键
+         * @return
+         */
+        @JvmStatic
+        fun predicateByIds(ids: Iterable<*>): JpaPredicate<${'$'}{Entity}> {
+            @Suppress("UNCHECKED_CAST")
+            return JpaPredicate.byIds(${'$'}{Entity}::class.java, ids as Iterable<Any>)
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param ids 主键
+         * @return
+         */
+        @JvmStatic
+        fun predicateByIds(vararg ids: Any): JpaPredicate<${'$'}{Entity}> {
+            return JpaPredicate.byIds(${'$'}{Entity}::class.java, ids.toList())
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder 查询条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>): JpaPredicate<${'$'}{Entity}> {
+            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder))
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder  查询条件构造器
+         * @param distinct 是否去重
+         * @return
+         */
+        @JvmStatic
+        fun predicate(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>, distinct: Boolean): JpaPredicate<${'$'}{Entity}> {
+            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct))
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       查询条件构造器
+         * @param orderBuilders 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(
+            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
+            orderBuilders: List<${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>>,
+        ): JpaPredicate<${'$'}{Entity}> {
+            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, false, orderBuilders))
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       查询条件构造器
+         * @param orderBuilders 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(
+            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
+            vararg orderBuilders: ${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>,
+        ): JpaPredicate<${'$'}{Entity}> {
+            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, false, *orderBuilders))
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       查询条件构造器
+         * @param distinct      是否去重
+         * @param orderBuilders 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(
+            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
+            distinct: Boolean,
+            orderBuilders: List<${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>>,
+        ): JpaPredicate<${'$'}{Entity}> {
+            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct, orderBuilders))
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       查询条件构造器
+         * @param distinct      是否去重
+         * @param orderBuilders 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(
+            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
+            distinct: Boolean,
+            vararg orderBuilders: ${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>,
+        ): JpaPredicate<${'$'}{Entity}> {
+            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct, *orderBuilders))
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param specifier 查询条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(specifier: ${'$'}{SchemaBase}.Specification<${'$'}{Entity}, $entitySchemaNameTemplate>): JpaPredicate<${'$'}{Entity}> {
+            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(specifier))
+        }
+
+${
+            if (supportQuerydsl) """
+        /**
+         * 构建querydsl查询条件
+         *
+         * @param filterBuilder          查询条件构造器
+         * @param orderSpecifierBuilders 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun querydsl(
+            filterBuilder: java.util.function.Function<Q${'$'}{Entity}, com.querydsl.core.types.Predicate>,
+            vararg orderSpecifierBuilders: java.util.function.Function<Q${'$'}{Entity}, OrderSpecifier<*>>,
+        ): QuerydslPredicate<${'$'}{Entity}> {
+            return QuerydslPredicate.of(${'$'}{Entity}::class.java)
+                .where(filterBuilder.apply(Q${'$'}{Entity}.${'$'}{EntityVar}))
+                .orderBy(*orderSpecifierBuilders.map { it.apply(Q${'$'}{Entity}.${'$'}{EntityVar}) }.toTypedArray())
+        }
+
+        /**
+         * 构建querydsl查询条件
+         *
+         * @param filter          查询条件构造器
+         * @param orderSpecifiers 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun querydsl(
+            filter: com.querydsl.core.types.Predicate,
+            vararg orderSpecifiers: OrderSpecifier<*>,
+        ): QuerydslPredicate<${'$'}{Entity}> {
+            return QuerydslPredicate.of(${'$'}{Entity}::class.java)
+                .where(filter)
+                .orderBy(*orderSpecifiers)
+        }
+""" else ""
         }
     }
 
-    fun resolveDefaultRootSchemaExtraExtenstionTemplateNode(generateAggregate: Boolean): TemplateNode {
-        val template = """"""
+    fun _criteriaBuilder(): CriteriaBuilder = criteriaBuilder
+
+    fun _root(): Path<${'$'}{Entity}> = root
+
+${'$'}{FIELD_ITEMS}
+
+    /**
+     * 满足所有条件
+     * @param restrictions
+     * @return
+     */
+    fun all(vararg restrictions: Predicate): Predicate {
+        return criteriaBuilder.and(*restrictions)
+    }
+
+    /**
+     * 满足任一条件
+     * @param restrictions
+     * @return
+     */
+    fun any(vararg restrictions: Predicate): Predicate {
+        return criteriaBuilder.or(*restrictions)
+    }
+
+    /**
+     * 指定条件
+     * @param builder
+     * @return
+     */
+    fun spec(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>): Predicate {
+        return builder.build(this)
+    }
+
+${'$'}{JOIN_ITEMS}
+}
+"""
+        return TemplateNode().apply {
+            type = "file"
+            tag = "schema"
+            name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_SCHEMA_PACKAGE}${'$'}{SEPARATOR}$entitySchemaNameTemplate.kt"
+            format = "raw"
+            data = template
+            conflict = "overwrite"
+        }
+    }
+
+    fun resolveDefaultRootSchemaExtraExtensionTemplateNode(generateAggregate: Boolean): TemplateNode {
+        val ext = getExtension()
+        val entitySchemaNameTemplate = ext.generation.entitySchemaNameTemplate.get()
+        val supportQuerydsl = ext.generation.repositorySupportQuerydsl.get()
+
+        var template = """
+    /**
+     * 构建查询条件
+     *
+     * @param id 主键
+     * @return
+     */
+    @JvmStatic
+    fun predicateById(id: Any): JpaPredicate<${'$'}{Entity}> {
+        return JpaPredicate.byId(${'$'}{Entity}::class.java, id)
+    }
+
+    /**
+     * 构建查询条件
+     *
+     * @param ids 主键
+     * @return
+     */
+    @JvmStatic
+    fun predicateByIds(ids: Iterable<*>): JpaPredicate<${'$'}{Entity}> {
+        @Suppress("UNCHECKED_CAST")
+        return JpaPredicate.byIds(${'$'}{Entity}::class.java, ids as Iterable<Any>)
+    }
+
+    /**
+     * 构建查询条件
+     *
+     * @param ids 主键
+     * @return
+     */
+    @JvmStatic
+    fun predicateByIds(vararg ids: Any): JpaPredicate<${'$'}{Entity}> {
+        return JpaPredicate.byIds(${'$'}{Entity}::class.java, ids.toList())
+    }
+
+    /**
+     * 构建查询条件
+     *
+     * @param builder 查询条件构造器
+     * @return
+     */
+    @JvmStatic
+    fun predicate(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>): JpaPredicate<${'$'}{Entity}> {
+        return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder))
+    }
+
+    /**
+     * 构建查询条件
+     *
+     * @param builder  查询条件构造器
+     * @param distinct 是否去重
+     * @return
+     */
+    @JvmStatic
+    fun predicate(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>, distinct: Boolean): JpaPredicate<${'$'}{Entity}> {
+        return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct))
+    }
+
+    /**
+     * 构建查询条件
+     *
+     * @param builder       查询条件构造器
+     * @param orderBuilders 排序构造器
+     * @return
+     */
+    @JvmStatic
+    fun predicate(
+        builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
+        orderBuilders: List<${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>>,
+    ): JpaPredicate<${'$'}{Entity}> {
+        return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, false, orderBuilders))
+    }
+
+    /**
+     * 构建查询条件
+     *
+     * @param builder       查询条件构造器
+     * @param orderBuilders 排序构造器
+     * @return
+     */
+    @JvmStatic
+    fun predicate(
+        builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
+        vararg orderBuilders: ${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>,
+    ): JpaPredicate<${'$'}{Entity}> {
+        return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, false, *orderBuilders))
+    }
+
+    /**
+     * 构建查询条件
+     *
+     * @param builder       查询条件构造器
+     * @param distinct      是否去重
+     * @param orderBuilders 排序构造器
+     * @return
+     */
+    @JvmStatic
+    fun predicate(
+        builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
+        distinct: Boolean,
+        orderBuilders: List<${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>>,
+    ): JpaPredicate<${'$'}{Entity}> {
+        return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct, orderBuilders))
+    }
+
+    /**
+     * 构建查询条件
+     *
+     * @param builder       查询条件构造器
+     * @param distinct      是否去重
+     * @param orderBuilders 排序构造器
+     * @return
+     */
+    @JvmStatic
+    fun predicate(
+        builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
+        distinct: Boolean,
+        vararg orderBuilders: ${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>,
+    ): JpaPredicate<${'$'}{Entity}> {
+        return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct, *orderBuilders))
+    }
+
+    /**
+     * 构建查询条件
+     *
+     * @param specifier 查询条件构造器
+     * @return
+     */
+    @JvmStatic
+    fun predicate(specifier: ${'$'}{SchemaBase}.Specification<${'$'}{Entity}, $entitySchemaNameTemplate>): JpaPredicate<${'$'}{Entity}> {
+        return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(specifier))
+    }"""
+
+        if (supportQuerydsl) {
+            template += """
+
+    /**
+     * 构建querydsl查询条件
+     *
+     * @param filterBuilder          查询条件构造器
+     * @param orderSpecifierBuilders 排序构造器
+     * @return
+     */
+    @JvmStatic
+    fun querydsl(
+        filterBuilder: java.util.function.Function<Q${'$'}{Entity}, com.querydsl.core.types.Predicate>,
+        vararg orderSpecifierBuilders: java.util.function.Function<Q${'$'}{Entity}, OrderSpecifier<*>>,
+    ): QuerydslPredicate<${'$'}{Entity}> {
+        return QuerydslPredicate.of(${'$'}{Entity}::class.java)
+            .where(filterBuilder.apply(Q${'$'}{Entity}.${'$'}{EntityVar}))
+            .orderBy(*orderSpecifierBuilders.map { it.apply(Q${'$'}{Entity}.${'$'}{EntityVar}) }.toTypedArray())
+    }
+
+    /**
+     * 构建querydsl查询条件
+     *
+     * @param filter          查询条件构造器
+     * @param orderSpecifiers 排序构造器
+     * @return
+     */
+    @JvmStatic
+    fun querydsl(
+        filter: com.querydsl.core.types.Predicate,
+        vararg orderSpecifiers: OrderSpecifier<*>,
+    ): QuerydslPredicate<${'$'}{Entity}> {
+        return QuerydslPredicate.of(${'$'}{Entity}::class.java)
+            .where(filter)
+            .orderBy(*orderSpecifiers)
+    }"""
+        }
+
         return TemplateNode().apply {
             type = "segment"
-            tag = "schema_property_name"
+            tag = "root_schema_extra_extension"
             name = ""
             format = "raw"
             data = template
@@ -2855,14 +3395,218 @@ ${'$'}{ENUM_ITEMS};
     }
 
     fun resolveDefaultSchemaBaseTemplateNode(): TemplateNode {
-        val template = """"""
+        val template =
+            """
+            package ${'$'}{basePackage}.${'$'}{templatePackage}
+
+            import jakarta.persistence.criteria.*
+            import org.hibernate.query.sqm.SortOrder
+            import org.hibernate.query.sqm.tree.domain.SqmBasicValuedSimplePath
+            import org.hibernate.query.sqm.tree.select.SqmSortSpecification
+
+            /**
+             * 实体结构基类
+             *
+             * @author cap4k-ddd-codegen
+             */
+            object ${'$'}{SchemaBase} {
+            
+                fun interface Specification<E, S> {
+                    fun toPredicate(schema: S, criteriaQuery: CriteriaQuery<*>, criteriaBuilder: CriteriaBuilder): Predicate?
+                }
+            
+                fun interface SubqueryConfigure<E, S> {
+                    fun configure(subquery: Subquery<E>, schema: S)
+                }
+            
+                /**
+                 * 表达式构建器
+                 */
+                fun interface ExpressionBuilder<S, T> {
+                    fun build(schema: S): Expression<T>
+                }
+            
+                /**
+                 * 断言构建器
+                 */
+                fun interface PredicateBuilder<S> {
+                    fun build(schema: S): Predicate
+                }
+            
+                /**
+                 * 排序构建器
+                 */
+                fun interface OrderBuilder<S> {
+                    fun build(schema: S): Order
+                }
+            
+                enum class JoinType {
+                    INNER,
+                    LEFT,
+                    RIGHT;
+            
+                    fun toJpaJoinType(): jakarta.persistence.criteria.JoinType {
+                        return when (this) {
+                            INNER -> jakarta.persistence.criteria.JoinType.INNER
+                            LEFT -> jakarta.persistence.criteria.JoinType.LEFT
+                            RIGHT -> jakarta.persistence.criteria.JoinType.RIGHT
+                        }
+                    }
+                }
+            
+                /**
+                 * 字段
+                 *
+                 * @param <T>
+                 */
+                @Suppress("UNCHECKED_CAST")
+                class Field<T> {
+                    private val path: Path<T>?
+                    private val criteriaBuilder: CriteriaBuilder?
+                    private val name: String?
+            
+                    constructor(path: Path<T>, criteriaBuilder: CriteriaBuilder) {
+                        this.path = path
+                        this.criteriaBuilder = criteriaBuilder
+                        this.name = if (path is SqmBasicValuedSimplePath<*>) {
+                            path.navigablePath.localName
+                        } else null
+                    }
+            
+                    constructor(name: String) {
+                        this.name = name
+                        this.path = null
+                        this.criteriaBuilder = null
+                    }
+            
+                    protected fun _criteriaBuilder(): CriteriaBuilder? = criteriaBuilder
+            
+                    fun path(): Path<T>? = path
+            
+                    override fun toString(): String = name ?: ""
+            
+                    fun asc(): Order = SqmSortSpecification(path as SqmBasicValuedSimplePath<T>, SortOrder.ASCENDING)
+            
+                    fun desc(): Order = SqmSortSpecification(path as SqmBasicValuedSimplePath<T>, SortOrder.DESCENDING)
+            
+                    fun isTrue(): Predicate = criteriaBuilder!!.isTrue(path as Expression<Boolean>)
+            
+                    fun isFalse(): Predicate = criteriaBuilder!!.isFalse(path as Expression<Boolean>)
+            
+                    fun isEmpty(): Predicate = criteriaBuilder!!.isEmpty(path as Expression<Collection<*>>)
+            
+                    fun isNotEmpty(): Predicate = criteriaBuilder!!.isNotEmpty(path as Expression<Collection<*>>)
+            
+                    fun equal(value: Any?): Predicate = criteriaBuilder!!.equal(path, value)
+            
+                    fun equal(value: Expression<*>): Predicate = criteriaBuilder!!.equal(path, value)
+            
+                    fun notEqual(value: Any?): Predicate = criteriaBuilder!!.notEqual(path, value)
+            
+                    fun notEqual(value: Expression<*>): Predicate = criteriaBuilder!!.notEqual(path, value)
+            
+                    fun isNull(): Predicate = criteriaBuilder!!.isNull(path)
+            
+                    fun isNotNull(): Predicate = criteriaBuilder!!.isNotNull(path)
+            
+                    fun <Y : Comparable<Y>> greaterThan(value: Y): Predicate =
+                        criteriaBuilder!!.greaterThan(path as Expression<Y>, value)
+            
+                    fun <Y : Comparable<Y>> greaterThan(value: Expression<out Y>): Predicate =
+                        criteriaBuilder!!.greaterThan(path as Expression<Y>, value)
+            
+                    fun <Y : Comparable<Y>> greaterThanOrEqualTo(value: Y): Predicate =
+                        criteriaBuilder!!.greaterThanOrEqualTo(path as Expression<Y>, value)
+            
+                    fun <Y : Comparable<Y>> greaterThanOrEqualTo(value: Expression<out Y>): Predicate =
+                        criteriaBuilder!!.greaterThanOrEqualTo(path as Expression<Y>, value)
+            
+                    fun <Y : Comparable<Y>> lessThan(value: Y): Predicate =
+                        criteriaBuilder!!.lessThan(path as Expression<Y>, value)
+            
+                    fun <Y : Comparable<Y>> lessThan(value: Expression<out Y>): Predicate =
+                        criteriaBuilder!!.lessThan(path as Expression<Y>, value)
+            
+                    fun <Y : Comparable<Y>> lessThanOrEqualTo(value: Y): Predicate =
+                        criteriaBuilder!!.lessThanOrEqualTo(path as Expression<Y>, value)
+            
+                    fun <Y : Comparable<Y>> lessThanOrEqualTo(value: Expression<out Y>): Predicate =
+                        criteriaBuilder!!.lessThanOrEqualTo(path as Expression<Y>, value)
+            
+                    fun <Y : Comparable<Y>> between(value1: Y, value2: Y): Predicate =
+                        criteriaBuilder!!.between(path as Expression<Y>, value1, value2)
+            
+                    fun <Y : Comparable<Y>> between(value1: Expression<out Y>, value2: Expression<out Y>): Predicate =
+                        criteriaBuilder!!.between(path as Expression<Y>, value1, value2)
+            
+                    fun `in`(vararg values: Any?): Predicate = `in`(listOf(*values))
+            
+                    fun `in`(values: Collection<*>): Predicate {
+                        val predicate = criteriaBuilder!!.`in`(path)
+                        values.forEach { value ->
+                            @Suppress("UNCHECKED_CAST")
+                            predicate.value(value as T)
+                        }
+                        return predicate
+                    }
+            
+                    fun `in`(vararg expressions: Expression<*>): Predicate {
+                        val predicate = criteriaBuilder!!.`in`(path)
+                        expressions.forEach { expression ->
+                            @Suppress("UNCHECKED_CAST")
+                            predicate.value(expression as Expression<out T>)
+                        }
+                        return predicate
+                    }
+            
+                    fun notIn(vararg values: Any?): Predicate = notIn(listOf(*values))
+            
+                    fun notIn(values: Collection<*>): Predicate = criteriaBuilder!!.not(`in`(values))
+            
+                    fun notIn(vararg expressions: Expression<*>): Predicate = criteriaBuilder!!.not(`in`(*expressions))
+            
+                    fun like(value: String): Predicate = criteriaBuilder!!.like(path as Expression<String>, value)
+            
+                    fun like(value: Expression<String>): Predicate = criteriaBuilder!!.like(path as Expression<String>, value)
+            
+                    fun notLike(value: String): Predicate = criteriaBuilder!!.notLike(path as Expression<String>, value)
+            
+                    fun notLike(value: Expression<String>): Predicate = criteriaBuilder!!.notLike(path as Expression<String>, value)
+            
+                    // 简化方法名
+                    fun eq(value: Any?): Predicate = equal(value)
+            
+                    fun eq(value: Expression<*>): Predicate = equal(value)
+            
+                    fun neq(value: Any?): Predicate = notEqual(value)
+            
+                    fun neq(value: Expression<*>): Predicate = notEqual(value)
+            
+                    fun <Y : Comparable<Y>> gt(value: Y): Predicate = greaterThan(value)
+            
+                    fun <Y : Comparable<Y>> gt(value: Expression<out Y>): Predicate = greaterThan(value)
+            
+                    fun <Y : Comparable<Y>> ge(value: Y): Predicate = greaterThanOrEqualTo(value)
+            
+                    fun <Y : Comparable<Y>> ge(value: Expression<out Y>): Predicate = greaterThanOrEqualTo(value)
+            
+                    fun <Y : Comparable<Y>> lt(value: Y): Predicate = lessThan(value)
+            
+                    fun <Y : Comparable<Y>> lt(value: Expression<out Y>): Predicate = lessThan(value)
+            
+                    fun <Y : Comparable<Y>> le(value: Y): Predicate = lessThanOrEqualTo(value)
+            
+                    fun <Y : Comparable<Y>> le(value: Expression<out Y>): Predicate = lessThanOrEqualTo(value)
+                }
+            }
+            """.trimIndent()
         return TemplateNode().apply {
-            type = "segment"
-            tag = "schema_property_name"
-            name = ""
+            type = "file"
+            tag = "schema_base"
+            name = "${'$'}{SchemaBase}.kt"
             format = "raw"
             data = template
-            conflict = "skip"
+            conflict = "overwrite"
         }
     }
 }

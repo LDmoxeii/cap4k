@@ -1,5 +1,247 @@
 {
   "type": "root",
+  "templates": [
+    {
+      "type": "dir",
+      "tag": "command",
+      "name": "${path}",
+      "children": [
+        {
+          "type": "file",
+          "name": "${Command}.java",
+          "format": "url",
+          "data": "template/_tpl/nested/Command.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "saga",
+      "name": "${path}",
+      "children": [
+        {
+          "type": "file",
+          "name": "${Saga}.java",
+          "format": "url",
+          "data": "template/_tpl/nested/Saga.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "query",
+      "name": "${path}",
+      "pattern": "^(?!.*(List|list|Page|page)).*$",
+      "children": [
+        {
+          "type": "file",
+          "name": "${Query}.java",
+          "format": "url",
+          "data": "template/_tpl/nested/Query.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "query",
+      "name": "${path}",
+      "pattern": "^.*(List|list).*$",
+      "children": [
+        {
+          "type": "file",
+          "name": "${Query}.java",
+          "format": "url",
+          "data": "template/_tpl/nested/QueryList.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "query",
+      "name": "${path}",
+      "pattern": "^.*(Page|page).*$",
+      "children": [
+        {
+          "type": "file",
+          "name": "${Query}.java",
+          "format": "url",
+          "data": "template/_tpl/nested/QueryPage.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "query_handler",
+      "name": "",
+      "pattern": "^(?!.*(List|list|Page|page)).*$",
+      "children": [
+        {
+          "type": "file",
+          "name": "${Query}Handler.java",
+          "format": "url",
+          "data": "template/_tpl/nested/QueryHandler.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "query_handler",
+      "name": "",
+      "pattern": "^.*(List|list).*$",
+      "children": [
+        {
+          "type": "file",
+          "name": "${Query}Handler.java",
+          "format": "url",
+          "data": "template/_tpl/nested/QueryListHandler.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "query_handler",
+      "name": "",
+      "pattern": "^.*(Page|page).*$",
+      "children": [
+        {
+          "type": "file",
+          "name": "${Query}Handler.java",
+          "format": "url",
+          "data": "template/_tpl/nested/QueryPageHandler.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "client",
+      "name": "${path}",
+      "children": [
+        {
+          "type": "file",
+          "name": "${Client}.java",
+          "format": "url",
+          "data": "template/_tpl/nested/Client.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "client_handler",
+      "name": "${path}",
+      "children": [
+        {
+          "type": "file",
+          "name": "${Client}Handler.java",
+          "format": "url",
+          "data": "template/_tpl/nested/ClientHandler.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "integration_event",
+      "name": "",
+      "children": [
+        {
+          "type": "file",
+          "name": "${IntegrationEvent}.java",
+          "format": "url",
+          "data": "template/_tpl/nested/IntegrationEvent.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "integration_event_handler",
+      "name": "",
+      "children": [
+        {
+          "type": "file",
+          "name": "${IntegrationEvent}Subscriber.java",
+          "format": "url",
+          "data": "template/_tpl/nested/IntegrationEventHandler.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "domain_event",
+      "name": "${path}${SEPARATOR}events",
+      "children": [
+        {
+          "type": "file",
+          "name": "${DomainEvent}.java",
+          "format": "url",
+          "data": "template/_tpl/nested/DomainEvent.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "domain_event_handler",
+      "name": "",
+      "children": [
+        {
+          "type": "file",
+          "name": "${DomainEvent}Subscriber.java",
+          "format": "url",
+          "data": "template/_tpl/nested/DomainEventHandler.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "aggregate",
+      "name": "${path}",
+      "children": [
+        {
+          "type": "file",
+          "name": "${aggregateNameTemplate}.java",
+          "format": "url",
+          "data": "template/_tpl/nested/Aggregate.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "factory",
+      "name": "${path}${SEPARATOR}factory",
+      "children": [
+        {
+          "type": "file",
+          "name": "${Entity}Factory.java",
+          "format": "url",
+          "data": "template/_tpl/nested/Factory.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "specification",
+      "name": "${path}${SEPARATOR}specs",
+      "children": [
+        {
+          "type": "file",
+          "name": "${Entity}Specification.java",
+          "format": "url",
+          "data": "template/_tpl/nested/Specification.java"
+        }
+      ]
+    },
+    {
+      "type": "dir",
+      "tag": "domain_service",
+      "name": "${path}",
+      "children": [
+        {
+          "type": "file",
+          "name": "${DomainService}.java",
+          "format": "url",
+          "data": "template/_tpl/nested/DomainService.java"
+        }
+      ]
+    }
+  ],
   "children": [
     {
       "type": "dir",

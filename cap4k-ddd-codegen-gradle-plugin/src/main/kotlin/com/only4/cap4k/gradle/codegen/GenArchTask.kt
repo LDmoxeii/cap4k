@@ -3,6 +3,7 @@ package com.only4.cap4k.gradle.codegen
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
+import java.nio.charset.Charset
 
 /**
  * 生成项目架构结构任务
@@ -26,12 +27,16 @@ open class GenArchTask : AbstractCodegenTask() {
     override val projectDir: Property<String> = project.objects.property(String::class.java)
 
     @TaskAction
-    fun generate() {
+    open fun generate() {
+        genArch()
+    }
+
+    private fun genArch() {
         logger.info("生成项目架构结构...")
 
         val ext = getExtension()
 
-        logger.info("当前系统默认编码：${java.nio.charset.Charset.defaultCharset().name()}")
+        logger.info("当前系统默认编码：${Charset.defaultCharset().name()}")
         logger.info("设置模板读取编码：${ext.archTemplateEncoding.get()} (from archTemplateEncoding)")
         logger.info("设置输出文件编码：${ext.outputEncoding.get()} (from outputEncoding)")
         logger.info("基础包名：${ext.basePackage.get()}")

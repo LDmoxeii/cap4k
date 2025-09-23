@@ -274,7 +274,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
 
         if (pathNode.tag.isNullOrBlank()) return path
 
-        pathNode.tag!!.split(PATTERN_SPLITTER)
+        pathNode.tag!!.split(Regex(PATTERN_SPLITTER))
             .forEach { tag ->
                 renderTemplate(template!!.select(tag), path)
             }

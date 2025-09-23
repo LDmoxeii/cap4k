@@ -114,56 +114,34 @@ object SqlSchemaUtils4Mysql {
         }
     }
 
-    fun getColumnDefaultLiteral(column: Map<String, Any?>): String {
-        val columnDefault = column["COLUMN_DEFAULT"] as String? ?: return "null"
+    fun getColumnDefaultLiteral(column: Map<String, Any?>): String? {
+        val columnDefault = column["COLUMN_DEFAULT"] as String? ?: return null
         return when (SqlSchemaUtils.getColumnType(column)) {
-            "String" -> {
-                if (columnDefault.isNotEmpty()) {
-                    return "\"${columnDefault.replace("\"", "\\\"")}\""
-                }
-                return "\"\""
-            }
+            "String" -> "\"${columnDefault.replace("\"", "\\\"")}\""
 
-            "Int", "Short", "Byte", "Float", "Double" -> {
-                if (columnDefault.isNotEmpty()) {
-                    return columnDefault
-                }
-                return "0"
-            }
+            "Int", "Short", "Byte", "Float", "Double" -> columnDefault
 
-            "Long" -> {
-                if (columnDefault.isNotEmpty()) {
-                    return columnDefault + "L"
-                }
-                return "0L"
-            }
+            "Long" -> columnDefault + "L"
 
             "Boolean" -> {
-                if (columnDefault.isNotEmpty()) {
-                    if (columnDefault.trim().equals("b'1'", ignoreCase = true)) {
-                        return "true"
-                    }
-                    if (columnDefault.trim().equals("b'0'", ignoreCase = true)) {
-                        return "false"
-                    }
-                    if (columnDefault.trim() == "1") {
-                        return "true"
-                    }
-                    if (columnDefault.trim() == "0") {
-                        return "false"
-                    }
+                if (columnDefault.trim().equals("b'1'", ignoreCase = true)) {
+                    "true"
                 }
-                "false"
+                if (columnDefault.trim().equals("b'0'", ignoreCase = true)) {
+                    "false"
+                }
+                if (columnDefault.trim() == "1") {
+                    "true"
+                }
+                if (columnDefault.trim() == "0") {
+                    "false"
+                }
+                null
             }
 
-            "java.math.BigDecimal" -> {
-                if (columnDefault.isNotEmpty()) {
-                    return "java.math.BigDecimal(\"${columnDefault}\")"
-                }
-                return "java.math.BigDecimal.ZERO"
-            }
+            "java.math.BigDecimal" -> "java.math.BigDecimal(\"${columnDefault}\")"
 
-            else -> ""
+            else -> null
         }
     }
 
@@ -206,7 +184,7 @@ object SqlSchemaUtils4Mysql {
         (column["COLUMN_KEY"].toString()).equals("PRI", ignoreCase = true)
 
     fun getComment(tableOrColumn: Map<String, Any?>, cleanAnnotations: Boolean): String {
-        val comment = if (tableOrColumn.containsKey("TABLE_COMMENT")) {
+        var comment = if (tableOrColumn.containsKey("TABLE_COMMENT")) {
             tableOrColumn["TABLE_COMMENT"] as String? ?: ""
         } else if (tableOrColumn.containsKey("COLUMN_COMMENT")) {
             tableOrColumn["COLUMN_COMMENT"] as String? ?: ""
@@ -214,10 +192,10 @@ object SqlSchemaUtils4Mysql {
             ""
         }
 
-        return if (cleanAnnotations) {
-            SqlSchemaUtils.ANNOTATION_PATTERN.matcher(comment).replaceAll("")
-        } else {
-            comment.trim()
+        if (cleanAnnotations) {
+            comment = SqlSchemaUtils.ANNOTATION_PATTERN.matcher(comment).replaceAll("")
         }
+
+        return comment.trim()
     }
 }
