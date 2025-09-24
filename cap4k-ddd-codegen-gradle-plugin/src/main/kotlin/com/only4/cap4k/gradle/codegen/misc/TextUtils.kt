@@ -19,6 +19,15 @@ object TextUtils {
     }
 
     /**
+     * 使用指定分隔符分割字符串并去除空白，限制分割数量
+     */
+    fun splitWithTrim(text: String, delimiter: String, limit: Int): Array<String> {
+        return text.split(Regex(delimiter), limit)
+            .map { it.trim() }
+            .toTypedArray()
+    }
+
+    /**
      * 转义HTML字符
      */
     fun escapeHtml(text: String): String {
