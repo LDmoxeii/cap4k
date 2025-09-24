@@ -6,6 +6,9 @@ import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.LEFT_QUOTES_4_LITERAL_
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.RIGHT_QUOTES_4_LITERAL_STRING
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.executeQuery
+import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.getType
+import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.hasEnum
+import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.hasType
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.task
 
 
@@ -61,7 +64,7 @@ object SqlSchemaUtils4Mysql {
             return task!!.extension.get().generation.typeRemapping.get()[dataType]!!
         }
 
-        return when (dataType) {
+        val baseType = when (dataType) {
             "char", "varchar", "text", "mediumtext", "longtext" -> "String"
             "datetime", "timestamp" -> {
                 if ("java.time".equals(task!!.extension.get().generation.datePackage.get(), ignoreCase = true)) {
@@ -94,17 +97,13 @@ object SqlSchemaUtils4Mysql {
             "tinyint" -> {
                 if (".deleted.".contains(".${columnName}.")) {
                     "Boolean"
-                }
-                if (task!!.extension.get().generation.deletedField.get().equals(columnName, ignoreCase = true)) {
+                } else if (task!!.extension.get().generation.deletedField.get().equals(columnName, ignoreCase = true)) {
                     "Boolean"
-                }
-                if (columnType.equals("tinyint(1)", ignoreCase = true)) {
+                } else if (columnType.equals("tinyint(1)", ignoreCase = true)) {
                     "Boolean"
-                }
-                if (comment.contains("是否")) {
+                } else if (comment.contains("是否")) {
                     "Boolean"
-                }
-                "Byte"
+                } else "Byte"
             }
 
             "float" -> "Float"
@@ -112,36 +111,107 @@ object SqlSchemaUtils4Mysql {
             "decimal", "numeric" -> "java.math.BigDecimal"
             else -> throw IllegalArgumentException("Unsupported DATA_TYPE: ${column["DATA_TYPE"]}")
         }
+
+        return if (isColumnNullable(column)) {
+            "$baseType?"
+        } else baseType
     }
 
-    fun getColumnDefaultLiteral(column: Map<String, Any?>): String? {
-        val columnDefault = column["COLUMN_DEFAULT"] as String? ?: return null
-        return when (SqlSchemaUtils.getColumnType(column)) {
-            "String" -> "\"${columnDefault.replace("\"", "\\\"")}\""
+    fun getColumnDefaultLiteral(column: Map<String, Any?>): String {
+        val columnDefault = column["COLUMN_DEFAULT"] as String?
+        val columnType = SqlSchemaUtils.getColumnType(column)
 
-            "Int", "Short", "Byte", "Float", "Double" -> columnDefault
-
-            "Long" -> columnDefault + "L"
-
-            "Boolean" -> {
-                if (columnDefault.trim().equals("b'1'", ignoreCase = true)) {
-                    "true"
+        if (hasType(column)) {
+            val customerType = getType(column)
+            if (hasEnum(column) && task!!.enumPackageMap.containsKey(customerType)) {
+                if (columnType.contains("?")) {
+                    if (columnDefault.isNullOrEmpty()) {
+                        return "null"
+                    }
+                    return "${task!!.enumPackageMap[customerType]}.$customerType.valueOf(${columnDefault})"
+                } else {
+                    if (columnDefault.isNullOrEmpty()) {
+                        throw IllegalArgumentException(
+                            "Enum type $customerType column ${
+                                SqlSchemaUtils.getColumnName(
+                                    column
+                                )
+                            } can not have null default value"
+                        )
+                    }
+                    return "${task!!.enumPackageMap[customerType]}.$customerType.valueOf(${columnDefault})"
                 }
-                if (columnDefault.trim().equals("b'0'", ignoreCase = true)) {
-                    "false"
-                }
-                if (columnDefault.trim() == "1") {
-                    "true"
-                }
-                if (columnDefault.trim() == "0") {
-                    "false"
-                }
-                null
+            }
+            return customerType
+        }
+        return when (columnType) {
+            "String" -> {
+                if (columnDefault.isNullOrEmpty()) """"""""
+                else """"$columnDefault""""
             }
 
-            "java.math.BigDecimal" -> "java.math.BigDecimal(\"${columnDefault}\")"
+            "String?" -> {
+                if (columnDefault.isNullOrEmpty()) "null"
+                else """"$columnDefault""""
+            }
 
-            else -> null
+            "Int", "Short", "Byte", "Float", "Double" -> {
+                if (columnDefault.isNullOrEmpty()) "0"
+                else columnDefault
+            }
+
+            "Int?", "Short?", "Byte?", "Float?", "Double?" -> {
+                if (columnDefault.isNullOrEmpty()) "null"
+                else columnDefault
+            }
+
+            "Long" -> {
+                if (columnDefault.isNullOrEmpty()) "0L"
+                else "${columnDefault}L"
+            }
+
+            "Long?" -> {
+                if (columnDefault.isNullOrEmpty()) "null"
+                else "${columnDefault}L"
+            }
+
+            "Boolean" -> {
+                if (columnDefault.isNullOrEmpty()) "false"
+                else if (columnDefault.trim().equals("b'1'", ignoreCase = true)) {
+                    "true"
+                } else if (columnDefault.trim().equals("b'0'", ignoreCase = true)) {
+                    "false"
+                } else if (columnDefault.trim() == "1") {
+                    "true"
+                } else {
+                    "false"
+                }
+            }
+
+            "Boolean?" -> {
+                if (columnDefault.isNullOrEmpty()) "null"
+                else if (columnDefault.trim().equals("b'1'", ignoreCase = true)) {
+                    "true"
+                } else if (columnDefault.trim().equals("b'0'", ignoreCase = true)) {
+                    "false"
+                } else if (columnDefault.trim() == "1") {
+                    "true"
+                } else {
+                    "false"
+                }
+            }
+
+            "java.math.BigDecimal" -> {
+                if (columnDefault.isNullOrEmpty()) "java.math.BigDecimal.ZERO"
+                else """java.math.BigDecimal("$columnDefault")"""
+            }
+
+            "java.math.BigDecimal?" -> {
+                if (columnDefault.isNullOrEmpty()) "null"
+                else """java.math.BigDecimal("$columnDefault")"""
+            }
+
+            else -> "null"
         }
     }
 

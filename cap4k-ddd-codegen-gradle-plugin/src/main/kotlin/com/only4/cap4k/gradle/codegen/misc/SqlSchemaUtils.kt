@@ -129,7 +129,8 @@ object SqlSchemaUtils {
         if (hasType(column)) {
             val customerType = getType(column)
             if (hasEnum(column) && task!!.enumPackageMap.containsKey(customerType)) {
-                return "${task!!.enumPackageMap[customerType]!!}.$customerType"
+                return if (isColumnNullable(column)) "${task!!.enumPackageMap[customerType]!!}.$customerType?"
+                else "${task!!.enumPackageMap[customerType]!!}.$customerType"
             }
             return customerType
         }
@@ -141,7 +142,7 @@ object SqlSchemaUtils {
         }
     }
 
-    fun getColumnDefaultLiteral(column: Map<String, Any?>): String? {
+    fun getColumnDefaultLiteral(column: Map<String, Any?>): String {
         return when (task!!.dbType) {
             DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getColumnDefaultLiteral(column)
             DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
@@ -361,9 +362,9 @@ object SqlSchemaUtils {
         val enumsConfig = getAnyAnnotation(columnOrTable, listOf("Enum", "E"))
         val result = mutableMapOf<Int, Array<String>>()
         if (enumsConfig.isNotBlank()) {
-            val enumsConfigs = enumsConfig.splitWithTrim("\\|")
+            val enumsConfigs = enumsConfig.splitWithTrim("|")
             enumsConfigs.forEachIndexed { i, it ->
-                val pair = it.split("\\:")
+                val pair = it.split(":")
                     .map { c ->
                         c.trim()
                             .replace("\n", "")

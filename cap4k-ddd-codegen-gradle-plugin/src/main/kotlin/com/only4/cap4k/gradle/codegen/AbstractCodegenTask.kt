@@ -174,7 +174,6 @@ abstract class AbstractCodegenTask : DefaultTask() {
         context["enumUnmatchedThrowException"] = ext.generation.enumUnmatchedThrowException.get().toString()
         context["datePackage"] = ext.generation.datePackage.get()
         context["typeRemapping"] = stringfyTypeRemapping()
-        context["generateDefault"] = ext.generation.generateDefault.get().toString()
         context["generateDbType"] = ext.generation.generateDbType.get().toString()
         context["generateSchema"] = ext.generation.generateSchema.get().toString()
         context["generateAggregate"] = ext.generation.generateAggregate.get().toString()
@@ -194,20 +193,6 @@ abstract class AbstractCodegenTask : DefaultTask() {
 
         return context
     }
-
-//    /**
-//     * 获取最后一段包名
-//     */
-//    private fun getLastPackageName(packageName: String): String {
-//        return NamingUtils.getLastPackageName(packageName)
-//    }
-//
-//    /**
-//     * 获取父包名
-//     */
-//    private fun getParentPackageName(packageName: String): String {
-//        return NamingUtils.parentPackageName(packageName)
-//    }
 
     fun stringfyTypeRemapping(): String {
         val typeRemapping = getExtension().generation.typeRemapping.get()
@@ -669,7 +654,12 @@ abstract class AbstractCodegenTask : DefaultTask() {
         val ext = getExtension()
         val defaultImportList = listOf(
             "com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate",
-            "javax.persistence.*"
+            "jakarta.persistence.*",
+            "org.hibernate.annotations.DynamicInsert",
+            "org.hibernate.annotations.DynamicUpdate",
+            "org.hibernate.annotations.Fetch",
+            "org.hibernate.annotations.FetchMode",
+            "org.hibernate.annotations.GenericGenerator"
         )
 
         val imports = mutableListOf<String>()

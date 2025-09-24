@@ -34,7 +34,7 @@ open class Cap4kCodegenExtension @Inject constructor(objects: ObjectFactory) {
     /**
      * 是否为多模块项目
      */
-    val multiModule: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val multiModule: Property<Boolean> = objects.property(Boolean::class.java).convention(true)
 
     /**
      * adapter模块名称后缀
@@ -157,7 +157,7 @@ open class GenerationConfig @Inject constructor(objects: ObjectFactory) {
     /**
      * 实体Schema输出模式 ref | abs
      */
-    val entitySchemaOutputMode: Property<String> = objects.property(String::class.java).convention("ref")
+    val entitySchemaOutputMode: Property<String> = objects.property(String::class.java).convention("abs")
 
     /**
      * 实体Schema输出包
@@ -168,7 +168,7 @@ open class GenerationConfig @Inject constructor(objects: ObjectFactory) {
     /**
      * 实体Schema类名模板
      */
-    val entitySchemaNameTemplate: Property<String> = objects.property(String::class.java).convention("S\${Entity}")
+    val entitySchemaNameTemplate: Property<String> = objects.property(String::class.java).convention("S${'$'}{Entity}")
 
     /**
      * 关联实体加载模式 LAZY | EAGER
@@ -178,7 +178,8 @@ open class GenerationConfig @Inject constructor(objects: ObjectFactory) {
     /**
      * 主键生成器
      */
-    val idGenerator: Property<String> = objects.property(String::class.java).convention("")
+    val idGenerator: Property<String> = objects.property(String::class.java)
+        .convention("com.only4.cap4k.ddd.domain.distributed.SnowflakeIdentifierGenerator")
 
     /**
      * 值对象主键生成器
@@ -193,12 +194,12 @@ open class GenerationConfig @Inject constructor(objects: ObjectFactory) {
     /**
      * 枚举值字段名
      */
-    val enumValueField: Property<String> = objects.property(String::class.java).convention("value")
+    val enumValueField: Property<String> = objects.property(String::class.java).convention("code")
 
     /**
      * 枚举名字段名
      */
-    val enumNameField: Property<String> = objects.property(String::class.java).convention("name")
+    val enumNameField: Property<String> = objects.property(String::class.java).convention("desc")
 
     /**
      * 枚举值转换不匹配时是否抛出异常
@@ -217,24 +218,19 @@ open class GenerationConfig @Inject constructor(objects: ObjectFactory) {
         objects.mapProperty(String::class.java, String::class.java).convention(mutableMapOf())
 
     /**
-     * 是否生成默认值
-     */
-    val generateDefault: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-
-    /**
      * 是否在注释中包含数据库字段类型
      */
-    val generateDbType: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val generateDbType: Property<Boolean> = objects.property(Boolean::class.java).convention(true)
 
     /**
      * 是否生成Schema辅助类
      */
-    val generateSchema: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val generateSchema: Property<Boolean> = objects.property(Boolean::class.java).convention(true)
 
     /**
      * 是否生成聚合封装类
      */
-    val generateAggregate: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val generateAggregate: Property<Boolean> = objects.property(Boolean::class.java).convention(true)
 
     /**
      * 是否生成关联父实体字段
@@ -245,7 +241,7 @@ open class GenerationConfig @Inject constructor(objects: ObjectFactory) {
      * 仓储名称模板
      */
     val repositoryNameTemplate: Property<String> =
-        objects.property(String::class.java).convention("\${Entity}Repository")
+        objects.property(String::class.java).convention("${'$'}{Entity}Repository")
 
     /**
      * 仓储是否支持Querydsl
@@ -255,7 +251,7 @@ open class GenerationConfig @Inject constructor(objects: ObjectFactory) {
     /**
      * 聚合名称模板
      */
-    val aggregateNameTemplate: Property<String> = objects.property(String::class.java).convention("Agg\${Entity}")
+    val aggregateNameTemplate: Property<String> = objects.property(String::class.java).convention("Agg${'$'}{Entity}")
 
     /**
      * 聚合根注解
