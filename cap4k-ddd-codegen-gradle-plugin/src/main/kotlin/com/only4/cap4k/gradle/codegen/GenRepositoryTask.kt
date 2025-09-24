@@ -2,22 +2,16 @@ package com.only4.cap4k.gradle.codegen
 
 import com.only4.cap4k.gradle.codegen.misc.NamingUtils
 import com.only4.cap4k.gradle.codegen.misc.SourceFileUtils
-import com.only4.cap4k.gradle.codegen.template.PathNode
 import com.only4.cap4k.gradle.codegen.template.TemplateNode
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
-import java.io.IOException
-import java.util.regex.Pattern
+import java.io.File
 
 /**
  * 生成仓储类任务
  */
 open class GenRepositoryTask : GenArchTask() {
-
-    @get:Input
-    override val extension: Property<Cap4kCodegenExtension> =
-        project.objects.property(Cap4kCodegenExtension::class.java)
 
     @get:Input
     override val projectName: Property<String> = project.objects.property(String::class.java)
@@ -32,31 +26,33 @@ open class GenRepositoryTask : GenArchTask() {
     override val projectDir: Property<String> = project.objects.property(String::class.java)
 
     private val aggregateRoot2AggregateNameMap = mutableMapOf<String, String>()
-    private var hasRepositoryTemplate = false
 
     @TaskAction
     override fun generate() {
-        renderFileSwitch = false
         super.generate()
+        generateRepositories()
+    }
 
-        if (!hasRepositoryTemplate) {
-            val ext = getExtension()
-            val repositoriesDir = SourceFileUtils.resolvePackageDirectory(
-                getAdapterModulePath(),
-                "${ext.basePackage.get()}.$AGGREGATE_REPOSITORY_PACKAGE"
-            )
+    private fun generateRepositories() {
+        val repositoriesDir = resolveRepositoriesDirectory()
+        val repositoryTemplateNodes = getRepositoryTemplateNodes()
 
-            var repositoryTemplateNodes = template?.select("repository")
-            if (repositoryTemplateNodes.isNullOrEmpty()) {
-                repositoryTemplateNodes = listOf(getDefaultRepositoryTemplate())
-            }
+        logger.info("开始生成仓储代码到目录: $repositoriesDir")
+        renderTemplate(repositoryTemplateNodes, repositoriesDir)
+        logger.info("仓储代码生成完成")
+    }
 
-            try {
-                renderTemplate(repositoryTemplateNodes, repositoriesDir)
-            } catch (e: IOException) {
-                logger.error("模板文件写入失败！", e)
-            }
-        }
+    private fun resolveRepositoriesDirectory(): String {
+        val ext = getExtension()
+        return SourceFileUtils.resolvePackageDirectory(
+            getAdapterModulePath(),
+            "${ext.basePackage.get()}.$AGGREGATE_REPOSITORY_PACKAGE"
+        )
+    }
+
+    private fun getRepositoryTemplateNodes(): List<TemplateNode> {
+        return template?.select("repository")?.takeIf { it.isNotEmpty() }
+            ?: listOf(getDefaultRepositoryTemplate())
     }
 
     private fun getDefaultRepositoryTemplate(): TemplateNode {
@@ -64,171 +60,191 @@ open class GenRepositoryTask : GenArchTask() {
         val repositorySupportQuerydsl = ext.generation.repositorySupportQuerydsl.get()
         val repositoryNameTemplate = ext.generation.repositoryNameTemplate.get()
 
-        val template = "package \${basePackage}.$AGGREGATE_REPOSITORY_PACKAGE\n" +
-                "\n" +
-                "import \${EntityPackage}.\${Entity}\n" +
-                "import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate\n" +
-                "import com.only4.cap4k.ddd.core.domain.repo.AbstractJpaRepository\n" +
-                "import com.only4.cap4k.ddd.core.domain.repo.AggregateRepository\n" +
-                (if (!repositorySupportQuerydsl) "" else
-                    "import com.only4.cap4k.ddd.core.domain.repo.querydsl.AbstractQuerydslRepository\n") +
-                "import org.springframework.data.jpa.repository.JpaRepository\n" +
-                "import org.springframework.data.jpa.repository.JpaSpecificationExecutor\n" +
-                (if (!repositorySupportQuerydsl) "" else
-                    "import org.springframework.data.querydsl.QuerydslPredicateExecutor\n") +
-                "import org.springframework.stereotype.Component\n" +
-                "\n" +
-                "/**\n" +
-                " * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成\n" +
-                " * @author cap4k-ddd-codegen\n" +
-                " * @date \${date}\n" +
-                " */\n" +
-                "interface $repositoryNameTemplate : AggregateRepository<\${Entity}, \${IdentityType}>, JpaSpecificationExecutor<\${Entity}>, JpaRepository<\${Entity}, \${IdentityType}>" +
-                (if (!repositorySupportQuerydsl) "" else ", QuerydslPredicateExecutor<\${Entity}>") + " {\n" +
-                "\n" +
-                "    @Component\n" +
-                "    @Aggregate(aggregate = \"\${Aggregate}\", name = \"\${Entity}Repo\", type = Aggregate.TYPE_REPOSITORY, description = \"\")\n" +
-                "    class \${Entity}JpaRepositoryAdapter(private val jpaSpecificationExecutor: JpaSpecificationExecutor<\${Entity}>, private val jpaRepository: JpaRepository<\${Entity}, \${IdentityType}>) : AbstractJpaRepository<\${Entity}, \${IdentityType}>(jpaSpecificationExecutor, jpaRepository)\n" +
-                (if (!repositorySupportQuerydsl) "" else ("\n" +
-                        "    @Component\n" +
-                        "    @Aggregate(aggregate = \"\${Aggregate}\", name = \"\${Entity}QuerydslRepo\", type = Aggregate.TYPE_REPOSITORY, description = \"\")\n" +
-                        "    class \${Entity}QuerydslRepositoryAdapter(private val querydslPredicateExecutor: QuerydslPredicateExecutor<\${Entity}>) : AbstractQuerydslRepository<\${Entity}>(querydslPredicateExecutor)\n")) +
-                "\n" +
-                "}\n"
+        val template = """
+            package ${'$'}{basePackage}.${AGGREGATE_REPOSITORY_PACKAGE}
 
-        val templateNode = TemplateNode()
-        templateNode.type = "file"
-        templateNode.tag = "repository"
-        templateNode.name = "$repositoryNameTemplate.kt"
-        templateNode.format = "raw"
-        templateNode.data = template
-        templateNode.conflict = "skip"
-        return templateNode
-    }
+            import ${'$'}{EntityPackage}.${'$'}{Entity}
+            import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+            import com.only4.cap4k.ddd.domain.repo.AbstractJpaRepository
+            ${if (repositorySupportQuerydsl) "import com.only4.cap4k.ddd.domain.repo.querydsl.AbstractQuerydslRepository" else ""}
+            import org.springframework.data.jpa.repository.JpaRepository
+            import org.springframework.data.jpa.repository.JpaSpecificationExecutor
+            ${if (repositorySupportQuerydsl) "import org.springframework.data.querydsl.QuerydslPredicateExecutor" else ""}
+            import org.springframework.stereotype.Component
 
-    override fun renderTemplate(templateNodes: List<TemplateNode>, parentPath: String) {
-        templateNodes.forEach { templateNode ->
-            if ("repository" == templateNode.tag) {
-                hasRepositoryTemplate = true
-                logger.info("开始生成仓储代码")
-                logger.info("聚合根标注注解：${getAggregateRootAnnotation()}")
-                logger.info("")
+            /**
+             * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+             * @author cap4k-ddd-codegen
+             * @date ${'$'}{date}
+             */
+            interface ${'$'}{Entity}Repository : JpaRepository<${'$'}{Entity}, ${'$'}{IdentityType}>, JpaSpecificationExecutor<${'$'}{Entity}>, QuerydslPredicateExecutor<${'$'}{Entity}>  {
 
-                val files = SourceFileUtils.loadFiles(getDomainModulePath())
-                    .filter { "kt".equals(it.extension, ignoreCase = true) }
+                @Component
+                @Aggregate(aggregate = "${'$'}{Aggregate}", name = "${'$'}{Entity}Repo", type = Aggregate.TYPE_REPOSITORY, description = "")
+                class ${'$'}{Entity}JpaRepositoryAdapter(
+                    jpaSpecificationExecutor: JpaSpecificationExecutor<${'$'}{Entity}>,
+                    jpaRepository: JpaRepository<${'$'}{Entity}, ${'$'}{IdentityType}>
+                ) : AbstractJpaRepository<${'$'}{Entity}, ${'$'}{IdentityType}>(
+                    jpaSpecificationExecutor, 
+                    jpaRepository
+                )
 
-                files.forEach { file ->
-                    logger.debug("发现Kotlin文件: ${SourceFileUtils.resolvePackage(file.absolutePath)}")
-                }
-                logger.info("发现kotlin文件数量：${files.size}")
-
-                files.forEach { file ->
-                    val fullClassName = SourceFileUtils.resolvePackage(file.absolutePath)
-                    logger.debug("解析Kotlin文件: $fullClassName")
-                    val content = file.readText(charset(getExtension().outputEncoding.get()))
-
-                    val isAggregateRoot = isAggregateRoot(content, fullClassName)
-                    if (isAggregateRoot) {
-                        logger.info("发现聚合根: $fullClassName")
-
-                        val simpleClassName = file.nameWithoutExtension
-                        val identityClass = getIdentityType(content, simpleClassName)
-                        val aggregate = aggregateRoot2AggregateNameMap[fullClassName]
-                            ?: NamingUtils.toUpperCamelCase(simpleClassName) ?: simpleClassName
-                        logger.info("聚合根ID类型: $identityClass")
-
-                        val pattern = templateNode.pattern
-                        if (pattern.isNullOrBlank() || Pattern.compile(pattern).asPredicate().test(fullClassName)) {
-                            try {
-                                val context = getEscapeContext().toMutableMap()
-                                context["EntityPackage"] = SourceFileUtils.resolvePackage(file.absolutePath)
-                                context["EntityType"] = simpleClassName
-                                context["Entity"] = simpleClassName
-                                context["IdentityClass"] = identityClass
-                                context["IdentityType"] = identityClass
-                                context["Identity"] = identityClass
-                                context["Aggregate"] = aggregate
-                                val pathNode = templateNode.cloneTemplateNode().resolve(context) as PathNode
-                                forceRender(pathNode, parentPath)
-                            } catch (e: IOException) {
-                                logger.error("生成仓储文件失败", e)
-                            }
-                        }
-                    }
-                }
-                logger.info("结束生成仓储代码")
+                @Component
+                @Aggregate(aggregate = "${'$'}{Aggregate}", name = "${'$'}{Entity}QuerydslRepo", type = Aggregate.TYPE_REPOSITORY, description = "")
+                class ${'$'}{Entity}QuerydslRepositoryAdapter(
+                    querydslPredicateExecutor: QuerydslPredicateExecutor<${'$'}{Entity}>
+                ) : AbstractQuerydslRepository<${'$'}{Entity}>(
+                    querydslPredicateExecutor
+                )
             }
+        """.trimIndent()
+
+        return TemplateNode().apply {
+            type = "file"
+            tag = "repository"
+            name = "$repositoryNameTemplate.kt"
+            format = "raw"
+            data = template
+            conflict = "skip"
         }
     }
 
-    private var renderFileSwitch = true
+    override fun renderTemplate(templateNodes: List<TemplateNode>, parentPath: String) {
+        templateNodes
+            .filter { it.tag == "repository" }
+            .forEach { templateNode ->
+                logger.info("开始生成仓储代码")
+                logger.info("")
+
+                val kotlinFiles = SourceFileUtils.loadFiles(getDomainModulePath())
+                    .asSequence()
+                    .filter { it.extension.equals("kt", ignoreCase = true) }
+
+                kotlinFiles.forEach { file ->
+                    processKotlinFile(file, templateNode, parentPath)
+                }
+
+                logger.info("结束生成仓储代码")
+            }
+    }
+
+    private fun processKotlinFile(file: File, templateNode: TemplateNode, parentPath: String) {
+        val fullClassName = SourceFileUtils.resolvePackage(file.absolutePath)
+        val content = file.readText(charset(getExtension().outputEncoding.get()))
+
+        if (!isAggregateRoot(content, fullClassName)) return
+
+        logger.info("发现聚合根: $fullClassName")
+
+        val simpleClassName = file.nameWithoutExtension
+        val identityClass = getIdentityType(content, simpleClassName)
+        val aggregate = aggregateRoot2AggregateNameMap[fullClassName]
+            ?: NamingUtils.toUpperCamelCase(simpleClassName) ?: simpleClassName
+
+        logger.info("聚合根ID类型: $identityClass")
+
+        // 检查模式匹配
+        val pattern = templateNode.pattern
+        val shouldGenerate = pattern.isNullOrBlank() ||
+                Regex(pattern).matches(fullClassName)
+
+        if (shouldGenerate) {
+            generateRepositoryForAggregate(
+                templateNode = templateNode,
+                parentPath = parentPath,
+                file = file,
+                simpleClassName = simpleClassName,
+                identityClass = identityClass,
+                aggregate = aggregate
+            )
+        }
+    }
+
+    private fun generateRepositoryForAggregate(
+        templateNode: TemplateNode,
+        parentPath: String,
+        file: File,
+        simpleClassName: String,
+        identityClass: String,
+        aggregate: String,
+    ) {
+        val context = buildRepositoryContext(
+            file = file,
+            simpleClassName = simpleClassName,
+            identityClass = identityClass,
+            aggregate = aggregate
+        )
+
+        val pathNode = templateNode.cloneTemplateNode().resolve(context)
+        forceRender(pathNode, parentPath)
+    }
+
+    private fun buildRepositoryContext(
+        file: File,
+        simpleClassName: String,
+        identityClass: String,
+        aggregate: String,
+    ): MutableMap<String, String> {
+        return getEscapeContext().toMutableMap().apply {
+            val entityPackage = SourceFileUtils.resolvePackage(file.absolutePath)
+
+            putAll(
+                mapOf(
+                    "EntityPackage" to entityPackage,
+                    "EntityType" to simpleClassName,
+                    "Entity" to simpleClassName,
+                    "IdentityClass" to identityClass,
+                    "IdentityType" to identityClass,
+                    "Identity" to identityClass,
+                    "Aggregate" to aggregate
+                )
+            )
+        }
+    }
 
     private fun isAggregateRoot(content: String, className: String): Boolean {
-        return content.split(Regex("(\\r)|(\\n)|(\\r\\n)"))
-            .filter { line -> line.trim().startsWith("@") || line.replace("\\s".toRegex(), "") == "/*@AggregateRoot*/" }
+        return content.lines()
+            .asSequence()
+            .filter { line -> line.trim().startsWith("@") }
             .any { line ->
-                var hasAggregateRoot = false
-                if (getAggregateRootAnnotation().isBlank()) {
-                    // 注解风格 @AggregateRoot()
-                    val oldAggregateRoot1 = line.matches(Regex("@AggregateRoot(\\(.*\\))?"))
-                    // 注释风格 /* @AggregateRoot */
-                    val oldAggregateRoot2 = line.matches(Regex("^\\s*/\\*\\s*@AggregateRoot\\s*\\*\\/\\s*$"))
-                    hasAggregateRoot = oldAggregateRoot1 || oldAggregateRoot2
-                } else {
-                    // 注解风格 @AggregateRoot()
-                    val isAggregateRootAnnotation = line.matches(Regex("@AggregateRoot(\\(.*\\))?"))
-                    // 注解风格 配置
-                    val isAggregateRootAnnotationFullName =
-                        line.matches(Regex("${getAggregateRootAnnotation()}(\\(.*\\))?"))
-                    hasAggregateRoot = isAggregateRootAnnotationFullName || isAggregateRootAnnotation
-                }
-                if (hasAggregateRoot) {
-                    return@any hasAggregateRoot
-                }
-
-                val aggregateRoot = line.matches(Regex("@Aggregate\\s*\\(.*root\\s*=\\s*true.*\\)"))
-                if (aggregateRoot) {
-                    val aggregatePattern = Pattern.compile("\\s*aggregate\\s*=\\s*\\\"([^\\\"]*)\\\"")
-                    val matcher = aggregatePattern.matcher(line)
-                    if (matcher.find() && matcher.groupCount() == 1) {
-                        aggregateRoot2AggregateNameMap[className] = matcher.group(1)
-                    }
-                }
-
-                logger.debug("annotationline: $line")
-                logger.debug("hasAggregateRoot=$hasAggregateRoot")
-                logger.debug("aggregateRoot=$aggregateRoot")
-                return@any aggregateRoot
+                // 检查@Aggregate(root = true)注解
+                val aggregateRootRegex = Regex("@Aggregate\\s*\\(.*root\\s*=\\s*true.*\\)")
+                if (aggregateRootRegex.matches(line)) {
+                    // 提取aggregate名称并缓存
+                    Regex("\\s*aggregate\\s*=\\s*\"([^\"]*)\"")
+                        .find(line)
+                        ?.groupValues
+                        ?.getOrNull(1)
+                        ?.let { aggregateName ->
+                            aggregateRoot2AggregateNameMap[className] = aggregateName
+                        }
+                    true
+                } else false
             }
     }
 
     private fun getIdentityType(content: String, simpleClassName: String): String {
         val defaultIdentityType = "Long"
-        val idAnnotationPattern = Pattern.compile("^\\s*@Id(\\(\\s*\\))?\\s*$")
-        val fieldPattern =
-            Pattern.compile("^\\s*(private|protected|public)?\\s*([_A-Za-z][_A-Za-z0-9]*)\\s*([_A-Za-z][_A-Za-z0-9]*)\\s*$")
+        val idAnnotationRegex = Regex("^\\s*@Id(\\(\\s*\\))?\\s*$")
+        val fieldRegex =
+            Regex("^\\s*(var|val)\\s+([_A-Za-z][_A-Za-z0-9]*)\\s*:\\s*([_A-Za-z][_A-Za-z0-9.<>?]*)(\\s*=.*)?\\s*,?\\s*$")
 
-        val idAnnotationCount = content.split(Regex("(\\r)|(\\n)|(\\r\\n)"))
-            .count { idAnnotationPattern.asPredicate().test(it) }
+        val lines = content.lines()
+        val idAnnotationCount = lines.count(idAnnotationRegex::matches)
 
         return when {
             idAnnotationCount > 1 -> "$simpleClassName.$DEFAULT_MUL_PRI_KEY_NAME"
             idAnnotationCount == 0 -> defaultIdentityType
             else -> {
-                var idAnnotationReaded = false
-                for (line in content.split(Regex("(\\r)|(\\n)|(\\r\\n)"))) {
-                    if (!idAnnotationReaded) {
-                        if (idAnnotationPattern.asPredicate().test(line)) {
-                            idAnnotationReaded = true
-                        }
-                    } else {
-                        val matcher = fieldPattern.matcher(line)
-                        if (matcher.find() && matcher.groupCount() > 2) {
-                            return matcher.group(matcher.groupCount() - 1) ?: defaultIdentityType
-                        }
+                // 使用windowed找到@Id注解后的第一个字段声明
+                lines.asSequence()
+                    .windowed(size = 10, partialWindows = true) // 查看@Id注解后最多10行
+                    .firstOrNull { window -> idAnnotationRegex.matches(window.first()) }
+                    ?.drop(1) // 跳过@Id注解行
+                    ?.firstNotNullOfOrNull { line ->
+                        fieldRegex.matchEntire(line)?.groupValues?.getOrNull(3)
                     }
-                }
-                defaultIdentityType
+                    ?: defaultIdentityType
             }
         }
     }

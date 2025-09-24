@@ -91,7 +91,7 @@ open class GenDesignTask : GenArchTask() {
         val ext = getExtension()
 
         // 从extension获取设计配置
-        val designValue = ext.design.orNull
+        val designValue = ext.designFile.get()
         if (!designValue.isNullOrBlank()) {
             design += designValue
         }

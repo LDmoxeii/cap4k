@@ -163,7 +163,6 @@ open class GenEntityTask : GenArchTask() {
             ext.basePackage.set(SourceFileUtils.resolveDefaultBasePackage(getDomainModulePath()))
         }
         logger.info("实体类基类：${ext.generation.entityBaseClass.get()}")
-        logger.info("聚合根标注注解: ${getAggregateRootAnnotation()}")
         logger.info("主键ID生成器: ${ext.generation.idGenerator.get()}")
         logger.info("日期类型映射: ${ext.generation.datePackage.get()}")
         logger.info("枚举值字段名称: ${ext.generation.enumValueField.get()}")
@@ -1036,21 +1035,6 @@ open class GenEntityTask : GenArchTask() {
                 ).replace(Regex(PATTERN_LINE_BREAK), "\\\\n")
             }")"""
         ) { _, _ -> 0 }
-
-        // 处理聚合根注解
-        val aggregateRootAnnotation = getAggregateRootAnnotation()
-        if (aggregateRootAnnotation.isNotBlank()) {
-            if (SqlSchemaUtils.isAggregateRoot(table)) {
-                SourceFileUtils.addIfNone(
-                    annotationLines,
-                    """$aggregateRootAnnotation(\(.*\))?""",
-                    aggregateRootAnnotation
-                )
-            } else {
-                SourceFileUtils.removeText(annotationLines, """$aggregateRootAnnotation(\(.*\))?""")
-                SourceFileUtils.removeText(annotationLines, """@AggregateRoot(\(.*\))?""")
-            }
-        }
 
         // 添加 JPA 基本注解
         SourceFileUtils.addIfNone(annotationLines, """@Entity(\(.*\))?""", "@Entity")

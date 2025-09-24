@@ -178,18 +178,12 @@ abstract class AbstractCodegenTask : DefaultTask() {
         context["generateSchema"] = ext.generation.generateSchema.get().toString()
         context["generateAggregate"] = ext.generation.generateAggregate.get().toString()
         context["generateParent"] = ext.generation.generateParent.get().toString()
-        context["aggregateRootAnnotation"] = getAggregateRootAnnotation()
         context["aggregateNameTemplate"] = ext.generation.aggregateNameTemplate.get()
         context["repositoryNameTemplate"] = ext.generation.repositoryNameTemplate.get()
         context["repositorySupportQuerydsl"] = ext.generation.repositorySupportQuerydsl.get().toString()
         context["date"] = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))
         context["SEPARATOR"] = File.separator
         context["separator"] = File.separator
-
-
-        // 包名相关
-//        context["lastPackageName"] = getLastPackageName(ext.basePackage.get())
-//        context["parentPackageName"] = getParentPackageName(ext.basePackage.get())
 
         return context
     }
@@ -696,23 +690,5 @@ abstract class AbstractCodegenTask : DefaultTask() {
         val ext = getExtension()
         val packageName = ext.generation.entitySchemaOutputPackage.get()
         return packageName.ifBlank { "domain._share.meta" }
-    }
-
-    /**
-     * 获取聚合根注解
-     */
-    @Internal
-    protected fun getAggregateRootAnnotation(): String {
-        val ext = getExtension()
-        var annotation = ext.generation.aggregateRootAnnotation.get()
-
-        if (annotation.isNotEmpty()) {
-            annotation = annotation.trim()
-            if (!annotation.startsWith("@")) {
-                annotation = "@$annotation"
-            }
-        }
-
-        return annotation
     }
 }

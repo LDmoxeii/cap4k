@@ -52,12 +52,5 @@ class Cap4kDddCodegenPlugin : Plugin<Project> {
             task.projectVersion.set(project.version.toString())
             task.projectDir.set(project.projectDir.absolutePath)
         }
-
-        // 创建一个主任务来执行所有生成任务
-        project.tasks.register("genAll") { task ->
-            task.group = "cap4k codegen"
-            task.description = "Generate all DDD code"
-            task.dependsOn("genArch", "genEntity", "genRepository", "genDesign")
-        }
     }
 }
