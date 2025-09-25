@@ -1,111 +1,56 @@
 package com.only4.cap4k.gradle.codegen.misc
 
+
+// 分词正则：
+// 1) (?<=[a-z0-9])(?=[A-Z]) 处理 userName -> user | Name
+// 2) [^A-Za-z0-9]+ 处理下划线、横线等分隔符
+private val SPLIT_REGEX = Regex("(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+")
+
+private fun tokenize(value: String): List<String> =
+    value.trim()
+        .split(SPLIT_REGEX)
+        .filter { it.isNotEmpty() }
+
 /**
- * 命名工具类
- *
- * @author cap4k-codegen
- * @date 2024/12/21
+ * 下划线 / 混合命名 转 小驼峰
+ * user_name -> userName, userName -> userName
  */
-object NamingUtils {
-
-    /**
-     * 下划线转小驼峰
-     * user_name  ---->  userName
-     * userName   --->  userName
-     *
-     * @param someCase 带有下划线的字符串
-     * @return 驼峰字符串
-     */
-    fun toLowerCamelCase(someCase: String?): String? {
-        if (someCase == null) {
-            return null
-        }
-        val camel = toUpperCamelCase(someCase)
-        return camel?.let {
-            it.substring(0, 1).lowercase() + it.substring(1)
-        }
+fun toLowerCamelCase(someCase: String?): String? =
+    someCase?.let {
+        val parts = tokenize(it)
+        if (parts.isEmpty()) return null
+        val head = parts.first().lowercase()
+        val tail = parts.drop(1).joinToString("") { p -> p.lowercase().replaceFirstChar { c -> c.titlecase() } }
+        head + tail
     }
 
-    /**
-     * 下划线转大驼峰
-     * user_name  ---->  UserName
-     * userName   --->  UserName
-     *
-     * @param someCase 带有下划线的字符串
-     * @return 驼峰字符串
-     */
-    fun toUpperCamelCase(someCase: String?): String? {
-        if (someCase == null) {
-            return null
-        }
-        return someCase.split(Regex("(?=[A-Z])|[^a-zA-Z0-9]"))
-            .map { it.replace(Regex("[^a-zA-Z0-9]"), "") }
-            .filter { it.isNotBlank() }
-            .joinToString("") {
-                it.substring(0, 1).uppercase() + it.substring(1).lowercase()
-            }
+/**
+ * 下划线 / 混合命名 转 大驼峰
+ * user_name -> UserName, userName -> UserName
+ */
+fun toUpperCamelCase(someCase: String?): String? =
+    someCase?.let {
+        val parts = tokenize(it)
+        if (parts.isEmpty()) return null
+        parts.joinToString("") { p -> p.lowercase().replaceFirstChar { c -> c.titlecase() } }
     }
 
-    /**
-     * 转蛇形风格命名(snake_case)
-     *
-     * @param someCase
-     * @return
-     */
-    fun toSnakeCase(someCase: String?): String? {
-        if (someCase == null) {
-            return null
-        }
-        return someCase.split(Regex("(?=[A-Z])|[^a-zA-Z0-9_]"))
-            .filter { it.isNotBlank() }
-            .joinToString("_") { it.lowercase() }
+/**
+ * 转 snake_case
+ */
+fun toSnakeCase(someCase: String?): String? =
+    someCase?.let {
+        val parts = tokenize(it)
+        if (parts.isEmpty()) return null
+        parts.joinToString("_") { p -> p.lowercase() }
     }
 
-    /**
-     * 转土耳其烤肉风格命名(kebab-case)
-     *
-     * @param someCase
-     * @return
-     */
-    fun toKebabCase(someCase: String?): String? {
-        if (someCase == null) {
-            return someCase
-        }
-        return someCase.split(Regex("(?=[A-Z])|[^a-zA-Z0-9\\-]"))
-            .filter { it.isNotBlank() }
-            .joinToString("-") { it.lowercase() }
+/**
+ * 转 kebab-case
+ */
+fun toKebabCase(someCase: String?): String? =
+    someCase?.let {
+        val parts = tokenize(it)
+        if (parts.isEmpty()) return null
+        parts.joinToString("-") { p -> p.lowercase() }
     }
-
-    /**
-     * 获取末位包名
-     *
-     * @param packageName
-     * @return
-     */
-    fun getLastPackageName(packageName: String?): String {
-        if (packageName.isNullOrEmpty()) {
-            return ""
-        }
-        if (!packageName.contains(".")) {
-            return packageName
-        }
-        return packageName.substring(packageName.lastIndexOf(".") + 1)
-    }
-
-    /**
-     * 获取父包名
-     *
-     * @param packageName
-     * @return
-     */
-    fun parentPackageName(packageName: String?): String {
-        if (packageName.isNullOrEmpty()) {
-            return ""
-        }
-        val lastPackageName = getLastPackageName(packageName)
-        if (packageName.length == lastPackageName.length) {
-            return ""
-        }
-        return packageName.substring(0, packageName.length - lastPackageName.length - 1)
-    }
-}

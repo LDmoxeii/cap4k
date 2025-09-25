@@ -1,9 +1,7 @@
 package com.only4.cap4k.gradle.codegen.misc
 
-import java.util.regex.Pattern
-
 /**
- * 单词形态变换工具（单数复数转换）
+ * ��词形态变换工具（单数复数转换）
  * 基于 Java 版本的 Inflector 移植到 Kotlin
  *
  * @author cap4k-codegen
@@ -11,20 +9,35 @@ import java.util.regex.Pattern
  */
 object Inflector {
 
-    /**
-     * 规则和替换
-     */
-    private data class RuleAndReplacement(val rule: String, val replacement: String)
+    // 规则（已预编译）
+    private data class Rule(val regex: Regex, val replacement: String)
 
-    private val plurals = mutableListOf<RuleAndReplacement>()
-    private val singulars = mutableListOf<RuleAndReplacement>()
-    private val uncountables = mutableListOf<String>()
+    private val plurals = mutableListOf<Rule>()
+    private val singulars = mutableListOf<Rule>()
+    private val uncountables = hashSetOf<String>()
+
+    // 预编译用于 underscore 的两个模式
+    private val UNDERSCORE_1 = Regex("([A-Z]+)([A-Z][a-z])")
+    private val UNDERSCORE_2 = Regex("([a-z\\d])([A-Z])")
 
     init {
         initialize()
     }
 
     private fun initialize() {
+        fun plural(rule: String, replacement: String) =
+            plurals.add(0, Rule(rule.toRegex(RegexOption.IGNORE_CASE), replacement))
+
+        fun singular(rule: String, replacement: String) =
+            singulars.add(0, Rule(rule.toRegex(RegexOption.IGNORE_CASE), replacement))
+
+        fun irregular(singular: String, plural: String) {
+            plural(singular, plural)
+            singular(plural, singular)
+        }
+
+        fun uncountable(vararg words: String) = uncountables.addAll(words.map { it.lowercase() })
+
         // 复数规则
         plural("$", "s")
         plural("s$", "s")
@@ -78,25 +91,17 @@ object Inflector {
         irregular("sex", "sexes")
         irregular("move", "moves")
 
-        // 不可数名词
+        // 不��数名词
         uncountable("equipment", "information", "rice", "money", "species", "series", "fish", "sheep")
     }
 
-    private fun plural(rule: String, replacement: String) {
-        plurals.add(0, RuleAndReplacement(rule, replacement))
-    }
-
-    private fun singular(rule: String, replacement: String) {
-        singulars.add(0, RuleAndReplacement(rule, replacement))
-    }
-
-    private fun irregular(singular: String, plural: String) {
-        plural(singular, plural)
-        singular(plural, singular)
-    }
-
-    private fun uncountable(vararg words: String) {
-        uncountables.addAll(words)
+    private fun applyFirstRule(word: String, rules: List<Rule>): String {
+        for (r in rules) {
+            if (r.regex.containsMatchIn(word)) {
+                return word.replace(r.regex, r.replacement)
+            }
+        }
+        return word
     }
 
     /**
@@ -105,12 +110,8 @@ object Inflector {
      * @param word 单词
      * @return 复数形式
      */
-    fun pluralize(word: String): String {
-        if (uncountables.contains(word.lowercase())) {
-            return word
-        }
-        return replaceWithFirstRule(word, plurals)
-    }
+    fun pluralize(word: String): String =
+        if (word.lowercase() in uncountables) word else applyFirstRule(word, plurals)
 
     /**
      * 将单词单数化
@@ -118,22 +119,8 @@ object Inflector {
      * @param word 单词
      * @return 单数形式
      */
-    fun singularize(word: String): String {
-        if (uncountables.contains(word.lowercase())) {
-            return word
-        }
-        return replaceWithFirstRule(word, singulars)
-    }
-
-    private fun replaceWithFirstRule(word: String, ruleAndReplacements: List<RuleAndReplacement>): String {
-        for ((rule, replacement) in ruleAndReplacements) {
-            val matcher = Pattern.compile(rule, Pattern.CASE_INSENSITIVE).matcher(word)
-            if (matcher.find()) {
-                return matcher.replaceAll(replacement)
-            }
-        }
-        return word
-    }
+    fun singularize(word: String): String =
+        if (word.lowercase() in uncountables) word else applyFirstRule(word, singulars)
 
     /**
      * 将驼峰命名转换为下划线格式
@@ -141,16 +128,12 @@ object Inflector {
      * @param camelCasedWord 驼峰命名的单词
      * @return 下划线格式的单词
      */
-    fun underscore(camelCasedWord: String): String {
-        val underscorePattern1 = Pattern.compile("([A-Z]+)([A-Z][a-z])")
-        val underscorePattern2 = Pattern.compile("([a-z\\d])([A-Z])")
-
-        var underscoredWord = underscorePattern1.matcher(camelCasedWord).replaceAll("$1_$2")
-        underscoredWord = underscorePattern2.matcher(underscoredWord).replaceAll("$1_$2")
-        underscoredWord = underscoredWord.replace('-', '_').lowercase()
-
-        return underscoredWord
-    }
+    fun underscore(camelCasedWord: String): String =
+        camelCasedWord
+            .replace(UNDERSCORE_1, "$1_$2")
+            .replace(UNDERSCORE_2, "$1_$2")
+            .replace('-', '_')
+            .lowercase()
 
     /**
      * 表格化（复数形式的下划线格式）
@@ -158,7 +141,5 @@ object Inflector {
      * @param className 类名
      * @return 表格化的名称
      */
-    fun tableize(className: String): String {
-        return pluralize(underscore(className))
-    }
+    fun tableize(className: String): String = pluralize(underscore(className))
 }

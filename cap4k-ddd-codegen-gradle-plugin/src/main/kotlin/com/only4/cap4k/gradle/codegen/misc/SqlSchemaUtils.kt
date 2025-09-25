@@ -27,77 +27,96 @@ object SqlSchemaUtils {
 
     var task: GenEntityTask? = null
 
+    // 新增: 驱动映射（可按需扩展）
+    private val DRIVER_BY_DB = mapOf(
+        DB_TYPE_MYSQL to "com.mysql.cj.jdbc.Driver",
+        DB_TYPE_POSTGRESQL to "org.postgresql.Driver"
+    )
+
+    private val ANY_INT_REGEX = Regex("^[-+]?[0-9]+$")
+
     fun loadLogger(logger: Logger) {
         this.logger = logger
     }
 
-    private fun logError(message: String, throwable: Throwable? = null) {
-        if (throwable != null) {
-            logger?.error(message, throwable)
-        } else {
-            logger?.error(message)
-        }
+    private fun logError(message: String, throwable: Throwable? = null) =
+        if (throwable != null) logger?.error(message, throwable) else logger?.error(message)
+
+    fun recognizeDbType(connectionString: String): String = runCatching {
+        connectionString.substringAfter("jdbc:").substringBefore(":")
+    }.getOrElse {
+        logError("数据库连接串异常 $connectionString", it)
+        DB_TYPE_MYSQL
     }
 
-    fun recognizeDbType(connectionString: String): String {
-        return try {
-            connectionString.split(":")[1]
-        } catch (ex: Exception) {
-            logError("数据库连接串异常 $connectionString", ex)
-            DB_TYPE_MYSQL
+    fun processSqlDialect(dbType: String) = when (dbType) {
+        DB_TYPE_MYSQL -> {
+            LEFT_QUOTES_4_ID_ALIAS = "`"; RIGHT_QUOTES_4_ID_ALIAS = "`"
+            LEFT_QUOTES_4_LITERAL_STRING = "'"; RIGHT_QUOTES_4_LITERAL_STRING = "'"
         }
+
+        DB_TYPE_POSTGRESQL, DB_TYPE_ORACLE -> {
+            LEFT_QUOTES_4_ID_ALIAS = "\""; RIGHT_QUOTES_4_ID_ALIAS = "\""
+            LEFT_QUOTES_4_LITERAL_STRING = "'"; RIGHT_QUOTES_4_LITERAL_STRING = "'"
+        }
+
+        DB_TYPE_SQLSERVER -> {
+            LEFT_QUOTES_4_ID_ALIAS = "["; RIGHT_QUOTES_4_ID_ALIAS = "]"
+            LEFT_QUOTES_4_LITERAL_STRING = "'"; RIGHT_QUOTES_4_LITERAL_STRING = "'"
+        }
+
+        else -> {}
     }
 
-    fun processSqlDialect(dbType: String) {
-        when (dbType) {
-            DB_TYPE_MYSQL -> {
-                LEFT_QUOTES_4_ID_ALIAS = "`"
-                RIGHT_QUOTES_4_ID_ALIAS = "`"
-                LEFT_QUOTES_4_LITERAL_STRING = "'"
-                RIGHT_QUOTES_4_LITERAL_STRING = "'"
-            }
-
-            DB_TYPE_POSTGRESQL, DB_TYPE_ORACLE -> {
-                LEFT_QUOTES_4_ID_ALIAS = "\""
-                RIGHT_QUOTES_4_ID_ALIAS = "\""
-                LEFT_QUOTES_4_LITERAL_STRING = "'"
-                RIGHT_QUOTES_4_LITERAL_STRING = "'"
-            }
-
-            DB_TYPE_SQLSERVER -> {
-                LEFT_QUOTES_4_ID_ALIAS = "["
-                RIGHT_QUOTES_4_ID_ALIAS = "]"
-                LEFT_QUOTES_4_LITERAL_STRING = "'"
-                RIGHT_QUOTES_4_LITERAL_STRING = "'"
-            }
-        }
+    interface SqlSchemaDialect {
+        fun resolveTables(connectionString: String, user: String, pwd: String): List<Map<String, Any?>>
+        fun resolveColumns(connectionString: String, user: String, pwd: String): List<Map<String, Any?>>
+        fun getColumnType(column: Map<String, Any?>): String
+        fun getColumnDefaultLiteral(column: Map<String, Any?>): String
+        fun isAutoUpdateDateColumn(column: Map<String, Any?>): Boolean
+        fun isAutoInsertDateColumn(column: Map<String, Any?>): Boolean
+        fun isColumnInTable(column: Map<String, Any?>, table: Map<String, Any?>): Boolean
+        fun getOrdinalPosition(column: Map<String, Any?>): Int
+        fun hasColumn(columnName: String, columns: List<Map<String, Any?>>): Boolean
+        fun getName(tableOrColumn: Map<String, Any?>): String
+        fun getColumnName(column: Map<String, Any?>): String
+        fun getTableName(table: Map<String, Any?>): String
+        fun getColumnDbType(column: Map<String, Any?>): String
+        fun getColumnDbDataType(column: Map<String, Any?>): String
+        fun isColumnNullable(column: Map<String, Any?>): Boolean
+        fun isColumnPrimaryKey(column: Map<String, Any?>): Boolean
+        fun getComment(tableOrColumn: Map<String, Any?>, cleanAnnotations: Boolean): String
     }
+
+    private fun pickByConnectionString(connectionString: String): SqlSchemaDialect =
+        when (recognizeDbType(connectionString)) {
+            DB_TYPE_POSTGRESQL -> SqlSchemaUtils4Postgresql
+            else -> SqlSchemaUtils4Mysql
+        }
+
+    private fun pickByTask(): SqlSchemaDialect =
+        when (task!!.dbType) {
+            DB_TYPE_POSTGRESQL -> SqlSchemaUtils4Postgresql
+            else -> SqlSchemaUtils4Mysql
+        }
 
     fun executeQuery(sql: String, connectionString: String, user: String, pwd: String): List<Map<String, Any?>> {
         val result = mutableListOf<Map<String, Any?>>()
+        val dbType = recognizeDbType(connectionString)
+        DRIVER_BY_DB[dbType]?.let { runCatching { Class.forName(it) } } // 驱动加载失败不抛
         try {
-            // 加载驱动程序
-            when (recognizeDbType(connectionString)) {
-                DB_TYPE_MYSQL -> Class.forName("com.mysql.cj.jdbc.Driver")
-                DB_TYPE_POSTGRESQL -> Class.forName("org.postgresql.Driver")
-            }
-
-            // 获得数据库连接
             DriverManager.getConnection(connectionString, user, pwd).use { conn ->
                 conn.createStatement().use { st ->
                     st.executeQuery(sql).use { rs ->
+                        val meta = rs.metaData
                         while (rs.next()) {
-                            val map = mutableMapOf<String, Any?>()
-                            val metaData = rs.metaData
-                            for (i in 1..metaData.columnCount) {
+                            val row = HashMap<String, Any?>(meta.columnCount)
+                            for (i in 1..meta.columnCount) {
                                 val value = rs.getObject(i)
-                                map[metaData.getColumnName(i)] = if (value is ByteArray) {
-                                    String(value)
-                                } else {
-                                    value
-                                }
+                                row[meta.getColumnName(i)] =
+                                    if (value is ByteArray) String(value) else value
                             }
-                            result.add(map)
+                            result += row
                         }
                     }
                 }
@@ -105,296 +124,213 @@ object SqlSchemaUtils {
         } catch (e: Throwable) {
             logError("SQL查询执行失败: $sql", e)
         }
-
         return result
     }
 
-    fun resolveTables(connectionString: String, user: String, pwd: String): List<Map<String, Any?>> {
-        return when (recognizeDbType(connectionString)) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.resolveTables(connectionString, user, pwd)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列信息获取未实现")
-            else -> SqlSchemaUtils4Mysql.resolveTables(connectionString, user, pwd)
-        }
-    }
+    // 连接串驱动的结构解析
+    fun resolveTables(connectionString: String, user: String, pwd: String) =
+        pickByConnectionString(connectionString).resolveTables(connectionString, user, pwd)
 
-    fun resolveColumns(connectionString: String, user: String, pwd: String): List<Map<String, Any?>> {
-        return when (recognizeDbType(connectionString)) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.resolveColumns(connectionString, user, pwd)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列信息获取未实现")
-            else -> SqlSchemaUtils4Mysql.resolveColumns(connectionString, user, pwd)
-        }
-    }
+    fun resolveColumns(connectionString: String, user: String, pwd: String) =
+        pickByConnectionString(connectionString).resolveColumns(connectionString, user, pwd)
 
-    fun getColumnType(column: Map<String, Any?>): String {
+    // 方言驱动的列/表属性访问
+    fun getColumnType(column: Map<String, Any?>): String =
         if (hasType(column)) {
-            val customerType = getType(column)
-            if (hasEnum(column) && task!!.enumPackageMap.containsKey(customerType)) {
-                return if (isColumnNullable(column)) "${task!!.enumPackageMap[customerType]!!}.$customerType?"
-                else "${task!!.enumPackageMap[customerType]!!}.$customerType"
-            }
-            return customerType
-        }
+            val custom = getType(column)
+            if (hasEnum(column) && task!!.enumPackageMap.containsKey(custom)) {
+                val prefix = task!!.enumPackageMap[custom]!!
+                if (isColumnNullable(column)) "$prefix.$custom?" else "$prefix.$custom"
+            } else custom
+        } else pickByTask().getColumnType(column)
 
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getColumnType(column)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.getColumnType(column)
-        }
-    }
+    fun getColumnDefaultLiteral(column: Map<String, Any?>) =
+        pickByTask().getColumnDefaultLiteral(column)
 
-    fun getColumnDefaultLiteral(column: Map<String, Any?>): String {
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getColumnDefaultLiteral(column)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.getColumnDefaultLiteral(column)
-        }
-    }
+    fun isAutoUpdateDateColumn(column: Map<String, Any?>) =
+        pickByTask().isAutoUpdateDateColumn(column)
 
-    fun isAutoUpdateDateColumn(column: Map<String, Any?>): Boolean {
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.isAutoUpdateDateColumn(column)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.isAutoUpdateDateColumn(column)
-        }
-    }
+    fun isAutoInsertDateColumn(column: Map<String, Any?>) =
+        pickByTask().isAutoInsertDateColumn(column)
 
-    fun isAutoInsertDateColumn(column: Map<String, Any?>): Boolean {
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.isAutoInsertDateColumn(column)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.isAutoInsertDateColumn(column)
-        }
-    }
+    fun isColumnInTable(column: Map<String, Any?>, table: Map<String, Any?>) =
+        pickByTask().isColumnInTable(column, table)
 
-    fun isColumnInTable(column: Map<String, Any?>, table: Map<String, Any?>): Boolean {
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.isColumnInTable(column, table)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.isColumnInTable(column, table)
-        }
-    }
+    // 新正确拼写
+    fun getOrdinalPosition(column: Map<String, Any?>): Int =
+        pickByTask().getOrdinalPosition(column)
 
-    fun getOridinalPosition(column: Map<String, Any?>): Int {
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getOrdinalPosition(column)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.getOrdinalPosition(column)
-        }
-    }
+    fun hasColumn(columnName: String, columns: List<Map<String, Any?>>) =
+        pickByTask().hasColumn(columnName, columns)
 
-    fun hasColumn(columnName: String, columns: List<Map<String, Any?>>): Boolean {
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.hasColumn(columnName, columns)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.hasColumn(columnName, columns)
-        }
-    }
+    fun getName(tableOrColumn: Map<String, Any?>) =
+        pickByTask().getName(tableOrColumn)
 
-    fun getName(tableOrColumn: Map<String, Any?>): String {
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getName(tableOrColumn)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.getName(tableOrColumn)
-        }
-    }
+    fun getColumnName(column: Map<String, Any?>) =
+        pickByTask().getColumnName(column)
 
-    fun getColumnName(column: Map<String, Any?>): String {
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getColumnName(column)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.getColumnName(column)
-        }
-    }
+    fun getTableName(table: Map<String, Any?>) =
+        pickByTask().getTableName(table)
 
-    fun getTableName(table: Map<String, Any?>): String {
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getTableName(table)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.getTableName(table)
-        }
-    }
+    fun getColumnDbType(column: Map<String, Any?>) =
+        pickByTask().getColumnDbType(column)
 
-    fun getColumnDbType(column: Map<String, Any?>): String {
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getColumnDbType(column)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.getColumnDbType(column)
-        }
-    }
+    fun getColumnDbDataType(column: Map<String, Any?>) =
+        pickByTask().getColumnDbDataType(column)
 
-    fun getColumnDbDataType(column: Map<String, Any?>): String {
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getColumnDbDataType(column)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.getColumnDbDataType(column)
-        }
-    }
+    fun isColumnNullable(column: Map<String, Any?>) =
+        pickByTask().isColumnNullable(column)
 
-    fun isColumnNullable(column: Map<String, Any?>): Boolean {
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.isColumnNullable(column)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.isColumnNullable(column)
-        }
-    }
+    fun isColumnPrimaryKey(column: Map<String, Any?>) =
+        pickByTask().isColumnPrimaryKey(column)
 
-    fun isColumnPrimaryKey(column: Map<String, Any?>): Boolean {
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.isColumnPrimaryKey(column)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.isColumnPrimaryKey(column)
-        }
-    }
+    fun getComment(tableOrColumn: Map<String, Any?>, cleanAnnotations: Boolean = true) =
+        pickByTask().getComment(tableOrColumn, cleanAnnotations)
 
-    fun getComment(tableOrColumn: Map<String, Any?>, cleanAnnotations: Boolean = true): String {
-        return when (task!!.dbType) {
-            DB_TYPE_MYSQL -> SqlSchemaUtils4Mysql.getComment(tableOrColumn, cleanAnnotations)
-            DB_TYPE_POSTGRESQL -> throw NotImplementedError("PostgreSQL 列类型获取未实现")
-            else -> SqlSchemaUtils4Mysql.getComment(tableOrColumn, cleanAnnotations)
-        }
-    }
-
+    // ---------------- 注解解析与缓存 ----------------
     fun getAnnotations(columnOrTable: Map<String, Any?>): Map<String, String> {
         val comment = getComment(columnOrTable, false)
-        if (task!!.annotationsCache.containsKey(comment)) {
-            return task!!.annotationsCache[comment]!!
-        }
-        val annotations = mutableMapOf<String, String>()
+        return task!!.annotationsCache.getOrPut(comment) { parseAnnotations(comment) }
+    }
+
+    private fun parseAnnotations(comment: String): MutableMap<String, String> {
         val matcher = ANNOTATION_PATTERN.matcher(comment)
+        val map = mutableMapOf<String, String>()
         while (matcher.find()) {
             if (matcher.groupCount() > 1 && matcher.group(1).isNotBlank()) {
                 val name = matcher.group(1)
-                val value = matcher.group(2)
-                if (!(value.isNullOrBlank())) {
-                    annotations[name] = value.removePrefix("=")
-                } else {
-                    annotations[name] = ""
-                }
+                val value = matcher.group(2)?.removePrefix("=")?.trim().orEmpty()
+                map[name] = value
             }
         }
-        task!!.annotationsCache.putIfAbsent(comment, annotations)
-        return annotations
+        return map
     }
 
-    fun hasAnnotation(columnOrTable: Map<String, Any?>, annotation: String): Boolean =
+    fun hasAnnotation(columnOrTable: Map<String, Any?>, annotation: String) =
         getAnnotations(columnOrTable).containsKey(annotation)
 
-    fun hasAnyAnnotation(
-        columnOrTable: Map<String, Any?>,
-        annotations: List<String>,
-    ): Boolean = annotations.any { hasAnnotation(columnOrTable, it) }
+    fun hasAnyAnnotation(columnOrTable: Map<String, Any?>, annotations: List<String>): Boolean =
+        annotations.any { hasAnnotation(columnOrTable, it) }
 
-    fun getAnyAnnotation(
-        tableOrColumn: Map<String, Any?>,
-        annotations: List<String>,
-    ): String = annotations.find { hasAnnotation(tableOrColumn, it) }?.let {
-        getAnnotations(tableOrColumn)[it]!!
-    } ?: ""
+    fun getAnyAnnotation(tableOrColumn: Map<String, Any?>, annotations: List<String>): String =
+        annotations.firstOrNull { hasAnnotation(tableOrColumn, it) }
+            ?.let { getAnnotations(tableOrColumn)[it]!! }.orEmpty()
 
-    fun hasLazy(table: Map<String, Any?>): Boolean = hasAnyAnnotation(table, listOf("Lazy", "L"))
+    // ---------------- 语义工具（保持原语义） ----------------
+    fun hasLazy(table: Map<String, Any?>) = hasAnyAnnotation(table, listOf("Lazy", "L"))
 
     fun isLazy(table: Map<String, Any?>, defaultLazy: Boolean = false): Boolean {
         val value = getAnyAnnotation(table, listOf("Lazy", "L"))
         return when {
-            value.equals("true", ignoreCase = true) || value.equals("0", ignoreCase = true) -> true
-            value.equals("false", ignoreCase = true) || value.equals("1", ignoreCase = true) -> false
+            value.equals("true", true) || value.equals("0", true) -> true
+            value.equals("false", true) || value.equals("1", true) -> false
             else -> defaultLazy
         }
     }
 
     fun countIsOne(table: Map<String, Any?>): Boolean {
         val value = getAnyAnnotation(table, listOf("Count", "C"))
-        return "one".equals(value, ignoreCase = true) || "1".equals(value, ignoreCase = true)
+        return value.equals("one", true) || value.equals("1", true)
     }
 
-    fun isIgnore(tableOrColumn: Map<String, Any?>) = hasAnyAnnotation(tableOrColumn, listOf("Ignore", "I"))
+    fun isIgnore(tableOrColumn: Map<String, Any?>) =
+        hasAnyAnnotation(tableOrColumn, listOf("Ignore", "I"))
 
-    fun isAggregateRoot(table: Map<String, Any?>): Boolean =
+    fun isAggregateRoot(table: Map<String, Any?>) =
         !hasParent(table) || hasAnyAnnotation(table, listOf("AggregateRoot", "Root", "R"))
 
-    fun isValueObject(table: Map<String, Any?>): Boolean = hasAnyAnnotation(table, listOf("ValueObject", "VO"))
+    fun isValueObject(table: Map<String, Any?>) =
+        hasAnyAnnotation(table, listOf("ValueObject", "VO"))
 
-    fun hasParent(table: Map<String, Any?>): Boolean = hasAnyAnnotation(table, listOf("Parent", "P"))
+    fun hasParent(table: Map<String, Any?>) =
+        hasAnyAnnotation(table, listOf("Parent", "P"))
 
-    fun getParent(table: Map<String, Any?>) = getAnyAnnotation(table, listOf("Parent", "P"))
+    fun getParent(table: Map<String, Any?>) =
+        getAnyAnnotation(table, listOf("Parent", "P"))
 
-    fun getModule(table: Map<String, Any?>): String = getAnyAnnotation(table, listOf("Module", "M"))
+    fun getModule(table: Map<String, Any?>): String =
+        getAnyAnnotation(table, listOf("Module", "M"))
 
-    fun getAggregate(table: Map<String, Any?>): String = getAnyAnnotation(table, listOf("Aggregate", "A"))
+    fun getAggregate(table: Map<String, Any?>): String =
+        getAnyAnnotation(table, listOf("Aggregate", "A"))
 
-    fun hasIgnoreInsert(column: Map<String, Any?>): Boolean = hasAnyAnnotation(column, listOf("IgnoreInsert", "II"))
+    fun hasIgnoreInsert(column: Map<String, Any?>) =
+        hasAnyAnnotation(column, listOf("IgnoreInsert", "II"))
 
-    fun hasIgnoreUpdate(column: Map<String, Any?>): Boolean = hasAnyAnnotation(column, listOf("IgnoreUpdate", "IU"))
+    fun hasIgnoreUpdate(column: Map<String, Any?>) =
+        hasAnyAnnotation(column, listOf("IgnoreUpdate", "IU"))
 
-    fun hasReadOnly(column: Map<String, Any?>): Boolean = hasAnyAnnotation(column, listOf("ReadOnly", "RO"))
+    fun hasReadOnly(column: Map<String, Any?>) =
+        hasAnyAnnotation(column, listOf("ReadOnly", "RO"))
 
-    fun hasRelation(column: Map<String, Any?>): Boolean = hasAnyAnnotation(column, listOf("Relation", "Rel"))
+    fun hasRelation(column: Map<String, Any?>) =
+        hasAnyAnnotation(column, listOf("Relation", "Rel"))
 
-    fun getRelation(column: Map<String, Any?>): String = getAnyAnnotation(column, listOf("Relation", "Rel"))
+    fun getRelation(column: Map<String, Any?>): String =
+        getAnyAnnotation(column, listOf("Relation", "Rel"))
 
-    fun hasReference(column: Map<String, Any?>): Boolean = hasAnyAnnotation(column, listOf("Reference", "Ref"))
+    fun hasReference(column: Map<String, Any?>) =
+        hasAnyAnnotation(column, listOf("Reference", "Ref"))
 
     fun getReference(column: Map<String, Any?>): String {
-        var ref = getAnyAnnotation(column, listOf("Reference", "Ref"))
         val columnName = getColumnName(column).lowercase()
-        if (ref.isBlank() && columnName.endsWith("_id")) {
-            ref = columnName.removeSuffix("_id")
-        } else if (ref.isBlank() && columnName.endsWith("id")) {
-            ref = columnName.removeSuffix("id")
-        }
+        var ref = getAnyAnnotation(column, listOf("Reference", "Ref"))
         if (ref.isBlank()) {
-            return columnName
+            ref = when {
+                columnName.endsWith("_id") -> columnName.removeSuffix("_id")
+                columnName.endsWith("id") -> columnName.removeSuffix("id")
+                else -> columnName
+            }
         }
         return ref
     }
 
-    fun hasIdGenerator(column: Map<String, Any?>): Boolean = hasAnyAnnotation(column, listOf("IdGenerator", "IG"))
+    fun hasIdGenerator(column: Map<String, Any?>) =
+        hasAnyAnnotation(column, listOf("IdGenerator", "IG"))
 
-    fun getIdGenerator(column: Map<String, Any?>): String = getAnyAnnotation(column, listOf("IdGenerator", "IG"))
+    fun getIdGenerator(column: Map<String, Any?>): String =
+        getAnyAnnotation(column, listOf("IdGenerator", "IG"))
 
-    fun hasType(columnOrTable: Map<String, Any?>): Boolean = hasAnyAnnotation(columnOrTable, listOf("Type", "T"))
+    fun hasType(columnOrTable: Map<String, Any?>) =
+        hasAnyAnnotation(columnOrTable, listOf("Type", "T"))
 
-    fun getType(columnOrTable: Map<String, Any?>): String = getAnyAnnotation(columnOrTable, listOf("Type", "T"))
+    fun getType(columnOrTable: Map<String, Any?>): String =
+        getAnyAnnotation(columnOrTable, listOf("Type", "T"))
 
-    fun hasEnum(columnOrTable: Map<String, Any?>) = hasAnyAnnotation(columnOrTable, listOf("Enum", "E"))
+    fun hasEnum(columnOrTable: Map<String, Any?>) =
+        hasAnyAnnotation(columnOrTable, listOf("Enum", "E"))
 
     fun getEnum(columnOrTable: Map<String, Any?>): Map<Int, Array<String>> {
-        val enumsConfig = getAnyAnnotation(columnOrTable, listOf("Enum", "E"))
+        val config = getAnyAnnotation(columnOrTable, listOf("Enum", "E"))
+        if (config.isBlank()) return emptyMap()
         val result = mutableMapOf<Int, Array<String>>()
-        if (enumsConfig.isNotBlank()) {
-            val enumsConfigs = enumsConfig.splitWithTrim("|")
-            enumsConfigs.forEachIndexed { i, it ->
-                val pair = it.split(":")
-                    .map { c ->
-                        c.trim()
-                            .replace("\n", "")
-                            .replace("\r", "")
-                            .replace("\t", "")
-                    }
-                when (pair.size) {
-                    0 -> return@forEachIndexed
-                    1 -> {
-                        if (pair[0].matches("^[-+]?[0-9]+$".toRegex())) {
-                            return@forEachIndexed
-                        } else {
-                            result.put(i, arrayOf(pair[0], pair[0]))
-                        }
-                    }
+        val items = config.splitWithTrim("\\|")
+        items.forEachIndexed { idx, token ->
+            val parts = token.split(":").map {
+                it.trim().replace("\n", "").replace("\r", "").replace("\t", "")
+            }
+            if (parts.isEmpty()) return@forEachIndexed
+            fun putValue(k: Int, name: String, value: String = name) {
+                result[k] = arrayOf(name, value)
+            }
+            when (parts.size) {
+                1 -> {
+                    if (!ANY_INT_REGEX.matches(parts[0])) putValue(idx, parts[0])
+                }
 
-                    2 -> {
-                        if (pair[0].matches("^[-+]?[0-9]+$".toRegex())) {
-                            result.put(pair[0].toInt(), arrayOf(pair[1], pair[1]))
-                        } else {
-                            result.put(i, arrayOf(pair[0], pair[1]))
-                        }
+                2 -> {
+                    if (ANY_INT_REGEX.matches(parts[0])) {
+                        putValue(parts[0].toInt(), parts[1])
+                    } else {
+                        putValue(idx, parts[0], parts[1])
                     }
+                }
 
-                    else -> {
-                        if (pair[0].matches("^[-+]?[0-9]+$".toRegex())) {
-                            result.put(pair[0].toInt(), arrayOf(pair[1], pair[2]))
-                        } else {
-                            result.put(i, arrayOf(pair[0], pair[1]))
-                        }
+                else -> {
+                    if (ANY_INT_REGEX.matches(parts[0])) {
+                        putValue(parts[0].toInt(), parts[1], parts[2])
+                    } else {
+                        putValue(idx, parts[0], parts[1])
                     }
                 }
             }
@@ -402,25 +338,19 @@ object SqlSchemaUtils {
         return result
     }
 
-    fun hasFactory(table: Map<String, Any?>): Boolean = hasAnyAnnotation(table, listOf("Factory", "Fac"))
+    fun hasFactory(table: Map<String, Any?>) =
+        hasAnyAnnotation(table, listOf("Factory", "Fac"))
 
-    fun hasSpecification(table: Map<String, Any?>): Boolean =
+    fun hasSpecification(table: Map<String, Any?>) =
         hasAnyAnnotation(table, listOf("Specification", "Spec", "Spe"))
 
-    fun hasDomainEvent(table: Map<String, Any?>): Boolean =
+    fun hasDomainEvent(table: Map<String, Any?>) =
         hasAnyAnnotation(table, listOf("DomainEvent", "DE", "Event", "Evt"))
 
     fun getDomainEvents(table: Map<String, Any?>): List<String> {
-        if (!isAggregateRoot(table)) {
-            return emptyList()
-        }
-        return getAnyAnnotation(table, listOf("DomainEvent", "DE", "Event", "Evt")).splitWithTrim("\\|")
+        if (!isAggregateRoot(table)) return emptyList()
+        return getAnyAnnotation(table, listOf("DomainEvent", "DE", "Event", "Evt"))
+            .splitWithTrim("\\|")
             .filter { it.isNotBlank() }
     }
-
-
-}
-
-private fun String.splitWithTrim(regexSplitter: String): List<String> {
-    return this.split(regexSplitter).map { it.trim() }
 }

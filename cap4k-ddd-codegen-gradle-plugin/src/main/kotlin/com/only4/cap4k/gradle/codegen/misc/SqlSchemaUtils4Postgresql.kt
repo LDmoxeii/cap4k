@@ -11,9 +11,9 @@ import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.hasEnum
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.hasType
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.task
 
+object SqlSchemaUtils4Postgresql : SqlSchemaUtils.SqlSchemaDialect {
 
-object SqlSchemaUtils4Mysql : SqlSchemaUtils.SqlSchemaDialect {
-
+    // 简化 task 调用
     private val ext get() = task!!.extension.get()
     private val db get() = ext.database
     private val gen get() = ext.generation
