@@ -110,7 +110,7 @@ open class GenDesignTask : GenArchTask() {
         templateNode.compiledPattern()?.matcher(literal)?.matches() ?: true
 
     override fun renderTemplate(templateNodes: List<TemplateNode>, parentPath: String) {
-        val ext = getExtension()
+        val ext = extension.get()
         var designLiteral = ""
 
         // extension 中的设计字面量

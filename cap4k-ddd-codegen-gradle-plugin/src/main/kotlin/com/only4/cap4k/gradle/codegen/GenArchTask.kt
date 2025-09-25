@@ -34,7 +34,7 @@ open class GenArchTask : AbstractCodegenTask() {
     private fun genArch() {
 
         fun loadTemplate(templatePath: String): Template {
-            val ext = getExtension()
+            val ext = extension.get()
             val templateContent =
                 loadFileContent(templatePath, ext.archTemplateEncoding.get(), projectDir.get())
             logger.debug("模板内容: $templateContent")
@@ -46,7 +46,7 @@ open class GenArchTask : AbstractCodegenTask() {
             return template
         }
 
-        val ext = getExtension()
+        val ext = extension.get()
         logger.info("生成项目架构结构...")
 
         // 基础日志
@@ -57,7 +57,7 @@ open class GenArchTask : AbstractCodegenTask() {
             logger.info("基础包名：${basePackage.get()}")
             logger.info(if (multiModule.get()) "多模块项目" else "单模块项目")
         }
-        logger.info("项目目录：${getProjectDir()}")
+        logger.info("项目目录：${projectDir.get()}")
         logger.info("适配层目录：${getAdapterModulePath()}")
         logger.info("应用层目录：${getApplicationModulePath()}")
         logger.info("领域层目录：${getDomainModulePath()}")
@@ -74,7 +74,7 @@ open class GenArchTask : AbstractCodegenTask() {
 
         runCatching {
             template = loadTemplate(archTemplate)
-            render(template!!, getProjectDir())
+            render(template!!, projectDir.get())
         }.onSuccess {
             logger.info("项目架构生成完成")
         }.onFailure {

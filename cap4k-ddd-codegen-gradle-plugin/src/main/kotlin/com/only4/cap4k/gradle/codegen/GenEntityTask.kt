@@ -119,7 +119,7 @@ open class GenEntityTask : GenArchTask() {
     fun genEntity() {
 
         fun resolveDatabaseConfig(): Triple<String, String, String> {
-            val ext = getExtension()
+            val ext = extension.get()
             val url = ext.database.url.get()
             val username = ext.database.username.get()
             val password = ext.database.password.get()
@@ -148,7 +148,7 @@ open class GenEntityTask : GenArchTask() {
                 ?: emptyList()
 
         fun filterTables(tables: List<Map<String, Any?>>): List<Map<String, Any?>> {
-            val ext = getExtension()
+            val ext = extension.get()
             val include = parsePatterns(ext.database.tables.get())
             val exclude = parsePatterns(ext.database.ignoreTables.get())
 
@@ -170,7 +170,7 @@ open class GenEntityTask : GenArchTask() {
 
         logger.info("生成实体类...")
 
-        val ext = getExtension()
+        val ext = extension.get()
 
         // 设置 SqlSchemaUtils 的任务引用
         SqlSchemaUtils.task = this
@@ -567,7 +567,7 @@ open class GenEntityTask : GenArchTask() {
     fun isReservedColumn(column: Map<String, Any?>): Boolean {
         val columnName: String =
             SqlSchemaUtils.getColumnName(column).lowercase(Locale.getDefault())
-        val isReserved = getExtension().generation.versionField.get().equals(columnName, ignoreCase = true)
+        val isReserved = extension.get().generation.versionField.get().equals(columnName, ignoreCase = true)
         return isReserved
     }
 
@@ -577,9 +577,9 @@ open class GenEntityTask : GenArchTask() {
         }
         val columnName: String =
             SqlSchemaUtils.getColumnName(column).lowercase(Locale.getDefault())
-        if (getExtension().generation.readonlyFields.get().isNotBlank()
+        if (extension.get().generation.readonlyFields.get().isNotBlank()
             && Arrays.stream<String>(
-                getExtension().generation.readonlyFields.get().lowercase(Locale.getDefault())
+                extension.get().generation.readonlyFields.get().lowercase(Locale.getDefault())
                     .split(PATTERN_SPLITTER.toRegex())
                     .dropLastWhile { it.isEmpty() }.toTypedArray()
             )
@@ -599,7 +599,7 @@ open class GenEntityTask : GenArchTask() {
         }
         val columnName: String =
             SqlSchemaUtils.getColumnName(column).lowercase(Locale.getDefault())
-        return getExtension().generation.ignoreFields.get().map { it.lowercase().split(PATTERN_SPLITTER) }.flatten()
+        return extension.get().generation.ignoreFields.get().map { it.lowercase().split(PATTERN_SPLITTER) }.flatten()
             .any { columnName.matches(it.replace("%", ".*").toRegex()) }
     }
 
@@ -674,7 +674,7 @@ open class GenEntityTask : GenArchTask() {
      * @return
      */
     private fun isVersionColumn(column: Map<String, Any?>): Boolean {
-        return SqlSchemaUtils.getColumnName(column) == getExtension().generation.versionField.get()
+        return SqlSchemaUtils.getColumnName(column) == extension.get().generation.versionField.get()
     }
 
     /**
@@ -725,10 +725,10 @@ open class GenEntityTask : GenArchTask() {
                 }
             }
         }
-        if (fieldName == getExtension().generation.versionField.get()) {
+        if (fieldName == extension.get().generation.versionField.get()) {
             comments.add(" * 数据版本（支持乐观锁）")
         }
-        if (getExtension().generation.generateDbType.get()) {
+        if (extension.get().generation.generateDbType.get()) {
             comments.add(" * " + SqlSchemaUtils.getColumnDbType(column))
         }
         comments.add(" */")
@@ -765,13 +765,13 @@ open class GenEntityTask : GenArchTask() {
                     if (parent.equals(SqlSchemaUtils.getReference(column), ignoreCase = true)) {
                         val lazy = SqlSchemaUtils.isLazy(
                             column,
-                            "LAZY".equals(getExtension().generation.fetchType.get(), ignoreCase = true)
+                            "LAZY".equals(extension.get().generation.fetchType.get(), ignoreCase = true)
                         )
                         result[parent]!!.putIfAbsent(
                             tableName,
                             "OneToMany;${SqlSchemaUtils.getColumnName(column)}${if (lazy) ";LAZY" else ""}"
                         )
-                        if (getExtension().generation.generateParent.get()) {
+                        if (extension.get().generation.generateParent.get()) {
                             result.putIfAbsent(tableName, mutableMapOf())
                             result[tableName]!!.putIfAbsent(
                                 parent,
@@ -788,13 +788,13 @@ open class GenEntityTask : GenArchTask() {
                 if (column != null) {
                     val lazy = SqlSchemaUtils.isLazy(
                         column,
-                        "LAZY".equals(getExtension().generation.fetchType.get(), ignoreCase = true)
+                        "LAZY".equals(extension.get().generation.fetchType.get(), ignoreCase = true)
                     )
                     result[parent]!!.putIfAbsent(
                         tableName,
                         "OneToMany;${SqlSchemaUtils.getColumnName(column)}${if (lazy) ";LAZY" else ""}"
                     )
-                    if (getExtension().generation.generateParent.get()) {
+                    if (extension.get().generation.generateParent.get()) {
                         result.putIfAbsent(tableName, mutableMapOf())
                         result[tableName]!!.putIfAbsent(
                             parent,
@@ -820,7 +820,7 @@ open class GenEntityTask : GenArchTask() {
                     result.putIfAbsent(refTableName, mutableMapOf())
                     val lazy = SqlSchemaUtils.isLazy(
                         column,
-                        "LAZY".equals(getExtension().generation.fetchType.get(), ignoreCase = true)
+                        "LAZY".equals(extension.get().generation.fetchType.get(), ignoreCase = true)
                     )
                     if (owner.isEmpty()) {
                         ownerLazy = lazy
@@ -851,7 +851,7 @@ open class GenEntityTask : GenArchTask() {
             var refTableName: String? = null
             val lazy = SqlSchemaUtils.isLazy(
                 column,
-                "LAZY".equals(getExtension().generation.fetchType.get(), ignoreCase = true)
+                "LAZY".equals(extension.get().generation.fetchType.get(), ignoreCase = true)
             )
 
             if (colRel.isNotEmpty() || SqlSchemaUtils.hasReference(column)) {
@@ -900,7 +900,7 @@ open class GenEntityTask : GenArchTask() {
     ): Boolean {
         val file = File(filePath)
         if (file.exists()) {
-            val content = file.readText(charset(getExtension().outputEncoding.get()))
+            val content = file.readText(charset(extension.get().outputEncoding.get()))
             val lines = content.replace("\r\n", "\n").split("\n")
 
             var startMapperLine = 0
@@ -1089,7 +1089,7 @@ open class GenEntityTask : GenArchTask() {
         addIfNone(annotationLines, """@DynamicUpdate(\(.*\))?""", "@DynamicUpdate")
 
         // 处理软删除相关注解
-        val ext = getExtension()
+        val ext = extension.get()
         val deletedField = ext.generation.deletedField.get()
         val versionField = ext.generation.versionField.get()
 
@@ -1201,18 +1201,18 @@ open class GenEntityTask : GenArchTask() {
         logger.info("开始生成实体文件：$filePath")
 
         val file = File(filePath)
-        if (!file.exists() || !file.readText(charset(getExtension().outputEncoding.get()))
+        if (!file.exists() || !file.readText(charset(extension.get().outputEncoding.get()))
                 .contains(FLAG_DO_NOT_OVERWRITE)
         ) {
             file.writeText(
                 """package $entityFullPackage
                 |${importLines.joinToString("\n")}
                 |$mainSource""".trimMargin(),
-                charset(getExtension().outputEncoding.get())
+                charset(extension.get().outputEncoding.get())
             )
         }
 
-        val ext = getExtension()
+        val ext = extension.get()
         if (ext.generation.generateSchema.get()) {
             writeSchemaSourceFile(table, columns, tablePackageMap, relations, basePackage, baseDir)
         }
@@ -1276,13 +1276,13 @@ open class GenEntityTask : GenArchTask() {
         // Determine base class
         var baseClass: String? = null
         when {
-            SqlSchemaUtils.isAggregateRoot(table) && getExtension().generation.rootEntityBaseClass.get()
+            SqlSchemaUtils.isAggregateRoot(table) && extension.get().generation.rootEntityBaseClass.get()
                 .isNotBlank() -> {
-                baseClass = getExtension().generation.rootEntityBaseClass.get()
+                baseClass = extension.get().generation.rootEntityBaseClass.get()
             }
 
-            getExtension().generation.entityBaseClass.get().isNotBlank() -> {
-                baseClass = getExtension().generation.entityBaseClass.get()
+            extension.get().generation.entityBaseClass.get().isNotBlank() -> {
+                baseClass = extension.get().generation.entityBaseClass.get()
             }
         }
 
@@ -1343,8 +1343,8 @@ open class GenEntityTask : GenArchTask() {
 //            val idTypeName = if (ids.size != 1) "Long" else SqlSchemaUtils.getColumnType(ids[0])
 //
 //            val hashTemplate = when {
-//                getExtension().generation.hashMethod4ValueObject.get().isNotBlank() -> {
-//                    "    " + getExtension().generation.hashMethod4ValueObject.get().trim()
+//                extension.get().generation.hashMethod4ValueObject.get().isNotBlank() -> {
+//                    "    " + extension.get().generation.hashMethod4ValueObject.get().trim()
 //                }
 //
 //                ids.size != 1 -> {
@@ -1431,14 +1431,14 @@ open class GenEntityTask : GenArchTask() {
             }
 
             SqlSchemaUtils.isValueObject(table) -> {
-                getExtension().generation.idGenerator4ValueObject.get().ifBlank {
+                extension.get().generation.idGenerator4ValueObject.get().ifBlank {
                     // ValueObject 值对象 默认使用MD5
                     "com.only4.cap4k.ddd.domain.repo.Md5HashIdentifierGenerator"
                 }
             }
 
             else -> {
-                getExtension().generation.idGenerator.get().ifBlank {
+                extension.get().generation.idGenerator.get().ifBlank {
                     ""
                 }
             }
@@ -1460,7 +1460,7 @@ open class GenEntityTask : GenArchTask() {
                 table,
                 column,
                 relations
-            ) && columnName != getExtension().generation.versionField.get()
+            ) && columnName != extension.get().generation.versionField.get()
         ) {
             return
         }
@@ -1798,7 +1798,7 @@ open class GenEntityTask : GenArchTask() {
         putContext(
             tag,
             "entityPackage",
-            refPackage(entityFullPackage, getExtension().basePackage.get()),
+            refPackage(entityFullPackage, extension.get().basePackage.get()),
             context
         )
         putContext(tag, "EntityVar", entityVar, context)
@@ -1818,7 +1818,7 @@ open class GenEntityTask : GenArchTask() {
                     resolvePackageDirectory(
                         baseDir,
                         concatPackage(
-                            getExtension().basePackage.get(),
+                            extension.get().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
                     )
@@ -1827,7 +1827,7 @@ open class GenEntityTask : GenArchTask() {
                     resolvePackageDirectory(
                         baseDir,
                         concatPackage(
-                            getExtension().basePackage.get(),
+                            extension.get().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
                     )
@@ -1864,7 +1864,7 @@ open class GenEntityTask : GenArchTask() {
         putContext(
             tag,
             "entityPackage",
-            refPackage(entityFullPackage, getExtension().basePackage.get()),
+            refPackage(entityFullPackage, extension.get().basePackage.get()),
             context
         )
         putContext(tag, "Entity", entityType, context)
@@ -1885,7 +1885,7 @@ open class GenEntityTask : GenArchTask() {
                     resolvePackageDirectory(
                         baseDir,
                         concatPackage(
-                            getExtension().basePackage.get(),
+                            extension.get().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
                     )
@@ -1894,7 +1894,7 @@ open class GenEntityTask : GenArchTask() {
                     resolvePackageDirectory(
                         baseDir,
                         concatPackage(
-                            getExtension().basePackage.get(),
+                            extension.get().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
                     )
@@ -1931,7 +1931,7 @@ open class GenEntityTask : GenArchTask() {
         putContext(
             tag,
             "entityPackage",
-            refPackage(entityFullPackage, getExtension().basePackage.get()),
+            refPackage(entityFullPackage, extension.get().basePackage.get()),
             context
         )
         putContext(tag, "Entity", entityType, context)
@@ -1952,7 +1952,7 @@ open class GenEntityTask : GenArchTask() {
                     resolvePackageDirectory(
                         baseDir,
                         concatPackage(
-                            getExtension().basePackage.get(),
+                            extension.get().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
                     )
@@ -1996,7 +1996,7 @@ open class GenEntityTask : GenArchTask() {
         putContext(
             tag,
             "entityPackage",
-            refPackage(entityFullPackage, getExtension().basePackage.get()),
+            refPackage(entityFullPackage, extension.get().basePackage.get()),
             context
         )
         putContext(tag, "Entity", entityType, context)
@@ -2018,7 +2018,7 @@ open class GenEntityTask : GenArchTask() {
                     resolvePackageDirectory(
                         baseDir,
                         concatPackage(
-                            getExtension().basePackage.get(),
+                            extension.get().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
                     )
@@ -2044,7 +2044,7 @@ open class GenEntityTask : GenArchTask() {
                     resolvePackageDirectory(
                         getApplicationModulePath(),
                         concatPackage(
-                            getExtension().basePackage.get(),
+                            extension.get().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
                     )
@@ -2083,7 +2083,7 @@ open class GenEntityTask : GenArchTask() {
         putContext(
             tag,
             "entityPackage",
-            refPackage(entityFullPackage, getExtension().basePackage.get()),
+            refPackage(entityFullPackage, extension.get().basePackage.get()),
             context
         )
         putContext(tag, "Entity", entityType, context)
@@ -2129,7 +2129,7 @@ open class GenEntityTask : GenArchTask() {
                     resolvePackageDirectory(
                         baseDir,
                         concatPackage(
-                            getExtension().basePackage.get(),
+                            extension.get().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
                     )
@@ -2359,7 +2359,7 @@ open class GenEntityTask : GenArchTask() {
                 val extraExtensionTemplateNodes = if (templateNodeMap.containsKey(rootExtraExtensionTag)) {
                     templateNodeMap[rootExtraExtensionTag]!!
                 } else {
-                    listOf(resolveDefaultRootSchemaExtraExtensionTemplateNode(getExtension().generation.generateAggregate.get()))
+                    listOf(resolveDefaultRootSchemaExtraExtensionTemplateNode(extension.get().generation.generateAggregate.get()))
                 }
                 for (templateNode in extraExtensionTemplateNodes) {
                     extraExtension += templateNode.deepCopy().resolve(context).data ?: ""
@@ -2398,7 +2398,7 @@ open class GenEntityTask : GenArchTask() {
 
     fun writeSchemaBaseSourceFile(baseDir: String) {
         val tag = "schema_base"
-        val schemaFullPackage = concatPackage(getExtension().basePackage.get(), resolveSchemaPackage())
+        val schemaFullPackage = concatPackage(extension.get().basePackage.get(), resolveSchemaPackage())
 
         val schemaBaseTemplateNodes = if (templateNodeMap.containsKey(tag)) {
             templateNodeMap[tag]!!
@@ -2410,7 +2410,7 @@ open class GenEntityTask : GenArchTask() {
         putContext(
             tag,
             "templatePackage",
-            refPackage(schemaFullPackage, getExtension().basePackage.get()),
+            refPackage(schemaFullPackage, extension.get().basePackage.get()),
             context
         )
         putContext(tag, "SchemaBase", DEFAULT_SCHEMA_BASE_CLASS_NAME, context)
@@ -2423,7 +2423,7 @@ open class GenEntityTask : GenArchTask() {
                     resolvePackageDirectory(
                         baseDir,
                         concatPackage(
-                            getExtension().basePackage.get(),
+                            extension.get().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
                     )
@@ -2461,7 +2461,7 @@ open class GenEntityTask : GenArchTask() {
         return TemplateNode().apply {
             type = "file"
             tag = "aggregate"
-            name = "${'$'}{path}${'$'}{SEPARATOR}${getExtension().generation.aggregateNameTemplate.get()}.kt"
+            name = "${'$'}{path}${'$'}{SEPARATOR}${extension.get().generation.aggregateNameTemplate.get()}.kt"
             format = "raw"
             data = template
             conflict = "skip"
@@ -2660,7 +2660,7 @@ open class GenEntityTask : GenArchTask() {
                     }
                     
                     ${
-            if (getExtension().generation.enumUnmatchedThrowException.get()) """
+            if (extension.get().generation.enumUnmatchedThrowException.get()) """
                         override fun convertToEntityAttribute(dbData: Int): ${'$'}{Enum} {
                         return valueOf(dbData)
                     }   
@@ -2744,7 +2744,7 @@ open class GenEntityTask : GenArchTask() {
 
     fun resolveDefaultSchemaJoinTemplateNode(): TemplateNode {
         val joinEntitySchema =
-            getExtension().generation.entitySchemaNameTemplate.get().replace("\${Entity}", "\${joinEntityType}")
+            extension.get().generation.entitySchemaNameTemplate.get().replace("\${Entity}", "\${joinEntityType}")
         val template = """/**
             |     * ${'$'}{joinEntityType} 关联查询条件定义
             |     *
@@ -2770,7 +2770,7 @@ open class GenEntityTask : GenArchTask() {
     }
 
     fun resolveDefaultSchemaTemplateNode(isAggregateRoot: Boolean): TemplateNode {
-        val ext = getExtension()
+        val ext = extension.get()
         val entitySchemaNameTemplate = ext.generation.entitySchemaNameTemplate.get()
         val supportQuerydsl = ext.generation.repositorySupportQuerydsl.get()
 
@@ -2781,7 +2781,7 @@ open class GenEntityTask : GenArchTask() {
             import com.only4.cap4k.ddd.domain.repo.JpaPredicate
             ${if (supportQuerydsl) "import com.only4.cap4k.ddd.domain.repo.querydsl.QuerydslPredicate" else ""}
             import ${'$'}{basePackage}.${'$'}{schemaBasePackage}.${'$'}{SchemaBase}
-            ${if (isAggregateRoot && supportQuerydsl) "import ${'$'}{basePackage}.${'$'}{entityPackage}.${getExtension().generation.aggregateNameTemplate.get()}" else ""}
+            ${if (isAggregateRoot && supportQuerydsl) "import ${'$'}{basePackage}.${'$'}{entityPackage}.${extension.get().generation.aggregateNameTemplate.get()}" else ""}
             import ${'$'}{basePackage}.${'$'}{entityPackage}.${'$'}{Entity}
             ${if (supportQuerydsl) "import ${'$'}{basePackage}.${'$'}{entityPackage}.Q${'$'}{Entity}" else ""}
             ${if (supportQuerydsl) "import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate" else ""}
@@ -3016,7 +3016,7 @@ open class GenEntityTask : GenArchTask() {
     }
 
     fun resolveDefaultRootSchemaExtraExtensionTemplateNode(generateAggregate: Boolean): TemplateNode {
-        val ext = getExtension()
+        val ext = extension.get()
         val entitySchemaNameTemplate = ext.generation.entitySchemaNameTemplate.get()
         val supportQuerydsl = ext.generation.repositorySupportQuerydsl.get()
         var template = ""
@@ -3029,8 +3029,8 @@ open class GenEntityTask : GenArchTask() {
                 |         * @return
                 |         */
                 |        @JvmStatic
-                |        fun predicateById(id: Any): AggregatePredicate<${getExtension().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.byId(${'$'}{Entity}::class.java, id).toAggregatePredicate(${getExtension().generation.aggregateNameTemplate.get()}::class.java)
+                |        fun predicateById(id: Any): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
+                |            return JpaPredicate.byId(${'$'}{Entity}::class.java, id).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
                 |        }
                 |    
                 |        /**
@@ -3040,9 +3040,9 @@ open class GenEntityTask : GenArchTask() {
                 |        * @return
                 |        */
                 |        @JvmStatic
-                |        fun predicateByIds(ids: Iterable<*>): AggregatePredicate<${getExtension().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
+                |        fun predicateByIds(ids: Iterable<*>): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
                 |            @Suppress("UNCHECKED_CAST")
-                |            return JpaPredicate.byIds(${'$'}{Entity}::class.java, ids as Iterable<Any>).toAggregatePredicate(${getExtension().generation.aggregateNameTemplate.get()}::class.java)
+                |            return JpaPredicate.byIds(${'$'}{Entity}::class.java, ids as Iterable<Any>).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
                 |        }
                 |    
                 |        /**
@@ -3052,8 +3052,8 @@ open class GenEntityTask : GenArchTask() {
                 |         * @return
                 |         */
                 |        @JvmStatic
-                |        fun predicateByIds(vararg ids: Any): AggregatePredicate<${getExtension().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.byIds(${'$'}{Entity}::class.java, ids.toList()).toAggregatePredicate(${getExtension().generation.aggregateNameTemplate.get()}::class.java)
+                |        fun predicateByIds(vararg ids: Any): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
+                |            return JpaPredicate.byIds(${'$'}{Entity}::class.java, ids.toList()).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
                 |        }
                 |    
                 |        /**
@@ -3063,8 +3063,8 @@ open class GenEntityTask : GenArchTask() {
                 |         * @return
                 |         */
                 |        @JvmStatic
-                |        fun predicate(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>): AggregatePredicate<${getExtension().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder)).toAggregatePredicate(${getExtension().generation.aggregateNameTemplate.get()}::class.java)
+                |        fun predicate(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
+                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder)).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
                 |        }
                 |    
                 |        /**
@@ -3075,8 +3075,8 @@ open class GenEntityTask : GenArchTask() {
                 |         * @return
                 |         */
                 |        @JvmStatic
-                |        fun predicate(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>, distinct: Boolean): AggregatePredicate<${getExtension().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct)).toAggregatePredicate(${getExtension().generation.aggregateNameTemplate.get()}::class.java)
+                |        fun predicate(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>, distinct: Boolean): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
+                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct)).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
                 |        }
                 |    
                 |        /**
@@ -3090,8 +3090,8 @@ open class GenEntityTask : GenArchTask() {
                 |        fun predicate(
                 |            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
                 |            orderBuilders: List<${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>>,
-                |        ): AggregatePredicate<${getExtension().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, false, orderBuilders)).toAggregatePredicate(${getExtension().generation.aggregateNameTemplate.get()}::class.java)
+                |        ): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
+                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, false, orderBuilders)).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
                 |        }
                 |    
                 |        /**
@@ -3105,8 +3105,8 @@ open class GenEntityTask : GenArchTask() {
                 |        fun predicate(
                 |            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
                 |            vararg orderBuilders: ${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>,
-                |        ): AggregatePredicate<${getExtension().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, false, *orderBuilders)).toAggregatePredicate(${getExtension().generation.aggregateNameTemplate.get()}::class.java)
+                |        ): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
+                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, false, *orderBuilders)).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
                 |        }
                 |    
                 |        /**
@@ -3122,8 +3122,8 @@ open class GenEntityTask : GenArchTask() {
                 |            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
                 |            distinct: Boolean,
                 |            orderBuilders: List<${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>>,
-                |        ): AggregatePredicate<${getExtension().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct, orderBuilders)).toAggregatePredicate(${getExtension().generation.aggregateNameTemplate.get()}::class.java)
+                |        ): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
+                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct, orderBuilders)).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
                 |        }
                 |    
                 |        /**
@@ -3139,8 +3139,8 @@ open class GenEntityTask : GenArchTask() {
                 |            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
                 |            distinct: Boolean,
                 |            vararg orderBuilders: ${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>,
-                |        ): AggregatePredicate<${getExtension().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct, *orderBuilders)).toAggregatePredicate(${getExtension().generation.aggregateNameTemplate.get()}::class.java)
+                |        ): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
+                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct, *orderBuilders)).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
                 |        }
                 |    
                 |        /**
@@ -3150,8 +3150,8 @@ open class GenEntityTask : GenArchTask() {
                 |         * @return
                 |         */
                 |        @JvmStatic
-                |        fun predicate(specifier: ${'$'}{SchemaBase}.Specification<${'$'}{Entity}, $entitySchemaNameTemplate>): AggregatePredicate<${getExtension().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(specifier)).toAggregatePredicate(${getExtension().generation.aggregateNameTemplate.get()}::class.java)
+                |        fun predicate(specifier: ${'$'}{SchemaBase}.Specification<${'$'}{Entity}, $entitySchemaNameTemplate>): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
+                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(specifier)).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
                 |        }
             """.trimMargin()
         else """/**
@@ -3301,11 +3301,11 @@ open class GenEntityTask : GenArchTask() {
                     |        fun querydsl(
                     |            filterBuilder: java.util.function.Function<Q${'$'}{Entity}, com.querydsl.core.types.Predicate>,
                     |            vararg orderSpecifierBuilders: java.util.function.Function<Q${'$'}{Entity}, OrderSpecifier<*>>,
-                    |        ): AggregatePredicate<${getExtension().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
+                    |        ): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
                     |            return QuerydslPredicate.of(${'$'}{Entity}::class.java)
                     |                .where(filterBuilder.apply(Q${'$'}{Entity}.${'$'}{EntityVar}))
                     |                .orderBy(*orderSpecifierBuilders.map { it.apply(Q${'$'}{Entity}.${'$'}{EntityVar}) }.toTypedArray())
-                    |                .toAggregatePredicate(${getExtension().generation.aggregateNameTemplate.get()}::class.java)
+                    |                .toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
                     |        }
                     |        
                     |        /**
@@ -3319,11 +3319,11 @@ open class GenEntityTask : GenArchTask() {
                     |        fun querydsl(
                     |            filter: com.querydsl.core.types.Predicate,
                     |            vararg orderSpecifiers: OrderSpecifier<*>,
-                    |        ): AggregatePredicate<${getExtension().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
+                    |        ): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
                     |            return QuerydslPredicate.of(${'$'}{Entity}::class.java)
                     |                .where(filter)
                     |                .orderBy(*orderSpecifiers)
-                    |                .toAggregatePredicate(${getExtension().generation.aggregateNameTemplate.get()}::class.java)
+                    |                .toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
                     |        }  
                 """.trimMargin()
             else """

@@ -50,7 +50,7 @@ open class GenRepositoryTask : GenArchTask() {
     }
 
     private fun resolveRepositoriesDirectory(): String {
-        val ext = getExtension()
+        val ext = extension.get()
         return resolvePackageDirectory(
             getAdapterModulePath(),
             "${ext.basePackage.get()}.$AGGREGATE_REPOSITORY_PACKAGE"
@@ -66,7 +66,7 @@ open class GenRepositoryTask : GenArchTask() {
      * 按需拼接 Querydsl 相关内容（避免未启用时仍引用导致编译失败）
      */
     private fun getDefaultRepositoryTemplate(): TemplateNode {
-        val ext = getExtension()
+        val ext = extension.get()
         val repositorySupportQuerydsl = ext.generation.repositorySupportQuerydsl.get()
         val repositoryNameTemplate = ext.generation.repositoryNameTemplate.get()
 
@@ -164,7 +164,7 @@ open class GenRepositoryTask : GenArchTask() {
 
     private fun processKotlinFile(file: File, templateNode: TemplateNode, parentPath: String) {
         val fullClassName = resolvePackage(file.absolutePath)
-        val content = runCatching { file.readText(charset(getExtension().outputEncoding.get())) }
+        val content = runCatching { file.readText(charset(extension.get().outputEncoding.get())) }
             .getOrElse {
                 logger.warn("读取文件失败，跳过: ${file.absolutePath}", it)
                 return

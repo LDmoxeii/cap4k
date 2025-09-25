@@ -22,10 +22,10 @@ import java.time.format.DateTimeFormatter
 abstract class AbstractCodegenTask : DefaultTask() {
 
     companion object {
-        private const val FLAG_DO_NOT_OVERWRITE = "[cap4k-ddd-codegen-gradle-plugin:do-not-overwrite]"
+        const val FLAG_DO_NOT_OVERWRITE = "[cap4k-ddd-codegen-gradle-plugin:do-not-overwrite]"
         const val PATTERN_SPLITTER = "[,;]"
-        private const val PATTERN_DESIGN_PARAMS_SPLITTER = "[\\:]"
-        private const val PATTERN_LINE_BREAK = "\\r\\n|[\\r\\n]"
+        const val PATTERN_DESIGN_PARAMS_SPLITTER = "[\\:]"
+        const val PATTERN_LINE_BREAK = "\\r\\n|[\\r\\n]"
         const val AGGREGATE_REPOSITORY_PACKAGE = "adapter.domain.repositories"
         const val AGGREGATE_PACKAGE = "domain.aggregates"
         const val DOMAIN_EVENT_SUBSCRIBER_PACKAGE = "application.subscribers.domain"
@@ -42,7 +42,6 @@ abstract class AbstractCodegenTask : DefaultTask() {
             "org.hibernate.annotations.GenericGenerator"
         )
 
-        // 模板变量别名映射表
         private val TEMPLATE_ALIAS_MAP = mapOf(
             // Comment 相关
             "schema.Comment" to listOf("Comment", "comment", "COMMENT"),
