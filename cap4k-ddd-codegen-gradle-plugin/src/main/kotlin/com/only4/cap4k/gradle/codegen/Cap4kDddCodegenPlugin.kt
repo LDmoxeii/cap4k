@@ -9,12 +9,9 @@ import org.gradle.api.Project
 class Cap4kDddCodegenPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
-        // 创建插件扩展
         val extension = project.extensions.create("cap4kCodegen", Cap4kCodegenExtension::class.java)
 
-        // 注册任务
         project.tasks.register("genArch", GenArchTask::class.java) { task ->
-            task.group = "cap4k codegen"
             task.description = "Generate project architecture structure"
             task.extension.set(extension)
             task.projectName.set(project.name)
@@ -24,7 +21,6 @@ class Cap4kDddCodegenPlugin : Plugin<Project> {
         }
 
         project.tasks.register("genEntity", GenEntityTask::class.java) { task ->
-            task.group = "cap4k codegen"
             task.description = "Generate entity classes from database schema"
             task.extension.set(extension)
             task.projectName.set(project.name)
@@ -44,7 +40,6 @@ class Cap4kDddCodegenPlugin : Plugin<Project> {
         }
 
         project.tasks.register("genDesign", GenDesignTask::class.java) { task ->
-            task.group = "cap4k codegen"
             task.description = "Generate design elements (commands, queries, events)"
             task.extension.set(extension)
             task.projectName.set(project.name)

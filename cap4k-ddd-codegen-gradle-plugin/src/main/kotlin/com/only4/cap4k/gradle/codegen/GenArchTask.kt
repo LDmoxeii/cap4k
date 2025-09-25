@@ -1,13 +1,15 @@
 package com.only4.cap4k.gradle.codegen
 
+import com.alibaba.fastjson.JSON
+import com.only4.cap4k.gradle.codegen.misc.loadFileContent
+import com.only4.cap4k.gradle.codegen.misc.resolveDirectory
+import com.only4.cap4k.gradle.codegen.template.PathNode
+import com.only4.cap4k.gradle.codegen.template.Template
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 import java.nio.charset.Charset
 
-/**
- * 生成项目架构结构任务
- */
 open class GenArchTask : AbstractCodegenTask() {
 
     @get:Input
@@ -27,42 +29,58 @@ open class GenArchTask : AbstractCodegenTask() {
     override val projectDir: Property<String> = project.objects.property(String::class.java)
 
     @TaskAction
-    open fun generate() {
-        genArch()
-    }
+    open fun generate() = genArch()
 
     private fun genArch() {
-        logger.info("生成项目架构结构...")
+
+        fun loadTemplate(templatePath: String): Template {
+            val ext = getExtension()
+            val templateContent =
+                loadFileContent(templatePath, ext.archTemplateEncoding.get(), projectDir.get())
+            logger.debug("模板内容: $templateContent")
+
+            PathNode.setDirectory(resolveDirectory(templatePath, projectDir.get()))
+            val template = JSON.parseObject(templateContent, Template::class.java)
+            template.resolve(getEscapeContext())
+
+            return template
+        }
 
         val ext = getExtension()
+        logger.info("生成项目架构结构...")
 
+        // 基础日志
         logger.info("当前系统默认编码：${Charset.defaultCharset().name()}")
-        logger.info("设置模板读取编码：${ext.archTemplateEncoding.get()} (from archTemplateEncoding)")
-        logger.info("设置输出文件编码：${ext.outputEncoding.get()} (from outputEncoding)")
-        logger.info("基础包名：${ext.basePackage.get()}")
-        logger.info(if (ext.multiModule.get()) "多模块项目" else "单模块项目")
+        with(ext) {
+            logger.info("设置模板读取编码：${archTemplateEncoding.get()} (from archTemplateEncoding)")
+            logger.info("设置输出文件编码：${outputEncoding.get()} (from outputEncoding)")
+            logger.info("基础包名：${basePackage.get()}")
+            logger.info(if (multiModule.get()) "多模块项目" else "单模块项目")
+        }
         logger.info("项目目录：${getProjectDir()}")
         logger.info("适配层目录：${getAdapterModulePath()}")
         logger.info("应用层目录：${getApplicationModulePath()}")
         logger.info("领域层目录：${getDomainModulePath()}")
 
-        val archTemplate = ext.archTemplate.orNull
-        if (archTemplate.isNullOrEmpty()) {
-            logger.error("请设置(archTemplate)参数")
-            return
-        }
-
-        if (ext.basePackage.get().isEmpty()) {
+        val archTemplate = ext.archTemplate.orNull?.takeIf { it.isNotBlank() }
+            ?: run {
+                logger.error("请设置(archTemplate)参数")
+                return
+            }
+        if (ext.basePackage.get().isBlank()) {
             logger.warn("请设置(basePackage)参数")
             return
         }
 
-        try {
+        runCatching {
             template = loadTemplate(archTemplate)
             render(template!!, getProjectDir())
-        } catch (e: Exception) {
-            logger.error("生成架构结构失败", e)
-            throw e
+        }.onSuccess {
+            logger.info("项目架构生成完成")
+        }.onFailure {
+            logger.error("生成架构结构失败", it)
+            throw it
         }
     }
 }
+

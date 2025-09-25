@@ -1,11 +1,10 @@
 package com.only4.cap4k.gradle.codegen
 
-import com.only4.cap4k.gradle.codegen.misc.NamingUtils
-import com.only4.cap4k.gradle.codegen.misc.TextUtils
+import com.only4.cap4k.gradle.codegen.misc.splitWithTrim
+import com.only4.cap4k.gradle.codegen.misc.toLowerCamelCase
+import com.only4.cap4k.gradle.codegen.misc.toUpperCamelCase
 import com.only4.cap4k.gradle.codegen.template.PathNode
 import com.only4.cap4k.gradle.codegen.template.TemplateNode
-import org.gradle.api.provider.Property
-import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 import java.io.File
 import java.util.regex.Pattern
@@ -15,247 +14,181 @@ import java.util.regex.Pattern
  */
 open class GenDesignTask : GenArchTask() {
 
-    @get:Input
-    override val extension: Property<Cap4kCodegenExtension> =
-        project.objects.property(Cap4kCodegenExtension::class.java)
-
-    @get:Input
-    override val projectName: Property<String> = project.objects.property(String::class.java)
-
-    @get:Input
-    override val projectGroup: Property<String> = project.objects.property(String::class.java)
-
-    @get:Input
-    override val projectVersion: Property<String> = project.objects.property(String::class.java)
-
-    @get:Input
-    override val projectDir: Property<String> = project.objects.property(String::class.java)
-
     @TaskAction
     override fun generate() {
         renderFileSwitch = false
         super.generate()
     }
 
-    private var renderFileSwitch = true
+    // 预构建别名映射（全部小写）
+    private val DESIGN_ALIAS: Map<String, String> = mapOf(
+        // command
+        "commands" to "command", "command" to "command", "cmd" to "command",
+        // saga
+        "saga" to "saga",
+        // query
+        "queries" to "query", "query" to "query", "qry" to "query",
+        // client
+        "clients" to "client", "client" to "client", "cli" to "client",
+        // integration event
+        "integration_events" to "integration_event", "integration_event" to "integration_event",
+        "events" to "integration_event", "event" to "integration_event",
+        "evt" to "integration_event", "i_e" to "integration_event", "ie" to "integration_event",
+        // integration event handler / subscriber
+        "integration_event_handlers" to "integration_event_handler",
+        "integration_event_handler" to "integration_event_handler",
+        "event_handlers" to "integration_event_handler",
+        "event_handler" to "integration_event_handler",
+        "evt_hdl" to "integration_event_handler",
+        "i_e_h" to "integration_event_handler",
+        "ieh" to "integration_event_handler",
+        "integration_event_subscribers" to "integration_event_handler",
+        "integration_event_subscriber" to "integration_event_handler",
+        "event_subscribers" to "integration_event_handler",
+        "event_subscriber" to "integration_event_handler",
+        "evt_sub" to "integration_event_handler",
+        "i_e_s" to "integration_event_handler",
+        "ies" to "integration_event_handler",
+        // repository
+        "repositories" to "repository", "repository" to "repository", "repos" to "repository", "repo" to "repository",
+        // factory
+        "factories" to "factory", "factory" to "factory", "fac" to "factory",
+        // specification
+        "specifications" to "specification", "specification" to "specification",
+        "specs" to "specification", "spec" to "specification", "spe" to "specification",
+        // domain event
+        "domain_events" to "domain_event", "domain_event" to "domain_event",
+        "d_e" to "domain_event", "de" to "domain_event",
+        // domain event handler / subscriber
+        "domain_event_handlers" to "domain_event_handler",
+        "domain_event_handler" to "domain_event_handler",
+        "d_e_h" to "domain_event_handler", "deh" to "domain_event_handler",
+        "domain_event_subscribers" to "domain_event_handler",
+        "domain_event_subscriber" to "domain_event_handler",
+        "d_e_s" to "domain_event_handler", "des" to "domain_event_handler",
+        // domain service
+        "domain_service" to "domain_service", "service" to "domain_service", "svc" to "domain_service"
+    )
 
     /**
      * 设计元素别名映射
      */
-    fun alias4Design(name: String): String {
-        return when (name.lowercase()) {
-            "commands", "command", "cmd" -> "command"
-            "saga" -> "saga"
-            "queries", "query", "qry" -> "query"
-            "clients", "client", "cli" -> "client"
-            "integration_events", "integration_event", "events", "event", "evt", "i_e", "ie" -> "integration_event"
-            "integration_event_handlers", "integration_event_handler", "event_handlers", "event_handler",
-            "evt_hdl", "i_e_h", "ieh", "integration_event_subscribers", "integration_event_subscriber",
-            "event_subscribers", "event_subscriber", "evt_sub", "i_e_s", "ies",
-                -> "integration_event_handler"
-
-            "repositories", "repository", "repos", "repo" -> "repository"
-            "factories", "factory", "fac" -> "factory"
-            "specifications", "specification", "specs", "spec", "spe" -> "specification"
-            "domain_events", "domain_event", "d_e", "de" -> "domain_event"
-            "domain_event_handlers", "domain_event_handler", "d_e_h", "deh",
-            "domain_event_subscribers", "domain_event_subscriber", "d_e_s", "des",
-                -> "domain_event_handler"
-
-            "domain_service", "service", "svc" -> "domain_service"
-            else -> name
-        }
-    }
+    fun alias4Design(name: String): String = DESIGN_ALIAS[name.lowercase()] ?: name
 
     /**
      * 解析字面量设计配置
      */
     fun resolveLiteralDesign(design: String): Map<String, Set<String>> {
-        if (design.isBlank()) {
-            return emptyMap()
-        }
+        if (design.isBlank()) return emptyMap()
 
-        return escape(design).replace(Regex("\\r\\n|\\r|\\n"), ";")
+        return escape(design)
+            .replace(Regex("\\r\\n|\\r|\\n"), ";")
             .split(Regex(PATTERN_SPLITTER))
-            .map { TextUtils.splitWithTrim(it, PATTERN_DESIGN_PARAMS_SPLITTER, 2) }
+            .map { it.splitWithTrim(PATTERN_DESIGN_PARAMS_SPLITTER, 2) }
             .filter { it.size == 2 }
-            .groupBy(
-                { alias4Design(it[0]) },
-                { it[1].trim() }
-            )
+            .groupBy({ alias4Design(it[0]) }, { it[1].trim() })
             .mapValues { it.value.toSet() }
     }
 
+    // 缓存编译后的 pattern
+    private val patternCache = mutableMapOf<String, Pattern>()
+    private fun TemplateNode.compiledPattern(): Pattern? =
+        pattern.takeIf { it.isNotBlank() }?.let { p -> patternCache.getOrPut(p) { Pattern.compile(p) } }
+
+    private inline fun forEachDesign(
+        designMap: Map<String, Set<String>>,
+        key: String,
+        templateNode: TemplateNode,
+        crossinline action: (String) -> Unit
+    ) {
+        designMap[key]?.forEach { literal ->
+            if (patternMatches(templateNode, literal)) action(literal)
+        }
+    }
+
+    private fun patternMatches(templateNode: TemplateNode, literal: String): Boolean =
+        templateNode.compiledPattern()?.matcher(literal)?.matches() ?: true
+
     override fun renderTemplate(templateNodes: List<TemplateNode>, parentPath: String) {
-        var design = ""
         val ext = getExtension()
+        var designLiteral = ""
 
-        // 从extension获取设计配置
+        // extension 中的设计字面量
         val designValue = ext.designFile.get()
-        if (!designValue.isNullOrBlank()) {
-            design += designValue
-        }
+        if (!designValue.isNullOrBlank()) designLiteral += designValue
 
-        // 从设计文件读取配置
-        val designFile = ext.designFile.orNull
+        // 设计文件内容
+        val designFile = ext.designFile.get()
         if (!designFile.isNullOrBlank() && File(designFile).exists()) {
-            design += (";" + File(designFile).readText(charset(ext.archTemplateEncoding.get())))
+            designLiteral += (";" + File(designFile).readText(charset(ext.archTemplateEncoding.get())))
         }
 
-        val designMap = resolveLiteralDesign(design)
+        val designMap = resolveLiteralDesign(designLiteral)
 
         templateNodes.forEach { templateNode ->
             when (alias4Design(templateNode.tag ?: "")) {
-                "command" -> {
-                    designMap["command"]?.forEach { literalDesign ->
-                        if (templateNode.pattern.isNullOrBlank() || Pattern.compile(templateNode.pattern).asPredicate()
-                                .test(literalDesign)
-                        ) {
-                            renderAppLayerCommand(literalDesign, parentPath, templateNode)
-                        }
-                    }
+                "command" -> forEachDesign(designMap, "command", templateNode) {
+                    renderAppLayerCommand(it, parentPath, templateNode)
                 }
 
-                "saga" -> {
-                    designMap["saga"]?.forEach { literalDesign ->
-                        if (templateNode.pattern.isNullOrBlank() || Pattern.compile(templateNode.pattern).asPredicate()
-                                .test(literalDesign)
-                        ) {
-                            renderAppLayerSaga(literalDesign, parentPath, templateNode)
-                        }
-                    }
+                "saga" -> forEachDesign(designMap, "saga", templateNode) {
+                    renderAppLayerSaga(it, parentPath, templateNode)
                 }
 
-                "query", "query_handler" -> {
-                    designMap["query"]?.forEach { literalDesign ->
-                        if (templateNode.pattern.isNullOrBlank() || Pattern.compile(templateNode.pattern).asPredicate()
-                                .test(literalDesign)
-                        ) {
-                            renderAppLayerQuery(literalDesign, parentPath, templateNode)
-                        }
-                    }
+                "query", "query_handler" -> forEachDesign(designMap, "query", templateNode) {
+                    renderAppLayerQuery(it, parentPath, templateNode)
                 }
 
-                "client", "client_handler" -> {
-                    designMap["client"]?.forEach { literalDesign ->
-                        if (templateNode.pattern.isNullOrBlank() || Pattern.compile(templateNode.pattern).asPredicate()
-                                .test(literalDesign)
-                        ) {
-                            renderAppLayerClient(literalDesign, parentPath, templateNode)
-                        }
-                    }
+                "client", "client_handler" -> forEachDesign(designMap, "client", templateNode) {
+                    renderAppLayerClient(it, parentPath, templateNode)
                 }
 
                 "integration_event" -> {
-                    designMap["integration_event"]?.forEach { literalDesign ->
-                        if (templateNode.pattern.isNullOrBlank() || Pattern.compile(templateNode.pattern).asPredicate()
-                                .test(literalDesign)
-                        ) {
-                            renderAppLayerIntegrationEvent(
-                                true,
-                                "integration_event",
-                                literalDesign,
-                                parentPath,
-                                templateNode
-                            )
-                        }
+                    // 事件本体
+                    forEachDesign(designMap, "integration_event", templateNode) {
+                        renderAppLayerIntegrationEvent(true, "integration_event", it, parentPath, templateNode)
                     }
-                    designMap["integration_event_handler"]?.forEach { literalDesign ->
-                        if (templateNode.pattern.isNullOrBlank() || Pattern.compile(templateNode.pattern).asPredicate()
-                                .test(literalDesign)
-                        ) {
-                            renderAppLayerIntegrationEvent(
-                                false,
-                                "integration_event",
-                                literalDesign,
-                                parentPath,
-                                templateNode
-                            )
-                        }
+                    // 事件(发送/订阅)处理
+                    forEachDesign(designMap, "integration_event_handler", templateNode) {
+                        renderAppLayerIntegrationEvent(false, "integration_event", it, parentPath, templateNode)
                     }
                 }
 
-                "integration_event_handler" -> {
-                    designMap["integration_event_handler"]?.forEach { literalDesign ->
-                        if (templateNode.pattern.isNullOrBlank() || Pattern.compile(templateNode.pattern).asPredicate()
-                                .test(literalDesign)
-                        ) {
-                            renderAppLayerIntegrationEvent(
-                                false,
-                                "integration_event_handler",
-                                literalDesign,
-                                parentPath,
-                                templateNode
-                            )
-                        }
-                    }
+                "integration_event_handler" -> forEachDesign(designMap, "integration_event_handler", templateNode) {
+                    renderAppLayerIntegrationEvent(false, "integration_event_handler", it, parentPath, templateNode)
                 }
 
-                "domain_event" -> {
-                    designMap["domain_event"]?.forEach { literalDesign ->
-                        if (templateNode.pattern.isNullOrBlank() || Pattern.compile(templateNode.pattern).asPredicate()
-                                .test(literalDesign)
-                        ) {
-                            renderDomainLayerDomainEvent(literalDesign, parentPath, templateNode)
-                        }
-                    }
+                "domain_event" -> forEachDesign(designMap, "domain_event", templateNode) {
+                    renderDomainLayerDomainEvent(it, parentPath, templateNode)
                 }
 
                 "domain_event_handler" -> {
-                    designMap["domain_event"]?.forEach { literalDesign ->
-                        if (templateNode.pattern.isNullOrBlank() || Pattern.compile(templateNode.pattern).asPredicate()
-                                .test(literalDesign)
-                        ) {
-                            renderDomainLayerDomainEvent(literalDesign, parentPath, templateNode)
-                        }
+                    // 领域事件声明
+                    forEachDesign(designMap, "domain_event", templateNode) {
+                        renderDomainLayerDomainEvent(it, parentPath, templateNode)
                     }
-                    designMap["domain_event_handler"]?.forEach { literalDesign ->
-                        if (templateNode.pattern.isNullOrBlank() || Pattern.compile(templateNode.pattern).asPredicate()
-                                .test(literalDesign)
-                        ) {
-                            renderDomainLayerDomainEvent(literalDesign, parentPath, templateNode)
-                        }
+                    // 领域事件订阅
+                    forEachDesign(designMap, "domain_event_handler", templateNode) {
+                        renderDomainLayerDomainEvent(it, parentPath, templateNode)
                     }
                 }
 
-                "specification" -> {
-                    designMap["specification"]?.forEach { literalDesign ->
-                        if (templateNode.pattern.isNullOrBlank() || Pattern.compile(templateNode.pattern).asPredicate()
-                                .test(literalDesign)
-                        ) {
-                            renderDomainLayerSpecification(literalDesign, parentPath, templateNode)
-                        }
-                    }
+                "specification" -> forEachDesign(designMap, "specification", templateNode) {
+                    renderDomainLayerSpecification(it, parentPath, templateNode)
                 }
 
-                "factory" -> {
-                    designMap["factory"]?.forEach { literalDesign ->
-                        if (templateNode.pattern.isNullOrBlank() || Pattern.compile(templateNode.pattern).asPredicate()
-                                .test(literalDesign)
-                        ) {
-                            renderDomainLayerAggregateFactory(literalDesign, parentPath, templateNode)
-                        }
-                    }
+                "factory" -> forEachDesign(designMap, "factory", templateNode) {
+                    renderDomainLayerAggregateFactory(it, parentPath, templateNode)
                 }
 
-                "domain_service" -> {
-                    designMap["domain_service"]?.forEach { literalDesign ->
-                        if (templateNode.pattern.isNullOrBlank() || Pattern.compile(templateNode.pattern).asPredicate()
-                                .test(literalDesign)
-                        ) {
-                            renderDomainLayerDomainService(literalDesign, parentPath, templateNode)
-                        }
-                    }
+                "domain_service" -> forEachDesign(designMap, "domain_service", templateNode) {
+                    renderDomainLayerDomainService(it, parentPath, templateNode)
                 }
 
                 else -> {
                     val tag = templateNode.tag ?: ""
-                    designMap[tag]?.forEach { literalDesign ->
-                        if (templateNode.pattern.isNullOrBlank() || Pattern.compile(templateNode.pattern).asPredicate()
-                                .test(literalDesign)
-                        ) {
-                            renderGenericDesign(literalDesign, parentPath, templateNode)
-                        }
+                    forEachDesign(designMap, tag, templateNode) {
+                        renderGenericDesign(it, parentPath, templateNode)
                     }
                 }
             }
@@ -449,7 +382,7 @@ open class GenDesignTask : GenArchTask() {
     ) {
         logger.info("解析领域事件设计：$literalDomainEventDeclaration")
         val path = internalRenderGenericDesign(literalDomainEventDeclaration, parentPath, templateNode) { context ->
-            val relativePath = NamingUtils.parentPackageName(context["Val0"] ?: "")
+            val relativePath = context.getOrDefault("Val0", "").substringBeforeLast(".")
                 .replace(".", File.separator)
             if (relativePath.isNotBlank()) {
                 putContext(templateNode.tag ?: "", "path", relativePath, context)
@@ -465,13 +398,13 @@ open class GenDesignTask : GenArchTask() {
                 throw RuntimeException("缺失领域事件名称，领域事件设计格式：AggregateRootEntityName:DomainEventName")
             }
 
-            var name = NamingUtils.toUpperCamelCase(context["Val1"] ?: "") ?: ""
+            var name = toUpperCamelCase(context["Val1"] ?: "") ?: ""
             if (!name.endsWith("Evt") && !name.endsWith("Event")) {
                 name += "DomainEvent"
             }
 
-            val entity = NamingUtils.toUpperCamelCase(
-                NamingUtils.getLastPackageName(context["Val0"] ?: "")
+            val entity = toUpperCamelCase(
+                context.getOrDefault("Val0", "").substringAfter(".")
             ) ?: ""
 
             val persist = context.containsKey("val2") &&
@@ -482,7 +415,7 @@ open class GenDesignTask : GenArchTask() {
             putContext(templateNode.tag ?: "", "persist", if (persist) "true" else "false", context)
             putContext(templateNode.tag ?: "", "Aggregate", entity, context)
             putContext(templateNode.tag ?: "", "Entity", entity, context)
-            putContext(templateNode.tag ?: "", "EntityVar", NamingUtils.toLowerCamelCase(entity) ?: "", context)
+            putContext(templateNode.tag ?: "", "EntityVar", toLowerCamelCase(entity) ?: "", context)
             putContext(templateNode.tag ?: "", "AggregateRoot", context["Entity"] ?: "", context)
 
             val comment = if (alias4Design(templateNode.tag ?: "") == "domain_event_handler") {
@@ -519,7 +452,7 @@ open class GenDesignTask : GenArchTask() {
                 putContext(templateNode.tag ?: "", "Factory", context["Name"] ?: "", context)
                 putContext(templateNode.tag ?: "", "Aggregate", entity, context)
                 putContext(templateNode.tag ?: "", "Entity", entity, context)
-                putContext(templateNode.tag ?: "", "EntityVar", NamingUtils.toLowerCamelCase(entity) ?: "", context)
+                putContext(templateNode.tag ?: "", "EntityVar", toLowerCamelCase(entity) ?: "", context)
                 putContext(templateNode.tag ?: "", "AggregateRoot", context["Entity"] ?: "", context)
 
                 val comment = if (context.containsKey("Val1")) context["Val1"] ?: "" else "todo: 聚合工厂描述"
@@ -551,7 +484,7 @@ open class GenDesignTask : GenArchTask() {
             putContext(templateNode.tag ?: "", "Specification", context["Name"] ?: "", context)
             putContext(templateNode.tag ?: "", "Aggregate", entity, context)
             putContext(templateNode.tag ?: "", "Entity", entity, context)
-            putContext(templateNode.tag ?: "", "EntityVar", NamingUtils.toLowerCamelCase(entity) ?: "", context)
+            putContext(templateNode.tag ?: "", "EntityVar", toLowerCamelCase(entity) ?: "", context)
             putContext(templateNode.tag ?: "", "AggregateRoot", context["Entity"] ?: "", context)
 
             val comment = if (context.containsKey("Val1")) context["Val1"] ?: "" else "todo: 实体规约描述"
@@ -612,7 +545,7 @@ open class GenDesignTask : GenArchTask() {
         templateNode: TemplateNode,
         contextBuilder: ((MutableMap<String, String>) -> MutableMap<String, String>)?,
     ): String {
-        val segments = TextUtils.splitWithTrim(escape(literalGenericDeclaration), PATTERN_DESIGN_PARAMS_SPLITTER)
+        val segments = escape(literalGenericDeclaration).splitWithTrim(PATTERN_DESIGN_PARAMS_SPLITTER)
         for (i in segments.indices) {
             segments[i] = unescape(segments[i])
         }
@@ -624,8 +557,8 @@ open class GenDesignTask : GenArchTask() {
         }
 
         val name = segments[0].lowercase()
-        val Name = NamingUtils.toUpperCamelCase(NamingUtils.getLastPackageName(segments[0])) ?: ""
-        val path = NamingUtils.parentPackageName(segments[0]).replace(".", File.separator)
+        val Name = toUpperCamelCase(segments[0].substringAfter(".")) ?: ""
+        val path = segments[0].substringBeforeLast(".").replace(".", File.separator)
 
         putContext(templateNode.tag ?: "", "Name", Name, context)
         putContext(templateNode.tag ?: "", "name", name, context)
@@ -638,7 +571,7 @@ open class GenDesignTask : GenArchTask() {
         )
 
         val finalContext = contextBuilder?.invoke(context) ?: context
-        val pathNode = templateNode.cloneTemplateNode().resolve(finalContext) as PathNode
+        val pathNode = templateNode.deepCopy().resolve(finalContext) as PathNode
         return forceRender(pathNode, parentPath)
     }
 }

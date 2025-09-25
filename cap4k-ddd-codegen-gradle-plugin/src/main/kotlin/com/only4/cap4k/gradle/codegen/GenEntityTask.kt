@@ -1,16 +1,11 @@
 package com.only4.cap4k.gradle.codegen
 
 import com.alibaba.fastjson.JSON
-import com.only4.cap4k.gradle.codegen.misc.Inflector
-import com.only4.cap4k.gradle.codegen.misc.NamingUtils
-import com.only4.cap4k.gradle.codegen.misc.SourceFileUtils
-import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils
+import com.only4.cap4k.gradle.codegen.misc.*
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS
 import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils.hasColumn
 import com.only4.cap4k.gradle.codegen.template.TemplateNode
-import org.gradle.api.provider.Property
-import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 import java.io.BufferedWriter
@@ -25,22 +20,6 @@ import java.util.stream.Collectors
  * 生成实体类任务
  */
 open class GenEntityTask : GenArchTask() {
-
-    @get:Input
-    override val extension: Property<Cap4kCodegenExtension> =
-        project.objects.property(Cap4kCodegenExtension::class.java)
-
-    @get:Input
-    override val projectName: Property<String> = project.objects.property(String::class.java)
-
-    @get:Input
-    override val projectGroup: Property<String> = project.objects.property(String::class.java)
-
-    @get:Input
-    override val projectVersion: Property<String> = project.objects.property(String::class.java)
-
-    @get:Input
-    override val projectDir: Property<String> = project.objects.property(String::class.java)
 
     companion object {
         const val DEFAULT_SCHEMA_PACKAGE = "meta"
@@ -132,11 +111,63 @@ open class GenEntityTask : GenArchTask() {
 
     @TaskAction
     override fun generate() {
+        renderFileSwitch = false
         super.generate()
         genEntity()
     }
 
     fun genEntity() {
+
+        fun resolveDatabaseConfig(): Triple<String, String, String> {
+            val ext = getExtension()
+            val url = ext.database.url.get()
+            val username = ext.database.username.get()
+            val password = ext.database.password.get()
+            return Triple(url, username, password)
+        }
+
+        fun resolveTables(): List<Map<String, Any?>> {
+            SqlSchemaUtils.loadLogger(logger)
+            val (url, username, password) = resolveDatabaseConfig()
+            return SqlSchemaUtils.resolveTables(url, username, password)
+        }
+
+        fun resolveColumns(): List<Map<String, Any?>> {
+            SqlSchemaUtils.loadLogger(logger)
+            val (url, username, password) = resolveDatabaseConfig()
+            return SqlSchemaUtils.resolveColumns(url, username, password)
+        }
+
+
+        fun parsePatterns(patterns: String): List<Regex> =
+            patterns.takeIf { it.isNotBlank() }
+                ?.split(Regex(PATTERN_SPLITTER))
+                ?.map { it.trim() }
+                ?.filter { it.isNotEmpty() }
+                ?.map { it.replace("*", ".*").toRegex() }
+                ?: emptyList()
+
+        fun filterTables(tables: List<Map<String, Any?>>): List<Map<String, Any?>> {
+            val ext = getExtension()
+            val include = parsePatterns(ext.database.tables.get())
+            val exclude = parsePatterns(ext.database.ignoreTables.get())
+
+            var result = tables
+            if (include.isNotEmpty()) {
+                result = result.filter { t ->
+                    val name = SqlSchemaUtils.getTableName(t)
+                    include.any { it.matches(name) }
+                }
+            }
+            if (exclude.isNotEmpty()) {
+                result = result.filter { t ->
+                    val name = SqlSchemaUtils.getTableName(t)
+                    exclude.none { it.matches(name) }
+                }
+            }
+            return result
+        }
+
         logger.info("生成实体类...")
 
         val ext = getExtension()
@@ -145,7 +176,7 @@ open class GenEntityTask : GenArchTask() {
         SqlSchemaUtils.task = this
 
         // 数据库连接信息
-        val (url, username, password) = getDatabaseConfig()
+        val (url, username, password) = resolveDatabaseConfig()
         logger.info("数据库连接：$url")
         logger.info("数据库账号：$username")
         logger.info("数据库密码：$password")
@@ -160,7 +191,7 @@ open class GenEntityTask : GenArchTask() {
 
         // 项目结构解析
         if (ext.basePackage.get().isBlank()) {
-            ext.basePackage.set(SourceFileUtils.resolveDefaultBasePackage(getDomainModulePath()))
+            ext.basePackage.set(resolveDefaultBasePackage(getDomainModulePath()))
         }
         logger.info("实体类基类：${ext.generation.entityBaseClass.get()}")
         logger.info("主键ID生成器: ${ext.generation.idGenerator.get()}")
@@ -186,8 +217,8 @@ open class GenEntityTask : GenArchTask() {
             dbType = SqlSchemaUtils.recognizeDbType(url)
             SqlSchemaUtils.processSqlDialect(dbType)
 
-            val tables = filterTables(getTables())
-            val allColumns = getColumns()
+            val tables = filterTables(resolveTables())
+            val allColumns = resolveColumns()
             val relations = mutableMapOf<String, Map<String, String>>()
             val tablePackageMap = mutableMapOf<String, String>()
 
@@ -207,7 +238,7 @@ open class GenEntityTask : GenArchTask() {
                 val tableName = SqlSchemaUtils.getTableName(table)
                 val tableColumns = allColumns.filter { column ->
                     SqlSchemaUtils.isColumnInTable(column, table)
-                }.sortedBy { SqlSchemaUtils.getOridinalPosition(it) }
+                }.sortedBy { SqlSchemaUtils.getOrdinalPosition(it) }
 
                 tableMap[tableName] = table
                 columnsMap[tableName] = tableColumns
@@ -351,7 +382,7 @@ open class GenEntityTask : GenArchTask() {
     fun resolveAggregatesPath(): String {
         if (aggregatesPath.isNotBlank()) return aggregatesPath
 
-        return SourceFileUtils.resolvePackageDirectory(
+        return resolvePackageDirectory(
             getDomainModulePath(),
             "${extension.get().basePackage.get()}.${AGGREGATE_PACKAGE}"
         )
@@ -361,7 +392,7 @@ open class GenEntityTask : GenArchTask() {
      * 获取聚合根包名，不包含basePackage
      */
     fun resolveAggregatesPackage(): String {
-        return SourceFileUtils.resolvePackage(
+        return resolvePackage(
             "${resolveAggregatesPath()}${File.separator}X.kt"
         ).substring(extension.get().basePackage.get().length + 1)
     }
@@ -374,7 +405,7 @@ open class GenEntityTask : GenArchTask() {
         if (schemaPath.isNotBlank()) {
             return schemaPath
         }
-        return SourceFileUtils.resolvePackageDirectory(
+        return resolvePackageDirectory(
             getDomainModulePath(),
             "${extension.get().basePackage.get()}.${getEntitySchemaOutputPackage()}"
         )
@@ -385,7 +416,7 @@ open class GenEntityTask : GenArchTask() {
      *
      */
     fun resolveSchemaPackage(): String {
-        return SourceFileUtils.resolvePackage(
+        return resolvePackage(
             "${resolveSchemaPath()}${File.separator}X.kt"
         ).substring(
             if (extension.get().basePackage.get().isBlank()) 0 else (extension.get().basePackage.get().length + 1)
@@ -400,7 +431,7 @@ open class GenEntityTask : GenArchTask() {
         if (subscriberPath.isNotBlank()) {
             return subscriberPath
         }
-        return SourceFileUtils.resolvePackageDirectory(
+        return resolvePackageDirectory(
             getApplicationModulePath(),
             "${extension.get().basePackage.get()}.${DOMAIN_EVENT_SUBSCRIBER_PACKAGE}"
         )
@@ -411,7 +442,7 @@ open class GenEntityTask : GenArchTask() {
      *
      */
     fun resolveSubscriberPackage(): String {
-        return SourceFileUtils.resolvePackage(
+        return resolvePackage(
             "${resolveSubscriberPath()}${File.separator}X.kt"
         ).substring(extension.get().basePackage.get().length + 1)
     }
@@ -474,7 +505,7 @@ open class GenEntityTask : GenArchTask() {
             }
 
             if (aggregate.isBlank()) {
-                aggregate = NamingUtils.toSnakeCase(resolveEntityType(aggregateRootTableName)) ?: ""
+                aggregate = toSnakeCase(resolveEntityType(aggregateRootTableName)) ?: ""
             }
 
             logger.info("聚合解析结果: $tableName ${if (aggregate.isBlank()) "[缺失]" else aggregate}")
@@ -492,7 +523,7 @@ open class GenEntityTask : GenArchTask() {
     fun resolveAggregateWithModule(tableName: String): String {
         val module = resolveModule(tableName)
         if (module.isNotBlank()) {
-            return SourceFileUtils.concatPackage(
+            return concatPackage(
                 module,
                 resolveAggregate(tableName)
             )
@@ -509,7 +540,7 @@ open class GenEntityTask : GenArchTask() {
             val table = tableMap[tableName]!!
             var type = SqlSchemaUtils.getType(table)
             if (type.isBlank()) {
-                type = NamingUtils.toUpperCamelCase(tableName) ?: ""
+                type = toUpperCamelCase(tableName) ?: ""
             }
             if (type.isNotBlank()) {
                 logger.info("解析实体类名: ${SqlSchemaUtils.getTableName(table)} --> $type")
@@ -526,7 +557,7 @@ open class GenEntityTask : GenArchTask() {
     fun resolveEntityPackage(tableName: String): String {
         val module = resolveModule(tableName)
         val aggregate = resolveAggregate(tableName)
-        return SourceFileUtils.concatPackage(
+        return concatPackage(
             resolveAggregatesPackage(),
             module,
             aggregate.lowercase()
@@ -709,7 +740,7 @@ open class GenEntityTask : GenArchTask() {
      */
     fun resolveEntityFullPackage(table: Map<String, Any?>, basePackage: String, baseDir: String): String {
         val tableName = SqlSchemaUtils.getTableName(table)
-        val packageName = SourceFileUtils.concatPackage(basePackage, resolveEntityPackage(tableName))
+        val packageName = concatPackage(basePackage, resolveEntityPackage(tableName))
         return packageName
     }
 
@@ -976,7 +1007,7 @@ open class GenEntityTask : GenArchTask() {
             importLines.add(" */")
         } else {
             for (entityClassExtraImport in entityClassExtraImports) {
-                SourceFileUtils.addIfNone(
+                addIfNone(
                     importLines,
                     """\s*import\s+${entityClassExtraImport}\s*""",
                     "import $entityClassExtraImport"
@@ -1021,11 +1052,11 @@ open class GenEntityTask : GenArchTask() {
         val annotationEmpty = annotationLines.isEmpty()
 
         // 移除并重新添加 @Aggregate 注解
-        SourceFileUtils.removeText(annotationLines, """@Aggregate\(.*\)""")
-        SourceFileUtils.addIfNone(
+        removeText(annotationLines, """@Aggregate\(.*\)""")
+        addIfNone(
             annotationLines,
             """@Aggregate\(.*\)""",
-            """@Aggregate(aggregate = "${NamingUtils.toUpperCamelCase(resolveAggregateWithModule(tableName))}", name = "${
+            """@Aggregate(aggregate = "${toUpperCamelCase(resolveAggregateWithModule(tableName))}", name = "${
                 resolveEntityType(
                     tableName
                 )
@@ -1037,25 +1068,25 @@ open class GenEntityTask : GenArchTask() {
         ) { _, _ -> 0 }
 
         // 添加 JPA 基本注解
-        SourceFileUtils.addIfNone(annotationLines, """@Entity(\(.*\))?""", "@Entity")
+        addIfNone(annotationLines, """@Entity(\(.*\))?""", "@Entity")
 
         val ids = resolveIdColumns(columns)
         if (ids.size > 1) {
-            SourceFileUtils.addIfNone(
+            addIfNone(
                 annotationLines,
                 """@IdClass(\(.*\))""",
                 "@IdClass(${resolveEntityType(tableName)}.${DEFAULT_MUL_PRI_KEY_NAME}::class)"
             )
         }
 
-        SourceFileUtils.addIfNone(
+        addIfNone(
             annotationLines,
             """@Table(\(.*\))?""",
             "@Table(name = \"$LEFT_QUOTES_4_ID_ALIAS$tableName$RIGHT_QUOTES_4_ID_ALIAS\")"
         )
 
-        SourceFileUtils.addIfNone(annotationLines, """@DynamicInsert(\(.*\))?""", "@DynamicInsert")
-        SourceFileUtils.addIfNone(annotationLines, """@DynamicUpdate(\(.*\))?""", "@DynamicUpdate")
+        addIfNone(annotationLines, """@DynamicInsert(\(.*\))?""", "@DynamicInsert")
+        addIfNone(annotationLines, """@DynamicUpdate(\(.*\))?""", "@DynamicUpdate")
 
         // 处理软删除相关注解
         val ext = getExtension()
@@ -1068,12 +1099,12 @@ open class GenEntityTask : GenArchTask() {
             }
 
             val idFieldName = if (ids.size == 1) {
-                NamingUtils.toLowerCamelCase(SqlSchemaUtils.getColumnName(ids[0]))
+                toLowerCamelCase(SqlSchemaUtils.getColumnName(ids[0]))
                     ?: SqlSchemaUtils.getColumnName(ids[0])
             } else {
                 "(${
                     ids.joinToString(", ") {
-                        NamingUtils.toLowerCamelCase(SqlSchemaUtils.getColumnName(it)) ?: SqlSchemaUtils.getColumnName(
+                        toLowerCamelCase(SqlSchemaUtils.getColumnName(it)) ?: SqlSchemaUtils.getColumnName(
                             it
                         )
                     }
@@ -1083,25 +1114,25 @@ open class GenEntityTask : GenArchTask() {
             val idFieldValue = if (ids.size == 1) "?" else "(" + ids.joinToString(", ") { "?" } + ")"
 
             if (hasColumn(versionField, columns)) {
-                SourceFileUtils.addIfNone(
+                addIfNone(
                     annotationLines,
                     """@SQLDelete(\(.*\))?""",
                     """@SQLDelete(sql = "update $LEFT_QUOTES_4_ID_ALIAS$tableName$RIGHT_QUOTES_4_ID_ALIAS set $LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS where $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS = $idFieldValue and $LEFT_QUOTES_4_ID_ALIAS$versionField$RIGHT_QUOTES_4_ID_ALIAS = ?)"""
                 )
             } else {
-                SourceFileUtils.addIfNone(
+                addIfNone(
                     annotationLines,
                     """@SQLDelete(\(.*\))?""",
                     """@SQLDelete(sql = "update $LEFT_QUOTES_4_ID_ALIAS$tableName$RIGHT_QUOTES_4_ID_ALIAS set $LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS where $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS = $idFieldValue)"""
                 )
             }
 
-//            if (hasColumn(versionField, columns) && !SourceFileUtils.hasLine(
+//            if (hasColumn(versionField, columns) && !hasLine(
 //                    annotationLines,
 //                    "@SQLDelete(\\(.*$versionField.*\\))"
 //                )
 //            ) {
-//                SourceFileUtils.replaceText(
+//                replaceText(
 //                    annotationLines,
 //                    "@SQLDelete(\\(.*\\))?",
 //                    """
@@ -1110,7 +1141,7 @@ open class GenEntityTask : GenArchTask() {
 //                )
 //            }
 
-            SourceFileUtils.addIfNone(
+            addIfNone(
                 annotationLines,
                 """@Where(\(.*\))?""",
                 """@Where(clause = "$LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = 0"""
@@ -1148,9 +1179,9 @@ open class GenEntityTask : GenArchTask() {
         val entityFullPackage = tablePackageMap[tableName] ?: return
 
         // 创建输出目录
-        File(SourceFileUtils.resolvePackageDirectory(baseDir, entityFullPackage)).mkdirs()
+        File(resolvePackageDirectory(baseDir, entityFullPackage)).mkdirs()
 
-        val filePath = SourceFileUtils.resolveSourceFile(baseDir, entityFullPackage, entityType)
+        val filePath = resolveSourceFile(baseDir, entityFullPackage, entityType)
 
         val enums = mutableListOf<String>()
         val importLines = mutableListOf<String>()
@@ -1240,7 +1271,7 @@ open class GenEntityTask : GenArchTask() {
         val out = BufferedWriter(stringWriter)
 
         // Write annotation lines
-        annotationLines.forEach { line -> SourceFileUtils.writeLine(out, line) }
+        annotationLines.forEach { line -> writeLine(out, line) }
 
         // Determine base class
         var baseClass: String? = null
@@ -1265,9 +1296,9 @@ open class GenEntityTask : GenArchTask() {
         val extendsClause = if (baseClass?.isNotBlank() == true) " : $baseClass()" else ""
         val implementsClause = if (SqlSchemaUtils.isValueObject(table)) ", ValueObject<$identityType>" else ""
 
-        SourceFileUtils.writeLine(out, "class $entityType$extendsClause$implementsClause (")
+        writeLine(out, "class $entityType$extendsClause$implementsClause (")
 
-        SourceFileUtils.writeLine(
+        writeLine(
             out,
             "    // 【字段映射开始】本段落由[cap4k-ddd-codegen-gradle-plugin]维护，请不要手工改动"
         )
@@ -1277,37 +1308,37 @@ open class GenEntityTask : GenArchTask() {
             writeColumnProperty(out, table, column, ids, relations, enums)
         }
 
-        SourceFileUtils.writeLine(out, ") {")
+        writeLine(out, ") {")
 
         // Write relation properties
         writeRelationProperty(out, table, relations, tablePackageMap)
 
-        SourceFileUtils.writeLine(out, "")
-        SourceFileUtils.writeLine(
+        writeLine(out, "")
+        writeLine(
             out,
             "    // 【字段映射结束】本段落由[cap4k-ddd-codegen-gradle-plugin]维护，请不要手工改动"
         )
 
 //         Write customer lines or default behavior methods
         if (customerLines.isNotEmpty()) {
-            customerLines.forEach { line -> SourceFileUtils.writeLine(out, line) }
+            customerLines.forEach { line -> writeLine(out, line) }
         } else {
-            SourceFileUtils.writeLine(out, "")
-            SourceFileUtils.writeLine(out, "    // 【行为方法开始】")
-            SourceFileUtils.writeLine(out, "")
-            SourceFileUtils.writeLine(out, "")
-            SourceFileUtils.writeLine(out, "")
-            SourceFileUtils.writeLine(out, "    // 【行为方法结束】")
-            SourceFileUtils.writeLine(out, "")
+            writeLine(out, "")
+            writeLine(out, "    // 【行为方法开始】")
+            writeLine(out, "")
+            writeLine(out, "")
+            writeLine(out, "")
+            writeLine(out, "    // 【行为方法结束】")
+            writeLine(out, "")
         }
 
-        SourceFileUtils.writeLine(out, "}")
-        SourceFileUtils.writeLine(out, "")
+        writeLine(out, "}")
+        writeLine(out, "")
 
         // Value object implementation
 //        if (SqlSchemaUtils.isValueObject(table)) {
 //            val idFieldName =
-//                if (ids.size != 1) "" else NamingUtils.toLowerCamelCase(SqlSchemaUtils.getColumnName(ids[0]))
+//                if (ids.size != 1) "" else toLowerCamelCase(SqlSchemaUtils.getColumnName(ids[0]))
 //                    ?: SqlSchemaUtils.getColumnName(ids[0])
 //            val idTypeName = if (ids.size != 1) "Long" else SqlSchemaUtils.getColumnType(ids[0])
 //
@@ -1335,8 +1366,8 @@ open class GenEntityTask : GenArchTask() {
 //                }
 //            }
 //
-//            SourceFileUtils.writeLine(out, "")
-//            SourceFileUtils.writeLine(
+//            writeLine(out, "")
+//            writeLine(
 //                out, hashTemplate
 //                    .replace("\${idField}", idFieldName)
 //                    .replace("\${IdField}", idFieldName)
@@ -1348,8 +1379,8 @@ open class GenEntityTask : GenArchTask() {
 //                    .replace("\${id_type}", idTypeName)
 //            )
 //
-//            SourceFileUtils.writeLine(out, "")
-//            SourceFileUtils.writeLine(
+//            writeLine(out, "")
+//            writeLine(
 //                out,
 //                """
 //                override fun equals(other: Any?): Boolean {
@@ -1367,25 +1398,25 @@ open class GenEntityTask : GenArchTask() {
 //                }
 //                """.trimIndent()
 //            )
-//            SourceFileUtils.writeLine(out, "")
+//            writeLine(out, "")
 //        }
 
         // Multiple primary keys (adapted for Kotlin data class)
 //        if (ids.size > 1) {
-//            SourceFileUtils.writeLine(out, "")
-//            SourceFileUtils.writeLine(out, "    data class $DEFAULT_MUL_PRI_KEY_NAME(")
+//            writeLine(out, "")
+//            writeLine(out, "    data class $DEFAULT_MUL_PRI_KEY_NAME(")
 //            ids.forEachIndexed { index, id ->
 //                val columnName = SqlSchemaUtils.getColumnName(id)
 //                val leftQuote = LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
 //                val rightQuote = RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
 //                val type = SqlSchemaUtils.getColumnType(id)
-//                val fieldName = NamingUtils.toLowerCamelCase(columnName) ?: columnName
+//                val fieldName = toLowerCamelCase(columnName) ?: columnName
 //
-//                SourceFileUtils.writeLine(out, "        @Column(name = \"$leftQuote$columnName$rightQuote\")")
+//                writeLine(out, "        @Column(name = \"$leftQuote$columnName$rightQuote\")")
 //                val suffix = if (index == ids.size - 1) "" else ","
-//                SourceFileUtils.writeLine(out, "        val $fieldName: $type$suffix")
+//                writeLine(out, "        val $fieldName: $type$suffix")
 //            }
-//            SourceFileUtils.writeLine(out, "    ) : java.io.Serializable")
+//            writeLine(out, "    ) : java.io.Serializable")
 //        }
 
         out.flush()
@@ -1455,12 +1486,12 @@ open class GenEntityTask : GenArchTask() {
             updatable = false
         }
 
-        SourceFileUtils.writeLine(out, "")
+        writeLine(out, "")
         writeFieldComment(out, column)
 
         // ID annotation
         if (isIdColumn(column)) {
-            SourceFileUtils.writeLine(out, "    @Id")
+            writeLine(out, "    @Id")
             if (ids.size == 1) {
                 val entityIdGenerator = resolveEntityIdGenerator(table)
                 when {
@@ -1469,8 +1500,8 @@ open class GenEntityTask : GenArchTask() {
                     }
 
                     entityIdGenerator.isNotEmpty() -> {
-                        SourceFileUtils.writeLine(out, "    @GeneratedValue(generator = \"$entityIdGenerator\")")
-                        SourceFileUtils.writeLine(
+                        writeLine(out, "    @GeneratedValue(generator = \"$entityIdGenerator\")")
+                        writeLine(
                             out,
                             "    @GenericGenerator(name = \"$entityIdGenerator\", strategy = \"$entityIdGenerator\")"
                         )
@@ -1478,7 +1509,7 @@ open class GenEntityTask : GenArchTask() {
 
                     else -> {
                         // 无ID生成器 使用数据库自增
-                        SourceFileUtils.writeLine(out, "    @GeneratedValue(strategy = GenerationType.IDENTITY)")
+                        writeLine(out, "    @GeneratedValue(strategy = GenerationType.IDENTITY)")
                     }
                 }
             }
@@ -1486,13 +1517,13 @@ open class GenEntityTask : GenArchTask() {
 
         // Version annotation
         if (isVersionColumn(column)) {
-            SourceFileUtils.writeLine(out, "    @Version")
+            writeLine(out, "    @Version")
         }
 
         // Enum converter annotation
         if (SqlSchemaUtils.hasEnum(column)) {
             enums.add(columnType)
-            SourceFileUtils.writeLine(out, "    @Convert(converter = $columnType.Converter::class)")
+            writeLine(out, "    @Convert(converter = $columnType.Converter::class)")
         }
 
         // Column annotation
@@ -1500,19 +1531,19 @@ open class GenEntityTask : GenArchTask() {
         val rightQuote = RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
 
         if (!updatable || !insertable) {
-            SourceFileUtils.writeLine(
+            writeLine(
                 out,
                 "    @Column(name = \"$leftQuote$columnName$rightQuote\", insertable = $insertable, updatable = $updatable)"
             )
         } else {
-            SourceFileUtils.writeLine(out, "    @Column(name = \"$leftQuote$columnName$rightQuote\")")
+            writeLine(out, "    @Column(name = \"$leftQuote$columnName$rightQuote\")")
         }
 
         // Property declaration with default value if needed
-        val fieldName = NamingUtils.toLowerCamelCase(columnName) ?: columnName
+        val fieldName = toLowerCamelCase(columnName) ?: columnName
         val defaultJavaLiteral = SqlSchemaUtils.getColumnDefaultLiteral(column)
         val defaultValue = " = $defaultJavaLiteral"
-        SourceFileUtils.writeLine(out, "    var $fieldName: $columnType$defaultValue,")
+        writeLine(out, "    var $fieldName: $columnType$defaultValue,")
     }
 
     fun writeFieldComment(
@@ -1521,7 +1552,7 @@ open class GenEntityTask : GenArchTask() {
     ) {
         val comments = generateFieldComment(column)
         for (line in comments) {
-            SourceFileUtils.writeLine(out, "    $line")
+            writeLine(out, "    $line")
         }
     }
 
@@ -1551,19 +1582,19 @@ open class GenEntityTask : GenArchTask() {
             val joinColumn = refInfos[1]
             val fetchAnnotation = "" // For Kotlin, we might not need Hibernate fetch annotations
 
-            SourceFileUtils.writeLine(out, "")
+            writeLine(out, "")
 
             when (relation) {
                 "OneToMany" -> {
                     // 专属聚合内关系
-                    SourceFileUtils.writeLine(
+                    writeLine(
                         out,
                         "    @${relation}(cascade = [CascadeType.ALL], fetch = FetchType.$fetchType, orphanRemoval = true)$fetchAnnotation"
                     )
-                    SourceFileUtils.writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
+                    writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
                     val leftQuote = LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
                     val rightQuote = RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
-                    SourceFileUtils.writeLine(
+                    writeLine(
                         out,
                         "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false)"
                     )
@@ -1571,65 +1602,65 @@ open class GenEntityTask : GenArchTask() {
                     val countIsOne = SqlSchemaUtils.countIsOne(navTable)
 
                     val fieldName = Inflector.pluralize(
-                        NamingUtils.toLowerCamelCase(resolveEntityType(refTableName)) ?: resolveEntityType(refTableName)
+                        toLowerCamelCase(resolveEntityType(refTableName)) ?: resolveEntityType(refTableName)
                     )
                     val entityPackage = tablePackageMap[refTableName] ?: ""
                     val entityType = resolveEntityType(refTableName)
-                    SourceFileUtils.writeLine(
+                    writeLine(
                         out,
                         "    var $fieldName: MutableList<$entityPackage.$entityType> = mutableListOf()"
                     )
 
                     if (countIsOne) {
-                        SourceFileUtils.writeLine(out, "")
-                        SourceFileUtils.writeLine(out, "    fun load$entityType(): $entityPackage.$entityType? {")
-                        SourceFileUtils.writeLine(
+                        writeLine(out, "")
+                        writeLine(out, "    fun load$entityType(): $entityPackage.$entityType? {")
+                        writeLine(
                             out,
                             "        return if ($fieldName.isEmpty()) null else $fieldName[0]"
                         )
-                        SourceFileUtils.writeLine(out, "    }")
+                        writeLine(out, "    }")
                     }
                 }
 
                 "*ManyToOne" -> {
-                    SourceFileUtils.writeLine(
+                    writeLine(
                         out,
                         "    @${relation.replace("*", "")}(cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
                     )
                     val leftQuote = LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
                     val rightQuote = RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
-                    SourceFileUtils.writeLine(
+                    writeLine(
                         out,
                         "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false, insertable = false, updatable = false)"
                     )
                     val entityPackage = tablePackageMap[refTableName] ?: ""
                     val entityType = resolveEntityType(refTableName)
-                    val fieldName = NamingUtils.toLowerCamelCase(entityType) ?: entityType
-                    SourceFileUtils.writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
+                    val fieldName = toLowerCamelCase(entityType) ?: entityType
+                    writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
                 }
 
                 "ManyToOne" -> {
-                    SourceFileUtils.writeLine(
+                    writeLine(
                         out,
                         "    @${relation}(cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
                     )
                     val leftQuote = LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
                     val rightQuote = RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
-                    SourceFileUtils.writeLine(
+                    writeLine(
                         out,
                         "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false)"
                     )
                     val entityPackage = tablePackageMap[refTableName] ?: ""
                     val entityType = resolveEntityType(refTableName)
-                    val fieldName = NamingUtils.toLowerCamelCase(entityType) ?: entityType
-                    SourceFileUtils.writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
+                    val fieldName = toLowerCamelCase(entityType) ?: entityType
+                    writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
                 }
 
                 "*OneToMany" -> {
                     // 当前不会用到，无法控制集合数量规模
                     val entityTypeName = resolveEntityType(tableName)
-                    val fieldNameFromTable = NamingUtils.toLowerCamelCase(entityTypeName) ?: entityTypeName
-                    SourceFileUtils.writeLine(
+                    val fieldNameFromTable = toLowerCamelCase(entityTypeName) ?: entityTypeName
+                    writeLine(
                         out,
                         "    @${
                             relation.replace(
@@ -1638,37 +1669,37 @@ open class GenEntityTask : GenArchTask() {
                             )
                         }(mappedBy = \"$fieldNameFromTable\", cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
                     )
-                    SourceFileUtils.writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
+                    writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
                     val entityPackage = tablePackageMap[refTableName] ?: ""
                     val entityType = resolveEntityType(refTableName)
-                    val fieldName = Inflector.pluralize(NamingUtils.toLowerCamelCase(entityType) ?: entityType)
-                    SourceFileUtils.writeLine(
+                    val fieldName = Inflector.pluralize(toLowerCamelCase(entityType) ?: entityType)
+                    writeLine(
                         out,
                         "    var $fieldName: MutableList<$entityPackage.$entityType> = mutableListOf()"
                     )
                 }
 
                 "OneToOne" -> {
-                    SourceFileUtils.writeLine(
+                    writeLine(
                         out,
                         "    @${relation}(cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
                     )
                     val leftQuote = LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
                     val rightQuote = RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
-                    SourceFileUtils.writeLine(
+                    writeLine(
                         out,
                         "    @JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false)"
                     )
                     val entityPackage = tablePackageMap[refTableName] ?: ""
                     val entityType = resolveEntityType(refTableName)
-                    val fieldName = NamingUtils.toLowerCamelCase(entityType) ?: entityType
-                    SourceFileUtils.writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
+                    val fieldName = toLowerCamelCase(entityType) ?: entityType
+                    writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
                 }
 
                 "*OneToOne" -> {
                     val entityTypeName = resolveEntityType(tableName)
-                    val fieldNameFromTable = NamingUtils.toLowerCamelCase(entityTypeName) ?: entityTypeName
-                    SourceFileUtils.writeLine(
+                    val fieldNameFromTable = toLowerCamelCase(entityTypeName) ?: entityTypeName
+                    writeLine(
                         out,
                         "    @${
                             relation.replace(
@@ -1679,29 +1710,29 @@ open class GenEntityTask : GenArchTask() {
                     )
                     val entityPackage = tablePackageMap[refTableName] ?: ""
                     val entityType = resolveEntityType(refTableName)
-                    val fieldName = NamingUtils.toLowerCamelCase(entityType) ?: entityType
-                    SourceFileUtils.writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
+                    val fieldName = toLowerCamelCase(entityType) ?: entityType
+                    writeLine(out, "    var $fieldName: $entityPackage.$entityType? = null")
                 }
 
                 "ManyToMany" -> {
-                    SourceFileUtils.writeLine(
+                    writeLine(
                         out,
                         "    @${relation}(cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
                     )
-                    SourceFileUtils.writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
+                    writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
                     val leftQuote = LEFT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
                     val rightQuote = RIGHT_QUOTES_4_ID_ALIAS.replace("\"", "\\\"")
                     val joinTableName = refInfos[3]
                     val inverseJoinColumn = refInfos[2]
-                    SourceFileUtils.writeLine(
+                    writeLine(
                         out, "    @JoinTable(name = \"$leftQuote$joinTableName$rightQuote\", " +
                                 "joinColumns = [JoinColumn(name = \"$leftQuote$joinColumn$rightQuote\", nullable = false)], " +
                                 "inverseJoinColumns = [JoinColumn(name = \"$leftQuote$inverseJoinColumn$rightQuote\", nullable = false)])"
                     )
                     val entityPackage = tablePackageMap[refTableName] ?: ""
                     val entityType = resolveEntityType(refTableName)
-                    val fieldName = Inflector.pluralize(NamingUtils.toLowerCamelCase(entityType) ?: entityType)
-                    SourceFileUtils.writeLine(
+                    val fieldName = Inflector.pluralize(toLowerCamelCase(entityType) ?: entityType)
+                    writeLine(
                         out,
                         "    var $fieldName: MutableList<$entityPackage.$entityType> = mutableListOf()"
                     )
@@ -1710,8 +1741,8 @@ open class GenEntityTask : GenArchTask() {
                 "*ManyToMany" -> {
                     val entityTypeName = resolveEntityType(tableName)
                     val fieldNameFromTable =
-                        Inflector.pluralize(NamingUtils.toLowerCamelCase(entityTypeName) ?: entityTypeName)
-                    SourceFileUtils.writeLine(
+                        Inflector.pluralize(toLowerCamelCase(entityTypeName) ?: entityTypeName)
+                    writeLine(
                         out,
                         "    @${
                             relation.replace(
@@ -1720,11 +1751,11 @@ open class GenEntityTask : GenArchTask() {
                             )
                         }(mappedBy = \"$fieldNameFromTable\", cascade = [], fetch = FetchType.$fetchType)$fetchAnnotation"
                     )
-                    SourceFileUtils.writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
+                    writeLine(out, "    @Fetch(FetchMode.SUBSELECT)")
                     val entityPackage = tablePackageMap[refTableName] ?: ""
                     val entityType = resolveEntityType(refTableName)
-                    val fieldName = Inflector.pluralize(NamingUtils.toLowerCamelCase(entityType) ?: entityType)
-                    SourceFileUtils.writeLine(
+                    val fieldName = Inflector.pluralize(toLowerCamelCase(entityType) ?: entityType)
+                    writeLine(
                         out,
                         "    var $fieldName: MutableList<$entityPackage.$entityType> = mutableListOf()"
                     )
@@ -1745,7 +1776,7 @@ open class GenEntityTask : GenArchTask() {
 
         val entityFullPackage = tablePackageMap[tableName] ?: return
         val entityType = resolveEntityType(tableName)
-        val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
+        val entityVar = toLowerCamelCase(entityType) ?: entityType
 
         val ids = resolveIdColumns(columns)
         if (ids.isEmpty()) {
@@ -1758,16 +1789,16 @@ open class GenEntityTask : GenArchTask() {
         putContext(tag, "Name", entityType, context)
         putContext(tag, "Entity", entityType, context)
         putContext(tag, "AggregateRoot", context["Entity"] ?: "", context)
-        putContext(tag, "templatePackage", SourceFileUtils.refPackage(resolveAggregatesPackage()), context)
-        putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
+        putContext(tag, "templatePackage", refPackage(resolveAggregatesPackage()), context)
+        putContext(tag, "package", refPackage(aggregate), context)
         putContext(tag, "path", aggregate.replace(".", File.separator), context)
-        putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
+        putContext(tag, "Aggregate", toUpperCamelCase(aggregate) ?: aggregate, context)
         putContext(tag, "Comment", comment, context)
         putContext(tag, "CommentEscaped", comment.replace(Regex(PATTERN_LINE_BREAK), "  "), context)
         putContext(
             tag,
             "entityPackage",
-            SourceFileUtils.refPackage(entityFullPackage, getExtension().basePackage.get()),
+            refPackage(entityFullPackage, getExtension().basePackage.get()),
             context
         )
         putContext(tag, "EntityVar", entityVar, context)
@@ -1781,21 +1812,21 @@ open class GenEntityTask : GenArchTask() {
 
         try {
             for (templateNode in aggregateTemplateNodes) {
-                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val pathNode = templateNode.deepCopy().resolve(context)
                 val path = forceRender(
                     pathNode,
-                    SourceFileUtils.resolvePackageDirectory(
+                    resolvePackageDirectory(
                         baseDir,
-                        SourceFileUtils.concatPackage(
+                        concatPackage(
                             getExtension().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
                     )
                 )
                 logger.info(
-                    SourceFileUtils.resolvePackageDirectory(
+                    resolvePackageDirectory(
                         baseDir,
-                        SourceFileUtils.concatPackage(
+                        concatPackage(
                             getExtension().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
@@ -1819,21 +1850,21 @@ open class GenEntityTask : GenArchTask() {
 
         val entityFullPackage = tablePackageMap[tableName] ?: return
         val entityType = resolveEntityType(tableName)
-        val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
+        val entityVar = toLowerCamelCase(entityType) ?: entityType
 
         val context = getEscapeContext().toMutableMap()
         putContext(tag, "Name", "${entityType}Factory", context)
         putContext(tag, "Factory", context["Name"] ?: "", context)
-        putContext(tag, "templatePackage", SourceFileUtils.refPackage(resolveAggregatesPackage()), context)
-        putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
+        putContext(tag, "templatePackage", refPackage(resolveAggregatesPackage()), context)
+        putContext(tag, "package", refPackage(aggregate), context)
         putContext(tag, "path", aggregate.replace(".", File.separator), context)
-        putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
+        putContext(tag, "Aggregate", toUpperCamelCase(aggregate) ?: aggregate, context)
         putContext(tag, "Comment", "", context)
         putContext(tag, "CommentEscaped", "", context)
         putContext(
             tag,
             "entityPackage",
-            SourceFileUtils.refPackage(entityFullPackage, getExtension().basePackage.get()),
+            refPackage(entityFullPackage, getExtension().basePackage.get()),
             context
         )
         putContext(tag, "Entity", entityType, context)
@@ -1848,21 +1879,21 @@ open class GenEntityTask : GenArchTask() {
 
         try {
             for (templateNode in factoryTemplateNodes) {
-                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val pathNode = templateNode.deepCopy().resolve(context)
                 val path = forceRender(
                     pathNode,
-                    SourceFileUtils.resolvePackageDirectory(
+                    resolvePackageDirectory(
                         baseDir,
-                        SourceFileUtils.concatPackage(
+                        concatPackage(
                             getExtension().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
                     )
                 )
                 logger.info(
-                    SourceFileUtils.resolvePackageDirectory(
+                    resolvePackageDirectory(
                         baseDir,
-                        SourceFileUtils.concatPackage(
+                        concatPackage(
                             getExtension().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
@@ -1886,21 +1917,21 @@ open class GenEntityTask : GenArchTask() {
 
         val entityFullPackage = tablePackageMap[tableName] ?: return
         val entityType = resolveEntityType(tableName)
-        val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
+        val entityVar = toLowerCamelCase(entityType) ?: entityType
 
         val context = getEscapeContext().toMutableMap()
         putContext(tag, "Name", "${entityType}Specification", context)
         putContext(tag, "Specification", context["Name"] ?: "", context)
-        putContext(tag, "templatePackage", SourceFileUtils.refPackage(resolveAggregatesPackage()), context)
-        putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
+        putContext(tag, "templatePackage", refPackage(resolveAggregatesPackage()), context)
+        putContext(tag, "package", refPackage(aggregate), context)
         putContext(tag, "path", aggregate.replace(".", File.separator), context)
-        putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
+        putContext(tag, "Aggregate", toUpperCamelCase(aggregate) ?: aggregate, context)
         putContext(tag, "Comment", "", context)
         putContext(tag, "CommentEscaped", "", context)
         putContext(
             tag,
             "entityPackage",
-            SourceFileUtils.refPackage(entityFullPackage, getExtension().basePackage.get()),
+            refPackage(entityFullPackage, getExtension().basePackage.get()),
             context
         )
         putContext(tag, "Entity", entityType, context)
@@ -1915,12 +1946,12 @@ open class GenEntityTask : GenArchTask() {
 
         try {
             for (templateNode in specificationTemplateNodes) {
-                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val pathNode = templateNode.deepCopy().resolve(context)
                 val path = forceRender(
                     pathNode,
-                    SourceFileUtils.resolvePackageDirectory(
+                    resolvePackageDirectory(
                         baseDir,
-                        SourceFileUtils.concatPackage(
+                        concatPackage(
                             getExtension().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
@@ -1947,25 +1978,25 @@ open class GenEntityTask : GenArchTask() {
 
         val entityFullPackage = tablePackageMap[tableName] ?: return
         val entityType = resolveEntityType(tableName)
-        val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
+        val entityVar = toLowerCamelCase(entityType) ?: entityType
 
         val domainEventDescEscaped = domainEventDescription.replace(Regex(PATTERN_LINE_BREAK), "\\n")
 
         val context = getEscapeContext().toMutableMap()
         putContext(tag, "Name", domainEventClassName, context)
         putContext(tag, "DomainEvent", context["Name"] ?: "", context)
-        putContext(tag, "domainEventPackage", SourceFileUtils.refPackage(resolveAggregatesPackage()), context)
-        putContext(tag, "domainEventHandlerPackage", SourceFileUtils.refPackage(resolveSubscriberPackage()), context)
-        putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
+        putContext(tag, "domainEventPackage", refPackage(resolveAggregatesPackage()), context)
+        putContext(tag, "domainEventHandlerPackage", refPackage(resolveSubscriberPackage()), context)
+        putContext(tag, "package", refPackage(aggregate), context)
         putContext(tag, "path", aggregate.replace(".", File.separator), context)
         putContext(tag, "persist", "false", context)
-        putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
+        putContext(tag, "Aggregate", toUpperCamelCase(aggregate) ?: aggregate, context)
         putContext(tag, "Comment", domainEventDescEscaped, context)
         putContext(tag, "CommentEscaped", domainEventDescEscaped, context)
         putContext(
             tag,
             "entityPackage",
-            SourceFileUtils.refPackage(entityFullPackage, getExtension().basePackage.get()),
+            refPackage(entityFullPackage, getExtension().basePackage.get()),
             context
         )
         putContext(tag, "Entity", entityType, context)
@@ -1981,12 +2012,12 @@ open class GenEntityTask : GenArchTask() {
 
         try {
             for (templateNode in domainEventTemplateNodes) {
-                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val pathNode = templateNode.deepCopy().resolve(context)
                 val path = forceRender(
                     pathNode,
-                    SourceFileUtils.resolvePackageDirectory(
+                    resolvePackageDirectory(
                         baseDir,
-                        SourceFileUtils.concatPackage(
+                        concatPackage(
                             getExtension().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
@@ -2007,12 +2038,12 @@ open class GenEntityTask : GenArchTask() {
 
         try {
             for (templateNode in domainEventHandlerTemplateNodes) {
-                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val pathNode = templateNode.deepCopy().resolve(context)
                 val path = forceRender(
                     pathNode,
-                    SourceFileUtils.resolvePackageDirectory(
+                    resolvePackageDirectory(
                         getApplicationModulePath(),
-                        SourceFileUtils.concatPackage(
+                        concatPackage(
                             getExtension().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
@@ -2040,19 +2071,19 @@ open class GenEntityTask : GenArchTask() {
 
         val entityFullPackage = tablePackageMap[tableName] ?: return
         val entityType = resolveEntityType(tableName)
-        val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
+        val entityVar = toLowerCamelCase(entityType) ?: entityType
 
         val context = getEscapeContext().toMutableMap()
-        putContext(tag, "templatePackage", SourceFileUtils.refPackage(resolveAggregatesPackage()), context)
-        putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
+        putContext(tag, "templatePackage", refPackage(resolveAggregatesPackage()), context)
+        putContext(tag, "package", refPackage(aggregate), context)
         putContext(tag, "path", aggregate.replace(".", File.separator), context)
-        putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
+        putContext(tag, "Aggregate", toUpperCamelCase(aggregate) ?: aggregate, context)
         putContext(tag, "Comment", "", context)
         putContext(tag, "CommentEscaped", "", context)
         putContext(
             tag,
             "entityPackage",
-            SourceFileUtils.refPackage(entityFullPackage, getExtension().basePackage.get()),
+            refPackage(entityFullPackage, getExtension().basePackage.get()),
             context
         )
         putContext(tag, "Entity", entityType, context)
@@ -2079,7 +2110,7 @@ open class GenEntityTask : GenArchTask() {
                     templateNodeMap[itemTag]!![templateNodeMap[itemTag]!!.size - 1]
                 } else {
                     resolveDefaultEnumItemTemplateNode()
-                }).cloneTemplateNode().resolve(itemContext)
+                }).deepCopy().resolve(itemContext)
             enumItems += enumItemsPathNode.data
         }
         putContext(tag, "ENUM_ITEMS", enumItems, context)
@@ -2092,12 +2123,12 @@ open class GenEntityTask : GenArchTask() {
 
         try {
             for (templateNode in enumTemplateNodes) {
-                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val pathNode = templateNode.deepCopy().resolve(context)
                 val path = forceRender(
                     pathNode,
-                    SourceFileUtils.resolvePackageDirectory(
+                    resolvePackageDirectory(
                         baseDir,
-                        SourceFileUtils.concatPackage(
+                        concatPackage(
                             getExtension().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )
@@ -2135,29 +2166,29 @@ open class GenEntityTask : GenArchTask() {
 
         val entityFullPackage = tablePackageMap[tableName] ?: return
         val entityType = resolveEntityType(tableName)
-        val entityVar = NamingUtils.toLowerCamelCase(entityType) ?: entityType
+        val entityVar = toLowerCamelCase(entityType) ?: entityType
 
         val comment = SqlSchemaUtils.getComment(table).replace(Regex(PATTERN_LINE_BREAK), " ")
 
         val schemaBaseFullPackage = if (schemaPath.isNotBlank()) {
-            SourceFileUtils.resolvePackage(schemaPath)
+            resolvePackage(schemaPath)
         } else {
-            SourceFileUtils.concatPackage(basePackage, getEntitySchemaOutputPackage())
+            concatPackage(basePackage, getEntitySchemaOutputPackage())
         }
 
         val context = getEscapeContext().toMutableMap()
 
-        putContext(tag, "templatePackage", SourceFileUtils.refPackage(schemaPackage), context)
-        putContext(tag, "package", SourceFileUtils.refPackage(aggregate), context)
+        putContext(tag, "templatePackage", refPackage(schemaPackage), context)
+        putContext(tag, "package", refPackage(aggregate), context)
         putContext(tag, "path", aggregate.replace(".", File.separator), context)
-        putContext(tag, "Aggregate", NamingUtils.toUpperCamelCase(aggregate) ?: aggregate, context)
+        putContext(tag, "Aggregate", toUpperCamelCase(aggregate) ?: aggregate, context)
         putContext(tag, "isAggregateRoot", SqlSchemaUtils.isAggregateRoot(table).toString(), context)
         putContext(tag, "Comment", comment, context)
         putContext(tag, "CommentEscaped", comment.replace(Regex(PATTERN_LINE_BREAK), " "), context)
         putContext(
             tag,
             "entityPackage",
-            SourceFileUtils.refPackage(entityFullPackage, basePackage),
+            refPackage(entityFullPackage, basePackage),
             context
         )
         putContext(tag, "Entity", entityType, context)
@@ -2165,7 +2196,7 @@ open class GenEntityTask : GenArchTask() {
         putContext(
             tag,
             "schemaBasePackage",
-            SourceFileUtils.refPackage(schemaBaseFullPackage, basePackage),
+            refPackage(schemaBaseFullPackage, basePackage),
             context
         )
         putContext(tag, "SchemaBase", DEFAULT_SCHEMA_BASE_CLASS_NAME, context)
@@ -2178,7 +2209,7 @@ open class GenEntityTask : GenArchTask() {
             }
             val fieldType = SqlSchemaUtils.getColumnType(column)
             val fieldName =
-                NamingUtils.toLowerCamelCase(SqlSchemaUtils.getColumnName(column)) ?: SqlSchemaUtils.getColumnName(
+                toLowerCamelCase(SqlSchemaUtils.getColumnName(column)) ?: SqlSchemaUtils.getColumnName(
                     column
                 )
             val fieldComment = generateFieldComment(column).joinToString("\n    ")
@@ -2194,13 +2225,13 @@ open class GenEntityTask : GenArchTask() {
                 templateNodeMap[fieldTag]!![templateNodeMap[fieldTag]!!.size - 1]
             } else {
                 resolveDefaultSchemaFieldTemplateNode()
-            }).cloneTemplateNode().resolve(itemContext).data ?: ""
+            }).deepCopy().resolve(itemContext).data ?: ""
 
             propertyNameItems += (if (templateNodeMap.containsKey(propertyNameTag) && templateNodeMap[propertyNameTag]!!.isNotEmpty()) {
                 templateNodeMap[propertyNameTag]!![templateNodeMap[propertyNameTag]!!.size - 1]
             } else {
                 resolveDefaultSchemaPropertyNameTemplateNode()
-            }).cloneTemplateNode().resolve(itemContext).data ?: ""
+            }).deepCopy().resolve(itemContext).data ?: ""
         }
 
         var joinItems = ""
@@ -2222,7 +2253,7 @@ open class GenEntityTask : GenArchTask() {
                             joinTag,
                             "joinEntityVars",
                             Inflector.pluralize(
-                                NamingUtils.toLowerCamelCase(resolveEntityType(key)) ?: resolveEntityType(key)
+                                toLowerCamelCase(resolveEntityType(key)) ?: resolveEntityType(key)
                             ),
                             joinContext
                         )
@@ -2230,7 +2261,7 @@ open class GenEntityTask : GenArchTask() {
                             putContext(
                                 joinTag,
                                 "joinEntitySchemaPackage",
-                                "${SourceFileUtils.concatPackage(tablePackageMap[key] ?: "", DEFAULT_SCHEMA_PACKAGE)}.",
+                                "${concatPackage(tablePackageMap[key] ?: "", DEFAULT_SCHEMA_PACKAGE)}.",
                                 joinContext
                             )
                         } else {
@@ -2240,12 +2271,12 @@ open class GenEntityTask : GenArchTask() {
                             templateNodeMap[joinTag]!![templateNodeMap[joinTag]!!.size - 1]
                         } else {
                             resolveDefaultSchemaJoinTemplateNode()
-                        }).cloneTemplateNode().resolve(joinContext).data ?: ""
+                        }).deepCopy().resolve(joinContext).data ?: ""
 
                         fieldType = "${tablePackageMap[key]}.${resolveEntityType(key)}"
                         fieldName =
                             Inflector.pluralize(
-                                NamingUtils.toLowerCamelCase(resolveEntityType(key)) ?: resolveEntityType(key)
+                                toLowerCamelCase(resolveEntityType(key)) ?: resolveEntityType(key)
                             )
                         fieldComment = ""
                         fieldDescription = ""
@@ -2257,12 +2288,12 @@ open class GenEntityTask : GenArchTask() {
                             templateNodeMap[fieldTag]!![templateNodeMap[fieldTag]!!.size - 1]
                         } else {
                             resolveDefaultSchemaFieldTemplateNode()
-                        }).cloneTemplateNode().resolve(itemContext).data ?: ""
+                        }).deepCopy().resolve(itemContext).data ?: ""
                         propertyNameItems += (if (templateNodeMap.containsKey(propertyNameTag) && templateNodeMap[propertyNameTag]!!.isNotEmpty()) {
                             templateNodeMap[propertyNameTag]!![templateNodeMap[propertyNameTag]!!.size - 1]
                         } else {
                             resolveDefaultSchemaPropertyNameTemplateNode()
-                        }).cloneTemplateNode().resolve(itemContext).data ?: ""
+                        }).deepCopy().resolve(itemContext).data ?: ""
                     }
 
                     "OneToOne", "ManyToOne" -> {
@@ -2271,14 +2302,14 @@ open class GenEntityTask : GenArchTask() {
                         putContext(
                             joinTag,
                             "joinEntityVars",
-                            NamingUtils.toLowerCamelCase(resolveEntityType(key)) ?: resolveEntityType(key),
+                            toLowerCamelCase(resolveEntityType(key)) ?: resolveEntityType(key),
                             joinContext
                         )
                         if (!("abs".equals(getEntitySchemaOutputMode(), ignoreCase = true))) {
                             putContext(
                                 joinTag,
                                 "joinEntitySchemaPackage",
-                                "${SourceFileUtils.concatPackage(tablePackageMap[key] ?: "", DEFAULT_SCHEMA_PACKAGE)}.",
+                                "${concatPackage(tablePackageMap[key] ?: "", DEFAULT_SCHEMA_PACKAGE)}.",
                                 joinContext
                             )
                         }
@@ -2286,10 +2317,10 @@ open class GenEntityTask : GenArchTask() {
                             templateNodeMap[joinTag]!![templateNodeMap[joinTag]!!.size - 1]
                         } else {
                             resolveDefaultSchemaJoinTemplateNode()
-                        }).cloneTemplateNode().resolve(joinContext).data ?: ""
+                        }).deepCopy().resolve(joinContext).data ?: ""
 
                         fieldType = "${tablePackageMap[key]}.${resolveEntityType(key)}"
-                        fieldName = NamingUtils.toLowerCamelCase(resolveEntityType(key)) ?: resolveEntityType(key)
+                        fieldName = toLowerCamelCase(resolveEntityType(key)) ?: resolveEntityType(key)
                         val refColumn = resolveColumn(columns, refInfos[1])
                         fieldComment =
                             if (refColumn != null) generateFieldComment(refColumn).joinToString("\n    ") else ""
@@ -2303,12 +2334,12 @@ open class GenEntityTask : GenArchTask() {
                             templateNodeMap[fieldTag]!![templateNodeMap[fieldTag]!!.size - 1]
                         } else {
                             resolveDefaultSchemaFieldTemplateNode()
-                        }).cloneTemplateNode().resolve(itemContext).data ?: ""
+                        }).deepCopy().resolve(itemContext).data ?: ""
                         propertyNameItems += (if (templateNodeMap.containsKey(propertyNameTag) && templateNodeMap[propertyNameTag]!!.isNotEmpty()) {
                             templateNodeMap[propertyNameTag]!![templateNodeMap[propertyNameTag]!!.size - 1]
                         } else {
                             resolveDefaultSchemaPropertyNameTemplateNode()
-                        }).cloneTemplateNode().resolve(itemContext).data ?: ""
+                        }).deepCopy().resolve(itemContext).data ?: ""
                     }
 
                     else -> {
@@ -2331,7 +2362,7 @@ open class GenEntityTask : GenArchTask() {
                     listOf(resolveDefaultRootSchemaExtraExtensionTemplateNode(getExtension().generation.generateAggregate.get()))
                 }
                 for (templateNode in extraExtensionTemplateNodes) {
-                    extraExtension += templateNode.cloneTemplateNode().resolve(context).data ?: ""
+                    extraExtension += templateNode.deepCopy().resolve(context).data ?: ""
                 }
             }
         } catch (e: Exception) {
@@ -2347,12 +2378,12 @@ open class GenEntityTask : GenArchTask() {
 
         try {
             for (templateNode in schemaTemplateNodes) {
-                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val pathNode = templateNode.deepCopy().resolve(context)
                 val path = forceRender(
                     pathNode,
-                    SourceFileUtils.resolvePackageDirectory(
+                    resolvePackageDirectory(
                         baseDir,
-                        SourceFileUtils.concatPackage(
+                        concatPackage(
                             basePackage,
                             context["templatePackage"] ?: ""
                         )
@@ -2367,7 +2398,7 @@ open class GenEntityTask : GenArchTask() {
 
     fun writeSchemaBaseSourceFile(baseDir: String) {
         val tag = "schema_base"
-        val schemaFullPackage = SourceFileUtils.concatPackage(getExtension().basePackage.get(), resolveSchemaPackage())
+        val schemaFullPackage = concatPackage(getExtension().basePackage.get(), resolveSchemaPackage())
 
         val schemaBaseTemplateNodes = if (templateNodeMap.containsKey(tag)) {
             templateNodeMap[tag]!!
@@ -2379,19 +2410,19 @@ open class GenEntityTask : GenArchTask() {
         putContext(
             tag,
             "templatePackage",
-            SourceFileUtils.refPackage(schemaFullPackage, getExtension().basePackage.get()),
+            refPackage(schemaFullPackage, getExtension().basePackage.get()),
             context
         )
         putContext(tag, "SchemaBase", DEFAULT_SCHEMA_BASE_CLASS_NAME, context)
 
         try {
             for (templateNode in schemaBaseTemplateNodes) {
-                val pathNode = templateNode.cloneTemplateNode().resolve(context)
+                val pathNode = templateNode.deepCopy().resolve(context)
                 forceRender(
                     pathNode,
-                    SourceFileUtils.resolvePackageDirectory(
+                    resolvePackageDirectory(
                         baseDir,
-                        SourceFileUtils.concatPackage(
+                        concatPackage(
                             getExtension().basePackage.get(),
                             context["templatePackage"] ?: ""
                         )

@@ -1,9 +1,6 @@
 package com.only4.cap4k.gradle.codegen
 
-import com.alibaba.fastjson.JSON
-import com.only4.cap4k.gradle.codegen.misc.NamingUtils
-import com.only4.cap4k.gradle.codegen.misc.SourceFileUtils
-import com.only4.cap4k.gradle.codegen.misc.SqlSchemaUtils
+import com.only4.cap4k.gradle.codegen.misc.toUpperCamelCase
 import com.only4.cap4k.gradle.codegen.template.PathNode
 import com.only4.cap4k.gradle.codegen.template.Template
 import com.only4.cap4k.gradle.codegen.template.TemplateNode
@@ -25,7 +22,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
 
     companion object {
         const val FLAG_DO_NOT_OVERWRITE = "[cap4k-ddd-codegen-gradle-plugin:do-not-overwrite]"
-        const val PATTERN_SPLITTER = "[\\,\\;]"
+        const val PATTERN_SPLITTER = "[,;]"
         const val PATTERN_DESIGN_PARAMS_SPLITTER = "[\\:]"
         const val PATTERN_LINE_BREAK = "\\r\\n|[\\r\\n]"
         const val AGGREGATE_REPOSITORY_PACKAGE = "adapter.domain.repositories"
@@ -53,240 +50,165 @@ abstract class AbstractCodegenTask : DefaultTask() {
     @Internal
     protected var template: Template? = null
 
+    @Internal
+    protected var renderFileSwitch = true
+
     init {
         group = "cap4k codegen"
     }
 
-    /**
-     * 获取插件扩展配置
-     */
-    protected fun getExtension(): Cap4kCodegenExtension {
-        return extension.get()
+    protected fun getExtension(): Cap4kCodegenExtension = extension.get()
+    protected fun getProjectDir(): String = projectDir.get()
+
+    @Internal
+    protected fun getEntityClassExtraImports(): List<String> {
+        val ext = getExtension()
+        val defaultImportList = listOf(
+            "com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate",
+            "jakarta.persistence.*",
+            "org.hibernate.annotations.DynamicInsert",
+            "org.hibernate.annotations.DynamicUpdate",
+            "org.hibernate.annotations.Fetch",
+            "org.hibernate.annotations.FetchMode",
+            "org.hibernate.annotations.GenericGenerator"
+        )
+
+        val imports = mutableListOf<String>()
+        imports.addAll(defaultImportList)
+
+        val extraImports = ext.generation.entityClassExtraImports.get()
+        if (extraImports.isNotEmpty()) {
+            imports.addAll(
+                extraImports.split(";")
+                    .map { it.trim().replace(Regex(PATTERN_LINE_BREAK), "") }
+                    .map { if (it.startsWith("import ")) it.substring(6).trim() else it }
+                    .filter { it.isNotBlank() }
+            )
+        }
+
+        return imports.distinct()
     }
 
     /**
-     * 获取项目目录
-     */
-    protected fun getProjectDir(): String {
-        return projectDir.get()
-    }
-
-    /**
-     * 获取适配层模块路径
+     * 获取实体Schema输出模式
      */
     @Internal
-    protected fun getAdapterModulePath(): String {
+    protected fun getEntitySchemaOutputMode(): String {
         val ext = getExtension()
-        return if (ext.multiModule.get()) {
-            val baseDir = getProjectDir()
-            val moduleName = "${projectName.get()}${ext.moduleNameSuffix4Adapter.get()}"
-            "$baseDir${File.separator}$moduleName"
-        } else {
-            getProjectDir()
-        }
+        val mode = ext.generation.entitySchemaOutputMode.get()
+        return mode.ifBlank { "ref" }
     }
 
     /**
-     * 获取应用层模块路径
+     * 获取实体Schema输出包
      */
     @Internal
-    protected fun getApplicationModulePath(): String {
+    protected fun getEntitySchemaOutputPackage(): String {
         val ext = getExtension()
-        return if (ext.multiModule.get()) {
-            val baseDir = getProjectDir()
-            val moduleName = "${projectName.get()}${ext.moduleNameSuffix4Application.get()}"
-            "$baseDir${File.separator}$moduleName"
-        } else {
-            getProjectDir()
-        }
+        val packageName = ext.generation.entitySchemaOutputPackage.get()
+        return packageName.ifBlank { "domain._share.meta" }
     }
 
-    /**
-     * 获取领域层模块路径
-     */
+    private fun modulePath(suffix: String): String =
+        getExtension().let { ext ->
+            if (ext.multiModule.get())
+                "${getProjectDir()}${File.separator}${projectName.get()}$suffix"
+            else getProjectDir()
+        }
+
     @Internal
-    protected fun getDomainModulePath(): String {
-        val ext = getExtension()
-        return if (ext.multiModule.get()) {
-            val baseDir = getProjectDir()
-            val moduleName = "${projectName.get()}${ext.moduleNameSuffix4Domain.get()}"
-            "$baseDir${File.separator}$moduleName"
-        } else {
-            getProjectDir()
-        }
-    }
+    protected fun getAdapterModulePath(): String =
+        modulePath(getExtension().moduleNameSuffix4Adapter.get())
 
-    /**
-     * 获取上下文变量
-     */
     @Internal
-    protected fun getEscapeContext(): Map<String, String> {
-        val ext = getExtension()
-        val context = mutableMapOf<String, String>()
+    protected fun getApplicationModulePath(): String =
+        modulePath(getExtension().moduleNameSuffix4Application.get())
 
-        // 项目相关配置
-        context["artifactId"] = projectName.get()
-        context["groupId"] = projectGroup.get()
-        context["version"] = projectVersion.get()
+    @Internal
+    protected fun getDomainModulePath(): String =
+        modulePath(getExtension().moduleNameSuffix4Domain.get())
 
-        // 基础配置
-        context["archTemplate"] = ext.archTemplate.get()
-        context["archTemplateEncoding"] = ext.archTemplateEncoding.get()
-        context["outputEncoding"] = ext.outputEncoding.get()
-        context["designFile"] = ext.designFile.get()
-        context["basePackage"] = ext.basePackage.get()
-        context["basePackage__as_path"] = ext.basePackage.get().replace(".", File.separator)
-        context["multiModule"] = ext.multiModule.get().toString()
-
-        // 模块路径
-        context["adapterModulePath"] = getAdapterModulePath()
-        context["applicationModulePath"] = getApplicationModulePath()
-        context["domainModulePath"] = getDomainModulePath()
-
-        // 数据库配置
-        context["dbUrl"] = ext.database.url.get()
-        context["dbUsername"] = ext.database.username.get()
-        context["dbPassword"] = ext.database.password.get()
-        context["dbSchema"] = ext.database.schema.get()
-        context["dbTables"] = ext.database.tables.get()
-        context["dbIgnoreTables"] = ext.database.ignoreTables.get()
-
-        // 生成配置
-        context["versionField"] = ext.generation.versionField.get()
-        context["deletedField"] = ext.generation.deletedField.get()
-        context["readonlyFields"] = ext.generation.readonlyFields.get()
-        context["ignoreFields"] = ext.generation.ignoreFields.get()
-        context["entityBaseClass"] = ext.generation.entityBaseClass.get()
-        context["rootEntityBaseClass"] = ext.generation.rootEntityBaseClass.get()
-        context["entityClassExtraImports"] = ext.generation.entityClassExtraImports.get()
-        context["entitySchemaOutputPackage"] = ext.generation.entitySchemaOutputPackage.get()
-        context["entitySchemaOutputMode"] = ext.generation.entitySchemaOutputMode.get()
-        context["entitySchemaNameTemplate"] = ext.generation.entitySchemaNameTemplate.get()
-        context["aggregateNameTemplate"] = ext.generation.aggregateNameTemplate.get()
-        context["idGenerator"] = ext.generation.idGenerator.get()
-        context["idGenerator4ValueObject"] = ext.generation.idGenerator4ValueObject.get()
-        context["hashMethod4ValueObject"] = ext.generation.hashMethod4ValueObject.get()
-        context["fetchType"] = ext.generation.fetchType.get()
-        context["enumValueField"] = ext.generation.enumValueField.get()
-
-        context["enumNameField"] = ext.generation.enumNameField.get()
-
-        context["enumUnmatchedThrowException"] = ext.generation.enumUnmatchedThrowException.get().toString()
-        context["datePackage"] = ext.generation.datePackage.get()
-        context["typeRemapping"] = stringfyTypeRemapping()
-        context["generateDbType"] = ext.generation.generateDbType.get().toString()
-        context["generateSchema"] = ext.generation.generateSchema.get().toString()
-        context["generateAggregate"] = ext.generation.generateAggregate.get().toString()
-        context["generateParent"] = ext.generation.generateParent.get().toString()
-        context["aggregateNameTemplate"] = ext.generation.aggregateNameTemplate.get()
-        context["repositoryNameTemplate"] = ext.generation.repositoryNameTemplate.get()
-        context["repositorySupportQuerydsl"] = ext.generation.repositorySupportQuerydsl.get().toString()
-        context["date"] = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))
-        context["SEPARATOR"] = File.separator
-        context["separator"] = File.separator
-
-        return context
-    }
-
-    fun stringfyTypeRemapping(): String {
-        val typeRemapping = getExtension().generation.typeRemapping.get()
-        var result = ""
-        typeRemapping.forEach { (k, v) ->
-            result += "<$k>$v</$k>"
-        }
-        return result
-    }
-
-    /**
-     * 渲染模板并生成文件
-     */
-    @Throws(Exception::class)
-    protected fun render(pathNode: PathNode, parentPath: String): String {
-        var path = parentPath
-        when (pathNode.type) {
-            "root" -> {
-                pathNode.children?.forEach { child ->
-                    render(child, parentPath)
-                }
-            }
-
-            "dir" -> {
-                path = renderDir(pathNode, parentPath)
-                pathNode.children?.forEach { child ->
-                    render(child, path)
-                }
-            }
-
-            "file" -> {
-                path = renderFile(pathNode, parentPath)
-            }
-        }
+    fun forceRender(pathNode: PathNode, parentPath: String): String {
+        val temp = renderFileSwitch
+        renderFileSwitch = true
+        val path = render(pathNode, parentPath)
+        renderFileSwitch = temp
         return path
     }
 
+    protected fun render(pathNode: PathNode, parentPath: String): String =
+        when (pathNode.type?.lowercase()) {
+            "root" -> {
+                pathNode.children?.forEach { render(it, parentPath) }
+                parentPath
+            }
+
+            "dir" -> {
+                val dirPath = renderDir(pathNode, parentPath)
+                pathNode.children?.forEach { render(it, dirPath) }
+                dirPath
+            }
+
+            "file" -> renderFile(pathNode, parentPath)
+            else -> parentPath
+        }
+
+
+    protected open fun renderTemplate(
+        templateNodes: List<TemplateNode>,
+        parentPath: String,
+    ) = Unit
+
     fun renderDir(pathNode: PathNode, parentPath: String): String {
-        require("dir".equals(pathNode.type, ignoreCase = true)) { "pathNode must be a directory type" }
-        if (pathNode.name?.isBlank() == true) return parentPath
+        require("dir".equals(pathNode.type, true)) { "pathNode must be a directory type" }
+        val name = pathNode.name?.takeIf { it.isNotBlank() } ?: return parentPath
+        val path = "$parentPath${File.separator}$name"
+        val dirFile = File(path)
 
-        val path = "$parentPath${File.separator}${pathNode.name}"
-
-        if (File(path).exists()) {
-            when (pathNode.conflict) {
-                "skip" -> {
-                    logger.info("目录已存在，跳过: $path")
-                }
-
-                "warn" -> {
-                    logger.warn("目录已存在，继续: $path")
-                }
-
+        if (dirFile.exists()) {
+            when (pathNode.conflict.lowercase()) {
+                "skip" -> logger.info("目录已存在，跳过: $path")
+                "warn" -> logger.warn("目录已存在，继续: $path")
                 "overwrite" -> {
                     logger.info("目录覆盖: $path")
-                    File(path).delete()
-                    File(path).mkdirs()
+                    dirFile.deleteRecursively()
+                    dirFile.mkdirs()
                 }
             }
         } else {
-            File(path).mkdirs()
+            dirFile.mkdirs()
             logger.info("创建目录: $path")
         }
 
         if (pathNode.tag.isNullOrBlank()) return path
-
-        pathNode.tag!!.split(Regex(PATTERN_SPLITTER))
-            .forEach { tag ->
-                renderTemplate(template!!.select(tag), path)
-            }
+        pathNode.tag!!
+            .split(Regex(PATTERN_SPLITTER))
+            .filter { it.isNotBlank() }
+            .forEach { renderTemplate(template!!.select(it), path) }
 
         return path
     }
 
     fun renderFile(pathNode: PathNode, parentPath: String): String {
-        require("file".equals(pathNode.type, ignoreCase = true)) { "pathNode must be a directory type" }
-        require(!(pathNode.name.isNullOrBlank())) { "pathNode name must not be blank" }
+        require("file".equals(pathNode.type, true)) { "pathNode must be a file type" }
+        val name = pathNode.name?.takeIf { it.isNotBlank() }
+            ?: error("pathNode name must not be blank")
 
-        val path = "$parentPath${File.separator}${pathNode.name}"
-
-        val content = pathNode.data!!
+        val path = "$parentPath${File.separator}$name"
+        if (!renderFileSwitch) return path
+        val file = File(path)
+        val content = pathNode.data ?: ""
         val encoding = pathNode.encoding ?: getExtension().outputEncoding.get()
 
-        val file = File(path)
         if (file.exists()) {
-            when (pathNode.conflict) {
-                "skip" -> {
-                    logger.info("文件已存在，跳过: $path")
-                }
-
-                "warn" -> {
-                    logger.warn("文件已存在，继续: $path")
-                }
-
+            when (pathNode.conflict.lowercase()) {
+                "skip" -> logger.info("文件已存在，跳过: $path")
+                "warn" -> logger.warn("文件已存在，继续: $path")
                 "overwrite" -> {
-                    if (file.reader(charset(encoding)).readText().contains(FLAG_DO_NOT_OVERWRITE)) {
+                    if (file.readText(charset(encoding)).contains(FLAG_DO_NOT_OVERWRITE)) {
                         logger.warn("文件已存在且包含保护标记，跳过: $path")
                     } else {
                         logger.info("文件覆盖: $path")
-                        file.delete()
                         file.writeText(content, charset(encoding))
                     }
                 }
@@ -296,27 +218,17 @@ abstract class AbstractCodegenTask : DefaultTask() {
             file.writeText(content, charset(encoding))
             logger.info("创建文件: $path")
         }
-
         return path
     }
 
-    /**
-     * 生成领域事件名称
-     */
     fun generateDomainEventName(eventName: String): String {
-        var domainEventClassName = NamingUtils.toUpperCamelCase(eventName) ?: eventName
-        if (!domainEventClassName.endsWith("Event") && !domainEventClassName.endsWith("Evt")) {
-            domainEventClassName += "DomainEvent"
-        }
-        return domainEventClassName
+        val base = toUpperCamelCase(eventName) ?: eventName
+        return if (base.endsWith("Event") || base.endsWith("Evt")) base else "${base}DomainEvent"
     }
 
     fun generateDomainServiceName(svcName: String): String {
-        var serviceName = svcName
-        if (!serviceName.endsWith("Svc") && !serviceName.endsWith("Service")) {
-            serviceName += "DomainService"
-        }
-        return serviceName
+        val base = if (svcName.endsWith("Svc") || svcName.endsWith("Service")) svcName else "${svcName}DomainService"
+        return base
     }
 
     fun alias4Template(tag: String, `var`: String): List<String> {
@@ -538,157 +450,71 @@ abstract class AbstractCodegenTask : DefaultTask() {
             .replace("\${symbol_semicolon}", ";")
     }
 
-    open fun renderTemplate(
-        templateNodes: List<TemplateNode>,
-        parentPath: String,
-    ) {
-    }
-
-    /**
-     * 强制渲染路径节点（忽略renderFileSwitch设置）
-     */
-    fun forceRender(pathNode: PathNode, parentPath: String): String {
-        return render(pathNode, parentPath)
-    }
-
-    /**
-     * 解析模板配置并设置上下文
-     */
-    protected fun loadTemplate(templatePath: String): Template {
-        val ext = getExtension()
-        val templateContent =
-            SourceFileUtils.loadFileContent(templatePath, ext.archTemplateEncoding.get(), projectDir.get())
-        logger.debug("模板内容: $templateContent")
-
-        PathNode.setDirectory(SourceFileUtils.resolveDirectory(templatePath, projectDir.get()))
-        val template = JSON.parseObject(templateContent, Template::class.java)
-        template.resolve(getEscapeContext())
-
-        return template
-    }
-
-    /**
-     * 获取数据库连接配置
-     */
     @Internal
-    protected fun getDatabaseConfig(): Triple<String, String, String> {
+    protected fun getEscapeContext(): Map<String, String> = buildMap {
         val ext = getExtension()
-        val url = ext.database.url.get()
-        val username = ext.database.username.get()
-        val password = ext.database.password.get()
-        return Triple(url, username, password)
-    }
-
-    /**
-     * 获取数据库表信息
-     */
-    @Internal
-    protected fun getTables(): List<Map<String, Any?>> {
-        SqlSchemaUtils.loadLogger(logger)
-        val (url, username, password) = getDatabaseConfig()
-        return SqlSchemaUtils.resolveTables(url, username, password)
-    }
-
-    /**
-     * 获取数据库列信息
-     */
-    @Internal
-    protected fun getColumns(): List<Map<String, Any?>> {
-        SqlSchemaUtils.loadLogger(logger)
-        val (url, username, password) = getDatabaseConfig()
-        return SqlSchemaUtils.resolveColumns(url, username, password)
-    }
-
-    /**
-     * 根据表名过滤表
-     */
-    protected fun filterTables(tables: List<Map<String, Any?>>): List<Map<String, Any?>> {
-        val ext = getExtension()
-        val tablesPattern = ext.database.tables.get()
-        val ignoreTablesPattern = ext.database.ignoreTables.get()
-
-        var filtered = tables
-
-        // 包含模式过滤
-        if (tablesPattern.isNotEmpty()) {
-            val patterns = tablesPattern.split(Regex(PATTERN_SPLITTER))
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-
-            filtered = filtered.filter { table ->
-                val tableName = SqlSchemaUtils.getTableName(table)
-                patterns.any { pattern ->
-                    tableName.matches(Regex(pattern.replace("*", ".*")))
-                }
-            }
+        // 项目
+        put("artifactId", projectName.get())
+        put("groupId", projectGroup.get())
+        put("version", projectVersion.get())
+        // 基础
+        put("archTemplate", ext.archTemplate.get())
+        put("archTemplateEncoding", ext.archTemplateEncoding.get())
+        put("outputEncoding", ext.outputEncoding.get())
+        put("designFile", ext.designFile.get())
+        put("basePackage", ext.basePackage.get())
+        put("basePackage__as_path", ext.basePackage.get().replace(".", File.separator))
+        put("multiModule", ext.multiModule.get().toString())
+        // 模块路径
+        put("adapterModulePath", getAdapterModulePath())
+        put("applicationModulePath", getApplicationModulePath())
+        put("domainModulePath", getDomainModulePath())
+        // 数据库
+        with(ext.database) {
+            put("dbUrl", url.get())
+            put("dbUsername", username.get())
+            put("dbPassword", password.get())
+            put("dbSchema", schema.get())
+            put("dbTables", tables.get())
+            put("dbIgnoreTables", ignoreTables.get())
         }
-
-        // 排除模式过滤
-        if (ignoreTablesPattern.isNotEmpty()) {
-            val patterns = ignoreTablesPattern.split(Regex(PATTERN_SPLITTER))
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-
-            filtered = filtered.filter { table ->
-                val tableName = SqlSchemaUtils.getTableName(table)
-                patterns.none { pattern ->
-                    tableName.matches(Regex(pattern.replace("*", ".*")))
-                }
-            }
+        // 生成配置
+        with(ext.generation) {
+            put("versionField", versionField.get())
+            put("deletedField", deletedField.get())
+            put("readonlyFields", readonlyFields.get())
+            put("ignoreFields", ignoreFields.get())
+            put("entityBaseClass", entityBaseClass.get())
+            put("rootEntityBaseClass", rootEntityBaseClass.get())
+            put("entityClassExtraImports", entityClassExtraImports.get())
+            put("entitySchemaOutputPackage", entitySchemaOutputPackage.get())
+            put("entitySchemaOutputMode", entitySchemaOutputMode.get())
+            put("entitySchemaNameTemplate", entitySchemaNameTemplate.get())
+            put("aggregateNameTemplate", aggregateNameTemplate.get())
+            put("idGenerator", idGenerator.get())
+            put("idGenerator4ValueObject", idGenerator4ValueObject.get())
+            put("hashMethod4ValueObject", hashMethod4ValueObject.get())
+            put("fetchType", fetchType.get())
+            put("enumValueField", enumValueField.get())
+            put("enumNameField", enumNameField.get())
+            put("enumUnmatchedThrowException", enumUnmatchedThrowException.get().toString())
+            put("datePackage", datePackage.get())
+            put("typeRemapping", stringfyTypeRemapping())
+            put("generateDbType", generateDbType.get().toString())
+            put("generateSchema", generateSchema.get().toString())
+            put("generateAggregate", generateAggregate.get().toString())
+            put("generateParent", generateParent.get().toString())
+            put("aggregateNameTemplate", aggregateNameTemplate.get())
+            put("repositoryNameTemplate", repositoryNameTemplate.get())
+            put("repositorySupportQuerydsl", repositorySupportQuerydsl.get().toString())
         }
-
-        return filtered
+        // 其它
+        put("date", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd")))
+        put("SEPARATOR", File.separator)
+        put("separator", File.separator)
     }
 
-    /**
-     * 获取实体类额外导入包
-     */
-    @Internal
-    protected fun getEntityClassExtraImports(): List<String> {
-        val ext = getExtension()
-        val defaultImportList = listOf(
-            "com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate",
-            "jakarta.persistence.*",
-            "org.hibernate.annotations.DynamicInsert",
-            "org.hibernate.annotations.DynamicUpdate",
-            "org.hibernate.annotations.Fetch",
-            "org.hibernate.annotations.FetchMode",
-            "org.hibernate.annotations.GenericGenerator"
-        )
-
-        val imports = mutableListOf<String>()
-        imports.addAll(defaultImportList)
-
-        val extraImports = ext.generation.entityClassExtraImports.get()
-        if (extraImports.isNotEmpty()) {
-            imports.addAll(
-                extraImports.split(";")
-                    .map { it.trim().replace(Regex(PATTERN_LINE_BREAK), "") }
-                    .map { if (it.startsWith("import ")) it.substring(6).trim() else it }
-                    .filter { it.isNotBlank() }
-            )
-        }
-
-        return imports.distinct()
-    }
-
-    /**
-     * 获取实体Schema输出模式
-     */
-    @Internal
-    protected fun getEntitySchemaOutputMode(): String {
-        val ext = getExtension()
-        val mode = ext.generation.entitySchemaOutputMode.get()
-        return mode.ifBlank { "ref" }
-    }
-
-    /**
-     * 获取实体Schema输出包
-     */
-    @Internal
-    protected fun getEntitySchemaOutputPackage(): String {
-        val ext = getExtension()
-        val packageName = ext.generation.entitySchemaOutputPackage.get()
-        return packageName.ifBlank { "domain._share.meta" }
-    }
+    fun stringfyTypeRemapping(): String =
+        getExtension().generation.typeRemapping.get()
+            .entries.joinToString("") { (k, v) -> "<$k>$v</$k>" }
 }
