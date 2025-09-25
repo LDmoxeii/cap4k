@@ -1,8 +1,8 @@
 package com.only4.cap4k.gradle.codegen.template
 
-import com.alibaba.fastjson.JSON
-import com.only4.cap4k.gradle.codegen.misc.SourceFileUtils
-import java.io.IOException
+import com.only4.cap4k.gradle.codegen.misc.concatPathOrHttpUri
+import com.only4.cap4k.gradle.codegen.misc.isAbsolutePathOrHttpUri
+import com.only4.cap4k.gradle.codegen.misc.loadFileContent
 
 /**
  * 脚手架模板文件节点
@@ -37,7 +37,7 @@ open class PathNode {
     var encoding: String? = null
 
     /**
-     * 模板数据数据
+     * 模板数据
      */
     var data: String? = null
 
@@ -51,90 +51,64 @@ open class PathNode {
      */
     var children: MutableList<PathNode>? = null
 
-    fun clone(): PathNode {
-        return JSON.parseObject(JSON.toJSONString(this), PathNode::class.java)
-    }
-
     companion object {
+        private const val MAX_PLACEHOLDER_DEPTH = 10
+
         private val directory = ThreadLocal<String>()
-
-        fun setDirectory(dir: String) {
-            directory.set(dir)
-        }
-
-        fun clearDirectory() {
-            directory.remove()
-        }
-
-        fun getDirectory(): String? {
-            return directory.get()
-        }
+        fun setDirectory(dir: String) = directory.set(dir)
+        fun clearDirectory() = directory.remove()
+        fun getDirectory(): String = directory.get()
     }
 
-    @Throws(IOException::class)
     open fun resolve(context: Map<String, String?>): PathNode {
-        name?.let { nameValue ->
-            this.name = nameValue.replace("\${basePackage}", "\${basePackage__as_path}")
-            this.name = escape(this.name ?: "", context)
-        }
+        name = name
+            ?.replace("${'$'}{basePackage}", "${'$'}{basePackage__as_path}")
+            ?.let { escape(it, context) }
 
-        val rawData = when (format) {
-            "url" -> {
-                data?.let { dataUrl ->
-                    var url = dataUrl
-                    if (!SourceFileUtils.isAbsolutePathOrHttpUri(url)) {
-                        url = SourceFileUtils.concatPathOrHttpUri(getDirectory() ?: "", url)
-                    }
-                    SourceFileUtils.loadFileContent(url, context["archTemplateEncoding"] ?: "UTF-8", getDirectory())
-                } ?: ""
-            }
+        val rawData = when (format.lowercase()) {
+            "url" -> data?.let { src ->
+                val abs = if (isAbsolutePathOrHttpUri(src)) src else concatPathOrHttpUri(getDirectory(), src)
+                loadFileContent(abs, context["archTemplateEncoding"] ?: "UTF-8", getDirectory())
+            } ?: ""
 
-            "raw" -> data ?: ""
             else -> data ?: ""
         }
 
-        this.data = escape(rawData, context)
-        this.format = "raw"
+        data = escape(rawData, context)
+        format = "raw" // 解析后统一视为 raw
 
-        children?.forEach { child ->
-            child.resolve(context)
-        }
-
+        children?.forEach { it.resolve(context) }
         return this
     }
 
     protected fun escape(content: String?, context: Map<String, String?>): String {
-        if (content == null) return ""
+        if (content.isNullOrEmpty()) return ""
+        return replacePlaceholders(content, context)
+            .let(::applyEscapeSymbols)
+    }
 
-        val escapeCharacters = mapOf(
-            "symbol_pound" to "#",
-            "symbol_escape" to "\\",
-            "symbol_dollar" to "$"
-        )
+    private val ESCAPE_SYMBOLS = mapOf(
+        "symbol_pound" to "#",
+        "symbol_escape" to "\\",
+        "symbol_dollar" to "$"
+    )
 
-        var maxReplace = 10
-        var result: String = content
-
-        while (maxReplace-- > 0) {
-            var hasReplacement = false
-            for ((key, value) in context) {
-                if (key != null && value != null) {
-                    val oldResult = result
-                    result = result.replace("\${$key}", value)
-                    if (oldResult != result) {
-                        hasReplacement = true
-                    }
-                }
-            }
-            if (!hasReplacement || !result.contains("\${")) {
-                break
+    private tailrec fun replacePlaceholders(current: String, context: Map<String, String?>, depth: Int = 0): String {
+        if (depth >= MAX_PLACEHOLDER_DEPTH || !current.contains("${'$'}{")) return current
+        var changed = false
+        var next = current
+        context.forEach { (k, v) ->
+            if (v != null && next.contains("${'$'}{$k}")) {
+                next = next.replace("${'$'}{$k}", v)
+                changed = true
             }
         }
+        return if (!changed) next else replacePlaceholders(next, context, depth + 1)
+    }
 
-        for ((key, value) in escapeCharacters) {
-            result = result.replace("\${$key}", value)
-        }
-
+    private fun applyEscapeSymbols(text: String): String {
+        var result = text
+        ESCAPE_SYMBOLS.forEach { (k, v) -> result = result.replace("${'$'}{$k}", v) }
         return result
     }
 }

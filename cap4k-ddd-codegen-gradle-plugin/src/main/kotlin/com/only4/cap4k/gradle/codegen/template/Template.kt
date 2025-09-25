@@ -14,12 +14,9 @@ class Template : PathNode() {
     var templates: MutableList<TemplateNode>? = null
 
     /**
-     * 获取模板
-     *
-     * @param tag 标签
-     * @return 匹配的模板节点列表
+     * 获取标签匹配的模板列表
      */
-    fun select(tag: String): List<TemplateNode> {
-        return templates?.filter { it.tag == tag } ?: emptyList()
-    }
+    fun select(tag: String): List<TemplateNode> =
+        templates?.filter { it.tag == tag } ?: emptyList()
+
 }
