@@ -40,6 +40,7 @@ open class GenArchTask : AbstractCodegenTask() {
         val archTemplate = validateAndGetArchTemplate(ext) ?: return
 
         runCatching {
+            renderFileSwitch = false
             template = loadTemplate(archTemplate, ext)
             render(template!!, projectDir.get())
         }.onSuccess {

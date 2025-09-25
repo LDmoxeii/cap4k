@@ -126,7 +126,7 @@ object SqlSchemaUtils4Postgresql : SqlSchemaUtils.SqlSchemaDialect {
         }
 
         return when (columnType) {
-            "String" -> if (columnDefault.isNullOrEmpty()) """"""" else """"$columnDefault""""
+            "String" -> if (columnDefault.isNullOrEmpty()) """""""" else """"$columnDefault""""
             "String?" -> if (columnDefault.isNullOrEmpty()) "null" else """"$columnDefault""""
             "Int", "Short", "Byte", "Float", "Double" ->
                 if (columnDefault.isNullOrEmpty()) "0" else columnDefault
