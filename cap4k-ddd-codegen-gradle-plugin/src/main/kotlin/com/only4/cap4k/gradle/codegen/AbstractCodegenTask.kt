@@ -745,7 +745,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
      */
     @Internal
     protected fun getEntitySchemaOutputMode(): String =
-        extension.get().generation.entitySchemaOutputMode.get().takeIf { it.isNotBlank() } ?: "ref"
+        extension.get().generation.entitySchemaOutputMode.get().takeIf { it.isNotBlank() } ?: "abs"
 
     /**
      * 获取实体Schema输出包
@@ -903,17 +903,17 @@ abstract class AbstractCodegenTask : DefaultTask() {
 
     fun escape(content: String): String =
         content
-            .replace("\\\\", "\${symbol_escape}")
-            .replace("\\:", "\${symbol_colon}")
-            .replace("\\,", "\${symbol_comma}")
-            .replace("\\;", "\${symbol_semicolon}")
+            .replace("\\\\", "${'$'}{symbol_escape}")
+            .replace("\\:", "${'$'}{symbol_colon}")
+            .replace("\\,", "${'$'}{symbol_comma}")
+            .replace("\\;", "${'$'}{symbol_semicolon}")
 
     fun unescape(content: String): String =
         content
-            .replace("\${symbol_escape}", "\\")
-            .replace("\${symbol_colon}", ":")
-            .replace("\${symbol_comma}", ",")
-            .replace("\${symbol_semicolon}", ";")
+            .replace("${'$'}{symbol_escape}", "\\")
+            .replace("${'$'}{symbol_colon}", ":")
+            .replace("${'$'}{symbol_comma}", ",")
+            .replace("${'$'}{symbol_semicolon}", ";")
 
 
     @Internal
