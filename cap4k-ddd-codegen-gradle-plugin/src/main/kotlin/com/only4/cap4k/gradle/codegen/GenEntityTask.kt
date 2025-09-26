@@ -21,12 +21,12 @@ import java.util.stream.Collectors
 open class GenEntityTask : GenArchTask() {
 
     companion object {
-        const val DEFAULT_SCHEMA_PACKAGE = "meta"
-        const val DEFAULT_SPEC_PACKAGE = "specs"
-        const val DEFAULT_FAC_PACKAGE = "factory"
-        const val DEFAULT_ENUM_PACKAGE = "enums"
-        const val DEFAULT_DOMAIN_EVENT_PACKAGE = "events"
-        const val DEFAULT_SCHEMA_BASE_CLASS_NAME = "Schema"
+        private const val DEFAULT_SCHEMA_PACKAGE = "meta"
+        private const val DEFAULT_SPEC_PACKAGE = "specs"
+        private const val DEFAULT_FAC_PACKAGE = "factory"
+        private const val DEFAULT_ENUM_PACKAGE = "enums"
+        private const val DEFAULT_DOMAIN_EVENT_PACKAGE = "events"
+        private const val DEFAULT_SCHEMA_BASE_CLASS_NAME = "Schema"
     }
 
     @Internal
@@ -77,29 +77,25 @@ open class GenEntityTask : GenArchTask() {
     @Internal
     val templateNodeMap = mutableMapOf<String, MutableList<TemplateNode>>()
 
-    fun alias4Design(name: String): String {
-        return when (name.lowercase()) {
-            "entity", "aggregate", "entities", "aggregates" -> "aggregate"
-            "schema", "schemas" -> "schema"
-            "enum", "enums" -> "enum"
-            "enumitem", "enum_item" -> "enum_item"
-            "factories", "factory", "fac" -> "factory"
-            "specifications", "specification", "specs", "spec", "spe" -> "specification"
-            "domain_events", "domain_event", "d_e", "de" -> "domain_event"
-            "domain_event_handlers", "domain_event_handler", "d_e_h", "deh",
-            "domain_event_subscribers", "domain_event_subscriber", "d_e_s", "des",
-                -> "domain_event_handler"
-
-            "domain_service", "service", "svc" -> "domain_service"
-            else -> name
-        }
+    fun alias4Design(name: String): String = when (name.lowercase()) {
+        "entity", "aggregate", "entities", "aggregates" -> "aggregate"
+        "schema", "schemas" -> "schema"
+        "enum", "enums" -> "enum"
+        "enumitem", "enum_item" -> "enum_item"
+        "factories", "factory", "fac" -> "factory"
+        "specifications", "specification", "specs", "spec", "spe" -> "specification"
+        "domain_events", "domain_event", "d_e", "de" -> "domain_event"
+        "domain_event_handlers", "domain_event_handler", "d_e_h", "deh",
+        "domain_event_subscribers", "domain_event_subscriber", "d_e_s", "des" -> "domain_event_handler"
+        "domain_service", "service", "svc" -> "domain_service"
+        else -> name
     }
 
     override fun renderTemplate(
         templateNodes: List<TemplateNode>,
         parentPath: String,
     ) {
-        for (templateNode in templateNodes) {
+        templateNodes.forEach { templateNode ->
             val alias = alias4Design(templateNode.tag!!)
             when (alias) {
                 "aggregate" -> aggregatesPath = parentPath
@@ -107,10 +103,7 @@ open class GenEntityTask : GenArchTask() {
                 "domain_event_handler" -> subscriberPath = parentPath
             }
 
-            if (!templateNodeMap.containsKey(alias)) {
-                templateNodeMap[alias] = mutableListOf()
-            }
-            templateNodeMap[alias]!!.add(templateNode)
+            templateNodeMap.computeIfAbsent(alias) { mutableListOf() }.add(templateNode)
         }
     }
 
@@ -144,7 +137,7 @@ open class GenEntityTask : GenArchTask() {
 
     fun parsePatterns(patterns: String): List<Regex> =
         patterns.takeIf { it.isNotBlank() }
-            ?.split(Regex(PATTERN_SPLITTER))
+            ?.split(PATTERN_SPLITTER.toRegex())
             ?.map { it.trim() }
             ?.filter { it.isNotEmpty() }
             ?.map { it.replace("*", ".*").toRegex() }
@@ -220,7 +213,7 @@ open class GenEntityTask : GenArchTask() {
         val maxTableNameLength = tables.maxOfOrNull { SqlSchemaUtils.getTableName(it).length } ?: 20
 
         // 缓存表和列信息
-        for (table in tables) {
+        tables.forEach { table ->
             val tableName = SqlSchemaUtils.getTableName(table)
             val tableColumns = allColumns.filter { column ->
                 SqlSchemaUtils.isColumnInTable(column, table)
@@ -245,19 +238,18 @@ open class GenEntityTask : GenArchTask() {
     }
 
     fun processTableRelations() {
-
         logger.info("----------------开始字段扫描----------------")
         logger.info("")
 
         // 解析表关系
-        for (table in tableMap.values) {
+        tableMap.values.forEach { table ->
             val tableName = SqlSchemaUtils.getTableName(table)
             val tableColumns = columnsMap[tableName]!!
 
             logger.info("开始解析表关系:$tableName")
             val relationTable = resolveRelationTable(table, tableColumns)
 
-            for ((key, value) in relationTable) {
+            relationTable.forEach { (key, value) ->
                 relations.merge(key, value) { existing, new ->
                     existing.toMutableMap().apply { putAll(new) }
                 }
@@ -279,13 +271,13 @@ open class GenEntityTask : GenArchTask() {
 
     fun processEnumConfigurations() {
         // 解析枚举配置
-        for (table in tableMap.values) {
-            if (isIgnoreTable(table)) continue
+        tableMap.values.forEach { table ->
+            if (isIgnoreTable(table)) return@forEach
 
             val tableName = SqlSchemaUtils.getTableName(table)
             val tableColumns = columnsMap[tableName]!!
 
-            for (column in tableColumns) {
+            tableColumns.forEach { column ->
                 if (SqlSchemaUtils.hasEnum(column) && !isIgnoreColumn(column)) {
                     val enumConfig = SqlSchemaUtils.getEnum(column)
                     if (enumConfig.isNotEmpty()) {
@@ -391,7 +383,7 @@ open class GenEntityTask : GenArchTask() {
             }
         }
 
-        for (table in tableMap.values) {
+        tableMap.values.forEach { table ->
             val tableName = SqlSchemaUtils.getTableName(table)
             val tableColumns = columnsMap[tableName]!!
 
@@ -410,39 +402,35 @@ open class GenEntityTask : GenArchTask() {
     }
 
     fun generateFieldComment(column: Map<String, Any?>): List<String> {
-        val comments: MutableList<String> = ArrayList<String>()
-        val fieldName: String = SqlSchemaUtils.getColumnName(column)
-        val fieldType: String? = SqlSchemaUtils.getColumnType(column)
-        comments.add("/**")
-        for (comment in SqlSchemaUtils.getComment(column)
-            .split(PATTERN_LINE_BREAK.toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()) {
-            if (comment.isEmpty()) {
-                continue
-            }
-            comments.add(" * " + comment)
+        val fieldName = SqlSchemaUtils.getColumnName(column)
+        val fieldType = SqlSchemaUtils.getColumnType(column)
+
+        return buildList {
+            add("/**")
+
+            SqlSchemaUtils.getComment(column)
+                .split(PATTERN_LINE_BREAK.toRegex())
+                .filter { it.isNotEmpty() }
+                .forEach { add(" * $it") }
+
             if (SqlSchemaUtils.hasEnum(column)) {
-                logger.info("获取枚举java类型：" + fieldName + " -> " + fieldType)
-                var enumMap = enumConfigMap.get(fieldType)
-                if (enumMap == null) {
-                    enumMap = enumConfigMap.get(SqlSchemaUtils.getType(column))
-                }
-                if (enumMap != null) {
-                    comments.addAll(
-                        enumMap.entries.stream()
-                            .map { " * " + it!!.key + ":" + it.value[0] + ":" + it.value[1] }
-                            .collect(Collectors.toList())
-                    )
+                logger.info("获取枚举 java类型：$fieldName -> $fieldType")
+                val enumMap = enumConfigMap[fieldType] ?: enumConfigMap[SqlSchemaUtils.getType(column)]
+                enumMap?.entries?.forEach { (key, value) ->
+                    add(" * $key:${value[0]}:${value[1]}")
                 }
             }
+
+            if (fieldName == extension.get().generation.versionField.get()) {
+                add(" * 数据版本（支持乐观锁）")
+            }
+
+            if (extension.get().generation.generateDbType.get()) {
+                add(" * ${SqlSchemaUtils.getColumnDbType(column)}")
+            }
+
+            add(" */")
         }
-        if (fieldName == extension.get().generation.versionField.get()) {
-            comments.add(" * 数据版本（支持乐观锁）")
-        }
-        if (extension.get().generation.generateDbType.get()) {
-            comments.add(" * " + SqlSchemaUtils.getColumnDbType(column))
-        }
-        comments.add(" */")
-        return comments
     }
 
     fun resolveEntityFullPackage(table: Map<String, Any?>, basePackage: String, baseDir: String): String {
