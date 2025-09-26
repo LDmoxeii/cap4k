@@ -926,10 +926,8 @@ abstract class AbstractCodegenTask : DefaultTask() {
         put("version", projectVersion.get())
 
         // 基础配置
-        put("archTemplate", ext.archTemplate.get())
         put("archTemplateEncoding", ext.archTemplateEncoding.get())
         put("outputEncoding", ext.outputEncoding.get())
-        put("designFile", ext.designFile.get())
         put("basePackage", ext.basePackage.get())
         put("basePackage__as_path", ext.basePackage.get().replace(".", File.separator))
         put("multiModule", ext.multiModule.get().toString())

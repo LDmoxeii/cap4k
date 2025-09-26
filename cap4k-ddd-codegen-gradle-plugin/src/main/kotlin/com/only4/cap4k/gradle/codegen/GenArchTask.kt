@@ -81,11 +81,11 @@ open class GenArchTask : AbstractCodegenTask() {
     }
 
     private fun validateAndGetArchTemplate(ext: Cap4kCodegenExtension): String? {
-        val archTemplate = ext.archTemplate.orNull?.takeIf { it.isNotBlank() }
-            ?: run {
-                logger.error("请设置(archTemplate)参数")
-                return null
-            }
+        // 优先使用新的文件属性
+        val archTemplate = ext.archTemplateFile.get().asFile.absolutePath ?: run {
+            logger.error("请设置archTemplate参数或使用archTemplateFile指定模板文件")
+            return null
+        }
 
         if (ext.basePackage.get().isBlank()) {
             logger.warn("请设置(basePackage)参数")

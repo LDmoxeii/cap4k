@@ -126,15 +126,13 @@ open class GenDesignTask : GenArchTask() {
 
         // 收集设计字面量
         val designLiteral = buildString {
-            val designValue = ext.designFile.get()
-            if (!designValue.isNullOrBlank()) {
-                append(designValue)
-            }
-
-            val designFile = ext.designFile.get()
-            if (!designFile.isNullOrBlank() && File(designFile).exists()) {
-                if (isNotEmpty()) append(";")
-                append(File(designFile).readText(charset(ext.archTemplateEncoding.get())))
+            if (!ext.designFiles.isEmpty) {
+                ext.designFiles.files.forEach { file ->
+                    if (file.exists()) {
+                        if (isNotEmpty()) append(";")
+                        append(file.readText(charset(ext.archTemplateEncoding.get())))
+                    }
+                }
             }
         }
 
@@ -332,39 +330,40 @@ open class GenDesignTask : GenArchTask() {
             parentPath
         }
 
-        val path = internalRenderGenericDesign(literalIntegrationEventDeclaration, finalParentPath, templateNode) { context ->
-            val tag = templateNode.tag.orEmpty()
-            putContext(tag, "subPackage", if (internal) "" else ".external", context)
-            var name = context["Name"].orEmpty()
-            if (!name.endsWith("Evt") && !name.endsWith("Event")) {
-                name += "IntegrationEvent"
-            }
-            putContext(tag, "Name", name, context)
-            putContext(tag, "IntegrationEvent", context["Name"].orEmpty(), context)
+        val path =
+            internalRenderGenericDesign(literalIntegrationEventDeclaration, finalParentPath, templateNode) { context ->
+                val tag = templateNode.tag.orEmpty()
+                putContext(tag, "subPackage", if (internal) "" else ".external", context)
+                var name = context["Name"].orEmpty()
+                if (!name.endsWith("Evt") && !name.endsWith("Event")) {
+                    name += "IntegrationEvent"
+                }
+                putContext(tag, "Name", name, context)
+                putContext(tag, "IntegrationEvent", context["Name"].orEmpty(), context)
 
-            val mqTopic = context["Val1"]?.takeIf { it.isNotBlank() }
-                ?: context["Val0"] ?: ""
-            putContext(tag, "MQ_TOPIC", "\"$mqTopic\"", context)
+                val mqTopic = context["Val1"]?.takeIf { it.isNotBlank() }
+                    ?: context["Val0"] ?: ""
+                putContext(tag, "MQ_TOPIC", "\"$mqTopic\"", context)
 
-            if (internal) {
-                putContext(tag, "MQ_CONSUMER", "IntegrationEvent.NONE_SUBSCRIBER", context)
-                val comment = context["Val2"] ?: "todo: 集成事件描述"
-                putContext(tag, "Comment", comment, context)
-            } else {
-                val mqConsumer = context["Val2"]?.takeIf { it.isNotBlank() } ?: "\$spring.application.name"
-                putContext(tag, "MQ_CONSUMER", "\"$mqConsumer\"", context)
-                val comment = context["Val3"] ?: "todo: 集成事件描述"
-                putContext(tag, "Comment", comment, context)
-            }
+                if (internal) {
+                    putContext(tag, "MQ_CONSUMER", "IntegrationEvent.NONE_SUBSCRIBER", context)
+                    val comment = context["Val2"] ?: "todo: 集成事件描述"
+                    putContext(tag, "Comment", comment, context)
+                } else {
+                    val mqConsumer = context["Val2"]?.takeIf { it.isNotBlank() } ?: "\$spring.application.name"
+                    putContext(tag, "MQ_CONSUMER", "\"$mqConsumer\"", context)
+                    val comment = context["Val3"] ?: "todo: 集成事件描述"
+                    putContext(tag, "Comment", comment, context)
+                }
 
-            putContext(
-                tag,
-                "CommentEscaped",
-                context["Comment"].orEmpty().replace(PATTERN_LINE_BREAK.toRegex(), " "),
+                putContext(
+                    tag,
+                    "CommentEscaped",
+                    context["Comment"].orEmpty().replace(PATTERN_LINE_BREAK.toRegex(), " "),
+                    context
+                )
                 context
-            )
-            context
-        }
+            }
         logger.info("生成集成事件代码：$path")
     }
 
@@ -434,28 +433,29 @@ open class GenDesignTask : GenArchTask() {
         templateNode: TemplateNode,
     ) {
         logger.info("解析聚合工厂设计：$literalAggregateFactoryDeclaration")
-        val path = internalRenderGenericDesign(literalAggregateFactoryDeclaration, parentPath, templateNode) { context ->
-            val entity = context["Name"].orEmpty()
-            val name = "${entity}Factory"
-            val tag = templateNode.tag.orEmpty()
+        val path =
+            internalRenderGenericDesign(literalAggregateFactoryDeclaration, parentPath, templateNode) { context ->
+                val entity = context["Name"].orEmpty()
+                val name = "${entity}Factory"
+                val tag = templateNode.tag.orEmpty()
 
-            putContext(tag, "Name", name, context)
-            putContext(tag, "Factory", context["Name"].orEmpty(), context)
-            putContext(tag, "Aggregate", entity, context)
-            putContext(tag, "Entity", entity, context)
-            putContext(tag, "EntityVar", toLowerCamelCase(entity).orEmpty(), context)
-            putContext(tag, "AggregateRoot", context["Entity"].orEmpty(), context)
+                putContext(tag, "Name", name, context)
+                putContext(tag, "Factory", context["Name"].orEmpty(), context)
+                putContext(tag, "Aggregate", entity, context)
+                putContext(tag, "Entity", entity, context)
+                putContext(tag, "EntityVar", toLowerCamelCase(entity).orEmpty(), context)
+                putContext(tag, "AggregateRoot", context["Entity"].orEmpty(), context)
 
-            val comment = context["Val1"] ?: "todo: 聚合工厂描述"
-            putContext(tag, "Comment", comment, context)
-            putContext(
-                tag,
-                "CommentEscaped",
-                comment.replace(PATTERN_LINE_BREAK.toRegex(), " "),
+                val comment = context["Val1"] ?: "todo: 聚合工厂描述"
+                putContext(tag, "Comment", comment, context)
+                putContext(
+                    tag,
+                    "CommentEscaped",
+                    comment.replace(PATTERN_LINE_BREAK.toRegex(), " "),
+                    context
+                )
                 context
-            )
-            context
-        }
+            }
         logger.info("生成聚合工厂代码：$path")
     }
 

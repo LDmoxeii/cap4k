@@ -1,6 +1,8 @@
 package com.only4.cap4k.gradle.codegen
 
 import org.gradle.api.Action
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
@@ -12,9 +14,9 @@ import javax.inject.Inject
 open class Cap4kCodegenExtension @Inject constructor(objects: ObjectFactory) {
 
     /**
-     * 架构模板文件路径
+     * 架构模板文件
      */
-    val archTemplate: Property<String> = objects.property(String::class.java)
+    val archTemplateFile: RegularFileProperty = objects.fileProperty()
 
     /**
      * 模板文件编码
@@ -52,9 +54,9 @@ open class Cap4kCodegenExtension @Inject constructor(objects: ObjectFactory) {
     val moduleNameSuffix4Application: Property<String> = objects.property(String::class.java).convention("-application")
 
     /**
-     * 设计配置文件路径
+     * 设计配置文件集合（支持多个文件）
      */
-    val designFile: Property<String> = objects.property(String::class.java).convention("")
+    val designFiles: ConfigurableFileCollection = objects.fileCollection()
 
     /**
      * 数据库连接配置
