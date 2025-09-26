@@ -12,10 +12,10 @@ plugins {
 }
 
 group = "com.only4"
-version = "0.3.2-SNAPSHOT"
+version = "0.3.3-SNAPSHOT"
 
 // 添加源码 jar 任务
-val sourcesJar by tasks.creating(Jar::class) {
+val sourcesJar by tasks.registering(Jar::class) {
     archiveClassifier.set("sources")
     from(sourceSets.main.get().allSource)
 }
