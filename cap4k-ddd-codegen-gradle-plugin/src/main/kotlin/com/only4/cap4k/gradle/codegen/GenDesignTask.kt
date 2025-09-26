@@ -7,7 +7,6 @@ import com.only4.cap4k.gradle.codegen.template.PathNode
 import com.only4.cap4k.gradle.codegen.template.TemplateNode
 import org.gradle.api.tasks.TaskAction
 import java.io.File
-import java.util.regex.Pattern
 
 /**
  * 生成设计元素任务
@@ -21,54 +20,67 @@ open class GenDesignTask : GenArchTask() {
     }
 
     // 预构建别名映射（全部小写）
-    private val DESIGN_ALIAS: Map<String, String> = mapOf(
-        // command
-        "commands" to "command", "command" to "command", "cmd" to "command",
-        // saga
-        "saga" to "saga",
-        // query
-        "queries" to "query", "query" to "query", "qry" to "query",
-        // client
-        "clients" to "client", "client" to "client", "cli" to "client",
-        // integration event
-        "integration_events" to "integration_event", "integration_event" to "integration_event",
-        "events" to "integration_event", "event" to "integration_event",
-        "evt" to "integration_event", "i_e" to "integration_event", "ie" to "integration_event",
-        // integration event handler / subscriber
-        "integration_event_handlers" to "integration_event_handler",
-        "integration_event_handler" to "integration_event_handler",
-        "event_handlers" to "integration_event_handler",
-        "event_handler" to "integration_event_handler",
-        "evt_hdl" to "integration_event_handler",
-        "i_e_h" to "integration_event_handler",
-        "ieh" to "integration_event_handler",
-        "integration_event_subscribers" to "integration_event_handler",
-        "integration_event_subscriber" to "integration_event_handler",
-        "event_subscribers" to "integration_event_handler",
-        "event_subscriber" to "integration_event_handler",
-        "evt_sub" to "integration_event_handler",
-        "i_e_s" to "integration_event_handler",
-        "ies" to "integration_event_handler",
-        // repository
-        "repositories" to "repository", "repository" to "repository", "repos" to "repository", "repo" to "repository",
-        // factory
-        "factories" to "factory", "factory" to "factory", "fac" to "factory",
-        // specification
-        "specifications" to "specification", "specification" to "specification",
-        "specs" to "specification", "spec" to "specification", "spe" to "specification",
-        // domain event
-        "domain_events" to "domain_event", "domain_event" to "domain_event",
-        "d_e" to "domain_event", "de" to "domain_event",
-        // domain event handler / subscriber
-        "domain_event_handlers" to "domain_event_handler",
-        "domain_event_handler" to "domain_event_handler",
-        "d_e_h" to "domain_event_handler", "deh" to "domain_event_handler",
-        "domain_event_subscribers" to "domain_event_handler",
-        "domain_event_subscriber" to "domain_event_handler",
-        "d_e_s" to "domain_event_handler", "des" to "domain_event_handler",
-        // domain service
-        "domain_service" to "domain_service", "service" to "domain_service", "svc" to "domain_service"
-    )
+    private companion object {
+        val DESIGN_ALIAS: Map<String, String> = buildMap {
+            // command
+            put("commands", "command")
+            put("command", "command")
+            put("cmd", "command")
+            // saga
+            put("saga", "saga")
+            // query
+            put("queries", "query")
+            put("query", "query")
+            put("qry", "query")
+            // client
+            put("clients", "client")
+            put("client", "client")
+            put("cli", "client")
+            // integration event
+            putAll(
+                listOf(
+                    "integration_events", "integration_event", "events", "event",
+                    "evt", "i_e", "ie"
+                ).associateWith { "integration_event" }
+            )
+            // integration event handler / subscriber
+            putAll(
+                listOf(
+                    "integration_event_handlers", "integration_event_handler",
+                    "event_handlers", "event_handler", "evt_hdl", "i_e_h", "ieh",
+                    "integration_event_subscribers", "integration_event_subscriber",
+                    "event_subscribers", "event_subscriber", "evt_sub", "i_e_s", "ies"
+                ).associateWith { "integration_event_handler" }
+            )
+            // repository
+            putAll(
+                listOf("repositories", "repository", "repos", "repo").associateWith { "repository" }
+            )
+            // factory
+            putAll(
+                listOf("factories", "factory", "fac").associateWith { "factory" }
+            )
+            // specification
+            putAll(
+                listOf("specifications", "specification", "specs", "spec", "spe").associateWith { "specification" }
+            )
+            // domain event
+            putAll(
+                listOf("domain_events", "domain_event", "d_e", "de").associateWith { "domain_event" }
+            )
+            // domain event handler / subscriber
+            putAll(
+                listOf(
+                    "domain_event_handlers", "domain_event_handler", "d_e_h", "deh",
+                    "domain_event_subscribers", "domain_event_subscriber", "d_e_s", "des"
+                ).associateWith { "domain_event_handler" }
+            )
+            // domain service
+            putAll(
+                listOf("domain_service", "service", "svc").associateWith { "domain_service" }
+            )
+        }
+    }
 
     /**
      * 设计元素别名映射
@@ -82,18 +94,18 @@ open class GenDesignTask : GenArchTask() {
         if (design.isBlank()) return emptyMap()
 
         return escape(design)
-            .replace(Regex("\\r\\n|\\r|\\n"), ";")
-            .split(Regex(PATTERN_SPLITTER))
+            .replace("\\r\\n|\\r|\\n".toRegex(), ";")
+            .split(PATTERN_SPLITTER.toRegex())
             .map { it.splitWithTrim(PATTERN_DESIGN_PARAMS_SPLITTER, 2) }
             .filter { it.size == 2 }
             .groupBy({ alias4Design(it[0]) }, { it[1].trim() })
             .mapValues { it.value.toSet() }
     }
 
-    // 缓存编译后的 pattern
-    private val patternCache = mutableMapOf<String, Pattern>()
-    private fun TemplateNode.compiledPattern(): Pattern? =
-        pattern.takeIf { it.isNotBlank() }?.let { p -> patternCache.getOrPut(p) { Pattern.compile(p) } }
+    // 缓存编译后的 regex
+    private val regexCache = mutableMapOf<String, Regex>()
+    private fun TemplateNode.compiledRegex(): Regex? =
+        pattern.takeIf { it.isNotBlank() }?.let { p -> regexCache.getOrPut(p) { p.toRegex() } }
 
     private inline fun forEachDesign(
         designMap: Map<String, Set<String>>,
@@ -107,26 +119,29 @@ open class GenDesignTask : GenArchTask() {
     }
 
     private fun patternMatches(templateNode: TemplateNode, literal: String): Boolean =
-        templateNode.compiledPattern()?.matcher(literal)?.matches() ?: true
+        templateNode.compiledRegex()?.matches(literal) ?: true
 
     override fun renderTemplate(templateNodes: List<TemplateNode>, parentPath: String) {
         val ext = extension.get()
-        var designLiteral = ""
 
-        // extension 中的设计字面量
-        val designValue = ext.designFile.get()
-        if (!designValue.isNullOrBlank()) designLiteral += designValue
+        // 收集设计字面量
+        val designLiteral = buildString {
+            val designValue = ext.designFile.get()
+            if (!designValue.isNullOrBlank()) {
+                append(designValue)
+            }
 
-        // 设计文件内容
-        val designFile = ext.designFile.get()
-        if (!designFile.isNullOrBlank() && File(designFile).exists()) {
-            designLiteral += (";" + File(designFile).readText(charset(ext.archTemplateEncoding.get())))
+            val designFile = ext.designFile.get()
+            if (!designFile.isNullOrBlank() && File(designFile).exists()) {
+                if (isNotEmpty()) append(";")
+                append(File(designFile).readText(charset(ext.archTemplateEncoding.get())))
+            }
         }
 
         val designMap = resolveLiteralDesign(designLiteral)
 
         templateNodes.forEach { templateNode ->
-            when (alias4Design(templateNode.tag ?: "")) {
+            when (alias4Design(templateNode.tag.orEmpty())) {
                 "command" -> forEachDesign(designMap, "command", templateNode) {
                     renderAppLayerCommand(it, parentPath, templateNode)
                 }
@@ -186,7 +201,7 @@ open class GenDesignTask : GenArchTask() {
                 }
 
                 else -> {
-                    val tag = templateNode.tag ?: ""
+                    val tag = templateNode.tag.orEmpty()
                     forEachDesign(designMap, tag, templateNode) {
                         renderGenericDesign(it, parentPath, templateNode)
                     }
@@ -195,9 +210,6 @@ open class GenDesignTask : GenArchTask() {
         }
     }
 
-    /**
-     * 生成应用层命令
-     */
     private fun renderAppLayerCommand(
         literalCommandDeclaration: String,
         parentPath: String,
@@ -205,21 +217,22 @@ open class GenDesignTask : GenArchTask() {
     ) {
         logger.info("解析命令设计：$literalCommandDeclaration")
         val path = internalRenderGenericDesign(literalCommandDeclaration, parentPath, templateNode) { context ->
-            var name = context["Name"] ?: ""
+            var name = context["Name"].orEmpty()
             if (!name.endsWith("Cmd") && !name.endsWith("Command")) {
                 name += "Cmd"
             }
-            putContext(templateNode.tag ?: "", "Name", name, context)
-            putContext(templateNode.tag ?: "", "Command", context["Name"] ?: "", context)
-            putContext(templateNode.tag ?: "", "Request", "${context["Command"]}Request", context)
-            putContext(templateNode.tag ?: "", "Response", "${context["Command"]}Response", context)
+            val tag = templateNode.tag.orEmpty()
+            putContext(tag, "Name", name, context)
+            putContext(tag, "Command", context["Name"].orEmpty(), context)
+            putContext(tag, "Request", "${context["Command"]}Request", context)
+            putContext(tag, "Response", "${context["Command"]}Response", context)
 
-            val comment = if (context.containsKey("Val1")) context["Val1"] ?: "" else "todo: 命令描述"
-            putContext(templateNode.tag ?: "", "Comment", comment, context)
+            val comment = context["Val1"] ?: "todo: 命令描述"
+            putContext(tag, "Comment", comment, context)
             putContext(
-                templateNode.tag ?: "",
+                tag,
                 "CommentEscaped",
-                comment.replace(Regex(PATTERN_LINE_BREAK), " "),
+                comment.replace(PATTERN_LINE_BREAK.toRegex(), " "),
                 context
             )
             context
@@ -227,27 +240,25 @@ open class GenDesignTask : GenArchTask() {
         logger.info("生成命令代码：$path")
     }
 
-    /**
-     * 生成应用层Saga
-     */
     private fun renderAppLayerSaga(literalSagaDeclaration: String, parentPath: String, templateNode: TemplateNode) {
         logger.info("解析Saga设计：$literalSagaDeclaration")
         val path = internalRenderGenericDesign(literalSagaDeclaration, parentPath, templateNode) { context ->
-            var name = context["Name"] ?: ""
+            var name = context["Name"].orEmpty()
             if (!name.endsWith("Saga")) {
                 name += "Saga"
             }
-            putContext(templateNode.tag ?: "", "Name", name, context)
-            putContext(templateNode.tag ?: "", "Saga", context["Name"] ?: "", context)
-            putContext(templateNode.tag ?: "", "Request", "${context["Saga"]}Request", context)
-            putContext(templateNode.tag ?: "", "Response", "${context["Saga"]}Response", context)
+            val tag = templateNode.tag.orEmpty()
+            putContext(tag, "Name", name, context)
+            putContext(tag, "Saga", context["Name"].orEmpty(), context)
+            putContext(tag, "Request", "${context["Saga"]}Request", context)
+            putContext(tag, "Response", "${context["Saga"]}Response", context)
 
-            val comment = if (context.containsKey("Val1")) context["Val1"] ?: "" else "todo: Saga描述"
-            putContext(templateNode.tag ?: "", "Comment", comment, context)
+            val comment = context["Val1"] ?: "todo: Saga描述"
+            putContext(tag, "Comment", comment, context)
             putContext(
-                templateNode.tag ?: "",
+                tag,
                 "CommentEscaped",
-                comment.replace(Regex(PATTERN_LINE_BREAK), " "),
+                comment.replace(PATTERN_LINE_BREAK.toRegex(), " "),
                 context
             )
             context
@@ -255,27 +266,25 @@ open class GenDesignTask : GenArchTask() {
         logger.info("生成Saga代码：$path")
     }
 
-    /**
-     * 生成应用层查询
-     */
     private fun renderAppLayerQuery(literalQueryDeclaration: String, parentPath: String, templateNode: TemplateNode) {
         logger.info("解析查询设计：$literalQueryDeclaration")
         val path = internalRenderGenericDesign(literalQueryDeclaration, parentPath, templateNode) { context ->
-            var name = context["Name"] ?: ""
+            var name = context["Name"].orEmpty()
             if (!name.endsWith("Qry") && !name.endsWith("Query")) {
                 name += "Qry"
             }
-            putContext(templateNode.tag ?: "", "Name", name, context)
-            putContext(templateNode.tag ?: "", "Query", context["Name"] ?: "", context)
-            putContext(templateNode.tag ?: "", "Request", "${context["Query"]}Request", context)
-            putContext(templateNode.tag ?: "", "Response", "${context["Query"]}Response", context)
+            val tag = templateNode.tag.orEmpty()
+            putContext(tag, "Name", name, context)
+            putContext(tag, "Query", context["Name"].orEmpty(), context)
+            putContext(tag, "Request", "${context["Query"]}Request", context)
+            putContext(tag, "Response", "${context["Query"]}Response", context)
 
-            val comment = if (context.containsKey("Val1")) context["Val1"] ?: "" else "todo: 查询描述"
-            putContext(templateNode.tag ?: "", "Comment", comment, context)
+            val comment = context["Val1"] ?: "todo: 查询描述"
+            putContext(tag, "Comment", comment, context)
             putContext(
-                templateNode.tag ?: "",
+                tag,
                 "CommentEscaped",
-                comment.replace(Regex(PATTERN_LINE_BREAK), " "),
+                comment.replace(PATTERN_LINE_BREAK.toRegex(), " "),
                 context
             )
             context
@@ -283,27 +292,25 @@ open class GenDesignTask : GenArchTask() {
         logger.info("生成查询代码：$path")
     }
 
-    /**
-     * 生成应用层客户端
-     */
     private fun renderAppLayerClient(literalClientDeclaration: String, parentPath: String, templateNode: TemplateNode) {
         logger.info("解析防腐端设计：$literalClientDeclaration")
         val path = internalRenderGenericDesign(literalClientDeclaration, parentPath, templateNode) { context ->
-            var name = context["Name"] ?: ""
+            var name = context["Name"].orEmpty()
             if (!name.endsWith("Cli") && !name.endsWith("Client")) {
                 name += "Cli"
             }
-            putContext(templateNode.tag ?: "", "Name", name, context)
-            putContext(templateNode.tag ?: "", "Client", context["Name"] ?: "", context)
-            putContext(templateNode.tag ?: "", "Request", "${context["Name"]}Request", context)
-            putContext(templateNode.tag ?: "", "Response", "${context["Name"]}Response", context)
+            val tag = templateNode.tag.orEmpty()
+            putContext(tag, "Name", name, context)
+            putContext(tag, "Client", context["Name"].orEmpty(), context)
+            putContext(tag, "Request", "${context["Name"]}Request", context)
+            putContext(tag, "Response", "${context["Name"]}Response", context)
 
-            val comment = if (context.containsKey("Val1")) context["Val1"] ?: "" else "todo: 防腐端描述"
-            putContext(templateNode.tag ?: "", "Comment", comment, context)
+            val comment = context["Val1"] ?: "todo: 防腐端描述"
+            putContext(tag, "Comment", comment, context)
             putContext(
-                templateNode.tag ?: "",
+                tag,
                 "CommentEscaped",
-                comment.replace(Regex(PATTERN_LINE_BREAK), " "),
+                comment.replace(PATTERN_LINE_BREAK.toRegex(), " "),
                 context
             )
             context
@@ -311,9 +318,6 @@ open class GenDesignTask : GenArchTask() {
         logger.info("生成防腐端代码：$path")
     }
 
-    /**
-     * 生成应用层集成事件
-     */
     private fun renderAppLayerIntegrationEvent(
         internal: Boolean,
         designType: String,
@@ -322,59 +326,48 @@ open class GenDesignTask : GenArchTask() {
         templateNode: TemplateNode,
     ) {
         logger.info("解析集成事件设计：$literalIntegrationEventDeclaration")
-        var finalParentPath = parentPath
-        if (designType == "integration_event") {
-            finalParentPath += File.separator + (if (internal) "" else "external")
+        val finalParentPath = if (designType == "integration_event") {
+            parentPath + File.separator + (if (internal) "" else "external")
+        } else {
+            parentPath
         }
 
-        val path =
-            internalRenderGenericDesign(literalIntegrationEventDeclaration, finalParentPath, templateNode) { context ->
-                putContext(templateNode.tag ?: "", "subPackage", if (internal) "" else ".external", context)
-                var name = context["Name"] ?: ""
-                if (!name.endsWith("Evt") && !name.endsWith("Event")) {
-                    name += "IntegrationEvent"
-                }
-                putContext(templateNode.tag ?: "", "Name", name, context)
-                putContext(templateNode.tag ?: "", "IntegrationEvent", context["Name"] ?: "", context)
-
-                val mqTopic = if (context.containsKey("Val1")) {
-                    val val1 = context["Val1"] ?: ""
-                    if (val1.isBlank()) "\"${context["Val0"]}\"" else "\"$val1\""
-                } else {
-                    "\"${context["Val0"]}\""
-                }
-                putContext(templateNode.tag ?: "", "MQ_TOPIC", mqTopic, context)
-
-                if (internal) {
-                    putContext(templateNode.tag ?: "", "MQ_CONSUMER", "IntegrationEvent.NONE_SUBSCRIBER", context)
-                    val comment = if (context.containsKey("Val2")) context["Val2"] ?: "" else "todo: 集成事件描述"
-                    putContext(templateNode.tag ?: "", "Comment", comment, context)
-                } else {
-                    val mqConsumer = if (context.containsKey("Val2")) {
-                        val val2 = context["Val2"] ?: ""
-                        if (val2.isBlank()) "\"\${spring.application.name}\"" else "\"$val2\""
-                    } else {
-                        "\"\${spring.application.name}\""
-                    }
-                    putContext(templateNode.tag ?: "", "MQ_CONSUMER", mqConsumer, context)
-                    val comment = if (context.containsKey("Val3")) context["Val3"] ?: "" else "todo: 集成事件描述"
-                    putContext(templateNode.tag ?: "", "Comment", comment, context)
-                }
-
-                putContext(
-                    templateNode.tag ?: "",
-                    "CommentEscaped",
-                    (context["Comment"] ?: "").replace(Regex(PATTERN_LINE_BREAK), " "),
-                    context
-                )
-                context
+        val path = internalRenderGenericDesign(literalIntegrationEventDeclaration, finalParentPath, templateNode) { context ->
+            val tag = templateNode.tag.orEmpty()
+            putContext(tag, "subPackage", if (internal) "" else ".external", context)
+            var name = context["Name"].orEmpty()
+            if (!name.endsWith("Evt") && !name.endsWith("Event")) {
+                name += "IntegrationEvent"
             }
+            putContext(tag, "Name", name, context)
+            putContext(tag, "IntegrationEvent", context["Name"].orEmpty(), context)
+
+            val mqTopic = context["Val1"]?.takeIf { it.isNotBlank() }
+                ?: context["Val0"] ?: ""
+            putContext(tag, "MQ_TOPIC", "\"$mqTopic\"", context)
+
+            if (internal) {
+                putContext(tag, "MQ_CONSUMER", "IntegrationEvent.NONE_SUBSCRIBER", context)
+                val comment = context["Val2"] ?: "todo: 集成事件描述"
+                putContext(tag, "Comment", comment, context)
+            } else {
+                val mqConsumer = context["Val2"]?.takeIf { it.isNotBlank() } ?: "\$spring.application.name"
+                putContext(tag, "MQ_CONSUMER", "\"$mqConsumer\"", context)
+                val comment = context["Val3"] ?: "todo: 集成事件描述"
+                putContext(tag, "Comment", comment, context)
+            }
+
+            putContext(
+                tag,
+                "CommentEscaped",
+                context["Comment"].orEmpty().replace(PATTERN_LINE_BREAK.toRegex(), " "),
+                context
+            )
+            context
+        }
         logger.info("生成集成事件代码：$path")
     }
 
-    /**
-     * 生成领域层领域事件
-     */
     private fun renderDomainLayerDomainEvent(
         literalDomainEventDeclaration: String,
         parentPath: String,
@@ -382,12 +375,13 @@ open class GenDesignTask : GenArchTask() {
     ) {
         logger.info("解析领域事件设计：$literalDomainEventDeclaration")
         val path = internalRenderGenericDesign(literalDomainEventDeclaration, parentPath, templateNode) { context ->
-            val relativePath = context.getOrDefault("Val0", "").substringBeforeLast(".")
+            val tag = templateNode.tag.orEmpty()
+            val relativePath = context["Val0"].orEmpty().substringBeforeLast(".")
                 .replace(".", File.separator)
             if (relativePath.isNotBlank()) {
-                putContext(templateNode.tag ?: "", "path", relativePath, context)
+                putContext(tag, "path", relativePath, context)
                 putContext(
-                    templateNode.tag ?: "",
+                    tag,
                     "package",
                     if (relativePath.isEmpty()) "" else ".${relativePath.replace(File.separator, ".")}",
                     context
@@ -398,36 +392,35 @@ open class GenDesignTask : GenArchTask() {
                 throw RuntimeException("缺失领域事件名称，领域事件设计格式：AggregateRootEntityName:DomainEventName")
             }
 
-            var name = toUpperCamelCase(context["Val1"] ?: "") ?: ""
+            var name = toUpperCamelCase(context["Val1"].orEmpty()).orEmpty()
             if (!name.endsWith("Evt") && !name.endsWith("Event")) {
                 name += "DomainEvent"
             }
 
             val entity = toUpperCamelCase(
-                context.getOrDefault("Val0", "").substringAfter(".")
-            ) ?: ""
+                context["Val0"].orEmpty().substringAfter(".")
+            ).orEmpty()
 
-            val persist = context.containsKey("val2") &&
-                    listOf("true", "persist", "1").contains(context["val2"])
+            val persist = context["val2"] in listOf("true", "persist", "1")
 
-            putContext(templateNode.tag ?: "", "Name", name, context)
-            putContext(templateNode.tag ?: "", "DomainEvent", context["Name"] ?: "", context)
-            putContext(templateNode.tag ?: "", "persist", if (persist) "true" else "false", context)
-            putContext(templateNode.tag ?: "", "Aggregate", entity, context)
-            putContext(templateNode.tag ?: "", "Entity", entity, context)
-            putContext(templateNode.tag ?: "", "EntityVar", toLowerCamelCase(entity) ?: "", context)
-            putContext(templateNode.tag ?: "", "AggregateRoot", context["Entity"] ?: "", context)
+            putContext(tag, "Name", name, context)
+            putContext(tag, "DomainEvent", context["Name"].orEmpty(), context)
+            putContext(tag, "persist", persist.toString(), context)
+            putContext(tag, "Aggregate", entity, context)
+            putContext(tag, "Entity", entity, context)
+            putContext(tag, "EntityVar", toLowerCamelCase(entity).orEmpty(), context)
+            putContext(tag, "AggregateRoot", context["Entity"].orEmpty(), context)
 
-            val comment = if (alias4Design(templateNode.tag ?: "") == "domain_event_handler") {
-                if (context.containsKey("Val2")) context["Val2"] ?: "" else "todo: 领域事件订阅描述"
+            val comment = if (alias4Design(tag) == "domain_event_handler") {
+                context["Val2"] ?: "todo: 领域事件订阅描述"
             } else {
-                if (context.containsKey("Val2")) context["Val2"] ?: "" else "todo: 领域事件描述"
+                context["Val2"] ?: "todo: 领域事件描述"
             }
-            putContext(templateNode.tag ?: "", "Comment", comment, context)
+            putContext(tag, "Comment", comment, context)
             putContext(
-                templateNode.tag ?: "",
+                tag,
                 "CommentEscaped",
-                comment.replace(Regex(PATTERN_LINE_BREAK), " "),
+                comment.replace(PATTERN_LINE_BREAK.toRegex(), " "),
                 context
             )
             context
@@ -435,42 +428,37 @@ open class GenDesignTask : GenArchTask() {
         logger.info("生成领域事件代码：$path")
     }
 
-    /**
-     * 生成领域层聚合工厂
-     */
     private fun renderDomainLayerAggregateFactory(
         literalAggregateFactoryDeclaration: String,
         parentPath: String,
         templateNode: TemplateNode,
     ) {
         logger.info("解析聚合工厂设计：$literalAggregateFactoryDeclaration")
-        val path =
-            internalRenderGenericDesign(literalAggregateFactoryDeclaration, parentPath, templateNode) { context ->
-                val entity = context["Name"] ?: ""
-                val name = "${entity}Factory"
-                putContext(templateNode.tag ?: "", "Name", name, context)
-                putContext(templateNode.tag ?: "", "Factory", context["Name"] ?: "", context)
-                putContext(templateNode.tag ?: "", "Aggregate", entity, context)
-                putContext(templateNode.tag ?: "", "Entity", entity, context)
-                putContext(templateNode.tag ?: "", "EntityVar", toLowerCamelCase(entity) ?: "", context)
-                putContext(templateNode.tag ?: "", "AggregateRoot", context["Entity"] ?: "", context)
+        val path = internalRenderGenericDesign(literalAggregateFactoryDeclaration, parentPath, templateNode) { context ->
+            val entity = context["Name"].orEmpty()
+            val name = "${entity}Factory"
+            val tag = templateNode.tag.orEmpty()
 
-                val comment = if (context.containsKey("Val1")) context["Val1"] ?: "" else "todo: 聚合工厂描述"
-                putContext(templateNode.tag ?: "", "Comment", comment, context)
-                putContext(
-                    templateNode.tag ?: "",
-                    "CommentEscaped",
-                    comment.replace(Regex(PATTERN_LINE_BREAK), " "),
-                    context
-                )
+            putContext(tag, "Name", name, context)
+            putContext(tag, "Factory", context["Name"].orEmpty(), context)
+            putContext(tag, "Aggregate", entity, context)
+            putContext(tag, "Entity", entity, context)
+            putContext(tag, "EntityVar", toLowerCamelCase(entity).orEmpty(), context)
+            putContext(tag, "AggregateRoot", context["Entity"].orEmpty(), context)
+
+            val comment = context["Val1"] ?: "todo: 聚合工厂描述"
+            putContext(tag, "Comment", comment, context)
+            putContext(
+                tag,
+                "CommentEscaped",
+                comment.replace(PATTERN_LINE_BREAK.toRegex(), " "),
                 context
-            }
+            )
+            context
+        }
         logger.info("生成聚合工厂代码：$path")
     }
 
-    /**
-     * 生成领域层规约
-     */
     private fun renderDomainLayerSpecification(
         literalSpecificationDeclaration: String,
         parentPath: String,
@@ -478,21 +466,23 @@ open class GenDesignTask : GenArchTask() {
     ) {
         logger.info("解析实体规约设计：$literalSpecificationDeclaration")
         val path = internalRenderGenericDesign(literalSpecificationDeclaration, parentPath, templateNode) { context ->
-            val entity = context["Name"] ?: ""
+            val entity = context["Name"].orEmpty()
             val name = "${entity}Specification"
-            putContext(templateNode.tag ?: "", "Name", name, context)
-            putContext(templateNode.tag ?: "", "Specification", context["Name"] ?: "", context)
-            putContext(templateNode.tag ?: "", "Aggregate", entity, context)
-            putContext(templateNode.tag ?: "", "Entity", entity, context)
-            putContext(templateNode.tag ?: "", "EntityVar", toLowerCamelCase(entity) ?: "", context)
-            putContext(templateNode.tag ?: "", "AggregateRoot", context["Entity"] ?: "", context)
+            val tag = templateNode.tag.orEmpty()
 
-            val comment = if (context.containsKey("Val1")) context["Val1"] ?: "" else "todo: 实体规约描述"
-            putContext(templateNode.tag ?: "", "Comment", comment, context)
+            putContext(tag, "Name", name, context)
+            putContext(tag, "Specification", context["Name"].orEmpty(), context)
+            putContext(tag, "Aggregate", entity, context)
+            putContext(tag, "Entity", entity, context)
+            putContext(tag, "EntityVar", toLowerCamelCase(entity).orEmpty(), context)
+            putContext(tag, "AggregateRoot", context["Entity"].orEmpty(), context)
+
+            val comment = context["Val1"] ?: "todo: 实体规约描述"
+            putContext(tag, "Comment", comment, context)
             putContext(
-                templateNode.tag ?: "",
+                tag,
                 "CommentEscaped",
-                comment.replace(Regex(PATTERN_LINE_BREAK), " "),
+                comment.replace(PATTERN_LINE_BREAK.toRegex(), " "),
                 context
             )
             context
@@ -500,9 +490,6 @@ open class GenDesignTask : GenArchTask() {
         logger.info("生成实体规约代码：$path")
     }
 
-    /**
-     * 生成领域层领域服务
-     */
     private fun renderDomainLayerDomainService(
         literalDomainServiceDeclaration: String,
         parentPath: String,
@@ -510,16 +497,18 @@ open class GenDesignTask : GenArchTask() {
     ) {
         logger.info("解析领域服务设计：$literalDomainServiceDeclaration")
         val path = internalRenderGenericDesign(literalDomainServiceDeclaration, parentPath, templateNode) { context ->
-            val name = generateDomainServiceName(context["Name"] ?: "")
-            putContext(templateNode.tag ?: "", "Name", name, context)
-            putContext(templateNode.tag ?: "", "DomainService", context["Name"] ?: "", context)
+            val name = generateDomainServiceName(context["Name"].orEmpty())
+            val tag = templateNode.tag.orEmpty()
 
-            val comment = if (context.containsKey("Val1")) context["Val1"] ?: "" else "todo: 领域服务描述"
-            putContext(templateNode.tag ?: "", "Comment", comment, context)
+            putContext(tag, "Name", name, context)
+            putContext(tag, "DomainService", context["Name"].orEmpty(), context)
+
+            val comment = context["Val1"] ?: "todo: 领域服务描述"
+            putContext(tag, "Comment", comment, context)
             putContext(
-                templateNode.tag ?: "",
+                tag,
                 "CommentEscaped",
-                comment.replace(Regex(PATTERN_LINE_BREAK), " "),
+                comment.replace(PATTERN_LINE_BREAK.toRegex(), " "),
                 context
             )
             context
@@ -527,9 +516,6 @@ open class GenDesignTask : GenArchTask() {
         logger.info("生成领域服务代码：$path")
     }
 
-    /**
-     * 生成通用设计元素
-     */
     private fun renderGenericDesign(literalGenericDeclaration: String, parentPath: String, templateNode: TemplateNode) {
         logger.info("解析自定义元素设计：$literalGenericDeclaration")
         val path = internalRenderGenericDesign(literalGenericDeclaration, parentPath, templateNode, null)
@@ -545,26 +531,27 @@ open class GenDesignTask : GenArchTask() {
         templateNode: TemplateNode,
         contextBuilder: ((MutableMap<String, String>) -> MutableMap<String, String>)?,
     ): String {
-        val segments = escape(literalGenericDeclaration).splitWithTrim(PATTERN_DESIGN_PARAMS_SPLITTER)
-        for (i in segments.indices) {
-            segments[i] = unescape(segments[i])
-        }
+        val segments = escape(literalGenericDeclaration)
+            .splitWithTrim(PATTERN_DESIGN_PARAMS_SPLITTER)
+            .map { unescape(it) }
 
         val context = getEscapeContext().toMutableMap()
+        val tag = templateNode.tag.orEmpty()
+
         segments.forEachIndexed { i, segment ->
-            putContext(templateNode.tag ?: "", "Val$i", segment, context)
-            putContext(templateNode.tag ?: "", "val$i", segment.lowercase(), context)
+            putContext(tag, "Val$i", segment, context)
+            putContext(tag, "val$i", segment.lowercase(), context)
         }
 
         val name = segments[0].lowercase()
-        val Name = toUpperCamelCase(segments[0].substringAfter(".")) ?: ""
+        val Name = toUpperCamelCase(segments[0].substringAfter(".")).orEmpty()
         val path = segments[0].substringBeforeLast(".").replace(".", File.separator)
 
-        putContext(templateNode.tag ?: "", "Name", Name, context)
-        putContext(templateNode.tag ?: "", "name", name, context)
-        putContext(templateNode.tag ?: "", "path", path, context)
+        putContext(tag, "Name", Name, context)
+        putContext(tag, "name", name, context)
+        putContext(tag, "path", path, context)
         putContext(
-            templateNode.tag ?: "",
+            tag,
             "package",
             if (path.isEmpty()) "" else ".${path.replace(File.separator, ".")}",
             context
