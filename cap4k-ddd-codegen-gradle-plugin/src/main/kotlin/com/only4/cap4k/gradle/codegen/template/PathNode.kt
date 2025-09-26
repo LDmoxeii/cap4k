@@ -67,8 +67,8 @@ open class PathNode {
 
         val rawData = when (format.lowercase()) {
             "url" -> data?.let { src ->
-                val abs = if (isAbsolutePathOrHttpUri(src)) src else concatPathOrHttpUri(getDirectory(), src)
-                loadFileContent(abs, context["archTemplateEncoding"] ?: "UTF-8", getDirectory())
+                val abs = if (isAbsolutePathOrHttpUri(src)) src else concatPathOrHttpUri(directory.get(), src)
+                loadFileContent(abs, context["archTemplateEncoding"] ?: "UTF-8")
             } ?: ""
 
             else -> data ?: ""

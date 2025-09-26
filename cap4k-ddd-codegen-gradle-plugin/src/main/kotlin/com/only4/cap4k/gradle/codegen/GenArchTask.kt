@@ -52,10 +52,10 @@ open class GenArchTask : AbstractCodegenTask() {
     }
 
     private fun loadTemplate(templatePath: String, ext: Cap4kCodegenExtension): Template {
-        val templateContent = loadFileContent(templatePath, ext.archTemplateEncoding.get(), projectDir.get())
+        val templateContent = loadFileContent(templatePath, ext.archTemplateEncoding.get())
         logger.debug("模板内容: $templateContent")
 
-        PathNode.setDirectory(resolveDirectory(templatePath, projectDir.get()))
+        PathNode.setDirectory(resolveDirectory(templatePath))
 
         return JSON.parseObject(templateContent, Template::class.java).apply {
             resolve(getEscapeContext())

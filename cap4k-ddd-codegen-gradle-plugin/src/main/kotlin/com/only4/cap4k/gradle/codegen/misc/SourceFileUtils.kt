@@ -11,7 +11,6 @@ private val cache = mutableMapOf<String, List<File>>()
 private const val SRC_MAIN_KOTLIN = "src.main.kotlin."
 private const val SRC_TEST_KOTLIN = "src.test.kotlin."
 
-// 新增: Windows 盘符绝对路径匹配 (如 C:\ 或 D:/foo)
 private val WINDOWS_ABSOLUTE_REGEX = Regex("^[A-Za-z]:[\\\\/].*")
 private val HTTP_REGEX = Regex("^https?://", RegexOption.IGNORE_CASE)
 
@@ -33,13 +32,12 @@ fun loadFiles(baseDir: String): List<File> =
 /**
  * 加载文件内容(支持FilePath&URL)
  */
-fun loadFileContent(location: String, charsetName: String, baseDir: String = ""): String {
+fun loadFileContent(location: String, charsetName: String): String {
     val loc = location.trim()
     return if (isHttpUri(loc)) {
         URL(loc).openStream().bufferedReader(charset(charsetName)).use { it.readText() }
     } else {
-        val path = if (isAbsolutePathOrHttpUri(loc)) loc else concatPathOrHttpUri(baseDir, loc)
-        File(path).readText(charset(charsetName))
+        File(loc).readText(charset(charsetName))
     }
 }
 
@@ -82,35 +80,27 @@ fun concatPathOrHttpUri(path1: String, path2: String): String =
         }
     }
 
-// Kotlin 私有扩展：按当前 OS 规范化分隔符
 private fun String.normalizeOsSeparator(): String =
     if (File.separatorChar == '\\') replace('/', '\\') else replace('\\', '/')
 
-// 新增：HTTP 目录推导（与原语义一致：文件 URL -> 所在目录，目��� URL 确保以 / 结尾）
 private fun String.toHttpDirectory(): String {
     if (endsWith("/")) return this
     val idx = lastIndexOf('/')
     return if (idx >= 0) substring(0, idx + 1) else ""
 }
 
-// 新增：确保本地文件系统路径以系统分隔符结尾
 private fun String.ensureTrailingSeparator(): String =
     if (endsWith(File.separator)) this else this + File.separator
 
 /**
  * 解析目录路径
  */
-fun resolveDirectory(location: String, baseDir: String? = null): String =
+fun resolveDirectory(location: String): String =
     location.trim().let { loc ->
         require(loc.isNotEmpty()) { "location 不能为空" }
         if (isHttpUri(loc)) return loc.toHttpDirectory()
 
-        val path = (if (isAbsolutePathOrHttpUri(loc)) {
-            Paths.get(loc)
-        } else {
-            Paths.get(baseDir ?: System.getProperty("user.dir"), loc)
-        }).normalize()
-
+        val path = Paths.get(loc)
         require(Files.exists(path)) { "路径不存在：$loc" }
 
         val dir = if (Files.isDirectory(path)) path else path.parent
@@ -140,9 +130,8 @@ fun resolveSourceFile(baseDir: String, packageName: String, className: String): 
 /**
  * 拼接包名
  */
-fun concatPackage(vararg packages: String?): String =
+fun concatPackage(vararg packages: String): String =
     packages.asSequence()
-        .filterNotNull()
         .map { it.trim('.') }
         .filter { it.isNotBlank() }
         .joinToString(PACKAGE_SPLITTER)
