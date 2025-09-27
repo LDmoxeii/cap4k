@@ -135,26 +135,6 @@ open class GenEntityTask : GenArchTask() {
         return SqlSchemaUtils.resolveColumns(url, username, password)
     }
 
-    fun parsePatterns(patterns: String): List<Regex> =
-        patterns.takeIf { it.isNotBlank() }
-            ?.split(PATTERN_SPLITTER.toRegex())
-            ?.map { it.trim() }
-            ?.filter { it.isNotEmpty() }
-            ?.map { it.replace("*", ".*").toRegex() }
-            ?: emptyList()
-
-    fun filterTables(tables: List<Map<String, Any?>>): List<Map<String, Any?>> {
-        val ext = extension.get()
-        val include = parsePatterns(ext.database.tables.get())
-        val exclude = parsePatterns(ext.database.ignoreTables.get())
-
-        return tables.filter { table ->
-            val name = SqlSchemaUtils.getTableName(table)
-            (include.isEmpty() || include.any { it.matches(name) }) &&
-                    (exclude.isEmpty() || exclude.none { it.matches(name) })
-        }
-    }
-
     fun logSystemInfo() {
         val ext = extension.get()
         val (url, username, password) = resolveDatabaseConfig()
@@ -330,7 +310,7 @@ open class GenEntityTask : GenArchTask() {
             dbType = SqlSchemaUtils.recognizeDbType(url)
             SqlSchemaUtils.processSqlDialect(dbType)
 
-            val tables = filterTables(resolveTables())
+            val tables = resolveTables()
             if (tables.isEmpty()) {
                 logger.warn("没有找到匹配的表")
                 return
@@ -576,40 +556,52 @@ open class GenEntityTask : GenArchTask() {
                             column,
                             "LAZY".equals(extension.get().generation.fetchType.get(), ignoreCase = true)
                         )
+                        val columnName = SqlSchemaUtils.getColumnName(column)
+
+                        // 在父表中记录子表的OneToMany关系
                         result[parent]!!.putIfAbsent(
                             tableName,
-                            "OneToMany;${SqlSchemaUtils.getColumnName(column)}${if (lazy) ";LAZY" else ""}"
+                            "OneToMany;$columnName${if (lazy) ";LAZY" else ""}"
                         )
-                        if (extension.get().generation.generateParent.get()) {
-                            result.putIfAbsent(tableName, mutableMapOf())
-                            result[tableName]!!.putIfAbsent(
-                                parent,
-                                "*ManyToOne;${SqlSchemaUtils.getColumnName(column)}${if (lazy) ";LAZY" else ""}"
-                            )
+
+                        // 处理子表对父表的引用
+                        result.putIfAbsent(tableName, mutableMapOf())
+                        val parentRelation = if (extension.get().generation.generateParent.get()) {
+                            "*ManyToOne;$columnName${if (lazy) ";LAZY" else ""}"
+                        } else {
+                            "PLACEHOLDER;$columnName" // 使用占位符，防止聚合间关系误判
                         }
+                        result[tableName]!!.putIfAbsent(parent, parentRelation)
+
                         rewrited = true
                     }
                 }
             }
             if (!rewrited) {
-                val column =
-                    columns.firstOrNull { SqlSchemaUtils.getColumnName(it).equals("${parent}_id", ignoreCase = true) }
+                val column = columns.firstOrNull {
+                    SqlSchemaUtils.getColumnName(it).equals("${parent}_id", ignoreCase = true)
+                }
                 if (column != null) {
                     val lazy = SqlSchemaUtils.isLazy(
                         column,
                         "LAZY".equals(extension.get().generation.fetchType.get(), ignoreCase = true)
                     )
+                    val columnName = SqlSchemaUtils.getColumnName(column)
+
+                    // 在父表中记录子表的OneToMany关系
                     result[parent]!!.putIfAbsent(
                         tableName,
-                        "OneToMany;${SqlSchemaUtils.getColumnName(column)}${if (lazy) ";LAZY" else ""}"
+                        "OneToMany;$columnName${if (lazy) ";LAZY" else ""}"
                     )
-                    if (extension.get().generation.generateParent.get()) {
-                        result.putIfAbsent(tableName, mutableMapOf())
-                        result[tableName]!!.putIfAbsent(
-                            parent,
-                            "*ManyToOne;${SqlSchemaUtils.getColumnName(column)}${if (lazy) ";LAZY" else ""}"
-                        )
+
+                    // 处理子表对父表的引用
+                    result.putIfAbsent(tableName, mutableMapOf())
+                    val parentRelation = if (extension.get().generation.generateParent.get()) {
+                        "*ManyToOne;$columnName${if (lazy) ";LAZY" else ""}"
+                    } else {
+                        "PLACEHOLDER;$columnName" // 使用占位符，防止聚合间关系误判
                     }
+                    result[tableName]!!.putIfAbsent(parent, parentRelation)
                 }
             }
         }
@@ -663,7 +655,7 @@ open class GenEntityTask : GenArchTask() {
                 "LAZY".equals(extension.get().generation.fetchType.get(), ignoreCase = true)
             )
 
-            if (colRel.isNotEmpty() || SqlSchemaUtils.hasReference(column)) {
+            if (colRel.isNotBlank() || SqlSchemaUtils.hasReference(column)) {
                 when (colRel) {
                     "OneToOne", "1:1" -> {
                         refTableName = SqlSchemaUtils.getReference(column)
@@ -745,6 +737,9 @@ open class GenEntityTask : GenArchTask() {
                 when (refInfos[0]) {
                     "ManyToOne", "OneToOne" -> if (columnName.equals(refInfos[1], ignoreCase = true)) {
                         return false
+                    }
+                    "PLACEHOLDER" -> if (columnName.equals(refInfos[1], ignoreCase = true)) {
+                        return false // PLACEHOLDER 关系的字段不生成
                     }
 
                     else -> {}
@@ -1032,13 +1027,13 @@ open class GenEntityTask : GenArchTask() {
                 addIfNone(
                     annotationLines,
                     """@SQLDelete(\(.*\))?""",
-                    """@SQLDelete(sql = "update $LEFT_QUOTES_4_ID_ALIAS$tableName$RIGHT_QUOTES_4_ID_ALIAS set $LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS where $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS = $idFieldValue and $LEFT_QUOTES_4_ID_ALIAS$versionField$RIGHT_QUOTES_4_ID_ALIAS = ?)"""
+                    """@SQLDelete(sql = "update $LEFT_QUOTES_4_ID_ALIAS$tableName$RIGHT_QUOTES_4_ID_ALIAS set $LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS where $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS = $idFieldValue and $LEFT_QUOTES_4_ID_ALIAS$versionField$RIGHT_QUOTES_4_ID_ALIAS = ?")"""
                 )
             } else {
                 addIfNone(
                     annotationLines,
                     """@SQLDelete(\(.*\))?""",
-                    """@SQLDelete(sql = "update $LEFT_QUOTES_4_ID_ALIAS$tableName$RIGHT_QUOTES_4_ID_ALIAS set $LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS where $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS = $idFieldValue)"""
+                    """@SQLDelete(sql = "update $LEFT_QUOTES_4_ID_ALIAS$tableName$RIGHT_QUOTES_4_ID_ALIAS set $LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS where $LEFT_QUOTES_4_ID_ALIAS$idFieldName$RIGHT_QUOTES_4_ID_ALIAS = $idFieldValue")"""
                 )
             }
 
@@ -1059,7 +1054,7 @@ open class GenEntityTask : GenArchTask() {
             addIfNone(
                 annotationLines,
                 """@Where(\(.*\))?""",
-                """@Where(clause = "$LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = 0"""
+                """@Where(clause = "$LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = 0)"""
             )
         }
     }
@@ -1465,6 +1460,11 @@ open class GenEntityTask : GenArchTask() {
         for ((refTableName, relationInfo) in relations[tableName]!!) {
             val refInfos = relationInfo.split(";")
             val navTable = tableMap[refTableName] ?: continue
+
+            // 跳过占位符关系
+            if (refInfos[0] == "PLACEHOLDER") {
+                continue
+            }
 
             val fetchType = when {
                 relationInfo.endsWith(";LAZY") -> "LAZY"
