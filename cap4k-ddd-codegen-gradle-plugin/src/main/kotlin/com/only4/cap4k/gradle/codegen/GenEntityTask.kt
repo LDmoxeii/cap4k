@@ -143,18 +143,6 @@ open class GenEntityTask : GenArchTask() {
             ?.map { it.replace("*", ".*").toRegex() }
             ?: emptyList()
 
-    fun filterTables(tables: List<Map<String, Any?>>): List<Map<String, Any?>> {
-        val ext = extension.get()
-        val include = parsePatterns(ext.database.tables.get())
-        val exclude = parsePatterns(ext.database.ignoreTables.get())
-
-        return tables.filter { table ->
-            val name = SqlSchemaUtils.getTableName(table)
-            (include.isEmpty() || include.any { it.matches(name) }) &&
-                    (exclude.isEmpty() || exclude.none { it.matches(name) })
-        }
-    }
-
     fun logSystemInfo() {
         val ext = extension.get()
         val (url, username, password) = resolveDatabaseConfig()
@@ -330,7 +318,7 @@ open class GenEntityTask : GenArchTask() {
             dbType = SqlSchemaUtils.recognizeDbType(url)
             SqlSchemaUtils.processSqlDialect(dbType)
 
-            val tables = filterTables(resolveTables())
+            val tables = resolveTables()
             if (tables.isEmpty()) {
                 logger.warn("没有找到匹配的表")
                 return

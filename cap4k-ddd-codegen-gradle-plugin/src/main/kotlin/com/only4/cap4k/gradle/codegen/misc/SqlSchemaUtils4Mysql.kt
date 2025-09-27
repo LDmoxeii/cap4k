@@ -21,7 +21,7 @@ object SqlSchemaUtils4Mysql : SqlSchemaUtils.SqlSchemaDialect {
     // 构造 (table_name like ...) / not like 条件
     private fun buildTableNameCondition(patterns: String, positive: Boolean): String? =
         patterns.takeIf { it.isNotBlank() }
-            ?.split(AbstractCodegenTask.PATTERN_SPLITTER)
+            ?.split(AbstractCodegenTask.PATTERN_SPLITTER.toRegex())
             ?.joinToString(" or ") {
                 "table_name ${if (positive) "like" else "not like"} ${LEFT_QUOTES_4_LITERAL_STRING}$it$RIGHT_QUOTES_4_LITERAL_STRING"
             }
