@@ -12,7 +12,7 @@ plugins {
 }
 
 group = "com.only4"
-version = "0.3.5-SNAPSHOT"
+version = "0.3.6-SNAPSHOT"
 
 // 添加源码 jar 任务
 val sourcesJar by tasks.registering(Jar::class) {
