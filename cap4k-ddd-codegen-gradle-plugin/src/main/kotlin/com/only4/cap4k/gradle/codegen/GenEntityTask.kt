@@ -1059,7 +1059,7 @@ open class GenEntityTask : GenArchTask() {
             addIfNone(
                 annotationLines,
                 """@Where(\(.*\))?""",
-                """@Where(clause = "$LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = 0""""
+                """@Where(clause = "$LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = 0")"""
             )
         }
     }
