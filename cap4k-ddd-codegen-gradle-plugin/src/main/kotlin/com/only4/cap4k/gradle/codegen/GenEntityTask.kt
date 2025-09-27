@@ -2194,6 +2194,8 @@ open class GenEntityTask : GenArchTask() {
                                 "${concatPackage(tablePackageMap[key] ?: "", DEFAULT_SCHEMA_PACKAGE)}.",
                                 joinContext
                             )
+                        } else {
+                            putContext(joinTag, "joinEntitySchemaPackage", "", joinContext)
                         }
                         joinItems += (if (templateNodeMap.containsKey(joinTag) && templateNodeMap[joinTag]!!.isNotEmpty()) {
                             templateNodeMap[joinTag]!![templateNodeMap[joinTag]!!.size - 1]
