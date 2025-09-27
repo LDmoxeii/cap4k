@@ -54,7 +54,7 @@ open class GenArchTask : AbstractCodegenTask() {
         val templateContent = loadFileContent(templatePath, ext.archTemplateEncoding.get())
         logger.debug("模板内容: $templateContent")
 
-        PathNode.setDirectory(resolveDirectory(templatePath))
+        PathNode.setDirectory(resolveDirectory(templatePath, projectDir.get()))
 
         return JSON.parseObject(templateContent, Template::class.java).apply {
             resolve(getEscapeContext())
@@ -80,9 +80,9 @@ open class GenArchTask : AbstractCodegenTask() {
     }
 
     private fun validateAndGetArchTemplate(ext: Cap4kCodegenExtension): String? {
-        // 优先使用新的文件属性
-        val archTemplate = ext.archTemplate.get().asFile.absolutePath ?: run {
-            logger.error("请设置archTemplate参数或使用archTemplateFile指定模板文件")
+        val archTemplate = ext.archTemplate.orNull?.takeIf { it.isNotBlank() }
+            ?: run {
+                logger.error("请设置(archTemplate)参数")
             return null
         }
 

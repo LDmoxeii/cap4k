@@ -95,12 +95,14 @@ private fun String.ensureTrailingSeparator(): String =
 /**
  * 解析目录路径
  */
-fun resolveDirectory(location: String): String =
+fun resolveDirectory(location: String, baseDir: String = ""): String =
     location.trim().let { loc ->
         require(loc.isNotEmpty()) { "location 不能为空" }
         if (isHttpUri(loc)) return loc.toHttpDirectory()
 
-        val path = Paths.get(loc)
+        val path = if (isAbsolutePathOrHttpUri(loc)) Paths.get(loc)
+        else Paths.get(baseDir, loc)
+
         require(Files.exists(path)) { "路径不存在：$loc" }
 
         val dir = if (Files.isDirectory(path)) path else path.parent

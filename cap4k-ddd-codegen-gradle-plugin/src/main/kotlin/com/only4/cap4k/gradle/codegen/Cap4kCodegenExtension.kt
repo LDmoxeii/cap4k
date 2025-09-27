@@ -16,7 +16,7 @@ open class Cap4kCodegenExtension @Inject constructor(objects: ObjectFactory) {
     /**
      * 架构模板文件
      */
-    val archTemplate: RegularFileProperty = objects.fileProperty()
+    val archTemplate: Property<String> = objects.property(String::class.java)
 
     /**
      * 模板文件编码
