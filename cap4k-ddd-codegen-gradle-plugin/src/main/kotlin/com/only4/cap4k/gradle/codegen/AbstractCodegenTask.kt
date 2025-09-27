@@ -39,7 +39,9 @@ abstract class AbstractCodegenTask : DefaultTask() {
             "org.hibernate.annotations.DynamicUpdate",
             "org.hibernate.annotations.Fetch",
             "org.hibernate.annotations.FetchMode",
-            "org.hibernate.annotations.GenericGenerator"
+            "org.hibernate.annotations.GenericGenerator",
+            "org.hibernate.annotations.SQLDelete",
+            "org.hibernate.annotations.Where",
         )
 
         private val TEMPLATE_ALIAS_MAP = mapOf(
