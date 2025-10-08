@@ -13,7 +13,6 @@ import java.io.File
 import java.io.StringWriter
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.stream.Collectors
 
 /**
  * 生成实体类任务
@@ -86,7 +85,9 @@ open class GenEntityTask : GenArchTask() {
         "specifications", "specification", "specs", "spec", "spe" -> "specification"
         "domain_events", "domain_event", "d_e", "de" -> "domain_event"
         "domain_event_handlers", "domain_event_handler", "d_e_h", "deh",
-        "domain_event_subscribers", "domain_event_subscriber", "d_e_s", "des" -> "domain_event_handler"
+        "domain_event_subscribers", "domain_event_subscriber", "d_e_s", "des",
+            -> "domain_event_handler"
+
         "domain_service", "service", "svc" -> "domain_service"
         else -> name
     }
@@ -722,13 +723,11 @@ open class GenEntityTask : GenArchTask() {
         }
 
         if (!SqlSchemaUtils.isAggregateRoot(table)) {
-            if (columnName.equals(
-                    SqlSchemaUtils.getParent(table) + "_id",
-                    ignoreCase = true
-                )
-            ) {
-                return false
-            }
+            val parent = SqlSchemaUtils.getParent(table)
+            val refMatchesParent = SqlSchemaUtils.hasReference(column) &&
+                    parent.equals(SqlSchemaUtils.getReference(column), ignoreCase = true)
+            val fkNameMatches = columnName.equals("${parent}_id", ignoreCase = true)
+            if (refMatchesParent || fkNameMatches) return false
         }
 
         if (relations.containsKey(tableName)) {
@@ -738,6 +737,7 @@ open class GenEntityTask : GenArchTask() {
                     "ManyToOne", "OneToOne" -> if (columnName.equals(refInfos[1], ignoreCase = true)) {
                         return false
                     }
+
                     "PLACEHOLDER" -> if (columnName.equals(refInfos[1], ignoreCase = true)) {
                         return false // PLACEHOLDER 关系的字段不生成
                     }
