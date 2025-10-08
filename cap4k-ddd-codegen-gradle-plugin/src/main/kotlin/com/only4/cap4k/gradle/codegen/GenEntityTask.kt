@@ -1054,7 +1054,7 @@ open class GenEntityTask : GenArchTask() {
             addIfNone(
                 annotationLines,
                 """@Where(\(.*\))?""",
-                """@Where(clause = "$LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = 0)"""
+                """@Where(clause = "$LEFT_QUOTES_4_ID_ALIAS$deletedField$RIGHT_QUOTES_4_ID_ALIAS = 0")"""
             )
         }
     }
@@ -2206,6 +2206,8 @@ open class GenEntityTask : GenArchTask() {
                                 "${concatPackage(tablePackageMap[key] ?: "", DEFAULT_SCHEMA_PACKAGE)}.",
                                 joinContext
                             )
+                        } else {
+                            putContext(joinTag, "joinEntitySchemaPackage", "", joinContext)
                         }
                         joinItems += (if (templateNodeMap.containsKey(joinTag) && templateNodeMap[joinTag]!!.isNotEmpty()) {
                             templateNodeMap[joinTag]!![templateNodeMap[joinTag]!!.size - 1]

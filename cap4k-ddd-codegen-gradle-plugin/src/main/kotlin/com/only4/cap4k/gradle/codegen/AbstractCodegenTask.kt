@@ -41,7 +41,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
             "org.hibernate.annotations.FetchMode",
             "org.hibernate.annotations.GenericGenerator",
             "org.hibernate.annotations.SQLDelete",
-            "org.hibernate.annotations.Where"
+            "org.hibernate.annotations.Where",
         )
 
         private val TEMPLATE_ALIAS_MAP = mapOf(
