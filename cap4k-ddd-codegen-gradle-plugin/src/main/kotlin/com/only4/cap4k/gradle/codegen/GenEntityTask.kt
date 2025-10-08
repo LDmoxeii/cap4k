@@ -944,7 +944,7 @@ open class GenEntityTask : GenArchTask() {
         while (i < importLines.size) {
             val importLine = importLines[i]
             if (importLine.contains(" org.hibernate.annotations.") && !importLine.contains("*")) {
-                val hibernateAnnotation = importLine.substring(importLine.lastIndexOf(".") + 1).replace(";", "").trim()
+                val hibernateAnnotation = "@${importLine.substring(importLine.lastIndexOf(".") + 1)}".trim()
                 if (!content.contains(hibernateAnnotation)) {
                     importLines.removeAt(i)
                     continue
