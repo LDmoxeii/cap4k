@@ -1,6 +1,4 @@
-package $
-
-{ basePackage }.domain.aggregates${ package }.specs
+package ${basePackage}.domain.aggregates${package}.specs
 
 import ${basePackage}.domain.aggregates${package}.${Entity}
 import com.only4.cap4k.ddd.core.domain.aggregate.Specification
@@ -13,17 +11,10 @@ import org.springframework.stereotype.Service
  * @date ${date}
  */
 @Service
-@Aggregate(
-    aggregate = "${Entity}",
-    name = "${Entity}Specification",
-    type = Aggregate.TYPE_SPECIFICATION,
-    description = ""
-)
-class $ {Entity }Specification : Specification<${ Entity }> {
+@Aggregate(aggregate = "${Entity}", name = "${Entity}Specification", type = Aggregate.TYPE_SPECIFICATION, description = "")
+class ${Entity}Specification : Specification<${Entity}> {
 
-    override fun specify(entity: $ {
-        Entity
-    }): Result {
+    override fun specify(entity: ${Entity}): Result {
         return Result.pass()
     }
 

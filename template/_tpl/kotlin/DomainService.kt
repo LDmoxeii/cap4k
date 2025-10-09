@@ -1,6 +1,4 @@
-package $
-
-{ basePackage }.domain.services${ package }
+package ${basePackage}.domain.services${package}
 
 { basePackage }.domain.services${ package }
 

@@ -1,6 +1,6 @@
 -- Create syntax for TABLE '__event'
 CREATE TABLE `__event`
-    (
+(
     `id`            bigint(20)   NOT NULL AUTO_INCREMENT,
     `event_uuid`    varchar(64)  NOT NULL DEFAULT '' COMMENT '事件uuid',
     `svc_name`      varchar(255) NOT NULL DEFAULT '' COMMENT '服务',
@@ -28,13 +28,13 @@ CREATE TABLE `__event`
     KEY `idx_create_at` (`create_at`),
     KEY `idx_expire_at` (`expire_at`),
     KEY `idx_next_try_time` (`next_try_time`)
-    ) COMMENT ='事件发件箱 support by cap4j\n@I;'
+) COMMENT ='事件发件箱 support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;
 -- Create syntax for TABLE '__achrived_event'
 CREATE TABLE `__achrived_event`
-    (
+(
     `id`            bigint(20)   NOT NULL AUTO_INCREMENT,
     `event_uuid`    varchar(64)  NOT NULL DEFAULT '' COMMENT '事件uuid',
     `svc_name`      varchar(255) NOT NULL DEFAULT '' COMMENT '服务',
@@ -62,14 +62,14 @@ CREATE TABLE `__achrived_event`
     KEY `idx_create_at` (`create_at`),
     KEY `idx_expire_at` (`expire_at`),
     KEY `idx_next_try_time` (`next_try_time`)
-    ) COMMENT ='事件发件箱存档 support by cap4j\n@I;'
+) COMMENT ='事件发件箱存档 support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;
 
 -- Create syntax for TABLE '__request'
 CREATE TABLE `__request`
-    (
+(
     `id`            bigint       NOT NULL AUTO_INCREMENT,
     `request_uuid`  varchar(64)  NOT NULL DEFAULT '' COMMENT 'REQUEST uuid',
     `svc_name`      varchar(255) NOT NULL DEFAULT '' COMMENT '服务',
@@ -99,13 +99,13 @@ CREATE TABLE `__request`
     KEY `idx_create_at` (`create_at`),
     KEY `idx_expire_at` (`expire_at`),
     KEY `idx_next_try_time` (`next_try_time`)
-    ) COMMENT ='请求 support by cap4j\n@I;'
+) COMMENT ='请求 support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;
 -- Create syntax for TABLE '__archived_request'
 CREATE TABLE `__archived_request`
-    (
+(
     `id`            bigint       NOT NULL AUTO_INCREMENT,
     `request_uuid`  varchar(64)  NOT NULL DEFAULT '' COMMENT 'REQUEST uuid',
     `svc_name`      varchar(255) NOT NULL DEFAULT '' COMMENT '服务',
@@ -135,14 +135,14 @@ CREATE TABLE `__archived_request`
     KEY `idx_create_at` (`create_at`),
     KEY `idx_expire_at` (`expire_at`),
     KEY `idx_next_try_time` (`next_try_time`)
-    ) COMMENT ='请求(存档) support by cap4j\n@I;'
+) COMMENT ='请求(存档) support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;
 
 -- Create syntax for TABLE '__saga'
 CREATE TABLE `__saga`
-    (
+(
     `id`            bigint       NOT NULL AUTO_INCREMENT,
     `saga_uuid`     varchar(64)  NOT NULL DEFAULT '' COMMENT 'SAGA uuid',
     `svc_name`      varchar(255) NOT NULL DEFAULT '' COMMENT '服务',
@@ -172,14 +172,14 @@ CREATE TABLE `__saga`
     KEY `idx_create_at` (`create_at`),
     KEY `idx_expire_at` (`expire_at`),
     KEY `idx_next_try_time` (`next_try_time`)
-    ) COMMENT ='SAGA事务 support by cap4j\n@I;'
+) COMMENT ='SAGA事务 support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;
 
 -- Create syntax for TABLE '__saga_process'
 CREATE TABLE `__saga_process`
-    (
+(
     `id`            bigint       NOT NULL AUTO_INCREMENT,
     `saga_id`       bigint       NOT NULL DEFAULT '0',
     `process_code`  varchar(255) NOT NULL DEFAULT '' COMMENT 'SAGA处理环节代码',
@@ -200,14 +200,14 @@ CREATE TABLE `__saga_process`
     KEY `idx_db_created_at` (`db_created_at`),
     KEY `idx_db_updated_at` (`db_updated_at`),
     KEY `idx_saga_id` (`saga_id`)
-    ) COMMENT ='SAGA事务-子环节 support by cap4j\n@I;'
+) COMMENT ='SAGA事务-子环节 support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;
 
 -- Create syntax for TABLE '__archived_saga'
 CREATE TABLE `__archived_saga`
-    (
+(
     `id`            bigint       NOT NULL AUTO_INCREMENT,
     `saga_uuid`     varchar(64)  NOT NULL DEFAULT '' COMMENT 'SAGA uuid',
     `svc_name`      varchar(255) NOT NULL DEFAULT '' COMMENT '服务',
@@ -237,14 +237,14 @@ CREATE TABLE `__archived_saga`
     KEY `idx_create_at` (`create_at`),
     KEY `idx_expire_at` (`expire_at`),
     KEY `idx_next_try_time` (`next_try_time`)
-    ) COMMENT ='SAGA事务(存档) support by cap4j\n@I;'
+) COMMENT ='SAGA事务(存档) support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;
 
 -- Create syntax for TABLE '__archived_saga_process'
 CREATE TABLE `__archived_saga_process`
-    (
+(
     `id`            bigint       NOT NULL AUTO_INCREMENT,
     `saga_id`       bigint       NOT NULL DEFAULT '0',
     `process_code`  varchar(255) NOT NULL DEFAULT '' COMMENT 'SAGA处理环节代码',
@@ -265,14 +265,14 @@ CREATE TABLE `__archived_saga_process`
     KEY `idx_db_created_at` (`db_created_at`),
     KEY `idx_db_updated_at` (`db_updated_at`),
     KEY `idx_saga_id` (`saga_id`)
-    ) COMMENT ='SAGA事务-子环节(存档) support by cap4j\n@I;'
+) COMMENT ='SAGA事务-子环节(存档) support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
 ;
 
 -- Create syntax for TABLE '__event_http_subscriber'
 CREATE TABLE `__event_http_subscriber`
-    (
+(
     `id`            bigint        NOT NULL AUTO_INCREMENT,
     `event`         varchar(255)  NOT NULL DEFAULT '' COMMENT '事件',
     `subscriber`    varchar(255)  NOT NULL DEFAULT '' COMMENT '订阅者',
@@ -285,39 +285,39 @@ CREATE TABLE `__event_http_subscriber`
     KEY `idx_db_created_at` (`db_created_at`),
     KEY `idx_db_updated_at` (`db_updated_at`),
     KEY `idx_event` (`event`)
-    ) COMMENT ='事件HTTP订阅 support by cap4j\n@I;'
+) COMMENT ='事件HTTP订阅 support by cap4j\n@I;'
 ;
 
 -- Create syntax for TABLE '__locker'
 CREATE TABLE `__locker`
-    (
+(
     `id`            int unsigned    NOT NULL AUTO_INCREMENT,
-    `name`          varchar(100) NOT NULL DEFAULT '' COMMENT '锁名称',
-    `pwd`           varchar(100) NOT NULL DEFAULT '' COMMENT '锁密码',
-    `lock_at`       datetime     NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '锁获取时间',
-    `unlock_at`     datetime     NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '锁释放时间',
+    `name`          varchar(100)        NOT NULL DEFAULT '' COMMENT '锁名称',
+    `pwd`           varchar(100)        NOT NULL DEFAULT '' COMMENT '锁密码',
+    `lock_at`       datetime            NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '锁获取时间',
+    `unlock_at`     datetime            NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '锁释放时间',
     `version`       bigint(20) unsigned NOT NULL DEFAULT '0',
-    `db_created_at` timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `db_updated_at` timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `db_created_at` timestamp           NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `db_updated_at` timestamp           NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_db_created_at` (`db_created_at`),
     KEY `idx_db_updated_at` (`db_updated_at`),
     UNIQUE `uniq_name` (`name`)
-    ) COMMENT ='锁 support by cap4j\n@I;';
+) COMMENT ='锁 support by cap4j\n@I;';
 
 -- Create syntax for TABLE '__worker_id'
 CREATE TABLE `__worker_id`
-    (
+(
     `id`            int unsigned    NOT NULL AUTO_INCREMENT,
     `datacenter_id` int unsigned    NOT NULL DEFAULT '0' COMMENT '数据分区',
     `worker_id`     int unsigned    NOT NULL DEFAULT '0' COMMENT '机器分区',
-    `dispatch_to`   varchar(100) NOT NULL DEFAULT '' COMMENT '分配对象名称',
-    `dispatch_at`   datetime     NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '分配时间',
-    `expire_at`     datetime     NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '过期时间',
+    `dispatch_to`   varchar(100)    NOT NULL DEFAULT '' COMMENT '分配对象名称',
+    `dispatch_at`   datetime        NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '分配时间',
+    `expire_at`     datetime        NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '过期时间',
     `version`       bigint unsigned NOT NULL DEFAULT '0',
-    `db_created_at` timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `db_updated_at` timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `db_created_at` timestamp       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `db_updated_at` timestamp       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_db_created_at` (`db_created_at`),
     KEY `idx_db_updated_at` (`db_updated_at`)
-    ) COMMENT ='雪花机器码 support by cap4j\n@I;';
+) COMMENT ='雪花机器码 support by cap4j\n@I;';

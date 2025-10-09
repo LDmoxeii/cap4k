@@ -1,6 +1,4 @@
-package $
-
-{ basePackage }.domain.aggregates${ package }.factory
+package ${basePackage}.domain.aggregates${package}.factory
 
 import ${basePackage}.domain.aggregates${package}.${Entity}
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
@@ -10,22 +8,15 @@ import org.springframework.stereotype.Service
 
 @Service
 @Aggregate(aggregate = "${Entity}", name = "${Entity}Factory", type = Aggregate.TYPE_FACTORY, description = "")
-class $ {Entity }Factory : AggregateFactory<${ Entity }Factory.Payload, ${ Entity }> {
-    override fun create(payload: Payload): $ {
-        Entity
-    } {
-        return ${ Entity }(
+class ${Entity}Factory : AggregateFactory<${Entity}Factory.Payload, ${Entity}> {
+    override fun create(entityPayload: Payload): ${Entity} {
+        return ${Entity}(
 
-    )
+        )
     }
 
-    @Aggregate(
-        aggregate = "${Entity}",
-        name = "${Entity}Payload",
-        type = Aggregate.TYPE_FACTORY_PAYLOAD,
-        description = ""
-    )
+    @Aggregate(aggregate = "${Entity}", name = "${Entity}Payload", type = Aggregate.TYPE_FACTORY_PAYLOAD, description = "")
     class Payload(
 
-    ) : AggregatePayload<$ {Entity }>
+    ) : AggregatePayload<${Entity}>
 }

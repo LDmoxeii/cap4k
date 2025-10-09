@@ -1,6 +1,4 @@
-package $
-
-{ basePackage }.application.distributed.clients${ package }
+package ${basePackage}.application.distributed.clients${package}
 
 { basePackage }.application.distributed.clients${ package }
 

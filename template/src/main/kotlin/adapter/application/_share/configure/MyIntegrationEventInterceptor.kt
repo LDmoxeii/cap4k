@@ -1,6 +1,4 @@
-package $
-
-{ basePackage }.adapter.application._share.configure
+package ${basePackage}.adapter.application._share.configure
 
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventRecord

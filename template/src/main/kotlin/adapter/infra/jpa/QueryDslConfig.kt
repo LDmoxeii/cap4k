@@ -1,6 +1,4 @@
-package $
-
-{ basePackage }.adapter.infra.jpa
+package ${basePackage}.adapter.infra.jpa
 
 import com.blazebit.persistence.Criteria
 import com.blazebit.persistence.CriteriaBuilderFactory

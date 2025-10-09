@@ -1,6 +1,4 @@
-package $
-
-{ basePackage }.adapter.domain._share.configure
+package ${basePackage}.adapter.domain._share.configure
 
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import org.springframework.messaging.Message

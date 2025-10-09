@@ -1,6 +1,4 @@
-package $
-
-{ basePackage }.adapter.portal.api._share.configure
+package ${basePackage}.adapter.portal.api._share.configure
 
 import com.only4.cap4k.ddd.domain.web.ClearDomainContextInterceptor
 import org.springframework.context.annotation.Configuration

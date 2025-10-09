@@ -1,6 +1,4 @@
-package $
-
-{ basePackage }.adapter.application.distributed.clients${ package }
+package ${basePackage}.adapter.application.distributed.clients${package}
 
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -14,10 +12,10 @@ import ${basePackage}.application.distributed.clients${package}.${Client} as Cli
  * @date ${date}
  */
 @Service
-class $ {Client }Handler : DistributedClient<ClientContract.Request, ClientContract.Response> {
+class ${Client}Handler : DistributedClient<ClientContract.Request, ClientContract.Response> {
 
     companion object {
-        private val log = LoggerFactory.getLogger($ { Client } Handler ::class.java)
+        private val log = LoggerFactory.getLogger(${Client} Handler ::class.java)
     }
 
     override fun exec(request: ClientContract.Request): ClientContract.Response {
