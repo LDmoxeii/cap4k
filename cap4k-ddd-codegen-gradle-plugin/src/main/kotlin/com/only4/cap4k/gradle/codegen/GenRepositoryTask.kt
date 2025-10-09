@@ -67,78 +67,14 @@ open class GenRepositoryTask : GenArchTask() {
 
     private fun resolveDefaultRepositoryTemplate(): TemplateNode {
         val ext = extension.get()
-        val repositorySupportQuerydsl = ext.generation.repositorySupportQuerydsl.get()
         val repositoryNameTemplate = ext.generation.repositoryNameTemplate.get()
-
-        val extendsParts = buildList {
-            add("JpaRepository<${'$'}{Entity}, ${'$'}{IdentityType}>")
-            add("JpaSpecificationExecutor<${'$'}{Entity}>")
-            if (repositorySupportQuerydsl) add("\n\tQuerydslPredicateExecutor<${'$'}{Entity}>")
-        }
-
-        val adapters = buildString {
-            append(
-                """
-                    |    @Component
-                    |    @Aggregate(aggregate = "${'$'}{Aggregate}", name = "${'$'}{Entity}Repo", type = Aggregate.TYPE_REPOSITORY, description = "")
-                    |    class ${'$'}{Entity}JpaRepositoryAdapter(
-                    |        jpaSpecificationExecutor: JpaSpecificationExecutor<${'$'}{Entity}>,
-                    |        jpaRepository: JpaRepository<${'$'}{Entity}, ${'$'}{IdentityType}>
-                    |    ) : AbstractJpaRepository<${'$'}{Entity}, ${'$'}{IdentityType}>(
-                    |        jpaSpecificationExecutor,
-                    |        jpaRepository
-                    |    )
-                """.trimMargin()
-            )
-
-            if (repositorySupportQuerydsl) {
-                append("\n\n")
-                append(
-                    """
-                       |    @Component
-                       |    @Aggregate(aggregate = "${'$'}{Aggregate}", name = "${'$'}{Entity}QuerydslRepo", type = Aggregate.TYPE_REPOSITORY, description = "")
-                       |    class ${'$'}{Entity}QuerydslRepositoryAdapter(
-                       |        querydslPredicateExecutor: QuerydslPredicateExecutor<${'$'}{Entity}>
-                       |    ) : AbstractQuerydslRepository<${'$'}{Entity}>(
-                       |        querydslPredicateExecutor
-                       |    )
-                    """.trimMargin()
-                )
-            }
-        }
-
-        val imports = mutableListOf<String>().apply {
-            add("import ${'$'}{EntityPackage}.${'$'}{Entity}")
-            add("import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate")
-            add("import com.only4.cap4k.ddd.domain.repo.AbstractJpaRepository")
-            if (repositorySupportQuerydsl) add("import com.only4.cap4k.ddd.domain.repo.querydsl.AbstractQuerydslRepository")
-            add("import org.springframework.data.jpa.repository.JpaRepository")
-            add("import org.springframework.data.jpa.repository.JpaSpecificationExecutor")
-            if (repositorySupportQuerydsl) add("import org.springframework.data.querydsl.QuerydslPredicateExecutor")
-            add("import org.springframework.stereotype.Component")
-        }.joinToString("\n")
-
-        val template = """
-            |package ${'$'}{basePackage}.${AGGREGATE_REPOSITORY_PACKAGE}
-            |
-            |$imports
-            |
-            |/**
-            | * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
-            | * @date ${'$'}{date}
-            | */
-            |interface ${'$'}{Entity}Repository : ${extendsParts.joinToString(", ")} {
-            |
-            |$adapters
-            |}
-        """.trimMargin()
 
         return TemplateNode().apply {
             type = "file"
             tag = "repository"
             name = "$repositoryNameTemplate.kt"
-            format = "raw"
-            data = template
+            format = "velocity"
+            data = "vm/repository/Repository.kt.vm"
             conflict = "skip"
         }
     }

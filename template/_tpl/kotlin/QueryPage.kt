@@ -1,4 +1,8 @@
-import com.only4.cap4k.ddd.core.application.PageQueryParam
+package $
+
+{ basePackage }.application.queries${ package }
+
+import com.only4.cap4k.ddd.core.application.query.PageQueryParam
 
 object $ {Query }
 
@@ -6,7 +10,7 @@ object $ {Query }
 
     class Request(
 
-    ) : PageQueryParam<Response>
+    ) : PageQueryParam<Response>()
 
     class Response(
     )

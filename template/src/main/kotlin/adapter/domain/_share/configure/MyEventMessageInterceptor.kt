@@ -2,9 +2,9 @@ package $
 
 { basePackage }.adapter.domain._share.configure
 
+import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
+import org.springframework.messaging.Message
 import org.springframework.stereotype.Component
-import com.only4.cap4k.ddd.domain.event.EventMessageInterceptor
-import com.only4.cap4k.ddd.domain.event.EventMessage
 
 /**
  * 事件消息拦截器
@@ -13,17 +13,19 @@ import com.only4.cap4k.ddd.domain.event.EventMessage
  */
 @Component
 class MyEventMessageInterceptor : EventMessageInterceptor {
-
-    override fun preHandle(message: EventMessage): Boolean {
-        // TODO: 实现事件消息预处理逻辑
-        return true
+    override fun initPublish(message: Message<*>) {
     }
 
-    override fun postHandle(message: EventMessage, result: Any?) {
-        // TODO: 实现事件消息后处理逻辑
+    override fun prePublish(message: Message<*>) {
     }
 
-    override fun afterCompletion(message: EventMessage, ex: Exception?) {
-        // TODO: 实现事件消息完成后处理逻辑
+    override fun postPublish(message: Message<*>) {
     }
+
+    override fun preSubscribe(message: Message<*>) {
+    }
+
+    override fun postSubscribe(message: Message<*>) {
+    }
+
 }

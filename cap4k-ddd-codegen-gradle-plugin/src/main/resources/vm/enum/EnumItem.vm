@@ -1,0 +1,7 @@
+## Enum Item 枚举项模板片段
+## 生成单个枚举项的代码
+
+/**
+* ${itemDesc}
+*/
+${itemName}(${itemValue}, "${itemDesc}"),

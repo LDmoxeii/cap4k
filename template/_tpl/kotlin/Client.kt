@@ -2,6 +2,8 @@ package $
 
 { basePackage }.application.distributed.clients${ package }
 
+{ basePackage }.application.distributed.clients${ package }
+
 import com.only4.cap4k.ddd.application.RequestParam
 
 /**

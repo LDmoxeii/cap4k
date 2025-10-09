@@ -1,3 +1,8 @@
+package $
+
+{ basePackage }.domain.aggregates${ package }.factory
+
+import ${basePackage}.domain.aggregates${package}.${Entity}
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate

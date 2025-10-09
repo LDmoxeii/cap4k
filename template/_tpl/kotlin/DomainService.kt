@@ -2,6 +2,8 @@ package $
 
 { basePackage }.domain.services${ package }
 
+{ basePackage }.domain.services${ package }
+
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import com.only4.cap4k.ddd.annotation.DomainService

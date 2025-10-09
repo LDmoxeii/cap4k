@@ -14,7 +14,7 @@ import java.time.LocalDateTime
  * @author cap4k-ddd-codegen
  */
 @Component
-class MyIntegrationEvventInterceptor : IntegrationEventInterceptor {
+class MyIntegrationEventInterceptor : IntegrationEventInterceptor {
     override fun onAttach(eventPayload: Any, schedule: LocalDateTime) {}
 
     override fun onDetach(eventPayload: Any) {}

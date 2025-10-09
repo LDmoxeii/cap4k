@@ -1,3 +1,8 @@
+package $
+
+{ basePackage }.application.subscribers.domain
+
+import ${basePackage}.domain.aggregates${package}.events.${DomainEvent}
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Service
 

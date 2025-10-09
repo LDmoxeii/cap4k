@@ -18,14 +18,16 @@ CREATE TABLE `__event`
     `version`       int(11)      NOT NULL DEFAULT '0',
     `db_created_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `db_updated_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id` #, `db_created_at`),
-    KEY             `idx_db_created_at` (`db_created_at`),
-    KEY             `idx_db_updated_at` (`db_updated_at`),
-    KEY             `idx_event_uuid` (`event_uuid`),
-    KEY             `idx_event_type` (`event_type`, `svc_name`),
-    KEY             `idx_create_at` (`create_at`),
-    KEY             `idx_expire_at` (`expire_at`),
-    KEY             `idx_next_try_time` (`next_try_time`)
+    PRIMARY KEY (`id`
+#   , `db_created_at`
+        ),
+    KEY `idx_db_created_at` (`db_created_at`),
+    KEY `idx_db_updated_at` (`db_updated_at`),
+    KEY `idx_event_uuid` (`event_uuid`),
+    KEY `idx_event_type` (`event_type`, `svc_name`),
+    KEY `idx_create_at` (`create_at`),
+    KEY `idx_expire_at` (`expire_at`),
+    KEY `idx_next_try_time` (`next_try_time`)
     ) COMMENT ='事件发件箱 support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
@@ -50,14 +52,16 @@ CREATE TABLE `__achrived_event`
     `version`       int(11)      NOT NULL DEFAULT '0',
     `db_created_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `db_updated_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id` #, `db_created_at`),
-    KEY             `idx_db_created_at` (`db_created_at`),
-    KEY             `idx_db_updated_at` (`db_updated_at`),
-    KEY             `idx_event_uuid` (`event_uuid`),
-    KEY             `idx_event_type` (`event_type`, `svc_name`),
-    KEY             `idx_create_at` (`create_at`),
-    KEY             `idx_expire_at` (`expire_at`),
-    KEY             `idx_next_try_time` (`next_try_time`)
+    PRIMARY KEY (`id`
+#   , `db_created_at`
+        ),
+    KEY `idx_db_created_at` (`db_created_at`),
+    KEY `idx_db_updated_at` (`db_updated_at`),
+    KEY `idx_event_uuid` (`event_uuid`),
+    KEY `idx_event_type` (`event_type`, `svc_name`),
+    KEY `idx_create_at` (`create_at`),
+    KEY `idx_expire_at` (`expire_at`),
+    KEY `idx_next_try_time` (`next_try_time`)
     ) COMMENT ='事件发件箱存档 support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
@@ -85,14 +89,16 @@ CREATE TABLE `__request`
     `version`       int          NOT NULL DEFAULT '0',
     `db_created_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `db_updated_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id` #, `db_created_at`),
-    KEY             `idx_db_created_at` (`db_created_at`),
-    KEY             `idx_db_updated_at` (`db_updated_at`),
-    KEY             `idx_request_uuid` (`request_uuid`),
-    KEY             `idx_request_type` (`request_type`, `svc_name`),
-    KEY             `idx_create_at` (`create_at`),
-    KEY             `idx_expire_at` (`expire_at`),
-    KEY             `idx_next_try_time` (`next_try_time`)
+    PRIMARY KEY (`id`
+#   , `db_created_at`
+        ),
+    KEY `idx_db_created_at` (`db_created_at`),
+    KEY `idx_db_updated_at` (`db_updated_at`),
+    KEY `idx_request_uuid` (`request_uuid`),
+    KEY `idx_request_type` (`request_type`, `svc_name`),
+    KEY `idx_create_at` (`create_at`),
+    KEY `idx_expire_at` (`expire_at`),
+    KEY `idx_next_try_time` (`next_try_time`)
     ) COMMENT ='请求 support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
@@ -119,14 +125,16 @@ CREATE TABLE `__archived_request`
     `version`       int          NOT NULL DEFAULT '0',
     `db_created_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `db_updated_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id` #, `db_created_at`),
-    KEY             `idx_db_created_at` (`db_created_at`),
-    KEY             `idx_db_updated_at` (`db_updated_at`),
-    KEY             `idx_request_uuid` (`request_uuid`),
-    KEY             `idx_request_type` (`request_type`, `svc_name`),
-    KEY             `idx_create_at` (`create_at`),
-    KEY             `idx_expire_at` (`expire_at`),
-    KEY             `idx_next_try_time` (`next_try_time`)
+    PRIMARY KEY (`id`
+#   , `db_created_at`
+        ),
+    KEY `idx_db_created_at` (`db_created_at`),
+    KEY `idx_db_updated_at` (`db_updated_at`),
+    KEY `idx_request_uuid` (`request_uuid`),
+    KEY `idx_request_type` (`request_type`, `svc_name`),
+    KEY `idx_create_at` (`create_at`),
+    KEY `idx_expire_at` (`expire_at`),
+    KEY `idx_next_try_time` (`next_try_time`)
     ) COMMENT ='请求(存档) support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
@@ -154,14 +162,16 @@ CREATE TABLE `__saga`
     `version`       int          NOT NULL DEFAULT '0',
     `db_created_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `db_updated_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id` #, `db_created_at`),
-    KEY             `idx_db_created_at` (`db_created_at`),
-    KEY             `idx_db_updated_at` (`db_updated_at`),
-    KEY             `idx_saga_uuid` (`saga_uuid`),
-    KEY             `idx_saga_type` (`saga_type`, `svc_name`),
-    KEY             `idx_create_at` (`create_at`),
-    KEY             `idx_expire_at` (`expire_at`),
-    KEY             `idx_next_try_time` (`next_try_time`)
+    PRIMARY KEY (`id`
+#   , `db_created_at`
+        ),
+    KEY `idx_db_created_at` (`db_created_at`),
+    KEY `idx_db_updated_at` (`db_updated_at`),
+    KEY `idx_saga_uuid` (`saga_uuid`),
+    KEY `idx_saga_type` (`saga_type`, `svc_name`),
+    KEY `idx_create_at` (`create_at`),
+    KEY `idx_expire_at` (`expire_at`),
+    KEY `idx_next_try_time` (`next_try_time`)
     ) COMMENT ='SAGA事务 support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
@@ -184,10 +194,12 @@ CREATE TABLE `__saga_process`
     `tried_times`   int          NOT NULL DEFAULT '0' COMMENT '尝试次数',
     `db_created_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `db_updated_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id` #, `db_created_at`),
-    KEY             `idx_db_created_at` (`db_created_at`),
-    KEY             `idx_db_updated_at` (`db_updated_at`),
-    KEY             `idx_saga_id` (`saga_id`)
+    PRIMARY KEY (`id`
+#   , `db_created_at`
+        ),
+    KEY `idx_db_created_at` (`db_created_at`),
+    KEY `idx_db_updated_at` (`db_updated_at`),
+    KEY `idx_saga_id` (`saga_id`)
     ) COMMENT ='SAGA事务-子环节 support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
@@ -215,14 +227,16 @@ CREATE TABLE `__archived_saga`
     `version`       int          NOT NULL DEFAULT '0',
     `db_created_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `db_updated_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id` #, `db_created_at`),
-    KEY             `idx_db_created_at` (`db_created_at`),
-    KEY             `idx_db_updated_at` (`db_updated_at`),
-    KEY             `idx_saga_uuid` (`saga_uuid`),
-    KEY             `idx_saga_type` (`saga_type`, `svc_name`),
-    KEY             `idx_create_at` (`create_at`),
-    KEY             `idx_expire_at` (`expire_at`),
-    KEY             `idx_next_try_time` (`next_try_time`)
+    PRIMARY KEY (`id`
+#   , `db_created_at`
+        ),
+    KEY `idx_db_created_at` (`db_created_at`),
+    KEY `idx_db_updated_at` (`db_updated_at`),
+    KEY `idx_saga_uuid` (`saga_uuid`),
+    KEY `idx_saga_type` (`saga_type`, `svc_name`),
+    KEY `idx_create_at` (`create_at`),
+    KEY `idx_expire_at` (`expire_at`),
+    KEY `idx_next_try_time` (`next_try_time`)
     ) COMMENT ='SAGA事务(存档) support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
@@ -245,10 +259,12 @@ CREATE TABLE `__archived_saga_process`
     `tried_times`   int          NOT NULL DEFAULT '0' COMMENT '尝试次数',
     `db_created_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `db_updated_at` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id` #, `db_created_at`),
-    KEY             `idx_db_created_at` (`db_created_at`),
-    KEY             `idx_db_updated_at` (`db_updated_at`),
-    KEY             `idx_saga_id` (`saga_id`)
+    PRIMARY KEY (`id`
+#   , `db_created_at`
+        ),
+    KEY `idx_db_created_at` (`db_created_at`),
+    KEY `idx_db_updated_at` (`db_updated_at`),
+    KEY `idx_saga_id` (`saga_id`)
     ) COMMENT ='SAGA事务-子环节(存档) support by cap4j\n@I;'
 # partition by range(to_days(db_created_at))
 # (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
@@ -266,9 +282,9 @@ CREATE TABLE `__event_http_subscriber`
     `db_updated_at` datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `db_deleted`    tinyint(1)    NOT NULL DEFAULT '0',
     PRIMARY KEY (`id`),
-    KEY             `idx_db_created_at` (`db_created_at`),
-    KEY             `idx_db_updated_at` (`db_updated_at`),
-    KEY             `idx_event` (`event`)
+    KEY `idx_db_created_at` (`db_created_at`),
+    KEY `idx_db_updated_at` (`db_updated_at`),
+    KEY `idx_event` (`event`)
     ) COMMENT ='事件HTTP订阅 support by cap4j\n@I;'
 ;
 
@@ -284,8 +300,8 @@ CREATE TABLE `__locker`
     `db_created_at` timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `db_updated_at` timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    KEY             `idx_db_created_at` (`db_created_at`),
-    KEY             `idx_db_updated_at` (`db_updated_at`),
+    KEY `idx_db_created_at` (`db_created_at`),
+    KEY `idx_db_updated_at` (`db_updated_at`),
     UNIQUE `uniq_name` (`name`)
     ) COMMENT ='锁 support by cap4j\n@I;';
 
@@ -302,6 +318,6 @@ CREATE TABLE `__worker_id`
     `db_created_at` timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `db_updated_at` timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    KEY             `idx_db_created_at` (`db_created_at`),
-    KEY             `idx_db_updated_at` (`db_updated_at`)
+    KEY `idx_db_created_at` (`db_created_at`),
+    KEY `idx_db_updated_at` (`db_updated_at`)
     ) COMMENT ='雪花机器码 support by cap4j\n@I;';

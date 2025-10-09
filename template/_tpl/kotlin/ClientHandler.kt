@@ -21,7 +21,6 @@ class $ {Client }Handler : DistributedClient<ClientContract.Request, ClientContr
     }
 
     override fun exec(request: ClientContract.Request): ClientContract.Response {
-        // TODO: 实现分布式客户端调用逻辑
         log.info("执行${Client}远程调用: {}", request)
 
         return ClientContract.Response(

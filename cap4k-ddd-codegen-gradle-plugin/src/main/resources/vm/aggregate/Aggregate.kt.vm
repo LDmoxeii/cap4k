@@ -1,0 +1,24 @@
+## Aggregate 聚合封装类模板
+## 生成聚合的包装类，提供聚合根访问和 ID 封装
+package ${basePackage}${templatePackage}${package}
+
+import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
+import ${basePackage}${templatePackage}${package}.factory.${Entity}Factory
+
+/**
+ * ${Entity}聚合封装
+ * ${CommentEscaped}
+ *
+ * @author cap4k-ddd-codegen
+ * @date ${DateUtils.now()}
+ */
+class ${aggregateNameTemplate}(
+    payload: ${Entity}Factory.Payload? = null,
+) : Aggregate.Default<${Entity}>(payload) {
+
+    val id by lazy { root.id }
+
+    class Id(key: ${IdentityType}) :
+        com.only4.cap4k.ddd.core.domain.aggregate.Id.Default<${aggregateNameTemplate}, ${IdentityType}>(key)
+
+}

@@ -1,4 +1,3 @@
-//<!-- [cap4j-ddd-codegen-maven-plugin:do-not-overwrite] -->
 
 plugins {
     id("buildsrc.convention.kotlin-jvm")

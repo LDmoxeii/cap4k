@@ -1,5 +1,3 @@
-//<!-- [cap4j-ddd-codegen-maven-plugin:do-not-overwrite] -->
-
 // The settings file is the entry point of every Gradle build.
 // Its primary purpose is to define the subprojects.
 // It is also used for some aspects of project-wide configuration, like managing plugins, dependencies, etc.
@@ -9,15 +7,15 @@ pluginManagement {
     repositories {
         maven {
             credentials {
-                username = providers.gradleProperty("aliyun.maven.username").orNull ?: "defaultUsername"
-                password = providers.gradleProperty("aliyun.maven.password").orNull ?: "defaultPassword"
+                username = providers.gradleProperty("aliyun.maven.username").get()
+                password = providers.gradleProperty("aliyun.maven.password").get()
             }
             url = uri("https://packages.aliyun.com/67053c6149e9309ce56b9e9e/maven/cap4k")
         }
         maven {
             credentials {
-                username = providers.gradleProperty("aliyun.maven.username").orNull ?: "defaultUsername"
-                password = providers.gradleProperty("aliyun.maven.password").orNull ?: "defaultPassword"
+                username = providers.gradleProperty("aliyun.maven.username").get()
+                password = providers.gradleProperty("aliyun.maven.password").get()
             }
             url = uri("https://packages.aliyun.com/67053c6149e9309ce56b9e9e/maven/only-engine")
         }
@@ -32,15 +30,15 @@ dependencyResolutionManagement {
     repositories {
         maven {
             credentials {
-                username = providers.gradleProperty("aliyun.maven.username").orNull ?: "defaultUsername"
-                password = providers.gradleProperty("aliyun.maven.password").orNull ?: "defaultPassword"
+                username = providers.gradleProperty("aliyun.maven.username").get()
+                password = providers.gradleProperty("aliyun.maven.password").get()
             }
             url = uri("https://packages.aliyun.com/67053c6149e9309ce56b9e9e/maven/cap4k")
         }
         maven {
             credentials {
-                username = providers.gradleProperty("aliyun.maven.username").orNull ?: "defaultUsername"
-                password = providers.gradleProperty("aliyun.maven.password").orNull ?: "defaultPassword"
+                username = providers.gradleProperty("aliyun.maven.username").get()
+                password = providers.gradleProperty("aliyun.maven.password").get()
             }
             url = uri("https://packages.aliyun.com/67053c6149e9309ce56b9e9e/maven/only-engine")
         }

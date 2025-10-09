@@ -1,0 +1,50 @@
+## Repository 仓储接口模板
+## 生成JPA仓储接口及其适配器实现
+package ${basePackage}.adapter.driven.persistence.repositories
+
+import ${EntityPackage}.${Entity}
+import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+import com.only4.cap4k.ddd.domain.repo.AbstractJpaRepository
+    #if($repositorySupportQuerydsl == "true")
+    import com.only4.cap4k.ddd.domain.repo.querydsl.AbstractQuerydslRepository
+    #end
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor
+    #if($repositorySupportQuerydsl == "true")
+    import org.springframework.data.querydsl.QuerydslPredicateExecutor
+    #end
+import org.springframework.stereotype.Component
+
+/**
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * @date ${DateUtils.now()}
+ */
+interface ${Entity}Repository : JpaRepository<${Entity}, ${IdentityType}>,
+    JpaSpecificationExecutor<${Entity}>#if($repositorySupportQuerydsl == "true"),
+    QuerydslPredicateExecutor<${Entity}>#end {
+
+    @Component
+    @Aggregate(aggregate = "${Aggregate}", name = "${Entity}Repo", type = Aggregate.TYPE_REPOSITORY, description = "")
+    class ${Entity}JpaRepositoryAdapter(
+        jpaSpecificationExecutor: JpaSpecificationExecutor<${Entity}>,
+        jpaRepository: JpaRepository<${Entity}, ${IdentityType}>
+    ) : AbstractJpaRepository<${Entity}, ${IdentityType}>(
+        jpaSpecificationExecutor,
+        jpaRepository
+    )
+    #if($repositorySupportQuerydsl == "true")
+
+        @Component
+        @Aggregate(
+            aggregate = "${Aggregate}",
+            name = "${Entity}QuerydslRepo",
+            type = Aggregate.TYPE_REPOSITORY,
+            description = ""
+        )
+        class ${Entity}QuerydslRepositoryAdapter(
+            querydslPredicateExecutor: QuerydslPredicateExecutor<${Entity}>
+        ) : AbstractQuerydslRepository<${Entity}>(
+            querydslPredicateExecutor
+        )
+    #end
+}

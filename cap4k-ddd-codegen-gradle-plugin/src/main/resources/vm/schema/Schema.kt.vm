@@ -1,0 +1,252 @@
+## Schema 查询结构类模板
+## 生成实体的查询结构类，提供类型安全的查询条件构建
+package ${basePackage}${templatePackage}${package}.meta
+
+#if($isAggregateRoot == "true" && $repositorySupportQuerydsl == "true")
+import com.querydsl.core.types.OrderSpecifier
+#end
+#if($isAggregateRoot == "true")
+import com.only4.cap4k.ddd.domain.repo.JpaPredicate
+#end
+#if($isAggregateRoot == "true" && $repositorySupportQuerydsl == "true")
+import com.only4.cap4k.ddd.domain.repo.querydsl.QuerydslPredicate
+#end
+import ${basePackage}${schemaBasePackage}.${SchemaBase}
+#if($isAggregateRoot == "true" && $generateAggregate == "true")
+import ${basePackage}${entityPackage}.${aggregateNameTemplate}
+#end
+import ${basePackage}${entityPackage}.${Entity}
+#if($isAggregateRoot == "true" && $repositorySupportQuerydsl == "true")
+import ${basePackage}${entityPackage}.Q${Entity}
+#end
+#if($isAggregateRoot == "true" && $generateAggregate == "true")
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate
+#end
+import org.springframework.data.jpa.domain.Specification
+
+import jakarta.persistence.criteria.*
+
+/**
+ * ${Comment}
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * 警告：请勿手工修改该文件，重新生成会覆盖该文件
+ * @author cap4k-ddd-codegen
+ * @date ${DateUtils.now()}
+ */
+class ${entitySchemaNameTemplate}(
+    private val root: Path<${Entity}>,
+    private val criteriaBuilder: CriteriaBuilder,
+) {
+    class PROPERTY_NAMES {
+        ${PROPERTY_NAMES}
+    }
+
+    companion object {
+
+        val props = PROPERTY_NAMES()
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder where条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(builder: ${SchemaBase}.PredicateBuilder<${entitySchemaNameTemplate}>): Specification<${Entity}>
+        {
+            return specify(builder, false, emptyList())
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder  where条件构造器
+         * @param distinct 是否去重
+         * @return
+         */
+        @JvmStatic
+        fun specify(builder: ${SchemaBase}.PredicateBuilder<${entitySchemaNameTemplate}>, distinct: Boolean): Specification<${Entity}>
+        {
+            return specify(builder, distinct, emptyList())
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       where条件构造器
+         * @param orderBuilders 排序条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(
+            builder: ${SchemaBase}.PredicateBuilder<${entitySchemaNameTemplate}>,
+        vararg orderBuilders: ${SchemaBase}.OrderBuilder<${entitySchemaNameTemplate}>,
+        ): Specification<${Entity}>
+        {
+            return specify(builder, orderBuilders.toList())
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       where条件构造器
+         * @param orderBuilders 排序条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(
+            builder: ${SchemaBase}.PredicateBuilder<${entitySchemaNameTemplate}>,
+        orderBuilders: List<${SchemaBase}.OrderBuilder<${entitySchemaNameTemplate}>>,
+        ): Specification<${Entity}>
+        {
+            return specify(builder, false, orderBuilders)
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       where条件构造器
+         * @param distinct      是否去重
+         * @param orderBuilders 排序条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(
+            builder: ${SchemaBase}.PredicateBuilder<${entitySchemaNameTemplate}>,
+        distinct: Boolean,
+        vararg orderBuilders: ${SchemaBase}.OrderBuilder<${entitySchemaNameTemplate}>,
+        ): Specification<${Entity}>
+        {
+            return specify(builder, distinct, orderBuilders.toList())
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       where条件构造器
+         * @param distinct      是否去重
+         * @param orderBuilders 排序条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(
+            builder: ${SchemaBase}.PredicateBuilder<${entitySchemaNameTemplate}>,
+        distinct: Boolean,
+        orderBuilders: List<${SchemaBase}.OrderBuilder<${entitySchemaNameTemplate}>>,
+        ): Specification<${Entity}>
+        {
+            return specify { schema, criteriaQuery, criteriaBuilder ->
+                criteriaQuery.where(builder.build(schema))
+                criteriaQuery.distinct(distinct)
+                if (orderBuilders.isNotEmpty()) {
+                    criteriaQuery.orderBy(orderBuilders.map { it.build(schema) })
+                }
+                null
+            }
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param specifier 查询条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(specifier: ${SchemaBase}.Specification<${Entity}, ${entitySchemaNameTemplate}>): Specification<${Entity}>
+        {
+            return Specification { root, criteriaQuery, criteriaBuilder ->
+                val schema = ${entitySchemaNameTemplate}(root, criteriaBuilder)
+                specifier.toPredicate(schema, criteriaQuery, criteriaBuilder)
+            }
+        }
+
+        /**
+         * 构建子查询
+         *
+         * @param resultClass      返回结果类型
+         * @param selectBuilder    select条件构造器
+         * @param predicateBuilder where条件构造器
+         * @param criteriaBuilder
+         * @param criteriaQuery
+         * @param <E>
+         * @return
+         */
+        @JvmStatic
+        fun <E> subquery(
+            resultClass: Class<E>,
+            selectBuilder: ${SchemaBase}.ExpressionBuilder<${entitySchemaNameTemplate}, E>,
+        predicateBuilder: ${SchemaBase}.PredicateBuilder<${entitySchemaNameTemplate}>,
+        criteriaBuilder: CriteriaBuilder,
+        criteriaQuery: CriteriaQuery<*>,
+        ): Subquery<E>
+        {
+            return subquery(resultClass, { sq, schema ->
+                sq.select(selectBuilder.build(schema))
+                sq.where(predicateBuilder.build(schema))
+            }, criteriaBuilder, criteriaQuery)
+        }
+
+        /**
+         * 构建子查询
+         *
+         * @param resultClass       返回结果类型
+         * @param subqueryConfigure 子查询配置
+         * @param criteriaBuilder
+         * @param criteriaQuery
+         * @param <E>
+         * @return
+         */
+        @JvmStatic
+        fun <E> subquery(
+            resultClass: Class<E>,
+            subqueryConfigure: ${SchemaBase}.SubqueryConfigure<E, ${entitySchemaNameTemplate}>,
+        criteriaBuilder: CriteriaBuilder,
+        criteriaQuery: CriteriaQuery<*>,
+        ): Subquery<E>
+        {
+            val sq = criteriaQuery.subquery(resultClass)
+            val root = sq.from(${Entity}::class.java)
+            val schema = ${entitySchemaNameTemplate}(root, criteriaBuilder)
+            subqueryConfigure.configure(sq, schema)
+            return sq
+        }
+
+        ${EXTRA_EXTENSION}
+    }
+
+    fun _criteriaBuilder(): CriteriaBuilder = criteriaBuilder
+
+    fun _root(): Path<${Entity}> = root
+
+    ${FIELD_ITEMS}
+
+    /**
+     * 满足所有条件
+     * @param restrictions
+     * @return
+     */
+    fun all(vararg restrictions: Predicate): Predicate {
+        return criteriaBuilder.and(*restrictions)
+    }
+
+    /**
+     * 满足任一条件
+     * @param restrictions
+     * @return
+     */
+    fun any(vararg restrictions: Predicate): Predicate {
+        return criteriaBuilder.or(*restrictions)
+    }
+
+    /**
+     * 指定条件
+     * @param builder
+     * @return
+     */
+    fun spec(builder: ${SchemaBase}.PredicateBuilder<${entitySchemaNameTemplate}>): Predicate
+    {
+        return builder.build(this)
+    }
+
+    ${JOIN_ITEMS}
+}

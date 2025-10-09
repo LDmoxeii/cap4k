@@ -1,0 +1,56 @@
+## Enum 枚举类模板
+## 根据数据库字段枚举配置生成 Kotlin 枚举类
+package ${basePackage}${templatePackage}${package}.enums
+
+import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+import jakarta.persistence.AttributeConverter
+
+/**
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * 警告：请勿手工修改该文件，重新生成会覆盖该文件
+ * @author cap4k-ddd-codegen
+ * @date ${DateUtils.now()}
+ */
+@Aggregate(aggregate = "${Aggregate}", name = "${Enum}", type = "enum", description = "${CommentEscaped}")
+enum class ${Enum}(
+    val ${EnumValueField}: Int,
+    val ${EnumNameField}: String
+) {
+
+    ${ENUM_ITEMS}
+    ;
+
+    companion object {
+
+        private val enumMap: Map<Int, ${Enum}> by lazy {
+            entries.associateBy { it.${EnumValueField} }
+        }
+
+        fun valueOf(value: Int): ${Enum} {
+            return enumMap[value] ?: throw IllegalArgumentException("枚举类型${Enum}枚举值转换异常，不存在的值: $value")
+        }
+
+        fun valueOfOrNull(value: Int?): ${Enum}? {
+            return if (value == null) null else valueOf(value)
+        }
+    }
+
+    /**
+     * JPA转换器
+     */
+    class Converter : AttributeConverter<${Enum}, Int> {
+        override fun convertToDatabaseColumn(attribute: ${Enum}): Int {
+            return attribute.${EnumValueField}
+        }
+
+        #if($enumUnmatchedThrowException == "true")
+            override fun convertToEntityAttribute(dbData: Int): ${Enum} {
+                return valueOf(dbData)
+            }
+        #else
+            override fun convertToEntityAttribute(dbData: Int): ${Enum}? {
+                return valueOfOrNull(dbData)
+            }
+        #end
+    }
+}

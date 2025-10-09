@@ -1,4 +1,3 @@
-//<!-- [cap4j-ddd-codegen-maven-plugin:do-not-overwrite] -->
 
 plugins {
     id("buildsrc.convention.kotlin-jvm")
@@ -8,6 +7,7 @@ plugins {
 dependencies {
     api(libs.spring.data)
     api(libs.spring.web)
+    api(libs.spring.messaging)
     api(libs.druid)
     api(libs.mysql)
 

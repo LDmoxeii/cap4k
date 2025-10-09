@@ -1,0 +1,8 @@
+## Schema Property Name 模板片段
+## 生成Schema中的属性名常量
+
+/**
+* ${fieldDescription}
+*/
+val ${fieldName} = "${fieldName}"
+

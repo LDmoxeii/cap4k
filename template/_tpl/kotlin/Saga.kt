@@ -1,6 +1,6 @@
 package $
 
-{ basePackage }.application.distributed.sagas${ package }
+{ basePackage }.application.distributed.sagas${ package };
 
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service

@@ -1,0 +1,16 @@
+## Schema Join 模板片段
+## 生成Schema中的关联查询方法
+/**
+* ${joinEntityType} 关联查询条件定义
+*
+* @param joinType
+* @return
+*/
+fun join${joinEntityType}(joinType: ${SchemaBase}.JoinType): ${joinEntitySchemaPackage}${entitySchemaNameTemplate.replace(
+    '${Entity}', joinEntityType)} {
+val type = joinType.toJpaJoinType()
+val join = (this.root as Root<${Entity}>).join<${Entity}, ${joinEntityPackage}.${joinEntityType}>("${joinEntityVars}", type)
+val schema = ${joinEntitySchemaPackage}${entitySchemaNameTemplate.replace(
+    '${Entity}', joinEntityType)}(join, this.criteriaBuilder)
+return schema
+}

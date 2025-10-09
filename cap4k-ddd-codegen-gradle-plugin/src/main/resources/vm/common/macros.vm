@@ -1,0 +1,95 @@
+## Velocity 通用宏定义
+## 用于 cap4k-ddd-codegen 代码生成
+
+## 宏: 生成 Java 文件头注释
+## 参数:
+##   $description - 文件描述
+##   $author - 作者名称
+#macro(fileHeader $description $author)
+/**
+* ${description}
+*
+* @author ${author}
+* @date ${DateUtils.now()}
+*/
+#end
+
+## 宏: 生成字段的 getter/setter 方法
+## 参数:
+##   $fieldType - 字段类型
+##   $fieldName - 字段名称(小驼峰)
+#macro(getterSetter $fieldType $fieldName)
+public ${fieldType} get${StringUtils.capitalize($fieldName)}() {
+return ${fieldName};
+}
+
+public void set${StringUtils.capitalize($fieldName)}(${fieldType} ${fieldName}) {
+this.${fieldName} = ${fieldName};
+}
+#end
+
+## 宏: 生成 JPA 实体字段注解
+## 参数:
+##   $field - 字段对象(需包含 type, name, comment, nullable 等属性)
+#macro(jpaFieldAnnotation $field)
+    #if($field.comment)
+    /**
+    * ${field.comment}
+    */
+    #end
+    #if($TypeUtils.isString($field.type))
+    @Column(name = "${StringUtils.camelToSnake($field.name)}"#if($field.length), length = ${field.length}#end#if(!$field.nullable), nullable = false#end)
+    #elseif($TypeUtils.isDate($field.type))
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "${StringUtils.camelToSnake($field.name)}"#if(!$field.nullable), nullable = false#end)
+    #else
+    @Column(name = "${StringUtils.camelToSnake($field.name)}"#if(!$field.nullable), nullable = false#end)
+    #end
+#end
+
+## 宏: 生成导入语句列表
+## 参数:
+##   $imports - 导入类列表(List<String>)
+#macro(importStatements $imports)
+    #foreach($import in $imports)
+    import ${import};
+    #end
+#end
+
+## 宏: 生成标准的实体类字段
+## 参数:
+##   $field - 字段对象
+#macro(entityField $field)
+    #jpaFieldAnnotation($field)
+private ${field.type} ${field.name};
+#end
+
+## 宏: 生成枚举值定义
+## 参数:
+##   $enumName - 枚举名称
+##   $items - 枚举项列表
+#macro(enumValues $enumName $items)
+    #foreach($item in $items)
+    /**
+    * ${item.desc}
+    */
+        ${item.name}(${item.value})#if($foreach.hasNext),#else;#end
+
+    #end
+#end
+
+## 宏: 生成 Repository 接口基础定义
+## 参数:
+##   $entityName - 实体类名
+##   $idType - 主键类型
+#macro(repositoryInterface $entityName $idType)
+/**
+* ${entityName} 仓储接口
+*
+* @author cap4k-codegen
+* @date ${DateUtils.now()}
+*/
+public interface ${entityName}Repository extends Repository<${entityName}> {
+
+}
+#end

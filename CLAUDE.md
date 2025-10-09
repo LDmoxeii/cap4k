@@ -38,6 +38,7 @@ follows a multi-module structure with DDD architectural patterns.
 - **cap4k-ddd-console** - Management console with HTTP endpoints for monitoring events, requests, sagas, locks, and
   snowflake IDs
 - **cap4k-ddd-starter** - Spring Boot starter for automatic configuration
+- **cap4k-ddd-codegen-gradle-plugin** - Gradle plugin for DDD code generation with Velocity template support
 
 ### Core Architecture
 
@@ -217,6 +218,237 @@ HTTP-based integration event system for cross-service communication:
 - Automatic retry logic for failed HTTP deliveries
 - Persistent subscriber registry using JPA (when combined with `ddd-integration-event-http-jpa`)
 - Support for event filtering and routing
+
+### Code Generation Plugin (`cap4k-ddd-codegen-gradle-plugin`)
+
+Gradle plugin for generating DDD boilerplate code from database schemas or design specifications.
+
+#### Key Features
+
+- **Dual Template Engine Support**:
+    - String-based templates with variable substitution (legacy)
+    - Apache Velocity templates (VTL) for advanced code generation
+- **Database Schema Introspection**: Generate entities, repositories, and aggregates from existing database tables
+- **DDD Pattern Generation**: Automatically generate domain events, specifications, factories, commands, queries, and
+  sagas
+- **Multi-Module Support**: Generate code across separate adapter, application, and domain modules
+- **Customizable Templates**: Override default templates with custom Velocity templates
+
+#### Velocity Template Integration
+
+The plugin integrates Apache Velocity 2.3 for advanced template-based code generation.
+
+**Core Velocity Components:**
+
+- `VelocityInitializer` - Singleton engine initialization with lazy loading
+- `VelocityTemplateRenderer` - Renders both file-based (.vm) and inline templates
+- `VelocityContextBuilder` - Builds VelocityContext from configuration maps
+- `VelocityConfig` - Configuration for encoding, strict references, and caching
+
+**Built-in Velocity Tools:**
+
+The plugin provides utility tools accessible in all Velocity templates:
+
+- `$StringUtils` - String manipulation utilities:
+    - `capitalize(str)` - Capitalize first letter
+    - `uncapitalize(str)` - Lowercase first letter
+    - `camelToSnake(str)` - Convert camelCase to snake_case
+    - `snakeToCamel(str)` - Convert snake_case to camelCase
+
+- `$DateUtils` - Date utilities:
+    - `now()` - Current date (yyyy-MM-dd)
+    - `datetime()` - Current datetime (yyyy-MM-dd HH:mm:ss)
+    - `year()` - Current year
+
+- `$TypeUtils` - Type checking utilities:
+    - `isString(type)` - Check if type is String
+    - `isNumber(type)` - Check if type is numeric
+    - `isDate(type)` - Check if type is date/timestamp
+    - `isBoolean(type)` - Check if type is boolean
+
+**Template Context Variables:**
+
+All Velocity templates have access to the full code generation context:
+
+```velocity
+## Project Information
+${artifactId}    ## Project name
+${groupId}       ## Project group
+${version}       ## Project version
+
+## Configuration
+${basePackage}          ## Base package (e.g., com.example.project)
+${basePackage__as_path} ## Base package as path (e.g., com/example/project)
+${multiModule}          ## Whether using multi-module structure
+
+## Module Paths
+${adapterModulePath}     ## Adapter module path
+${applicationModulePath} ## Application module path
+${domainModulePath}      ## Domain module path
+
+## Database Configuration
+${dbUrl}          ## Database URL
+${dbUsername}     ## Database username
+${dbSchema}       ## Database schema
+${dbTables}       ## Tables to include
+${dbIgnoreTables} ## Tables to ignore
+
+## Generation Configuration
+${entityBaseClass}      ## Base class for entities
+${rootEntityBaseClass}  ## Base class for aggregate roots
+${idGenerator}          ## ID generator strategy
+${datePackage}          ## Date/time package to use
+${repositoryNameTemplate} ## Repository naming template
+## ... and many more configuration variables
+```
+
+**Using Velocity Templates:**
+
+To use Velocity templates in your code generation, set the `format` field to `"velocity"` or `"vm"`:
+
+```kotlin
+// In template JSON configuration
+{
+    "type": "file",
+    "name": "${Entity}.java",
+    "format": "velocity",  // or "vm"
+    "data": "#fileHeader(\"$Comment\", \"cap4k-codegen\")\npackage ${basePackage}.domain.aggregates.${aggregate};\n\n..."
+}
+```
+
+Or load from external .vm file:
+
+```kotlin
+{
+    "type": "file",
+    "name": "${Entity}Repository.java",
+    "format": "url",  // Load from file first
+    "data": "vm/repository.java.vm"  // Path to .vm file in resources
+}
+```
+
+**Velocity Macro Support:**
+
+Common macros are provided in `vm/common/macros.vm`:
+
+```velocity
+## Include common macros
+#parse("vm/common/macros.vm")
+
+## Use macros
+#fileHeader("User Repository", "cap4k-codegen")
+
+public interface UserRepository extends Repository<User> {
+#foreach($method in $methods)
+    #repositoryMethod($method)
+#end
+}
+```
+
+**Template Resolution Process:**
+
+1. **Template Node Resolution** (`TemplateNode.resolve()`):
+    - Checks if template is Velocity format via `isVelocityTemplate()`
+    - For Velocity: Loads content but skips variable escaping
+    - For non-Velocity: Applies standard variable substitution
+    - Preserves format marker for rendering stage
+
+2. **File Rendering** (`AbstractCodegenTask.renderFile()`):
+    - Detects Velocity templates via format marker
+    - Builds VelocityContext with all configuration variables
+    - Injects utility tools (StringUtils, DateUtils, TypeUtils)
+    - Renders template using VelocityTemplateRenderer
+    - Writes rendered content to output file
+
+**Migration from String Templates:**
+
+Existing string-based templates continue to work without modification. To migrate to Velocity:
+
+1. Change `format` from `"raw"` to `"velocity"` or `"vm"`
+2. Replace `${variable}` with Velocity syntax `$variable` or `${variable}`
+3. Use Velocity directives (#if, #foreach, #macro) for conditional logic
+4. Access utility tools via `$StringUtils`, `$DateUtils`, `$TypeUtils`
+
+**Example Velocity Template:**
+
+```velocity
+#fileHeader("${Entity} Entity", "cap4k-codegen")
+package ${basePackage}.domain.aggregates.${aggregate};
+
+import jakarta.persistence.*;
+import org.hibernate.annotations.*;
+
+@Entity
+@Table(name = "${StringUtils.camelToSnake($Entity)}")
+@DynamicInsert
+@DynamicUpdate
+public class ${Entity} {
+
+    @Id
+    @GeneratedValue(generator = "${idGenerator}")
+    private String id;
+
+#foreach($field in $fields)
+#if($TypeUtils.isString($field.type))
+    @Column(name = "${StringUtils.camelToSnake($field.name)}", length = $field.length)
+#elseif($TypeUtils.isDate($field.type))
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "${StringUtils.camelToSnake($field.name)}")
+#else
+    @Column(name = "${StringUtils.camelToSnake($field.name)}")
+#end
+    private ${field.type} ${field.name};
+
+#end
+}
+```
+
+#### Plugin Configuration
+
+```kotlin
+cap4kCodegen {
+    // Template configuration
+    archTemplate.set("file:///path/to/template.json")  // or http://...
+    archTemplateEncoding.set("UTF-8")
+    outputEncoding.set("UTF-8")
+
+    // Package configuration
+    basePackage.set("com.example.myproject")
+    multiModule.set(true)
+
+    // Module name suffixes
+    moduleNameSuffix4Adapter.set("-adapter")
+    moduleNameSuffix4Application.set("-application")
+    moduleNameSuffix4Domain.set("-domain")
+
+    // Database configuration
+    database {
+        url.set("jdbc:mysql://localhost:3306/mydb")
+        username.set("root")
+        password.set("password")
+        schema.set("mydb")
+        tables.set("user,order,product")
+        ignoreTables.set("flyway_schema_history")
+    }
+
+    // Generation configuration
+    generation {
+        entityBaseClass.set("BaseEntity")
+        rootEntityBaseClass.set("AggregateRoot")
+        idGenerator.set("uuid")
+        datePackage.set("java.time")
+        repositorySupportQuerydsl.set(true)
+        // ... more options
+    }
+}
+```
+
+#### Plugin Tasks
+
+- `generateDDD` - Generate all DDD artifacts from database schema
+- `generateEntities` - Generate only entity classes
+- `generateRepositories` - Generate only repository interfaces
+- `generateAggregates` - Generate aggregate documentation
 
 ### Technology Stack
 

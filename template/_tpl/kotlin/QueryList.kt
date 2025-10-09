@@ -1,4 +1,8 @@
-import com.only4.cap4k.ddd.core.application.ListQueryParam
+package $
+
+{ basePackage }.application.queries${ package }
+
+import com.only4.cap4k.ddd.core.application.query.ListQueryParam
 
 object $ {Query }
 

@@ -2336,1162 +2336,156 @@ open class GenEntityTask : GenArchTask() {
     }
 
     fun resolveDefaultAggregateTemplateNode(): TemplateNode {
-        val template = """
-            package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}
-                        
-            import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
-            import ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_FAC_PACKAGE}.${'$'}{Entity}Factory
-                        
-            /**
-             * ${'$'}{Entity}聚合封装
-             * ${'$'}{CommentEscaped}
-             *
-             * @author cap4k-ddd-codegen
-             * @date ${'$'}{date}
-             */
-            class ${'$'}{aggregateNameTemplate}(
-            payload: ${'$'}{Entity}Factory.Payload? = null,
-            ) : Aggregate.Default<${'$'}{Entity}>(payload) {
-                        
-            val id by lazy { root.id }
-                            
-            class Id(key: ${'$'}{IdentityType}) : com.only4.cap4k.ddd.core.domain.aggregate.Id.Default<${'$'}{aggregateNameTemplate}, ${'$'}{IdentityType}>(key)
-                            
-            }
-        """.trimIndent()
         return TemplateNode().apply {
             type = "file"
             tag = "aggregate"
             name = "${'$'}{path}${'$'}{SEPARATOR}${extension.get().generation.aggregateNameTemplate.get()}.kt"
-            format = "raw"
-            data = template
+            format = "velocity"
+            data = "vm/aggregate/Aggregate.kt.vm"
             conflict = "skip"
         }
     }
 
     fun resolveDefaultFactoryTemplateNode(): TemplateNode {
-        val template = """
-            package ${'$'}{basePackage}.domain.aggregates${'$'}{package}.${DEFAULT_FAC_PACKAGE}
-
-            import ${'$'}{basePackage}.domain.aggregates${'$'}{package}.${'$'}{Entity}
-            import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
-            import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
-            import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
-            import org.springframework.stereotype.Service
-
-            @Service
-            @Aggregate(aggregate = "${'$'}{Entity}", name = "${'$'}{Entity}Factory", type = Aggregate.TYPE_FACTORY, description = "")
-            class ${'$'}{Entity}Factory : AggregateFactory<${'$'}{Entity}Factory.Payload, ${'$'}{Entity}> {
-                override fun create(payload: Payload): ${'$'}{Entity} {
-                    return ${'$'}{Entity}(
-
-                    )
-                }
-            }
-        """.trimIndent()
-
         return TemplateNode().apply {
             type = "file"
             tag = "factory"
             name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_FAC_PACKAGE}${'$'}{SEPARATOR}${'$'}{Entity}Factory.kt"
-            format = "raw"
-            data = template
+            format = "velocity"
+            data = "vm/factory/Factory.kt.vm"
             conflict = "skip"
         }
     }
 
     fun resolveDefaultFactoryPayloadTemplateNode(): TemplateNode {
-        val template = """
-            package ${'$'}{basePackage}.domain.aggregates${'$'}{package}.${DEFAULT_FAC_PACKAGE}
-
-            import ${'$'}{basePackage}.domain.aggregates${'$'}{package}.${'$'}{Entity}
-            import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
-            import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
-            import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
-            @Aggregate(aggregate = "${'$'}{Entity}", name = "${'$'}{Entity}Payload", type = Aggregate.TYPE_FACTORY_PAYLOAD, description = "")
-                class Payload(
-
-                ) : AggregatePayload<${'$'}{Entity}>
-        """.trimIndent()
-
         return TemplateNode().apply {
             type = "file"
             tag = "factory"
             name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_FAC_PACKAGE}${'$'}{SEPARATOR}${'$'}{Entity}Payload.kt"
-            format = "raw"
-            data = template
+            format = "velocity"
+            data = "vm/factory/Payload.kt.vm"
             conflict = "skip"
         }
     }
 
     fun resolveDefaultSpecificationTemplateNode(): TemplateNode {
-
-        val template = """
-            package ${'$'}{basePackage}.domain.aggregates${'$'}{package}.specs
-
-            import ${'$'}{basePackage}.domain.aggregates${'$'}{package}.${'$'}{Entity}
-            import com.only4.cap4k.ddd.core.domain.aggregate.Specification
-            import com.only4.cap4k.ddd.core.domain.aggregate.Specification.Result
-            import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
-            import org.springframework.stereotype.Service
-
-            /**
-             * ${'$'}{CommentEscaped}
-             *
-             * @author cap4k-ddd-codegen
-             * @date ${'$'}{date}
-             */
-            @Service
-            @Aggregate(aggregate = "${'$'}{Entity}", name = "${'$'}{Entity}Specification", type = Aggregate.TYPE_SPECIFICATION, description = "")
-            class ${'$'}{Entity}Specification : Specification<${'$'}{Entity}> {
-
-                override fun specify(entity: ${'$'}{Entity}): Result {
-                    return Result.pass()
-                }
-
-            }
-        """.trimIndent()
-
         return TemplateNode().apply {
             type = "file"
             tag = "specification"
             name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_SPEC_PACKAGE}${'$'}{SEPARATOR}${'$'}{Entity}Specification.kt"
-            format = "raw"
-            data = template
+            format = "velocity"
+            data = "vm/specification/Specification.kt.vm"
             conflict = "skip"
         }
     }
 
     fun resolveDefaultDomainEventHandlerTemplateNode(): TemplateNode {
-        val template = """
-            package ${'$'}{basePackage}.application.subscribers.domain
-
-            import ${'$'}{basePackage}.domain.aggregates${'$'}{package}.events.${'$'}{DomainEvent}
-            import org.springframework.context.event.EventListener
-            import org.springframework.stereotype.Service
-
-            @Service
-            class ${'$'}{DomainEvent}Subscriber {
-
-                @EventListener(${'$'}{DomainEvent}::class)
-                fun on(event: ${'$'}{DomainEvent}) {
-
-                }
-            }
-        """.trimIndent()
-
         return TemplateNode().apply {
             type = "file"
             tag = "domain_event_handler"
             name = "${'$'}{DomainEvent}Subscriber.kt"
-            format = "raw"
-            data = template
+            format = "velocity"
+            data = "vm/domain-event/DomainEventSubscriber.kt.vm"
             conflict = "skip"
         }
     }
 
     fun resolveDefaultDomainEventTemplateNode(): TemplateNode {
-
-        val template = """
-            package ${'$'}{basePackage}.domain.aggregates${'$'}{package}.events
-
-            import ${'$'}{basePackage}.domain.aggregates${'$'}{package}.${'$'}{Entity}
-            import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
-            import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
-
-            @DomainEvent(persist = ${'$'}{persist})
-            @Aggregate(aggregate = "${'$'}{Aggregate}", name = "${'$'}{DomainEvent}", type = Aggregate.TYPE_DOMAIN_EVENT, description = "")
-            class ${'$'}{DomainEvent}(val entity: ${'$'}{Entity})
-
-        """.trimIndent()
-
         return TemplateNode().apply {
             type = "file"
             tag = "domain_event"
             name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_DOMAIN_EVENT_PACKAGE}${'$'}{SEPARATOR}${'$'}{DomainEvent}.kt"
-            format = "raw"
-            data = template
+            format = "velocity"
+            data = "vm/domain-event/DomainEvent.kt.vm"
             conflict = "skip"
         }
     }
 
     fun resolveDefaultEnumTemplateNode(): TemplateNode {
-        val template = """
-            package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_ENUM_PACKAGE}
-
-            import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
-            import jakarta.persistence.AttributeConverter
-
-            /**
-             * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
-             * 警告：请勿手工修改该文件，重新生成会覆盖该文件
-             * @author cap4k-ddd-codegen
-             * @date ${'$'}{date}
-             */
-            @Aggregate(aggregate = "${'$'}{Aggregate}", name = "${'$'}{Enum}", type = "enum", description = "${'$'}{CommentEscaped}")
-            enum class ${'$'}{Enum}(
-                val ${'$'}{EnumValueField}: Int,
-                val ${'$'}{EnumNameField}: String
-            ) {
-                
-                ${'$'}{ENUM_ITEMS}
-                ;
-
-                companion object {
-                    
-                    private val enumMap: Map<Int, ${'$'}{Enum}> by lazy {
-                        entries.associateBy { it.${'$'}{EnumValueField} }
-                    }
-
-                    fun valueOf(value: Int): ${'$'}{Enum} {
-                        return enumMap[value] ?: throw IllegalArgumentException("枚举类型${'$'}{Enum}枚举值转换异常，不存在的值: ${'$'}value")
-                    }
-
-                    fun valueOfOrNull(value: Int?): ${'$'}{Enum}? {
-                        return if (value == null) null else valueOf(value)
-                    }
-                }
-
-                /**
-                 * JPA转换器
-                 */
-                class Converter : AttributeConverter<${'$'}{Enum}, Int> {
-                    override fun convertToDatabaseColumn(attribute: ${'$'}{Enum}): Int {
-                        return attribute.${'$'}{EnumValueField}
-                    }
-                    
-                    ${
-            if (extension.get().generation.enumUnmatchedThrowException.get()) """
-                        override fun convertToEntityAttribute(dbData: Int): ${'$'}{Enum} {
-                        return valueOf(dbData)
-                    }   
-                    """.trim() else """
-                        override fun convertToEntityAttribute(dbData: Int): ${'$'}{Enum}? {
-                        return valueOfOrNull(dbData)
-                    }
-                    """.trim()
-        }
-                }
-            }
-        """.trimIndent()
-
         return TemplateNode().apply {
             type = "file"
             tag = "enum"
             name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_ENUM_PACKAGE}${'$'}{SEPARATOR}${'$'}{Enum}.kt"
-            format = "raw"
-            data = template
+            format = "velocity"
+            data = "vm/enum/Enum.kt.vm"
             conflict = "skip"
         }
     }
 
     fun resolveDefaultEnumItemTemplateNode(): TemplateNode {
-        val template = """
-            |
-            |    /**
-            |     * ${'$'}{itemDesc}
-            |     */
-            |    ${'$'}{itemName}(${'$'}{itemValue}, "${'$'}{itemDesc}"),
-            |    
-        """.trimMargin()
         return TemplateNode().apply {
             type = "segment"
             tag = "enum_item"
             name = ""
-            format = "raw"
-            data = template
+            format = "velocity"
+            data = "vm/enum/EnumItem.vm"
             conflict = "skip"
         }
     }
 
     fun resolveDefaultSchemaFieldTemplateNode(): TemplateNode {
-        val template = """
-        |
-        |    ${'$'}{fieldComment}
-        |    fun ${'$'}{fieldName}(): ${'$'}{SchemaBase}.Field<${'$'}{fieldType}> {
-        |        return ${'$'}{SchemaBase}.Field(root.get(props.${'$'}{fieldName}), this.criteriaBuilder)
-        |    }
-        """.trimMargin()
-
         return TemplateNode().apply {
             type = "segment"
             tag = "schema_field"
             name = ""
-            format = "raw"
-            data = template
+            format = "velocity"
+            data = "vm/schema/SchemaField.vm"
             conflict = "skip"
         }
     }
 
     fun resolveDefaultSchemaPropertyNameTemplateNode(): TemplateNode {
-        val template = """
-        |    
-        |        /**
-        |         * ${'$'}{fieldDescription}
-        |         */
-        |        val ${'$'}{fieldName} = "${'$'}{fieldName}"
-        |       
-        """.trimMargin()
-
         return TemplateNode().apply {
             type = "segment"
             tag = "schema_property_name"
             name = ""
-            format = "raw"
-            data = template
+            format = "velocity"
+            data = "vm/schema/SchemaPropertyName.vm"
             conflict = "skip"
         }
     }
 
     fun resolveDefaultSchemaJoinTemplateNode(): TemplateNode {
-        val joinEntitySchema =
-            extension.get().generation.entitySchemaNameTemplate.get().replace("\${Entity}", "\${joinEntityType}")
-        val template = """/**
-            |     * ${'$'}{joinEntityType} 关联查询条件定义
-            |     *
-            |     * @param joinType
-            |     * @return
-            |     */
-            |    fun join${'$'}{joinEntityType}(joinType: ${'$'}{SchemaBase}.JoinType): ${'$'}{joinEntitySchemaPackage}$joinEntitySchema {
-            |        val type = joinType.toJpaJoinType()
-            |        val join = (this.root as Root<${'$'}{Entity}>).join<${'$'}{Entity}, ${'$'}{joinEntityPackage}.${'$'}{joinEntityType}>("${'$'}{joinEntityVars}", type)
-            |        val schema = ${'$'}{joinEntitySchemaPackage}$joinEntitySchema(join, this.criteriaBuilder)
-            |        return schema
-            |    }
-        """.trimMargin()
-
         return TemplateNode().apply {
             type = "segment"
             tag = "schema_join"
             name = ""
-            format = "raw"
-            data = template
+            format = "velocity"
+            data = "vm/schema/SchemaJoin.vm"
             conflict = "skip"
         }
     }
 
     fun resolveDefaultSchemaTemplateNode(isAggregateRoot: Boolean, generateAggregate: Boolean): TemplateNode {
-        val ext = extension.get()
-        val entitySchemaNameTemplate = ext.generation.entitySchemaNameTemplate.get()
-        val supportQuerydsl = ext.generation.repositorySupportQuerydsl.get()
-
-        val imports = mutableListOf<String>().apply {
-            if (isAggregateRoot && supportQuerydsl) add("import com.querydsl.core.types.OrderSpecifier")
-            if (isAggregateRoot) add("import com.only4.cap4k.ddd.domain.repo.JpaPredicate")
-            if (isAggregateRoot && supportQuerydsl) add("import com.only4.cap4k.ddd.domain.repo.querydsl.QuerydslPredicate")
-            add("import ${'$'}{basePackage}${'$'}{schemaBasePackage}.${'$'}{SchemaBase}")
-            if (isAggregateRoot && generateAggregate) add("import ${'$'}{basePackage}${'$'}{entityPackage}.${extension.get().generation.aggregateNameTemplate.get()}")
-            add("import ${'$'}{basePackage}${'$'}{entityPackage}.${'$'}{Entity}")
-            if (isAggregateRoot && supportQuerydsl) add("import ${'$'}{basePackage}${'$'}{entityPackage}.Q${'$'}{Entity}")
-            if (isAggregateRoot && generateAggregate) add("import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate")
-            add("import org.springframework.data.jpa.domain.Specification")
-            add("")
-            add("import jakarta.persistence.criteria.*")
-        }.joinToString("\n")
-
-        val template = """
-            |package ${'$'}{basePackage}${'$'}{templatePackage}${'$'}{package}.${DEFAULT_SCHEMA_PACKAGE}
-            |
-            |$imports
-            |
-            |/**
-            | * ${'$'}{Comment}
-            | * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
-            | * 警告：请勿手工修改该文件，重新生成会覆盖该文件
-            | * @author cap4k-ddd-codegen
-            | * @date ${'$'}{date}
-            | */
-            |class $entitySchemaNameTemplate(
-            |    private val root: Path<${'$'}{Entity}>,
-            |    private val criteriaBuilder: CriteriaBuilder,
-            |) {
-            |    class PROPERTY_NAMES {
-            |        ${'$'}{PROPERTY_NAMES}
-            |    }
-            |    
-            |    companion object {
-            |    
-            |        val props = PROPERTY_NAMES()
-            |        
-            |        /**
-            |         * 构建查询条件
-            |         *
-            |         * @param builder where条件构造器
-            |         * @return
-            |         */
-            |        @JvmStatic
-            |        fun specify(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>): Specification<${'$'}{Entity}> {
-            |            return specify(builder, false, emptyList())
-            |        }
-            |
-            |        /**
-            |         * 构建查询条件
-            |         *
-            |         * @param builder  where条件构造器
-            |         * @param distinct 是否去重
-            |         * @return
-            |         */
-            |        @JvmStatic
-            |        fun specify(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>, distinct: Boolean): Specification<${'$'}{Entity}> {
-            |            return specify(builder, distinct, emptyList())
-            |        }
-            |
-            |        /**
-            |         * 构建查询条件
-            |         *
-            |         * @param builder       where条件构造器
-            |         * @param orderBuilders 排序条件构造器
-            |         * @return
-            |         */
-            |        @JvmStatic
-            |        fun specify(
-            |            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
-            |            vararg orderBuilders: ${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>,
-            |        ): Specification<${'$'}{Entity}> {
-            |            return specify(builder, orderBuilders.toList())
-            |        }
-            |
-            |        /**
-            |         * 构建查询条件
-            |         *
-            |         * @param builder       where条件构造器
-            |         * @param orderBuilders 排序条件构造器
-            |         * @return
-            |         */
-            |        @JvmStatic
-            |        fun specify(
-            |            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
-            |            orderBuilders: List<${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>>,
-            |        ): Specification<${'$'}{Entity}> {
-            |            return specify(builder, false, orderBuilders)
-            |        }
-            |
-            |        /**
-            |        * 构建查询条件
-            |        *
-            |        * @param builder       where条件构造器
-            |        * @param distinct      是否去重
-            |        * @param orderBuilders 排序条件构造器
-            |        * @return
-            |        */
-            |        @JvmStatic
-            |        fun specify(
-            |            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
-            |            distinct: Boolean,
-            |            vararg orderBuilders: ${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>,
-            |        ): Specification<${'$'}{Entity}> {
-            |            return specify(builder, distinct, orderBuilders.toList())
-            |        }
-            |
-            |        /**
-            |        * 构建查询条件
-            |        *
-            |        * @param builder       where条件构造器
-            |        * @param distinct      是否去重
-            |        * @param orderBuilders 排序条件构造器
-            |        * @return
-            |        */
-            |        @JvmStatic
-            |        fun specify(
-            |            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
-            |            distinct: Boolean,
-            |            orderBuilders: List<${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>>,
-            |        ): Specification<${'$'}{Entity}> {
-            |            return specify { schema, criteriaQuery, criteriaBuilder ->
-            |                criteriaQuery.where(builder.build(schema))
-            |                criteriaQuery.distinct(distinct)
-            |                if (orderBuilders.isNotEmpty()) {
-            |                    criteriaQuery.orderBy(orderBuilders.map { it.build(schema) })
-            |                }
-            |                null
-            |            }
-            |        }
-            |
-            |        /**
-            |         * 构建查询条件
-            |         *
-            |         * @param specifier 查询条件构造器
-            |         * @return
-            |         */
-            |        @JvmStatic
-            |        fun specify(specifier: ${'$'}{SchemaBase}.Specification<${'$'}{Entity}, $entitySchemaNameTemplate>): Specification<${'$'}{Entity}> {
-            |            return Specification { root, criteriaQuery, criteriaBuilder ->
-            |                val schema = $entitySchemaNameTemplate(root, criteriaBuilder)
-            |                specifier.toPredicate(schema, criteriaQuery, criteriaBuilder)
-            |            }
-            |        }
-            |
-            |        /**
-            |        * 构建子查询
-            |        *
-            |        * @param resultClass      返回结果类型
-            |        * @param selectBuilder    select条件构造器
-            |        * @param predicateBuilder where条件构造器
-            |        * @param criteriaBuilder
-            |        * @param criteriaQuery
-            |        * @param <E>
-            |        * @return
-            |        */
-            |        @JvmStatic
-            |        fun <E> subquery(
-            |            resultClass: Class<E>,
-            |            selectBuilder: ${'$'}{SchemaBase}.ExpressionBuilder<$entitySchemaNameTemplate, E>,
-            |            predicateBuilder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
-            |            criteriaBuilder: CriteriaBuilder,
-            |            criteriaQuery: CriteriaQuery<*>,
-            |        ): Subquery<E> {
-            |            return subquery(resultClass, { sq, schema ->
-            |                sq.select(selectBuilder.build(schema))
-            |                sq.where(predicateBuilder.build(schema))
-            |            }, criteriaBuilder, criteriaQuery)
-            |        }
-            |
-            |        /**
-            |         * 构建子查询
-            |         *
-            |         * @param resultClass       返回结果类型
-            |         * @param subqueryConfigure 子查询配置
-            |         * @param criteriaBuilder
-            |         * @param criteriaQuery
-            |         * @param <E>
-            |         * @return
-            |         */
-            |        @JvmStatic
-            |        fun <E> subquery(
-            |            resultClass: Class<E>,
-            |            subqueryConfigure: ${'$'}{SchemaBase}.SubqueryConfigure<E, $entitySchemaNameTemplate>,
-            |            criteriaBuilder: CriteriaBuilder,
-            |            criteriaQuery: CriteriaQuery<*>,
-            |        ): Subquery<E> {
-            |            val sq = criteriaQuery.subquery(resultClass)
-            |            val root = sq.from(${'$'}{Entity}::class.java)
-            |            val schema = $entitySchemaNameTemplate(root, criteriaBuilder)
-            |            subqueryConfigure.configure(sq, schema)
-            |            return sq
-            |        }
-            |        
-            |        ${'$'}{EXTRA_EXTENSION}
-            |    }
-            |    
-            |    fun _criteriaBuilder(): CriteriaBuilder = criteriaBuilder
-            |
-            |    fun _root(): Path<${'$'}{Entity}> = root
-            |
-            |    ${'$'}{FIELD_ITEMS}
-            |
-            |    /**
-            |     * 满足所有条件
-            |     * @param restrictions
-            |     * @return
-            |     */
-            |    fun all(vararg restrictions: Predicate): Predicate {
-            |        return criteriaBuilder.and(*restrictions)
-            |    }
-            |
-            |    /**
-            |     * 满足任一条件
-            |     * @param restrictions
-            |     * @return
-            |     */
-            |    fun any(vararg restrictions: Predicate): Predicate {
-            |        return criteriaBuilder.or(*restrictions)
-            |    }
-            |
-            |    /**
-            |     * 指定条件
-            |     * @param builder
-            |     * @return
-            |     */
-            |    fun spec(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>): Predicate {
-            |        return builder.build(this)
-            |    }
-            |    
-            |    ${'$'}{JOIN_ITEMS}
-            |}
-        """.trimMargin()
-
         return TemplateNode().apply {
             type = "file"
             tag = "schema"
-            name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_SCHEMA_PACKAGE}${'$'}{SEPARATOR}$entitySchemaNameTemplate.kt"
-            format = "raw"
-            data = template
+            name =
+                "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_SCHEMA_PACKAGE}${'$'}{SEPARATOR}${extension.get().generation.entitySchemaNameTemplate.get()}.kt"
+            format = "velocity"
+            data = "vm/schema/Schema.kt.vm"
             conflict = "overwrite"
         }
     }
 
     fun resolveDefaultRootSchemaExtraExtensionTemplateNode(generateAggregate: Boolean): TemplateNode {
-        val ext = extension.get()
-        val entitySchemaNameTemplate = ext.generation.entitySchemaNameTemplate.get()
-        val supportQuerydsl = ext.generation.repositorySupportQuerydsl.get()
-        var template = ""
-
-        template += if (generateAggregate)
-            """/**
-                |         * 构建查询条件
-                |         *
-                |         * @param id 主键
-                |         * @return
-                |         */
-                |        @JvmStatic
-                |        fun predicateById(id: Any): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.byId(${'$'}{Entity}::class.java, id).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
-                |        }
-                |    
-                |        /**
-                |        * 构建查询条件
-                |        *
-                |        * @param ids 主键
-                |        * @return
-                |        */
-                |        @JvmStatic
-                |        fun predicateByIds(ids: Iterable<*>): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            @Suppress("UNCHECKED_CAST")
-                |            return JpaPredicate.byIds(${'$'}{Entity}::class.java, ids as Iterable<Any>).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
-                |        }
-                |    
-                |        /**
-                |         * 构建查询条件
-                |         *
-                |         * @param ids 主键
-                |         * @return
-                |         */
-                |        @JvmStatic
-                |        fun predicateByIds(vararg ids: Any): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.byIds(${'$'}{Entity}::class.java, ids.toList()).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
-                |        }
-                |    
-                |        /**
-                |         * 构建查询条件
-                |         *
-                |         * @param builder 查询条件构造器
-                |         * @return
-                |         */
-                |        @JvmStatic
-                |        fun predicate(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder)).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
-                |        }
-                |    
-                |        /**
-                |         * 构建查询条件
-                |         *
-                |         * @param builder  查询条件构造器
-                |         * @param distinct 是否去重
-                |         * @return
-                |         */
-                |        @JvmStatic
-                |        fun predicate(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>, distinct: Boolean): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct)).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
-                |        }
-                |    
-                |        /**
-                |         * 构建查询条件
-                |         *
-                |         * @param builder       查询条件构造器
-                |         * @param orderBuilders 排序构造器
-                |         * @return
-                |         */
-                |        @JvmStatic
-                |        fun predicate(
-                |            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
-                |            orderBuilders: List<${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>>,
-                |        ): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, false, orderBuilders)).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
-                |        }
-                |    
-                |        /**
-                |         * 构建查询条件
-                |         *
-                |         * @param builder       查询条件构造器
-                |         * @param orderBuilders 排序构造器
-                |         * @return
-                |         */
-                |        @JvmStatic
-                |        fun predicate(
-                |            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
-                |            vararg orderBuilders: ${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>,
-                |        ): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, false, *orderBuilders)).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
-                |        }
-                |    
-                |        /**
-                |         * 构建查询条件
-                |         *
-                |         * @param builder       查询条件构造器
-                |         * @param distinct      是否去重
-                |         * @param orderBuilders 排序构造器
-                |         * @return
-                |         */
-                |        @JvmStatic
-                |        fun predicate(
-                |            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
-                |            distinct: Boolean,
-                |            orderBuilders: List<${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>>,
-                |        ): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct, orderBuilders)).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
-                |        }
-                |    
-                |        /**
-                |         * 构建查询条件
-                |         *
-                |         * @param builder       查询条件构造器
-                |         * @param distinct      是否去重
-                |         * @param orderBuilders 排序构造器
-                |         * @return
-                |         */
-                |        @JvmStatic
-                |        fun predicate(
-                |            builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
-                |            distinct: Boolean,
-                |            vararg orderBuilders: ${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>,
-                |        ): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct, *orderBuilders)).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
-                |        }
-                |    
-                |        /**
-                |         * 构建查询条件
-                |         *
-                |         * @param specifier 查询条件构造器
-                |         * @return
-                |         */
-                |        @JvmStatic
-                |        fun predicate(specifier: ${'$'}{SchemaBase}.Specification<${'$'}{Entity}, $entitySchemaNameTemplate>): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                |            return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(specifier)).toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
-                |        }
-            """.trimMargin()
-        else """/**
-                    |        * 构建查询条件
-                    |        *
-                    |        * @param id 主键
-                    |        * @return
-                    |        */
-                    |       @JvmStatic
-                    |       fun predicateById(id: Any): JpaPredicate<${'$'}{Entity}> {
-                    |           return JpaPredicate.byId(${'$'}{Entity}::class.java, id)
-                    |       }
-                    |       
-                    |       /**
-                    |       * 构建查询条件
-                    |       *
-                    |       * @param ids 主键
-                    |       * @return
-                    |       */
-                    |       @JvmStatic
-                    |       fun predicateByIds(ids: Iterable<*>): JpaPredicate<${'$'}{Entity}> {
-                    |           @Suppress("UNCHECKED_CAST")
-                    |           return JpaPredicate.byIds(${'$'}{Entity}::class.java, ids as Iterable<Any>)
-                    |       }
-                    |       
-                    |       /**
-                    |        * 构建查询条件
-                    |        *
-                    |        * @param ids 主键
-                    |        * @return
-                    |        */
-                    |       @JvmStatic
-                    |       fun predicateByIds(vararg ids: Any): JpaPredicate<${'$'}{Entity}> {
-                    |           return JpaPredicate.byIds(${'$'}{Entity}::class.java, ids.toList())
-                    |       }
-                    |       
-                    |       /**
-                    |        * 构建查询条件
-                    |        *
-                    |        * @param builder 查询条件构造器
-                    |        * @return
-                    |        */
-                    |       @JvmStatic
-                    |       fun predicate(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>): JpaPredicate<${'$'}{Entity}> {
-                    |           return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder))
-                    |       }
-                    |       
-                    |       /**
-                    |        * 构建查询条件
-                    |        *
-                    |        * @param builder  查询条件构造器
-                    |        * @param distinct 是否去重
-                    |        * @return
-                    |        */
-                    |       @JvmStatic
-                    |       fun predicate(builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>, distinct: Boolean): JpaPredicate<${'$'}{Entity}> {
-                    |           return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct))
-                    |       }
-                    |       
-                    |       /**
-                    |        * 构建查询条件
-                    |        *
-                    |        * @param builder       查询条件构造器
-                    |        * @param orderBuilders 排序构造器
-                    |        * @return
-                    |        */
-                    |       @JvmStatic
-                    |       fun predicate(
-                    |           builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
-                    |           orderBuilders: List<${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>>,
-                    |       ): JpaPredicate<${'$'}{Entity}> {
-                    |           return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, false, orderBuilders))
-                    |       }
-                    |       
-                    |       /**
-                    |        * 构建查询条件
-                    |        *
-                    |        * @param builder       查询条件构造器
-                    |        * @param orderBuilders 排序构造器
-                    |        * @return
-                    |        */
-                    |       @JvmStatic
-                    |       fun predicate(
-                    |           builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
-                    |           vararg orderBuilders: ${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>,
-                    |       ): JpaPredicate<${'$'}{Entity}> {
-                    |           return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, false, *orderBuilders))
-                    |       }
-                    |       
-                    |       /**
-                    |        * 构建查询条件
-                    |        *
-                    |        * @param builder       查询条件构造器
-                    |        * @param distinct      是否去重
-                    |        * @param orderBuilders 排序构造器
-                    |        * @return
-                    |        */
-                    |       @JvmStatic
-                    |       fun predicate(
-                    |           builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
-                    |           distinct: Boolean,
-                    |           orderBuilders: List<${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>>,
-                    |       ): JpaPredicate<${'$'}{Entity}> {
-                    |           return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct, orderBuilders))
-                    |       }
-                    |       
-                    |       /**
-                    |        * 构建查询条件
-                    |        *
-                    |        * @param builder       查询条件构造器
-                    |        * @param distinct      是否去重
-                    |        * @param orderBuilders 排序构造器
-                    |        * @return
-                    |        */
-                    |       @JvmStatic
-                    |       fun predicate(
-                    |           builder: ${'$'}{SchemaBase}.PredicateBuilder<$entitySchemaNameTemplate>,
-                    |           distinct: Boolean,
-                    |           vararg orderBuilders: ${'$'}{SchemaBase}.OrderBuilder<$entitySchemaNameTemplate>,
-                    |       ): JpaPredicate<${'$'}{Entity}> {
-                    |           return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(builder, distinct, *orderBuilders))
-                    |       }
-                    |       
-                    |       /**
-                    |        * 构建查询条件
-                    |        *
-                    |        * @param specifier 查询条件构造器
-                    |        * @return
-                    |        */
-                    |       @JvmStatic
-                    |       fun predicate(specifier: ${'$'}{SchemaBase}.Specification<${'$'}{Entity}, $entitySchemaNameTemplate>): JpaPredicate<${'$'}{Entity}> {
-                    |           return JpaPredicate.bySpecification(${'$'}{Entity}::class.java, specify(specifier))
-                    |       }
-                """.trimMargin()
-
-        if (supportQuerydsl) {
-            template += if (generateAggregate) """
-                    |
-                    |       /**
-                    |         * 构建querydsl查询条件
-                    |         *
-                    |         * @param filterBuilder          查询条件构造器
-                    |         * @param orderSpecifierBuilders 排序构造器
-                    |         * @return
-                    |         */
-                    |        @JvmStatic
-                    |        fun querydsl(
-                    |            filterBuilder: java.util.function.Function<Q${'$'}{Entity}, com.querydsl.core.types.Predicate>,
-                    |            vararg orderSpecifierBuilders: java.util.function.Function<Q${'$'}{Entity}, OrderSpecifier<*>>,
-                    |        ): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                    |            return QuerydslPredicate.of(${'$'}{Entity}::class.java)
-                    |                .where(filterBuilder.apply(Q${'$'}{Entity}.${'$'}{EntityVar}))
-                    |                .orderBy(*orderSpecifierBuilders.map { it.apply(Q${'$'}{Entity}.${'$'}{EntityVar}) }.toTypedArray())
-                    |                .toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
-                    |        }
-                    |        
-                    |        /**
-                    |         * 构建querydsl查询条件
-                    |         *
-                    |         * @param filter          查询条件构造器
-                    |         * @param orderSpecifiers 排序构造器
-                    |         * @return
-                    |         */
-                    |        @JvmStatic
-                    |        fun querydsl(
-                    |            filter: com.querydsl.core.types.Predicate,
-                    |            vararg orderSpecifiers: OrderSpecifier<*>,
-                    |        ): AggregatePredicate<${extension.get().generation.aggregateNameTemplate.get()}, ${'$'}{Entity}> {
-                    |            return QuerydslPredicate.of(${'$'}{Entity}::class.java)
-                    |                .where(filter)
-                    |                .orderBy(*orderSpecifiers)
-                    |                .toAggregatePredicate(${extension.get().generation.aggregateNameTemplate.get()}::class.java)
-                    |        }  
-                """.trimMargin()
-            else """
-                    |
-                    |       /**
-                    |         * 构建querydsl查询条件
-                    |         *
-                    |         * @param filterBuilder          查询条件构造器
-                    |         * @param orderSpecifierBuilders 排序构造器
-                    |         * @return
-                    |         */
-                    |        @JvmStatic
-                    |        fun querydsl(
-                    |            filterBuilder: java.util.function.Function<Q${'$'}{Entity}, com.querydsl.core.types.Predicate>,
-                    |            vararg orderSpecifierBuilders: java.util.function.Function<Q${'$'}{Entity}, OrderSpecifier<*>>,
-                    |        ): QuerydslPredicate<${'$'}{Entity}> {
-                    |            return QuerydslPredicate.of(${'$'}{Entity}::class.java)
-                    |                .where(filterBuilder.apply(Q${'$'}{Entity}.${'$'}{EntityVar}))
-                    |                .orderBy(*orderSpecifierBuilders.map { it.apply(Q${'$'}{Entity}.${'$'}{EntityVar}) }.toTypedArray())
-                    |        }
-                    |        
-                    |        /**
-                    |         * 构建querydsl查询条件
-                    |         *
-                    |         * @param filter          查询条件构造器
-                    |         * @param orderSpecifiers 排序构造器
-                    |         * @return
-                    |         */
-                    |        @JvmStatic
-                    |        fun querydsl(
-                    |            filter: com.querydsl.core.types.Predicate,
-                    |            vararg orderSpecifiers: OrderSpecifier<*>,
-                    |        ): QuerydslPredicate<${'$'}{Entity}> {
-                    |            return QuerydslPredicate.of(${'$'}{Entity}::class.java)
-                    |                .where(filter)
-                    |                .orderBy(*orderSpecifiers)
-                    |        }                    
-                """.trimMargin()
-        }
-
         return TemplateNode().apply {
             type = "segment"
             tag = "root_schema_extra_extension"
             name = ""
-            format = "raw"
-            data = template
+            format = "velocity"
+            data = "vm/schema/SchemaExtraExtension.vm"
             conflict = "skip"
         }
     }
 
     fun resolveDefaultSchemaBaseTemplateNode(): TemplateNode {
-        val template = """
-            package ${'$'}{basePackage}${'$'}{templatePackage}
-
-            import jakarta.persistence.criteria.*
-            import org.hibernate.query.sqm.SortOrder
-            import org.hibernate.query.sqm.tree.domain.SqmBasicValuedSimplePath
-            import org.hibernate.query.sqm.tree.select.SqmSortSpecification
-
-            /**
-             * 实体结构基类
-             *
-             * @author cap4k-ddd-codegen
-             */
-            object ${'$'}{SchemaBase} {
-                        
-                fun interface Specification<E, S> {
-                    fun toPredicate(schema: S, criteriaQuery: CriteriaQuery<*>, criteriaBuilder: CriteriaBuilder): Predicate?
-                }
-                        
-                fun interface SubqueryConfigure<E, S> {
-                    fun configure(subquery: Subquery<E>, schema: S)
-                }
-                        
-                /**
-                 * 表达式构建器
-                 */
-                fun interface ExpressionBuilder<S, T> {
-                    fun build(schema: S): Expression<T>
-                }
-                        
-                /**
-                 * 断言构建器
-                 */
-                fun interface PredicateBuilder<S> {
-                    fun build(schema: S): Predicate
-                }
-                        
-                /**
-                 * 排序构建器
-                 */
-                fun interface OrderBuilder<S> {
-                    fun build(schema: S): Order
-                }
-                        
-                enum class JoinType {
-                    INNER,
-                    LEFT,
-                    RIGHT
-                    ;
-                        
-                    fun toJpaJoinType(): jakarta.persistence.criteria.JoinType {
-                        return when (this) {
-                            INNER -> jakarta.persistence.criteria.JoinType.INNER
-                            LEFT -> jakarta.persistence.criteria.JoinType.LEFT
-                            RIGHT -> jakarta.persistence.criteria.JoinType.RIGHT
-                        }
-                    }
-                }
-                        
-                /**
-                 * 字段
-                 *
-                 * @param <T>
-                 */
-                @Suppress("UNCHECKED_CAST")
-                class Field<T> {
-                    private val path: Path<T>?
-                    private val criteriaBuilder: CriteriaBuilder?
-                    private val name: String?
-                        
-                    constructor(path: Path<T>, criteriaBuilder: CriteriaBuilder) {
-                        this.path = path
-                        this.criteriaBuilder = criteriaBuilder
-                        this.name = if (path is SqmBasicValuedSimplePath<*>) {
-                            path.navigablePath.localName
-                        } else null
-                    }
-                        
-                    constructor(name: String) {
-                        this.name = name
-                        this.path = null
-                        this.criteriaBuilder = null
-                    }
-                        
-                    protected fun _criteriaBuilder(): CriteriaBuilder? = criteriaBuilder
-                        
-                    fun path(): Path<T>? = path
-                        
-                    override fun toString(): String = name ?: ""
-                        
-                    fun asc(): Order = SqmSortSpecification(path as SqmBasicValuedSimplePath<T>, SortOrder.ASCENDING)
-                        
-                    fun desc(): Order = SqmSortSpecification(path as SqmBasicValuedSimplePath<T>, SortOrder.DESCENDING)
-                        
-                    fun isTrue(): Predicate = criteriaBuilder!!.isTrue(path as Expression<Boolean>)
-                        
-                    fun isFalse(): Predicate = criteriaBuilder!!.isFalse(path as Expression<Boolean>)
-                        
-                    fun isEmpty(): Predicate = criteriaBuilder!!.isEmpty(path as Expression<Collection<*>>)
-                        
-                    fun isNotEmpty(): Predicate = criteriaBuilder!!.isNotEmpty(path as Expression<Collection<*>>)
-                        
-                    fun equal(value: Any?): Predicate = criteriaBuilder!!.equal(path, value)
-                        
-                    fun equal(value: Expression<*>): Predicate = criteriaBuilder!!.equal(path, value)
-                        
-                    fun notEqual(value: Any?): Predicate = criteriaBuilder!!.notEqual(path, value)
-                        
-                    fun notEqual(value: Expression<*>): Predicate = criteriaBuilder!!.notEqual(path, value)
-                        
-                    fun isNull(): Predicate = criteriaBuilder!!.isNull(path)
-                        
-                    fun isNotNull(): Predicate = criteriaBuilder!!.isNotNull(path)
-                        
-                    fun <Y : Comparable<Y>> greaterThan(value: Y): Predicate =
-                        criteriaBuilder!!.greaterThan(path as Expression<Y>, value)
-                        
-                    fun <Y : Comparable<Y>> greaterThan(value: Expression<out Y>): Predicate =
-                        criteriaBuilder!!.greaterThan(path as Expression<Y>, value)
-                        
-                    fun <Y : Comparable<Y>> greaterThanOrEqualTo(value: Y): Predicate =
-                        criteriaBuilder!!.greaterThanOrEqualTo(path as Expression<Y>, value)
-                        
-                    fun <Y : Comparable<Y>> greaterThanOrEqualTo(value: Expression<out Y>): Predicate =
-                        criteriaBuilder!!.greaterThanOrEqualTo(path as Expression<Y>, value)
-                        
-                    fun <Y : Comparable<Y>> lessThan(value: Y): Predicate =
-                        criteriaBuilder!!.lessThan(path as Expression<Y>, value)
-                        
-                    fun <Y : Comparable<Y>> lessThan(value: Expression<out Y>): Predicate =
-                        criteriaBuilder!!.lessThan(path as Expression<Y>, value)
-                        
-                    fun <Y : Comparable<Y>> lessThanOrEqualTo(value: Y): Predicate =
-                        criteriaBuilder!!.lessThanOrEqualTo(path as Expression<Y>, value)
-                        
-                    fun <Y : Comparable<Y>> lessThanOrEqualTo(value: Expression<out Y>): Predicate =
-                        criteriaBuilder!!.lessThanOrEqualTo(path as Expression<Y>, value)
-                        
-                    fun <Y : Comparable<Y>> between(value1: Y, value2: Y): Predicate =
-                        criteriaBuilder!!.between(path as Expression<Y>, value1, value2)
-                        
-                    fun <Y : Comparable<Y>> between(value1: Expression<out Y>, value2: Expression<out Y>): Predicate =
-                        criteriaBuilder!!.between(path as Expression<Y>, value1, value2)
-                        
-                    fun `in`(vararg values: Any?): Predicate = `in`(listOf(*values))
-                        
-                    fun `in`(values: Collection<*>): Predicate {
-                        val predicate = criteriaBuilder!!.`in`(path)
-                        values.forEach { value ->
-                            @Suppress("UNCHECKED_CAST")
-                            predicate.value(value as T)
-                        }
-                        return predicate
-                    }
-                        
-                    fun `in`(vararg expressions: Expression<*>): Predicate {
-                        val predicate = criteriaBuilder!!.`in`(path)
-                        expressions.forEach { expression ->
-                            @Suppress("UNCHECKED_CAST")
-                            predicate.value(expression as Expression<out T>)
-                        }
-                        return predicate
-                    }
-                        
-                    fun notIn(vararg values: Any?): Predicate = notIn(listOf(*values))
-                        
-                    fun notIn(values: Collection<*>): Predicate = criteriaBuilder!!.not(`in`(values))
-                        
-                    fun notIn(vararg expressions: Expression<*>): Predicate = criteriaBuilder!!.not(`in`(*expressions))
-                        
-                    fun like(value: String): Predicate = criteriaBuilder!!.like(path as Expression<String>, value)
-                        
-                    fun like(value: Expression<String>): Predicate = criteriaBuilder!!.like(path as Expression<String>, value)
-                        
-                    fun notLike(value: String): Predicate = criteriaBuilder!!.notLike(path as Expression<String>, value)
-                        
-                    fun notLike(value: Expression<String>): Predicate = criteriaBuilder!!.notLike(path as Expression<String>, value)
-                        
-                    // 简化方法名
-                    fun eq(value: Any?): Predicate = equal(value)
-                        
-                    fun eq(value: Expression<*>): Predicate = equal(value)
-                        
-                    fun neq(value: Any?): Predicate = notEqual(value)
-                        
-                    fun neq(value: Expression<*>): Predicate = notEqual(value)
-                        
-                    fun <Y : Comparable<Y>> gt(value: Y): Predicate = greaterThan(value)
-                        
-                    fun <Y : Comparable<Y>> gt(value: Expression<out Y>): Predicate = greaterThan(value)
-                        
-                    fun <Y : Comparable<Y>> ge(value: Y): Predicate = greaterThanOrEqualTo(value)
-                        
-                    fun <Y : Comparable<Y>> ge(value: Expression<out Y>): Predicate = greaterThanOrEqualTo(value)
-                        
-                    fun <Y : Comparable<Y>> lt(value: Y): Predicate = lessThan(value)
-                        
-                    fun <Y : Comparable<Y>> lt(value: Expression<out Y>): Predicate = lessThan(value)
-                        
-                    fun <Y : Comparable<Y>> le(value: Y): Predicate = lessThanOrEqualTo(value)
-                        
-                    fun <Y : Comparable<Y>> le(value: Expression<out Y>): Predicate = lessThanOrEqualTo(value)
-                }
-            }
-            """.trimIndent()
-
         return TemplateNode().apply {
             type = "file"
             tag = "schema_base"
             name = "${'$'}{SchemaBase}.kt"
-            format = "raw"
-            data = template
+            format = "velocity"
+            data = "vm/schema/SchemaBase.kt.vm"
             conflict = "overwrite"
         }
     }

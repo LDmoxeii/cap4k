@@ -1,3 +1,7 @@
+package $
+
+{ basePackage }.application.commands${ package }
+
 import com.only4.cap4k.ddd.core.Mediator
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.command.Command

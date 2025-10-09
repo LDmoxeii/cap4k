@@ -14,8 +14,8 @@ plugins {
     kotlin("plugin.jpa")
 }
 
-group = "com.only4"
-version = "0.1.0-SNAPSHOT"
+group = "${groupId}"
+version = "${version}"
 
 kotlin {
     // Use a specific Java version to make it easier to work in different environments.

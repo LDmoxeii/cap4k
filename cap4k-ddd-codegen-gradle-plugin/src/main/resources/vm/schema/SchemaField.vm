@@ -1,0 +1,7 @@
+## Schema Field 模板片段
+## 生成Schema中的字段访问方法
+
+${fieldComment}
+fun ${fieldName}(): ${SchemaBase}.Field<${fieldType}> {
+return ${SchemaBase}.Field(root.get(props.${fieldName}), this.criteriaBuilder)
+}

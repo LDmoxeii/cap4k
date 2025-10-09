@@ -1,3 +1,8 @@
+package $
+
+{ basePackage }.adapter.application.queries
+
+import ${basePackage}.application.queries${package}.${Query}
 import com.only4.cap4k.ddd.core.application.query.Query
 import org.springframework.stereotype.Service
 
