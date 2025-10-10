@@ -3284,7 +3284,8 @@ open class GenEntityTask : GenArchTask() {
             package ${'$'}{basePackage}${'$'}{templatePackage}
 
             import jakarta.persistence.criteria.*
-            import org.hibernate.query.sqm.SortOrder
+            import org.hibernate.query.NullPrecedence
+            import org.hibernate.query.SortDirection
             import org.hibernate.query.sqm.tree.domain.SqmBasicValuedSimplePath
             import org.hibernate.query.sqm.tree.select.SqmSortSpecification
 
@@ -3370,9 +3371,11 @@ open class GenEntityTask : GenArchTask() {
                         
                     override fun toString(): String = name ?: ""
                         
-                    fun asc(): Order = SqmSortSpecification(path as SqmBasicValuedSimplePath<T>, SortOrder.ASCENDING)
+                    fun asc(): Order =
+                        SqmSortSpecification(path as SqmBasicValuedSimplePath<T>, SortDirection.ASCENDING, NullPrecedence.NONE)
                         
-                    fun desc(): Order = SqmSortSpecification(path as SqmBasicValuedSimplePath<T>, SortOrder.DESCENDING)
+                    fun desc(): Order =
+                        SqmSortSpecification(path as SqmBasicValuedSimplePath<T>, SortDirection.DESCENDING, NullPrecedence.NONE)
                         
                     fun isTrue(): Predicate = criteriaBuilder!!.isTrue(path as Expression<Boolean>)
                         
