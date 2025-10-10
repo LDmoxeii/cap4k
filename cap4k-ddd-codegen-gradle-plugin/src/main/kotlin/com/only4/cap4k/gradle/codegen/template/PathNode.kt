@@ -3,6 +3,11 @@ package com.only4.cap4k.gradle.codegen.template
 import com.only4.cap4k.gradle.codegen.misc.concatPathOrHttpUri
 import com.only4.cap4k.gradle.codegen.misc.isAbsolutePathOrHttpUri
 import com.only4.cap4k.gradle.codegen.misc.loadFileContent
+import com.only4.cap4k.gradle.codegen.velocity.VelocityContextBuilder
+import com.only4.cap4k.gradle.codegen.velocity.VelocityTemplateRenderer
+import com.only4.cap4k.gradle.codegen.velocity.tools.DateUtils
+import com.only4.cap4k.gradle.codegen.velocity.tools.StringUtils
+import com.only4.cap4k.gradle.codegen.velocity.tools.TypeUtils
 
 /**
  * 脚手架模板文件节点
@@ -52,8 +57,6 @@ open class PathNode {
     var children: MutableList<PathNode>? = null
 
     companion object {
-        private const val MAX_PLACEHOLDER_DEPTH = 10
-
         private val directory = ThreadLocal<String>()
         fun setDirectory(dir: String) = directory.set(dir)
         fun clearDirectory() = directory.remove()
@@ -63,7 +66,7 @@ open class PathNode {
     open fun resolve(context: Map<String, String?>): PathNode {
         name = name
             ?.replace("${'$'}{basePackage}", "${'$'}{basePackage__as_path}")
-            ?.let { escape(it, context) }
+            ?.let { renderWithVelocity(it, context) }
 
         val rawData = when (format.lowercase()) {
             "url" -> data?.let { src ->
@@ -74,41 +77,26 @@ open class PathNode {
             else -> data ?: ""
         }
 
-        data = escape(rawData, context)
+        data = renderWithVelocity(rawData, context)
         format = "raw" // 解析后统一视为 raw
 
         children?.forEach { it.resolve(context) }
         return this
     }
 
-    protected fun escape(content: String?, context: Map<String, String?>): String {
-        if (content.isNullOrEmpty()) return ""
-        return replacePlaceholders(content, context)
-            .let(::applyEscapeSymbols)
-    }
+    private fun renderWithVelocity(templateContent: String, context: Map<String, String?>): String {
 
-    private val ESCAPE_SYMBOLS = mapOf(
-        "symbol_pound" to "#",
-        "symbol_escape" to "\\",
-        "symbol_dollar" to "$"
-    )
+        // 构建 Velocity 上下文
+        val velocityContext = VelocityContextBuilder()
+            .putAll(context)
+            .putTool("StringUtils", StringUtils)
+            .putTool("DateUtils", DateUtils)
+            .putTool("TypeUtils", TypeUtils)
+            .build()
 
-    private tailrec fun replacePlaceholders(current: String, context: Map<String, String?>, depth: Int = 0): String {
-        if (depth >= MAX_PLACEHOLDER_DEPTH || !current.contains("${'$'}{")) return current
-        var changed = false
-        var next = current
-        context.forEach { (k, v) ->
-            if (v != null && next.contains("${'$'}{$k}")) {
-                next = next.replace("${'$'}{$k}", v)
-                changed = true
-            }
-        }
-        return if (!changed) next else replacePlaceholders(next, context, depth + 1)
-    }
-
-    private fun applyEscapeSymbols(text: String): String {
-        var result = text
-        ESCAPE_SYMBOLS.forEach { (k, v) -> result = result.replace("${'$'}{$k}", v) }
-        return result
+        return VelocityTemplateRenderer.INSTANCE.renderString(
+            templateContent,
+            velocityContext,
+        )
     }
 }

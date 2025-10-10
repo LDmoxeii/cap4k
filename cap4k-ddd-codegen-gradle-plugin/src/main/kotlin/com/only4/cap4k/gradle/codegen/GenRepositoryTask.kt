@@ -1,9 +1,6 @@
 package com.only4.cap4k.gradle.codegen
 
-import com.only4.cap4k.gradle.codegen.misc.loadFiles
-import com.only4.cap4k.gradle.codegen.misc.resolvePackage
-import com.only4.cap4k.gradle.codegen.misc.resolvePackageDirectory
-import com.only4.cap4k.gradle.codegen.misc.toUpperCamelCase
+import com.only4.cap4k.gradle.codegen.misc.*
 import com.only4.cap4k.gradle.codegen.template.TemplateNode
 import org.gradle.api.tasks.TaskAction
 import java.io.File
@@ -69,12 +66,14 @@ open class GenRepositoryTask : GenArchTask() {
         val ext = extension.get()
         val repositoryNameTemplate = ext.generation.repositoryNameTemplate.get()
 
+        val template = loadFromClasspath("vm/repository/Repository.kt.vm")
+
         return TemplateNode().apply {
             type = "file"
             tag = "repository"
             name = "$repositoryNameTemplate.kt"
-            format = "velocity"
-            data = "vm/repository/Repository.kt.vm"
+            format = "row"
+            data = template
             conflict = "skip"
         }
     }

@@ -4,11 +4,6 @@ import com.only4.cap4k.gradle.codegen.misc.toUpperCamelCase
 import com.only4.cap4k.gradle.codegen.template.PathNode
 import com.only4.cap4k.gradle.codegen.template.Template
 import com.only4.cap4k.gradle.codegen.template.TemplateNode
-import com.only4.cap4k.gradle.codegen.velocity.VelocityContextBuilder
-import com.only4.cap4k.gradle.codegen.velocity.VelocityTemplateRenderer
-import com.only4.cap4k.gradle.codegen.velocity.tools.DateUtils
-import com.only4.cap4k.gradle.codegen.velocity.tools.StringUtils
-import com.only4.cap4k.gradle.codegen.velocity.tools.TypeUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
@@ -862,12 +857,7 @@ abstract class AbstractCodegenTask : DefaultTask() {
         if (!renderFileSwitch) return path
 
         val file = File(path)
-        // 如果是 Velocity 模板，使用 Velocity 渲染；否则使用已解析的内容
-        val content = if (pathNode is TemplateNode && pathNode.isVelocityTemplate()) {
-            renderWithVelocity(pathNode.data.orEmpty(), pathNode)
-        } else {
-            pathNode.data.orEmpty()
-        }
+        val content = pathNode.data.orEmpty()
         val encoding = pathNode.encoding ?: extension.get().outputEncoding.get()
         val charset = Charset.forName(encoding)
 
@@ -892,37 +882,6 @@ abstract class AbstractCodegenTask : DefaultTask() {
             }
         }
         return path
-    }
-
-    /**
-     * 使用 Velocity 渲染模板内容
-     *
-     * @param templateContent Velocity 模板内容
-     * @param node 模板节点(用于错误提示)
-     * @return 渲染后的内容
-     */
-    private fun renderWithVelocity(templateContent: String, node: TemplateNode): String {
-        // 获取上下文变量
-        val context = getEscapeContext()
-
-        // 构建 Velocity 上下文
-        val velocityContext = VelocityContextBuilder()
-            .putAll(context)
-            .putTool("StringUtils", StringUtils)
-            .putTool("DateUtils", DateUtils)
-            .putTool("TypeUtils", TypeUtils)
-            .build()
-
-        return try {
-            VelocityTemplateRenderer.INSTANCE.renderString(
-                templateContent,
-                velocityContext,
-                node.name ?: "template"
-            )
-        } catch (e: Exception) {
-            logger.error("Velocity 模板渲染失败: ${node.name}", e)
-            throw e
-        }
     }
 
     fun generateDomainEventName(eventName: String): String =

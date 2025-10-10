@@ -2255,7 +2255,17 @@ open class GenEntityTask : GenArchTask() {
                 val extraExtensionTemplateNodes = if (templateNodeMap.containsKey(rootExtraExtensionTag)) {
                     templateNodeMap[rootExtraExtensionTag]!!
                 } else {
-                    listOf(resolveDefaultRootSchemaExtraExtensionTemplateNode(extension.get().generation.generateAggregate.get()))
+                    listOf(
+                        resolveDefaultRootSchemaExtraExtensionTemplateNode()
+                            .apply {
+                                putContext(
+                                    tag,
+                                    "generateAggregate",
+                                    extension.get().generation.generateAggregate.get().toString(),
+                                    context
+                                )
+                            }
+                    )
                 }
                 for (templateNode in extraExtensionTemplateNodes) {
                     extraExtension += templateNode.deepCopy().resolve(context).data ?: ""
@@ -2270,10 +2280,15 @@ open class GenEntityTask : GenArchTask() {
             templateNodeMap[tag]!!
         } else {
             listOf(
-                resolveDefaultSchemaTemplateNode(
-                    SqlSchemaUtils.isAggregateRoot(table),
-                    extension.get().generation.generateAggregate.get()
-                )
+                resolveDefaultSchemaTemplateNode().apply {
+                    putContext(tag, "isAggregateRoot", SqlSchemaUtils.isAggregateRoot(table).toString(), context)
+                    putContext(
+                        tag,
+                        "repositorySupportQuerydsl",
+                        extension.get().generation.generateAggregate.get().toString(),
+                        context
+                    )
+                }
             )
         }
 
@@ -2336,157 +2351,188 @@ open class GenEntityTask : GenArchTask() {
     }
 
     fun resolveDefaultAggregateTemplateNode(): TemplateNode {
+        val template = loadFromClasspath("vm/aggregate/Aggregate.kt.vm")
+
         return TemplateNode().apply {
             type = "file"
             tag = "aggregate"
             name = "${'$'}{path}${'$'}{SEPARATOR}${extension.get().generation.aggregateNameTemplate.get()}.kt"
-            format = "velocity"
-            data = "vm/aggregate/Aggregate.kt.vm"
+            format = "row"
+            data = template
             conflict = "skip"
         }
     }
 
     fun resolveDefaultFactoryTemplateNode(): TemplateNode {
+        val template = loadFromClasspath("vm/factory/Factory.kt.vm")
+
         return TemplateNode().apply {
             type = "file"
             tag = "factory"
             name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_FAC_PACKAGE}${'$'}{SEPARATOR}${'$'}{Entity}Factory.kt"
-            format = "velocity"
-            data = "vm/factory/Factory.kt.vm"
+            format = "row"
+            data = template
             conflict = "skip"
         }
     }
 
     fun resolveDefaultFactoryPayloadTemplateNode(): TemplateNode {
+        val template = loadFromClasspath("vm/factory/Payload.kt.vm")
+
         return TemplateNode().apply {
             type = "file"
             tag = "factory"
             name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_FAC_PACKAGE}${'$'}{SEPARATOR}${'$'}{Entity}Payload.kt"
-            format = "velocity"
-            data = "vm/factory/Payload.kt.vm"
+            format = "row"
+            data = template
             conflict = "skip"
         }
     }
 
     fun resolveDefaultSpecificationTemplateNode(): TemplateNode {
+        val template = loadFromClasspath("vm/specification/Specification.kt.vm")
+
         return TemplateNode().apply {
             type = "file"
             tag = "specification"
             name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_SPEC_PACKAGE}${'$'}{SEPARATOR}${'$'}{Entity}Specification.kt"
-            format = "velocity"
-            data = "vm/specification/Specification.kt.vm"
+            format = "row"
+            data = template
             conflict = "skip"
         }
     }
 
     fun resolveDefaultDomainEventHandlerTemplateNode(): TemplateNode {
+        val template = loadFromClasspath("vm/domain-event/DomainEventSubscriber.kt.vm")
+
         return TemplateNode().apply {
             type = "file"
             tag = "domain_event_handler"
             name = "${'$'}{DomainEvent}Subscriber.kt"
-            format = "velocity"
-            data = "vm/domain-event/DomainEventSubscriber.kt.vm"
+            format = "row"
+            data = template
             conflict = "skip"
         }
     }
 
     fun resolveDefaultDomainEventTemplateNode(): TemplateNode {
+        val template = loadFromClasspath("vm/domain-event/DomainEvent.kt.vm")
+
         return TemplateNode().apply {
             type = "file"
             tag = "domain_event"
             name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_DOMAIN_EVENT_PACKAGE}${'$'}{SEPARATOR}${'$'}{DomainEvent}.kt"
-            format = "velocity"
-            data = "vm/domain-event/DomainEvent.kt.vm"
+            format = "row"
+            data = template
             conflict = "skip"
         }
     }
 
     fun resolveDefaultEnumTemplateNode(): TemplateNode {
+        val template = loadFromClasspath("vm/enum/Enum.kt.vm")
+
         return TemplateNode().apply {
             type = "file"
             tag = "enum"
             name = "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_ENUM_PACKAGE}${'$'}{SEPARATOR}${'$'}{Enum}.kt"
-            format = "velocity"
-            data = "vm/enum/Enum.kt.vm"
+            format = "row"
+            data = template
             conflict = "skip"
         }
     }
 
     fun resolveDefaultEnumItemTemplateNode(): TemplateNode {
+        val template = loadFromClasspath("vm/enum/EnumItem.vm")
+
         return TemplateNode().apply {
             type = "segment"
             tag = "enum_item"
             name = ""
-            format = "velocity"
-            data = "vm/enum/EnumItem.vm"
+            format = "row"
+            data = template
             conflict = "skip"
         }
     }
 
     fun resolveDefaultSchemaFieldTemplateNode(): TemplateNode {
+        val template = loadFromClasspath("vm/schema/SchemaField.vm")
+
         return TemplateNode().apply {
             type = "segment"
             tag = "schema_field"
             name = ""
-            format = "velocity"
-            data = "vm/schema/SchemaField.vm"
+            format = "row"
+            data = template
             conflict = "skip"
         }
     }
 
     fun resolveDefaultSchemaPropertyNameTemplateNode(): TemplateNode {
+        val template = loadFromClasspath("vm/schema/SchemaPropertyName.vm")
+
         return TemplateNode().apply {
             type = "segment"
             tag = "schema_property_name"
             name = ""
-            format = "velocity"
+            format = "row"
             data = "vm/schema/SchemaPropertyName.vm"
             conflict = "skip"
         }
     }
 
     fun resolveDefaultSchemaJoinTemplateNode(): TemplateNode {
+        val template = loadFromClasspath("vm/schema/SchemaJoin.vm")
+
         return TemplateNode().apply {
             type = "segment"
             tag = "schema_join"
             name = ""
-            format = "velocity"
-            data = "vm/schema/SchemaJoin.vm"
+            format = "row"
+            data = template
             conflict = "skip"
         }
     }
 
-    fun resolveDefaultSchemaTemplateNode(isAggregateRoot: Boolean, generateAggregate: Boolean): TemplateNode {
+    fun resolveDefaultSchemaTemplateNode(): TemplateNode {
+
+        val template = loadFromClasspath("vm/schema/Schema.kt.vm")
+
         return TemplateNode().apply {
             type = "file"
             tag = "schema"
             name =
                 "${'$'}{path}${'$'}{SEPARATOR}${DEFAULT_SCHEMA_PACKAGE}${'$'}{SEPARATOR}${extension.get().generation.entitySchemaNameTemplate.get()}.kt"
-            format = "velocity"
-            data = "vm/schema/Schema.kt.vm"
+            format = "row"
+            data = template
             conflict = "overwrite"
         }
     }
 
-    fun resolveDefaultRootSchemaExtraExtensionTemplateNode(generateAggregate: Boolean): TemplateNode {
+    fun resolveDefaultRootSchemaExtraExtensionTemplateNode(): TemplateNode {
+        val template = loadFromClasspath("vm/schema/SchemaExtraExtension.vm")
+
         return TemplateNode().apply {
             type = "segment"
             tag = "root_schema_extra_extension"
             name = ""
-            format = "velocity"
-            data = "vm/schema/SchemaExtraExtension.vm"
+            format = "row"
+            data = template
             conflict = "skip"
         }
     }
 
     fun resolveDefaultSchemaBaseTemplateNode(): TemplateNode {
+        val template = loadFromClasspath("vm/schema/SchemaBase.kt.vm")
+
         return TemplateNode().apply {
             type = "file"
             tag = "schema_base"
             name = "${'$'}{SchemaBase}.kt"
-            format = "velocity"
-            data = "vm/schema/SchemaBase.kt.vm"
+            format = "row"
+            data = template
             conflict = "overwrite"
         }
     }
+
+
 }
