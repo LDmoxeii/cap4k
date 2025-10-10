@@ -2,6 +2,7 @@ package com.only4.cap4k.gradle.codegen
 
 import com.only4.cap4k.gradle.codegen.misc.*
 import com.only4.cap4k.gradle.codegen.template.TemplateNode
+import org.apache.velocity.VelocityContext
 import org.gradle.api.tasks.TaskAction
 import java.io.File
 
@@ -133,19 +134,15 @@ open class GenRepositoryTask : GenArchTask() {
         simpleClassName: String,
         identityClass: String,
         aggregate: String,
-    ): MutableMap<String, String> = getEscapeContext().apply {
+    ): VelocityContext = getEscapeContext().apply {
         val entityPackage = resolvePackage(file.absolutePath)
-        putAll(
-            mapOf(
-                "EntityPackage" to entityPackage,
-                "EntityType" to simpleClassName,
-                "Entity" to simpleClassName,
-                "IdentityClass" to identityClass,
-                "IdentityType" to identityClass,
-                "Identity" to identityClass,
-                "Aggregate" to aggregate
-            )
-        )
+        put("EntityPackage", entityPackage)
+        put("EntityType", simpleClassName)
+        put("Entity", simpleClassName)
+        put("IdentityClass", identityClass)
+        put("IdentityType", identityClass)
+        put("Identity", identityClass)
+        put("Aggregate", aggregate)
     }
 
     /**

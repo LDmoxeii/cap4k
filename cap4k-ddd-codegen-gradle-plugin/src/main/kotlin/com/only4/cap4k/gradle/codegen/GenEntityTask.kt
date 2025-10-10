@@ -1713,7 +1713,7 @@ open class GenEntityTask : GenArchTask() {
                         baseDir,
                         concatPackage(
                             extension.get().basePackage.get(),
-                            context["templatePackage"] ?: ""
+                            context["templatePackage"].toString() ?: ""
                         )
                     )
                 )
@@ -1722,7 +1722,7 @@ open class GenEntityTask : GenArchTask() {
                         baseDir,
                         concatPackage(
                             extension.get().basePackage.get(),
-                            context["templatePackage"] ?: ""
+                            context["templatePackage"].toString() ?: ""
                         )
                     )
                 )
@@ -1780,7 +1780,7 @@ open class GenEntityTask : GenArchTask() {
                         baseDir,
                         concatPackage(
                             extension.get().basePackage.get(),
-                            context["templatePackage"] ?: ""
+                            context["templatePackage"].toString() ?: ""
                         )
                     )
                 )
@@ -1789,7 +1789,7 @@ open class GenEntityTask : GenArchTask() {
                         baseDir,
                         concatPackage(
                             extension.get().basePackage.get(),
-                            context["templatePackage"] ?: ""
+                            context["templatePackage"].toString() ?: ""
                         )
                     )
                 )
@@ -1847,7 +1847,7 @@ open class GenEntityTask : GenArchTask() {
                         baseDir,
                         concatPackage(
                             extension.get().basePackage.get(),
-                            context["templatePackage"] ?: ""
+                            context["templatePackage"].toString() ?: ""
                         )
                     )
                 )
@@ -1913,7 +1913,7 @@ open class GenEntityTask : GenArchTask() {
                         baseDir,
                         concatPackage(
                             extension.get().basePackage.get(),
-                            context["templatePackage"] ?: ""
+                            context["templatePackage"].toString() ?: ""
                         )
                     )
                 )
@@ -1939,7 +1939,7 @@ open class GenEntityTask : GenArchTask() {
                         getApplicationModulePath(),
                         concatPackage(
                             extension.get().basePackage.get(),
-                            context["templatePackage"] ?: ""
+                            context["templatePackage"].toString() ?: ""
                         )
                     )
                 )
@@ -1994,7 +1994,7 @@ open class GenEntityTask : GenArchTask() {
             val itemDesc = value[1]
             logger.info("  $itemDesc : $itemName = $key")
 
-            val itemContext = context.toMutableMap()
+            val itemContext = context
             putContext(itemTag, "itemName", itemName, itemContext)
             putContext(itemTag, "itemValue", itemValue, itemContext)
             putContext(itemTag, "itemDesc", itemDesc, itemContext)
@@ -2024,7 +2024,7 @@ open class GenEntityTask : GenArchTask() {
                         baseDir,
                         concatPackage(
                             extension.get().basePackage.get(),
-                            context["templatePackage"] ?: ""
+                            context["templatePackage"].toString() ?: ""
                         )
                     )
                 )
@@ -2109,7 +2109,7 @@ open class GenEntityTask : GenArchTask() {
             val fieldComment = generateFieldComment(column).joinToString("\n    ")
             val fieldDescription = SqlSchemaUtils.getComment(column).replace(Regex(PATTERN_LINE_BREAK), "")
 
-            val itemContext = context.toMutableMap()
+            val itemContext = context
             putContext(fieldTag, "fieldType", fieldType, itemContext)
             putContext(fieldTag, "fieldName", fieldName, itemContext)
             putContext(fieldTag, "fieldComment", fieldComment, itemContext)
@@ -2132,8 +2132,8 @@ open class GenEntityTask : GenArchTask() {
         if (relations.containsKey(tableName)) {
             for ((key, value) in relations[tableName]!!) {
                 val refInfos = value.split(";")
-                val joinContext = context.toMutableMap()
-                val itemContext = context.toMutableMap()
+                val joinContext = context
+                val itemContext = context
                 var fieldType: String
                 var fieldName: String
                 var fieldComment: String
@@ -2301,7 +2301,7 @@ open class GenEntityTask : GenArchTask() {
                         baseDir,
                         concatPackage(
                             basePackage,
-                            context["templatePackage"] ?: ""
+                            context["templatePackage"].toString() ?: ""
                         )
                     )
                 )
@@ -2340,7 +2340,7 @@ open class GenEntityTask : GenArchTask() {
                         baseDir,
                         concatPackage(
                             extension.get().basePackage.get(),
-                            context["templatePackage"] ?: ""
+                            context["templatePackage"].toString() ?: ""
                         )
                     )
                 )
