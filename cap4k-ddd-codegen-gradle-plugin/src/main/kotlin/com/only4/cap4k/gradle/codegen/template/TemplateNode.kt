@@ -1,6 +1,7 @@
 package com.only4.cap4k.gradle.codegen.template
 
 import com.alibaba.fastjson.JSON
+import org.apache.velocity.VelocityContext
 
 /**
  * 脚手架模板模板节点
@@ -19,7 +20,7 @@ class TemplateNode : PathNode() {
         return JSON.parseObject(JSON.toJSONString(this), TemplateNode::class.java)
     }
 
-    override fun resolve(context: Map<String, String?>): PathNode {
+    override fun resolve(context: VelocityContext): PathNode {
         super.resolve(context)
         this.tag = ""
         return this

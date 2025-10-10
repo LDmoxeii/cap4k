@@ -3,11 +3,8 @@ package com.only4.cap4k.gradle.codegen.template
 import com.only4.cap4k.gradle.codegen.misc.concatPathOrHttpUri
 import com.only4.cap4k.gradle.codegen.misc.isAbsolutePathOrHttpUri
 import com.only4.cap4k.gradle.codegen.misc.loadFileContent
-import com.only4.cap4k.gradle.codegen.velocity.VelocityContextBuilder
 import com.only4.cap4k.gradle.codegen.velocity.VelocityTemplateRenderer
-import com.only4.cap4k.gradle.codegen.velocity.tools.DateUtils
-import com.only4.cap4k.gradle.codegen.velocity.tools.StringUtils
-import com.only4.cap4k.gradle.codegen.velocity.tools.TypeUtils
+import org.apache.velocity.VelocityContext
 
 /**
  * 脚手架模板文件节点
@@ -63,40 +60,24 @@ open class PathNode {
         fun getDirectory(): String = directory.get()
     }
 
-    open fun resolve(context: Map<String, String?>): PathNode {
+    open fun resolve(context: VelocityContext): PathNode {
         name = name
             ?.replace("${'$'}{basePackage}", "${'$'}{basePackage__as_path}")
-            ?.let { renderWithVelocity(it, context) }
+            ?.let { VelocityTemplateRenderer.INSTANCE.renderString(it, context) }
 
         val rawData = when (format.lowercase()) {
             "url" -> data?.let { src ->
                 val abs = if (isAbsolutePathOrHttpUri(src)) src else concatPathOrHttpUri(directory.get(), src)
-                loadFileContent(abs, context["archTemplateEncoding"] ?: "UTF-8")
+                loadFileContent(abs, context["archTemplateEncoding"].toString() ?: "UTF-8")
             } ?: ""
 
             else -> data ?: ""
         }
 
-        data = renderWithVelocity(rawData, context)
+        data = VelocityTemplateRenderer.INSTANCE.renderString(rawData, context)
         format = "raw" // 解析后统一视为 raw
 
         children?.forEach { it.resolve(context) }
         return this
-    }
-
-    private fun renderWithVelocity(templateContent: String, context: Map<String, String?>): String {
-
-        // 构建 Velocity 上下文
-        val velocityContext = VelocityContextBuilder()
-            .putAll(context)
-            .putTool("StringUtils", StringUtils)
-            .putTool("DateUtils", DateUtils)
-            .putTool("TypeUtils", TypeUtils)
-            .build()
-
-        return VelocityTemplateRenderer.INSTANCE.renderString(
-            templateContent,
-            velocityContext,
-        )
     }
 }

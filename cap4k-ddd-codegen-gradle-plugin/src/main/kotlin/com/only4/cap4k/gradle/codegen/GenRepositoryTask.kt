@@ -133,7 +133,7 @@ open class GenRepositoryTask : GenArchTask() {
         simpleClassName: String,
         identityClass: String,
         aggregate: String,
-    ): MutableMap<String, String> = getEscapeContext().toMutableMap().apply {
+    ): MutableMap<String, String> = getEscapeContext().apply {
         val entityPackage = resolvePackage(file.absolutePath)
         putAll(
             mapOf(

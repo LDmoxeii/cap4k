@@ -4,6 +4,10 @@ import com.only4.cap4k.gradle.codegen.misc.toUpperCamelCase
 import com.only4.cap4k.gradle.codegen.template.PathNode
 import com.only4.cap4k.gradle.codegen.template.Template
 import com.only4.cap4k.gradle.codegen.template.TemplateNode
+import com.only4.cap4k.gradle.codegen.velocity.tools.DateUtils
+import com.only4.cap4k.gradle.codegen.velocity.tools.StringUtils
+import com.only4.cap4k.gradle.codegen.velocity.tools.TypeUtils
+import org.apache.velocity.VelocityContext
 import org.gradle.api.DefaultTask
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
@@ -897,12 +901,6 @@ abstract class AbstractCodegenTask : DefaultTask() {
         return TEMPLATE_ALIAS_MAP[key] ?: listOf(variable)
     }
 
-    fun putContext(tag: String, variable: String, value: String, context: MutableMap<String, String>) {
-        alias4Template(tag, variable).forEach { alias ->
-            context[alias] = value
-        }
-    }
-
     fun escape(content: String): String =
         content
             .replace("\\\\", "${'$'}{symbol_escape}")
@@ -917,10 +915,26 @@ abstract class AbstractCodegenTask : DefaultTask() {
             .replace("${'$'}{symbol_comma}", ",")
             .replace("${'$'}{symbol_semicolon}", ";")
 
+//    fun putContext(tag: String, variable: String, value: String, context: MutableMap<String, String>) {
+//        alias4Template(tag, variable).forEach { alias ->
+//            context[alias] = value
+//        }
+//    }
+
+    fun putContext(tag: String, variable: String, value: Any, context: VelocityContext) {
+        alias4Template(tag, variable).forEach { alias ->
+            context.put(alias, value)
+        }
+    }
 
     @Internal
-    protected fun getEscapeContext(): Map<String, String> = buildMap {
+    protected fun getEscapeContext(): VelocityContext = VelocityContext().apply {
         val ext = extension.get()
+
+        // 模板工具
+        put("StringUtils", StringUtils)
+        put("DateUtils", DateUtils)
+        put("TypeUtils", TypeUtils)
 
         // 项目信息
         put("artifactId", projectName.get())
@@ -986,6 +1000,75 @@ abstract class AbstractCodegenTask : DefaultTask() {
         put("SEPARATOR", File.separator)
         put("separator", File.separator)
     }
+
+    @Internal
+//    protected fun getEscapeContext(): Map<String, String> = buildMap {
+//        val ext = extension.get()
+//
+//        // 项目信息
+//        put("artifactId", projectName.get())
+//        put("groupId", projectGroup.get())
+//        put("version", projectVersion.get())
+//
+//        // 基础配置
+//        put("archTemplate", ext.archTemplate.get())
+//        put("archTemplateEncoding", ext.archTemplateEncoding.get())
+//        put("outputEncoding", ext.outputEncoding.get())
+//        put("basePackage", ext.basePackage.get())
+//        put("basePackage__as_path", ext.basePackage.get().replace(".", File.separator))
+//        put("multiModule", ext.multiModule.get().toString())
+//
+//        // 模块路径
+//        put("adapterModulePath", ext.adapterPath)
+//        put("applicationModulePath", ext.applicationPath)
+//        put("domainModulePath", ext.domainPath)
+//
+//        // 数据库配置
+//        with(ext.database) {
+//            put("dbUrl", url.get())
+//            put("dbUsername", username.get())
+//            put("dbPassword", password.get())
+//            put("dbSchema", schema.get())
+//            put("dbTables", tables.get())
+//            put("dbIgnoreTables", ignoreTables.get())
+//        }
+//
+//        // 生成配置
+//        with(ext.generation) {
+//            put("versionField", versionField.get())
+//            put("deletedField", deletedField.get())
+//            put("readonlyFields", readonlyFields.get())
+//            put("ignoreFields", ignoreFields.get())
+//            put("entityBaseClass", entityBaseClass.get())
+//            put("rootEntityBaseClass", rootEntityBaseClass.get())
+//            put("entityClassExtraImports", entityClassExtraImports.get())
+//            put("entitySchemaOutputPackage", entitySchemaOutputPackage.get())
+//            put("entitySchemaOutputMode", entitySchemaOutputMode.get())
+//            put("entitySchemaNameTemplate", entitySchemaNameTemplate.get())
+//            put("aggregateNameTemplate", aggregateNameTemplate.get())
+//            put("idGenerator", idGenerator.get())
+//            put("idGenerator4ValueObject", idGenerator4ValueObject.get())
+//            put("hashMethod4ValueObject", hashMethod4ValueObject.get())
+//            put("fetchType", fetchType.get())
+//            put("enumValueField", enumValueField.get())
+//            put("enumNameField", enumNameField.get())
+//            put("enumUnmatchedThrowException", enumUnmatchedThrowException.get().toString())
+//            put("datePackage", datePackage.get())
+//            put("typeRemapping", stringfyTypeRemapping())
+//            put("generateDbType", generateDbType.get().toString())
+//            put("generateSchema", generateSchema.get().toString())
+//            put("generateAggregate", generateAggregate.get().toString())
+//            put("generateParent", generateParent.get().toString())
+//            put("aggregateNameTemplate", aggregateNameTemplate.get())
+//            put("repositoryNameTemplate", repositoryNameTemplate.get())
+//            put("repositorySupportQuerydsl", repositorySupportQuerydsl.get().toString())
+//        }
+//
+//        // 其他配置
+//        put("date", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd")))
+//        put("SEPARATOR", File.separator)
+//        put("separator", File.separator)
+//    }
 
     private fun stringfyTypeRemapping(): String =
         extension.get().generation.typeRemapping.get()

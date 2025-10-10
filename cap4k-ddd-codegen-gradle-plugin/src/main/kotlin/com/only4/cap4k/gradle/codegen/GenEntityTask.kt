@@ -1679,7 +1679,7 @@ open class GenEntityTask : GenArchTask() {
         val identityType = if (ids.size != 1) "Long" else SqlSchemaUtils.getColumnType(ids[0])
         val comment = SqlSchemaUtils.getComment(table).replace(Regex(PATTERN_LINE_BREAK), " ")
 
-        val context = getEscapeContext().toMutableMap()
+        val context = getEscapeContext()
         putContext(tag, "Name", entityType, context)
         putContext(tag, "Entity", entityType, context)
         putContext(tag, "AggregateRoot", context["Entity"] ?: "", context)
@@ -1746,7 +1746,7 @@ open class GenEntityTask : GenArchTask() {
         val entityType = processEntityType(tableName)
         val entityVar = toLowerCamelCase(entityType) ?: entityType
 
-        val context = getEscapeContext().toMutableMap()
+        val context = getEscapeContext()
         putContext(tag, "Name", "${entityType}Factory", context)
         putContext(tag, "Factory", context["Name"] ?: "", context)
         putContext(tag, "templatePackage", refPackage(resolveAggregatesPackage()), context)
@@ -1813,7 +1813,7 @@ open class GenEntityTask : GenArchTask() {
         val entityType = processEntityType(tableName)
         val entityVar = toLowerCamelCase(entityType) ?: entityType
 
-        val context = getEscapeContext().toMutableMap()
+        val context = getEscapeContext()
         putContext(tag, "Name", "${entityType}Specification", context)
         putContext(tag, "Specification", context["Name"] ?: "", context)
         putContext(tag, "templatePackage", refPackage(resolveAggregatesPackage()), context)
@@ -1876,7 +1876,7 @@ open class GenEntityTask : GenArchTask() {
 
         val domainEventDescEscaped = domainEventDescription.replace(Regex(PATTERN_LINE_BREAK), "\\n")
 
-        val context = getEscapeContext().toMutableMap()
+        val context = getEscapeContext()
         putContext(tag, "Name", domainEventClassName, context)
         putContext(tag, "DomainEvent", context["Name"] ?: "", context)
         putContext(tag, "domainEventPackage", refPackage(resolveAggregatesPackage()), context)
@@ -1967,7 +1967,7 @@ open class GenEntityTask : GenArchTask() {
         val entityType = processEntityType(tableName)
         val entityVar = toLowerCamelCase(entityType) ?: entityType
 
-        val context = getEscapeContext().toMutableMap()
+        val context = getEscapeContext()
         putContext(tag, "templatePackage", refPackage(resolveAggregatesPackage()), context)
         putContext(tag, "package", refPackage(aggregate), context)
         putContext(tag, "path", aggregate.replace(".", File.separator), context)
@@ -2070,7 +2070,7 @@ open class GenEntityTask : GenArchTask() {
             concatPackage(basePackage, getEntitySchemaOutputPackage())
         }
 
-        val context = getEscapeContext().toMutableMap()
+        val context = getEscapeContext()
 
         putContext(tag, "templatePackage", refPackage(schemaPackage), context)
         putContext(tag, "package", refPackage(aggregate), context)
@@ -2322,7 +2322,7 @@ open class GenEntityTask : GenArchTask() {
             listOf(resolveDefaultSchemaBaseTemplateNode())
         }
 
-        val context = getEscapeContext().toMutableMap()
+        val context = getEscapeContext()
         putContext(
             tag,
             "templatePackage",
