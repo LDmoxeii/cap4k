@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration
  * @date 2025/08/03
  */
 @Configuration
-@ConfigurationProperties("cap4k.ddd.distributed.idgenerator.snowflake")
+@ConfigurationProperties("cap4k.ddd.distributed.id-generator.snowflake")
 class SnowflakeProperties(
     var enable: Boolean = true,
 

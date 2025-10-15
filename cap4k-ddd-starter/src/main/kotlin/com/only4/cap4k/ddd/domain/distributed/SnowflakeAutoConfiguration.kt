@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service
 @Service
 @Configuration
 @ConditionalOnProperty(
-    prefix = "cap4k.ddd.distributed.idgenerator.snowflake",
+    prefix = "cap4k.ddd.distributed.id-generator.snowflake",
     name = ["enable"],
     havingValue = "true",
     matchIfMissing = true

@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration
  * @date 2025/08/03
  */
 @Configuration
-@ConfigurationProperties("cap4k.ddd.archinfo")
+@ConfigurationProperties("cap4k.ddd.arch-info")
 class ArchInfoProperties(
     var enabled: Boolean = false,
     var basePackage: String = ""

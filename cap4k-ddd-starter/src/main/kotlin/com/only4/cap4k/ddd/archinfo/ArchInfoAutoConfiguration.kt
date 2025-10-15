@@ -36,8 +36,8 @@ class ArchInfoAutoConfiguration {
 
 
     @ConditionalOnWebApplication
-    @ConditionalOnProperty(name = ["cap4k.ddd.archinfo.enabled"], havingValue = "true")
-    @Bean(name = ["/cap4k/archinfo"])
+    @ConditionalOnProperty(name = ["cap4k.ddd.arch-info.enabled"], havingValue = "true")
+    @Bean(name = ["/cap4k/archi-nfo"])
     fun archInfoRequestHandler(
         archInfoManager: ArchInfoManager,
         @Value("\${server.port:80}") serverPort: String,
