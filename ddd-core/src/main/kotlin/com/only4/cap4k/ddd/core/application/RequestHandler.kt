@@ -19,5 +19,5 @@ interface RequestHandler<REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> {
      * @return 处理结果
      * @throws Exception 当处理过程中发生异常时
      */
-    fun exec(request: REQUEST): RESPONSE?
+    fun exec(request: REQUEST): RESPONSE
 }
