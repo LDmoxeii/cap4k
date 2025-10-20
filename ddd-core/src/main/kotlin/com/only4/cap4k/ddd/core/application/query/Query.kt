@@ -23,5 +23,5 @@ interface Query<PARAM : RequestParam<RESULT>, RESULT : Any> :
      * @param request 查询参数，包含查询所需的所有条件
      * @return 查询结果，类型由泛型参数RESULT指定
      */
-    override fun exec(request: PARAM): RESULT
+    override fun exec(request: PARAM): RESULT?
 }
