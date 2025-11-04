@@ -24,8 +24,8 @@ interface UnitOfWorkInterceptor {
     fun preInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>)
 
     /**
-     * 实体持久化之后
-     * @param entities 实体
+     * 实体持久化之后（仅聚合根实体）
+     * @param entities 聚合根实体集
      */
     fun postEntitiesPersisted(entities: Set<Any>)
 
@@ -45,3 +45,4 @@ interface UnitOfWorkInterceptor {
      */
     fun afterTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>)
 }
+

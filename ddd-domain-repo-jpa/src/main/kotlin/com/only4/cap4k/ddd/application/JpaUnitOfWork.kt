@@ -244,9 +244,9 @@ open class JpaUnitOfWork(
                 buildSet {
                     addAll(persistEntities)
                     addAll(deleteEntities)
-                    persistenceContextEntities().forEach {
-                        pushProcessingEntity(it, processedEntities as MutableSet<Any>)
-                    }
+//                    persistenceContextEntities().forEach {
+//                        pushProcessingEntity(it, processedEntities as MutableSet<Any>)
+//                    }
                     addAll(processedEntities)
                 }.let { allEntities ->
                     uowInterceptors.forEach { it.postEntitiesPersisted(allEntities) }
