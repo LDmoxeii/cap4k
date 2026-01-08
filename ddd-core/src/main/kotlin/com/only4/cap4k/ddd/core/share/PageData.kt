@@ -65,6 +65,6 @@ open class PageData<T : Any> protected constructor(
          */
         @JvmStatic
         fun <T : Any> create(pageSize: Int, pageNum: Int, totalCount: Long, list: List<T>): PageData<T> =
-            PageData(pageSize, pageNum, totalCount, list)
+            PageData(pageNum, pageSize, totalCount, list)
     }
 }
