@@ -11,6 +11,8 @@ dependencies {
 
     implementation(libs.fastjson)
     implementation(kotlin("reflect"))
+    // Source: https://mvnrepository.com/artifact/com.github.f4b6a3/uuid-creator
+    implementation("com.github.f4b6a3:uuid-creator:6.1.1")
 
     // Compile-only dependencies for optional integration
     compileOnly(libs.jpa)
