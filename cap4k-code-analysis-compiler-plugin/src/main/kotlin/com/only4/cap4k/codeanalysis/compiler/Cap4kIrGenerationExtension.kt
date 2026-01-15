@@ -379,6 +379,7 @@ private class GraphCollector(
                 }
 
                 if (handlerContext.isNotEmpty()) {
+                    val handlerId = handlerContext.lastOrNull()
                     val targetClass = expression.symbol.owner.parent as? IrClass
                     if (targetClass != null) {
                         val targetFq = targetClass.fqNameWhenAvailable?.asString()
@@ -394,6 +395,9 @@ private class GraphCollector(
                             }
                             val calleeId = "$targetFq::${expression.symbol.owner.name.asString()}"
                             addNode(Node(id = calleeId, name = expression.symbol.owner.name.asString(), fullName = calleeId, type = NodeType.entitymethod))
+                            if (handlerId != null) {
+                                addRel(Relationship(fromId = handlerId, toId = calleeId, type = RelationshipType.CommandHandlerToEntityMethod))
+                            }
                             if (aggRootFq != null) {
                                 addNode(Node(id = aggRootFq, name = aggRootFq.substringAfterLast('.'), fullName = aggRootFq, type = NodeType.aggregate))
                                 addRel(Relationship(fromId = aggRootFq, toId = calleeId, type = RelationshipType.AggregateToEntityMethod))
@@ -421,12 +425,14 @@ private class GraphCollector(
                 val methodName = pickLifecycleMethod(aggFq, "onCreate", "onCreate")
                 val methodId = "$aggFq::$methodName"
                 addNode(Node(id = methodId, name = methodName, fullName = methodId, type = NodeType.entitymethod))
+                addRel(Relationship(fromId = handlerIdForFunction, toId = methodId, type = RelationshipType.CommandHandlerToEntityMethod))
                 addRel(Relationship(fromId = aggFq, toId = methodId, type = RelationshipType.AggregateToEntityMethod))
             }
             removedAggregates.forEach { aggFq ->
                 val methodName = pickLifecycleMethod(aggFq, "onDelete", "onRemove")
                 val methodId = "$aggFq::$methodName"
                 addNode(Node(id = methodId, name = methodName, fullName = methodId, type = NodeType.entitymethod))
+                addRel(Relationship(fromId = handlerIdForFunction, toId = methodId, type = RelationshipType.CommandHandlerToEntityMethod))
                 addRel(Relationship(fromId = aggFq, toId = methodId, type = RelationshipType.AggregateToEntityMethod))
             }
         }

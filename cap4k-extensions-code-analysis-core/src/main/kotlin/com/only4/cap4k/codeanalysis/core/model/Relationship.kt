@@ -18,6 +18,7 @@ enum class RelationshipType {
     QueryToQueryHandler,
     CliToCliHandler,
     CommandHandlerToAggregate,
+    CommandHandlerToEntityMethod,
     AggregateToEntityMethod,
     EntityMethodToEntityMethod,
     EntityMethodToDomainEvent,
