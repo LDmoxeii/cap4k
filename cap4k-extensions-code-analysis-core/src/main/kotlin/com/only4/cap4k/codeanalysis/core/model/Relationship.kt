@@ -14,6 +14,7 @@ enum class RelationshipType {
     CommandSenderMethodToCommand,
     QuerySenderMethodToQuery,
     CliSenderMethodToCli,
+    ValidatorToQuery,
     CommandToCommandHandler,
     QueryToQueryHandler,
     CliToCliHandler,

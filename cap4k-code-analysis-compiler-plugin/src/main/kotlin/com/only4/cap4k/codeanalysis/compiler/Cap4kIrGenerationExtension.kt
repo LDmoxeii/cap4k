@@ -191,6 +191,8 @@ private class GraphCollector(
     private val repositorySupervisorFq = FqName(options.repositorySupervisorFq)
     private val aggregateFactorySupervisorFq = FqName(options.aggregateFactorySupervisorFq)
     private val requestParamFq = FqName(options.requestParamFq)
+    private val constraintValidatorFq = FqName("jakarta.validation.ConstraintValidator")
+    private val constraintValidatorJavaxFq = FqName("javax.validation.ConstraintValidator")
     private val predicateFq = FqName("com.only4.cap4k.ddd.core.domain.repo.Predicate")
     private val aggregatePredicateFq = FqName("com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate")
 
@@ -268,6 +270,10 @@ private class GraphCollector(
         val eventTypeFq = eventClass?.fqNameWhenAvailable?.asString()
         val isDomainEventHandler = eventClass != null && isDomainEventClass(eventClass)
         val isIntegrationEventHandler = eventClass != null && isIntegrationEventClass(eventClass)
+        val isValidatorMethod = parentClass != null && (
+            parentClass.isOrImplements(constraintValidatorFq) ||
+                parentClass.isOrImplements(constraintValidatorJavaxFq)
+            )
         if ((isDomainEventHandler || isIntegrationEventHandler) && eventTypeFq != null) {
             val handlerType = if (isDomainEventHandler) NodeType.domaineventhandler else NodeType.integrationeventhandler
             addNode(Node(id = methodId, name = methodName, fullName = methodId, type = handlerType))
@@ -287,6 +293,7 @@ private class GraphCollector(
             isControllerMethod -> FunctionCtx.CONTROLLER_METHOD
             isDomainEventHandler -> FunctionCtx.DOMAIN_EVENT_HANDLER
             isIntegrationEventHandler -> FunctionCtx.INTEGRATION_EVENT_HANDLER
+            isValidatorMethod -> FunctionCtx.VALIDATOR
             else -> FunctionCtx.OTHER
         }
         functionContext.addLast(ctx)
@@ -300,6 +307,7 @@ private class GraphCollector(
         val removedAggregates = mutableSetOf<String>()
         var saveCalled = false
         var senderMethodAdded = false
+        var validatorNodeAdded = false
 
         declaration.body?.acceptVoid(object : IrVisitorVoid() {
             override fun visitElement(element: IrElement) {
@@ -331,9 +339,14 @@ private class GraphCollector(
                         }
                         addNode(Node(id = requestFq, name = requestFq.substringAfterLast('.'), fullName = requestFq, type = nodeType))
 
-                        val relType = relationshipTypeForSend(requestKind, functionContext.lastOrNull())
+                        val ctx = functionContext.lastOrNull()
+                        val relType = relationshipTypeForSend(requestKind, ctx)
                         val senderId = methodId
-                        if (relType.isSenderMethodRel() && !senderMethodAdded) {
+                        if (ctx == FunctionCtx.VALIDATOR && !validatorNodeAdded) {
+                            addNode(Node(id = senderId, name = methodName, fullName = senderId, type = NodeType.validator))
+                            validatorNodeAdded = true
+                        }
+                        if (relType.isSenderMethodRel() && !senderMethodAdded && ctx == FunctionCtx.OTHER) {
                             val senderType = senderNodeTypeForRel(relType)
                             addNode(Node(id = senderId, name = methodName, fullName = senderId, type = senderType))
                             senderMethodAdded = true
@@ -596,6 +609,7 @@ private enum class FunctionCtx {
     CONTROLLER_METHOD,
     DOMAIN_EVENT_HANDLER,
     INTEGRATION_EVENT_HANDLER,
+    VALIDATOR,
     OTHER
 }
 
@@ -617,6 +631,7 @@ private fun relationshipTypeForSend(kind: RequestKind, ctx: FunctionCtx?): Relat
             FunctionCtx.CONTROLLER_METHOD -> RelationshipType.ControllerMethodToQuery
             FunctionCtx.DOMAIN_EVENT_HANDLER -> RelationshipType.DomainEventHandlerToQuery
             FunctionCtx.INTEGRATION_EVENT_HANDLER -> RelationshipType.IntegrationEventHandlerToQuery
+            FunctionCtx.VALIDATOR -> RelationshipType.ValidatorToQuery
             else -> RelationshipType.QuerySenderMethodToQuery
         }
         RequestKind.CLI -> when (ctx) {

@@ -14,6 +14,7 @@ enum class NodeType {
     commandsendermethod,
     querysendermethod,
     clisendermethod,
+    validator,
     command,
     commandhandler,
     query,
