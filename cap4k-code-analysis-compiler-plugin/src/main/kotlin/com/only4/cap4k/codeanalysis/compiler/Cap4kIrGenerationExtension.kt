@@ -287,48 +287,52 @@ private class GraphCollector(
 
     override fun visitClassNew(declaration: IrClass): IrStatement {
         val fqcn = declaration.fqNameWhenAvailable?.asString() ?: return super.visitClassNew(declaration)
+        val classDisplayName = declaration.nestedSimpleName()
 
         if (index.domainEventClasses.contains(fqcn) || declaration.hasAnnotation(domainEventAnn)) {
-            addNode(Node(id = fqcn, name = declaration.name.asString(), fullName = fqcn, type = NodeType.domainevent))
+            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.domainevent))
         }
         if (index.integrationEventClasses.contains(fqcn) || declaration.hasAnnotation(integrationEventAnn)) {
-            addNode(Node(id = fqcn, name = declaration.name.asString(), fullName = fqcn, type = NodeType.integrationevent))
+            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.integrationevent))
         }
 
         val aggInfo = index.aggregateInfoByClass[fqcn]
         if (aggInfo != null && aggInfo.type == AGG_TYPE_ENTITY && aggInfo.root) {
-            addNode(Node(id = fqcn, name = declaration.name.asString(), fullName = fqcn, type = NodeType.aggregate))
+            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.aggregate))
         }
 
         if (options.scanSpring && declaration.hasAnnotation(restController)) {
-            addNode(Node(id = fqcn, name = declaration.name.asString(), fullName = fqcn, type = NodeType.controller))
+            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.controller))
         }
 
         val implementsCommand = declaration.implementsInterface(commandInterfaceFq)
         val implementsQuery = declaration.implementsInterface(queryInterfaceFq)
         val implementsRequestHandler = declaration.implementsInterface(requestHandlerFq)
         if (implementsCommand) {
-            addNode(Node(id = fqcn, name = declaration.name.asString(), fullName = fqcn, type = NodeType.commandhandler))
-            val cmdReqFq = resolveRequestTypeFromHandlerInterface(declaration, commandInterfaceFq)
-            if (cmdReqFq != null) {
-                addNode(Node(id = cmdReqFq, name = cmdReqFq.substringAfterLast('.'), fullName = cmdReqFq, type = NodeType.command))
+            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.commandhandler))
+            val cmdReqClass = resolveRequestClassFromHandlerInterface(declaration, commandInterfaceFq)
+            val cmdReqFq = cmdReqClass?.fqNameWhenAvailable?.asString()
+            if (cmdReqClass != null && cmdReqFq != null) {
+                addNode(Node(id = cmdReqFq, name = cmdReqClass.nestedSimpleName(), fullName = cmdReqFq, type = NodeType.command))
                 handlerToCommand[fqcn] = cmdReqFq
                 requestKindByFq[cmdReqFq] = RequestKind.COMMAND
                 addRel(Relationship(fromId = cmdReqFq, toId = fqcn, type = RelationshipType.CommandToCommandHandler))
             }
         } else if (implementsQuery) {
-            addNode(Node(id = fqcn, name = declaration.name.asString(), fullName = fqcn, type = NodeType.queryhandler))
-            val qryReqFq = resolveRequestTypeFromHandlerInterface(declaration, queryInterfaceFq)
-            if (qryReqFq != null) {
-                addNode(Node(id = qryReqFq, name = qryReqFq.substringAfterLast('.'), fullName = qryReqFq, type = NodeType.query))
+            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.queryhandler))
+            val qryReqClass = resolveRequestClassFromHandlerInterface(declaration, queryInterfaceFq)
+            val qryReqFq = qryReqClass?.fqNameWhenAvailable?.asString()
+            if (qryReqClass != null && qryReqFq != null) {
+                addNode(Node(id = qryReqFq, name = qryReqClass.nestedSimpleName(), fullName = qryReqFq, type = NodeType.query))
                 requestKindByFq[qryReqFq] = RequestKind.QUERY
                 addRel(Relationship(fromId = qryReqFq, toId = fqcn, type = RelationshipType.QueryToQueryHandler))
             }
         } else if (implementsRequestHandler) {
-            addNode(Node(id = fqcn, name = declaration.name.asString(), fullName = fqcn, type = NodeType.clihandler))
-            val cliReqFq = resolveRequestTypeFromHandlerInterface(declaration, requestHandlerFq)
-            if (cliReqFq != null) {
-                addNode(Node(id = cliReqFq, name = cliReqFq.substringAfterLast('.'), fullName = cliReqFq, type = NodeType.cli))
+            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.clihandler))
+            val cliReqClass = resolveRequestClassFromHandlerInterface(declaration, requestHandlerFq)
+            val cliReqFq = cliReqClass?.fqNameWhenAvailable?.asString()
+            if (cliReqClass != null && cliReqFq != null) {
+                addNode(Node(id = cliReqFq, name = cliReqClass.nestedSimpleName(), fullName = cliReqFq, type = NodeType.cli))
                 requestKindByFq[cliReqFq] = RequestKind.CLI
                 addRel(Relationship(fromId = cliReqFq, toId = fqcn, type = RelationshipType.CliToCliHandler))
             }
@@ -342,6 +346,7 @@ private class GraphCollector(
         val methodName = declaration.name.asString()
         val parentFqcn = parentClass?.fqNameWhenAvailable?.asString()
         val methodId = if (parentFqcn != null) "$parentFqcn::$methodName" else methodName
+        val methodDisplayName = buildMethodDisplayName(parentClass, methodName)
 
         val isControllerMethod = options.scanSpring &&
             parentClass != null &&
@@ -352,7 +357,7 @@ private class GraphCollector(
             }
 
         if (isControllerMethod) {
-            addNode(Node(id = methodId, name = methodName, fullName = methodId, type = NodeType.controllermethod))
+            addNode(Node(id = methodId, name = methodDisplayName, fullName = methodId, type = NodeType.controllermethod))
         }
 
         val eventClass = resolveEventListenerEventClass(declaration)
@@ -365,17 +370,18 @@ private class GraphCollector(
             )
         if ((isDomainEventHandler || isIntegrationEventHandler) && eventTypeFq != null) {
             val handlerType = if (isDomainEventHandler) NodeType.domaineventhandler else NodeType.integrationeventhandler
-            addNode(Node(id = methodId, name = methodName, fullName = methodId, type = handlerType))
+            addNode(Node(id = methodId, name = methodDisplayName, fullName = methodId, type = handlerType))
             val eventType = eventTypeFq!!
             val eventNodeType = if (isDomainEventHandler) NodeType.domainevent else NodeType.integrationevent
-            addNode(Node(id = eventType, name = eventType.substringAfterLast('.'), fullName = eventType, type = eventNodeType))
+            val eventDisplayName = eventClass?.nestedSimpleName() ?: typeDisplayNameForFqcn(eventType)
+            addNode(Node(id = eventType, name = eventDisplayName, fullName = eventType, type = eventNodeType))
             val relType = if (isDomainEventHandler) RelationshipType.DomainEventToHandler else RelationshipType.IntegrationEventToHandler
             addRel(Relationship(fromId = eventType, toId = methodId, type = relType))
         }
 
         val aggInfo = parentFqcn?.let { index.aggregateInfoByClass[it] }
         if (aggInfo != null && aggInfo.type == AGG_TYPE_ENTITY) {
-            addNode(Node(id = methodId, name = methodName, fullName = methodId, type = NodeType.entitymethod))
+            addNode(Node(id = methodId, name = methodDisplayName, fullName = methodId, type = NodeType.entitymethod))
         }
 
         val ctx = when {
@@ -426,7 +432,8 @@ private class GraphCollector(
                             RequestKind.QUERY -> NodeType.query
                             RequestKind.CLI -> NodeType.cli
                         }
-                        addNode(Node(id = requestFq, name = requestFq.substringAfterLast('.'), fullName = requestFq, type = nodeType))
+                        val requestDisplayName = requestClass.nestedSimpleName()
+                        addNode(Node(id = requestFq, name = requestDisplayName, fullName = requestFq, type = nodeType))
 
                         val ctx = functionContext.lastOrNull()
                         val senderId = methodId
@@ -442,12 +449,12 @@ private class GraphCollector(
 
                         val relType = relationshipTypeForSend(requestKind, ctx)
                         if (ctx == FunctionCtx.VALIDATOR && !validatorNodeAdded) {
-                            addNode(Node(id = senderId, name = methodName, fullName = senderId, type = NodeType.validator))
+                            addNode(Node(id = senderId, name = methodDisplayName, fullName = senderId, type = NodeType.validator))
                             validatorNodeAdded = true
                         }
                         if (relType.isSenderMethodRel() && !senderMethodAdded && ctx == FunctionCtx.OTHER) {
                             val senderType = senderNodeTypeForRel(relType)
-                            addNode(Node(id = senderId, name = methodName, fullName = senderId, type = senderType))
+                            addNode(Node(id = senderId, name = methodDisplayName, fullName = senderId, type = senderType))
                             senderMethodAdded = true
                         }
                         addRel(Relationship(fromId = senderId, toId = requestFq, type = relType))
@@ -460,7 +467,7 @@ private class GraphCollector(
                         ?: payloadClass?.let { resolveAggregateRootFromPayload(it) }
                     val handlerId = handlerContext.lastOrNull()
                     if (aggRootFq != null && handlerId != null) {
-                        addNode(Node(id = aggRootFq, name = aggRootFq.substringAfterLast('.'), fullName = aggRootFq, type = NodeType.aggregate))
+                        addNode(Node(id = aggRootFq, name = typeDisplayNameForFqcn(aggRootFq), fullName = aggRootFq, type = NodeType.aggregate))
                         addRel(Relationship(fromId = handlerId, toId = aggRootFq, type = RelationshipType.CommandHandlerToAggregate))
                         createdAggregates.add(aggRootFq)
                     }
@@ -485,7 +492,7 @@ private class GraphCollector(
                     val aggRootFq = resolveAggregateRootFromType(expression.type)
                     val handlerId = handlerContext.lastOrNull()
                     if (aggRootFq != null && handlerId != null) {
-                        addNode(Node(id = aggRootFq, name = aggRootFq.substringAfterLast('.'), fullName = aggRootFq, type = NodeType.aggregate))
+                        addNode(Node(id = aggRootFq, name = typeDisplayNameForFqcn(aggRootFq), fullName = aggRootFq, type = NodeType.aggregate))
                         addRel(Relationship(fromId = handlerId, toId = aggRootFq, type = RelationshipType.CommandHandlerToAggregate))
                     }
                 }
@@ -506,12 +513,13 @@ private class GraphCollector(
                                     ?: targetFq
                             }
                             val calleeId = "$targetFq::${expression.symbol.owner.name.asString()}"
-                            addNode(Node(id = calleeId, name = expression.symbol.owner.name.asString(), fullName = calleeId, type = NodeType.entitymethod))
+                            val calleeName = buildMethodDisplayName(targetClass, expression.symbol.owner.name.asString())
+                            addNode(Node(id = calleeId, name = calleeName, fullName = calleeId, type = NodeType.entitymethod))
                             if (handlerId != null) {
                                 addRel(Relationship(fromId = handlerId, toId = calleeId, type = RelationshipType.CommandHandlerToEntityMethod))
                             }
                             if (aggRootFq != null) {
-                                addNode(Node(id = aggRootFq, name = aggRootFq.substringAfterLast('.'), fullName = aggRootFq, type = NodeType.aggregate))
+                                addNode(Node(id = aggRootFq, name = typeDisplayNameForFqcn(aggRootFq), fullName = aggRootFq, type = NodeType.aggregate))
                                 addRel(Relationship(fromId = aggRootFq, toId = calleeId, type = RelationshipType.AggregateToEntityMethod))
                             }
                         }
@@ -525,7 +533,7 @@ private class GraphCollector(
                 val evtClass = expression.symbol.owner.parentAsClass
                 val evtFq = evtClass.fqNameWhenAvailable?.asString()
                 if (evtFq != null && isDomainEventClass(evtClass)) {
-                    addNode(Node(id = evtFq, name = evtFq.substringAfterLast('.'), fullName = evtFq, type = NodeType.domainevent))
+                    addNode(Node(id = evtFq, name = evtClass.nestedSimpleName(), fullName = evtFq, type = NodeType.domainevent))
                     addRel(Relationship(fromId = methodId, toId = evtFq, type = RelationshipType.EntityMethodToDomainEvent))
                 }
                 super.visitConstructorCall(expression)
@@ -536,14 +544,16 @@ private class GraphCollector(
             createdAggregates.forEach { aggFq ->
                 val methodName = pickLifecycleMethod(aggFq, "onCreate", "onCreate")
                 val methodId = "$aggFq::$methodName"
-                addNode(Node(id = methodId, name = methodName, fullName = methodId, type = NodeType.entitymethod))
+                val displayName = buildMethodDisplayNameFromFqcn(aggFq, methodName)
+                addNode(Node(id = methodId, name = displayName, fullName = methodId, type = NodeType.entitymethod))
                 addRel(Relationship(fromId = handlerIdForFunction, toId = methodId, type = RelationshipType.CommandHandlerToEntityMethod))
                 addRel(Relationship(fromId = aggFq, toId = methodId, type = RelationshipType.AggregateToEntityMethod))
             }
             removedAggregates.forEach { aggFq ->
                 val methodName = pickLifecycleMethod(aggFq, "onDelete", "onRemove")
                 val methodId = "$aggFq::$methodName"
-                addNode(Node(id = methodId, name = methodName, fullName = methodId, type = NodeType.entitymethod))
+                val displayName = buildMethodDisplayNameFromFqcn(aggFq, methodName)
+                addNode(Node(id = methodId, name = displayName, fullName = methodId, type = NodeType.entitymethod))
                 addRel(Relationship(fromId = handlerIdForFunction, toId = methodId, type = RelationshipType.CommandHandlerToEntityMethod))
                 addRel(Relationship(fromId = aggFq, toId = methodId, type = RelationshipType.AggregateToEntityMethod))
             }
@@ -557,15 +567,14 @@ private class GraphCollector(
         return super.visitFunctionNew(declaration)
     }
 
-    private fun resolveRequestTypeFromHandlerInterface(declaration: IrClass, handlerFq: FqName): String? {
+    private fun resolveRequestClassFromHandlerInterface(declaration: IrClass, handlerFq: FqName): IrClass? {
         return declaration.superTypes.firstNotNullOfOrNull { t ->
             val st = t as? IrSimpleType ?: return@firstNotNullOfOrNull null
             val owner = st.classifier?.owner as? IrClass ?: return@firstNotNullOfOrNull null
             if (owner.fqNameWhenAvailable != handlerFq) return@firstNotNullOfOrNull null
             val firstArg = st.arguments.getOrNull(0) as? org.jetbrains.kotlin.ir.types.IrTypeProjection
             val argType = firstArg?.type as? IrSimpleType
-            val argClass = argType?.classifier?.owner as? IrClass
-            argClass?.fqNameWhenAvailable?.asString()
+            argType?.classifier?.owner as? IrClass
         }
     }
 
@@ -740,6 +749,34 @@ private fun relationshipTypeForSend(kind: RequestKind, ctx: FunctionCtx?): Relat
             else -> RelationshipType.CliSenderMethodToCli
         }
     }
+}
+
+private fun IrClass.nestedSimpleName(): String {
+    val names = mutableListOf<String>()
+    var current: IrClass? = this
+    while (current != null) {
+        names.add(current.name.asString())
+        current = current.parent as? IrClass
+    }
+    return names.asReversed().joinToString(".")
+}
+
+private fun buildMethodDisplayName(parentClass: IrClass?, methodName: String): String {
+    return if (parentClass != null) "${parentClass.nestedSimpleName()}::$methodName" else methodName
+}
+
+private fun buildMethodDisplayNameFromFqcn(fqcn: String, methodName: String): String {
+    return "${typeDisplayNameForFqcn(fqcn)}::$methodName"
+}
+
+private fun typeDisplayNameForFqcn(fqcn: String): String {
+    val normalized = fqcn.replace('$', '.')
+    val parts = normalized.split('.')
+    if (parts.isEmpty()) return normalized
+    val firstClassIndex = parts.indexOfFirst { part ->
+        part.firstOrNull()?.isUpperCase() == true
+    }
+    return if (firstClassIndex == -1) parts.last() else parts.drop(firstClassIndex).joinToString(".")
 }
 
 private fun senderNodeTypeForRel(relType: RelationshipType): NodeType {
