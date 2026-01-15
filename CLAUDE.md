@@ -220,7 +220,7 @@ HTTP-based integration event system for cross-service communication:
 
 ### Technology Stack
 
-- Kotlin 2.1.20 with Spring Boot 3.1.12
+- Kotlin 2.2.20 with Spring Boot 3.1.12
 - Java 17 toolchain
 - JUnit 5 with MockK for testing (Kotlin test assertions preferred)
 - QueryDSL for type-safe query building

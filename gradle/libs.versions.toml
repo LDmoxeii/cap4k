@@ -4,9 +4,9 @@
 
 [versions]
 # Kotlin ecosystem
-kotlin = "2.1.20"
+kotlin = "2.2.20"
 publish-plugin = "2.0.0"
-ksp = "2.2.0-2.0.2"
+ksp = "2.2.20-2.0.2"
 
 # Spring framework
 spring-boot = "3.5.6"

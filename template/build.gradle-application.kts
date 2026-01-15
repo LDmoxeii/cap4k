@@ -2,7 +2,7 @@
 
 plugins {
     id("buildsrc.convention.kotlin-jvm")
-    id("com.google.devtools.ksp") version "2.1.20-2.0.0"
+    id("com.google.devtools.ksp") version "2.2.20-2.0.2"
 }
 
 dependencies {

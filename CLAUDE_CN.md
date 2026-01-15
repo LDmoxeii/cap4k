@@ -216,7 +216,7 @@ val users = repository.find(predicate, persist = false)
 
 ### 技术栈
 
-- Kotlin 2.1.20 与 Spring Boot 3.1.12
+- Kotlin 2.2.20 与 Spring Boot 3.1.12
 - Java 17 工具链
 - JUnit 5 与 MockK 测试（推荐使用 Kotlin 测试断言）
 - QueryDSL 用于类型安全的查询构建
