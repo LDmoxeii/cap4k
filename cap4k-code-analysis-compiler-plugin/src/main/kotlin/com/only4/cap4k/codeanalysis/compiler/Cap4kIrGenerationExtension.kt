@@ -299,7 +299,7 @@ private class GraphCollector(
         val createdAggregates = mutableSetOf<String>()
         val removedAggregates = mutableSetOf<String>()
         var saveCalled = false
-        var commandSenderMethodAdded = false
+        var senderMethodAdded = false
 
         declaration.body?.acceptVoid(object : IrVisitorVoid() {
             override fun visitElement(element: IrElement) {
@@ -333,9 +333,10 @@ private class GraphCollector(
 
                         val relType = relationshipTypeForSend(requestKind, functionContext.lastOrNull())
                         val senderId = methodId
-                        if (relType.isSenderMethodRel() && !commandSenderMethodAdded) {
-                            addNode(Node(id = senderId, name = methodName, fullName = senderId, type = NodeType.commandsendermethod))
-                            commandSenderMethodAdded = true
+                        if (relType.isSenderMethodRel() && !senderMethodAdded) {
+                            val senderType = senderNodeTypeForRel(relType)
+                            addNode(Node(id = senderId, name = methodName, fullName = senderId, type = senderType))
+                            senderMethodAdded = true
                         }
                         addRel(Relationship(fromId = senderId, toId = requestFq, type = relType))
                     }
@@ -618,6 +619,15 @@ private fun relationshipTypeForSend(kind: RequestKind, ctx: FunctionCtx?): Relat
             FunctionCtx.INTEGRATION_EVENT_HANDLER -> RelationshipType.IntegrationEventHandlerToCli
             else -> RelationshipType.CliSenderMethodToCli
         }
+    }
+}
+
+private fun senderNodeTypeForRel(relType: RelationshipType): NodeType {
+    return when (relType) {
+        RelationshipType.CommandSenderMethodToCommand -> NodeType.commandsendermethod
+        RelationshipType.QuerySenderMethodToQuery -> NodeType.querysendermethod
+        RelationshipType.CliSenderMethodToCli -> NodeType.clisendermethod
+        else -> NodeType.commandsendermethod
     }
 }
 

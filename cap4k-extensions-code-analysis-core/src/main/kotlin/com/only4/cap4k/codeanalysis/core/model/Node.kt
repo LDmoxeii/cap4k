@@ -10,9 +10,10 @@ data class Node(
 enum class NodeType {
     controller,
     controllermethod,
-    endpoint,
     commandsender,
     commandsendermethod,
+    querysendermethod,
+    clisendermethod,
     command,
     commandhandler,
     query,
