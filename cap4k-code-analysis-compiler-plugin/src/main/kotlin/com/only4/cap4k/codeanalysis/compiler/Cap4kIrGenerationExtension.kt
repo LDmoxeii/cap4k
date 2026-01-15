@@ -38,7 +38,11 @@ class Cap4kIrGenerationExtension : IrGenerationExtension {
             moduleFragment.files.forEach { it.acceptVoid(this) }
         }.build()
 
-        val collector = GraphCollector(options, index)
+        val controllerRoots = ControllerCallGraphBuilder(options).apply {
+            moduleFragment.files.forEach { it.acceptVoid(this) }
+        }.buildRootsByMethod()
+
+        val collector = GraphCollector(options, index, controllerRoots)
         moduleFragment.files.forEach { file ->
             file.accept(collector, null)
         }
@@ -91,6 +95,90 @@ private data class ClassIndex(
     val domainEventClasses: Set<String>,
     val integrationEventClasses: Set<String>,
 )
+
+private class ControllerCallGraphBuilder(
+    private val options: Cap4kOptions,
+) : IrVisitorVoid() {
+    private val controllerMethodsByClass = mutableMapOf<String, MutableSet<String>>()
+    private val methodCalls = mutableMapOf<String, MutableSet<String>>()
+    private val controllerClasses = mutableSetOf<String>()
+
+    private val restController = FqName("org.springframework.web.bind.annotation.RestController")
+    private val requestMappings = setOf(
+        "org.springframework.web.bind.annotation.RequestMapping",
+        "org.springframework.web.bind.annotation.GetMapping",
+        "org.springframework.web.bind.annotation.PostMapping",
+        "org.springframework.web.bind.annotation.PutMapping",
+        "org.springframework.web.bind.annotation.DeleteMapping",
+        "org.springframework.web.bind.annotation.PatchMapping"
+    ).map(::FqName).toSet()
+
+    override fun visitElement(element: IrElement) {
+        element.acceptChildrenVoid(this)
+    }
+
+    override fun visitClass(declaration: IrClass) {
+        if (!options.scanSpring) return super.visitClass(declaration)
+        val fqcn = declaration.fqNameWhenAvailable?.asString() ?: return super.visitClass(declaration)
+        if (declaration.hasAnnotation(restController)) {
+            controllerClasses.add(fqcn)
+        }
+        super.visitClass(declaration)
+    }
+
+    override fun visitFunction(declaration: IrFunction) {
+        if (!options.scanSpring) return super.visitFunction(declaration)
+        val parentClass = declaration.parent as? IrClass ?: return super.visitFunction(declaration)
+        val parentFqcn = parentClass.fqNameWhenAvailable?.asString() ?: return super.visitFunction(declaration)
+        if (!controllerClasses.contains(parentFqcn)) return super.visitFunction(declaration)
+
+        val methodName = declaration.name.asString()
+        val methodId = "$parentFqcn::$methodName"
+        val isControllerMethod = declaration.annotations.any { ann ->
+            val annFq = ann.symbol.owner.parentAsClass.fqNameWhenAvailable
+            annFq != null && requestMappings.contains(annFq)
+        }
+        if (isControllerMethod) {
+            controllerMethodsByClass.getOrPut(parentFqcn) { mutableSetOf() }.add(methodId)
+        }
+
+        declaration.body?.acceptVoid(object : IrVisitorVoid() {
+            override fun visitElement(element: IrElement) {
+                element.acceptChildrenVoid(this)
+            }
+
+            override fun visitCall(expression: IrCall) {
+                val targetClass = expression.symbol.owner.parent as? IrClass
+                val targetFq = targetClass?.fqNameWhenAvailable?.asString()
+                if (targetFq == parentFqcn) {
+                    val targetId = "$targetFq::${expression.symbol.owner.name.asString()}"
+                    methodCalls.getOrPut(methodId) { mutableSetOf() }.add(targetId)
+                }
+                super.visitCall(expression)
+            }
+        })
+
+        super.visitFunction(declaration)
+    }
+
+    fun buildRootsByMethod(): Map<String, Set<String>> {
+        val rootsByMethod = mutableMapOf<String, MutableSet<String>>()
+        controllerMethodsByClass.values.flatten().forEach { root ->
+            val stack = ArrayDeque<String>()
+            val visited = mutableSetOf<String>()
+            stack.add(root)
+            while (stack.isNotEmpty()) {
+                val current = stack.removeLast()
+                if (!visited.add(current)) continue
+                rootsByMethod.getOrPut(current) { mutableSetOf() }.add(root)
+                methodCalls[current].orEmpty().forEach { callee ->
+                    stack.add(callee)
+                }
+            }
+        }
+        return rootsByMethod.mapValues { it.value.toSet() }
+    }
+}
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
 private class ClassIndexBuilder(
@@ -156,6 +244,7 @@ private class ClassIndexBuilder(
 private class GraphCollector(
     private val options: Cap4kOptions,
     private val index: ClassIndex,
+    private val controllerRootsByMethod: Map<String, Set<String>>,
 ) : IrElementTransformerVoidWithContext() {
     private val nodes = LinkedHashMap<String, Node>()
     private val rels = LinkedHashSet<Relationship>()
@@ -340,8 +429,18 @@ private class GraphCollector(
                         addNode(Node(id = requestFq, name = requestFq.substringAfterLast('.'), fullName = requestFq, type = nodeType))
 
                         val ctx = functionContext.lastOrNull()
-                        val relType = relationshipTypeForSend(requestKind, ctx)
                         val senderId = methodId
+                        val controllerRoots = if (ctx == FunctionCtx.OTHER) controllerRootsByMethod[senderId].orEmpty() else emptySet()
+                        if (controllerRoots.isNotEmpty()) {
+                            val relType = relationshipTypeForSend(requestKind, FunctionCtx.CONTROLLER_METHOD)
+                            controllerRoots.forEach { rootId ->
+                                addRel(Relationship(fromId = rootId, toId = requestFq, type = relType))
+                            }
+                            super.visitCall(expression)
+                            return
+                        }
+
+                        val relType = relationshipTypeForSend(requestKind, ctx)
                         if (ctx == FunctionCtx.VALIDATOR && !validatorNodeAdded) {
                             addNode(Node(id = senderId, name = methodName, fullName = senderId, type = NodeType.validator))
                             validatorNodeAdded = true
