@@ -38,5 +38,7 @@ include(
     "ddd-integration-event-rocketmq"
 )
 include("cap4k-ddd-console", "cap4k-ddd-starter")
+include("cap4k-extensions-code-analysis-core")
+include("cap4k-code-analysis-compiler-plugin")
 
 rootProject.name = "cap4k"
