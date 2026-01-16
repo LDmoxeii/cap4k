@@ -40,6 +40,7 @@ include(
 include("cap4k-ddd-console", "cap4k-ddd-starter")
 include("cap4k-extensions-code-analysis-core")
 include("cap4k-code-analysis-compiler-plugin")
+include("cap4k-code-analysis-flow-export-plugin")
 include("cap4k-ddd-codegen-ksp")
 include("cap4k-ddd-codegen-plugin")
 
