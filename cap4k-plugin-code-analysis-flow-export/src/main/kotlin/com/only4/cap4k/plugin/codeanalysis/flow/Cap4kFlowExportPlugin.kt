@@ -39,6 +39,8 @@ class Cap4kFlowExportPlugin : Plugin<Project> {
         extension.outputDir.convention(project.layout.projectDirectory.dir("flows"))
         extension.inputDirs.convention(resolveInputDirs(project, null))
         extension.labelPrefixes.convention(resolveLabelPrefixes(project, null))
+        extension.entryTypes.convention(ENTRY_NODE_TYPES.toList())
+        extension.entryTypeExcludes.convention(emptyList())
 
         val flowExport = project.tasks.register("cap4kFlowExport", Cap4kFlowExportTask::class.java) { task ->
             task.group = "cap4k"
@@ -46,6 +48,8 @@ class Cap4kFlowExportPlugin : Plugin<Project> {
             task.inputDirs.set(extension.inputDirs)
             task.outputDir.set(extension.outputDir)
             task.labelPrefixes.set(extension.labelPrefixes)
+            task.entryTypes.set(extension.entryTypes)
+            task.entryTypeExcludes.set(extension.entryTypeExcludes)
         }
 
         val flowClean = project.tasks.register("cap4kFlowClean") { task ->
@@ -114,6 +118,8 @@ abstract class Cap4kFlowExportExtension @Inject constructor() {
     abstract val inputDirs: ListProperty<Directory>
     abstract val outputDir: DirectoryProperty
     abstract val labelPrefixes: ListProperty<String>
+    abstract val entryTypes: ListProperty<String>
+    abstract val entryTypeExcludes: ListProperty<String>
 }
 
 abstract class Cap4kFlowExportTask : DefaultTask() {
@@ -126,6 +132,12 @@ abstract class Cap4kFlowExportTask : DefaultTask() {
 
     @get:Input
     abstract val labelPrefixes: ListProperty<String>
+
+    @get:Input
+    abstract val entryTypes: ListProperty<String>
+
+    @get:Input
+    abstract val entryTypeExcludes: ListProperty<String>
 
     @TaskAction
     fun export() {
@@ -169,8 +181,16 @@ abstract class Cap4kFlowExportTask : DefaultTask() {
             adjacency.computeIfAbsent(edge.fromId) { mutableListOf() }.add(edge)
         }
 
+        val allowedEntryTypes = entryTypes.get()
+            .map { it.lowercase() }
+            .toMutableSet()
+        val excludedEntryTypes = entryTypeExcludes.get()
+            .map { it.lowercase() }
+            .toSet()
+        allowedEntryTypes.removeAll(excludedEntryTypes)
+
         val entryNodes = nodesById.values
-            .filter { node -> ENTRY_NODE_TYPES.contains(node.type) }
+            .filter { node -> allowedEntryTypes.contains(node.type.lowercase()) }
             .sortedBy { it.id }
 
         val outDir = outputDir.get().asFile.toPath()
