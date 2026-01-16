@@ -1,0 +1,63 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * {{ Comment }}
+ *
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * 警告：请勿手工修改该文件的字段声明，重新生成会覆盖字段声明
+ * @author cap4k-ddd-codegen
+ * @date {{ date }}
+ */
+{%- for line in annotationLines %}
+{{ line }}
+{%- endfor %}
+class {{ entityType }}(
+{%- for column in columns %}
+{%- if column.needGenerate %}
+    {{ column.fieldName }}: {{ column.fieldType }}{{ column.defaultValue }}{% if not loop.last %},{% endif %}
+{%- endif %}
+{%- endfor %}
+){{ extendsClause }}{{ implementsClause }} {
+    // 【字段映射开始】本段落由[cap4k-ddd-codegen-gradle-plugin]维护，请不要手工改动
+
+{%- if relations is not empty %}
+{%- for relation in relations %}
+
+{%- for annotation in relation.annotations %}
+    {{ annotation }}
+{%- endfor %}
+    var {{ relation.fieldName }}: {{ relation.fieldType }}{{ relation.defaultValue }}
+{%- if relation.hasLoadMethod %}
+
+    fun load{{ relation.entityType }}(): {{ relation.fullEntityType }}? {
+        return if ({{ relation.fieldName }}.isEmpty()) null else {{ relation.fieldName }}[0]
+    }
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+{%- for column in columns %}
+{%- if column.needGenerate %}
+
+{{ column.comment }}
+{%- for annotation in column.annotations %}
+    {{ annotation }}
+{%- endfor %}
+    var {{ column.fieldName }}: {{ column.fieldType }} = {{ column.fieldName }}
+        internal set
+{%- endif %}
+{%- endfor %}
+
+    // 【字段映射结束】本段落由[cap4k-ddd-codegen-gradle-plugin]维护，请不要手工改动
+
+{%- if customerLines is not empty %}
+{%- for line in customerLines %}
+{{ line }}
+{%- endfor %}
+{%- else %}
+
+{%- endif %}
+}

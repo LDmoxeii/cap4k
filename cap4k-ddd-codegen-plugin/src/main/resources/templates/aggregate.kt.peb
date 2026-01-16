@@ -1,0 +1,23 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * {{ Entity }}聚合封装
+ * {{ Comment }}
+ *
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * @author cap4k-ddd-codegen
+ * @date {{ date }}
+ */
+class {{ AggregateName }}(
+    payload: {{ Factory }}.Payload? = null,
+) : Aggregate.Default<{{ Entity }}>(payload) {
+
+    val id by lazy { root.id }
+
+    class Id(key: {{ IdentityType }}) :
+        com.only4.cap4k.ddd.core.domain.aggregate.Id.Default<{{ AggregateName }}, {{ IdentityType }}>(key)
+
+}

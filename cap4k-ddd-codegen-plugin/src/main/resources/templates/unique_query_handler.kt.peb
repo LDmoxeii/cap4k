@@ -1,0 +1,28 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * 该文件由 [cap4k-ddd-codegen-gradle-plugin] 生成
+ * @author cap4k-ddd-codegen
+ */
+@Service
+class {{ QueryHandler }}(
+    private val sqlClient: KSqlClient,
+) : Query<{{ Query }}.Request, {{ Query }}.Response> {
+
+    override fun exec(request: {{ Query }}.Request): {{ Query }}.Response {
+        val exists = sqlClient.exists({{ Entity }}::class) {
+            {%- for p in WhereProps %}
+            where(table.{{ p }} eq request.{{ p }})
+            {%- endfor %}
+            where(table.{{ IdPropName }} `ne?` request.{{ ExcludeIdParamName }})
+        }
+
+        return {{ Query }}.Response(
+            exists = exists
+        )
+    }
+}
+

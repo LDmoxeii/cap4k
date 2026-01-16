@@ -1,0 +1,79 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * 该文件由 [cap4k-ddd-codegen-gradle-plugin] 生成
+ * @author cap4k-ddd-codegen
+ */
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.RUNTIME)
+@Constraint(validatedBy = [{{ Validator }}.Validator::class])
+@MustBeDocumented
+annotation class {{ Validator }}(
+    val message: String = "唯一性校验未通过",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = [],
+{%- for fp in FieldParams %}
+    val {{ fp.param }}: String = "{{ fp.default }}",
+{%- endfor %}
+    val {{ EntityIdParam }}: String = "{{ EntityIdDefault }}",
+) {
+    class Validator : ConstraintValidator<{{ Validator }}, Any> {
+        {%- for rp in RequestProps %}
+        private lateinit var {{ rp.varName }}: String
+        {%- endfor %}
+        private lateinit var {{ EntityIdVar }}: String
+
+        override fun initialize(constraintAnnotation: {{ Validator }}) {
+        {%- for rp in RequestProps %}
+            {{ rp.varName }} = constraintAnnotation.{{ rp.param }}
+        {%- endfor %}
+            {{ EntityIdVar }} = constraintAnnotation.{{ EntityIdParam }}
+        }
+
+        override fun isValid(value: Any?, context: ConstraintValidatorContext): Boolean {
+            if (value == null) return true
+
+            val props = value::class.memberProperties.associateBy { it.name }
+
+            // 读取唯一字段值
+{%- for rp in RequestProps %}
+            val {{ rp.name }} = props[{{ rp.varName }}]?.getter?.call(value) as? {{ rp.type }}?
+{%- if rp.isString %}
+            val {{ rp.name }}Trimmed = {{ rp.name }}?.trim()
+{%- endif %}
+{%- endfor %}
+
+            // 读取排除 ID
+            val excludeId = props[{{ EntityIdVar }}]?.getter?.call(value) as? {{ IdType }}
+
+            // 所有参数均有值（字符串非空）才进行校验
+            val allPresent =
+{%- for rp in RequestProps %}
+{%- if rp.isString %}
+                ({{ rp.name }}Trimmed != null && {{ rp.name }}Trimmed.isNotBlank())
+{%- else %}
+                ({{ rp.name }} != null)
+{%- endif %}
+{%- if not loop.last %} &&
+{%- endif %}
+{%- endfor %}
+            if (!allPresent) return true
+
+            val result = runCatching {
+                Mediator.queries.send(
+                    {{ Query }}.Request(
+{%- for rp in RequestProps %}
+                        {{ rp.name }} = {% if rp.isString %}{{ rp.name }}Trimmed!!{% else %}{{ rp.name }}!!{% endif %},
+{%- endfor %}
+                        {{ ExcludeIdParamName }} = excludeId,
+                    )
+                )
+            }.getOrNull() ?: return false
+
+            return !result.exists
+        }
+    }
+}

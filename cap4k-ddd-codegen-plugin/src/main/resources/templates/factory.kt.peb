@@ -1,0 +1,38 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * {{ Comment }}
+ *
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * @author cap4k-ddd-codegen
+ * @date {{ date }}
+ */
+@Service
+@Aggregate(
+    aggregate = "{{ Aggregate }}",
+    name = "{{ Factory }}",
+    type = Aggregate.TYPE_FACTORY,
+    description = ""
+)
+class {{ Factory }} : AggregateFactory<{{ Factory }}.Payload, {{ Entity }}> {
+
+    override fun create(payload: Payload): {{ Entity }} {
+        return {{ Entity }}().apply {
+
+        }
+    }
+
+     @Aggregate(
+        aggregate = "{{ Entity }}",
+        name = "{{ Payload }}",
+        type = Aggregate.TYPE_FACTORY_PAYLOAD,
+        description = ""
+    )
+    data class Payload(
+        val name: String
+    ) : AggregatePayload<{{ Entity }}>
+
+}

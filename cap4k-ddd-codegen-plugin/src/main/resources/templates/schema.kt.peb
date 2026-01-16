@@ -1,0 +1,566 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * Schema 类用于类型安全的 JPA Criteria 查询
+ *
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * 警告：请勿手工修改该文件，重新生成会覆盖该文件
+ * @author cap4k-ddd-codegen
+ */
+class {{ Schema }}(
+    private val root: Path<{{ Entity }}>,
+    private val criteriaBuilder: CriteriaBuilder,
+) {
+    class PROPERTY_NAMES {
+{% for field in fields %}
+        val {{ field.fieldName }} = "{{ field.fieldName }}"
+{% endfor %}
+    }
+
+    companion object {
+
+        val props = PROPERTY_NAMES()
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder where条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(builder: PredicateBuilder<S{{ Entity }}>): Specification<{{ Entity }}> {
+            return specify(builder, false, emptyList())
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder  where条件构造器
+         * @param distinct 是否去重
+         * @return
+         */
+        @JvmStatic
+        fun specify(builder: PredicateBuilder<S{{ Entity }}>, distinct: Boolean): Specification<{{ Entity }}> {
+            return specify(builder, distinct, emptyList())
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       where条件构造器
+         * @param orderBuilders 排序条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(
+            builder: PredicateBuilder<S{{ Entity }}>,
+            vararg orderBuilders: OrderBuilder<S{{ Entity }}>,
+        ): Specification<{{ Entity }}> {
+            return specify(builder, orderBuilders.toList())
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       where条件构造器
+         * @param orderBuilders 排序条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(
+            builder: PredicateBuilder<S{{ Entity }}>,
+            orderBuilders: List<OrderBuilder<S{{ Entity }}>>,
+        ): Specification<{{ Entity }}> {
+            return specify(builder, false, orderBuilders)
+        }
+
+        /**
+        * 构建查询条件
+        *
+        * @param builder       where条件构造器
+        * @param distinct      是否去重
+        * @param orderBuilders 排序条件构造器
+        * @return
+        */
+        @JvmStatic
+        fun specify(
+            builder: PredicateBuilder<S{{ Entity }}>,
+            distinct: Boolean,
+            vararg orderBuilders: OrderBuilder<S{{ Entity }}>,
+        ): Specification<{{ Entity }}> {
+            return specify(builder, distinct, orderBuilders.toList())
+        }
+
+        /**
+        * 构建查询条件
+        *
+        * @param builder       where条件构造器
+        * @param distinct      是否去重
+        * @param orderBuilders 排序条件构造器
+        * @return
+        */
+        @JvmStatic
+        fun specify(
+            builder: PredicateBuilder<S{{ Entity }}>,
+            distinct: Boolean,
+            orderBuilders: List<OrderBuilder<S{{ Entity }}>>,
+        ): Specification<{{ Entity }}> {
+            return specify { schema, criteriaQuery, criteriaBuilder ->
+                criteriaQuery.where(builder.build(schema))
+                criteriaQuery.distinct(distinct)
+                if (orderBuilders.isNotEmpty()) {
+                    criteriaQuery.orderBy(orderBuilders.map { it.build(schema) })
+                }
+                null
+            }
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param specifier 查询条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun specify(specifier: SchemaSpecification<{{ Entity }}, S{{ Entity }}>): Specification<{{ Entity }}> {
+            return Specification { root, criteriaQuery, criteriaBuilder ->
+                val schema = S{{ Entity }}(root, criteriaBuilder)
+                specifier.toPredicate(schema, criteriaQuery, criteriaBuilder)
+            }
+        }
+
+        /**
+        * 构建子查询
+        *
+        * @param resultClass      返回结果类型
+        * @param selectBuilder    select条件构造器
+        * @param predicateBuilder where条件构造器
+        * @param criteriaBuilder
+        * @param criteriaQuery
+        * @param <E>
+        * @return
+        */
+        @JvmStatic
+        fun <E> subquery(
+            resultClass: Class<E>,
+            selectBuilder: ExpressionBuilder<S{{ Entity }}, E>,
+            predicateBuilder: PredicateBuilder<S{{ Entity }}>,
+            criteriaBuilder: CriteriaBuilder,
+            criteriaQuery: CriteriaQuery<*>,
+        ): Subquery<E> {
+            return subquery(resultClass, { sq, schema ->
+                sq.select(selectBuilder.build(schema))
+                sq.where(predicateBuilder.build(schema))
+            }, criteriaBuilder, criteriaQuery)
+        }
+
+        /**
+         * 构建子查询
+         *
+         * @param resultClass       返回结果类型
+         * @param subqueryConfigure 子查询配置
+         * @param criteriaBuilder
+         * @param criteriaQuery
+         * @param <E>
+         * @return
+         */
+        @JvmStatic
+        fun <E> subquery(
+            resultClass: Class<E>,
+            subqueryConfigure: SubqueryConfigure<E, S{{ Entity }}>,
+            criteriaBuilder: CriteriaBuilder,
+            criteriaQuery: CriteriaQuery<*>,
+        ): Subquery<E> {
+            val sq = criteriaQuery.subquery(resultClass)
+            val root = sq.from({{ Entity }}::class.java)
+            val schema = S{{ Entity }}(root, criteriaBuilder)
+            subqueryConfigure.configure(sq, schema)
+            return sq
+        }
+{%- if isAggregateRoot and generateAggregate %}
+        /**
+         * 构建查询条件
+         *
+         * @param id 主键
+         * @return
+         */
+        @JvmStatic
+        fun predicateById(id: Any): AggregatePredicate<Agg{{ Entity }}, {{ Entity }}> {
+            return JpaPredicate.byId({{ Entity }}::class.java, id).toAggregatePredicate(Agg{{ Entity }}::class.java)
+        }
+
+        /**
+        * 构建查询条件
+        *
+        * @param ids 主键
+        * @return
+        */
+        @JvmStatic
+        fun predicateByIds(ids: Iterable<*>): AggregatePredicate<Agg{{ Entity }}, {{ Entity }}> {
+            @Suppress("UNCHECKED_CAST")
+            return JpaPredicate.byIds({{ Entity }}::class.java, ids as Iterable<Any>).toAggregatePredicate(Agg{{ Entity }}::class.java)
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param ids 主键
+         * @return
+         */
+        @JvmStatic
+        fun predicateByIds(vararg ids: Any): AggregatePredicate<Agg{{ Entity }}, {{ Entity }}> {
+            return JpaPredicate.byIds({{ Entity }}::class.java, ids.toList()).toAggregatePredicate(Agg{{ Entity }}::class.java)
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder 查询条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(builder: PredicateBuilder<S{{ Entity }}>): AggregatePredicate<Agg{{ Entity }}, {{ Entity }}> {
+            return JpaPredicate.bySpecification({{ Entity }}::class.java, specify(builder)).toAggregatePredicate(Agg{{ Entity }}::class.java)
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder  查询条件构造器
+         * @param distinct 是否去重
+         * @return
+         */
+        @JvmStatic
+        fun predicate(builder: PredicateBuilder<S{{ Entity }}>, distinct: Boolean): AggregatePredicate<Agg{{ Entity }}, {{ Entity }}> {
+            return JpaPredicate.bySpecification({{ Entity }}::class.java, specify(builder, distinct)).toAggregatePredicate(Agg{{ Entity }}::class.java)
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       查询条件构造器
+         * @param orderBuilders 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(
+            builder: PredicateBuilder<S{{ Entity }}>,
+            orderBuilders: List<OrderBuilder<S{{ Entity }}>>,
+        ): AggregatePredicate<Agg{{ Entity }}, {{ Entity }}> {
+            return JpaPredicate.bySpecification({{ Entity }}::class.java, specify(builder, false, orderBuilders)).toAggregatePredicate(Agg{{ Entity }}::class.java)
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       查询条件构造器
+         * @param orderBuilders 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(
+            builder: PredicateBuilder<S{{ Entity }}>,
+            vararg orderBuilders: OrderBuilder<S{{ Entity }}>,
+        ): AggregatePredicate<Agg{{ Entity }}, {{ Entity }}> {
+            return JpaPredicate.bySpecification({{ Entity }}::class.java, specify(builder, false, *orderBuilders)).toAggregatePredicate(Agg{{ Entity }}::class.java)
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       查询条件构造器
+         * @param distinct      是否去重
+         * @param orderBuilders 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(
+            builder: PredicateBuilder<S{{ Entity }}>,
+            distinct: Boolean,
+            orderBuilders: List<OrderBuilder<S{{ Entity }}>>,
+        ): AggregatePredicate<Agg{{ Entity }}, {{ Entity }}> {
+            return JpaPredicate.bySpecification({{ Entity }}::class.java, specify(builder, distinct, orderBuilders)).toAggregatePredicate(Agg{{ Entity }}::class.java)
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       查询条件构造器
+         * @param distinct      是否去重
+         * @param orderBuilders 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(
+            builder: PredicateBuilder<S{{ Entity }}>,
+            distinct: Boolean,
+            vararg orderBuilders: OrderBuilder<S{{ Entity }}>,
+        ): AggregatePredicate<Agg{{ Entity }}, {{ Entity }}> {
+            return JpaPredicate.bySpecification({{ Entity }}::class.java, specify(builder, distinct, *orderBuilders)).toAggregatePredicate(Agg{{ Entity }}::class.java)
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param specifier 查询条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(specifier: SchemaSpecification<{{ Entity }}, S{{ Entity }}>): AggregatePredicate<Agg{{ Entity }}, {{ Entity }}> {
+            return JpaPredicate.bySpecification({{ Entity }}::class.java, specify(specifier)).toAggregatePredicate(Agg{{ Entity }}::class.java)
+        }
+{% elseif isAggregateRoot %}
+        /**
+         * 构建查询条件
+         *
+         * @param id 主键
+         * @return
+         */
+        @JvmStatic
+        fun predicateById(id: Any): JpaPredicate<{{ Entity }}> {
+            return JpaPredicate.byId({{ Entity }}::class.java, id)
+        }
+
+        /**
+        * 构建查询条件
+        *
+        * @param ids 主键
+        * @return
+        */
+        @JvmStatic
+        fun predicateByIds(ids: Iterable<*>): JpaPredicate<{{ Entity }}> {
+            @Suppress("UNCHECKED_CAST")
+            return JpaPredicate.byIds({{ Entity }}::class.java, ids as Iterable<Any>)
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param ids 主键
+         * @return
+         */
+        @JvmStatic
+        fun predicateByIds(vararg ids: Any): JpaPredicate<{{ Entity }}> {
+            return JpaPredicate.byIds({{ Entity }}::class.java, ids.toList())
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder 查询条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(builder: PredicateBuilder<S{{ Entity }}>): JpaPredicate<{{ Entity }}> {
+            return JpaPredicate.bySpecification({{ Entity }}::class.java, specify(builder))
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder  查询条件构造器
+         * @param distinct 是否去重
+         * @return
+         */
+        @JvmStatic
+        fun predicate(builder: PredicateBuilder<S{{ Entity }}>, distinct: Boolean): JpaPredicate<{{ Entity }}> {
+            return JpaPredicate.bySpecification({{ Entity }}::class.java, specify(builder, distinct))
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       查询条件构造器
+         * @param orderBuilders 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(
+            builder: PredicateBuilder<S{{ Entity }}>,
+            orderBuilders: List<OrderBuilder<S{{ Entity }}>>,
+        ): JpaPredicate<{{ Entity }}> {
+            return JpaPredicate.bySpecification({{ Entity }}::class.java, specify(builder, false, orderBuilders))
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       查询条件构造器
+         * @param orderBuilders 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(
+            builder: PredicateBuilder<S{{ Entity }}>,
+            vararg orderBuilders: OrderBuilder<S{{ Entity }}>,
+        ): JpaPredicate<{{ Entity }}> {
+            return JpaPredicate.bySpecification({{ Entity }}::class.java, specify(builder, false, *orderBuilders))
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       查询条件构造器
+         * @param distinct      是否去重
+         * @param orderBuilders 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(
+            builder: PredicateBuilder<S{{ Entity }}>,
+            distinct: Boolean,
+            orderBuilders: List<OrderBuilder<S{{ Entity }}>>,
+        ): JpaPredicate<{{ Entity }}> {
+            return JpaPredicate.bySpecification({{ Entity }}::class.java, specify(builder, distinct, orderBuilders))
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param builder       查询条件构造器
+         * @param distinct      是否去重
+         * @param orderBuilders 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(
+            builder: PredicateBuilder<S{{ Entity }}>,
+            distinct: Boolean,
+            vararg orderBuilders: OrderBuilder<S{{ Entity }}>,
+        ): JpaPredicate<{{ Entity }}> {
+            return JpaPredicate.bySpecification({{ Entity }}::class.java, specify(builder, distinct, *orderBuilders))
+        }
+
+        /**
+         * 构建查询条件
+         *
+         * @param specifier 查询条件构造器
+         * @return
+         */
+        @JvmStatic
+        fun predicate(specifier: SchemaSpecification<{{ Entity }}, S{{ Entity }}>): JpaPredicate<{{ Entity }}> {
+            return JpaPredicate.bySpecification({{ Entity }}::class.java, specify(specifier))
+        }
+{% endif %}
+
+{%- if isAggregateRoot and generateAggregate and repositorySupportQuerydsl %}
+       /**
+         * 构建querydsl查询条件
+         *
+         * @param filterBuilder          查询条件构造器
+         * @param orderSpecifierBuilders 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun querydsl(
+            filterBuilder: java.util.function.Function<Q{{ Entity }}, com.querydsl.core.types.Predicate>,
+            vararg orderSpecifierBuilders: java.util.function.Function<Q{{ Entity }}, OrderSpecifier<*>>,
+        ): AggregatePredicate<Agg{{ Entity }}, {{ Entity }}> {
+            return QuerydslPredicate.of({{ Entity }}::class.java)
+                .where(filterBuilder.apply(Q{{ Entity }}.{{ EntityVar }}))
+                .orderBy(*orderSpecifierBuilders.map { it.apply(Q{{ Entity }}.{{ EntityVar }}) }.toTypedArray())
+                .toAggregatePredicate(Agg{{ Entity }}::class.java)
+        }
+
+        /**
+         * 构建querydsl查询条件
+         *
+         * @param filter          查询条件构造器
+         * @param orderSpecifiers 排序构造器
+         * @return
+         */
+        @JvmStatic
+        fun querydsl(
+            filter: com.querydsl.core.types.Predicate,
+            vararg orderSpecifiers: OrderSpecifier<*>,
+        ): AggregatePredicate<Agg{{ Entity }}, {{ Entity }}> {
+            return QuerydslPredicate.of({{ Entity }}::class.java)
+                .where(filter)
+                .orderBy(*orderSpecifiers)
+                .toAggregatePredicate(Agg{{ Entity }}::class.java)
+        }
+{%- endif %}
+    }
+
+    fun _criteriaBuilder(): CriteriaBuilder = criteriaBuilder
+
+    fun _root(): Path<{{ Entity }}> = root
+
+{% for field in fields %}
+    /**
+     * {{ field.comment }}
+     */
+    val {{ field.fieldName }}: Field<{{ field.fieldType }}> by lazy {
+        Field(root.get("{{ field.fieldName }}"), criteriaBuilder)
+    }
+
+{% endfor %}
+{% for relationField in relationFields %}
+    /**
+     * 关联: {{ relationField.relation }} - {{ relationField.refEntityType }}
+     */
+    val {{ relationField.fieldName }}: Field<Any> by lazy {
+        Field(root.get("{{ relationField.fieldName }}"), criteriaBuilder)
+    }
+
+{% endfor %}
+    /**
+     * 满足所有条件
+     * @param restrictions
+     * @return
+     */
+    fun all(vararg restrictions: Predicate): Predicate {
+        return criteriaBuilder.and(*restrictions)
+    }
+
+    /**
+     * 满足任一条件
+     * @param restrictions
+     * @return
+     */
+    fun any(vararg restrictions: Predicate): Predicate {
+        return criteriaBuilder.or(*restrictions)
+    }
+
+    /**
+     * 满足所有条件（过滤 null）
+     * 类似 Jimmer 的 where { } 自动过滤 null 的行为
+     */
+    fun allNotNull(vararg restrictions: Predicate?): Predicate? {
+        val nonNullRestrictions = restrictions.filterNotNull().toTypedArray()
+        return when {
+            nonNullRestrictions.isEmpty() -> null
+            nonNullRestrictions.size == 1 -> nonNullRestrictions[0]
+            else -> criteriaBuilder.and(*nonNullRestrictions)
+        }
+    }
+
+    /**
+     * 满足任一条件（过滤 null）
+     */
+    fun anyNotNull(vararg restrictions: Predicate?): Predicate? {
+        val nonNullRestrictions = restrictions.filterNotNull().toTypedArray()
+        return when {
+            nonNullRestrictions.isEmpty() -> null
+            nonNullRestrictions.size == 1 -> nonNullRestrictions[0]
+            else -> criteriaBuilder.or(*nonNullRestrictions)
+        }
+    }
+
+    /**
+     * NOT 操作
+     */
+    fun not(restriction: Predicate): Predicate = criteriaBuilder.not(restriction)
+
+    /**
+     * 指定条件
+     * @param builder
+     * @return
+     */
+    fun spec(builder: PredicateBuilder<{{ Schema }}>): Predicate {
+        return builder.build(this)
+    }
+}

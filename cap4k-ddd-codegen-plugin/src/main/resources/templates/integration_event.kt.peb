@@ -1,0 +1,16 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * {{ Comment }}
+ *
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * @author cap4k-ddd-codegen
+ * @date {{ date }}
+ */
+@IntegrationEvent(value = {{ MQ_TOPIC }}, subscriber = {{ MQ_CONSUMER }})
+class {{ IntegrationEvent }}(
+
+)

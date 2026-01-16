@@ -26,6 +26,12 @@ rocketmq = "2.3.1"
 
 # JSON processing
 fastjson = "1.2.83"
+gson = "2.10.1"
+pebble = "3.2.4"
+
+# Database drivers
+mysql = "8.0.33"
+postgresql = "42.7.2"
 
 # Testing
 junit = "5.13.4"
@@ -64,6 +70,8 @@ spring-configuration-processor = { module = "org.springframework.boot:spring-boo
 jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
 querydsl = { module = "com.querydsl:querydsl-core" }
 hibernate-core = { module = "org.hibernate:hibernate-core", version.ref = "hibernate-core" }
+mysql = { module = "mysql:mysql-connector-java", version.ref = "mysql" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 
 # AOP
 aspectjweaver = { module = "org.aspectj:aspectjweaver" }
@@ -76,6 +84,8 @@ rocketmq = { module = "org.apache.rocketmq:rocketmq-spring-boot-starter", versio
 
 # JSON processing
 fastjson = { module = "com.alibaba:fastjson", version.ref = "fastjson" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+pebble = { module = "io.pebbletemplates:pebble", version.ref = "pebble" }
 
 # Testing
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }

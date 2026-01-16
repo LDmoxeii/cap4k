@@ -1,0 +1,39 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * {{ Comment }}
+ *
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * @author cap4k-ddd-codegen
+ */
+@Repository
+{%- if supportQuerydsl %}
+interface {{ Repository }} : JpaRepository<{{ Aggregate }}, {{ IdentityType }}>, JpaSpecificationExecutor<{{ Aggregate }}>,
+    QuerydslPredicateExecutor<{{ Aggregate }}> {
+{%- else %}
+interface {{ Repository }} : JpaRepository<{{ Aggregate }}, {{ IdentityType }}>, JpaSpecificationExecutor<{{ Aggregate }}> {
+{%- endif %}
+
+    @Component
+    @Aggregate(aggregate = "{{ Aggregate }}", name = "{{ Aggregate }}Repo", type = Aggregate.TYPE_REPOSITORY, description = "")
+    class {{ Aggregate }}JpaRepositoryAdapter(
+        jpaSpecificationExecutor: JpaSpecificationExecutor<{{ Aggregate }}>,
+        jpaRepository: JpaRepository<{{ Aggregate }}, {{ IdentityType }}>
+    ) : AbstractJpaRepository<{{ Aggregate }}, {{ IdentityType }}>(
+        jpaSpecificationExecutor,
+        jpaRepository
+    )
+
+{%- if supportQuerydsl %}
+    @Component
+    @Aggregate(aggregate = "{{ Aggregate }}", name = "{{ Aggregate }}QuerydslRepo", type = Aggregate.TYPE_REPOSITORY, description = "")
+    class {{ Aggregate }}QuerydslRepositoryAdapter(
+        querydslPredicateExecutor: QuerydslPredicateExecutor<{{ Aggregate }}>
+    ) : AbstractQuerydslRepository<{{ Aggregate }}>(
+        querydslPredicateExecutor
+    )
+{%- endif %}
+}

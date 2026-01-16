@@ -1,0 +1,59 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * 警告：请勿手工修改该文件，重新生成会覆盖该文件
+ * @author cap4k-ddd-codegen
+ */
+@Aggregate(aggregate = "{{ Aggregate }}", name = "{{ Enum }}", type = "enum", description = "{{ CommentEscaped }}")
+enum class {{ Enum }}(
+    val {{ EnumValueField }}: Int,
+    val {{ EnumNameField }}: String
+) {
+{%- for item in EnumItems %}
+
+    /**
+     * {{ item.desc }}
+     */
+    {{ item.name }}({{ item.value }}, "{{ item.desc }}"),
+{%- endfor %}
+    ;
+
+    companion object {
+        private val enumMap: Map<Int, {{ Enum }}> by lazy {
+            entries.associateBy { it.{{ EnumValueField }} }
+        }
+
+        fun valueOf(value: Int?): {{ Enum }} {
+            return valueOfOrNull(value) ?: throw KnownException("枚举类型 {{ Enum }} 枚举值转换异常，不存在的值: $value")
+        }
+
+        fun valueOfOrNull(value: Int?): {{ Enum }}? {
+            return enumMap[value]
+        }
+    }
+
+    /**
+     * JPA转换器
+     */
+    class Converter : AttributeConverter<{{ Enum }}, Int> {
+
+        override fun convertToDatabaseColumn(attribute: {{ Enum }}): Int {
+            return attribute.{{ EnumValueField }}
+        }
+{%- if enumUnmatchedThrowException %}
+
+        override fun convertToEntityAttribute(dbData: Int): {{ Enum }} {
+            return valueOf(dbData)
+        }
+{%- else %}
+
+        override fun convertToEntityAttribute(dbData: Int): {{ Enum }}? {
+            return valueOfOrNull(dbData)
+        }
+{%- endif %}
+    }
+}

@@ -1,0 +1,32 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * {{ Comment }}
+ *
+ * 该文件由 [cap4k-ddd-codegen-gradle-plugin] 生成
+ * @author cap4k-ddd-codegen
+ * @date {{ date }}
+ */
+object {{ Payload }} {
+{% if requestFields|length > 0 %}
+    data class Request(
+{%- for field in requestFields %}
+        val {{ field.name }}: {{ field.type }}{% if field.defaultValue is defined %} = {{ field.defaultValue }}{% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %}
+    )
+{%- else %}
+    class Request
+{%- endif %}
+{% if responseFields|length > 0 %}
+    data class Response(
+{%- for field in responseFields %}
+        val {{ field.name }}: {{ field.type }}{% if field.defaultValue is defined %} = {{ field.defaultValue }}{% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %}
+    )
+{%- else %}
+    class Response
+{%- endif %}
+}

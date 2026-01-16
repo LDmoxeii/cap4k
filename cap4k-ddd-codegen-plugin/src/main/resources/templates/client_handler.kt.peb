@@ -1,0 +1,25 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * {{ Comment }}
+ *
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * @author cap4k-ddd-codegen
+ * @date {{ date }}
+ */
+@Service
+class {{ Client }}Handler : RequestHandler<{{ Client }}.Request, {{ Client }}.Response> {
+    override fun exec(request: {{ Client }}.Request): {{ Client }}.Response {
+        return {{ Client }}.Response(
+{%- if responseFields|length > 0 %}
+{%- for field in responseFields %}
+            {{ field.name }} = TODO("set {{ field.name }}"){% if not loop.last %},{% endif %}
+{%- endfor %}
+{%- endif %}
+        )
+    }
+}
+

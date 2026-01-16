@@ -1,0 +1,26 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+
+/**
+ * {{ Comment }}
+ *
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * @author cap4k-ddd-codegen
+ * @date {{ date }}
+ */
+@DomainEvent(persist = {{ persist }})
+@Aggregate(
+    aggregate = "{{ Aggregate }}",
+    name = "{{ DomainEvent }}",
+    type = Aggregate.TYPE_DOMAIN_EVENT,
+    description = ""
+)
+class {{ DomainEvent }}(
+    val entity: {{ Aggregate }}{% if fields|length > 0 %},{% endif %}
+{%- for field in fields %}
+    val {{ field.name }}: {{ field.type }}{% if field.defaultValue is defined %} = {{ field.defaultValue }}{% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %}
+)

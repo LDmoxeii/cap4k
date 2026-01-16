@@ -1,0 +1,21 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * {{ Comment }}
+ *
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * 警告：可以在本文件中添加自定义事件处理方法
+ * @author cap4k-ddd-codegen
+ * @date {{ date }}
+ */
+@Service
+class {{ DomainEventHandler }} {
+
+    @EventListener({{ DomainEvent }}::class)
+    fun on(event: {{ DomainEvent }}) {
+
+    }
+}

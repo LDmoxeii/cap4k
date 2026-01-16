@@ -1,0 +1,27 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * {{ Comment }}
+ *
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * @author cap4k-ddd-codegen
+ * @date {{ date }}
+ */
+@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)
+@Retention(AnnotationRetention.RUNTIME)
+@Constraint(validatedBy = [{{ Validator }}.Validator::class])
+@MustBeDocumented
+annotation class {{ Validator }}(
+    val message: String = "校验未通过",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = [],
+){
+    class Validator : ConstraintValidator<{{ Validator }}, {{ ValueType }}> {
+        override fun isValid(value: {{ ValueType }}?, context: ConstraintValidatorContext): Boolean {
+            return true
+        }
+    }
+}

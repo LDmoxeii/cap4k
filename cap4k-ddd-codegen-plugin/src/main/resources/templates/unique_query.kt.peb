@@ -1,0 +1,21 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * 该文件由 [cap4k-ddd-codegen-gradle-plugin] 生成
+ * @author cap4k-ddd-codegen
+ */
+object {{ Query }} {
+
+    class Request(
+    {%- for p in RequestParams %}
+        val {{ p.name }}: {{ p.type }},{% endfor %}
+        val {{ ExcludeIdParamName }}: {{ IdType }}?
+    ) : RequestParam<Response>
+
+    class Response(
+        val exists: Boolean
+    )
+}

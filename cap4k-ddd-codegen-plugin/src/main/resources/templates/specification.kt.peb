@@ -1,0 +1,24 @@
+package {{ basePackage }}{{ templatePackage }}{{ package }}
+{%- for import in imports %}
+{{ import }}
+{%- endfor %}
+
+/**
+ * 本文件由[cap4k-ddd-codegen-gradle-plugin]生成
+ * 警告：可以在本文件中添加自定义规约方法
+ * @author cap4k-ddd-codegen
+ */
+@Service
+@Aggregate(
+    aggregate = "{{ Aggregate }}",
+    name = "{{ Specification }}",
+    type = Aggregate.TYPE_SPECIFICATION,
+    description = ""
+)
+class {{ Specification }} : Specification<{{ Entity }}> {
+
+    override fun specify(entity: {{ Entity }}): Result {
+        return Result.pass()
+    }
+
+}
