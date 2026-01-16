@@ -305,9 +305,11 @@ private class GraphCollector(
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.controller))
         }
 
-        val implementsCommand = declaration.implementsInterface(commandInterfaceFq)
-        val implementsQuery = declaration.implementsInterface(queryInterfaceFq)
-        val implementsRequestHandler = declaration.implementsInterface(requestHandlerFq)
+        val implementsCommand = declaration.isOrImplements(commandInterfaceFq)
+        val implementsQuery = declaration.isOrImplements(queryInterfaceFq)
+        val implementsRequestHandler = !implementsCommand &&
+            !implementsQuery &&
+            declaration.isOrImplements(requestHandlerFq)
         if (implementsCommand) {
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.commandhandler))
             val cmdReqClass = resolveRequestClassFromHandlerInterface(declaration, commandInterfaceFq)
@@ -418,7 +420,8 @@ private class GraphCollector(
                 val isAggregateFactorySupervisor = receiverClass?.isOrImplements(aggregateFactorySupervisorFq) == true ||
                     ownerClass?.isOrImplements(aggregateFactorySupervisorFq) == true
                 val isUnitOfWork = receiverClass?.isOrImplements(unitOfWorkFq) == true ||
-                    ownerClass?.isOrImplements(unitOfWorkFq) == true
+                    ownerClass?.isOrImplements(unitOfWorkFq) == true ||
+                    isUnitOfWorkDefaultCall(expression, unitOfWorkFq)
                 val isRepositorySupervisor = receiverClass?.isOrImplements(repositorySupervisorFq) == true ||
                     ownerClass?.isOrImplements(repositorySupervisorFq) == true
 
@@ -473,7 +476,7 @@ private class GraphCollector(
                     }
                 }
 
-                if (calleeName == "save" && isUnitOfWork) {
+                if ((calleeName == "save" || calleeName == "save\$default") && isUnitOfWork) {
                     saveCalled = true
                 }
 
@@ -568,14 +571,9 @@ private class GraphCollector(
     }
 
     private fun resolveRequestClassFromHandlerInterface(declaration: IrClass, handlerFq: FqName): IrClass? {
-        return declaration.superTypes.firstNotNullOfOrNull { t ->
-            val st = t as? IrSimpleType ?: return@firstNotNullOfOrNull null
-            val owner = st.classifier?.owner as? IrClass ?: return@firstNotNullOfOrNull null
-            if (owner.fqNameWhenAvailable != handlerFq) return@firstNotNullOfOrNull null
-            val firstArg = st.arguments.getOrNull(0) as? org.jetbrains.kotlin.ir.types.IrTypeProjection
-            val argType = firstArg?.type as? IrSimpleType
-            argType?.classifier?.owner as? IrClass
-        }
+        val requestType = resolveTypeArgumentInHierarchyFromClass(declaration, handlerFq, 0) ?: return null
+        val simple = requestType as? IrSimpleType ?: return null
+        return simple.classifier?.owner as? IrClass
     }
 
     private fun resolveRequestClassFromExpression(expression: IrExpression?): IrClass? {
@@ -645,14 +643,24 @@ private class GraphCollector(
         val simple = type as? IrSimpleType ?: return null
         val cls = simple.classifier?.owner as? IrClass ?: return null
         val fq = cls.fqNameWhenAvailable?.asString()
-        return when (fq) {
-            predicateFq.asString() -> {
+        return when {
+            fq == predicateFq.asString() -> {
                 val arg = simple.arguments.getOrNull(0) as? org.jetbrains.kotlin.ir.types.IrTypeProjection
                 arg?.type?.let { resolveAggregateRootFromType(it) }
             }
-            aggregatePredicateFq.asString() -> {
+            fq == aggregatePredicateFq.asString() -> {
                 val arg = simple.arguments.getOrNull(1) as? org.jetbrains.kotlin.ir.types.IrTypeProjection
                 arg?.type?.let { resolveAggregateRootFromType(it) }
+            }
+            cls.isOrImplements(predicateFq) -> {
+                val directArg = (simple.arguments.getOrNull(0) as? org.jetbrains.kotlin.ir.types.IrTypeProjection)?.type
+                val superArg = cls.findSuperTypeArgument(predicateFq, 0)
+                (directArg ?: superArg)?.let { resolveAggregateRootFromType(it) }
+            }
+            cls.isOrImplements(aggregatePredicateFq) -> {
+                val directArg = (simple.arguments.getOrNull(1) as? org.jetbrains.kotlin.ir.types.IrTypeProjection)?.type
+                val superArg = cls.findSuperTypeArgument(aggregatePredicateFq, 1)
+                (directArg ?: superArg)?.let { resolveAggregateRootFromType(it) }
             }
             else -> null
         }
@@ -802,6 +810,72 @@ private fun IrClass.implementsInterface(fqName: FqName): Boolean {
     }
 }
 
+private fun resolveTypeArgumentInHierarchyFromClass(
+    clazz: IrClass,
+    targetFq: FqName,
+    index: Int,
+): IrType? {
+    clazz.superTypes.forEach { st ->
+        val simple = st as? IrSimpleType ?: return@forEach
+        val resolved = resolveTypeArgumentInHierarchy(simple, targetFq, index, emptyMap(), mutableSetOf())
+        if (resolved != null) return resolved
+    }
+    return null
+}
+
+private fun resolveTypeArgumentInHierarchy(
+    type: IrSimpleType,
+    targetFq: FqName,
+    index: Int,
+    inheritedMapping: Map<org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol, IrType>,
+    visited: MutableSet<IrClass>,
+): IrType? {
+    val cls = type.classifier?.owner as? IrClass ?: return null
+    if (!visited.add(cls)) return null
+
+    val mapping = buildTypeParameterMapping(cls, type, inheritedMapping)
+    val fq = cls.fqNameWhenAvailable
+    if (fq == targetFq) {
+        val arg = type.arguments.getOrNull(index) as? org.jetbrains.kotlin.ir.types.IrTypeProjection ?: return null
+        return resolveTypeParameter(arg.type, mapping)
+    }
+
+    cls.superTypes.forEach { st ->
+        val simple = st as? IrSimpleType ?: return@forEach
+        val resolved = resolveTypeArgumentInHierarchy(simple, targetFq, index, mapping, visited)
+        if (resolved != null) return resolved
+    }
+    return null
+}
+
+private fun buildTypeParameterMapping(
+    cls: IrClass,
+    type: IrSimpleType,
+    inheritedMapping: Map<org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol, IrType>,
+): Map<org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol, IrType> {
+    if (cls.typeParameters.isEmpty()) return inheritedMapping
+    val mapping = LinkedHashMap<org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol, IrType>(inheritedMapping)
+    cls.typeParameters.forEachIndexed { idx, param ->
+        val arg = type.arguments.getOrNull(idx) as? org.jetbrains.kotlin.ir.types.IrTypeProjection ?: return@forEachIndexed
+        val argType = resolveTypeParameter(arg.type, inheritedMapping)
+        mapping[param.symbol] = argType
+    }
+    return mapping
+}
+
+private fun resolveTypeParameter(
+    type: IrType,
+    mapping: Map<org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol, IrType>,
+): IrType {
+    val simple = type as? IrSimpleType ?: return type
+    val classifier = simple.classifier
+    if (classifier is org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol) {
+        val mapped = mapping[classifier] ?: return type
+        return if (mapped == type) mapped else resolveTypeParameter(mapped, mapping)
+    }
+    return type
+}
+
 private fun IrCall.dispatchReceiverClass(): IrClass? {
     val receiverParam = symbol.owner.parameters.firstOrNull { it.kind == IrParameterKind.DispatchReceiver }
         ?: return null
@@ -818,6 +892,24 @@ private fun IrClass.isOrImplements(fqName: FqName, visited: MutableSet<IrClass> 
         val st = t as? IrSimpleType ?: return@any false
         val owner = st.classifier?.owner as? IrClass ?: return@any false
         owner.isOrImplements(fqName, visited)
+    }
+}
+
+private fun isUnitOfWorkDefaultCall(expression: IrCall, unitOfWorkFq: FqName): Boolean {
+    if (expression.symbol.owner.name.asString() != "save\$default") return false
+    val receiverArg = expression.valueArgumentOrNull(0) ?: return false
+    val type = receiverArg.type as? IrSimpleType ?: return false
+    val cls = type.classifier?.owner as? IrClass ?: return false
+    return cls.isOrImplements(unitOfWorkFq)
+}
+
+private fun IrClass.findSuperTypeArgument(fqName: FqName, index: Int): IrType? {
+    return superTypes.firstNotNullOfOrNull { t ->
+        val st = t as? IrSimpleType ?: return@firstNotNullOfOrNull null
+        val owner = st.classifier?.owner as? IrClass ?: return@firstNotNullOfOrNull null
+        if (owner.fqNameWhenAvailable != fqName) return@firstNotNullOfOrNull null
+        val arg = st.arguments.getOrNull(index) as? org.jetbrains.kotlin.ir.types.IrTypeProjection
+        arg?.type
     }
 }
 
