@@ -2,7 +2,7 @@
 
 plugins {
     kotlin("jvm")
-    id("com.only4.cap4k.ddd.codegen") version "0.4.2-SNAPSHOT"
+    id("com.only4.cap4k.plugin.codegen") version "0.4.2-SNAPSHOT"
 }
 
 dependencies {
