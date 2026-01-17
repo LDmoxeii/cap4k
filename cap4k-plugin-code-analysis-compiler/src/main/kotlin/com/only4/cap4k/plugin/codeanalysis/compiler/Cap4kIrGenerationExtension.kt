@@ -579,10 +579,10 @@ private class GraphCollector(
     private fun resolveRequestClassFromExpression(expression: IrExpression?): IrClass? {
         val unwrapped = expression?.unwrapExpression() ?: return null
         val ctorClass = (unwrapped as? IrConstructorCall)?.symbol?.owner?.parentAsClass
-        if (ctorClass != null && ctorClass.implementsInterface(requestParamFq)) return ctorClass
+        if (ctorClass != null && ctorClass.isOrImplements(requestParamFq)) return ctorClass
         val type = unwrapped.type as? IrSimpleType ?: return null
         val cls = type.classifier?.owner as? IrClass ?: return null
-        return if (cls.implementsInterface(requestParamFq)) cls else null
+        return if (cls.isOrImplements(requestParamFq)) cls else null
     }
 
     private fun classifyRequestKind(requestClass: IrClass): RequestKind {
@@ -800,14 +800,6 @@ private fun RelationshipType.isSenderMethodRel(): Boolean {
     return this == RelationshipType.CommandSenderMethodToCommand ||
         this == RelationshipType.QuerySenderMethodToQuery ||
         this == RelationshipType.CliSenderMethodToCli
-}
-
-private fun IrClass.implementsInterface(fqName: FqName): Boolean {
-    return superTypes.any { t ->
-        val st = t as? IrSimpleType ?: return@any false
-        val owner = st.classifier?.owner as? IrClass ?: return@any false
-        owner.fqNameWhenAvailable == fqName
-    }
 }
 
 private fun resolveTypeArgumentInHierarchyFromClass(
