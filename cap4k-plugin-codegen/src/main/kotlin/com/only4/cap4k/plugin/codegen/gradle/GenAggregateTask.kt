@@ -8,6 +8,13 @@ import com.only4.cap4k.plugin.codegen.generators.aggregate.*
 import com.only4.cap4k.plugin.codegen.generators.aggregate.UniqueQueryGenerator
 import com.only4.cap4k.plugin.codegen.generators.aggregate.UniqueQueryHandlerGenerator
 import com.only4.cap4k.plugin.codegen.generators.aggregate.UniqueValidatorGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.AggregateUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.DomainEventHandlerUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.DomainEventUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.EnumTranslationUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.EnumUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.GenerationPlan
+import com.only4.cap4k.plugin.codegen.generators.unit.GenerationUnit
 import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.plugin.codegen.misc.concatPackage
 import com.only4.cap4k.plugin.codegen.misc.resolvePackageDirectory
@@ -150,28 +157,37 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
     }
 
     private fun generateFiles(context: AggregateContext) {
-        val generators = listOf(
-            SchemaBaseGenerator(),           // order=10 - Schema 基类
-            EnumGenerator(),                 // order=10 - 枚举
-            EnumTranslationGenerator(),      // order=20 - 枚举翻译
-            EntityGenerator(),               // order=20 - 实体
-            UniqueQueryGenerator(),          // order=20 - 唯一约束查询
-            UniqueQueryHandlerGenerator(),   // order=20 - 唯一约束查询处理器
-            UniqueValidatorGenerator(),      // order=20 - 唯一约束校验器
-            SpecificationGenerator(),        // order=30 - 规范
-            FactoryGenerator(),              // order=30 - 工厂
-            DomainEventGenerator(),          // order=30 - 领域事件
-            DomainEventHandlerGenerator(),   // order=30 - 领域事件处理器
-            RepositoryGenerator(),           // order=30 - Repository 接口及实现
-            AggregateGenerator(),            // order=40 - 聚合封装
-            SchemaGenerator(),               // order=50 - Schema 类
+        val steps: List<GenerationStep> = listOf(
+            TableStep(SchemaBaseGenerator()), // order=10
+            UnitStep(
+                listOf(
+                    EnumUnitGenerator(),
+                    EnumTranslationUnitGenerator(),
+                ),
+                order = 10,
+            ),
+            TableStep(EntityGenerator()), // order=20
+            TableStep(UniqueQueryGenerator()), // order=20
+            TableStep(UniqueQueryHandlerGenerator()), // order=20
+            TableStep(UniqueValidatorGenerator()), // order=20
+            TableStep(SpecificationGenerator()), // order=30
+            TableStep(FactoryGenerator()), // order=30
+            UnitStep(
+                listOf(
+                    DomainEventUnitGenerator(),
+                    DomainEventHandlerUnitGenerator(),
+                ),
+                order = 30,
+            ),
+            TableStep(RepositoryGenerator()), // order=30
+            TableStep(AggregateGenerator()), // order=40
+            TableStep(SchemaGenerator()), // order=50
         )
 
-        generators.sortedBy { it.order }
-            .forEach { generator ->
-                logger.lifecycle("Generating files: ${generator.tag}")
-                generateForTables(generator, context)
-            }
+        steps.sortedBy { it.order }.forEach { step ->
+            logger.lifecycle("Generating: ${step.label}")
+            step.execute(context)
+        }
     }
 
     private fun generateForTables(
@@ -217,6 +233,84 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
                 }
                 generator.onGenerated(table)
             }
+        }
+    }
+
+    private fun generateUnits(
+        generators: List<AggregateUnitGenerator>,
+        context: AggregateContext,
+    ) {
+        val units = generators.flatMap { generator ->
+            with(context) { generator.collect() }
+        }
+        if (units.isEmpty()) return
+
+        val plan = GenerationPlan(logAdapter)
+        val ordered = plan.order(units)
+        ordered.forEach { unit ->
+            renderUnit(unit, context)
+            applyExports(unit, context)
+        }
+    }
+
+    private fun renderUnit(
+        unit: GenerationUnit,
+        context: AggregateContext,
+    ) {
+        val genName = unit.name
+        val ctxTop = context.templateNodeMap.getOrDefault(unit.tag, emptyList())
+        val defTop = unit.templateNodes
+        val selected = TemplateNode.mergeAndSelect(ctxTop, defTop, genName)
+
+        selected.forEach { templateNode ->
+            val pathNode = templateNode.resolve(unit.context)
+            forceRender(
+                pathNode,
+                resolvePackageDirectory(
+                    unit.context["modulePath"].toString(),
+                    concatPackage(
+                        getString("basePackage"),
+                        unit.context["templatePackage"].toString(),
+                        unit.context["package"].toString(),
+                    )
+                )
+            )
+        }
+    }
+
+    private fun applyExports(
+        unit: GenerationUnit,
+        context: AggregateContext,
+    ) {
+        unit.exportTypes.forEach { (simple, full) ->
+            context.typeMapping[simple] = full
+        }
+    }
+
+    private sealed class GenerationStep(
+        val order: Int,
+        val label: String,
+    ) {
+        abstract fun execute(context: AggregateContext)
+    }
+
+    private inner class TableStep(
+        private val generator: AggregateTemplateGenerator,
+    ) : GenerationStep(generator.order, generator.tag) {
+        override fun execute(context: AggregateContext) {
+            generateForTables(generator, context)
+        }
+    }
+
+    private inner class UnitStep(
+        private val generators: List<AggregateUnitGenerator>,
+        order: Int,
+    ) : GenerationStep(
+        order = order,
+        label = generators.joinToString(",") { it.tag },
+    ) {
+        override fun execute(context: AggregateContext) {
+            generateUnits(generators, context)
         }
     }
 }
