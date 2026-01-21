@@ -15,6 +15,9 @@ class AggregateWrapperGenerator : AggregateGenerator {
     override val tag = "aggregate"
     override val order = 40
 
+    @Volatile
+    private lateinit var currentType: String
+
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
         if (SqlSchemaUtils.isIgnore(table)) return false
@@ -23,7 +26,16 @@ class AggregateWrapperGenerator : AggregateGenerator {
 
         if (!SqlSchemaUtils.isAggregateRoot(table)) return false
 
-        return !ctx.typeMapping.containsKey(generatorName(table))
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val entityType = ctx.entityTypeMap[tableName]!!
+
+        val aggregateTypeTemplate = ctx.getString("aggregateTypeTemplate")
+        val aggregateType = renderString(aggregateTypeTemplate, mapOf("Entity" to entityType))
+
+        if (ctx.typeMapping.containsKey(aggregateType)) return false
+
+        currentType = aggregateType
+        return true
     }
 
     context(ctx: AggregateContext)
@@ -54,7 +66,7 @@ class AggregateWrapperGenerator : AggregateGenerator {
             resultContext.putContext(tag, "Entity", entityType)
             resultContext.putContext(tag, "IdentityType", identityType)
 
-            resultContext.putContext(tag, "AggregateName", generatorName(table))
+            resultContext.putContext(tag, "AggregateName", currentType)
 
             resultContext.putContext(tag, "Factory", factoryType)
 
@@ -88,21 +100,7 @@ class AggregateWrapperGenerator : AggregateGenerator {
         }
     }
 
-
-    context(ctx: AggregateContext)
-    override fun generatorName(
-        table: Map<String, Any?>
-    ): String {
-        with(ctx) {
-            val tableName = SqlSchemaUtils.getTableName(table)
-            val entityType = entityTypeMap[tableName]!!
-
-            val aggregateTypeTemplate = getString("aggregateTypeTemplate")
-            val aggregateType = renderString(aggregateTypeTemplate, mapOf("Entity" to entityType))
-
-            return aggregateType
-        }
-    }
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -119,6 +117,6 @@ class AggregateWrapperGenerator : AggregateGenerator {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[generatorName(table)] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName(table)
     }
 }

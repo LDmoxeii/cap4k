@@ -12,12 +12,28 @@ class UniqueValidatorGenerator : AggregateGenerator {
     override val tag: String = "validator"
     override val order: Int = 20
 
+    @Volatile
+    private lateinit var currentType: String
+
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
         if (SqlSchemaUtils.isIgnore(table)) return false
         // 仅依据当前生成名是否可用（生成名内部已确保前置条件满足）
-        val validatorName = generatorName(table)
-        return validatorName.isNotBlank()
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val entityType = ctx.entityTypeMap[tableName]!!
+        val constraints = ctx.uniqueConstraintsMap[tableName].orEmpty()
+        val deletedField = ctx.getString("deletedField")
+        val validatorType = constraints.map { cons ->
+            val suffix = computeSuffix(cons, deletedField)
+            "Unique${entityType}${suffix}"
+        }.firstOrNull { currentValidatorType ->
+            currentValidatorType.isNotBlank() && !(ctx.typeMapping.containsKey(currentValidatorType))
+        }
+
+        if (validatorType == null) return false
+
+        currentType = validatorType
+        return true
     }
 
     context(ctx: AggregateContext)
@@ -89,7 +105,7 @@ class UniqueValidatorGenerator : AggregateGenerator {
             resultContext.putContext(tag, "templatePackage", refPackage(templatePackage[tag] ?: ""))
             resultContext.putContext(tag, "package", refPackage(""))
 
-            resultContext.putContext(tag, "Validator", generatorName(table))
+            resultContext.putContext(tag, "Validator", currentType)
             resultContext.putContext(tag, "Comment", SqlSchemaUtils.getComment(table))
 
             extraImports.forEach { importManager.add(it) }
@@ -118,23 +134,10 @@ class UniqueValidatorGenerator : AggregateGenerator {
         val basePackage = ctx.getString("basePackage")
         val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
         val `package` = refPackage("")
-        return "$basePackage${templatePackage}${`package`}${refPackage(generatorName(table))}"
+        return "$basePackage${templatePackage}${`package`}${refPackage(currentType)}"
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorName(table: Map<String, Any?>): String {
-        val tableName = SqlSchemaUtils.getTableName(table)
-        val entityType = ctx.entityTypeMap[tableName] ?: return ""
-        val constraints = ctx.uniqueConstraintsMap[tableName].orEmpty()
-        val deletedField = ctx.getString("deletedField")
-        constraints.forEach { cons ->
-            val suffix = computeSuffix(cons, deletedField)
-            val name = "Unique${entityType}${suffix}"
-            val queryName = "${name}Qry"
-            if (ctx.typeMapping.containsKey(queryName) && !ctx.typeMapping.containsKey(name)) return name
-        }
-        return ""
-    }
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -152,12 +155,12 @@ class UniqueValidatorGenerator : AggregateGenerator {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[generatorName(table)] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName(table)
     }
 
     context(ctx: AggregateContext)
     private fun getQueryName(table: Map<String, Any?>): String {
-        val validatorName = generatorName(table)
+        val validatorName = currentType
         return if (validatorName.isBlank()) "" else "${validatorName}Qry"
     }
 
@@ -167,7 +170,7 @@ class UniqueValidatorGenerator : AggregateGenerator {
         val entityType = ctx.entityTypeMap[tableName] ?: return null
         val constraints = ctx.uniqueConstraintsMap[tableName].orEmpty()
         val deletedField = ctx.getString("deletedField")
-        val targetName = generatorName(table)
+        val targetName = currentType
         return constraints.firstOrNull { cons ->
             val suffix = computeSuffix(cons, deletedField)
             val name = "Unique${entityType}${suffix}"

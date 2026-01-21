@@ -12,11 +12,29 @@ class UniqueQueryGenerator : AggregateGenerator {
     override val tag: String = "query"
     override val order: Int = 20
 
+    @Volatile
+    private lateinit var currentType: String
+
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
         if (SqlSchemaUtils.isIgnore(table)) return false
-        val name = generatorName(table)
-        return name.isNotBlank() && !ctx.typeMapping.containsKey(name)
+
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val entityType = ctx.entityTypeMap[tableName]!!
+        val constraints = ctx.uniqueConstraintsMap[tableName].orEmpty()
+        val deletedField = ctx.getString("deletedField")
+
+        val qryType = constraints.map { cons ->
+            val suffix = computeSuffix(cons, deletedField)
+            "Unique${entityType}${suffix}Qry"
+        }.firstOrNull { currentQryType ->
+            currentQryType.isNotBlank() && !ctx.typeMapping.containsKey(currentQryType)
+        }
+
+        if (qryType == null) return false
+
+        currentType = qryType
+        return true
     }
 
     context(ctx: AggregateContext)
@@ -76,7 +94,7 @@ class UniqueQueryGenerator : AggregateGenerator {
             resultContext.putContext(tag, "templatePackage", refPackage(templatePackage[tag] ?: ""))
             resultContext.putContext(tag, "package", refPackage(aggregate))
 
-            resultContext.putContext(tag, "Query", generatorName(table))
+            resultContext.putContext(tag, "Query", currentType)
             resultContext.putContext(tag, "Entity", entityType)
             resultContext.putContext(tag, "Aggregate", toUpperCamelCase(aggregate) ?: aggregate)
             resultContext.putContext(tag, "Comment", SqlSchemaUtils.getComment(table))
@@ -100,25 +118,10 @@ class UniqueQueryGenerator : AggregateGenerator {
         val basePackage = ctx.getString("basePackage")
         val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
         val `package` = refPackage(aggregate)
-        return "$basePackage${templatePackage}${`package`}${refPackage(generatorName(table))}"
+        return "$basePackage${templatePackage}${`package`}${refPackage(currentType)}"
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorName(table: Map<String, Any?>): String {
-        val tableName = SqlSchemaUtils.getTableName(table)
-        val entityType = ctx.entityTypeMap[tableName] ?: return ""
-        val constraints = ctx.uniqueConstraintsMap[tableName].orEmpty()
-        val deletedField = ctx.getString("deletedField")
-
-        constraints.forEach { cons ->
-            val suffix = computeSuffix(cons, deletedField)
-            val q = "Unique${entityType}${suffix}Qry"
-            if (!ctx.typeMapping.containsKey(q)) {
-                return q
-            }
-        }
-        return ""
-    }
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -136,7 +139,7 @@ class UniqueQueryGenerator : AggregateGenerator {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[generatorName(table)] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName(table)
     }
 
     context(ctx: AggregateContext)
@@ -144,7 +147,7 @@ class UniqueQueryGenerator : AggregateGenerator {
         val tableName = SqlSchemaUtils.getTableName(table)
         val entityType = ctx.entityTypeMap[tableName] ?: return null
         val constraints = ctx.uniqueConstraintsMap[tableName].orEmpty()
-        val target = generatorName(table)
+        val target = currentType
         val deletedField = ctx.getString("deletedField")
         return constraints.firstOrNull { cons ->
             val suffix = computeSuffix(cons, deletedField)

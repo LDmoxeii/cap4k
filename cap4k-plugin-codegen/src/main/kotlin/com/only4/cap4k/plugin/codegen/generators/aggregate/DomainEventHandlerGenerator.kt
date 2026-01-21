@@ -6,6 +6,8 @@ import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.misc.toUpperCamelCase
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
+import kotlin.collections.map
+import kotlin.text.split
 
 /**
  * 领域事件处理器文件生成器
@@ -14,6 +16,9 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
 class DomainEventHandlerGenerator : AggregateGenerator {
     override val tag = "domain_event_handler"
     override val order = 40
+
+    @Volatile
+    private lateinit var currentType: String
 
     private fun generateDomainEventName(eventName: String): String =
         (toUpperCamelCase(eventName) ?: eventName).let { base ->
@@ -27,11 +32,20 @@ class DomainEventHandlerGenerator : AggregateGenerator {
 
         if (!SqlSchemaUtils.isAggregateRoot(table)) return false
 
-        return generatorName(table).isNotBlank() && !ctx.typeMapping.containsKey(
-            generatorName(
-                table
-            )
-        )
+        val domainEvents = SqlSchemaUtils.getDomainEvents(table)
+
+        val domainEventHandlerType = domainEvents.map { domainEventInfo ->
+                val infos = domainEventInfo.split(":")
+                val eventName = generateDomainEventName(infos[0])
+                "${eventName}Subscriber"
+            }.firstOrNull { currentDomainEvent ->
+            currentDomainEvent.isNotBlank() && !(ctx.typeMapping.containsKey(currentDomainEvent))
+        }
+
+        if (domainEventHandlerType == null) return false
+
+        currentType = domainEventHandlerType
+        return true
     }
 
     context(ctx: AggregateContext)
@@ -39,7 +53,7 @@ class DomainEventHandlerGenerator : AggregateGenerator {
         val tableName = SqlSchemaUtils.getTableName(table)
         val aggregate = ctx.resolveAggregateWithModule(tableName)
 
-        val domainEvent = generatorName(table).replace("Subscriber", "")
+        val domainEvent = currentType.replace("Subscriber", "")
         val fullDomainEventType = ctx.typeMapping[domainEvent]!!
 
         // 创建 ImportManager
@@ -56,7 +70,7 @@ class DomainEventHandlerGenerator : AggregateGenerator {
 
             resultContext.putContext(tag, "DomainEvent", domainEvent)
 
-            resultContext.putContext(tag, "DomainEventHandler", generatorName(table))
+            resultContext.putContext(tag, "DomainEventHandler", currentType)
 
             resultContext.putContext(tag, "Comment", SqlSchemaUtils.getComment(table))
 
@@ -79,23 +93,10 @@ class DomainEventHandlerGenerator : AggregateGenerator {
         val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
         val `package` = refPackage(aggregate)
 
-        return "$basePackage${templatePackage}${`package`}${refPackage(generatorName(table))}"
+        return "$basePackage${templatePackage}${`package`}${refPackage(currentType)}"
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorName(
-        table: Map<String, Any?>,
-    ): String {
-        return SqlSchemaUtils.getDomainEvents(table)
-            .map { domainEventInfo ->
-                val infos = domainEventInfo.split(":")
-                val eventName = generateDomainEventName(infos[0])
-                "${eventName}Subscriber"
-            }
-            .firstOrNull { domainEventHandler ->
-                !ctx.typeMapping.containsKey(domainEventHandler)
-            } ?: ""
-    }
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -112,6 +113,6 @@ class DomainEventHandlerGenerator : AggregateGenerator {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[generatorName(table)] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName(table)
     }
 }

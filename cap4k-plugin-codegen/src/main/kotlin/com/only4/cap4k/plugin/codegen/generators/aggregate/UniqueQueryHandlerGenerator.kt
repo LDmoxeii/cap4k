@@ -12,12 +12,29 @@ class UniqueQueryHandlerGenerator : AggregateGenerator {
     override val tag: String = "query_handler"
     override val order: Int = 20
 
+    @Volatile
+    private lateinit var currentType: String
+
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
         if (SqlSchemaUtils.isIgnore(table)) return false
-        // 仅依据当前生成名是否可用（生成名内部已确保前置条件满足）
-        val handlerName = generatorName(table)
-        return handlerName.isNotBlank()
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val entityType = ctx.entityTypeMap[tableName]!!
+        val constraints = ctx.uniqueConstraintsMap[tableName].orEmpty()
+        val deletedField = ctx.getString("deletedField")
+
+        val qryHandlerType = constraints.map { cons ->
+            val suffix = computeSuffix(cons, deletedField)
+            val q = "Unique${entityType}${suffix}Qry"
+            "${q}Handler"
+        }.firstOrNull { currentQryHandlerType ->
+            currentQryHandlerType.isNotBlank() && !ctx.typeMapping.containsKey(currentQryHandlerType)
+        }
+
+        if (qryHandlerType == null) return false
+
+        currentType = qryHandlerType
+        return true
     }
 
     context(ctx: AggregateContext)
@@ -68,7 +85,7 @@ class UniqueQueryHandlerGenerator : AggregateGenerator {
             resultContext.putContext(tag, "templatePackage", refPackage(templatePackage[tag] ?: ""))
             resultContext.putContext(tag, "package", refPackage(aggregate))
 
-            resultContext.putContext(tag, "QueryHandler", generatorName(table))
+            resultContext.putContext(tag, "QueryHandler", currentType)
             resultContext.putContext(tag, "Query", getQueryName(table))
             resultContext.putContext(tag, "Entity", entityType)
             resultContext.putContext(tag, "Aggregate", toUpperCamelCase(aggregate) ?: aggregate)
@@ -91,23 +108,10 @@ class UniqueQueryHandlerGenerator : AggregateGenerator {
         val basePackage = ctx.getString("basePackage")
         val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
         val `package` = refPackage(aggregate)
-        return "$basePackage${templatePackage}${`package`}${refPackage(generatorName(table))}"
+        return "$basePackage${templatePackage}${`package`}${refPackage(currentType)}"
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorName(table: Map<String, Any?>): String {
-        val tableName = SqlSchemaUtils.getTableName(table)
-        val entityType = ctx.entityTypeMap[tableName] ?: return ""
-        val constraints = ctx.uniqueConstraintsMap[tableName].orEmpty()
-        val deletedField = ctx.getString("deletedField")
-        constraints.forEach { cons ->
-            val suffix = computeSuffix(cons, deletedField)
-            val q = "Unique${entityType}${suffix}Qry"
-            val h = toUpperCamelCase("${q}Handler")!!
-            if (ctx.typeMapping.containsKey(q) && !ctx.typeMapping.containsKey(h)) return h
-        }
-        return ""
-    }
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -125,12 +129,12 @@ class UniqueQueryHandlerGenerator : AggregateGenerator {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[generatorName(table)] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName(table)
     }
 
     context(ctx: AggregateContext)
     private fun getQueryName(table: Map<String, Any?>): String {
-        val handlerName = generatorName(table)
+        val handlerName = currentType
         return handlerName.removeSuffix("Handler")
     }
 
@@ -140,7 +144,7 @@ class UniqueQueryHandlerGenerator : AggregateGenerator {
         val entityType = ctx.entityTypeMap[tableName] ?: return null
         val constraints = ctx.uniqueConstraintsMap[tableName].orEmpty()
         val deletedField = ctx.getString("deletedField")
-        val targetHandler = generatorName(table)
+        val targetHandler = currentType
         return constraints.firstOrNull { cons ->
             val suffix = computeSuffix(cons, deletedField)
             val q = "Unique${entityType}${suffix}Qry"

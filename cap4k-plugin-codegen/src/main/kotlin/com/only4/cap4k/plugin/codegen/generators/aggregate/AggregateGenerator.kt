@@ -18,8 +18,7 @@ interface AggregateGenerator {
     context(ctx: AggregateContext)
     fun generatorFullName(table: Map<String, Any?>): String
 
-    context(ctx: AggregateContext)
-    fun generatorName(table: Map<String, Any?>): String
+    fun generatorName(): String
 
     fun getDefaultTemplateNodes(): List<TemplateNode>
 

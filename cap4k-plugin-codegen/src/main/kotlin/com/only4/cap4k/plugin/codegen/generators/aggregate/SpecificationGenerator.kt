@@ -12,9 +12,12 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
  * Specification 文件生成器
  * 为每个实体生成规约（Specification）基类
  */
-class SpecificationGenerator : EntityGenerator() {
+class SpecificationGenerator : AggregateGenerator {
     override val tag = "specification"
     override val order = 30
+
+    @Volatile
+    private lateinit var currentType: String
 
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
@@ -30,8 +33,10 @@ class SpecificationGenerator : EntityGenerator() {
         val ids = columns.filter { SqlSchemaUtils.isColumnPrimaryKey(it) }
         if (ids.isEmpty()) return false
 
-        if (ctx.typeMapping.containsKey(generatorName(table))) return false
+        val specificationType = "${tableName}Specification"
+        if (ctx.typeMapping.containsKey(specificationType)) return false
 
+        currentType = specificationType
         return true
     }
 
@@ -54,7 +59,7 @@ class SpecificationGenerator : EntityGenerator() {
             resultContext.putContext(tag, "templatePackage", refPackage(templatePackage[tag] ?: ""))
             resultContext.putContext(tag, "package", refPackage(concatPackage(refPackage(aggregate), refPackage(tag))))
 
-            resultContext.putContext(tag, "Specification", generatorName(table))
+            resultContext.putContext(tag, "Specification", currentType)
 
             resultContext.putContext(tag, "Entity", entityType)
             resultContext.putContext(tag, "fullEntityType", fullEntityType)
@@ -78,12 +83,11 @@ class SpecificationGenerator : EntityGenerator() {
             val templatePackage = refPackage(templatePackage[tag] ?: "")
             val `package` = refPackage(aggregate)
 
-            return "$basePackage${templatePackage}${`package`}${refPackage(tag)}${refPackage(generatorName(table))}"
+            return "$basePackage${templatePackage}${`package`}${refPackage(tag)}${refPackage(currentType)}"
         }
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorName(table: Map<String, Any?>): String = "${super.generatorName(table)}Specification"
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -100,7 +104,7 @@ class SpecificationGenerator : EntityGenerator() {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[generatorName(table)] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName(table)
     }
 }
 

@@ -13,9 +13,17 @@ class SchemaBaseGenerator : AggregateGenerator {
     override val tag = "schema_base"
     override val order = 10
 
+    @Volatile
+    private lateinit var currentType: String
+
     context(ctx: AggregateContext)
-    override fun shouldGenerate(table: Map<String, Any?>): Boolean
-        = !ctx.typeMapping.containsKey(generatorName(table))
+    override fun shouldGenerate(table: Map<String, Any?>): Boolean {
+        val schemaType = "Schema"
+        if (ctx.typeMapping.containsKey(schemaType)) return false
+
+        currentType = schemaType
+        return true
+    }
 
     context(ctx: AggregateContext)
     override fun buildContext(table: Map<String, Any?>): Map<String, Any?> {
@@ -30,7 +38,7 @@ class SchemaBaseGenerator : AggregateGenerator {
             resultContext.putContext(tag, "templatePackage", refPackage(ctx.templatePackage[tag] ?: ""))
             resultContext.putContext(tag, "package", "")
 
-            resultContext.putContext(tag, "SchemaBase", generatorName(table))
+            resultContext.putContext(tag, "SchemaBase", currentType)
 
             // 添加 imports
             resultContext.putContext(tag, "imports", importManager.toImportLines())
@@ -48,14 +56,11 @@ class SchemaBaseGenerator : AggregateGenerator {
             val templatePackage = refPackage(templatePackage[tag] ?: "")
             val `package` = ""
 
-            return "$basePackage$templatePackage$`package`${refPackage(generatorName(table))}"
+            return "$basePackage$templatePackage$`package`${refPackage(currentType)}"
         }
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorName(
-        table: Map<String, Any?>
-    ): String = "Schema"
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -72,6 +77,6 @@ class SchemaBaseGenerator : AggregateGenerator {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[generatorName(table)] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName(table)
     }
 }

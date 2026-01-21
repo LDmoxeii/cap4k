@@ -10,9 +10,12 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
  * Schema 文件生成器
  * 为每个实体生成对应的 Schema 类（类似 JPA Metamodel）
  */
-class SchemaGenerator : EntityGenerator() {
+class SchemaGenerator : AggregateGenerator {
     override val tag = "schema"
     override val order = 50
+
+    @Volatile
+    private lateinit var currentType: String
 
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
@@ -20,7 +23,13 @@ class SchemaGenerator : EntityGenerator() {
         if (SqlSchemaUtils.hasRelation(table)) return false
         if (!ctx.getBoolean("generateSchema", false)) return false
 
-        return !ctx.typeMapping.containsKey(generatorName(table))
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val schemaType = "S${ctx.entityTypeMap[tableName]!!}"
+
+        if (ctx.typeMapping.containsKey(schemaType)) return false
+
+        currentType = schemaType
+        return true
     }
 
     context(ctx: AggregateContext)
@@ -137,12 +146,11 @@ class SchemaGenerator : EntityGenerator() {
             val templatePackage = refPackage(templatePackage[tag] ?: "")
             val `package` = refPackage(aggregate)
 
-            return "$basePackage${templatePackage}${`package`}${refPackage(generatorName(table))}"
+            return "$basePackage${templatePackage}${`package`}${refPackage(currentType)}"
         }
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorName(table: Map<String, Any?>): String = "S${super.generatorName(table)}"
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -159,7 +167,7 @@ class SchemaGenerator : EntityGenerator() {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[generatorName(table)] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName(table)
     }
 }
 

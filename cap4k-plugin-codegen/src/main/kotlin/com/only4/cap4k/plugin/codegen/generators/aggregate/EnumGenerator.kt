@@ -16,7 +16,7 @@ class EnumGenerator : AggregateGenerator {
     override val order = 10
 
     @Volatile
-    private lateinit var currentEnumType: String
+    private lateinit var currentType: String
 
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
@@ -28,14 +28,17 @@ class EnumGenerator : AggregateGenerator {
             val columns = columnsMap[tableName] ?: return false
 
             // 检查是否有未生成的枚举列
-            return columns.any { column ->
-                if (!SqlSchemaUtils.hasEnum(column) || SqlSchemaUtils.isIgnore(column)) {
-                    false
-                } else {
-                    val enumType = SqlSchemaUtils.getType(column)
-                    !typeMapping.containsKey(enumType)
-                }
-            }
+            val enumType =
+                columns.filter { column -> !SqlSchemaUtils.hasEnum(column) || SqlSchemaUtils.isIgnore(column) }
+                    .map { column -> SqlSchemaUtils.getType(column) }
+                    .firstOrNull { currentEnumType ->
+                        currentEnumType.isNotBlank() && !typeMapping.containsKey(currentEnumType)
+                    }
+
+            if (enumType == null) return false
+
+            currentType = enumType
+            return true
         }
     }
 
@@ -54,13 +57,13 @@ class EnumGenerator : AggregateGenerator {
                 if (SqlSchemaUtils.hasEnum(column) && !SqlSchemaUtils.isIgnore(column)) {
                     val enumType = SqlSchemaUtils.getType(column)
                     if (!typeMapping.containsKey(enumType)) {
-                        currentEnumType = enumType
+                        currentType = enumType
                         true
                     } else false
                 } else false
             }
 
-            val enumConfig = enumConfigMap[currentEnumType]!!
+            val enumConfig = enumConfigMap[currentType]!!
 
             val enumItems = enumConfig.toSortedMap().map { (value, arr) ->
                 mapOf(
@@ -74,9 +77,13 @@ class EnumGenerator : AggregateGenerator {
 
             resultContext.putContext(tag, "modulePath", domainPath)
             resultContext.putContext(tag, "templatePackage", refPackage(templatePackage[tag] ?: ""))
-            resultContext.putContext(tag, "package", refPackage(concatPackage(refPackage(aggregate), refPackage("enums"))))
+            resultContext.putContext(
+                tag,
+                "package",
+                refPackage(concatPackage(refPackage(aggregate), refPackage("enums")))
+            )
 
-            resultContext.putContext(tag, "Enum", currentEnumType)
+            resultContext.putContext(tag, "Enum", currentType)
 
             resultContext.putContext(tag, "Aggregate", toUpperCamelCase(aggregate) ?: aggregate)
             resultContext.putContext(tag, "EnumValueField", getString("enumValueField"))
@@ -104,16 +111,13 @@ class EnumGenerator : AggregateGenerator {
 
             return "$basePackage${templatePackage}${`package`}${refPackage(defaultEnumPackage)}${
                 refPackage(
-                    currentEnumType
+                    currentType
                 )
             }"
         }
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorName(table: Map<String, Any?>): String {
-        return currentEnumType
-    }
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -132,7 +136,7 @@ class EnumGenerator : AggregateGenerator {
     override fun onGenerated(
         table: Map<String, Any?>,
     ) {
-        ctx.typeMapping[generatorName(table)] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName(table)
     }
 }
 

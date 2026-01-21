@@ -12,9 +12,12 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
  * Factory 文件生成器
  * 为聚合根生成工厂类
  */
-class FactoryGenerator : EntityGenerator() {
+class FactoryGenerator : AggregateGenerator {
     override val tag = "factory"
     override val order = 30
+
+    @Volatile
+    private lateinit var currentType: String
 
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
@@ -23,15 +26,18 @@ class FactoryGenerator : EntityGenerator() {
 
         if (!SqlSchemaUtils.isAggregateRoot(table)) return false
 
-        if (!(SqlSchemaUtils.hasFactory(table)) && ctx.getBoolean("generateAggregate", false)) return false
+        if (!(SqlSchemaUtils.hasFactory(table)) && ctx.getBoolean("generateAggregate")) return false
 
         val tableName = SqlSchemaUtils.getTableName(table)
+        val entityType = ctx.entityTypeMap[tableName] ?: return false
         val columns = ctx.columnsMap[tableName] ?: return false
         val ids = columns.filter { SqlSchemaUtils.isColumnPrimaryKey(it) }
         if (ids.isEmpty()) return false
 
-        if (ctx.typeMapping.containsKey(generatorName(table))) return false
+        val factoryType = "${entityType}Factory"
+        if (ctx.typeMapping.containsKey(factoryType)) return  false
 
+        currentType = factoryType
         return true
     }
 
@@ -39,7 +45,6 @@ class FactoryGenerator : EntityGenerator() {
     override fun buildContext(table: Map<String, Any?>): Map<String, Any?> {
         val tableName = SqlSchemaUtils.getTableName(table)
         val aggregate = ctx.resolveAggregateWithModule(tableName)
-
         val entityType = ctx.entityTypeMap[tableName]!!
         val fullEntityType = ctx.typeMapping[entityType]!!
 
@@ -55,7 +60,7 @@ class FactoryGenerator : EntityGenerator() {
             resultContext.putContext(tag, "templatePackage", refPackage(templatePackage[tag] ?: ""))
             resultContext.putContext(tag, "package", refPackage(concatPackage(refPackage(aggregate), refPackage(tag))))
 
-            resultContext.putContext(tag, "Factory", generatorName(table))
+            resultContext.putContext(tag, "Factory", currentType)
             resultContext.putContext(tag, "Payload", "${entityType}Payload")
 
             resultContext.putContext(tag, "Entity", entityType)
@@ -83,13 +88,12 @@ class FactoryGenerator : EntityGenerator() {
             val `package` = refPackage(aggregate)
 
             val fullFactoryType =
-                "$basePackage${templatePackage}${`package`}${refPackage(tag)}${refPackage(generatorName(table))}"
+                "$basePackage${templatePackage}${`package`}${refPackage(tag)}${refPackage(currentType)}"
             return fullFactoryType
         }
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorName(table: Map<String, Any?>): String = "${super.generatorName(table)}Factory"
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -106,7 +110,7 @@ class FactoryGenerator : EntityGenerator() {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[generatorName(table)] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName(table)
     }
 
 }

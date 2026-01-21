@@ -16,6 +16,9 @@ open class EntityGenerator : AggregateGenerator {
     override val tag = "entity"
     override val order = 20
 
+    @Volatile
+    private lateinit var currentType: String
+
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
         if (SqlSchemaUtils.isIgnore(table)) return false
@@ -26,7 +29,13 @@ open class EntityGenerator : AggregateGenerator {
         val columns = ctx.columnsMap[tableName] ?: return false
         val ids = resolveIdColumns(columns)
 
-        return ids.isNotEmpty() && !ctx.typeMapping.containsKey(entityType)
+        if (ids.isEmpty()) return false
+
+        if (ctx.typeMapping.containsKey(entityType)) return false
+
+        currentType = entityType
+
+        return true
     }
 
     context(ctx: AggregateContext)
@@ -201,11 +210,7 @@ open class EntityGenerator : AggregateGenerator {
         }
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorName(table: Map<String, Any?>): String {
-        val tableName = SqlSchemaUtils.getTableName(table)
-        return ctx.entityTypeMap[tableName]!!
-    }
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -228,7 +233,7 @@ open class EntityGenerator : AggregateGenerator {
             val tableName = SqlSchemaUtils.getTableName(table)
             val entityType = entityTypeMap[tableName]!!
 
-            typeMapping[generatorName(table)] = generatorFullName(table)
+            typeMapping[currentType] = generatorFullName(table)
 
             // Q类型（QueryDSL）
             val aggregate = resolveAggregateWithModule(tableName)

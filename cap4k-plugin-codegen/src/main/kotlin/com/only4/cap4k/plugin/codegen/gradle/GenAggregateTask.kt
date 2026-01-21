@@ -194,7 +194,7 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
                 // 合并模板节点（上下文配置合并默认，再根据 pattern 选择）：
                 // - 同一 dir/file 类型节点去重；每个唯一 (name+pattern) 保留一个模板节点
                 // - context 优先级高于 defaults；目录和文件层级也遵循优先级合并
-                val genName = generator.generatorName(table)
+                val genName = generator.generatorName()
 
                 val ctxTop = context.templateNodeMap.getOrDefault(generator.tag, emptyList())
                 val defTop = generator.getDefaultTemplateNodes()

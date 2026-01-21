@@ -12,7 +12,7 @@ class EnumTranslationGenerator : AggregateGenerator {
     override val order: Int = 20
 
     @Volatile
-    private lateinit var currentEnumType: String
+    private lateinit var currentType: String
 
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
@@ -24,15 +24,20 @@ class EnumTranslationGenerator : AggregateGenerator {
             val columns = columnsMap[tableName] ?: return false
 
             // 是否存在尚未生成翻译器的枚举
-            return columns.any { column ->
-                if (!SqlSchemaUtils.hasEnum(column) || SqlSchemaUtils.isIgnore(column)) {
-                    false
-                } else {
-                    val enumType = SqlSchemaUtils.getType(column)
-                    val translationName = "${enumType}Translation"
-                    !typeMapping.containsKey(translationName)
-                }
-            }
+            val enumTranslationType =
+                columns.filter { column -> !SqlSchemaUtils.hasEnum(column) || SqlSchemaUtils.isIgnore(column) }
+                    .map { column ->
+                        val enumType = SqlSchemaUtils.getType(column)
+                        "${enumType}Translation"
+                    }
+                    .firstOrNull { currentEnumType ->
+                        currentEnumType.isNotBlank() && !typeMapping.containsKey(currentEnumType)
+                    }
+
+            if (enumTranslationType == null) return false
+
+            currentType = enumTranslationType
+            return true
         }
     }
 
@@ -40,39 +45,30 @@ class EnumTranslationGenerator : AggregateGenerator {
     override fun buildContext(table: Map<String, Any?>): Map<String, Any?> {
         with(ctx) {
             val tableName = SqlSchemaUtils.getTableName(table)
-            val columns = columnsMap[tableName]!!
             val aggregate = resolveAggregateWithModule(tableName)
-
-            // 选择当前待生成的枚举类型
-            columns.first { column ->
-                if (SqlSchemaUtils.hasEnum(column) && !SqlSchemaUtils.isIgnore(column)) {
-                    val enumType = SqlSchemaUtils.getType(column)
-                    val translationName = "${enumType}Translation"
-                    if (!typeMapping.containsKey(translationName)) {
-                        currentEnumType = enumType
-                        true
-                    } else false
-                } else false
-            }
 
             val importManager = TranslationImportManager()
             importManager.addBaseImports()
 
             // 引入枚举类型
-            typeMapping[currentEnumType]?.let { importManager.add(it) }
+            typeMapping[currentType]?.let { importManager.add(it) }
 
             val resultContext = baseMap.toMutableMap()
 
             resultContext.putContext(tag, "modulePath", adapterPath)
-            resultContext.putContext(tag, "templatePackage", refPackage(templatePackage[tag] ?: refPackage("domain.translation")))
+            resultContext.putContext(
+                tag,
+                "templatePackage",
+                refPackage(templatePackage[tag] ?: refPackage("domain.translation"))
+            )
             resultContext.putContext(tag, "package", refPackage(aggregate))
 
             // 枚举与翻译类名
-            resultContext.putContext(tag, "Enum", currentEnumType)
-            resultContext.putContext(tag, "EnumTranslation", generatorName(table))
+            resultContext.putContext(tag, "Enum", currentType)
+            resultContext.putContext(tag, "EnumTranslation", currentType)
 
             // 常量名与值：VIDEO_STATUS_CODE_TO_DESC / "video_status_code_to_desc"
-            val snake = toSnakeCase(currentEnumType) ?: currentEnumType
+            val snake = toSnakeCase(currentType) ?: currentType
             val typeConst = "${snake}_code_to_desc".uppercase()
             val typeValue = "${snake}_code_to_desc"
             resultContext.putContext(tag, "TranslationTypeConst", typeConst)
@@ -98,14 +94,11 @@ class EnumTranslationGenerator : AggregateGenerator {
             val basePackage = getString("basePackage")
             val templatePackage = refPackage(templatePackage[tag] ?: refPackage("domain.translation"))
             val `package` = refPackage(aggregate)
-            return "$basePackage${templatePackage}${`package`}${refPackage(generatorName(table))}"
+            return "$basePackage${templatePackage}${`package`}${refPackage(currentType)}"
         }
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorName(table: Map<String, Any?>): String {
-        return "${currentEnumType}Translation"
-    }
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -122,7 +115,7 @@ class EnumTranslationGenerator : AggregateGenerator {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[generatorName(table)] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName(table)
     }
 }
 

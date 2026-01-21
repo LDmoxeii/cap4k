@@ -11,10 +11,13 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
  * Repository 生成器
  * 为聚合根生成 JPA Repository 接口及其适配器实现
  */
-class RepositoryGenerator : EntityGenerator() {
+class RepositoryGenerator : AggregateGenerator {
 
     override val tag = "repository"
     override val order = 30
+
+    @Volatile
+    private lateinit var currentType: String
 
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
@@ -23,8 +26,15 @@ class RepositoryGenerator : EntityGenerator() {
 
         if (!SqlSchemaUtils.isAggregateRoot(table)) return false
 
-        if (ctx.typeMapping.containsKey(generatorName(table))) return false
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val entityType = ctx.entityTypeMap[tableName]!!
+        val repositoryNameTemplate = ctx.getString("repositoryNameTemplate")
 
+        val repositoryType =  renderString(repositoryNameTemplate, mapOf("Aggregate" to entityType))
+
+        if (ctx.typeMapping.containsKey(repositoryType)) return false
+
+        currentType = repositoryType
         return true
     }
 
@@ -32,7 +42,6 @@ class RepositoryGenerator : EntityGenerator() {
     override fun buildContext(table: Map<String, Any?>): Map<String, Any?> {
         val tableName = SqlSchemaUtils.getTableName(table)
         val entityType = ctx.entityTypeMap[tableName]!!
-
         val fullRootEntityType = ctx.typeMapping[entityType]!!
 
         val columns = ctx.columnsMap[tableName]!!
@@ -66,7 +75,7 @@ class RepositoryGenerator : EntityGenerator() {
             resultContext.putContext(tag, "Aggregate", entityType)
             resultContext.putContext(tag, "IdentityType", identityType)
 
-            resultContext.putContext(tag, "Repository", generatorName(table))
+            resultContext.putContext(tag, "Repository", currentType)
 
             val comment = "Repository for $entityType aggregate"
             resultContext.putContext(tag, "Comment", comment)
@@ -84,18 +93,11 @@ class RepositoryGenerator : EntityGenerator() {
             val templatePackage = refPackage(templatePackage[tag] ?: "")
             val `package` = ""
 
-            return "$basePackage${templatePackage}${`package`}${refPackage(generatorName(table))}"
+            return "$basePackage${templatePackage}${`package`}${refPackage(currentType)}"
         }
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorName(
-        table: Map<String, Any?>
-    ): String {
-        val repositoryNameTemplate = ctx.getString("repositoryNameTemplate")
-
-        return renderString(repositoryNameTemplate, mapOf("Aggregate" to super.generatorName(table)))
-    }
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -112,7 +114,7 @@ class RepositoryGenerator : EntityGenerator() {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[generatorName(table)] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName(table)
     }
 }
 
