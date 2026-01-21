@@ -234,9 +234,14 @@ open class GenerationConfig @Inject constructor(objects: ObjectFactory) {
     val generateAggregate: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 
     /**
-     * 是否生成聚合封装类
+     * 是否生成聚合规约类
      */
     val generateSpecification: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+
+    /**
+     * 是否生成聚合工厂类
+     */
+    val generateFactory: Property<Boolean> = objects.property(Boolean::class.java).convention(true)
 
     /**
      * 是否生成关联父实体字段

@@ -26,7 +26,7 @@ class FactoryGenerator : AggregateGenerator {
 
         if (!SqlSchemaUtils.isAggregateRoot(table)) return false
 
-        if (!(SqlSchemaUtils.hasFactory(table)) && ctx.getBoolean("generateAggregate")) return false
+        if (!(ctx.getBoolean("generateFactory")) && !(SqlSchemaUtils.hasFactory(table))) return false
 
         val tableName = SqlSchemaUtils.getTableName(table)
         val entityType = ctx.entityTypeMap[tableName] ?: return false

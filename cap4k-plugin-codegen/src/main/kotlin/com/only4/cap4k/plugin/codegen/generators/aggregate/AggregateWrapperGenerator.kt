@@ -22,9 +22,9 @@ class AggregateWrapperGenerator : AggregateGenerator {
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
         if (SqlSchemaUtils.isIgnore(table)) return false
         if (SqlSchemaUtils.hasRelation(table)) return false
-        if (!ctx.getBoolean("generateAggregate", false)) return false
-
         if (!SqlSchemaUtils.isAggregateRoot(table)) return false
+
+        if (!ctx.getBoolean("generateAggregate")) return false
 
         val tableName = SqlSchemaUtils.getTableName(table)
         val entityType = ctx.entityTypeMap[tableName]!!

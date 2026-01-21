@@ -21,7 +21,7 @@ class SchemaGenerator : AggregateGenerator {
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
         if (SqlSchemaUtils.isIgnore(table)) return false
         if (SqlSchemaUtils.hasRelation(table)) return false
-        if (!ctx.getBoolean("generateSchema", false)) return false
+        if (!ctx.getBoolean("generateSchema")) return false
 
         val tableName = SqlSchemaUtils.getTableName(table)
         val schemaType = "S${ctx.entityTypeMap[tableName]!!}"
