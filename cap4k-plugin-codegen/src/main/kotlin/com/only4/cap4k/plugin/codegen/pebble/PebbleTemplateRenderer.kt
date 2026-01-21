@@ -22,24 +22,35 @@ object PebbleTemplateRenderer {
         var result = templateContent
         var iterations = 0
         val maxIterations = 10
+        val renderContext = RenderContextHolder.build(context)
+        RenderContextHolder.set(renderContext)
 
         // 正则匹配 Pebble 语法：{{ ... }} 或 {% ... %}
         val pebblePattern = Regex("""(\{\{.*?}}|\{%.*?%})""")
 
-        while (pebblePattern.containsMatchIn(result) && iterations < maxIterations) {
-            val writer = StringWriter()
-            val template = engine.getTemplate(result)
-            template.evaluate(writer, context)
+        try {
+            while (pebblePattern.containsMatchIn(result) && iterations < maxIterations) {
+                val writer = StringWriter()
+                val template = engine.getTemplate(result)
+                template.evaluate(writer, context)
 
-            val newResult = writer.toString()
+                val newResult = writer.toString()
 
-            // 如果解析后结果没有变化，说明无法继续解析，停止递归
-            if (newResult == result) {
-                break
+                // 如果解析后结果没有变化，说明无法继续解析，停止递归
+                if (newResult == result) {
+                    break
+                }
+
+                result = newResult
+                iterations++
             }
+        } finally {
+            RenderContextHolder.clear()
+        }
 
-            result = newResult
-            iterations++
+        if (renderContext != null && result.contains(RenderContextHolder.IMPORTS_PLACEHOLDER)) {
+            val importText = renderContext.importCollector.render()
+            result = result.replace(RenderContextHolder.IMPORTS_PLACEHOLDER, importText)
         }
 
         return result

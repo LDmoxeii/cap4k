@@ -1,7 +1,5 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{%- for import in imports %}
-{{ import }}
-{%- endfor %}
+{{ imports() }}
 
 /**
  * {{ Comment }}
@@ -14,7 +12,7 @@ object {{ Client }} {
 {% if requestFields|length > 0 %}
     data class Request(
 {%- for field in requestFields %}
-        val {{ field.name }}: {{ field.type }}{% if field.defaultValue is defined %} = {{ field.defaultValue }}{% endif %}{% if not loop.last %},{% endif %}
+        val {{ field.name }}: {{ type(field.type) }}{% if field.defaultValue is defined %} = {{ field.defaultValue }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
     ) : RequestParam<Response>
 {%- else %}
@@ -23,7 +21,7 @@ object {{ Client }} {
 {% if responseFields|length > 0 %}
     data class Response(
 {%- for field in responseFields %}
-        val {{ field.name }}: {{ field.type }}{% if field.defaultValue is defined %} = {{ field.defaultValue }}{% endif %}{% if not loop.last %},{% endif %}
+        val {{ field.name }}: {{ type(field.type) }}{% if field.defaultValue is defined %} = {{ field.defaultValue }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
     )
 {%- else %}

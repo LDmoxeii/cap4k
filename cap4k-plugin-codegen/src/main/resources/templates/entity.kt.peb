@@ -1,7 +1,5 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{%- for import in imports %}
-{{ import }}
-{%- endfor %}
+{{ imports() }}
 
 /**
  * {{ Comment }}
@@ -17,7 +15,7 @@ package {{ basePackage }}{{ templatePackage }}{{ package }}
 class {{ entityType }}(
 {%- for column in columns %}
 {%- if column.needGenerate %}
-    {{ column.fieldName }}: {{ column.fieldType }}{{ column.defaultValue }}{% if not loop.last %},{% endif %}
+    {{ column.fieldName }}: {{ type(column.fieldType) }}{{ column.defaultValue }}{% if not loop.last %},{% endif %}
 {%- endif %}
 {%- endfor %}
 ){{ extendsClause }}{{ implementsClause }} {
@@ -29,10 +27,10 @@ class {{ entityType }}(
 {%- for annotation in relation.annotations %}
     {{ annotation }}
 {%- endfor %}
-    var {{ relation.fieldName }}: {{ relation.fieldType }}{{ relation.defaultValue }}
+    var {{ relation.fieldName }}: {{ type(relation.fieldType) }}{{ relation.defaultValue }}
 {%- if relation.hasLoadMethod %}
 
-    fun load{{ relation.entityType }}(): {{ relation.fullEntityType }}? {
+    fun load{{ relation.entityType }}(): {{ type(relation.fullEntityType) }}? {
         return if ({{ relation.fieldName }}.isEmpty()) null else {{ relation.fieldName }}[0]
     }
 {%- endif %}
@@ -46,7 +44,7 @@ class {{ entityType }}(
 {%- for annotation in column.annotations %}
     {{ annotation }}
 {%- endfor %}
-    var {{ column.fieldName }}: {{ column.fieldType }} = {{ column.fieldName }}
+    var {{ column.fieldName }}: {{ type(column.fieldType) }} = {{ column.fieldName }}
         internal set
 {%- endif %}
 {%- endfor %}

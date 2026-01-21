@@ -1,7 +1,5 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{%- for import in imports %}
-{{ import }}
-{%- endfor %}
+{{ imports() }}
 
 /**
  * 该文件由 [cap4k-ddd-codegen-gradle-plugin] 生成

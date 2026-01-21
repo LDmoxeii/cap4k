@@ -1,7 +1,5 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{%- for import in imports %}
-{{ import }}
-{%- endfor %}
+{{ imports() }}
 
 /**
  * Schema 类用于类型安全的 JPA Criteria 查询
@@ -493,7 +491,7 @@ class {{ Schema }}(
     /**
      * {{ field.comment }}
      */
-    val {{ field.fieldName }}: Field<{{ field.fieldType }}> by lazy {
+    val {{ field.fieldName }}: Field<{{ type(field.fieldType) }}> by lazy {
         Field(root.get("{{ field.fieldName }}"), criteriaBuilder)
     }
 

@@ -112,9 +112,10 @@ open class GenDesignTask : GenArchTask(), MutableDesignContext {
     ) {
         val designs = ctx.designMap[generator.tag]?.toList().orEmpty()
 
-            designs.forEach { design ->
-                while (generator.shouldGenerate(design)) {
-                    val templateContext = generator.buildContext(design).toMutableMap()
+        designs.forEach { design ->
+            while (generator.shouldGenerate(design)) {
+                val templateContext = generator.buildContext(design).toMutableMap()
+                templateContext["typeMapping"] = ctx.typeMapping
 
                     // 合并模板节点（上下文与默认合并多份，再按 pattern 选择）
                     // - 同一 dir/file 类型节点可共存；每个唯一 (name+pattern) 保留一个模板节点
@@ -140,8 +141,8 @@ open class GenDesignTask : GenArchTask(), MutableDesignContext {
                         )
                     }
 
-                    generator.onGenerated(design)
-                }
+                generator.onGenerated(design)
             }
         }
+    }
 }

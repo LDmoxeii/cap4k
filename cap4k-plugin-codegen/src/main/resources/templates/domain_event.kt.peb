@@ -1,7 +1,5 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{%- for import in imports %}
-{{ import }}
-{%- endfor %}
+{{ imports() }}
 
 
 /**
@@ -21,6 +19,6 @@ package {{ basePackage }}{{ templatePackage }}{{ package }}
 class {{ DomainEvent }}(
     val entity: {{ Aggregate }}{% if fields|length > 0 %},{% endif %}
 {%- for field in fields %}
-    val {{ field.name }}: {{ field.type }}{% if field.defaultValue is defined %} = {{ field.defaultValue }}{% endif %}{% if not loop.last %},{% endif %}
+    val {{ field.name }}: {{ type(field.type) }}{% if field.defaultValue is defined %} = {{ field.defaultValue }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
 )

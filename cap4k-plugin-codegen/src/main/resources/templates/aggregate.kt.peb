@@ -1,7 +1,5 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{%- for import in imports %}
-{{ import }}
-{%- endfor %}
+{{ imports() }}
 
 /**
  * {{ Entity }}聚合封装
@@ -17,7 +15,7 @@ class {{ AggregateName }}(
 
     val id by lazy { root.id }
 
-    class Id(key: {{ IdentityType }}) :
-        com.only4.cap4k.ddd.core.domain.aggregate.Id.Default<{{ AggregateName }}, {{ IdentityType }}>(key)
+    class Id(key: {{ type(IdentityType) }}) :
+        com.only4.cap4k.ddd.core.domain.aggregate.Id.Default<{{ AggregateName }}, {{ type(IdentityType) }}>(key)
 
 }

@@ -1,7 +1,5 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{%- for import in imports %}
-{{ import }}
-{%- endfor %}
+{{ imports() }}
 
 /**
  * 该文件由 [cap4k-ddd-codegen-gradle-plugin] 生成
@@ -40,14 +38,14 @@ annotation class {{ Validator }}(
 
             // 读取唯一字段值
 {%- for rp in RequestProps %}
-            val {{ rp.name }} = props[{{ rp.varName }}]?.getter?.call(value) as? {{ rp.type }}?
+            val {{ rp.name }} = props[{{ rp.varName }}]?.getter?.call(value) as? {{ type(rp.type) }}?
 {%- if rp.isString %}
             val {{ rp.name }}Trimmed = {{ rp.name }}?.trim()
 {%- endif %}
 {%- endfor %}
 
             // 读取排除 ID
-            val excludeId = props[{{ EntityIdVar }}]?.getter?.call(value) as? {{ IdType }}
+            val excludeId = props[{{ EntityIdVar }}]?.getter?.call(value) as? {{ type(IdType) }}
 
             // 所有参数均有值（字符串非空）才进行校验
             val allPresent =

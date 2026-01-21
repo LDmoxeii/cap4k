@@ -26,6 +26,7 @@ object PebbleInitializer {
             .cacheActive(config.cacheEnabled)
             .autoEscaping(config.autoEscaping)
             .newLineTrimming(config.newLineTrimming)
+            .extension(AutoImportExtension())
             .build()
 
         initialized = true

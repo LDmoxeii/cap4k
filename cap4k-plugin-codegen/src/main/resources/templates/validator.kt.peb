@@ -1,7 +1,5 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{%- for import in imports %}
-{{ import }}
-{%- endfor %}
+{{ imports() }}
 
 /**
  * {{ Comment }}
@@ -19,8 +17,8 @@ annotation class {{ Validator }}(
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = [],
 ){
-    class Validator : ConstraintValidator<{{ Validator }}, {{ ValueType }}> {
-        override fun isValid(value: {{ ValueType }}?, context: ConstraintValidatorContext): Boolean {
+    class Validator : ConstraintValidator<{{ Validator }}, {{ type(ValueType) }}> {
+        override fun isValid(value: {{ type(ValueType) }}?, context: ConstraintValidatorContext): Boolean {
             return true
         }
     }

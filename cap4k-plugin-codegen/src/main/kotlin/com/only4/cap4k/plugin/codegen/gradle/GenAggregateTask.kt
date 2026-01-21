@@ -185,6 +185,8 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
         tables.forEach { table ->
             while (generator.shouldGenerate(table)) {
                 val tableContext = generator.buildContext(table)
+                val templateContext = tableContext.toMutableMap()
+                templateContext["typeMapping"] = ctx.typeMapping
 
                 // 合并模板节点（上下文配置合并默认，再根据 pattern 选择）：
                 // - 同一 dir/file 类型节点去重；每个唯一 (name+pattern) 保留一个模板节点
@@ -197,15 +199,15 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
                 val selected = TemplateNode.mergeAndSelect(ctxTop, defTop, genName)
 
                 selected.forEach { templateNode ->
-                    val pathNode = templateNode.resolve(tableContext)
+                    val pathNode = templateNode.resolve(templateContext)
                     forceRender(
                         pathNode,
                         resolvePackageDirectory(
-                            tableContext["modulePath"].toString(),
+                            templateContext["modulePath"].toString(),
                             concatPackage(
                                 getString("basePackage"),
-                                tableContext["templatePackage"].toString(),
-                                tableContext["package"].toString()
+                                templateContext["templatePackage"].toString(),
+                                templateContext["package"].toString()
                             )
                         )
                     )

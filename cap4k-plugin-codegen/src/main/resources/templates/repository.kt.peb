@@ -1,7 +1,5 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{%- for import in imports %}
-{{ import }}
-{%- endfor %}
+{{ imports() }}
 
 /**
  * {{ Comment }}
@@ -11,18 +9,18 @@ package {{ basePackage }}{{ templatePackage }}{{ package }}
  */
 @Repository
 {%- if supportQuerydsl %}
-interface {{ Repository }} : JpaRepository<{{ Aggregate }}, {{ IdentityType }}>, JpaSpecificationExecutor<{{ Aggregate }}>,
+interface {{ Repository }} : JpaRepository<{{ Aggregate }}, {{ type(IdentityType) }}>, JpaSpecificationExecutor<{{ Aggregate }}>,
     QuerydslPredicateExecutor<{{ Aggregate }}> {
 {%- else %}
-interface {{ Repository }} : JpaRepository<{{ Aggregate }}, {{ IdentityType }}>, JpaSpecificationExecutor<{{ Aggregate }}> {
+interface {{ Repository }} : JpaRepository<{{ Aggregate }}, {{ type(IdentityType) }}>, JpaSpecificationExecutor<{{ Aggregate }}> {
 {%- endif %}
 
     @Component
     @Aggregate(aggregate = "{{ Aggregate }}", name = "{{ Aggregate }}Repo", type = Aggregate.TYPE_REPOSITORY, description = "")
     class {{ Aggregate }}JpaRepositoryAdapter(
         jpaSpecificationExecutor: JpaSpecificationExecutor<{{ Aggregate }}>,
-        jpaRepository: JpaRepository<{{ Aggregate }}, {{ IdentityType }}>
-    ) : AbstractJpaRepository<{{ Aggregate }}, {{ IdentityType }}>(
+        jpaRepository: JpaRepository<{{ Aggregate }}, {{ type(IdentityType) }}>
+    ) : AbstractJpaRepository<{{ Aggregate }}, {{ type(IdentityType) }}>(
         jpaSpecificationExecutor,
         jpaRepository
     )
