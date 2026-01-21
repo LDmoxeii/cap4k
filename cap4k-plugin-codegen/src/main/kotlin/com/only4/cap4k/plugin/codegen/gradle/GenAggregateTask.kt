@@ -18,6 +18,7 @@ import com.only4.cap4k.plugin.codegen.generators.unit.RepositoryUnitGenerator
 import com.only4.cap4k.plugin.codegen.generators.unit.SchemaBaseUnitGenerator
 import com.only4.cap4k.plugin.codegen.generators.unit.SchemaUnitGenerator
 import com.only4.cap4k.plugin.codegen.generators.unit.SpecificationUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.UnitGenerationCollector
 import com.only4.cap4k.plugin.codegen.generators.unit.UniqueQueryHandlerUnitGenerator
 import com.only4.cap4k.plugin.codegen.generators.unit.UniqueQueryUnitGenerator
 import com.only4.cap4k.plugin.codegen.generators.unit.UniqueValidatorUnitGenerator
@@ -187,9 +188,8 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
         generators: List<AggregateUnitGenerator>,
         context: AggregateContext,
     ) {
-        val units = generators.flatMap { generator ->
-            with(context) { generator.collect() }
-        }
+        val collector = UnitGenerationCollector(logAdapter)
+        val units = collector.collect(generators, context)
         if (units.isEmpty()) return
 
         val plan = GenerationPlan(logAdapter)

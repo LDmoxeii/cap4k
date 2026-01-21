@@ -6,6 +6,22 @@ import java.util.PriorityQueue
 class GenerationPlan(
     private val log: LoggerAdapter? = null,
 ) {
+    private val allUnits = LinkedHashMap<String, GenerationUnit>()
+
+    fun addAll(units: List<GenerationUnit>): List<GenerationUnit> {
+        if (units.isEmpty()) return order(allUnits.values.toList())
+
+        units.forEach { unit ->
+            if (allUnits.containsKey(unit.id)) {
+                log?.warn("Duplicate unit id: ${unit.id}, keep first")
+                return@forEach
+            }
+            allUnits[unit.id] = unit
+        }
+
+        return order(allUnits.values.toList())
+    }
+
     fun order(units: List<GenerationUnit>): List<GenerationUnit> {
         if (units.isEmpty()) return emptyList()
 
