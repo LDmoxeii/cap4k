@@ -29,7 +29,7 @@ class EnumGenerator : AggregateGenerator {
 
             // 检查是否有未生成的枚举列
             val enumType =
-                columns.filter { column -> !SqlSchemaUtils.hasEnum(column) || SqlSchemaUtils.isIgnore(column) }
+                columns.filter { column -> SqlSchemaUtils.hasEnum(column) && !(SqlSchemaUtils.isIgnore(column)) }
                     .map { column -> SqlSchemaUtils.getType(column) }
                     .firstOrNull { currentEnumType ->
                         currentEnumType.isNotBlank() && !typeMapping.containsKey(currentEnumType)
@@ -46,22 +46,11 @@ class EnumGenerator : AggregateGenerator {
     override fun buildContext(table: Map<String, Any?>): Map<String, Any?> {
         with(ctx) {
             val tableName = SqlSchemaUtils.getTableName(table)
-            val columns = columnsMap[tableName]!!
             val aggregate = resolveAggregateWithModule(tableName)
 
             // 创建 ImportManager
             val importManager = EnumImportManager()
             importManager.addBaseImports()
-
-            columns.first { column ->
-                if (SqlSchemaUtils.hasEnum(column) && !SqlSchemaUtils.isIgnore(column)) {
-                    val enumType = SqlSchemaUtils.getType(column)
-                    if (!typeMapping.containsKey(enumType)) {
-                        currentType = enumType
-                        true
-                    } else false
-                } else false
-            }
 
             val enumConfig = enumConfigMap[currentType]!!
 

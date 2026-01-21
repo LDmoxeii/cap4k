@@ -25,7 +25,7 @@ class EnumTranslationGenerator : AggregateGenerator {
 
             // 是否存在尚未生成翻译器的枚举
             val enumTranslationType =
-                columns.filter { column -> !SqlSchemaUtils.hasEnum(column) || SqlSchemaUtils.isIgnore(column) }
+                columns.filter { column -> SqlSchemaUtils.hasEnum(column) && !(SqlSchemaUtils.isIgnore(column)) }
                     .map { column ->
                         val enumType = SqlSchemaUtils.getType(column)
                         "${enumType}Translation"
@@ -51,7 +51,8 @@ class EnumTranslationGenerator : AggregateGenerator {
             importManager.addBaseImports()
 
             // 引入枚举类型
-            typeMapping[currentType]?.let { importManager.add(it) }
+            val enumType = currentType.replace("Translation", "")
+            typeMapping[enumType]?.let { importManager.add(it) }
 
             val resultContext = baseMap.toMutableMap()
 
@@ -64,11 +65,11 @@ class EnumTranslationGenerator : AggregateGenerator {
             resultContext.putContext(tag, "package", refPackage(aggregate))
 
             // 枚举与翻译类名
-            resultContext.putContext(tag, "Enum", currentType)
+            resultContext.putContext(tag, "Enum", enumType)
             resultContext.putContext(tag, "EnumTranslation", currentType)
 
             // 常量名与值：VIDEO_STATUS_CODE_TO_DESC / "video_status_code_to_desc"
-            val snake = toSnakeCase(currentType) ?: currentType
+            val snake = toSnakeCase(enumType) ?: enumType
             val typeConst = "${snake}_code_to_desc".uppercase()
             val typeValue = "${snake}_code_to_desc"
             resultContext.putContext(tag, "TranslationTypeConst", typeConst)

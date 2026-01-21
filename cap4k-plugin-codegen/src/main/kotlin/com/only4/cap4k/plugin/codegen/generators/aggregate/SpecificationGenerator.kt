@@ -29,11 +29,12 @@ class SpecificationGenerator : AggregateGenerator {
         if (!(SqlSchemaUtils.hasSpecification(table)) && ctx.getBoolean("generateAggregate")) return false
 
         val tableName = SqlSchemaUtils.getTableName(table)
+        val entityType = ctx.entityTypeMap[tableName] ?: return false
         val columns = ctx.columnsMap[tableName] ?: return false
         val ids = columns.filter { SqlSchemaUtils.isColumnPrimaryKey(it) }
         if (ids.isEmpty()) return false
 
-        val specificationType = "${tableName}Specification"
+        val specificationType = "${entityType}Specification"
         if (ctx.typeMapping.containsKey(specificationType)) return false
 
         currentType = specificationType
