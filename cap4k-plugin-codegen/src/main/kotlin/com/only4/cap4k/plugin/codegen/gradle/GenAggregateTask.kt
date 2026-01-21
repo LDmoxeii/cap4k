@@ -4,17 +4,23 @@ import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
 import com.only4.cap4k.plugin.codegen.context.aggregate.MutableAggregateContext
 import com.only4.cap4k.plugin.codegen.context.aggregate.builders.*
 import com.only4.cap4k.plugin.codegen.core.TagAliasResolver
-import com.only4.cap4k.plugin.codegen.generators.aggregate.*
-import com.only4.cap4k.plugin.codegen.generators.aggregate.UniqueQueryGenerator
-import com.only4.cap4k.plugin.codegen.generators.aggregate.UniqueQueryHandlerGenerator
-import com.only4.cap4k.plugin.codegen.generators.aggregate.UniqueValidatorGenerator
 import com.only4.cap4k.plugin.codegen.generators.unit.AggregateUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.AggregateWrapperUnitGenerator
 import com.only4.cap4k.plugin.codegen.generators.unit.DomainEventHandlerUnitGenerator
 import com.only4.cap4k.plugin.codegen.generators.unit.DomainEventUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.EntityUnitGenerator
 import com.only4.cap4k.plugin.codegen.generators.unit.EnumTranslationUnitGenerator
 import com.only4.cap4k.plugin.codegen.generators.unit.EnumUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.FactoryUnitGenerator
 import com.only4.cap4k.plugin.codegen.generators.unit.GenerationPlan
 import com.only4.cap4k.plugin.codegen.generators.unit.GenerationUnit
+import com.only4.cap4k.plugin.codegen.generators.unit.RepositoryUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.SchemaBaseUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.SchemaUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.SpecificationUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.UniqueQueryHandlerUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.UniqueQueryUnitGenerator
+import com.only4.cap4k.plugin.codegen.generators.unit.UniqueValidatorUnitGenerator
 import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.plugin.codegen.misc.concatPackage
 import com.only4.cap4k.plugin.codegen.misc.resolvePackageDirectory
@@ -157,83 +163,24 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
     }
 
     private fun generateFiles(context: AggregateContext) {
-        val steps: List<GenerationStep> = listOf(
-            TableStep(SchemaBaseGenerator()), // order=10
-            UnitStep(
-                listOf(
-                    EnumUnitGenerator(),
-                    EnumTranslationUnitGenerator(),
-                ),
-                order = 10,
-            ),
-            TableStep(EntityGenerator()), // order=20
-            TableStep(UniqueQueryGenerator()), // order=20
-            TableStep(UniqueQueryHandlerGenerator()), // order=20
-            TableStep(UniqueValidatorGenerator()), // order=20
-            TableStep(SpecificationGenerator()), // order=30
-            TableStep(FactoryGenerator()), // order=30
-            UnitStep(
-                listOf(
-                    DomainEventUnitGenerator(),
-                    DomainEventHandlerUnitGenerator(),
-                ),
-                order = 30,
-            ),
-            TableStep(RepositoryGenerator()), // order=30
-            TableStep(AggregateGenerator()), // order=40
-            TableStep(SchemaGenerator()), // order=50
+        val generators = listOf(
+            SchemaBaseUnitGenerator(),
+            EnumUnitGenerator(),
+            EnumTranslationUnitGenerator(),
+            EntityUnitGenerator(),
+            UniqueQueryUnitGenerator(),
+            UniqueQueryHandlerUnitGenerator(),
+            UniqueValidatorUnitGenerator(),
+            SpecificationUnitGenerator(),
+            FactoryUnitGenerator(),
+            DomainEventUnitGenerator(),
+            DomainEventHandlerUnitGenerator(),
+            RepositoryUnitGenerator(),
+            AggregateWrapperUnitGenerator(),
+            SchemaUnitGenerator(),
         )
 
-        steps.sortedBy { it.order }.forEach { step ->
-            logger.lifecycle("Generating: ${step.label}")
-            step.execute(context)
-        }
-    }
-
-    private fun generateForTables(
-        generator: AggregateTemplateGenerator,
-        context: AggregateContext,
-    ) {
-        val tables = context.tableMap.values.toMutableList()
-
-        with(context) {
-            while (tables.isNotEmpty()) {
-                val table = tables.first()
-
-                if (!generator.shouldGenerate(table)) {
-                    tables.removeFirst()
-                    continue
-                }
-
-                val tableContext = generator.buildContext(table)
-
-                // 合并模板节点（上下文配置合并默认，再根据 pattern 选择）：
-                // - 同一 dir/file 类型节点去重；每个唯一 (name+pattern) 保留一个模板节点
-                // - context 优先级高于 defaults；目录和文件层级也遵循优先级合并
-                val genName = generator.generatorName(table)
-
-                val ctxTop = context.templateNodeMap.getOrDefault(generator.tag, emptyList())
-                val defTop = generator.getDefaultTemplateNodes()
-
-                val selected = TemplateNode.mergeAndSelect(ctxTop, defTop, genName)
-
-                selected.forEach { templateNode ->
-                    val pathNode = templateNode.resolve(tableContext)
-                    forceRender(
-                        pathNode,
-                        resolvePackageDirectory(
-                            tableContext["modulePath"].toString(),
-                            concatPackage(
-                                getString("basePackage"),
-                                tableContext["templatePackage"].toString(),
-                                tableContext["package"].toString()
-                            )
-                        )
-                    )
-                }
-                generator.onGenerated(table)
-            }
-        }
+        generateUnits(generators, context)
     }
 
     private fun generateUnits(
@@ -287,31 +234,5 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
         }
     }
 
-    private sealed class GenerationStep(
-        val order: Int,
-        val label: String,
-    ) {
-        abstract fun execute(context: AggregateContext)
-    }
-
-    private inner class TableStep(
-        private val generator: AggregateTemplateGenerator,
-    ) : GenerationStep(generator.order, generator.tag) {
-        override fun execute(context: AggregateContext) {
-            generateForTables(generator, context)
-        }
-    }
-
-    private inner class UnitStep(
-        private val generators: List<AggregateUnitGenerator>,
-        order: Int,
-    ) : GenerationStep(
-        order = order,
-        label = generators.joinToString(",") { it.tag },
-    ) {
-        override fun execute(context: AggregateContext) {
-            generateUnits(generators, context)
-        }
-    }
 }
 
