@@ -125,8 +125,10 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
             logger.warn("No tables found in database")
             return
         }
+        with(context) {
+            generateFiles()
+        }
 
-        generateFiles(context)
     }
 
     private fun buildGenerationContext(): AggregateContext {
@@ -149,7 +151,8 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
         return this
     }
 
-    private fun generateFiles(context: AggregateContext) {
+    context(ctx: AggregateContext)
+    private fun generateFiles() {
         val generators = listOf(
             SchemaBaseGenerator(),           // order=10 - Schema 基类
             EnumGenerator(),                 // order=10 - 枚举
@@ -170,25 +173,17 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
         generators.sortedBy { it.order }
             .forEach { generator ->
                 logger.lifecycle("Generating files: ${generator.tag}")
-                generateForTables(generator, context)
+                generateForTables(generator)
             }
     }
 
+    context(ctx: AggregateContext)
     private fun generateForTables(
         generator: AggregateGenerator,
-        context: AggregateContext,
     ) {
-        val tables = context.tableMap.values.toMutableList()
-
-        with(context) {
-            while (tables.isNotEmpty()) {
-                val table = tables.first()
-
-                if (!generator.shouldGenerate(table)) {
-                    tables.removeFirst()
-                    continue
-                }
-
+        val tables = ctx.tableMap.values.toList()
+        tables.forEach { table ->
+            while (generator.shouldGenerate(table)) {
                 val tableContext = generator.buildContext(table)
 
                 // 合并模板节点（上下文配置合并默认，再根据 pattern 选择）：
@@ -196,7 +191,7 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
                 // - context 优先级高于 defaults；目录和文件层级也遵循优先级合并
                 val genName = generator.generatorName()
 
-                val ctxTop = context.templateNodeMap.getOrDefault(generator.tag, emptyList())
+                val ctxTop = ctx.templateNodeMap.getOrDefault(generator.tag, emptyList())
                 val defTop = generator.getDefaultTemplateNodes()
 
                 val selected = TemplateNode.mergeAndSelect(ctxTop, defTop, genName)

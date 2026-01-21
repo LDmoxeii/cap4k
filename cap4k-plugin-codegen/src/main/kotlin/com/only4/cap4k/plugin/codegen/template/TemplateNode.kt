@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.codegen.template
 
 import com.google.gson.Gson
+import java.util.regex.Pattern
 
 /**
  * 脚手架模板模板节点
@@ -14,6 +15,18 @@ class TemplateNode : PathNode() {
      * 元素匹配正则
      */
     var pattern: String = ""
+
+    @Transient
+    @Volatile
+    private var cachedFiles: List<TemplateNode>? = null
+
+    @Transient
+    @Volatile
+    private var cachedPatternSource: String? = null
+
+    @Transient
+    @Volatile
+    private var cachedPattern: Pattern? = null
 
     companion object {
         fun mergeAndSelect(
@@ -62,9 +75,23 @@ class TemplateNode : PathNode() {
     fun isDirNode(): Boolean = nodeType() == "dir"
     fun isFileNode(): Boolean = nodeType() == "file"
     fun uniqueKey(): String = "${this.name ?: ""}#${this.pattern}"
-    fun matches(genName: String): Boolean = this.pattern.isBlank() ||
-        java.util.regex.Pattern.compile(this.pattern).asPredicate().test(genName)
+    private fun compiledPattern(): Pattern {
+        val source = pattern
+        val cached = cachedPattern
+        if (cached != null && cachedPatternSource == source) return cached
+        val compiled = Pattern.compile(source)
+        cachedPatternSource = source
+        cachedPattern = compiled
+        return compiled
+    }
+
+    fun matches(genName: String): Boolean = pattern.isBlank() ||
+        compiledPattern().asPredicate().test(genName)
+
     fun collectFiles(): List<TemplateNode> {
+        val cached = cachedFiles
+        if (cached != null) return cached
+
         val result = mutableListOf<TemplateNode>()
 
         // 顶层（本身）是 file 的情况
@@ -97,6 +124,7 @@ class TemplateNode : PathNode() {
         }
 
         this.children?.forEach { dfsChildren(it) }
+        cachedFiles = result
         return result
     }
 

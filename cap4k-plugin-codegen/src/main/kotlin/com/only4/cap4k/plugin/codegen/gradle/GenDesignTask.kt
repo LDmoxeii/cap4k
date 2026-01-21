@@ -1,5 +1,6 @@
 package com.only4.cap4k.plugin.codegen.gradle
 
+import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
 import com.only4.cap4k.plugin.codegen.context.design.DesignContext
 import com.only4.cap4k.plugin.codegen.context.design.MutableDesignContext
 import com.only4.cap4k.plugin.codegen.context.design.builders.DesignContextBuilder
@@ -60,7 +61,9 @@ open class GenDesignTask : GenArchTask(), MutableDesignContext {
             return
         }
 
-        generateDesignFiles(context)
+        with(context) {
+            generateDesignFiles()
+        }
     }
 
     private fun resolveMetadataPath(): File {
@@ -84,7 +87,8 @@ open class GenDesignTask : GenArchTask(), MutableDesignContext {
         return this
     }
 
-    private fun generateDesignFiles(context: DesignContext) {
+    context(ctx: DesignContext)
+    private fun generateDesignFiles() {
         val generators = listOf(
             CommandGenerator(),             // order=10 - 生成命令
             QueryGenerator(),               // order=10 - 生成查询
@@ -98,53 +102,46 @@ open class GenDesignTask : GenArchTask(), MutableDesignContext {
         )
 
         generators.sortedBy { it.order }.forEach { generator ->
-            generateForDesigns(generator, context)
+            generateForDesigns(generator)
         }
     }
 
+    context(ctx: DesignContext)
     private fun generateForDesigns(
-        generator: DesignGenerator,
-        context: DesignContext
+        generator: DesignGenerator
     ) {
-        val designs = context.designMap[generator.tag]?.toMutableList() ?: mutableListOf()
+        val designs = ctx.designMap[generator.tag]?.toList().orEmpty()
 
-        with(context) {
-            while (designs.isNotEmpty()) {
-                val design = designs.first()
+            designs.forEach { design ->
+                while (generator.shouldGenerate(design)) {
+                    val templateContext = generator.buildContext(design).toMutableMap()
 
-                if (!generator.shouldGenerate(design)) {
-                    designs.removeFirst()
-                    continue
-                }
+                    // 合并模板节点（上下文与默认合并多份，再按 pattern 选择）
+                    // - 同一 dir/file 类型节点可共存；每个唯一 (name+pattern) 保留一个模板节点
+                    // - context 优先级高于 defaults，子目录与文件名层级都按优先级覆盖
+                    val genName = generator.generatorName()
 
-                val templateContext = generator.buildContext(design).toMutableMap()
+                    val ctxTop = ctx.templateNodeMap.getOrDefault(generator.tag, emptyList())
+                    val defTop = generator.getDefaultTemplateNodes()
 
-                // 合并模板节点（上下文与默认合并多份，再按 pattern 选择）
-                // - 同一 dir/file 类型节点可共存；每个唯一 (name+pattern) 保留一个模板节点
-                // - context 优先级高于 defaults，子目录与文件名层级都按优先级覆盖
-                val genName = generator.generatorName()
+                    val selected = TemplateNode.mergeAndSelect(ctxTop, defTop, genName)
 
-                val ctxTop = context.templateNodeMap.getOrDefault(generator.tag, emptyList())
-                val defTop = generator.getDefaultTemplateNodes()
-
-                val selected = TemplateNode.mergeAndSelect(ctxTop, defTop, genName)
-
-                selected.forEach { templateNode ->
-                    val pathNode = templateNode.resolve(templateContext)
-                    forceRender(
-                        pathNode, resolvePackageDirectory(
-                            templateContext["modulePath"].toString(),
-                            concatPackage(
-                                getString("basePackage"),
-                                templateContext["templatePackage"].toString(),
-                                templateContext["package"].toString()
+                    selected.forEach { templateNode ->
+                        val pathNode = templateNode.resolve(templateContext)
+                        forceRender(
+                            pathNode, resolvePackageDirectory(
+                                templateContext["modulePath"].toString(),
+                                concatPackage(
+                                    getString("basePackage"),
+                                    templateContext["templatePackage"].toString(),
+                                    templateContext["package"].toString()
+                                )
                             )
                         )
-                    )
-                }
+                    }
 
-                generator.onGenerated(design)
+                    generator.onGenerated(design)
+                }
             }
         }
-    }
 }

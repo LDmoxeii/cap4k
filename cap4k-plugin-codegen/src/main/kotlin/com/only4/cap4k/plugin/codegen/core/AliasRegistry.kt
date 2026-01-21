@@ -9,6 +9,8 @@ class AliasRegistry(
     private val rules: List<AliasRule> = DEFAULT_RULES,
 ) {
 
+    private val resolveCache = java.util.concurrent.ConcurrentHashMap<String, List<String>>()
+
     data class AliasRule(
         val regex: Regex,
         val aliases: List<String>,
@@ -21,8 +23,10 @@ class AliasRegistry(
      */
     fun resolve(tag: String, variable: String): List<String> {
         val key = "$tag.$variable"
-        val matched = rules.firstOrNull { it.matches(key) }
-        return matched?.aliases ?: listOf(variable)
+        return resolveCache.computeIfAbsent(key) {
+            val matched = rules.firstOrNull { it.matches(key) }
+            matched?.aliases ?: listOf(variable)
+        }
     }
 
     companion object {
