@@ -8,7 +8,7 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
  *
  * 所有设计元素生成器必须实现此接口
  */
-interface DesignTemplateGenerator {
+interface DesignGenerator {
     /**
      * 生成器标签 (用于匹配模板节点)
      */
@@ -39,15 +39,13 @@ interface DesignTemplateGenerator {
      * 获取生成器完全限定名
      * 例如: "com.example.application.commands.category.CreateCategoryCmd"
      */
-    context(ctx: DesignContext)
-    fun generatorFullName(design: Any): String
+    fun generatorFullName(): String
 
     /**
      * 获取生成器简单名称
      * 例如: "CreateCategoryCmd"
      */
-    context(ctx: DesignContext)
-    fun generatorName(design: Any): String
+    fun generatorName(): String
 
     /**
      * 获取默认模板节点列表

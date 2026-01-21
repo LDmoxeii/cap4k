@@ -17,6 +17,8 @@ class EnumGenerator : AggregateGenerator {
 
     @Volatile
     private lateinit var currentType: String
+    @Volatile
+    private lateinit var currentFullName: String
 
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
@@ -37,7 +39,10 @@ class EnumGenerator : AggregateGenerator {
 
             if (enumType == null) return false
 
+            val aggregate = resolveAggregateWithModule(tableName)
+
             currentType = enumType
+            currentFullName = resolveFullName(this, aggregate)
             return true
         }
     }
@@ -86,25 +91,7 @@ class EnumGenerator : AggregateGenerator {
         }
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorFullName(table: Map<String, Any?>): String {
-        with(ctx) {
-            val defaultEnumPackage = "enums"
-
-            val tableName = SqlSchemaUtils.getTableName(table)
-            val aggregate = resolveAggregateWithModule(tableName)
-
-            val basePackage = getString("basePackage")
-            val templatePackage = refPackage(templatePackage[tag] ?: "")
-            val `package` = refPackage(aggregate)
-
-            return "$basePackage${templatePackage}${`package`}${refPackage(defaultEnumPackage)}${
-                refPackage(
-                    currentType
-                )
-            }"
-        }
-    }
+    override fun generatorFullName(): String = currentFullName
 
     override fun generatorName(): String = currentType
 
@@ -125,7 +112,15 @@ class EnumGenerator : AggregateGenerator {
     override fun onGenerated(
         table: Map<String, Any?>,
     ) {
-        ctx.typeMapping[currentType] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName()
+    }
+
+    private fun resolveFullName(ctx: AggregateContext, aggregate: String): String {
+        val defaultEnumPackage = "enums"
+        val basePackage = ctx.getString("basePackage")
+        val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
+        val `package` = refPackage(aggregate)
+        return "$basePackage${templatePackage}${`package`}${refPackage(defaultEnumPackage)}${refPackage(currentType)}"
     }
 }
 

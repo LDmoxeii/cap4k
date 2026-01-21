@@ -15,8 +15,7 @@ interface AggregateGenerator {
     context(ctx: AggregateContext)
     fun buildContext(table: Map<String, Any?>): Map<String, Any?>
 
-    context(ctx: AggregateContext)
-    fun generatorFullName(table: Map<String, Any?>): String
+    fun generatorFullName(): String
 
     fun generatorName(): String
 

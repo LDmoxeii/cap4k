@@ -14,6 +14,8 @@ class UniqueQueryGenerator : AggregateGenerator {
 
     @Volatile
     private lateinit var currentType: String
+    @Volatile
+    private lateinit var currentFullName: String
 
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
@@ -33,7 +35,10 @@ class UniqueQueryGenerator : AggregateGenerator {
 
         if (qryType == null) return false
 
+        val aggregate = ctx.resolveAggregateWithModule(tableName)
+
         currentType = qryType
+        currentFullName = resolveFullName(ctx, aggregate)
         return true
     }
 
@@ -111,15 +116,7 @@ class UniqueQueryGenerator : AggregateGenerator {
         return resultContext
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorFullName(table: Map<String, Any?>): String {
-        val tableName = SqlSchemaUtils.getTableName(table)
-        val aggregate = ctx.resolveAggregateWithModule(tableName)
-        val basePackage = ctx.getString("basePackage")
-        val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
-        val `package` = refPackage(aggregate)
-        return "$basePackage${templatePackage}${`package`}${refPackage(currentType)}"
-    }
+    override fun generatorFullName(): String = currentFullName
 
     override fun generatorName(): String = currentType
 
@@ -139,7 +136,14 @@ class UniqueQueryGenerator : AggregateGenerator {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[currentType] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName()
+    }
+
+    private fun resolveFullName(ctx: AggregateContext, aggregate: String): String {
+        val basePackage = ctx.getString("basePackage")
+        val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
+        val `package` = refPackage(aggregate)
+        return "$basePackage${templatePackage}${`package`}${refPackage(currentType)}"
     }
 
     context(ctx: AggregateContext)

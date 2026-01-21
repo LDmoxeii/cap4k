@@ -6,14 +6,22 @@ import com.only4.cap4k.plugin.codegen.imports.ClientImportManager
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
 
-class ClientGenerator : DesignTemplateGenerator {
+class ClientGenerator : DesignGenerator {
 
     override val tag: String = "client"
     override val order: Int = 10
+    private lateinit var currentType: String
+    private lateinit var currentFullName: String
 
     context(ctx: DesignContext)
-    override fun shouldGenerate(design: Any): Boolean =
-        !ctx.typeMapping.containsKey(generatorName(design))
+    override fun shouldGenerate(design: Any): Boolean {
+        require(design is ClientDesign)
+        val name = design.className()
+        if (ctx.typeMapping.containsKey(name)) return false
+        currentType = name
+        currentFullName = resolveFullName(ctx, design)
+        return true
+    }
 
     context(ctx: DesignContext)
     override fun buildContext(design: Any): Map<String, Any?> {
@@ -29,7 +37,7 @@ class ClientGenerator : DesignTemplateGenerator {
             resultContext.putContext(tag, "templatePackage", refPackage(ctx.templatePackage[tag] ?: ""))
             resultContext.putContext(tag, "package", refPackage(design.`package`))
 
-            resultContext.putContext(tag, "Client", generatorName(design))
+            resultContext.putContext(tag, "Client", generatorName())
             resultContext.putContext(tag, "Comment", design.desc)
 
             val fieldContext = resolveRequestResponseFields(design, design.requestFields, design.responseFields)
@@ -43,21 +51,9 @@ class ClientGenerator : DesignTemplateGenerator {
         return resultContext
     }
 
-    context(ctx: DesignContext)
-    override fun generatorFullName(design: Any): String {
-        require(design is ClientDesign)
-        val basePackage = ctx.getString("basePackage")
-        val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
-        val `package` = refPackage(design.`package`)
+    override fun generatorFullName(): String = currentFullName
 
-        return "$basePackage$templatePackage$`package`${refPackage(generatorName(design))}"
-    }
-
-    context(ctx: DesignContext)
-    override fun generatorName(design: Any): String {
-        require(design is ClientDesign)
-        return design.className()
-    }
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -74,7 +70,14 @@ class ClientGenerator : DesignTemplateGenerator {
 
     context(ctx: DesignContext)
     override fun onGenerated(design: Any) {
-        ctx.typeMapping[generatorName(design)] = generatorFullName(design)
+        ctx.typeMapping[generatorName()] = generatorFullName()
+    }
+
+    private fun resolveFullName(ctx: DesignContext, design: ClientDesign): String {
+        val basePackage = ctx.getString("basePackage")
+        val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
+        val `package` = refPackage(design.`package`)
+        return "$basePackage$templatePackage$`package`${refPackage(generatorName())}"
     }
 }
 

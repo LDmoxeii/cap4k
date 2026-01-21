@@ -15,6 +15,8 @@ class SchemaBaseGenerator : AggregateGenerator {
 
     @Volatile
     private lateinit var currentType: String
+    @Volatile
+    private lateinit var currentFullName: String
 
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
@@ -22,6 +24,7 @@ class SchemaBaseGenerator : AggregateGenerator {
         if (ctx.typeMapping.containsKey(schemaType)) return false
 
         currentType = schemaType
+        currentFullName = resolveFullName(ctx)
         return true
     }
 
@@ -47,18 +50,7 @@ class SchemaBaseGenerator : AggregateGenerator {
         return resultContext
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorFullName(
-        table: Map<String, Any?>
-    ): String {
-        with(ctx) {
-            val basePackage = getString("basePackage")
-            val templatePackage = refPackage(templatePackage[tag] ?: "")
-            val `package` = ""
-
-            return "$basePackage$templatePackage$`package`${refPackage(currentType)}"
-        }
-    }
+    override fun generatorFullName(): String = currentFullName
 
     override fun generatorName(): String = currentType
 
@@ -77,6 +69,13 @@ class SchemaBaseGenerator : AggregateGenerator {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[currentType] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName()
+    }
+
+    private fun resolveFullName(ctx: AggregateContext): String {
+        val basePackage = ctx.getString("basePackage")
+        val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
+        val `package` = ""
+        return "$basePackage$templatePackage$`package`${refPackage(currentType)}"
     }
 }

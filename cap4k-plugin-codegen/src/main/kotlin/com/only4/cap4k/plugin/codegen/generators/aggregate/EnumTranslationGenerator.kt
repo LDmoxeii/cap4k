@@ -13,6 +13,8 @@ class EnumTranslationGenerator : AggregateGenerator {
 
     @Volatile
     private lateinit var currentType: String
+    @Volatile
+    private lateinit var currentFullName: String
 
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
@@ -36,7 +38,10 @@ class EnumTranslationGenerator : AggregateGenerator {
 
             if (enumTranslationType == null) return false
 
+            val aggregate = resolveAggregateWithModule(tableName)
+
             currentType = enumTranslationType
+            currentFullName = resolveFullName(this, aggregate)
             return true
         }
     }
@@ -79,25 +84,14 @@ class EnumTranslationGenerator : AggregateGenerator {
             resultContext.putContext(tag, "EnumNameField", getString("enumNameField"))
 
             // imports
-            importManager.add("${generatorFullName(table)}.Companion.${typeConst}")
+            importManager.add("${generatorFullName()}.Companion.${typeConst}")
             resultContext.putContext(tag, "imports", importManager.toImportLines())
 
             return resultContext
         }
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorFullName(table: Map<String, Any?>): String {
-        with(ctx) {
-            val tableName = SqlSchemaUtils.getTableName(table)
-            val aggregate = resolveAggregateWithModule(tableName)
-
-            val basePackage = getString("basePackage")
-            val templatePackage = refPackage(templatePackage[tag] ?: refPackage("domain.translation"))
-            val `package` = refPackage(aggregate)
-            return "$basePackage${templatePackage}${`package`}${refPackage(currentType)}"
-        }
-    }
+    override fun generatorFullName(): String = currentFullName
 
     override fun generatorName(): String = currentType
 
@@ -116,7 +110,14 @@ class EnumTranslationGenerator : AggregateGenerator {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[currentType] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName()
+    }
+
+    private fun resolveFullName(ctx: AggregateContext, aggregate: String): String {
+        val basePackage = ctx.getString("basePackage")
+        val templatePackage = refPackage(ctx.templatePackage[tag] ?: refPackage("domain.translation"))
+        val `package` = refPackage(aggregate)
+        return "$basePackage${templatePackage}${`package`}${refPackage(currentType)}"
     }
 }
 

@@ -103,7 +103,7 @@ open class GenDesignTask : GenArchTask(), MutableDesignContext {
     }
 
     private fun generateForDesigns(
-        generator: DesignTemplateGenerator,
+        generator: DesignGenerator,
         context: DesignContext
     ) {
         val designs = context.designMap[generator.tag]?.toMutableList() ?: mutableListOf()
@@ -122,7 +122,7 @@ open class GenDesignTask : GenArchTask(), MutableDesignContext {
                 // 合并模板节点（上下文与默认合并多份，再按 pattern 选择）
                 // - 同一 dir/file 类型节点可共存；每个唯一 (name+pattern) 保留一个模板节点
                 // - context 优先级高于 defaults，子目录与文件名层级都按优先级覆盖
-                val genName = generator.generatorName(design)
+                val genName = generator.generatorName()
 
                 val ctxTop = context.templateNodeMap.getOrDefault(generator.tag, emptyList())
                 val defTop = generator.getDefaultTemplateNodes()

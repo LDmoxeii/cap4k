@@ -10,16 +10,21 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
  * 生成适配层 portal/api/payload 下的请求负载（单体/列表/分页）
  * 模板来源：resources/templates/api_payload_*.kt.peb
  */
-class ApiPayloadGenerator : DesignTemplateGenerator {
+class ApiPayloadGenerator : DesignGenerator {
 
     override val tag: String = "api_payload"
     override val order: Int = 10
+    private lateinit var currentType: String
+    private lateinit var currentFullName: String
 
     context(ctx: DesignContext)
     override fun shouldGenerate(design: Any): Boolean {
         if (design !is ApiPayloadDesign) return false
         // 避免重复生成（按名称唯一）
-        if (ctx.typeMapping.containsKey(generatorName(design))) return false
+        val name = design.className()
+        if (ctx.typeMapping.containsKey(name)) return false
+        currentType = name
+        currentFullName = resolveFullName(ctx, design)
         return true
     }
 
@@ -40,7 +45,7 @@ class ApiPayloadGenerator : DesignTemplateGenerator {
             result.putContext(tag, "templatePackage", refPackage(templatePackage[tag] ?: "adapter.portal.api.payload"))
             result.putContext(tag, "package", refPackage(design.`package`))
 
-            result.putContext(tag, "Payload", generatorName(design))
+            result.putContext(tag, "Payload", generatorName())
             result.putContext(tag, "Comment", design.desc)
 
             // 字段解析与类型推断
@@ -56,20 +61,9 @@ class ApiPayloadGenerator : DesignTemplateGenerator {
         return result
     }
 
-    context(ctx: DesignContext)
-    override fun generatorFullName(design: Any): String {
-        require(design is ApiPayloadDesign)
-        val basePackage = ctx.getString("basePackage")
-        val templatePackage = refPackage(".adapter.portal.api.payload")
-        val `package` = refPackage(design.`package`)
-        return "$basePackage$templatePackage$`package`${refPackage(generatorName(design))}"
-    }
+    override fun generatorFullName(): String = currentFullName
 
-    context(ctx: DesignContext)
-    override fun generatorName(design: Any): String {
-        require(design is ApiPayloadDesign)
-        return design.className()
-    }
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -109,9 +103,16 @@ class ApiPayloadGenerator : DesignTemplateGenerator {
     context(ctx: DesignContext)
     override fun onGenerated(design: Any) {
         if (design is ApiPayloadDesign) {
-            val full = generatorFullName(design)
-            ctx.typeMapping[generatorName(design)] = full
+            val full = generatorFullName()
+            ctx.typeMapping[generatorName()] = full
         }
+    }
+
+    private fun resolveFullName(ctx: DesignContext, design: ApiPayloadDesign): String {
+        val basePackage = ctx.getString("basePackage")
+        val templatePackage = refPackage(".adapter.portal.api.payload")
+        val `package` = refPackage(design.`package`)
+        return "$basePackage$templatePackage$`package`${refPackage(generatorName())}"
     }
 }
 

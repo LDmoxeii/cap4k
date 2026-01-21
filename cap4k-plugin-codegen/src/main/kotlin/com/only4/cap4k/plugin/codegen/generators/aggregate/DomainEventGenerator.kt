@@ -18,6 +18,8 @@ class DomainEventGenerator : AggregateGenerator {
 
     @Volatile
     private lateinit var currentType: String
+    @Volatile
+    private lateinit var currentFullName: String
 
     companion object {
         private const val DEFAULT_DOMAIN_EVENT_PACKAGE = "events"
@@ -46,7 +48,11 @@ class DomainEventGenerator : AggregateGenerator {
 
         if (domainEventType == null) return false
 
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val aggregate = ctx.resolveAggregateWithModule(tableName)
+
         currentType = domainEventType
+        currentFullName = resolveFullName(ctx, aggregate)
         return true
     }
 
@@ -91,22 +97,7 @@ class DomainEventGenerator : AggregateGenerator {
         return resultContext
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorFullName(
-        table: Map<String, Any?>
-    ): String {
-        val tableName = SqlSchemaUtils.getTableName(table)
-        val aggregate = ctx.resolveAggregateWithModule(tableName)
-
-        val basePackage = ctx.getString("basePackage")
-        val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
-        val `package` = refPackage(aggregate)
-
-        val fullDomainEventType = "$basePackage${templatePackage}${`package`}.${DEFAULT_DOMAIN_EVENT_PACKAGE}${
-            refPackage(currentType)
-        }"
-        return fullDomainEventType
-    }
+    override fun generatorFullName(): String = currentFullName
 
     override fun generatorName(): String = currentType
 
@@ -125,6 +116,13 @@ class DomainEventGenerator : AggregateGenerator {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[currentType] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName()
+    }
+
+    private fun resolveFullName(ctx: AggregateContext, aggregate: String): String {
+        val basePackage = ctx.getString("basePackage")
+        val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
+        val `package` = refPackage(aggregate)
+        return "$basePackage${templatePackage}${`package`}.${DEFAULT_DOMAIN_EVENT_PACKAGE}${refPackage(currentType)}"
     }
 }

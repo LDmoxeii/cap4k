@@ -17,6 +17,8 @@ class AggregateWrapperGenerator : AggregateGenerator {
 
     @Volatile
     private lateinit var currentType: String
+    @Volatile
+    private lateinit var currentFullName: String
 
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
@@ -34,7 +36,10 @@ class AggregateWrapperGenerator : AggregateGenerator {
 
         if (ctx.typeMapping.containsKey(aggregateType)) return false
 
+        val aggregate = ctx.resolveAggregateWithModule(tableName)
+
         currentType = aggregateType
+        currentFullName = resolveFullName(ctx, aggregate, aggregateType)
         return true
     }
 
@@ -79,26 +84,7 @@ class AggregateWrapperGenerator : AggregateGenerator {
         return resultContext
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorFullName(
-        table: Map<String, Any?>
-    ): String {
-        return with(ctx) {
-            val tableName = SqlSchemaUtils.getTableName(table)
-            val aggregate = resolveAggregateWithModule(tableName)
-            val entityType = entityTypeMap[tableName]!!
-
-            val basePackage = getString("basePackage")
-            val templatePackage = refPackage(templatePackage[tag] ?: "")
-            val `package` = refPackage(aggregate)
-
-            val aggregateTypeTemplate = getString("aggregateTypeTemplate")
-            val aggregateType = renderString(aggregateTypeTemplate, mapOf("Entity" to entityType))
-
-            "$basePackage${templatePackage}${`package`}${refPackage(aggregateType)}"
-
-        }
-    }
+    override fun generatorFullName(): String = currentFullName
 
     override fun generatorName(): String = currentType
 
@@ -117,6 +103,17 @@ class AggregateWrapperGenerator : AggregateGenerator {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[currentType] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName()
+    }
+
+    private fun resolveFullName(
+        ctx: AggregateContext,
+        aggregate: String,
+        aggregateType: String,
+    ): String {
+        val basePackage = ctx.getString("basePackage")
+        val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
+        val `package` = refPackage(aggregate)
+        return "$basePackage${templatePackage}${`package`}${refPackage(aggregateType)}"
     }
 }

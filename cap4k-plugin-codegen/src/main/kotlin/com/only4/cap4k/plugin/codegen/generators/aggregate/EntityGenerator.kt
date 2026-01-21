@@ -18,6 +18,8 @@ open class EntityGenerator : AggregateGenerator {
 
     @Volatile
     private lateinit var currentType: String
+    @Volatile
+    private lateinit var currentFullName: String
 
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
@@ -33,7 +35,10 @@ open class EntityGenerator : AggregateGenerator {
 
         if (ctx.typeMapping.containsKey(entityType)) return false
 
+        val aggregate = ctx.resolveAggregateWithModule(tableName)
+
         currentType = entityType
+        currentFullName = resolveFullName(ctx, aggregate, entityType)
 
         return true
     }
@@ -195,20 +200,7 @@ open class EntityGenerator : AggregateGenerator {
         return resultContext
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorFullName(table: Map<String, Any?>): String {
-        with(ctx) {
-            val tableName = SqlSchemaUtils.getTableName(table)
-            val aggregate = resolveAggregateWithModule(tableName)
-            val entityType = entityTypeMap[tableName]!!
-
-            val basePackage = getString("basePackage")
-            val templatePackage = refPackage(templatePackage[tag] ?: "")
-            val `package` = refPackage(aggregate)
-
-            return "$basePackage${templatePackage}${`package`}${refPackage(entityType)}"
-        }
-    }
+    override fun generatorFullName(): String = currentFullName
 
     override fun generatorName(): String = currentType
 
@@ -233,7 +225,7 @@ open class EntityGenerator : AggregateGenerator {
             val tableName = SqlSchemaUtils.getTableName(table)
             val entityType = entityTypeMap[tableName]!!
 
-            typeMapping[currentType] = generatorFullName(table)
+            typeMapping[currentType] = generatorFullName()
 
             // Q类型（QueryDSL）
             val aggregate = resolveAggregateWithModule(tableName)
@@ -243,6 +235,17 @@ open class EntityGenerator : AggregateGenerator {
             val fullQEntityType = "$basePackage${templatePackage}${`package`}${refPackage("Q$entityType")}"
             typeMapping["Q$entityType"] = fullQEntityType
         }
+    }
+
+    private fun resolveFullName(
+        ctx: AggregateContext,
+        aggregate: String,
+        entityType: String,
+    ): String {
+        val basePackage = ctx.getString("basePackage")
+        val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
+        val `package` = refPackage(aggregate)
+        return "$basePackage${templatePackage}${`package`}${refPackage(entityType)}"
     }
 
     private fun resolveIdColumns(columns: List<Map<String, Any?>>): List<Map<String, Any?>> {

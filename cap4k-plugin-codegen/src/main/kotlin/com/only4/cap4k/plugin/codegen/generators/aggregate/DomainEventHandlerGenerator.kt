@@ -19,6 +19,8 @@ class DomainEventHandlerGenerator : AggregateGenerator {
 
     @Volatile
     private lateinit var currentType: String
+    @Volatile
+    private lateinit var currentFullName: String
 
     private fun generateDomainEventName(eventName: String): String =
         (toUpperCamelCase(eventName) ?: eventName).let { base ->
@@ -44,7 +46,11 @@ class DomainEventHandlerGenerator : AggregateGenerator {
 
         if (domainEventHandlerType == null) return false
 
+        val tableName = SqlSchemaUtils.getTableName(table)
+        val aggregate = ctx.resolveAggregateWithModule(tableName)
+
         currentType = domainEventHandlerType
+        currentFullName = resolveFullName(ctx, aggregate)
         return true
     }
 
@@ -82,19 +88,7 @@ class DomainEventHandlerGenerator : AggregateGenerator {
         return resultContext
     }
 
-    context(ctx: AggregateContext)
-    override fun generatorFullName(
-        table: Map<String, Any?>,
-    ): String {
-        val tableName = SqlSchemaUtils.getTableName(table)
-        val aggregate = ctx.resolveAggregateWithModule(tableName)
-
-        val basePackage = ctx.getString("basePackage")
-        val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
-        val `package` = refPackage(aggregate)
-
-        return "$basePackage${templatePackage}${`package`}${refPackage(currentType)}"
-    }
+    override fun generatorFullName(): String = currentFullName
 
     override fun generatorName(): String = currentType
 
@@ -113,6 +107,13 @@ class DomainEventHandlerGenerator : AggregateGenerator {
 
     context(ctx: AggregateContext)
     override fun onGenerated(table: Map<String, Any?>) {
-        ctx.typeMapping[currentType] = generatorFullName(table)
+        ctx.typeMapping[currentType] = generatorFullName()
+    }
+
+    private fun resolveFullName(ctx: AggregateContext, aggregate: String): String {
+        val basePackage = ctx.getString("basePackage")
+        val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
+        val `package` = refPackage(aggregate)
+        return "$basePackage${templatePackage}${`package`}${refPackage(currentType)}"
     }
 }

@@ -8,17 +8,23 @@ import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
 import org.gradle.api.logging.Logging
 
-class DomainEventHandlerGenerator : DesignTemplateGenerator {
+class DomainEventHandlerGenerator : DesignGenerator {
 
     private val logger = Logging.getLogger(DomainEventHandlerGenerator::class.java)
 
     override val tag: String = "domain_event_handler"
     override val order: Int = 20
+    private lateinit var currentType: String
+    private lateinit var currentFullName: String
 
     context(ctx: DesignContext)
     override fun shouldGenerate(design: Any): Boolean {
         if (design !is DomainEventDesign) return false
-        if (ctx.typeMapping.containsKey(generatorName(design))) return false
+        val domainEventName = design.className()
+        val handlerName = "${domainEventName}Subscriber"
+        if (ctx.typeMapping.containsKey(handlerName)) return false
+        currentType = handlerName
+        currentFullName = resolveFullName(ctx, design)
         return true
     }
 
@@ -42,8 +48,8 @@ class DomainEventHandlerGenerator : DesignTemplateGenerator {
             resultContext.putContext(tag, "package", refPackage(concatPackage(refPackage(design.`package`))))
 
             resultContext.putContext(tag, "DomainEvent", domainEventName)
-            resultContext.putContext(tag, "DomainEventHandler", generatorName(design))
-            resultContext.putContext(tag, "Name", generatorName(design))
+            resultContext.putContext(tag, "DomainEventHandler", generatorName())
+            resultContext.putContext(tag, "Name", generatorName())
 
             resultContext.putContext(tag, "Aggregate", design.aggregate)
             resultContext.putContext(tag, "AggregateVar", design.aggregate.replaceFirstChar { it.lowercase() })
@@ -58,22 +64,9 @@ class DomainEventHandlerGenerator : DesignTemplateGenerator {
         return resultContext
     }
 
-    context(ctx: DesignContext)
-    override fun generatorFullName(design: Any): String {
-        require(design is DomainEventDesign)
-        val basePackage = ctx.getString("basePackage")
-        val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
-        val `package` = refPackage(concatPackage(refPackage(design.`package`), refPackage("events")))
+    override fun generatorFullName(): String = currentFullName
 
-        return "$basePackage$templatePackage$`package`${refPackage(generatorName(design))}"
-    }
-
-    context(ctx: DesignContext)
-    override fun generatorName(design: Any): String {
-        require(design is DomainEventDesign)
-        val domainEventName = design.className()
-        return "${domainEventName}Subscriber"
-    }
+    override fun generatorName(): String = currentType
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
@@ -91,9 +84,16 @@ class DomainEventHandlerGenerator : DesignTemplateGenerator {
     context(ctx: DesignContext)
     override fun onGenerated(design: Any) {
         if (design is DomainEventDesign) {
-            val fullName = generatorFullName(design)
-            ctx.typeMapping[generatorName(design)] = fullName
+            val fullName = generatorFullName()
+            ctx.typeMapping[generatorName()] = fullName
             logger.lifecycle("Generated domain event handler: $fullName")
         }
+    }
+
+    private fun resolveFullName(ctx: DesignContext, design: DomainEventDesign): String {
+        val basePackage = ctx.getString("basePackage")
+        val templatePackage = refPackage(ctx.templatePackage[tag] ?: "")
+        val `package` = refPackage(concatPackage(refPackage(design.`package`), refPackage("events")))
+        return "$basePackage$templatePackage$`package`${refPackage(generatorName())}"
     }
 }
