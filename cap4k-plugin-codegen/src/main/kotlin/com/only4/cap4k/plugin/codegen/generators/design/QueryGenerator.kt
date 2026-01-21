@@ -10,7 +10,9 @@ class QueryGenerator : DesignGenerator {
 
     override val tag: String = "query"
     override val order: Int = 10
+    @Volatile
     private lateinit var currentType: String
+    @Volatile
     private lateinit var currentFullName: String
 
     context(ctx: DesignContext)

@@ -10,7 +10,9 @@ class CommandGenerator : DesignGenerator {
 
     override val tag: String = "command"
     override val order: Int = 10
+    @Volatile
     private lateinit var currentType: String
+    @Volatile
     private lateinit var currentFullName: String
 
     context(ctx: DesignContext)

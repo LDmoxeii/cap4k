@@ -14,7 +14,9 @@ class DomainEventHandlerGenerator : DesignGenerator {
 
     override val tag: String = "domain_event_handler"
     override val order: Int = 20
+    @Volatile
     private lateinit var currentType: String
+    @Volatile
     private lateinit var currentFullName: String
 
     context(ctx: DesignContext)
