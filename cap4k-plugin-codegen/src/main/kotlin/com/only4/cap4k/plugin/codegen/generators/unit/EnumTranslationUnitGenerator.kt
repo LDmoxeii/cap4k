@@ -42,12 +42,13 @@ class EnumTranslationUnitGenerator : AggregateUnitGenerator {
 
                 val enumType = SqlSchemaUtils.getType(column)
                 if (enumType.isBlank()) return@forEach
+                val enumName = AggregateNaming.enumName(enumType)
 
-                val translationName = "${enumType}Translation"
+                val translationName = AggregateNaming.enumTranslationName(enumName)
                 if (!seen.add(translationName)) return@forEach
                 if (ctx.typeMapping.containsKey(translationName)) return@forEach
 
-                val enumFullName = ctx.typeMapping[enumType] ?: enumFullName(ctx, aggregate, enumType)
+                val enumFullName = ctx.typeMapping[enumName] ?: enumFullName(ctx, aggregate, enumName)
 
                 val importManager = TranslationImportManager()
                 importManager.addBaseImports()
@@ -62,10 +63,10 @@ class EnumTranslationUnitGenerator : AggregateUnitGenerator {
                         refPackage(templatePackage[tag] ?: refPackage("domain.translation"))
                     )
                     resultContext.putContext(tag, "package", refPackage(aggregate))
-                    resultContext.putContext(tag, "Enum", enumType)
+                    resultContext.putContext(tag, "Enum", enumName)
                     resultContext.putContext(tag, "EnumTranslation", translationName)
 
-                    val snake = toSnakeCase(enumType) ?: enumType
+                    val snake = toSnakeCase(enumName) ?: enumName
                     val typeConst = "${snake}_code_to_desc".uppercase()
                     val typeValue = "${snake}_code_to_desc"
                     resultContext.putContext(tag, "TranslationTypeConst", typeConst)
@@ -76,15 +77,15 @@ class EnumTranslationUnitGenerator : AggregateUnitGenerator {
                     importManager.add("${fullName}.Companion.${typeConst}")
                     resultContext.putContext(tag, "imports", importManager.toImportLines())
 
-                    val deps = if (ctx.typeMapping.containsKey(enumType)) {
+                    val deps = if (ctx.typeMapping.containsKey(enumName)) {
                         emptyList()
                     } else {
-                        listOf("enum:${aggregate}:${enumType}")
+                        listOf("enum:${aggregate}:${enumName}")
                     }
 
                     units.add(
                         GenerationUnit(
-                            id = "enumTranslation:${aggregate}:${enumType}",
+                            id = "enumTranslation:${aggregate}:${enumName}",
                             tag = tag,
                             name = translationName,
                             order = order,

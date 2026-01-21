@@ -43,8 +43,9 @@ class EnumUnitGenerator : AggregateUnitGenerator {
 
                 val enumType = SqlSchemaUtils.getType(column)
                 if (enumType.isBlank()) return@forEach
-                if (!seen.add(enumType)) return@forEach
-                if (ctx.typeMapping.containsKey(enumType)) return@forEach
+                val enumName = AggregateNaming.enumName(enumType)
+                if (!seen.add(enumName)) return@forEach
+                if (ctx.typeMapping.containsKey(enumName)) return@forEach
 
                 val enumConfig = ctx.enumConfigMap[enumType] ?: return@forEach
                 val enumItems = enumConfig.toSortedMap().map { (value, arr) ->
@@ -68,7 +69,7 @@ class EnumUnitGenerator : AggregateUnitGenerator {
                         refPackage(concatPackage(refPackage(aggregate), refPackage("enums")))
                     )
 
-                    resultContext.putContext(tag, "Enum", enumType)
+                    resultContext.putContext(tag, "Enum", enumName)
                     resultContext.putContext(tag, "Aggregate", toUpperCamelCase(aggregate) ?: aggregate)
                     resultContext.putContext(tag, "EnumValueField", getString("enumValueField"))
                     resultContext.putContext(tag, "EnumNameField", getString("enumNameField"))
@@ -76,16 +77,16 @@ class EnumUnitGenerator : AggregateUnitGenerator {
                     resultContext.putContext(tag, "imports", importManager.toImportLines())
                 }
 
-                val fullName = enumFullName(ctx, aggregate, enumType)
+                val fullName = enumFullName(ctx, aggregate, enumName)
                 units.add(
                     GenerationUnit(
-                        id = "enum:${aggregate}:${enumType}",
+                        id = "enum:${aggregate}:${enumName}",
                         tag = tag,
-                        name = enumType,
+                        name = enumName,
                         order = order,
                         templateNodes = defaultTemplateNodes(),
                         context = resultContext,
-                        exportTypes = mapOf(enumType to fullName),
+                        exportTypes = mapOf(enumName to fullName),
                     )
                 )
             }

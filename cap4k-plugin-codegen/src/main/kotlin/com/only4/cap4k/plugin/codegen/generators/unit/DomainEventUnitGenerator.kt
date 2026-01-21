@@ -46,7 +46,7 @@ class DomainEventUnitGenerator : AggregateUnitGenerator {
 
             SqlSchemaUtils.getDomainEvents(table).forEach { eventInfo ->
                 val eventNameRaw = eventInfo.split(":").firstOrNull() ?: return@forEach
-                val eventName = DomainEventNaming.eventClassName(eventNameRaw)
+                val eventName = AggregateNaming.domainEventName(eventNameRaw)
                 val key = "$aggregate:$eventName"
                 if (!seen.add(key)) return@forEach
                 if (ctx.typeMapping.containsKey(eventName)) return@forEach
