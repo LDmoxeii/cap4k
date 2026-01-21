@@ -26,7 +26,7 @@ class SpecificationGenerator : AggregateGenerator {
 
         if (!SqlSchemaUtils.isAggregateRoot(table)) return false
 
-        if (!(SqlSchemaUtils.hasSpecification(table)) && ctx.getBoolean("generateAggregate")) return false
+        if (!(SqlSchemaUtils.hasSpecification(table)) && ctx.getBoolean("generateSpecification")) return false
 
         val tableName = SqlSchemaUtils.getTableName(table)
         val entityType = ctx.entityTypeMap[tableName] ?: return false

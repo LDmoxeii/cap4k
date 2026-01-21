@@ -231,7 +231,12 @@ open class GenerationConfig @Inject constructor(objects: ObjectFactory) {
     /**
      * 是否生成聚合封装类
      */
-    val generateAggregate: Property<Boolean> = objects.property(Boolean::class.java).convention(true)
+    val generateAggregate: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+
+    /**
+     * 是否生成聚合封装类
+     */
+    val generateSpecification: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 
     /**
      * 是否生成关联父实体字段
@@ -247,7 +252,7 @@ open class GenerationConfig @Inject constructor(objects: ObjectFactory) {
     /**
      * 仓储是否支持Querydsl
      */
-    val repositorySupportQuerydsl: Property<Boolean> = objects.property(Boolean::class.java).convention(true)
+    val repositorySupportQuerydsl: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 
     /**
      * 聚合名称模板
