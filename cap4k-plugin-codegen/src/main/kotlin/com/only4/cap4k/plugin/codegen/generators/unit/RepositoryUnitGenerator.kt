@@ -43,7 +43,7 @@ class RepositoryUnitGenerator : AggregateUnitGenerator {
             val ids = columns.filter { SqlSchemaUtils.isColumnPrimaryKey(it) }
             val identityType = if (ids.size != 1) "Long" else SqlSchemaUtils.getColumnType(ids[0])
 
-            val fullEntityType = ctx.typeMapping[entityType] ?: entityFullName(ctx, table, entityType)
+            val fullEntityType = ctx.typeMapping[entityType] ?: entityFullName(table, entityType)
 
             val imports = RepositoryImportManager()
             imports.addBaseImports()
