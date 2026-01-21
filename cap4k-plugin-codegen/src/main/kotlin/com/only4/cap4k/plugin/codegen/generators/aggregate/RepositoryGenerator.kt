@@ -11,7 +11,7 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
  * Repository 生成器
  * 为聚合根生成 JPA Repository 接口及其适配器实现
  */
-class RepositoryGenerator : AggregateGenerator {
+class RepositoryGenerator : EntityGenerator() {
 
     override val tag = "repository"
     override val order = 30
@@ -80,16 +80,11 @@ class RepositoryGenerator : AggregateGenerator {
         table: Map<String, Any?>
     ): String {
         with(ctx) {
-            val tableName = SqlSchemaUtils.getTableName(table)
-            val entityType = ctx.entityTypeMap[tableName]!!
-            val repositoryNameTemplate = ctx.getString("repositoryNameTemplate")
-            val repositoryName = renderString(repositoryNameTemplate, mapOf("Aggregate" to entityType))
-
             val basePackage = getString("basePackage")
             val templatePackage = refPackage(templatePackage[tag] ?: "")
             val `package` = ""
 
-            return "$basePackage${templatePackage}${`package`}${refPackage(repositoryName)}"
+            return "$basePackage${templatePackage}${`package`}${refPackage(generatorName(table))}"
         }
     }
 
@@ -97,11 +92,9 @@ class RepositoryGenerator : AggregateGenerator {
     override fun generatorName(
         table: Map<String, Any?>
     ): String {
-        val tableName = SqlSchemaUtils.getTableName(table)
-        val entityType = ctx.entityTypeMap[tableName]!!
         val repositoryNameTemplate = ctx.getString("repositoryNameTemplate")
 
-        return renderString(repositoryNameTemplate, mapOf("Aggregate" to entityType))
+        return renderString(repositoryNameTemplate, mapOf("Aggregate" to super.generatorName(table)))
     }
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {

@@ -12,7 +12,7 @@ import java.io.File
 /**
  * 实体文件生成器
  */
-class EntityGenerator : AggregateGenerator {
+open class EntityGenerator : AggregateGenerator {
     override val tag = "entity"
     override val order = 20
 

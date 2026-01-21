@@ -10,7 +10,7 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
  * Schema 文件生成器
  * 为每个实体生成对应的 Schema 类（类似 JPA Metamodel）
  */
-class SchemaGenerator : AggregateGenerator {
+class SchemaGenerator : EntityGenerator() {
     override val tag = "schema"
     override val order = 50
 
@@ -133,23 +133,16 @@ class SchemaGenerator : AggregateGenerator {
         with(ctx) {
             val tableName = SqlSchemaUtils.getTableName(table)
             val aggregate = resolveAggregateWithModule(tableName)
-            val entityType = entityTypeMap[tableName]!!
-
             val basePackage = getString("basePackage")
             val templatePackage = refPackage(templatePackage[tag] ?: "")
             val `package` = refPackage(aggregate)
 
-            val schemaType = "S$entityType"
-            return "$basePackage${templatePackage}${`package`}${refPackage(schemaType)}"
+            return "$basePackage${templatePackage}${`package`}${refPackage(generatorName(table))}"
         }
     }
 
     context(ctx: AggregateContext)
-    override fun generatorName(table: Map<String, Any?>): String {
-        val tableName = SqlSchemaUtils.getTableName(table)
-        val entityType = ctx.entityTypeMap[tableName]!!
-        return "S$entityType"
-    }
+    override fun generatorName(table: Map<String, Any?>): String = "S${super.generatorName(table)}"
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(

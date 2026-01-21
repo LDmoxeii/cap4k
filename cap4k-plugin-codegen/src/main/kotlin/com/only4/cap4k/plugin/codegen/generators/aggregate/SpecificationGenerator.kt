@@ -12,13 +12,9 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
  * Specification 文件生成器
  * 为每个实体生成规约（Specification）基类
  */
-class SpecificationGenerator : AggregateGenerator {
+class SpecificationGenerator : EntityGenerator() {
     override val tag = "specification"
     override val order = 30
-
-    companion object {
-        private const val DEFAULT_SPEC_PACKAGE = "specs"
-    }
 
     context(ctx: AggregateContext)
     override fun shouldGenerate(table: Map<String, Any?>): Boolean {
@@ -30,12 +26,13 @@ class SpecificationGenerator : AggregateGenerator {
         if (!(SqlSchemaUtils.hasSpecification(table)) && ctx.getBoolean("generateAggregate")) return false
 
         val tableName = SqlSchemaUtils.getTableName(table)
-        val entityType = ctx.entityTypeMap[tableName] ?: return false
         val columns = ctx.columnsMap[tableName] ?: return false
         val ids = columns.filter { SqlSchemaUtils.isColumnPrimaryKey(it) }
+        if (ids.isEmpty()) return false
 
-        val specificationType = "${entityType}Specification"
-        return ids.isNotEmpty() && !ctx.typeMapping.containsKey(specificationType)
+        if (ctx.typeMapping.containsKey(generatorName(table))) return false
+
+        return true
     }
 
     context(ctx: AggregateContext)
@@ -55,7 +52,7 @@ class SpecificationGenerator : AggregateGenerator {
         with(ctx) {
             resultContext.putContext(tag, "modulePath", domainPath)
             resultContext.putContext(tag, "templatePackage", refPackage(templatePackage[tag] ?: ""))
-            resultContext.putContext(tag, "package", refPackage(concatPackage(refPackage(aggregate), refPackage(DEFAULT_SPEC_PACKAGE))))
+            resultContext.putContext(tag, "package", refPackage(concatPackage(refPackage(aggregate), refPackage(tag))))
 
             resultContext.putContext(tag, "Specification", generatorName(table))
 
@@ -77,27 +74,16 @@ class SpecificationGenerator : AggregateGenerator {
         with(ctx) {
             val tableName = SqlSchemaUtils.getTableName(table)
             val aggregate = resolveAggregateWithModule(tableName)
-            val entityType = entityTypeMap[tableName]!!
-
             val basePackage = getString("basePackage")
             val templatePackage = refPackage(templatePackage[tag] ?: "")
             val `package` = refPackage(aggregate)
 
-            val specificationType = "${entityType}Specification"
-            return "$basePackage${templatePackage}${`package`}${refPackage(DEFAULT_SPEC_PACKAGE)}${
-                refPackage(
-                    specificationType
-                )
-            }"
+            return "$basePackage${templatePackage}${`package`}${refPackage(tag)}${refPackage(generatorName(table))}"
         }
     }
 
     context(ctx: AggregateContext)
-    override fun generatorName(table: Map<String, Any?>): String {
-        val tableName = SqlSchemaUtils.getTableName(table)
-        val entityType = ctx.entityTypeMap[tableName]!!
-        return "${entityType}Specification"
-    }
+    override fun generatorName(table: Map<String, Any?>): String = "${super.generatorName(table)}Specification"
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
