@@ -11,7 +11,7 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
 /**
  * 枚举文件生成器
  */
-class EnumGenerator : AggregateTemplateGenerator {
+class EnumGenerator : AggregateGenerator {
     override val tag = "enum"
     override val order = 10
 

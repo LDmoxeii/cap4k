@@ -163,7 +163,7 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
             DomainEventGenerator(),          // order=30 - 领域事件
             DomainEventHandlerGenerator(),   // order=30 - 领域事件处理器
             RepositoryGenerator(),           // order=30 - Repository 接口及实现
-            AggregateGenerator(),            // order=40 - 聚合封装
+            AggregateWrapperGenerator(),            // order=40 - 聚合封装
             SchemaGenerator(),               // order=50 - Schema 类
         )
 
@@ -175,7 +175,7 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
     }
 
     private fun generateForTables(
-        generator: AggregateTemplateGenerator,
+        generator: AggregateGenerator,
         context: AggregateContext,
     ) {
         val tables = context.tableMap.values.toMutableList()

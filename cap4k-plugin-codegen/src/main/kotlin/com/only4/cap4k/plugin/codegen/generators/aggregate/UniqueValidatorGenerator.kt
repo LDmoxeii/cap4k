@@ -8,7 +8,7 @@ import com.only4.cap4k.plugin.codegen.misc.toLowerCamelCase
 import com.only4.cap4k.plugin.codegen.misc.toUpperCamelCase
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
 
-class UniqueValidatorGenerator : AggregateTemplateGenerator {
+class UniqueValidatorGenerator : AggregateGenerator {
     override val tag: String = "validator"
     override val order: Int = 20
 

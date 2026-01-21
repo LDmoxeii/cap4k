@@ -10,7 +10,7 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
  * Schema 文件生成器
  * 为每个实体生成对应的 Schema 类（类似 JPA Metamodel）
  */
-class SchemaGenerator : AggregateTemplateGenerator {
+class SchemaGenerator : AggregateGenerator {
     override val tag = "schema"
     override val order = 50
 

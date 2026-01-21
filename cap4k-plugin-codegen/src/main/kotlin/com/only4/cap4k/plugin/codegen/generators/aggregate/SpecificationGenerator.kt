@@ -12,7 +12,7 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
  * Specification 文件生成器
  * 为每个实体生成规约（Specification）基类
  */
-class SpecificationGenerator : AggregateTemplateGenerator {
+class SpecificationGenerator : AggregateGenerator {
     override val tag = "specification"
     override val order = 30
 

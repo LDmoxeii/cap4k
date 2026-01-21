@@ -8,7 +8,7 @@ import com.only4.cap4k.plugin.codegen.misc.toLowerCamelCase
 import com.only4.cap4k.plugin.codegen.misc.toUpperCamelCase
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
 
-class UniqueQueryHandlerGenerator : AggregateTemplateGenerator {
+class UniqueQueryHandlerGenerator : AggregateGenerator {
     override val tag: String = "query_handler"
     override val order: Int = 20
 

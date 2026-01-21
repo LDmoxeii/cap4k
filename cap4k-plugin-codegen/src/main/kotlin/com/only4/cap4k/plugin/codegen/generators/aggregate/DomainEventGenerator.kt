@@ -12,7 +12,7 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
  * 领域事件文件生成器
  * 为聚合根生成领域事件基类
  */
-class DomainEventGenerator : AggregateTemplateGenerator {
+class DomainEventGenerator : AggregateGenerator {
     override val tag = "domain_event"
     override val order = 30
 

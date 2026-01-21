@@ -7,7 +7,7 @@ import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.misc.toSnakeCase
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
 
-class EnumTranslationGenerator : AggregateTemplateGenerator {
+class EnumTranslationGenerator : AggregateGenerator {
     override val tag: String = "translation"
     override val order: Int = 20
 

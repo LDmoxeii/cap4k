@@ -11,7 +11,7 @@ import com.only4.cap4k.plugin.codegen.template.TemplateNode
  * Repository 生成器
  * 为聚合根生成 JPA Repository 接口及其适配器实现
  */
-class RepositoryGenerator : AggregateTemplateGenerator {
+class RepositoryGenerator : AggregateGenerator {
 
     override val tag = "repository"
     override val order = 30
