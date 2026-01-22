@@ -6,6 +6,18 @@ import com.only4.cap4k.plugin.codegen.context.design.models.common.PayloadField
 import com.only4.cap4k.plugin.codegen.ksp.models.FieldMetadata
 import com.only4.cap4k.plugin.codegen.misc.toUpperCamelCase
 
+private data class PathSegment(
+    val name: String,
+    val isList: Boolean,
+)
+
+private data class PathNode(
+    val name: String,
+    var isList: Boolean = false,
+    var explicitField: PayloadField? = null,
+    val children: LinkedHashMap<String, PathNode> = linkedMapOf(),
+)
+
 data class ResolvedRequestResponseFields(
     val requestFieldsForTemplate: List<Map<String, String>>,
     val responseFieldsForTemplate: List<Map<String, String>>,
@@ -67,37 +79,6 @@ fun resolveRequestResponseFields(
         }
     }
 
-    fun extractNestedFields(fields: List<PayloadField>): Pair<List<PayloadField>, Map<String, List<PayloadField>>> {
-        val topLevel = mutableListOf<PayloadField>()
-        val nested = linkedMapOf<String, MutableList<PayloadField>>()
-        val regex = Regex("^(.+?)\\[\\]\\.(.+)$")
-
-        fields.forEach { field ->
-            val match = regex.matchEntire(field.name.trim())
-            if (match == null) {
-                topLevel.add(field)
-                return@forEach
-            }
-
-            val containerName = match.groupValues[1].trim()
-            val nestedName = match.groupValues[2].trim()
-            if (containerName.isEmpty() || nestedName.isEmpty() || nestedName.contains('.')) {
-                topLevel.add(field)
-                return@forEach
-            }
-
-            nested.getOrPut(containerName) { mutableListOf() }.add(field.copy(name = nestedName))
-        }
-
-        nested.keys.forEach { containerName ->
-            if (topLevel.none { it.name == containerName }) {
-                topLevel.add(PayloadField(name = containerName))
-            }
-        }
-
-        return topLevel to nested
-    }
-
     fun splitTopLevelArgs(text: String): List<String> {
         val trimmed = text.trim()
         val lt = trimmed.indexOf('<')
@@ -139,11 +120,12 @@ fun resolveRequestResponseFields(
         return args
     }
 
-    fun resolveNestedTypeName(containerName: String, containerType: String?): String {
+    fun resolveNestedTypeName(containerName: String, containerType: String?, isList: Boolean): String {
         val rawType = containerType?.trim().orEmpty()
-        val arg = splitTopLevelArgs(rawType).firstOrNull()?.trim().orEmpty()
-        if (arg.isNotBlank()) {
-            val clean = arg.removePrefix("out ").removePrefix("in ").removeSuffix("?").trim()
+        if (rawType.isNotBlank()) {
+            val arg = splitTopLevelArgs(rawType).firstOrNull()?.trim().orEmpty()
+            val candidate = if (arg.isNotBlank()) arg else rawType
+            val clean = candidate.removePrefix("out ").removePrefix("in ").removeSuffix("?").trim()
             val simple = clean.substringAfterLast('.')
             if (simple.isNotBlank()) {
                 return simple
@@ -151,45 +133,142 @@ fun resolveRequestResponseFields(
         }
 
         val base = toUpperCamelCase(containerName) ?: containerName
-        return if (base.endsWith("Item")) base else "${base}Item"
+        return if (isList && !base.endsWith("Item")) "${base}Item" else base
     }
 
-    fun toTemplateFields(
-        fields: List<PayloadField>,
-        nestedTypeNameByContainer: Map<String, String>,
-    ): List<Map<String, String>> =
-        fields.map { f ->
-            val rawType = if (nestedTypeNameByContainer.containsKey(f.name)) {
-                f.type?.takeIf { it.isNotBlank() } ?: "List<${nestedTypeNameByContainer.getValue(f.name)}>"
-            } else {
-                inferType(f)
-            }
-            val typeForCode = renderType(rawType, f.nullable)
-            val defaultValue = f.defaultValue?.takeIf { it.isNotBlank() }
-            val formattedDefaultValue = defaultValue?.let { formatDefaultValue(typeForCode, it) }
-            buildMap {
-                put("name", f.name)
-                put("type", typeForCode)
-                formattedDefaultValue?.let { put("defaultValue", it) }
-            }
+    fun parseSegments(name: String): List<PathSegment>? {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return null
+        val parts = trimmed.split('.')
+        if (parts.any { it.isBlank() }) return null
+        return parts.map { part ->
+            val isList = part.endsWith("[]")
+            val base = if (isList) part.removeSuffix("[]") else part
+            if (base.isBlank()) return null
+            PathSegment(base, isList)
         }
+    }
+
+    fun resolveNodeTypeName(node: PathNode): String =
+        resolveNestedTypeName(node.name, node.explicitField?.type, node.isList)
+
+    fun resolveContainerFieldType(node: PathNode): String {
+        val typeName = resolveNodeTypeName(node)
+        return if (node.isList) "List<$typeName>" else typeName
+    }
+
+    fun resolveLeafFieldType(node: PathNode): String {
+        val rawType = node.explicitField?.type?.takeIf { it.isNotBlank() }
+            ?: inferType(node.explicitField ?: PayloadField(name = node.name))
+        return if (node.isList && !isListType(rawType)) {
+            "List<$rawType>"
+        } else {
+            rawType
+        }
+    }
+
+    fun toFieldMap(
+        name: String,
+        rawType: String,
+        nullable: Boolean,
+        defaultValue: String?,
+    ): Map<String, String> {
+        val typeForCode = renderType(rawType, nullable)
+        val formattedDefaultValue = defaultValue?.let { formatDefaultValue(typeForCode, it) }
+        return buildMap {
+            put("name", name)
+            put("type", typeForCode)
+            formattedDefaultValue?.let { put("defaultValue", it) }
+        }
+    }
 
     fun resolveFields(fields: List<PayloadField>): Pair<List<Map<String, String>>, List<Map<String, Any>>> {
-        val (topLevel, nested) = extractNestedFields(fields)
-        val nestedTypeNameByContainer = nested.mapValues { (name, _) ->
-            val containerType = topLevel.firstOrNull { it.name == name }?.type
-            resolveNestedTypeName(name, containerType)
+        val root = PathNode(name = "__root__")
+
+        fields.forEach { field ->
+            val trimmedName = field.name.trim()
+            if (trimmedName.isEmpty()) return@forEach
+
+            val segments = parseSegments(trimmedName)
+            val isNested = segments != null && (segments.size > 1 || segments.any { it.isList })
+            if (!isNested) {
+                val node = root.children.getOrPut(trimmedName) { PathNode(name = trimmedName) }
+                if (node.explicitField == null) {
+                    node.explicitField = field
+                }
+                if (isListType(field.type?.trim().orEmpty())) {
+                    node.isList = true
+                }
+                return@forEach
+            }
+
+            var current = root
+            segments!!.forEach { segment ->
+                val child = current.children.getOrPut(segment.name) { PathNode(name = segment.name) }
+                if (segment.isList) {
+                    child.isList = true
+                }
+                current = child
+            }
+
+            if (current.explicitField == null) {
+                current.explicitField = field.copy(name = segments.last().name)
+            }
+            if (isListType(field.type?.trim().orEmpty())) {
+                current.isList = true
+            }
         }
 
-        val nestedTypesForTemplate = nested.map { (containerName, nestedFields) ->
-            val nestedTypeName = nestedTypeNameByContainer.getValue(containerName)
-            mapOf(
-                "name" to nestedTypeName,
-                "fields" to toTemplateFields(nestedFields, emptyMap()),
+        val fieldsForTemplate = root.children.values.map { node ->
+            val explicit = node.explicitField
+            val rawType = when {
+                explicit?.type?.isNotBlank() == true -> {
+                    val explicitType = explicit.type.trim()
+                    if (node.isList && !isListType(explicitType)) {
+                        "List<$explicitType>"
+                    } else {
+                        explicitType
+                    }
+                }
+                node.children.isNotEmpty() || node.isList -> resolveContainerFieldType(node)
+                else -> inferType(explicit ?: PayloadField(name = node.name))
+            }
+            toFieldMap(
+                name = node.name,
+                rawType = rawType,
+                nullable = explicit?.nullable ?: false,
+                defaultValue = explicit?.defaultValue?.takeIf { it.isNotBlank() },
             )
         }
 
-        val fieldsForTemplate = toTemplateFields(topLevel, nestedTypeNameByContainer)
+        val nestedTypesForTemplate = mutableListOf<Map<String, Any>>()
+        fun visit(node: PathNode) {
+            if (node.children.isNotEmpty()) {
+                val typeName = resolveNodeTypeName(node)
+                val nestedFields = node.children.values.map { child ->
+                    val rawType = if (child.children.isNotEmpty()) {
+                        resolveContainerFieldType(child)
+                    } else {
+                        resolveLeafFieldType(child)
+                    }
+                    toFieldMap(
+                        name = child.name,
+                        rawType = rawType,
+                        nullable = child.explicitField?.nullable ?: false,
+                        defaultValue = child.explicitField?.defaultValue?.takeIf { it.isNotBlank() },
+                    )
+                }
+                nestedTypesForTemplate.add(
+                    mapOf(
+                        "name" to typeName,
+                        "fields" to nestedFields,
+                    )
+                )
+            }
+            node.children.values.forEach { visit(it) }
+        }
+        root.children.values.forEach { visit(it) }
+
         return fieldsForTemplate to nestedTypesForTemplate
     }
 
@@ -255,6 +334,14 @@ private fun mergeFieldMaps(
         }
     }
     return result.values.toList()
+}
+
+private fun isListType(value: String): Boolean {
+    val trimmed = value.trim()
+    return trimmed.startsWith("List<") ||
+        trimmed.startsWith("MutableList<") ||
+        trimmed.startsWith("kotlin.collections.List<") ||
+        trimmed.startsWith("kotlin.collections.MutableList<")
 }
 
 private fun isLongLiteral(value: String): Boolean {

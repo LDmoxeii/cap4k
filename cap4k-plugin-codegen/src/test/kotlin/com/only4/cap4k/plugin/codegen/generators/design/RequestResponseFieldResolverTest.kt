@@ -69,6 +69,45 @@ class RequestResponseFieldResolverTest {
         )
     }
 
+    @Test
+    fun `extracts nested object fields into nested types`() {
+        val context = TestDesignContext()
+        val design = commandDesign()
+
+        val requestFields = listOf(
+            PayloadField(name = "globalId", type = "String", defaultValue = "0"),
+            PayloadField(name = "account", type = "AccountInfo"),
+            PayloadField(name = "account.accountNumber", type = "String"),
+            PayloadField(name = "account.accountName", type = "String"),
+            PayloadField(name = "account.bankName", type = "String"),
+            PayloadField(name = "account.currency", type = "String"),
+        )
+
+        val resolved = with(context) {
+            resolveRequestResponseFields(design, requestFields, emptyList())
+        }
+
+        val topLevelNames = resolved.requestFieldsForTemplate.mapNotNull { it["name"] }
+        assertEquals(listOf("globalId", "account"), topLevelNames)
+
+        val defaults = resolved.requestFieldsForTemplate.associate { it["name"] to it["defaultValue"] }
+        assertEquals("\"0\"", defaults["globalId"])
+
+        val nestedTypes = resolved.nestedTypesForTemplate
+        assertEquals(1, nestedTypes.size)
+
+        val nested = nestedTypes.first() as Map<*, *>
+        assertEquals("AccountInfo", nested["name"])
+
+        val nestedFields = nested["fields"] as List<*>
+        val nestedNames = nestedFields.mapNotNull { (it as Map<*, *>)["name"] }
+        assertTrue(
+            nestedNames.containsAll(
+                listOf("accountNumber", "accountName", "bankName", "currency")
+            ),
+        )
+    }
+
     private fun commandDesign(): CommandDesign =
         CommandDesign(
             type = "cmd",
