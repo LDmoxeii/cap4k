@@ -1,0 +1,333 @@
+# Drawing Board Export Implementation Plan
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** Add a code-analysis export pipeline that generates a merged `drawing_board.json` at `design/drawing_board.json` using a new arch-template tag.
+
+**Architecture:** Extend the IR compiler plugin to emit `design-elements.json` per module, then add a new Gradle plugin to merge those into `drawing_board.json` using arch-template resolution (via `GenArchTask` helpers). Update the arch template to include a `drawing_board` node.
+
+**Tech Stack:** Kotlin 2.2, Gradle plugins, Kotlin IR compiler plugin, Jackson (merge task), Gson/Pebble (existing), JUnit 5.
+
+---
+
+### Task 1: Add Design Models + JSON Writer (Core + Compiler)
+
+**Files:**
+- Create: `cap4k-plugin-code-analysis-core/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/core/model/DesignElement.kt`
+- Create: `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementJsonWriter.kt`
+- Modify: `cap4k-plugin-code-analysis-compiler/build.gradle.kts`
+- Test: `cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementJsonWriterTest.kt`
+
+**Step 1: Write the failing test**
+
+```kotlin
+@Test
+fun `serializes design elements with fields and defaults`() {
+    val elements = listOf(
+        DesignElement(
+            tag = "payload",
+            `package` = "account",
+            name = "batchSaveAccountList",
+            desc = "",
+            aggregates = emptyList(),
+            entity = null,
+            persist = null,
+            requestFields = listOf(
+                DesignField("globalId", "String", false, "0"),
+                DesignField("account.accountNumber", "String", false, null)
+            ),
+            responseFields = listOf(DesignField("result", "Boolean", false, null))
+        )
+    )
+
+    val json = DesignElementJsonWriter().write(elements)
+    assertTrue(json.contains("\"name\":\"batchSaveAccountList\""))
+    assertTrue(json.contains("\"defaultValue\":\"0\""))
+    assertTrue(json.contains("\"account.accountNumber\""))
+}
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `.\gradlew :cap4k-plugin-code-analysis-compiler:test --tests "com.only4.cap4k.plugin.codeanalysis.compiler.DesignElementJsonWriterTest"`  
+Expected: FAIL (missing writer / incorrect output)
+
+**Step 3: Write minimal implementation**
+
+- Add `DesignElement` + `DesignField` data classes in core.
+- Add `DesignElementJsonWriter` with a stub `write()` returning `"[]"`.
+
+**Step 4: Run test to verify it fails**
+
+Run: `.\gradlew :cap4k-plugin-code-analysis-compiler:test --tests "com.only4.cap4k.plugin.codeanalysis.compiler.DesignElementJsonWriterTest"`  
+Expected: FAIL (assertions not met)
+
+**Step 5: Implement JSON writer**
+
+- Build JSON in a `StringBuilder`, escape strings, include optional fields only when present.
+
+**Step 6: Run test to verify it passes**
+
+Run: `.\gradlew :cap4k-plugin-code-analysis-compiler:test --tests "com.only4.cap4k.plugin.codeanalysis.compiler.DesignElementJsonWriterTest"`  
+Expected: PASS
+
+**Step 7: Commit**
+
+```bash
+git add cap4k-plugin-code-analysis-core/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/core/model/DesignElement.kt \
+        cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementJsonWriter.kt \
+        cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementJsonWriterTest.kt \
+        cap4k-plugin-code-analysis-compiler/build.gradle.kts
+git commit -m "feat: add design element model and json writer"
+```
+
+---
+
+### Task 2: Extract Design Elements in Compiler (IR)
+
+**Files:**
+- Modify: `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/Cap4kIrGenerationExtension.kt`
+- Create: `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementCollector.kt`
+- Create: `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/IrTypeFormatter.kt`
+- Test: `cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementExtractionTest.kt`
+
+**Step 1: Write the failing test**
+
+```kotlin
+@Test
+fun `emits design-elements json from request and payload`() {
+    val sources = listOf(
+        SourceFile.kotlin("IssueTokenCmd.kt", """
+            package demo.application.commands.authorize
+            class IssueTokenCmd : com.only4.cap4k.ddd.core.application.RequestParam {
+                data class Request(val userId: Long, val note: String = "x")
+                data class Response(val token: String)
+            }
+        """.trimIndent()),
+        SourceFile.kotlin("BatchSaveAccountList.kt", """
+            package demo.adapter.portal.api.payload.account
+            object BatchSaveAccountList {
+                data class Request(val globalId: String, val account: AccountInfo)
+                data class Item(val result: Boolean)
+                data class AccountInfo(val accountNumber: String)
+            }
+        """.trimIndent())
+    )
+
+    val outputDir = compileWithCap4kPlugin(sources)
+    val json = outputDir.resolve("design-elements.json").readText()
+    assertTrue(json.contains("\"tag\":\"cmd\""))
+    assertTrue(json.contains("\"name\":\"IssueToken\""))
+    assertTrue(json.contains("\"account.accountNumber\""))
+}
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `.\gradlew :cap4k-plugin-code-analysis-compiler:test --tests "com.only4.cap4k.plugin.codeanalysis.compiler.DesignElementExtractionTest"`  
+Expected: FAIL (missing output / missing data)
+
+**Step 3: Write minimal implementation**
+
+- Implement `DesignElementCollector`:
+  - Identify request classes (Cmd/Qry/Cli) via existing GraphCollector maps.
+  - Identify payload objects in `adapter.portal.api.payload`.
+  - Identify domain events via `@DomainEvent` or aggregate metadata.
+  - Extract `Request` + `Response`/`Item` constructor params.
+  - Flatten nested classes into `field.sub` or `list[].sub`.
+  - Derive `name` (Cmd/Qry/Cli without suffix, payload lowerCamel), `package` from fqcn segments.
+  - Fill `aggregates` via relationships (request -> handler -> aggregate).
+- Update `Cap4kIrGenerationExtension.generate` to write `design-elements.json` using `DesignElementJsonWriter`.
+
+**Step 4: Run test to verify it passes**
+
+Run: `.\gradlew :cap4k-plugin-code-analysis-compiler:test --tests "com.only4.cap4k.plugin.codeanalysis.compiler.DesignElementExtractionTest"`  
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/Cap4kIrGenerationExtension.kt \
+        cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementCollector.kt \
+        cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/IrTypeFormatter.kt \
+        cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementExtractionTest.kt
+git commit -m "feat: emit design-elements json from compiler analysis"
+```
+
+---
+
+### Task 3: Arch Template Helper for Output Path (Codegen)
+
+**Files:**
+- Modify: `cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/gradle/GenArchTask.kt`
+- Create: `cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/gradle/ArchTemplateLocator.kt`
+- Test: `cap4k-plugin-codegen/src/test/kotlin/com/only4/cap4k/plugin/codegen/gradle/ArchTemplateLocatorTest.kt`
+
+**Step 1: Write the failing test**
+
+```kotlin
+@Test
+fun `resolves drawing_board output path from arch template`() {
+    val templatePath = tempArchTemplateWithDrawingBoard()
+    val locator = ArchTemplateLocator(templatePath, "UTF-8")
+    val node = locator.findByTag("drawing_board").single()
+    assertTrue(node.name!!.endsWith("design${File.separator}drawing_board.json"))
+}
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `.\gradlew :cap4k-plugin-codegen:test --tests "com.only4.cap4k.plugin.codegen.gradle.ArchTemplateLocatorTest"`  
+Expected: FAIL (locator missing)
+
+**Step 3: Write minimal implementation**
+
+- Add `ArchTemplateLocator` to load a template using the same logic as `GenArchTask`.
+- Update `GenArchTask` to use the new helper (so the new flow is “依托 GenArchTask”).
+
+**Step 4: Run test to verify it passes**
+
+Run: `.\gradlew :cap4k-plugin-codegen:test --tests "com.only4.cap4k.plugin.codegen.gradle.ArchTemplateLocatorTest"`  
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/gradle/GenArchTask.kt \
+        cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/gradle/ArchTemplateLocator.kt \
+        cap4k-plugin-codegen/src/test/kotlin/com/only4/cap4k/plugin/codegen/gradle/ArchTemplateLocatorTest.kt
+git commit -m "feat: add arch template locator for drawing board output"
+```
+
+---
+
+### Task 4: Add Drawing Board Export Gradle Plugin
+
+**Files:**
+- Create: `cap4k-plugin-code-analysis-drawing-board/build.gradle.kts`
+- Create: `cap4k-plugin-code-analysis-drawing-board/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/drawingboard/Cap4kDrawingBoardPlugin.kt`
+- Create: `cap4k-plugin-code-analysis-drawing-board/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/drawingboard/DrawingBoardMergeTask.kt`
+- Create: `cap4k-plugin-code-analysis-drawing-board/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/drawingboard/DrawingBoardMergeTaskTest.kt`
+- Modify: `settings.gradle.kts`
+
+**Step 1: Write the failing test**
+
+```kotlin
+@Test
+fun `merges design elements and writes drawing_board json`() {
+    val inputDir1 = tempDirWithDesignElements("""[{"tag":"cmd","package":"auth","name":"IssueToken"}]""")
+    val inputDir2 = tempDirWithDesignElements("""[{"tag":"payload","package":"account","name":"batchSaveAccountList"}]""")
+
+    val output = tempDir()
+    val task = DrawingBoardMergeTask().apply {
+        inputDirs.set(listOf(inputDir1, inputDir2))
+        outputDir.set(output)
+    }
+    task.merge()
+
+    val json = output.resolve("drawing_board.json").readText()
+    assertTrue(json.contains("\"IssueToken\""))
+    assertTrue(json.contains("\"batchSaveAccountList\""))
+}
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `.\gradlew :cap4k-plugin-code-analysis-drawing-board:test --tests "com.only4.cap4k.plugin.codeanalysis.drawingboard.DrawingBoardMergeTaskTest"`  
+Expected: FAIL (task missing / output missing)
+
+**Step 3: Write minimal implementation**
+
+- Implement a merge helper that:
+  - Reads `design-elements.json` from each input dir.
+  - Merges by `(tag, package, name)`.
+  - Writes pretty JSON to `drawing_board.json` in `outputDir`.
+- Wire plugin + task with Gradle properties (inputDirs, outputDir, outputTag, encoding).
+
+**Step 4: Run test to verify it passes**
+
+Run: `.\gradlew :cap4k-plugin-code-analysis-drawing-board:test --tests "com.only4.cap4k.plugin.codeanalysis.drawingboard.DrawingBoardMergeTaskTest"`  
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add cap4k-plugin-code-analysis-drawing-board \
+        settings.gradle.kts
+git commit -m "feat: add drawing board export plugin"
+```
+
+---
+
+### Task 5: Wire Output Path + Templates
+
+**Files:**
+- Modify: `cap4k/cap4k-ddd-codegen-template-multi-nested.json`
+- Modify: `only-danmuku/cap4k-ddd-codegen-template-multi-nested.json`
+- Modify (optional): `only-danmuku/build.gradle.kts`
+
+**Step 1: Write the failing test**
+
+```kotlin
+@Test
+fun `template includes drawing_board tag`() {
+    val template = File("cap4k-ddd-codegen-template-multi-nested.json").readText()
+    assertTrue(template.contains("\"tag\": \"drawing_board\""))
+}
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `.\gradlew :cap4k-plugin-codegen:test --tests "com.only4.cap4k.plugin.codegen.gradle.ArchTemplateLocatorTest"`  
+Expected: FAIL (tag missing)
+
+**Step 3: Write minimal implementation**
+
+- Add a template node:
+  - `tag: "drawing_board"`
+  - `type: "file"`
+  - `name: "drawing_board.json"`
+  - under `design/` directory.
+
+**Step 4: Run test to verify it passes**
+
+Run: `.\gradlew :cap4k-plugin-codegen:test --tests "com.only4.cap4k.plugin.codegen.gradle.ArchTemplateLocatorTest"`  
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add cap4k-ddd-codegen-template-multi-nested.json
+git commit -m "feat: add drawing_board template node"
+```
+
+---
+
+### Task 6: Optional Wiring in only-danmuku
+
+**Files:**
+- Modify: `only-danmuku/build.gradle.kts`
+
+**Step 1: Update build config**
+
+```kotlin
+plugins {
+    id("com.only4.cap4k.plugin.codeanalysis.drawing-board") version "0.4.2-SNAPSHOT"
+}
+```
+
+**Step 2: Add task config**
+
+```kotlin
+cap4kDrawingBoard {
+    outputTag.set("drawing_board")
+}
+```
+
+**Step 3: Commit**
+
+```bash
+git add only-danmuku/build.gradle.kts
+git commit -m "chore: enable drawing board export"
+```
+
