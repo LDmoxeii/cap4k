@@ -8,7 +8,6 @@ import com.only4.cap4k.plugin.codegen.ksp.models.FieldMetadata
 data class ResolvedRequestResponseFields(
     val requestFieldsForTemplate: List<Map<String, String>>,
     val responseFieldsForTemplate: List<Map<String, String>>,
-    val imports: Set<String>,
 )
 
 context(ctx: DesignContext)
@@ -17,8 +16,6 @@ fun resolveRequestResponseFields(
     requestFields: List<PayloadField>,
     responseFields: List<PayloadField>,
 ): ResolvedRequestResponseFields {
-    val imports = mutableSetOf<String>()
-
     fun inferType(field: PayloadField): String {
         field.type?.takeIf { it.isNotBlank() }?.let { return it }
 
@@ -36,17 +33,8 @@ fun resolveRequestResponseFields(
     }
 
     fun renderType(rawType: String, nullable: Boolean): String {
-        val cleaned = rawType.trim()
-        val shortName = cleaned.substringAfterLast(".")
-        val needsImport = cleaned.contains(".") && !cleaned.startsWith("kotlin.")
-                && cleaned != shortName && !cleaned.startsWith("java.lang.")
-        val mappedType = ctx.typeMapping[shortName]
-        if (cleaned == shortName && mappedType != null) {
-            imports.add(mappedType)
-        } else if (needsImport) {
-            imports.add(cleaned)
-        }
-        return if (nullable) "$shortName?" else shortName
+        val trimmed = rawType.trim()
+        return if (nullable && !trimmed.endsWith("?")) "${trimmed}?" else trimmed
     }
 
     fun toTemplateFields(fields: List<PayloadField>): List<Map<String, String>> =
@@ -67,7 +55,6 @@ fun resolveRequestResponseFields(
     return ResolvedRequestResponseFields(
         requestFieldsForTemplate = request,
         responseFieldsForTemplate = response,
-        imports = imports,
     )
 }
 

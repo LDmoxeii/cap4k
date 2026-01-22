@@ -1,4 +1,8 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
+{{ use("com.only4.cap4k.ddd.core.Mediator") }}
+{{ use("com.only4.cap4k.ddd.core.application.RequestParam") }}
+{{ use("com.only4.cap4k.ddd.core.application.command.Command") }}
+{{ use("org.springframework.stereotype.Service") }}
 {{ imports() }}
 
 /**

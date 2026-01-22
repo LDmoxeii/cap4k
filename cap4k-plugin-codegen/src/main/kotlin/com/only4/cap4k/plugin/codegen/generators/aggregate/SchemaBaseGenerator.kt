@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.codegen.generators.aggregate
 
 import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
-import com.only4.cap4k.plugin.codegen.imports.SchemaBaseImportManager
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
 
@@ -32,19 +31,12 @@ class SchemaBaseGenerator : AggregateGenerator {
     override fun buildContext(table: Map<String, Any?>): Map<String, Any?> {
         val resultContext = ctx.baseMap.toMutableMap()
 
-        // 创建 ImportManager
-        val importManager = SchemaBaseImportManager()
-        importManager.addBaseImports()
-
         with(ctx) {
             resultContext.putContext(tag, "modulePath", ctx.domainPath)
             resultContext.putContext(tag, "templatePackage", refPackage(ctx.templatePackage[tag] ?: ""))
             resultContext.putContext(tag, "package", "")
 
             resultContext.putContext(tag, "SchemaBase", currentType)
-
-            // 添加 imports
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
         }
 
         return resultContext

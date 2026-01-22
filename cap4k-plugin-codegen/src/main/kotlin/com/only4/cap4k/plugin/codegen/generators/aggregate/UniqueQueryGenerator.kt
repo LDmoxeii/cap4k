@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.codegen.generators.aggregate
 
 import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
-import com.only4.cap4k.plugin.codegen.imports.QueryImportManager
 import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.misc.toLowerCamelCase
@@ -54,21 +53,17 @@ class UniqueQueryGenerator : AggregateGenerator {
         val deletedField = ctx.getString("deletedField")
         val allColumns = ctx.columnsMap[tableName]!!
 
-        val extraImports = mutableSetOf<String>()
-
-        fun addTypeImportIfNeeded(colMeta: Map<String, Any?>, typeName: String) {
-            val simple = typeName.removeSuffix("?")
-            if (SqlSchemaUtils.hasType(colMeta)) {
-                // Prefer typeMapping (enums and custom types registered earlier)
-                val mapped = ctx.typeMapping[simple]
-                if (!mapped.isNullOrBlank()) {
-                    extraImports += mapped
-                } else {
-                    // Fallback to enumPackageMap if available
-                    val enumPkg = ctx.enumPackageMap[simple]
-                    if (!enumPkg.isNullOrBlank()) extraImports += "$enumPkg.$simple"
-                }
+        fun resolveType(colMeta: Map<String, Any?>, rawType: String): String {
+            val trimmed = rawType.trim()
+            val nullable = trimmed.endsWith("?")
+            val base = trimmed.removeSuffix("?")
+            val mapped = if (SqlSchemaUtils.hasType(colMeta)) {
+                ctx.typeMapping[base] ?: ctx.enumPackageMap[base]?.let { "$it.$base" }
+            } else {
+                null
             }
+            val resolved = mapped ?: base
+            return if (nullable && !resolved.endsWith("?")) "$resolved?" else resolved
         }
 
         val requestParams = selected?.get("columns")
@@ -78,11 +73,12 @@ class UniqueQueryGenerator : AggregateGenerator {
             .map { colName ->
                 val colMeta = allColumns.first { SqlSchemaUtils.getColumnName(it).equals(colName, ignoreCase = true) }
                 val type = SqlSchemaUtils.getColumnType(colMeta)
-                addTypeImportIfNeeded(colMeta, type)
+                val typeForTemplate = resolveType(colMeta, type)
+                val simple = type.removeSuffix("?").substringAfterLast(".")
                 mapOf(
                     "name" to (toLowerCamelCase(colName) ?: colName),
-                    "type" to type,
-                    "isString" to (type.removeSuffix("?") == "String")
+                    "type" to typeForTemplate,
+                    "isString" to (simple == "String")
                 )
             }
 
@@ -92,8 +88,6 @@ class UniqueQueryGenerator : AggregateGenerator {
         val excludeIdParamName = "exclude${entityType}Id"
 
         // imports
-        val importManager = QueryImportManager(QueryImportManager.QueryType.SINGLE).apply { addBaseImports() }
-
         with(ctx) {
             resultContext.putContext(tag, "modulePath", applicationPath)
             resultContext.putContext(tag, "templatePackage", refPackage(templatePackage[tag] ?: ""))
@@ -104,13 +98,9 @@ class UniqueQueryGenerator : AggregateGenerator {
             resultContext.putContext(tag, "Aggregate", toUpperCamelCase(aggregate) ?: aggregate)
             resultContext.putContext(tag, "Comment", SqlSchemaUtils.getComment(table))
 
-            // merge imports: base + extra type imports
-            extraImports.forEach { importManager.add(it) }
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
-
             resultContext.putContext(tag, "RequestParams", requestParams)
             resultContext.putContext(tag, "ExcludeIdParamName", excludeIdParamName)
-            resultContext.putContext(tag, "IdType", idType)
+            resultContext.putContext(tag, "IdType", ctx.typeMapping[idType] ?: idType)
         }
 
         return resultContext

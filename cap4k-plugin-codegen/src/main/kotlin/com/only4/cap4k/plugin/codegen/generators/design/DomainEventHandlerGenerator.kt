@@ -2,7 +2,6 @@ package com.only4.cap4k.plugin.codegen.generators.design
 
 import com.only4.cap4k.plugin.codegen.context.design.DesignContext
 import com.only4.cap4k.plugin.codegen.context.design.models.DomainEventDesign
-import com.only4.cap4k.plugin.codegen.imports.DomainEventHandlerImportManager
 import com.only4.cap4k.plugin.codegen.misc.concatPackage
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
@@ -37,11 +36,6 @@ class DomainEventHandlerGenerator : DesignGenerator {
         val domainEventName = design.className()
         val fullDomainEventType = ctx.typeMapping[domainEventName]!!
 
-        // 创建 ImportManager
-        val importManager = DomainEventHandlerImportManager()
-        importManager.addBaseImports()
-        importManager.add(fullDomainEventType)
-
         val resultContext = ctx.baseMap.toMutableMap()
 
         with(ctx) {
@@ -50,6 +44,7 @@ class DomainEventHandlerGenerator : DesignGenerator {
             resultContext.putContext(tag, "package", refPackage(concatPackage(refPackage(design.`package`))))
 
             resultContext.putContext(tag, "DomainEvent", domainEventName)
+            resultContext.putContext(tag, "DomainEventType", fullDomainEventType)
             resultContext.putContext(tag, "DomainEventHandler", generatorName())
             resultContext.putContext(tag, "Name", generatorName())
 
@@ -58,9 +53,6 @@ class DomainEventHandlerGenerator : DesignGenerator {
             resultContext.putContext(tag, "AggregateRoot", design.aggregate)
 
             resultContext.putContext(tag, "Comment", design.desc)
-
-            // 添加 imports
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
         }
 
         return resultContext

@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.codegen.generators.aggregate
 
 import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
-import com.only4.cap4k.plugin.codegen.imports.SchemaImportManager
 import com.only4.cap4k.plugin.codegen.misc.*
 import com.only4.cap4k.plugin.codegen.pebble.PebbleTemplateRenderer.renderString
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
@@ -52,38 +51,14 @@ class SchemaGenerator : AggregateGenerator {
         val generateAggregate = ctx.getBoolean("generateAggregate")
         val repositorySupportQuerydsl = ctx.getBoolean("repositorySupportQuerydsl")
 
-        // 创建 ImportManager
-        val importManager = SchemaImportManager(getPackageFromClassName(ctx.typeMapping["Schema"]!!))
-        importManager.addBaseImports()
-        importManager.add(
-            ctx.typeMapping[entityType]!!,
-        )
-        importManager.addIfNeeded(
-            isAggregateRoot,
-            "com.only4.cap4k.ddd.domain.repo.JpaPredicate"
-        )
-        importManager.addIfNeeded(
-            isAggregateRoot && repositorySupportQuerydsl,
-            "com.querydsl.core.types.OrderSpecifier",
-            "com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate",
-            "com.only4.cap4k.ddd.domain.repo.querydsl.QuerydslPredicate"
-        )
-        importManager.addIfNeeded(isAggregateRoot && repositorySupportQuerydsl) { ctx.typeMapping["Q$entityType"]!! }
-        importManager.addIfNeeded(isAggregateRoot && repositorySupportQuerydsl) { ctx.typeMapping[aggregateType]!! }
-
         // 准备列字段数据
         val fields = columns
             .filter { !SqlSchemaUtils.isIgnore(it) }
             .map { column ->
                 val columnName = SqlSchemaUtils.getColumnName(column)
                 val columnType = SqlSchemaUtils.getColumnType(column)
-                val simpleType = columnType.removeSuffix("?")
                 val fieldName = toLowerCamelCase(columnName) ?: columnName
                 val comment = SqlSchemaUtils.getComment(column)
-
-                if (SqlSchemaUtils.hasType(column)) {
-                    importManager.add(ctx.typeMapping[simpleType]!!)
-                }
 
                 mapOf(
                     "fieldName" to fieldName,
@@ -123,8 +98,6 @@ class SchemaGenerator : AggregateGenerator {
 
             resultContext.putContext(tag, "Schema", "S$entityType")
 
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
-
             resultContext.putContext(tag, "EntityVar", toLowerCamelCase(entityType) ?: entityType)
             resultContext.putContext(tag, "Entity", entityType)
             resultContext.putContext(tag, "SchemaBase", "Schema")
@@ -134,6 +107,11 @@ class SchemaGenerator : AggregateGenerator {
 
             resultContext.putContext(tag, "isAggregateRoot", isAggregateRoot)
             resultContext.putContext(tag, "generateAggregate", generateAggregate)
+            resultContext.putContext(tag, "repositorySupportQuerydsl", repositorySupportQuerydsl)
+            resultContext.putContext(tag, "schemaBasePackage", getPackageFromClassName(typeMapping["Schema"]!!))
+            resultContext.putContext(tag, "entityTypeFqn", typeMapping[entityType]!!)
+            resultContext.putContext(tag, "aggregateTypeFqn", typeMapping[aggregateType].orEmpty())
+            resultContext.putContext(tag, "qEntityTypeFqn", typeMapping["Q$entityType"].orEmpty())
 
             resultContext.putContext(tag, "Comment", SqlSchemaUtils.getComment(table))
         }

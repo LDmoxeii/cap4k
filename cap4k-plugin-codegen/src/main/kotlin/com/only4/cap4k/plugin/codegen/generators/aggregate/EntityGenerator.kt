@@ -2,7 +2,6 @@ package com.only4.cap4k.plugin.codegen.generators.aggregate
 
 import com.only4.cap4k.plugin.codegen.gradle.AbstractCodegenTask
 import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
-import com.only4.cap4k.plugin.codegen.imports.EntityImportManager
 import com.only4.cap4k.plugin.codegen.misc.*
 import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils.LEFT_QUOTES_4_ID_ALIAS
 import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils.RIGHT_QUOTES_4_ID_ALIAS
@@ -53,14 +52,8 @@ open class EntityGenerator : AggregateGenerator {
         val entityType = ctx.entityTypeMap[tableName]!!
         val ids = resolveIdColumns(columns)
 
-        // 创建 ImportManager
-        val importManager = EntityImportManager()
-        importManager.addBaseImports()
-
-        val identityType = if (ids.size != 1) "Long" else SqlSchemaUtils.getColumnType(ids[0])
-        if (ctx.typeMapping.containsKey(identityType)) {
-            importManager.add(ctx.typeMapping[identityType]!!)
-        }
+        val identityType = if (ids.size != 1) "Long" else SqlSchemaUtils.getColumnType(ids[0]).removeSuffix("?")
+        val identityTypeForTemplate = ctx.typeMapping[identityType] ?: identityType
 
         // 处理基类
         var baseClass: String? = null
@@ -100,7 +93,6 @@ open class EntityGenerator : AggregateGenerator {
 
             // 3) import 基类的全限定名；同时在 extends 使用简单名
             if (!fullName.isNullOrBlank()) {
-                importManager.add(fullName)
                 resolved = resolved.replaceFirst(head, simpleName)
             }
 
@@ -124,60 +116,37 @@ open class EntityGenerator : AggregateGenerator {
         processEntityCustomerSourceFile(filePath, existingImportLines, annotationLines, customerLines)
         processAnnotationLines(table, columns, annotationLines, ids)
 
-        existingImportLines.forEach { line ->
-            importManager.add(line)
-        }
-
         // 准备列数据
         val columnDataList = columns.map { column ->
             prepareColumnData(
                 table, column,
-                ids, importManager
+                ids
             )
         }
 
         // 准备关系数据
-        val relationDataList = prepareRelationData(table, importManager)
+        val relationDataList = prepareRelationData(table)
 
         // 1. 检查软删除字段
         val deletedField = ctx.getString("deletedField")
         val hasSoftDelete = deletedField.isNotBlank() && SqlSchemaUtils.hasColumn(deletedField, columns)
-        importManager.addIfNeeded(
-            hasSoftDelete,
-            "org.hibernate.annotations.SQLDelete",
-            "org.hibernate.annotations.Where"
-        )
 
         // 2. 检查是否需要 ID 生成器
         val needsIdGenerator = ids.size == 1 &&
                 !SqlSchemaUtils.isValueObject(table) &&
                 resolveEntityIdGenerator(table).isNotEmpty()
-        importManager.addIfNeeded(
-            needsIdGenerator,
-            "org.hibernate.annotations.GenericGenerator"
-        )
 
         // 3. 检查是否有集合关系（OneToMany, ManyToMany）
         val hasCollectionRelation = ctx.relationsMap[tableName]?.values?.any {
             val relationType = it.split(";")[0]
             relationType in listOf("OneToMany", "ManyToMany", "*OneToMany", "*ManyToMany")
         } == true
-        importManager.addIfNeeded(
-            hasCollectionRelation,
-            "org.hibernate.annotations.Fetch",
-            "org.hibernate.annotations.FetchMode"
-        )
-
         // 4. 检查是否是 ValueObject
-        importManager.addIfNeeded(
-            SqlSchemaUtils.isValueObject(table),
-            "com.only4.cap4k.ddd.core.domain.aggregate.ValueObject"
-        )
-
-        // 生成最终的 import 列表
-        val finalImports = importManager.toImportLines()
+        val isValueObject = SqlSchemaUtils.isValueObject(table)
 
         // 构建上下文
+        val rawImports = existingImportLines.map { "import $it" }
+
         val resultContext = ctx.baseMap.toMutableMap()
         with(ctx) {
             resultContext.putContext(tag, "modulePath", ctx.domainPath)
@@ -185,6 +154,8 @@ open class EntityGenerator : AggregateGenerator {
             resultContext.putContext(tag, "package", refPackage(aggregate))
 
             resultContext.putContext(tag, "Entity", entityType)
+            resultContext.putContext(tag, "IdentityType", identityTypeForTemplate)
+            resultContext.putContext(tag, "BaseClass", baseClass ?: "")
 
             resultContext.putContext(tag, "entityType", entityType)
             resultContext.putContext(tag, "extendsClause", extendsClause)
@@ -193,7 +164,11 @@ open class EntityGenerator : AggregateGenerator {
             resultContext.putContext(tag, "relations", relationDataList)
             resultContext.putContext(tag, "annotationLines", annotationLines)
             resultContext.putContext(tag, "customerLines", customerLines)
-            resultContext.putContext(tag, "imports", finalImports)
+            resultContext.putContext(tag, "imports", rawImports)
+            resultContext.putContext(tag, "hasSoftDelete", hasSoftDelete)
+            resultContext.putContext(tag, "needsIdGenerator", needsIdGenerator)
+            resultContext.putContext(tag, "hasCollectionRelation", hasCollectionRelation)
+            resultContext.putContext(tag, "isValueObject", isValueObject)
             resultContext.putContext(tag, "Comment", SqlSchemaUtils.getComment(table))
         }
 
@@ -556,7 +531,6 @@ open class EntityGenerator : AggregateGenerator {
         table: Map<String, Any?>,
         column: Map<String, Any?>,
         ids: List<Map<String, Any?>>,
-        importManager: EntityImportManager,
     ): Map<String, Any?> {
         val columnName = SqlSchemaUtils.getColumnName(column)
         val columnType = SqlSchemaUtils.getColumnType(column)
@@ -619,10 +593,14 @@ open class EntityGenerator : AggregateGenerator {
             annotations.add("@Version")
         }
 
+        var converterType: String? = null
         if (SqlSchemaUtils.hasType(column)) {
             val customType = SqlSchemaUtils.getType(column)
-            val simpleType = customType.removeSuffix("?")
-            importManager.add(ctx.typeMapping[simpleType]!!)
+            val baseType = customType.removeSuffix("?")
+            val simpleType = baseType.substringAfterLast('.')
+            converterType = ctx.typeMapping[simpleType]
+                ?: ctx.enumPackageMap[simpleType]?.let { "$it.$simpleType" }
+                ?: baseType.takeIf { it.contains('.') }
             annotations.add("@Convert(converter = $simpleType.Converter::class)")
         }
 
@@ -646,14 +624,14 @@ open class EntityGenerator : AggregateGenerator {
             "fieldType" to columnType,
             "defaultValue" to defaultValue,
             "comment" to comment,
-            "annotations" to annotations
+            "annotations" to annotations,
+            "converterType" to converterType
         )
     }
 
     context(context: AggregateContext)
     private fun prepareRelationData(
         table: Map<String, Any?>,
-        importManager: EntityImportManager,
     ): List<Map<String, Any?>> {
         return with(context) {
             val tableName = SqlSchemaUtils.getTableName(table)
@@ -688,10 +666,6 @@ open class EntityGenerator : AggregateGenerator {
                 val refEntityType = context.entityTypeMap[refTableName] ?: ""
                 val refEntityPackage = tablePackageMap[refTableName]!!
                 val fullRefEntityType = "$refEntityPackage${refPackage(refEntityType)}"
-
-                val entityPackage = tablePackageMap[tableName]!!
-
-                importManager.addIfNeeded(entityPackage != refEntityPackage, fullRefEntityType)
 
                 when (relation) {
                     "OneToMany" -> {

@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.codegen.generators.aggregate
 
 import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
-import com.only4.cap4k.plugin.codegen.imports.QueryHandlerImportManager
 import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.misc.toLowerCamelCase
@@ -64,26 +63,11 @@ class UniqueQueryHandlerGenerator : AggregateGenerator {
         val idPropName = idColumn?.let { toLowerCamelCase(SqlSchemaUtils.getColumnName(it)) } ?: "id"
         val excludeIdParamName = "exclude${entityType}Id"
 
-        // imports
-        val importManager = QueryHandlerImportManager(QueryHandlerImportManager.QueryType.SINGLE).apply {
-            addBaseImports()
-            add(ctx.typeMapping[getQueryName(table)]!!)
-        }
-
-        // Jimmer & SQL client
-        importManager.add(
-            "org.babyfish.jimmer.sql.kt.KSqlClient",
-            "org.babyfish.jimmer.sql.kt.ast.expression.eq",
-            "org.babyfish.jimmer.sql.kt.ast.expression.`ne?`",
-            "org.babyfish.jimmer.sql.kt.exists",
-        )
-
-        // share model imports
         val basePackage = ctx.getString("basePackage")
         val shareModelPkg = basePackage + refPackage(ctx.templatePackage["query"] ?: "") + "._share.model"
-        importManager.add("$shareModelPkg.$entityType")
-        whereProps.forEach { prop -> importManager.add("$shareModelPkg.$prop") }
-        importManager.add("$shareModelPkg.$idPropName")
+        val shareModelImports = (listOf(entityType) + whereProps + idPropName)
+            .distinct()
+            .map { "$shareModelPkg.$it" }
 
         with(ctx) {
             resultContext.putContext(tag, "modulePath", adapterPath)
@@ -92,11 +76,11 @@ class UniqueQueryHandlerGenerator : AggregateGenerator {
 
             resultContext.putContext(tag, "QueryHandler", currentType)
             resultContext.putContext(tag, "Query", getQueryName(table))
+            resultContext.putContext(tag, "QueryType", ctx.typeMapping[getQueryName(table)]!!)
             resultContext.putContext(tag, "Entity", entityType)
             resultContext.putContext(tag, "Aggregate", toUpperCamelCase(aggregate) ?: aggregate)
             resultContext.putContext(tag, "Comment", SqlSchemaUtils.getComment(table))
-
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
+            resultContext.putContext(tag, "shareModelImports", shareModelImports)
 
             resultContext.putContext(tag, "WhereProps", whereProps)
             resultContext.putContext(tag, "IdPropName", idPropName)

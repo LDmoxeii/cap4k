@@ -1,4 +1,9 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
+{{ use("jakarta.persistence.criteria.*") }}
+{{ use("org.hibernate.query.NullPrecedence") }}
+{{ use("org.hibernate.query.SortDirection") }}
+{{ use("org.hibernate.query.sqm.tree.domain.SqmBasicValuedSimplePath") }}
+{{ use("org.hibernate.query.sqm.tree.select.SqmSortSpecification") }}
 {{ imports() }}
 
 /**

@@ -4,7 +4,6 @@ import com.only4.cap4k.plugin.codegen.context.design.DesignContext
 import com.only4.cap4k.plugin.codegen.context.design.models.ValidatorDesign
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
-import com.only4.cap4k.plugin.codegen.imports.ValidatorImportManager
 
 class ValidatorGenerator : DesignGenerator {
 
@@ -42,9 +41,6 @@ class ValidatorGenerator : DesignGenerator {
             // 值类型（默认 Long）
             resultContext.putContext(tag, "ValueType", "Long")
 
-            // imports via ImportManager
-            val importManager = ValidatorImportManager().apply { addBaseImports() }
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
         }
 
         return resultContext

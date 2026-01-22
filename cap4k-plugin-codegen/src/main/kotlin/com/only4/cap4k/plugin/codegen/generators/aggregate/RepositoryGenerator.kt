@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.codegen.generators.aggregate
 
 import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
-import com.only4.cap4k.plugin.codegen.imports.RepositoryImportManager
 import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.pebble.PebbleTemplateRenderer.renderString
@@ -51,20 +50,7 @@ class RepositoryGenerator : AggregateGenerator {
         val ids = columns.filter { SqlSchemaUtils.isColumnPrimaryKey(it) }
         val identityType = if (ids.size != 1) "Long" else SqlSchemaUtils.getColumnType(ids[0])
 
-        val imports = RepositoryImportManager()
-        imports.addBaseImports()
-        imports.add(fullRootEntityType)
-
-        val fullIdType = ctx.typeMapping[identityType]
-        if (fullIdType != null) {
-            imports.add(fullIdType)
-        }
-
         val supportQuerydsl = ctx.getBoolean("repositorySupportQuerydsl")
-        if (supportQuerydsl) {
-            imports.add("org.springframework.data.querydsl.QuerydslPredicateExecutor")
-            imports.add("com.only4.cap4k.ddd.domain.repo.querydsl.AbstractQuerydslRepository")
-        }
 
         val resultContext = ctx.baseMap.toMutableMap()
 
@@ -74,8 +60,8 @@ class RepositoryGenerator : AggregateGenerator {
             resultContext.putContext(tag, "package", "")
 
             resultContext.putContext(tag, "supportQuerydsl", supportQuerydsl)
-            resultContext.putContext(tag, "imports", imports.toImportLines())
             resultContext.putContext(tag, "Aggregate", entityType)
+            resultContext.putContext(tag, "AggregateType", fullRootEntityType)
             resultContext.putContext(tag, "IdentityType", identityType)
 
             resultContext.putContext(tag, "Repository", currentType)

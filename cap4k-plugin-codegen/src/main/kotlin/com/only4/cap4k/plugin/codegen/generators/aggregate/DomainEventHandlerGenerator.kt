@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.codegen.generators.aggregate
 
 import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
-import com.only4.cap4k.plugin.codegen.imports.DomainEventHandlerImportManager
 import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.misc.toUpperCamelCase
@@ -62,11 +61,6 @@ class DomainEventHandlerGenerator : AggregateGenerator {
         val domainEvent = currentType.replace("Subscriber", "")
         val fullDomainEventType = ctx.typeMapping[domainEvent]!!
 
-        // 创建 ImportManager
-        val importManager = DomainEventHandlerImportManager()
-        importManager.addBaseImports()
-        importManager.add(fullDomainEventType)
-
         val resultContext = ctx.baseMap.toMutableMap()
 
         with(ctx) {
@@ -75,13 +69,11 @@ class DomainEventHandlerGenerator : AggregateGenerator {
             resultContext.putContext(tag, "package", refPackage(aggregate))
 
             resultContext.putContext(tag, "DomainEvent", domainEvent)
+            resultContext.putContext(tag, "DomainEventType", fullDomainEventType)
 
             resultContext.putContext(tag, "DomainEventHandler", currentType)
 
             resultContext.putContext(tag, "Comment", SqlSchemaUtils.getComment(table))
-
-            // 添加 imports
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
         }
 
 

@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.codegen.generators.aggregate
 
 import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
-import com.only4.cap4k.plugin.codegen.imports.AggregateImportManager
 import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.pebble.PebbleTemplateRenderer.renderString
@@ -56,11 +55,6 @@ class AggregateWrapperGenerator : AggregateGenerator {
         val ids = columns!!.filter { SqlSchemaUtils.isColumnPrimaryKey(it) }
         val identityType = if (ids.size != 1) "Long" else SqlSchemaUtils.getColumnType(ids[0])
 
-        // 创建 ImportManager
-        val importManager = AggregateImportManager()
-        importManager.addBaseImports()
-        importManager.add(fullFactoryType)
-
         val resultContext = ctx.baseMap.toMutableMap()
 
         with(ctx) {
@@ -74,11 +68,9 @@ class AggregateWrapperGenerator : AggregateGenerator {
             resultContext.putContext(tag, "AggregateName", currentType)
 
             resultContext.putContext(tag, "Factory", factoryType)
+            resultContext.putContext(tag, "FactoryType", fullFactoryType)
 
             resultContext.putContext(tag, "Comment", SqlSchemaUtils.getComment(table))
-
-            // 添加 imports
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
         }
 
         return resultContext

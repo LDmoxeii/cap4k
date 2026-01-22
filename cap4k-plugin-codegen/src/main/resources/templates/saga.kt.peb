@@ -1,4 +1,9 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
+{{ use("org.slf4j.LoggerFactory") }}
+{{ use("org.springframework.stereotype.Service") }}
+{{ use("com.only4.cap4k.ddd.core.application.RequestParam") }}
+{{ use("com.only4.cap4k.ddd.core.application.saga.Saga") }}
+{{ use("com.only4.cap4k.ddd.core.share.X") }}
 {{ imports() }}
 
 /**

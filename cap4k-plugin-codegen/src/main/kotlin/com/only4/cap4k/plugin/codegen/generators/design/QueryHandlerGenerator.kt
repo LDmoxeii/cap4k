@@ -2,7 +2,6 @@ package com.only4.cap4k.plugin.codegen.generators.design
 
 import com.only4.cap4k.plugin.codegen.context.design.DesignContext
 import com.only4.cap4k.plugin.codegen.context.design.models.QueryDesign
-import com.only4.cap4k.plugin.codegen.imports.QueryHandlerImportManager
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
 
@@ -33,12 +32,6 @@ class QueryHandlerGenerator : DesignGenerator {
         val resultContext = ctx.baseMap.toMutableMap()
         val queryType = ctx.typeMapping[design.className()]!!
 
-        val handlerQueryType = QueryHandlerImportManager.inferQueryType(design.name)
-
-        val importManager = QueryHandlerImportManager(handlerQueryType)
-        importManager.addBaseImports()
-        importManager.add(queryType)
-
         val fieldContext = resolveRequestResponseFields(design, design.requestFields, design.responseFields)
 
         with(ctx) {
@@ -48,11 +41,10 @@ class QueryHandlerGenerator : DesignGenerator {
 
             resultContext.putContext(tag, "QueryHandler", generatorName())
             resultContext.putContext(tag, "Query", design.className())
+            resultContext.putContext(tag, "QueryType", queryType)
 
             resultContext.putContext(tag, "Comment", design.desc)
             resultContext.putContext(tag, "responseFields", fieldContext.responseFieldsForTemplate)
-
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
         }
 
         return resultContext

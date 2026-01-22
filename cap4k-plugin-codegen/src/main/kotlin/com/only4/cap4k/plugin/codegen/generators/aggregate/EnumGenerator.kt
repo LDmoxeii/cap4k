@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.codegen.generators.aggregate
 
 import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
-import com.only4.cap4k.plugin.codegen.imports.EnumImportManager
 import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.plugin.codegen.misc.concatPackage
 import com.only4.cap4k.plugin.codegen.misc.refPackage
@@ -53,10 +52,6 @@ class EnumGenerator : AggregateGenerator {
             val tableName = SqlSchemaUtils.getTableName(table)
             val aggregate = resolveAggregateWithModule(tableName)
 
-            // 创建 ImportManager
-            val importManager = EnumImportManager()
-            importManager.addBaseImports()
-
             val enumConfig = enumConfigMap[currentType]!!
 
             val enumItems = enumConfig.toSortedMap().map { (value, arr) ->
@@ -83,9 +78,6 @@ class EnumGenerator : AggregateGenerator {
             resultContext.putContext(tag, "EnumValueField", getString("enumValueField"))
             resultContext.putContext(tag, "EnumNameField", getString("enumNameField"))
             resultContext.putContext(tag, "EnumItems", enumItems)
-
-            // 添加 imports
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
 
             return resultContext
         }

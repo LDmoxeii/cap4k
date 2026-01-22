@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.codegen.generators.aggregate
 
 import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
-import com.only4.cap4k.plugin.codegen.imports.TranslationImportManager
 import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.misc.toSnakeCase
@@ -52,12 +51,11 @@ class EnumTranslationGenerator : AggregateGenerator {
             val tableName = SqlSchemaUtils.getTableName(table)
             val aggregate = resolveAggregateWithModule(tableName)
 
-            val importManager = TranslationImportManager()
-            importManager.addBaseImports()
-
             // 引入枚举类型
             val enumType = currentType.replace("Translation", "")
-            typeMapping[enumType]?.let { importManager.add(it) }
+            val fullEnumType = typeMapping[enumType]
+                ?: enumPackageMap[enumType]?.let { "$it.$enumType" }
+                ?: enumType
 
             val resultContext = baseMap.toMutableMap()
 
@@ -72,6 +70,7 @@ class EnumTranslationGenerator : AggregateGenerator {
             // 枚举与翻译类名
             resultContext.putContext(tag, "Enum", enumType)
             resultContext.putContext(tag, "EnumTranslation", currentType)
+            resultContext.putContext(tag, "EnumType", fullEnumType)
 
             // 常量名与值：VIDEO_STATUS_CODE_TO_DESC / "video_status_code_to_desc"
             val snake = toSnakeCase(enumType) ?: enumType
@@ -83,9 +82,7 @@ class EnumTranslationGenerator : AggregateGenerator {
             // 枚举描述字段，如 desc
             resultContext.putContext(tag, "EnumNameField", getString("enumNameField"))
 
-            // imports
-            importManager.add("${generatorFullName()}.Companion.${typeConst}")
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
+            resultContext.putContext(tag, "TranslationTypeImport", "${generatorFullName()}.Companion.${typeConst}")
 
             return resultContext
         }

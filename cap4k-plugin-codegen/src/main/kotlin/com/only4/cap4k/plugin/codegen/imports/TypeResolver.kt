@@ -34,7 +34,6 @@ class TypeResolver(
     )
 
     private val skipPackagePrefixes = listOf(
-        "kotlin",
         "kotlin.collections",
         "kotlin.ranges",
         "kotlin.text",

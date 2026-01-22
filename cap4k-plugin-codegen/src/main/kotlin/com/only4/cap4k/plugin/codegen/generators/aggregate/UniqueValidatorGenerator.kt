@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.codegen.generators.aggregate
 
 import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
-import com.only4.cap4k.plugin.codegen.imports.ValidatorImportManager
 import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.misc.toLowerCamelCase
@@ -50,21 +49,6 @@ class UniqueValidatorGenerator : AggregateGenerator {
         val deletedField = ctx.getString("deletedField")
         val allColumns = ctx.columnsMap[tableName]!!
 
-        val extraImports = mutableSetOf<String>()
-
-        fun addTypeImportIfNeeded(colMeta: Map<String, Any?>, typeName: String) {
-            val simple = typeName.removeSuffix("?")
-            if (SqlSchemaUtils.hasType(colMeta)) {
-                val mapped = ctx.typeMapping[simple]
-                if (!mapped.isNullOrBlank()) {
-                    extraImports += mapped
-                } else {
-                    val enumPkg = ctx.enumPackageMap[simple]
-                    if (!enumPkg.isNullOrBlank()) extraImports += "$enumPkg.$simple"
-                }
-            }
-        }
-
         val requestProps = selected?.get("columns")
             .let { it as? List<Map<String, Any?>> ?: emptyList() }
             .map { it["columnName"].toString() }
@@ -72,7 +56,6 @@ class UniqueValidatorGenerator : AggregateGenerator {
             .map { colName ->
                 val colMeta = allColumns.first { SqlSchemaUtils.getColumnName(it).equals(colName, ignoreCase = true) }
                 val type = SqlSchemaUtils.getColumnType(colMeta).removeSuffix("?")
-                addTypeImportIfNeeded(colMeta, type)
                 val camel = toLowerCamelCase(colName) ?: colName
                 mapOf(
                     "name" to camel,
@@ -93,16 +76,6 @@ class UniqueValidatorGenerator : AggregateGenerator {
         val entityIdPropDefault = "${entityCamel}Id"
         val entityIdVar = "${entityCamel}IdProperty"
 
-        // imports
-        val importManager = ValidatorImportManager().apply { addBaseImports() }
-        importManager.add(
-            "com.only4.cap4k.ddd.core.Mediator",
-            // kotlin reflect
-            "kotlin.reflect.full.memberProperties",
-            // unique query type
-            ctx.typeMapping[getQueryName(table)]!!
-        )
-
         with(ctx) {
             resultContext.putContext(tag, "modulePath", applicationPath)
             resultContext.putContext(tag, "templatePackage", refPackage(templatePackage[tag] ?: ""))
@@ -110,9 +83,6 @@ class UniqueValidatorGenerator : AggregateGenerator {
 
             resultContext.putContext(tag, "Validator", currentType)
             resultContext.putContext(tag, "Comment", SqlSchemaUtils.getComment(table))
-
-            extraImports.forEach { importManager.add(it) }
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
 
             resultContext.putContext(tag, "FieldParams", requestProps.map {
                 mapOf(
@@ -124,9 +94,10 @@ class UniqueValidatorGenerator : AggregateGenerator {
             resultContext.putContext(tag, "EntityIdParam", entityIdParam)
             resultContext.putContext(tag, "EntityIdDefault", entityIdPropDefault)
             resultContext.putContext(tag, "EntityIdVar", entityIdVar)
-            resultContext.putContext(tag, "IdType", idType)
+            resultContext.putContext(tag, "IdType", ctx.typeMapping[idType] ?: idType)
             resultContext.putContext(tag, "ExcludeIdParamName", "exclude${entityType}Id")
             resultContext.putContext(tag, "Query", getQueryName(table))
+            resultContext.putContext(tag, "QueryType", ctx.typeMapping[getQueryName(table)]!!)
         }
 
         return resultContext

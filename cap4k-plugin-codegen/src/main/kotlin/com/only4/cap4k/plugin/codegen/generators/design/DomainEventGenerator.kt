@@ -2,7 +2,6 @@ package com.only4.cap4k.plugin.codegen.generators.design
 
 import com.only4.cap4k.plugin.codegen.context.design.DesignContext
 import com.only4.cap4k.plugin.codegen.context.design.models.DomainEventDesign
-import com.only4.cap4k.plugin.codegen.imports.DomainEventImportManager
 import com.only4.cap4k.plugin.codegen.misc.concatPackage
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
@@ -35,12 +34,7 @@ class DomainEventGenerator : DesignGenerator {
 
         val fullAggregateType = ctx.typeMapping[design.aggregate]!!
 
-        val importManager = DomainEventImportManager()
-        importManager.addBaseImports()
-        importManager.add(fullAggregateType)
-
         val fieldContext = resolveRequestResponseFields(design, design.requestFields, design.responseFields)
-        importManager.add(*fieldContext.imports.toTypedArray())
 
         val resultContext = ctx.baseMap.toMutableMap()
 
@@ -53,13 +47,12 @@ class DomainEventGenerator : DesignGenerator {
             resultContext.putContext(tag, "DomainEvent", generatorName())
 
             resultContext.putContext(tag, "Aggregate", design.aggregate)
+            resultContext.putContext(tag, "AggregateType", fullAggregateType)
             resultContext.putContext(tag, "persist", design.persist.toString())
 
             resultContext.putContext(tag, "Comment", design.desc)
 
             resultContext.putContext(tag, "fields", fieldContext.requestFieldsForTemplate)
-
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
         }
 
         return resultContext

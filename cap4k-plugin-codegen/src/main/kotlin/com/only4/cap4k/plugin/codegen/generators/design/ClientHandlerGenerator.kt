@@ -2,7 +2,6 @@ package com.only4.cap4k.plugin.codegen.generators.design
 
 import com.only4.cap4k.plugin.codegen.context.design.DesignContext
 import com.only4.cap4k.plugin.codegen.context.design.models.ClientDesign
-import com.only4.cap4k.plugin.codegen.imports.ClientHandlerImportManager
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
 
@@ -34,10 +33,6 @@ class ClientHandlerGenerator : DesignGenerator {
         val clientName = design.className()
         val clientType = ctx.typeMapping[clientName]!!
 
-        val importManager = ClientHandlerImportManager()
-        importManager.addBaseImports()
-        importManager.add(clientType)
-
         val fieldContext = resolveRequestResponseFields(design, design.requestFields, design.responseFields)
 
         with(ctx) {
@@ -46,11 +41,10 @@ class ClientHandlerGenerator : DesignGenerator {
             resultContext.putContext(tag, "package", refPackage(design.`package`))
 
             resultContext.putContext(tag, "Client", clientName)
+            resultContext.putContext(tag, "ClientType", clientType)
             resultContext.putContext(tag, "Comment", design.desc)
 
             resultContext.putContext(tag, "responseFields", fieldContext.responseFieldsForTemplate)
-
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
         }
 
         return resultContext

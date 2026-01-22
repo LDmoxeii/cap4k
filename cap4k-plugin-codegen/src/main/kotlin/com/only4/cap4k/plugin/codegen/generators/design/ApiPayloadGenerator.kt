@@ -2,7 +2,6 @@ package com.only4.cap4k.plugin.codegen.generators.design
 
 import com.only4.cap4k.plugin.codegen.context.design.DesignContext
 import com.only4.cap4k.plugin.codegen.context.design.models.ApiPayloadDesign
-import com.only4.cap4k.plugin.codegen.imports.ApiPayloadImportManager
 import com.only4.cap4k.plugin.codegen.misc.refPackage
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
 
@@ -36,11 +35,6 @@ class ApiPayloadGenerator : DesignGenerator {
 
         val result = ctx.baseMap.toMutableMap()
 
-        // 推断 payload 类型
-        val payloadType = ApiPayloadImportManager.inferPayloadType(design.name)
-        val importManager = ApiPayloadImportManager(payloadType)
-        importManager.addBaseImports()
-
         with(ctx) {
             // 输出到 adapter 模块
             result.putContext(tag, "modulePath", ctx.adapterPath)
@@ -54,10 +48,6 @@ class ApiPayloadGenerator : DesignGenerator {
             val fieldContext = resolveRequestResponseFields(design, design.requestFields, design.responseFields)
             result.putContext(tag, "requestFields", fieldContext.requestFieldsForTemplate)
             result.putContext(tag, "responseFields", fieldContext.responseFieldsForTemplate)
-            importManager.add(*fieldContext.imports.toTypedArray())
-
-            // imports
-            result.putContext(tag, "imports", importManager.toImportLines())
         }
 
         return result

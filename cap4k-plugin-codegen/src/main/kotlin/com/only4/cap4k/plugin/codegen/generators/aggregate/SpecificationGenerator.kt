@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.codegen.generators.aggregate
 
 import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
-import com.only4.cap4k.plugin.codegen.imports.SpecificationImportManager
 import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.plugin.codegen.misc.concatPackage
 import com.only4.cap4k.plugin.codegen.misc.refPackage
@@ -55,11 +54,6 @@ class SpecificationGenerator : AggregateGenerator {
 
         val resultContext = ctx.baseMap.toMutableMap()
 
-        // 创建 ImportManager
-        val importManager = SpecificationImportManager()
-        importManager.addBaseImports()
-        importManager.add(fullEntityType)
-
         with(ctx) {
             resultContext.putContext(tag, "modulePath", domainPath)
             resultContext.putContext(tag, "templatePackage", refPackage(templatePackage[tag] ?: ""))
@@ -68,12 +62,11 @@ class SpecificationGenerator : AggregateGenerator {
             resultContext.putContext(tag, "Specification", currentType)
 
             resultContext.putContext(tag, "Entity", entityType)
+            resultContext.putContext(tag, "EntityType", fullEntityType)
             resultContext.putContext(tag, "fullEntityType", fullEntityType)
             resultContext.putContext(tag, "Aggregate", toUpperCamelCase(aggregate) ?: aggregate)
 
             resultContext.putContext(tag, "Comment", SqlSchemaUtils.getComment(table))
-
-            resultContext.putContext(tag, "imports", importManager.toImportLines())
         }
 
 

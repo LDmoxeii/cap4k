@@ -1,4 +1,7 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
+{{ use("org.springframework.stereotype.Service") }}
+{{ use("com.only4.cap4k.ddd.core.application.query.ListQuery") }}
+{{ use(QueryType) }}
 {{ imports() }}
 
 /**

@@ -1,4 +1,6 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.Aggregate") }}
+{{ use(FactoryType) }}
 {{ imports() }}
 
 /**
