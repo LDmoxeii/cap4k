@@ -5,13 +5,13 @@ package {{ basePackage }}{{ templatePackage }}{{ package }}
 {{ use("org.hibernate.annotations.DynamicInsert") -}}
 {{ use("org.hibernate.annotations.DynamicUpdate") -}}
 {{ use(IdentityType) -}}
-{%- if BaseClass %}{{ use(BaseClass) }}{%- endif %}
-{%- if hasSoftDelete %}{{ use("org.hibernate.annotations.SQLDelete") }}{{ use("org.hibernate.annotations.Where") }}{%- endif %}
-{%- if needsIdGenerator %}{{ use("org.hibernate.annotations.GenericGenerator") }}{%- endif %}
-{%- if hasCollectionRelation %}{{ use("org.hibernate.annotations.Fetch") }}{{ use("org.hibernate.annotations.FetchMode") }}{%- endif %}
-{%- if isValueObject %}{{ use("com.only4.cap4k.ddd.core.domain.aggregate.ValueObject") }}{%- endif %}
-{%- for column in columns %}{%- if column.converterType %}{{ use(column.converterType) }}{%- endif %}{%- endfor %}
-{%- for relation in relations %}{{ use(relation.fullEntityType) }}{%- endfor %}
+{%- if BaseClass %}{{ use(BaseClass) -}}{%- endif -%}
+{%- if hasSoftDelete %}{{ use("org.hibernate.annotations.SQLDelete") -}}{{ use("org.hibernate.annotations.Where") -}}{%- endif -%}
+{%- if needsIdGenerator %}{{ use("org.hibernate.annotations.GenericGenerator") -}}{%- endif -%}
+{%- if hasCollectionRelation %}{{ use("org.hibernate.annotations.Fetch") -}}{{ use("org.hibernate.annotations.FetchMode") -}}{%- endif -%}
+{%- if isValueObject %}{{ use("com.only4.cap4k.ddd.core.domain.aggregate.ValueObject") -}}{%- endif -%}
+{%- for column in columns %}{%- if column.converterType %}{{ use(column.converterType) -}}{%- endif -%}{%- endfor -%}
+{%- for relation in relations %}{{ use(relation.fullEntityType) -}}{%- endfor -%}
 {{ imports() }}
 
 /**

@@ -13,7 +13,8 @@ package {{ basePackage }}{{ templatePackage }}{{ package }}
  * @date {{ date }}
  */
 @Service
-class {{ Client }}Handler : RequestHandler<{{ Client }}.Request, {{ Client }}.Response> {
+class {{ Client }}Handler :
+    RequestHandler<{{ Client }}.Request, {{ Client }}.Response> {
     override fun exec(request: {{ Client }}.Request): {{ Client }}.Response {
         return {{ Client }}.Response(
 {%- if responseFields|length > 0 %}

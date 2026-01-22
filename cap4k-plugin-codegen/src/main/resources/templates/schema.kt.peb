@@ -9,13 +9,13 @@ package {{ basePackage }}{{ templatePackage }}{{ package }}
 {{ use(schemaBasePackage ~ ".SubqueryConfigure") -}}
 {{ use(schemaBasePackage ~ ".Field") -}}
 {{ use(entityTypeFqn) -}}
-{%- if isAggregateRoot %}{{ use("com.only4.cap4k.ddd.domain.repo.JpaPredicate") }}{%- endif %}
-{%- if isAggregateRoot and generateAggregate %}{{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate") }}{{ use(aggregateTypeFqn) }}{%- endif %}
-{%- if isAggregateRoot and generateAggregate and repositorySupportQuerydsl %}
+{%- if isAggregateRoot %}{{ use("com.only4.cap4k.ddd.domain.repo.JpaPredicate") -}}{%- endif -%}
+{%- if isAggregateRoot and generateAggregate %}{{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate") -}}{{ use(aggregateTypeFqn) -}}{%- endif -%}
+{%- if isAggregateRoot and generateAggregate and repositorySupportQuerydsl -%}
 {{ use("com.querydsl.core.types.OrderSpecifier") -}}
 {{ use("com.only4.cap4k.ddd.domain.repo.querydsl.QuerydslPredicate") -}}
 {{ use(qEntityTypeFqn) -}}
-{%- endif %}
+{%- endif -%}
 {{ imports() }}
 
 /**

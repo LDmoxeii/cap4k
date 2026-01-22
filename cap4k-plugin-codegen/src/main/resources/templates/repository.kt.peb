@@ -7,10 +7,10 @@ package {{ basePackage }}{{ templatePackage }}{{ package }}
 {{ use("com.only4.cap4k.ddd.domain.repo.AbstractJpaRepository") -}}
 {{ use("org.springframework.stereotype.Component") -}}
 {{ use(AggregateType) -}}
-{%- if supportQuerydsl %}
+{%- if supportQuerydsl -%}
 {{ use("org.springframework.data.querydsl.QuerydslPredicateExecutor") -}}
 {{ use("com.only4.cap4k.ddd.domain.repo.querydsl.AbstractQuerydslRepository") -}}
-{%- endif %}
+{%- endif -%}
 {{ imports() }}
 
 /**

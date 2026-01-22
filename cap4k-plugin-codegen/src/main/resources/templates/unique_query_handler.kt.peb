@@ -7,7 +7,7 @@ package {{ basePackage }}{{ templatePackage }}{{ package }}
 {{ use("org.babyfish.jimmer.sql.kt.ast.expression.`ne?`") -}}
 {{ use("org.babyfish.jimmer.sql.kt.exists") -}}
 {{ use(QueryType) -}}
-{%- for modelImport in shareModelImports %}{{ use(modelImport) }}{%- endfor %}
+{%- for modelImport in shareModelImports %}{{ use(modelImport) -}}{%- endfor -%}
 {{ imports() }}
 
 /**
