@@ -52,7 +52,9 @@ class DesignElementCollector(
         if (fqcn != null) {
             when {
                 declaration.isOrImplements(requestParamFq) -> collectRequestElement(declaration, fqcn)
-                declaration.kind == ClassKind.OBJECT && fqcn.contains(".adapter.portal.api.payload.") ->
+                declaration.kind == ClassKind.OBJECT &&
+                    fqcn.contains(".adapter.portal.api.payload.") &&
+                    declaration.parent !is IrClass ->
                     collectPayloadElement(declaration, fqcn)
                 declaration.hasAnnotation(domainEventAnnFq) || declaration.readAggregateInfo(aggregateAnnFq)?.type == AGG_TYPE_DOMAIN_EVENT ->
                     collectDomainEventElement(declaration, fqcn)

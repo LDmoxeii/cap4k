@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.codeanalysis.compiler
 
 import com.tschuchort.compiletesting.SourceFile
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -57,6 +58,9 @@ class DesignElementExtractionTest {
                         data class Request(val globalId: String, val account: AccountInfo)
                         data class Item(val result: Boolean)
                         data class AccountInfo(val accountNumber: String)
+                        interface Converter {
+                            companion object
+                        }
                     }
                 """.trimIndent()
             )
@@ -71,5 +75,7 @@ class DesignElementExtractionTest {
         assertTrue(json.contains("\"name\":\"UserCreated\""))
         assertTrue(json.contains("\"entity\":\"User\""))
         assertTrue(json.contains("\"persist\":true"))
+        assertFalse(json.contains("\"package\":\"account.BatchSaveAccountList.Converter\""))
+        assertFalse(json.contains("\"name\":\"companion\""))
     }
 }
