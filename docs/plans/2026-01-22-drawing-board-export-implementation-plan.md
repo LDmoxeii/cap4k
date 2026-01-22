@@ -295,60 +295,89 @@ git commit -m "feat: add arch template locator for drawing board output"
 
 ---
 
-### Task 5: Add Drawing Board Export Gradle Plugin
+### Task 5: Add Drawing Board Export Task in Codegen
 
 **Files:**
-- Create: `cap4k-plugin-code-analysis-drawing-board/build.gradle.kts`
-- Create: `cap4k-plugin-code-analysis-drawing-board/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/drawingboard/Cap4kDrawingBoardPlugin.kt`
-- Create: `cap4k-plugin-code-analysis-drawing-board/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/drawingboard/DrawingBoardMergeTask.kt`
-- Create: `cap4k-plugin-code-analysis-drawing-board/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/drawingboard/DrawingBoardMergeTaskTest.kt`
-- Modify: `settings.gradle.kts`
+- Modify: `cap4k-plugin-codegen/build.gradle.kts`
+- Modify: `cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/gradle/CodegenPlugin.kt`
+- Create: `cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/gradle/DrawingBoardExtension.kt`
+- Create: `cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/gradle/DrawingBoardExportTask.kt`
+- Create: `cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/gradle/DrawingBoardMerger.kt`
+- Test: `cap4k-plugin-codegen/src/test/kotlin/com/only4/cap4k/plugin/codegen/gradle/DrawingBoardMergerTest.kt`
 
 **Step 1: Write the failing test**
 
 ```kotlin
-@Test
-fun `merges design elements and writes drawing_board json`() {
-    val inputDir1 = tempDirWithDesignElements("""[{"tag":"cmd","package":"auth","name":"IssueToken"}]""")
-    val inputDir2 = tempDirWithDesignElements("""[{"tag":"payload","package":"account","name":"batchSaveAccountList"}]""")
+package com.only4.cap4k.plugin.codegen.gradle
 
-    val output = tempDir()
-    val task = DrawingBoardMergeTask().apply {
-        inputDirs.set(listOf(inputDir1, inputDir2))
-        outputDir.set(output)
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import java.nio.file.Files
+
+class DrawingBoardMergerTest {
+    @Test
+    fun `merges design elements and writes drawing_board json`() {
+        val inputDir1 = Files.createTempDirectory("db1")
+        val inputDir2 = Files.createTempDirectory("db2")
+        inputDir1.resolve("design-elements.json").toFile()
+            .writeText("""[{"tag":"cmd","package":"auth","name":"IssueToken"}]""")
+        inputDir2.resolve("design-elements.json").toFile()
+            .writeText("""[{"tag":"payload","package":"account","name":"batchSaveAccountList"}]""")
+
+        val output = Files.createTempFile("drawing_board", ".json")
+        DrawingBoardMerger.merge(listOf(inputDir1, inputDir2), output)
+
+        val json = output.toFile().readText()
+        assertTrue(json.contains("\"IssueToken\""))
+        assertTrue(json.contains("\"batchSaveAccountList\""))
     }
-    task.merge()
-
-    val json = output.resolve("drawing_board.json").readText()
-    assertTrue(json.contains("\"IssueToken\""))
-    assertTrue(json.contains("\"batchSaveAccountList\""))
 }
 ```
 
 **Step 2: Run test to verify it fails**
 
-Run: `.\gradlew :cap4k-plugin-code-analysis-drawing-board:test --tests "com.only4.cap4k.plugin.codeanalysis.drawingboard.DrawingBoardMergeTaskTest"`  
-Expected: FAIL (task missing / output missing)
+Run: `.\gradlew :cap4k-plugin-codegen:test --tests "com.only4.cap4k.plugin.codegen.gradle.DrawingBoardMergerTest"`  
+Expected: FAIL (missing merger / output missing)
 
 **Step 3: Write minimal implementation**
 
-- Implement a merge helper that:
-  - Reads `design-elements.json` from each input dir.
-  - Merges by `(tag, package, name)`.
-  - Writes pretty JSON to `drawing_board.json` in `outputDir`.
-- Wire plugin + task with Gradle properties (inputDirs, outputDir, outputTag, encoding).
+- Add `DrawingBoardMerger.merge()` stub that writes `[]`.
+- Add `implementation(project(":cap4k-plugin-code-analysis-core"))` to `cap4k-plugin-codegen/build.gradle.kts`.
+- Create `DrawingBoardExtension` with:
+  - `inputDirs: ListProperty<Directory>`
+  - `outputTag: Property<String>` (default `drawing_board`)
+- Add `DrawingBoardExportTask` that:
+  - Resolves input dirs (default from module build dirs, override if set).
+  - Uses `ArchTemplateLocator` + `CodegenExtension` to resolve output file path.
+  - Calls `DrawingBoardMerger.merge(...)`.
+- Wire `cap4kDrawingBoard` task + extension in `CodegenPlugin.kt`.
 
-**Step 4: Run test to verify it passes**
+**Step 4: Run test to verify it fails**
 
-Run: `.\gradlew :cap4k-plugin-code-analysis-drawing-board:test --tests "com.only4.cap4k.plugin.codeanalysis.drawingboard.DrawingBoardMergeTaskTest"`  
+Run: `.\gradlew :cap4k-plugin-codegen:test --tests "com.only4.cap4k.plugin.codegen.gradle.DrawingBoardMergerTest"`  
+Expected: FAIL (stub output)
+
+**Step 5: Implement merge logic**
+
+- Parse each `design-elements.json` via Gson into `List<DesignElement>`.
+- Merge by `(tag, package, name)` with first-win semantics.
+- Write pretty JSON to the output file.
+
+**Step 6: Run test to verify it passes**
+
+Run: `.\gradlew :cap4k-plugin-codegen:test --tests "com.only4.cap4k.plugin.codegen.gradle.DrawingBoardMergerTest"`  
 Expected: PASS
 
-**Step 5: Commit**
+**Step 7: Commit**
 
 ```bash
-git add cap4k-plugin-code-analysis-drawing-board \
-        settings.gradle.kts
-git commit -m "feat: add drawing board export plugin"
+git add cap4k-plugin-codegen/build.gradle.kts \
+        cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/gradle/CodegenPlugin.kt \
+        cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/gradle/DrawingBoardExtension.kt \
+        cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/gradle/DrawingBoardExportTask.kt \
+        cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/gradle/DrawingBoardMerger.kt \
+        cap4k-plugin-codegen/src/test/kotlin/com/only4/cap4k/plugin/codegen/gradle/DrawingBoardMergerTest.kt
+git commit -m "feat: add drawing board export task to codegen"
 ```
 
 ---
@@ -358,7 +387,6 @@ git commit -m "feat: add drawing board export plugin"
 **Files:**
 - Modify: `cap4k/cap4k-ddd-codegen-template-multi-nested.json`
 - Modify: `only-danmuku/cap4k-ddd-codegen-template-multi-nested.json`
-- Modify (optional): `only-danmuku/build.gradle.kts`
 
 **Step 1: Write the failing test**
 
@@ -405,20 +433,12 @@ git commit -m "feat: add drawing_board template node"
 **Step 1: Update build config**
 
 ```kotlin
-plugins {
-    id("com.only4.cap4k.plugin.codeanalysis.drawing-board") version "0.4.2-SNAPSHOT"
-}
-```
-
-**Step 2: Add task config**
-
-```kotlin
 cap4kDrawingBoard {
     outputTag.set("drawing_board")
 }
 ```
 
-**Step 3: Commit**
+**Step 2: Commit**
 
 ```bash
 git add only-danmuku/build.gradle.kts
