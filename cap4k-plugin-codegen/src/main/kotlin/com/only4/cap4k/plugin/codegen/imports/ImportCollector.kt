@@ -36,25 +36,8 @@ class ImportCollector {
         }.sorted()
 
         val result = mutableListOf<String>()
-        result.add("")
-
-        var lastPackageGroup: String? = null
         filtered.forEach { importStr ->
-            val currentGroup = when {
-                importStr.startsWith("com.only4.cap4k") -> "cap4k"
-                importStr.startsWith("org.springframework") -> "spring"
-                importStr.startsWith("jakarta") -> "jakarta"
-                importStr.startsWith("org.hibernate") -> "hibernate"
-                importStr.startsWith("org.slf4j") -> "slf4j"
-                else -> "other"
-            }
-
-            if (lastPackageGroup != null && lastPackageGroup != currentGroup) {
-                result.add("")
-            }
-
             result.add("import $importStr")
-            lastPackageGroup = currentGroup
         }
 
         return result

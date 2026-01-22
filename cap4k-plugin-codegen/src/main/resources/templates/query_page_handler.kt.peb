@@ -1,8 +1,9 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{{ use("org.springframework.stereotype.Service") }}
-{{ use("com.only4.cap4k.ddd.core.application.query.PageQuery") }}
-{{ use("com.only4.cap4k.ddd.core.share.PageData") }}
-{{ use(QueryType) }}
+
+{{ use("org.springframework.stereotype.Service") -}}
+{{ use("com.only4.cap4k.ddd.core.application.query.PageQuery") -}}
+{{ use("com.only4.cap4k.ddd.core.share.PageData") -}}
+{{ use(QueryType) -}}
 {{ imports() }}
 
 /**
@@ -27,4 +28,3 @@ class {{ QueryHandler }}(
         )
     }
 }
-

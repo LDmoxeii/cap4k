@@ -1,11 +1,12 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{{ use("org.springframework.stereotype.Service") }}
-{{ use("com.only4.cap4k.ddd.core.application.query.Query") }}
-{{ use("org.babyfish.jimmer.sql.kt.KSqlClient") }}
-{{ use("org.babyfish.jimmer.sql.kt.ast.expression.eq") }}
-{{ use("org.babyfish.jimmer.sql.kt.ast.expression.`ne?`") }}
-{{ use("org.babyfish.jimmer.sql.kt.exists") }}
-{{ use(QueryType) }}
+
+{{ use("org.springframework.stereotype.Service") -}}
+{{ use("com.only4.cap4k.ddd.core.application.query.Query") -}}
+{{ use("org.babyfish.jimmer.sql.kt.KSqlClient") -}}
+{{ use("org.babyfish.jimmer.sql.kt.ast.expression.eq") -}}
+{{ use("org.babyfish.jimmer.sql.kt.ast.expression.`ne?`") -}}
+{{ use("org.babyfish.jimmer.sql.kt.exists") -}}
+{{ use(QueryType) -}}
 {%- for modelImport in shareModelImports %}{{ use(modelImport) }}{%- endfor %}
 {{ imports() }}
 
@@ -31,4 +32,3 @@ class {{ QueryHandler }}(
         )
     }
 }
-

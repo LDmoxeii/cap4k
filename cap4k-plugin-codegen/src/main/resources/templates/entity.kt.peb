@@ -1,9 +1,10 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") }}
-{{ use("jakarta.persistence.*") }}
-{{ use("org.hibernate.annotations.DynamicInsert") }}
-{{ use("org.hibernate.annotations.DynamicUpdate") }}
-{{ use(IdentityType) }}
+
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
+{{ use("jakarta.persistence.*") -}}
+{{ use("org.hibernate.annotations.DynamicInsert") -}}
+{{ use("org.hibernate.annotations.DynamicUpdate") -}}
+{{ use(IdentityType) -}}
 {%- if BaseClass %}{{ use(BaseClass) }}{%- endif %}
 {%- if hasSoftDelete %}{{ use("org.hibernate.annotations.SQLDelete") }}{{ use("org.hibernate.annotations.Where") }}{%- endif %}
 {%- if needsIdGenerator %}{{ use("org.hibernate.annotations.GenericGenerator") }}{%- endif %}

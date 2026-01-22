@@ -1,19 +1,20 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{{ use("org.springframework.data.jpa.domain.Specification") }}
-{{ use("jakarta.persistence.criteria.*") }}
-{{ use(schemaBasePackage ~ ".SchemaSpecification") }}
-{{ use(schemaBasePackage ~ ".PredicateBuilder") }}
-{{ use(schemaBasePackage ~ ".OrderBuilder") }}
-{{ use(schemaBasePackage ~ ".ExpressionBuilder") }}
-{{ use(schemaBasePackage ~ ".SubqueryConfigure") }}
-{{ use(schemaBasePackage ~ ".Field") }}
-{{ use(entityTypeFqn) }}
+
+{{ use("org.springframework.data.jpa.domain.Specification") -}}
+{{ use("jakarta.persistence.criteria.*") -}}
+{{ use(schemaBasePackage ~ ".SchemaSpecification") -}}
+{{ use(schemaBasePackage ~ ".PredicateBuilder") -}}
+{{ use(schemaBasePackage ~ ".OrderBuilder") -}}
+{{ use(schemaBasePackage ~ ".ExpressionBuilder") -}}
+{{ use(schemaBasePackage ~ ".SubqueryConfigure") -}}
+{{ use(schemaBasePackage ~ ".Field") -}}
+{{ use(entityTypeFqn) -}}
 {%- if isAggregateRoot %}{{ use("com.only4.cap4k.ddd.domain.repo.JpaPredicate") }}{%- endif %}
 {%- if isAggregateRoot and generateAggregate %}{{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate") }}{{ use(aggregateTypeFqn) }}{%- endif %}
 {%- if isAggregateRoot and generateAggregate and repositorySupportQuerydsl %}
-{{ use("com.querydsl.core.types.OrderSpecifier") }}
-{{ use("com.only4.cap4k.ddd.domain.repo.querydsl.QuerydslPredicate") }}
-{{ use(qEntityTypeFqn) }}
+{{ use("com.querydsl.core.types.OrderSpecifier") -}}
+{{ use("com.only4.cap4k.ddd.domain.repo.querydsl.QuerydslPredicate") -}}
+{{ use(qEntityTypeFqn) -}}
 {%- endif %}
 {{ imports() }}
 

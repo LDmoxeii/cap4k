@@ -1,7 +1,8 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") }}
-{{ use("jakarta.persistence.AttributeConverter") }}
-{{ use("com.only.engine.exception.KnownException") }}
+
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
+{{ use("jakarta.persistence.AttributeConverter") -}}
+{{ use("com.only.engine.exception.KnownException") -}}
 {{ imports() }}
 
 /**

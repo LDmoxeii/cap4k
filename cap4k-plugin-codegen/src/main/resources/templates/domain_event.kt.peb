@@ -1,7 +1,8 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") }}
-{{ use("com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent") }}
-{{ use(AggregateType) }}
+
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent") -}}
+{{ use(AggregateType) -}}
 {{ imports() }}
 
 

@@ -1,9 +1,10 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory") }}
-{{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload") }}
-{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") }}
-{{ use("org.springframework.stereotype.Service") }}
-{{ use(EntityType) }}
+
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
+{{ use("org.springframework.stereotype.Service") -}}
+{{ use(EntityType) -}}
 {{ imports() }}
 
 /**

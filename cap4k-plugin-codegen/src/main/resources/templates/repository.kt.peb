@@ -1,14 +1,15 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{{ use("org.springframework.data.jpa.repository.JpaRepository") }}
-{{ use("org.springframework.data.jpa.repository.JpaSpecificationExecutor") }}
-{{ use("org.springframework.stereotype.Repository") }}
-{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") }}
-{{ use("com.only4.cap4k.ddd.domain.repo.AbstractJpaRepository") }}
-{{ use("org.springframework.stereotype.Component") }}
-{{ use(AggregateType) }}
+
+{{ use("org.springframework.data.jpa.repository.JpaRepository") -}}
+{{ use("org.springframework.data.jpa.repository.JpaSpecificationExecutor") -}}
+{{ use("org.springframework.stereotype.Repository") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
+{{ use("com.only4.cap4k.ddd.domain.repo.AbstractJpaRepository") -}}
+{{ use("org.springframework.stereotype.Component") -}}
+{{ use(AggregateType) -}}
 {%- if supportQuerydsl %}
-{{ use("org.springframework.data.querydsl.QuerydslPredicateExecutor") }}
-{{ use("com.only4.cap4k.ddd.domain.repo.querydsl.AbstractQuerydslRepository") }}
+{{ use("org.springframework.data.querydsl.QuerydslPredicateExecutor") -}}
+{{ use("com.only4.cap4k.ddd.domain.repo.querydsl.AbstractQuerydslRepository") -}}
 {%- endif %}
 {{ imports() }}
 

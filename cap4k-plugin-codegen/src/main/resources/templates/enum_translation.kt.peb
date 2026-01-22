@@ -1,10 +1,11 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{{ use("com.only.engine.translation.annotation.TranslationType") }}
-{{ use("com.only.engine.translation.core.TranslationInterface") }}
-{{ use("com.only.engine.translation.core.BatchTranslationInterface") }}
-{{ use("org.springframework.stereotype.Component") }}
-{{ use(EnumType) }}
-{{ use(TranslationTypeImport) }}
+
+{{ use("com.only.engine.translation.annotation.TranslationType") -}}
+{{ use("com.only.engine.translation.core.TranslationInterface") -}}
+{{ use("com.only.engine.translation.core.BatchTranslationInterface") -}}
+{{ use("org.springframework.stereotype.Component") -}}
+{{ use(EnumType) -}}
+{{ use(TranslationTypeImport) -}}
 {{ imports() }}
 
 /**
@@ -49,4 +50,3 @@ class {{ EnumTranslation }} :
         return keyToCode.mapValues { (_, c) -> c?.let { codeToDesc[it] } }
     }
 }
-

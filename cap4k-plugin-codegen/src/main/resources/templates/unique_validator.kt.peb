@@ -1,12 +1,13 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{{ use("jakarta.validation.Constraint") }}
-{{ use("jakarta.validation.ConstraintValidator") }}
-{{ use("jakarta.validation.ConstraintValidatorContext") }}
-{{ use("jakarta.validation.Payload") }}
-{{ use("kotlin.reflect.KClass") }}
-{{ use("com.only4.cap4k.ddd.core.Mediator") }}
-{{ use("kotlin.reflect.full.memberProperties") }}
-{{ use(QueryType) }}
+
+{{ use("jakarta.validation.Constraint") -}}
+{{ use("jakarta.validation.ConstraintValidator") -}}
+{{ use("jakarta.validation.ConstraintValidatorContext") -}}
+{{ use("jakarta.validation.Payload") -}}
+{{ use("kotlin.reflect.KClass") -}}
+{{ use("com.only4.cap4k.ddd.core.Mediator") -}}
+{{ use("kotlin.reflect.full.memberProperties") -}}
+{{ use(QueryType) -}}
 {{ imports() }}
 
 /**

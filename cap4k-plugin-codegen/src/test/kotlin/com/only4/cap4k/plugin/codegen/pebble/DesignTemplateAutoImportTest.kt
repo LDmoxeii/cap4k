@@ -73,4 +73,32 @@ class DesignTemplateAutoImportTest {
         val rendered = renderString(template, context)
         assertTrue(rendered.contains("import kotlin.reflect.KClass"))
     }
+
+    @Test
+    fun `client handler wraps request handler line`() {
+        val template = loadTemplate("client_handler.kt.peb")
+        val context = mapOf(
+            "basePackage" to "com.example",
+            "templatePackage" to "",
+            "package" to "",
+            "date" to "2026-01-21",
+            "Client" to "ReportVideoSearchCountaaaCli",
+            "Comment" to "desc",
+            "responseFields" to emptyList<Map<String, String>>(),
+            "ClientType" to "com.example.app.ReportVideoSearchCountaaaCli",
+            "typeMapping" to emptyMap<String, String>()
+        )
+
+        val rendered = renderString(template, context)
+            .replace("\r\n", "\n")
+        assertTrue(
+            rendered.contains(
+                "class ReportVideoSearchCountaaaCliHandler :\n" +
+                    "    RequestHandler<ReportVideoSearchCountaaaCli.Request, " +
+                    "ReportVideoSearchCountaaaCli.Response> {"
+            )
+        )
+        assertTrue(rendered.contains("package com.example\n\nimport "))
+        assertTrue(!rendered.endsWith("\n\n\n"))
+    }
 }

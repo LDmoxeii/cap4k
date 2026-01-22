@@ -1,9 +1,10 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{{ use("jakarta.validation.Constraint") }}
-{{ use("jakarta.validation.ConstraintValidator") }}
-{{ use("jakarta.validation.ConstraintValidatorContext") }}
-{{ use("jakarta.validation.Payload") }}
-{{ use("kotlin.reflect.KClass") }}
+
+{{ use("jakarta.validation.Constraint") -}}
+{{ use("jakarta.validation.ConstraintValidator") -}}
+{{ use("jakarta.validation.ConstraintValidatorContext") -}}
+{{ use("jakarta.validation.Payload") -}}
+{{ use("kotlin.reflect.KClass") -}}
 {{ imports() }}
 
 /**

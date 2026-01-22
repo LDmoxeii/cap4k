@@ -1,7 +1,8 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{{ use("org.springframework.context.event.EventListener") }}
-{{ use("org.springframework.stereotype.Service") }}
-{{ use(DomainEventType) }}
+
+{{ use("org.springframework.context.event.EventListener") -}}
+{{ use("org.springframework.stereotype.Service") -}}
+{{ use(DomainEventType) -}}
 {{ imports() }}
 
 /**

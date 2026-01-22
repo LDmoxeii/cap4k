@@ -1,5 +1,6 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
-{{ use("com.only4.cap4k.ddd.core.share.PageParam") }}
+
+{{ use("com.only4.cap4k.ddd.core.share.PageParam") -}}
 {{ imports() }}
 
 /**
