@@ -60,34 +60,12 @@ class ApiPayloadGenerator : DesignGenerator {
 
     override fun getDefaultTemplateNodes(): List<TemplateNode> {
         return listOf(
-            // 单对象（非 List/Page）
             TemplateNode().apply {
                 type = "file"
                 tag = this@ApiPayloadGenerator.tag
-                pattern = "^(?!.*(List|list|Page|page)).*$"
                 name = "{{ Payload }}.kt"
                 format = "resource"
-                data = "templates/api_payload_single.kt.peb"
-                conflict = "skip"
-            },
-            // 列表
-            TemplateNode().apply {
-                type = "file"
-                tag = this@ApiPayloadGenerator.tag
-                pattern = "^.*(List|list).*$"
-                name = "{{ Payload }}.kt"
-                format = "resource"
-                data = "templates/api_payload_list.kt.peb"
-                conflict = "skip"
-            },
-            // 分页
-            TemplateNode().apply {
-                type = "file"
-                tag = this@ApiPayloadGenerator.tag
-                pattern = "^.*(Page|page).*$"
-                name = "{{ Payload }}.kt"
-                format = "resource"
-                data = "templates/api_payload_page.kt.peb"
+                data = "templates/api_payload.kt.peb"
                 conflict = "skip"
             }
         )
