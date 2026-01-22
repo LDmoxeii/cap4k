@@ -53,6 +53,7 @@ class DomainEventGenerator : DesignGenerator {
             resultContext.putContext(tag, "Comment", design.desc)
 
             resultContext.putContext(tag, "fields", fieldContext.requestFieldsForTemplate)
+            resultContext.putContext(tag, "nestedTypes", fieldContext.nestedTypesForTemplate)
         }
 
         return resultContext

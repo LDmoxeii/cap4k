@@ -41,6 +41,7 @@ class ClientGenerator : DesignGenerator {
             val fieldContext = resolveRequestResponseFields(design, design.requestFields, design.responseFields)
             resultContext.putContext(tag, "requestFields", fieldContext.requestFieldsForTemplate)
             resultContext.putContext(tag, "responseFields", fieldContext.responseFieldsForTemplate)
+            resultContext.putContext(tag, "nestedTypes", fieldContext.nestedTypesForTemplate)
         }
 
         return resultContext

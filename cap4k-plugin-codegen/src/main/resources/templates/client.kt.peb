@@ -29,4 +29,13 @@ object {{ Client }} {
 {%- else %}
     class Response
 {%- endif %}
+{% if nestedTypes|length > 0 %}
+{%- for nested in nestedTypes %}
+    data class {{ nested.name }}(
+{%- for field in nested.fields %}
+        val {{ field.name }}: {{ type(field.type) }}{% if field.defaultValue is defined %} = {{ field.defaultValue }}{% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %}
+    )
+{%- endfor %}
+{%- endif %}
 }

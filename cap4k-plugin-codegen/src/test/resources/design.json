@@ -8,10 +8,27 @@
     "requestFields": [
       { "name": "videoId", "type": "Long" },
       { "name": "customerId" },
-      { "name": "note", "type": "String", "nullable": true, "defaultValue": "null" }
+      { "name": "note", "type": "String", "nullable": true, "defaultValue": "ABC" }
     ],
     "responseFields": [
       { "name": "taskId", "type": "String" }
+    ]
+  },
+  {
+    "tag": "payload",
+    "package": "account",
+    "name": "batchSaveAccountList",
+    "desc": "批量新增客商账户信息（来源：付款申请）",
+    "requestFields": [
+      { "name": "globalId", "type": "Long", "required": true, "desc": "客商全局Id" },
+      { "name": "accountList", "type": "List<Item>", "required": true, "desc": "账户信息列表" },
+      { "name": "accountList[].accountNumber", "type": "String", "required": true, "desc": "账号" },
+      { "name": "accountList[].accountName", "type": "String", "required": true, "desc": "户名" },
+      { "name": "accountList[].bankName", "type": "String", "required": true, "desc": "银行名称" },
+      { "name": "accountList[].currency", "type": "String", "required": true, "desc": "币种" }
+    ],
+    "responseFields": [
+      { "name": "result", "type": "Boolean", "desc": "处理成功返回 true" }
     ]
   },
   {

@@ -48,6 +48,7 @@ class ApiPayloadGenerator : DesignGenerator {
             val fieldContext = resolveRequestResponseFields(design, design.requestFields, design.responseFields)
             result.putContext(tag, "requestFields", fieldContext.requestFieldsForTemplate)
             result.putContext(tag, "responseFields", fieldContext.responseFieldsForTemplate)
+            result.putContext(tag, "nestedTypes", fieldContext.nestedTypesForTemplate)
         }
 
         return result
