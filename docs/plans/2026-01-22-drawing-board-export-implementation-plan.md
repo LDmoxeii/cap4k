@@ -10,12 +10,107 @@
 
 ---
 
-### Task 1: Add Design Models + JSON Writer (Core + Compiler)
+### Task 1: Test Infrastructure for Compiler Plugin
+
+**Files:**
+- Modify: `cap4k-plugin-code-analysis-compiler/build.gradle.kts`
+- Create: `cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/TestCompileHelper.kt`
+- Test: `cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/TestCompileHelperTest.kt`
+
+**Step 1: Write the failing test (smoke harness)**
+
+```kotlin
+package com.only4.cap4k.plugin.codeanalysis.compiler
+
+import com.tschuchort.compiletesting.SourceFile
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+
+class TestCompileHelperTest {
+    @Test
+    fun `compile helper emits output dir`() {
+        val outputDir = compileWithCap4kPlugin(
+            listOf(
+                SourceFile.kotlin(
+                    "Ping.kt",
+                    "package demo; class Ping : com.only4.cap4k.ddd.core.application.RequestParam"
+                )
+            )
+        )
+        assertTrue(outputDir.resolve("nodes.json").toFile().exists())
+    }
+}
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `.\gradlew :cap4k-plugin-code-analysis-compiler:test --tests "com.only4.cap4k.plugin.codeanalysis.compiler.TestCompileHelperTest"`  
+Expected: FAIL (helper missing / no test deps)
+
+**Step 3: Add test dependencies**
+
+Update `cap4k-plugin-code-analysis-compiler/build.gradle.kts`:
+
+```kotlin
+dependencies {
+    implementation(project(":cap4k-plugin-code-analysis-core"))
+    compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.2.20")
+
+    testImplementation(platform(libs.junit.bom))
+    testImplementation("org.junit.jupiter:junit-jupiter-api")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation(libs.kotlin.compile.testing)
+}
+```
+
+**Step 4: Add compile helper (minimal)**
+
+Create `TestCompileHelper.kt`:
+
+```kotlin
+package com.only4.cap4k.plugin.codeanalysis.compiler
+
+import com.tschuchort.compiletesting.KotlinCompilation
+import com.tschuchort.compiletesting.SourceFile
+import java.io.File
+import java.nio.file.Path
+import org.junit.jupiter.api.Assertions.assertEquals
+
+fun compileWithCap4kPlugin(sources: List<SourceFile>): Path {
+    val compilation = KotlinCompilation().apply {
+        this.sources = sources
+        inheritClassPath = true
+        compilerPluginRegistrars = listOf(Cap4kCodeAnalysisCompilerRegistrar())
+        messageOutputStream = System.out
+    }
+    val result = compilation.compile()
+    assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
+    return File(compilation.workingDir, "build/cap4k-code-analysis").toPath()
+}
+```
+
+**Step 5: Run test to verify it passes**
+
+Run: `.\gradlew :cap4k-plugin-code-analysis-compiler:test --tests "com.only4.cap4k.plugin.codeanalysis.compiler.TestCompileHelperTest"`  
+Expected: PASS
+
+**Step 6: Commit**
+
+```bash
+git add cap4k-plugin-code-analysis-compiler/build.gradle.kts \
+        cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/TestCompileHelper.kt \
+        cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/TestCompileHelperTest.kt
+git commit -m "test: add compile helper for code analysis compiler"
+```
+
+---
+
+### Task 2: Add Design Models + JSON Writer (Core + Compiler)
 
 **Files:**
 - Create: `cap4k-plugin-code-analysis-core/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/core/model/DesignElement.kt`
 - Create: `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementJsonWriter.kt`
-- Modify: `cap4k-plugin-code-analysis-compiler/build.gradle.kts`
 - Test: `cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementJsonWriterTest.kt`
 
 **Step 1: Write the failing test**
@@ -76,14 +171,13 @@ Expected: PASS
 ```bash
 git add cap4k-plugin-code-analysis-core/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/core/model/DesignElement.kt \
         cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementJsonWriter.kt \
-        cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementJsonWriterTest.kt \
-        cap4k-plugin-code-analysis-compiler/build.gradle.kts
+        cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementJsonWriterTest.kt
 git commit -m "feat: add design element model and json writer"
 ```
 
 ---
 
-### Task 2: Extract Design Elements in Compiler (IR)
+### Task 3: Extract Design Elements in Compiler (IR)
 
 **Files:**
 - Modify: `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/Cap4kIrGenerationExtension.kt`
@@ -156,7 +250,7 @@ git commit -m "feat: emit design-elements json from compiler analysis"
 
 ---
 
-### Task 3: Arch Template Helper for Output Path (Codegen)
+### Task 4: Arch Template Helper for Output Path (Codegen)
 
 **Files:**
 - Modify: `cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/gradle/GenArchTask.kt`
@@ -201,7 +295,7 @@ git commit -m "feat: add arch template locator for drawing board output"
 
 ---
 
-### Task 4: Add Drawing Board Export Gradle Plugin
+### Task 5: Add Drawing Board Export Gradle Plugin
 
 **Files:**
 - Create: `cap4k-plugin-code-analysis-drawing-board/build.gradle.kts`
@@ -259,7 +353,7 @@ git commit -m "feat: add drawing board export plugin"
 
 ---
 
-### Task 5: Wire Output Path + Templates
+### Task 6: Wire Output Path + Templates
 
 **Files:**
 - Modify: `cap4k/cap4k-ddd-codegen-template-multi-nested.json`
@@ -303,7 +397,7 @@ git commit -m "feat: add drawing_board template node"
 
 ---
 
-### Task 6: Optional Wiring in only-danmuku
+### Task 7: Optional Wiring in only-danmuku
 
 **Files:**
 - Modify: `only-danmuku/build.gradle.kts`
@@ -330,4 +424,3 @@ cap4kDrawingBoard {
 git add only-danmuku/build.gradle.kts
 git commit -m "chore: enable drawing board export"
 ```
-
