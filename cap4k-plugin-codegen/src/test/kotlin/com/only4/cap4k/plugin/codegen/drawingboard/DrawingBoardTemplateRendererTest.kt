@@ -1,34 +1,45 @@
 package com.only4.cap4k.plugin.codegen.drawingboard
 
-import com.only4.cap4k.plugin.codegen.gradle.GenDrawingBoardTask
+import com.only4.cap4k.plugin.codegen.generators.drawingboard.DrawingBoardCliGenerator
+import com.only4.cap4k.plugin.codegen.pebble.PebbleInitializer
 import com.only4.cap4k.plugin.codegen.template.PathNode
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.io.File
 
 class DrawingBoardTemplateRendererTest {
     @Test
-    fun `renders template node to path node with content`() {
-        val tpl = TemplateNode().apply {
-            type = "file"
-            tag = "drawing_board"
-            name = "drawing_board.json"
+    fun `renders default template with tag-specific file name`() {
+        val generator = DrawingBoardCliGenerator()
+        val template = generator.getDefaultTemplateNodes().single()
+
+        PebbleInitializer.initPebble()
+
+        val templateRoot = findTemplateRoot()
+        PathNode.setDirectory(templateRoot.canonicalPath)
+        try {
+            val context = mapOf(
+                "archTemplateEncoding" to "UTF-8",
+                "drawingBoardTag" to "cli",
+                "elements" to emptyList<Any>(),
+                "elementsByTag" to emptyMap<String, Any>()
+            )
+            val node = template.resolve(context)
+            assertEquals("drawing_board_cli.json", node.name)
+            assertTrue(node.data?.startsWith("[") == true)
+        } finally {
+            PathNode.clearDirectory()
         }
+    }
 
-        val method = GenDrawingBoardTask::class.java.declaredMethods.firstOrNull {
-            it.name.startsWith("renderDrawingBoardPathNodes")
-        } ?: error("renderDrawingBoardPathNodes not found")
-
-        @Suppress("UNCHECKED_CAST")
-        val nodes = method.invoke(
-            null,
-            listOf(tpl),
-            emptyMap<String, Any?>(),
-            "drawing_board",
-            "[]"
-        ) as List<PathNode>
-
-        assertEquals("drawing_board.json", nodes.first().name)
-        assertEquals("[]", nodes.first().data)
+    private fun findTemplateRoot(): File {
+        var dir = File(System.getProperty("user.dir")).canonicalFile
+        repeat(4) {
+            if (File(dir, "template/_tpl/drawing_board.json.peb").exists()) return dir
+            dir = dir.parentFile ?: return dir
+        }
+        error("template/_tpl/drawing_board.json.peb not found from ${System.getProperty("user.dir")}")
     }
 }

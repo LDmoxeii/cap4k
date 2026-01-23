@@ -244,9 +244,9 @@
     {
       "type": "file",
       "tag": "drawing_board",
-      "name": "drawing_board.json",
-      "format": "raw",
-      "data": "[]"
+      "name": "drawing_board_{{ drawingBoardTag }}.json",
+      "format": "url",
+      "data": "template/_tpl/drawing_board.json.peb"
     }
   ],
   "children": [
