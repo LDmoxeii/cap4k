@@ -59,7 +59,7 @@ open class PathNode {
         fun getDirectory(): String = directory.get()
     }
 
-    open fun resolve(context: Map<String, Any?>): PathNode {
+    fun resolve(context: Map<String, Any?>): PathNode {
         // 渲染节点名称（纯字符串模板）
         name = name
             ?.replace("{{ basePackage }}", "{{ basePackage__as_path }}")
@@ -99,11 +99,14 @@ open class PathNode {
         }
 
         // 渲染模板内容
-        data = renderString(rawData, context)
+        dataBuilder(rawData, context)
         format = "raw"
+        tag = ""
 
         // 递归处理子节点
         children?.forEach { it.resolve(context) }
         return this
     }
+
+    open fun dataBuilder(rawData: String, context: Map<String, Any?>) {}
 }

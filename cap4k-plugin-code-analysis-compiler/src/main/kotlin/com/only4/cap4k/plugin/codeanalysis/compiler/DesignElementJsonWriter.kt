@@ -25,14 +25,10 @@ class DesignElementJsonWriter {
                 element.persist?.let { value ->
                     append(",\"persist\":").append(value)
                 }
-                if (element.requestFields.isNotEmpty()) {
-                    append(",\"requestFields\":")
-                    appendFieldList(element.requestFields)
-                }
-                if (element.responseFields.isNotEmpty()) {
-                    append(",\"responseFields\":")
-                    appendFieldList(element.responseFields)
-                }
+                append(",\"requestFields\":")
+                appendFieldList(element.requestFields)
+                append(",\"responseFields\":")
+                appendFieldList(element.responseFields)
                 append('}')
             }
             append(']')

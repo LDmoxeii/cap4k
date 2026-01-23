@@ -51,7 +51,7 @@ class DesignElementCollector(
         val fqcn = declaration.fqNameWhenAvailable?.asString()
         if (fqcn != null) {
             when {
-                declaration.isOrImplements(requestParamFq) -> collectRequestElement(declaration, fqcn)
+                declaration.isOrImplements(requestParamFq) -> collectRequestElementForRequest(declaration, fqcn)
                 declaration.kind == ClassKind.OBJECT &&
                     fqcn.contains(".adapter.portal.api.payload.") &&
                     declaration.parent !is IrClass ->
@@ -63,16 +63,28 @@ class DesignElementCollector(
         super.visitClass(declaration)
     }
 
-    private fun collectRequestElement(declaration: IrClass, fqcn: String) {
+    private fun collectRequestElementForRequest(declaration: IrClass, requestFqcn: String) {
+        val parent = declaration.parent as? IrClass
+        val container = if (parent != null && declaration.name.asString() == "Request") parent else declaration
+        val containerFqcn = container.fqNameWhenAvailable?.asString() ?: return
+        val requestClass = if (container == declaration) findNestedClass(container, "Request") else declaration
+        collectRequestElement(container, containerFqcn, requestClass, requestFqcn)
+    }
+
+    private fun collectRequestElement(
+        declaration: IrClass,
+        fqcn: String,
+        requestClass: IrClass?,
+        requestFqcn: String,
+    ) {
         val kind = classifyRequestKind(declaration, fqcn)
         val name = stripSuffix(declaration.name.asString(), kind)
         val pkg = extractPackage(fqcn, kind.packageMarker)
         val nestedTypes = collectNestedTypes(declaration)
-        val requestClass = findNestedClass(declaration, "Request")
         val responseClass = findNestedClass(declaration, "Response") ?: findNestedClass(declaration, "Item")
         val requestFields = requestClass?.let { collectFields(it, nestedTypes) }.orEmpty()
         val responseFields = responseClass?.let { collectFields(it, nestedTypes) }.orEmpty()
-        val aggregates = requestAggregates[fqcn].orEmpty()
+        val aggregates = requestAggregates[requestFqcn].orEmpty()
         addElement(
             DesignElement(
                 tag = kind.tag,
@@ -90,7 +102,7 @@ class DesignElementCollector(
 
     private fun collectPayloadElement(declaration: IrClass, fqcn: String) {
         val name = lowerCamel(declaration.name.asString())
-        val pkg = extractPackage(fqcn, ".adapter.portal.api.payload.")
+        val pkg = extractPackage(fqcn, ".adapter.portal.api.payload")
         val nestedTypes = collectNestedTypes(declaration)
         val requestClass = findNestedClass(declaration, "Request")
         val responseClass = findNestedClass(declaration, "Item")
@@ -114,7 +126,7 @@ class DesignElementCollector(
     }
 
     private fun collectDomainEventElement(declaration: IrClass, fqcn: String) {
-        val pkg = extractPackage(fqcn, ".domain.event.")
+        val pkg = extractPackage(fqcn, listOf(".domain.aggregates", ".domain.event"), ".events")
         val aggInfo = declaration.readAggregateInfo(aggregateAnnFq)
         val entity = aggInfo?.aggregateName
         val aggregates = entity?.let { listOf(it) }.orEmpty()
@@ -233,9 +245,20 @@ class DesignElementCollector(
     }
 
     private fun extractPackage(fqcn: String, marker: String): String {
+        return extractPackage(fqcn, listOf(marker), null)
+    }
+
+    private fun extractPackage(fqcn: String, markers: List<String>, trimSuffix: String?): String {
         val pkg = fqcn.substringBeforeLast(".", "")
+        val marker = markers.firstOrNull { pkg.contains(it) } ?: return pkg
         val idx = pkg.indexOf(marker)
-        return if (idx >= 0) pkg.substring(idx + marker.length) else pkg
+        var start = idx + marker.length
+        if (start < pkg.length && pkg[start] == '.') start++
+        var result = if (start <= pkg.length) pkg.substring(start) else ""
+        if (trimSuffix != null && result.endsWith(trimSuffix)) {
+            result = result.removeSuffix(trimSuffix)
+        }
+        return result
     }
 
     private fun lowerCamel(value: String): String {
@@ -311,9 +334,9 @@ class DesignElementCollector(
         val tag: String,
         val packageMarker: String
     ) {
-        COMMAND("cmd", ".commands."),
-        QUERY("qry", ".queries."),
-        CLI("cli", ".distributed.clients.")
+        COMMAND("cmd", ".commands"),
+        QUERY("qry", ".queries"),
+        CLI("cli", ".distributed.clients")
     }
 }
 

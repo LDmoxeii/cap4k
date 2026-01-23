@@ -9,6 +9,7 @@ dependencies {
     implementation(gradleApi())
     implementation(gradleKotlinDsl())
     implementation(project(":cap4k-plugin-codegen-ksp"))
+    implementation(project(":cap4k-plugin-code-analysis-core"))
 
     runtimeOnly(libs.mysql)
     runtimeOnly(libs.postgresql)

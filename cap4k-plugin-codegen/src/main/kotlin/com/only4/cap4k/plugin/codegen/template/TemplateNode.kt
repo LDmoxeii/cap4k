@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.codegen.template
 
 import com.google.gson.Gson
+import com.only4.cap4k.plugin.codegen.pebble.PebbleTemplateRenderer.renderString
 import java.util.regex.Pattern
 
 /**
@@ -163,9 +164,7 @@ class TemplateNode : PathNode() {
         return gson.fromJson(gson.toJson(this), TemplateNode::class.java)
     }
 
-    override fun resolve(context: Map<String, Any?>): PathNode {
-        super.resolve(context)
-        this.tag = ""
-        return this
+    override fun dataBuilder(rawData: String, context: Map<String, Any?>) {
+        data = renderString(rawData, context)
     }
 }
