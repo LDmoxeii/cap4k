@@ -67,11 +67,11 @@ open class GenDrawingBoardTask : GenArchTask(), MutableDrawingBoardContext {
     ) {
         if (!generator.shouldGenerate()) return
 
-        val parentPath = ctx.templateParentPath[generator.templateTag]!!
+        val parentPath = ctx.templateParentPath[generator.tag]!!
 
         val templateContext = generator.buildContext().toMutableMap()
         val generatorName = generator.generatorName()
-        val ctxTop = ctx.templateNodeMap.getOrDefault(generator.templateTag, emptyList())
+        val ctxTop = ctx.templateNodeMap.getOrDefault(generator.tag, emptyList())
         val defTop = generator.getDefaultTemplateNodes()
 
         val selected = TemplateNode.mergeAndSelect(ctxTop, defTop, generatorName)

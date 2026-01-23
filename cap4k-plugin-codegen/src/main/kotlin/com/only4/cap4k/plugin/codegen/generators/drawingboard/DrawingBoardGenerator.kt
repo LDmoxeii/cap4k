@@ -10,13 +10,13 @@ interface DrawingBoardGenerator {
     /**
      * Element tag for grouping (cli/qry/cmd/payload/de).
      */
-    val tag: String
+    val elementsTag: String
 
     /**
      * Template tag in arch template.
      */
-    val templateTag: String
-        get() = "drawing_board_$tag"
+    val tag: String
+        get() = "drawing_board_$elementsTag"
 
     /**
      * Generator order (smaller runs first).
