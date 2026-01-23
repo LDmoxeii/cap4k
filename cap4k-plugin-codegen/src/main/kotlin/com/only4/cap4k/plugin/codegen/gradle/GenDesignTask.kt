@@ -1,6 +1,5 @@
 package com.only4.cap4k.plugin.codegen.gradle
 
-import com.only4.cap4k.plugin.codegen.context.aggregate.AggregateContext
 import com.only4.cap4k.plugin.codegen.context.design.DesignContext
 import com.only4.cap4k.plugin.codegen.context.design.MutableDesignContext
 import com.only4.cap4k.plugin.codegen.context.design.builders.DesignContextBuilder
@@ -13,6 +12,7 @@ import com.only4.cap4k.plugin.codegen.context.design.models.DesignElement
 import com.only4.cap4k.plugin.codegen.core.TagAliasResolver
 import com.only4.cap4k.plugin.codegen.generators.design.*
 import com.only4.cap4k.plugin.codegen.misc.concatPackage
+import com.only4.cap4k.plugin.codegen.misc.resolvePackage
 import com.only4.cap4k.plugin.codegen.misc.resolvePackageDirectory
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
 import org.gradle.api.tasks.Internal
@@ -34,6 +34,8 @@ open class GenDesignTask : GenArchTask(), MutableDesignContext {
         super.renderTemplate(templateNodes, parentPath)
         templateNodes.forEach { templateNode ->
             val tag = templateNode.tag?.let { TagAliasResolver.normalizeDesignTag(it) } ?: return@forEach
+            templatePackage[tag] = resolvePackage("${parentPath}${File.separator}X.kt")
+                .substring(getString("basePackage").length + 1)
             templateNodeMap.computeIfAbsent(tag) { mutableListOf() }.add(templateNode)
         }
     }

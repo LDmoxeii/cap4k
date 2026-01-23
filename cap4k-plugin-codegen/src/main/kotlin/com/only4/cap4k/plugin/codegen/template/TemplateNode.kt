@@ -166,5 +166,6 @@ class TemplateNode : PathNode() {
 
     override fun dataBuilder(rawData: String, context: Map<String, Any?>) {
         data = renderString(rawData, context)
+        tag = ""
     }
 }

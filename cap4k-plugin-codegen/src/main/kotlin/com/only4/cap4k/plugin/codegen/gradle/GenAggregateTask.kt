@@ -10,10 +10,12 @@ import com.only4.cap4k.plugin.codegen.generators.aggregate.UniqueQueryHandlerGen
 import com.only4.cap4k.plugin.codegen.generators.aggregate.UniqueValidatorGenerator
 import com.only4.cap4k.plugin.codegen.misc.SqlSchemaUtils
 import com.only4.cap4k.plugin.codegen.misc.concatPackage
+import com.only4.cap4k.plugin.codegen.misc.resolvePackage
 import com.only4.cap4k.plugin.codegen.misc.resolvePackageDirectory
 import com.only4.cap4k.plugin.codegen.template.TemplateNode
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
+import java.io.File
 
 /**
  * 基于数据库实体的聚合生成任务
@@ -105,6 +107,8 @@ open class GenAggregateTask : GenArchTask(), MutableAggregateContext {
         super.renderTemplate(templateNodes, parentPath)
         templateNodes.forEach { templateNode ->
             val tag = templateNode.tag?.let { TagAliasResolver.normalizeAggregateTag(it) } ?: return@forEach
+            templatePackage[tag] = resolvePackage("${parentPath}${File.separator}X.kt")
+                .substring(getString("basePackage").length + 1)
             templateNodeMap.computeIfAbsent(tag) { mutableListOf() }.add(templateNode)
         }
     }

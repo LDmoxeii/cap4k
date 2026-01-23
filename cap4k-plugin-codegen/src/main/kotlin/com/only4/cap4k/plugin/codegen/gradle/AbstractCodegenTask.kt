@@ -213,8 +213,6 @@ abstract class AbstractCodegenTask : DefaultTask(), BaseContext {
         parentPath: String,
     ) {
         templateNodes.forEach { templateNode ->
-            templatePackage[templateNode.tag!!] = resolvePackage("${parentPath}${File.separator}X.kt")
-                .substring(getString("basePackage").length + 1)
             templateParentPath[templateNode.tag!!] = parentPath
         }
     }

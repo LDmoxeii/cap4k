@@ -13,7 +13,7 @@ abstract class AbstractDrawingBoardTagGenerator(
 
     override fun generatorFullName(): String = generatorName()
 
-    override fun generatorName(): String = "drawing_board_$tag"
+    override fun generatorName(): String = templateTag
 
     context(ctx: DrawingBoardContext)
     override fun shouldGenerate(): Boolean = ctx.elementsByTag[tag].orEmpty().isNotEmpty()
@@ -32,8 +32,8 @@ abstract class AbstractDrawingBoardTagGenerator(
         return listOf(
             TemplateNode().apply {
                 type = "file"
-                tag = templateTag
-                name = "drawing_board_{{ drawingBoardTag }}.json"
+                tag = this@AbstractDrawingBoardTagGenerator.tag
+                name = "{{ drawingBoardTag }}.json"
                 format = "url"
                 data = "template/_tpl/drawing_board.json.peb"
             }

@@ -16,7 +16,7 @@ interface DrawingBoardGenerator {
      * Template tag in arch template.
      */
     val templateTag: String
-        get() = "drawing_board"
+        get() = "drawing_board_$tag"
 
     /**
      * Generator order (smaller runs first).

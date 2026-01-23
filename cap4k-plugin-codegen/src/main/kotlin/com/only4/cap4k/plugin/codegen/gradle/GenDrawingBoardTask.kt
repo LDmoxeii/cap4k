@@ -20,19 +20,6 @@ open class GenDrawingBoardTask : GenArchTask(), MutableDrawingBoardContext {
     @get:Internal
     override val elementsByTag: MutableMap<String, MutableList<DesignElement>> = mutableMapOf()
 
-    override fun renderTemplate(templateNodes: List<TemplateNode>, parentPath: String) {
-        val tag = templateNodes.firstOrNull()?.tag ?: return
-        if (tag == DRAWING_BOARD_TAG) {
-            templateParentPath[tag] = parentPath
-            templatePackage[tag] = ""
-        } else {
-            super.renderTemplate(templateNodes, parentPath)
-        }
-        templateNodes.forEach { templateNode ->
-            templateNodeMap.computeIfAbsent(tag) { mutableListOf() }.add(templateNode)
-        }
-    }
-
     @TaskAction
     override fun generate() {
         renderFileSwitch = false
@@ -44,14 +31,8 @@ open class GenDrawingBoardTask : GenArchTask(), MutableDrawingBoardContext {
         val context = buildDrawingBoardContext()
         if (context.elements.isEmpty()) return
 
-        val parentPath = templateParentPath[DRAWING_BOARD_TAG]
-        if (parentPath.isNullOrBlank()) {
-            logger.warn("No template parent path found for tag=$DRAWING_BOARD_TAG; drawing board files will not be generated.")
-            return
-        }
-
         with(context) {
-            generateDrawingBoardFiles(parentPath)
+            generateDrawingBoardFiles()
         }
     }
 
@@ -66,7 +47,7 @@ open class GenDrawingBoardTask : GenArchTask(), MutableDrawingBoardContext {
     }
 
     context(ctx: DrawingBoardContext)
-    private fun generateDrawingBoardFiles(parentPath: String) {
+    private fun generateDrawingBoardFiles() {
         val generators = listOf(
             DrawingBoardCmdGenerator(),
             DrawingBoardQryGenerator(),
@@ -76,16 +57,17 @@ open class GenDrawingBoardTask : GenArchTask(), MutableDrawingBoardContext {
         )
 
         generators.sortedBy { it.order }.forEach { generator ->
-            generateForTag(generator, parentPath)
+            generateForTag(generator)
         }
     }
 
     context(ctx: DrawingBoardContext)
     private fun generateForTag(
-        generator: DrawingBoardGenerator,
-        parentPath: String
+        generator: DrawingBoardGenerator
     ) {
         if (!generator.shouldGenerate()) return
+
+        val parentPath = ctx.templateParentPath[generator.templateTag]!!
 
         val templateContext = generator.buildContext().toMutableMap()
         val generatorName = generator.generatorName()
@@ -104,9 +86,5 @@ open class GenDrawingBoardTask : GenArchTask(), MutableDrawingBoardContext {
         }
 
         generator.onGenerated()
-    }
-
-    companion object {
-        private const val DRAWING_BOARD_TAG = "drawing_board"
     }
 }

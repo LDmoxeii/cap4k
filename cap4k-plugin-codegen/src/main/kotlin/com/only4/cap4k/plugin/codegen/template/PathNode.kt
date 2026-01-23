@@ -101,7 +101,6 @@ open class PathNode {
         // 渲染模板内容
         dataBuilder(rawData, context)
         format = "raw"
-        tag = ""
 
         // 递归处理子节点
         children?.forEach { it.resolve(context) }
