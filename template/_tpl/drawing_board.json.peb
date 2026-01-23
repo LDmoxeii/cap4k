@@ -1,27 +1,27 @@
 [
-{% for element in elements -%}
+{%- for element in elements %}
   {
     "tag": "{{ element.tag }}",
     "package": "{{ element.package }}",
     "name": "{{ element.name }}",
     "desc": "{{ element.desc }}",
     "aggregates": [{% for agg in element.aggregates %}"{{ agg }}"{% if not loop.last %}, {% endif %}{% endfor %}],
-{% if element.entity is not null -%}
+{%- if element.entity is not null %}
     "entity": "{{ element.entity }}",
-{% endif -%}
-{% if element.persist is not null -%}
+{%- endif %}
+{%- if element.persist is not null %}
     "persist": {{ element.persist }},
-{% endif -%}
+{%- endif %}
     "requestFields": {% if element.requestFields|length == 0 %}[]{% else %}[
-{% for field in element.requestFields -%}
+{%- for field in element.requestFields %}
       { "name": "{{ field.name }}", "type": "{{ field.type }}", "nullable": {{ field.nullable }}{% if field.defaultValue is not null %}, "defaultValue": "{{ field.defaultValue }}"{% endif %} }{% if not loop.last %},{% endif %}
-{% endfor -%}
+{%- endfor %}
     ]{% endif %},
     "responseFields": {% if element.responseFields|length == 0 %}[]{% else %}[
-{% for field in element.responseFields -%}
+{%- for field in element.responseFields %}
       { "name": "{{ field.name }}", "type": "{{ field.type }}", "nullable": {{ field.nullable }}{% if field.defaultValue is not null %}, "defaultValue": "{{ field.defaultValue }}"{% endif %} }{% if not loop.last %},{% endif %}
-{% endfor -%}
+{%- endfor %}
     ]{% endif %}
   }{% if not loop.last %},{% endif %}
-{% endfor -%}
+{%- endfor %}
 ]
