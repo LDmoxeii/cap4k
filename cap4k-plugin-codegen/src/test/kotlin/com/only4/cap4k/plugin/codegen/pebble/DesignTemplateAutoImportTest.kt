@@ -75,7 +75,7 @@ class DesignTemplateAutoImportTest {
     }
 
     @Test
-    fun `client handler wraps request handler line`() {
+    fun `client handler keeps request handler on one line`() {
         val template = loadTemplate("client_handler.kt.peb")
         val context = mapOf(
             "basePackage" to "com.example",
@@ -93,8 +93,8 @@ class DesignTemplateAutoImportTest {
             .replace("\r\n", "\n")
         assertTrue(
             rendered.contains(
-                "class ReportVideoSearchCountaaaCliHandler :\n" +
-                    "    RequestHandler<ReportVideoSearchCountaaaCli.Request, " +
+                "class ReportVideoSearchCountaaaCliHandler : RequestHandler<" +
+                    "ReportVideoSearchCountaaaCli.Request, " +
                     "ReportVideoSearchCountaaaCli.Response> {"
             )
         )

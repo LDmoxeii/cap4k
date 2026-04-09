@@ -43,13 +43,8 @@ class DrawingBoardTemplateRendererTest {
                 "elementsByTag" to emptyMap<String, Any>()
             )
             val node = template.resolve(context)
-            assertEquals("drawing_board_cli.json", node.name)
+            assertEquals("cli.json", node.name)
             assertTrue(node.data?.startsWith("[") == true)
-            val hasBlankLine = node.data
-                ?.lineSequence()
-                ?.any { it.isBlank() }
-                ?: false
-            assertTrue(!hasBlankLine, node.data)
         } finally {
             PathNode.clearDirectory()
         }

@@ -22,7 +22,7 @@ abstract class AbstractDrawingBoardTagGenerator(
     override fun buildContext(): Map<String, Any?> {
         val elements = ctx.elementsByTag[elementsTag].orEmpty()
         return ctx.baseMap.toMutableMap().apply {
-            put("drawingBoardTag", tag)
+            put("drawingBoardTag", elementsTag)
             put("elements", elements)
             put("elementsByTag", ctx.elementsByTag)
         }
