@@ -28,7 +28,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 "qry", "query" -> RequestKind.QUERY
                 else -> return@mapNotNull null
             }
-            val aggregate = entry.aggregates.firstOrNull()?.let { aggregateLookup[it] }
+            val aggregateName = entry.aggregates.firstOrNull()
+            val aggregate = aggregateName?.let { aggregateLookup[it] }
 
             RequestModel(
                 kind = kind,
@@ -38,7 +39,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     RequestKind.QUERY -> "${entry.name}Qry"
                 },
                 description = entry.description,
-                aggregateName = aggregate?.aggregateName,
+                aggregateName = aggregateName,
                 aggregatePackageName = aggregate?.rootPackageName,
                 requestFields = entry.requestFields,
                 responseFields = entry.responseFields,
