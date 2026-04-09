@@ -42,6 +42,11 @@ class DesignArtifactPlanner : GeneratorProvider {
 
     private fun requireApplicationModuleRoot(config: ProjectConfig): String {
         val applicationRoot = config.modules["application"] ?: error("application module is required")
+        if (applicationRoot.isBlank()) {
+            throw IllegalArgumentException(
+                "application module must be a valid relative filesystem path: $applicationRoot",
+            )
+        }
         if (applicationRoot.startsWith(":")) {
             throw IllegalArgumentException(
                 "application module must be a valid relative filesystem path: $applicationRoot",

@@ -83,6 +83,30 @@ class DesignArtifactPlannerTest {
         }
     }
 
+    @Test
+    fun `fails fast when application module path is blank`() {
+        val planner = DesignArtifactPlanner()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("application" to "")),
+                model = canonicalModel(),
+            )
+        }
+    }
+
+    @Test
+    fun `fails fast when application module path is absolute`() {
+        val planner = DesignArtifactPlanner()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("application" to "C:/demo-application")),
+                model = canonicalModel(),
+            )
+        }
+    }
+
     private fun projectConfig(modules: Map<String, String>) = ProjectConfig(
         basePackage = "com.acme.demo",
         layout = ProjectLayout.MULTI_MODULE,
