@@ -67,6 +67,17 @@ class DesignArtifactPlanner : GeneratorProvider {
                 "application module must be a valid relative filesystem path: $applicationRoot",
             )
         }
+        if (path.root != null) {
+            throw IllegalArgumentException(
+                "application module must be a valid relative filesystem path: $applicationRoot",
+            )
+        }
+        val normalized = path.normalize()
+        if (normalized.nameCount > 0 && normalized.getName(0).toString() == "..") {
+            throw IllegalArgumentException(
+                "application module must be a valid relative filesystem path: $applicationRoot",
+            )
+        }
 
         return applicationRoot
     }

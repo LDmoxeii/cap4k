@@ -4,6 +4,7 @@ import com.only4.cap4k.plugin.pipeline.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import java.nio.file.Path
 
 class DesignArtifactPlannerTest {
 
@@ -98,10 +99,35 @@ class DesignArtifactPlannerTest {
     @Test
     fun `fails fast when application module path is absolute`() {
         val planner = DesignArtifactPlanner()
+        val absolutePath = Path.of("demo-application").toAbsolutePath().toString()
 
         assertThrows(IllegalArgumentException::class.java) {
             planner.plan(
-                config = projectConfig(modules = mapOf("application" to "C:/demo-application")),
+                config = projectConfig(modules = mapOf("application" to absolutePath)),
+                model = canonicalModel(),
+            )
+        }
+    }
+
+    @Test
+    fun `fails fast when application module path is rooted`() {
+        val planner = DesignArtifactPlanner()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("application" to "/demo-application")),
+                model = canonicalModel(),
+            )
+        }
+    }
+
+    @Test
+    fun `fails fast when application module path traverses parent`() {
+        val planner = DesignArtifactPlanner()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("application" to "../demo-application")),
                 model = canonicalModel(),
             )
         }
