@@ -11,7 +11,9 @@ import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import java.nio.file.Path
 
 class AggregateArtifactPlannerTest {
 
@@ -87,4 +89,52 @@ class AggregateArtifactPlannerTest {
             planItems.first { it.templateId == "aggregate/repository.kt.peb" }.outputPath,
         )
     }
+
+    @Test
+    fun `rejects missing required module`() {
+        val config = aggregateConfig(domainModule = null)
+
+        val ex = assertThrows(IllegalStateException::class.java) {
+            requireRelativeModule(config, "domain")
+        }
+
+        assertEquals("domain module is required", ex.message)
+    }
+
+    @Test
+    fun `rejects invalid shared module paths`() {
+        val rootedPath = Path.of("C:/").toString()
+        val invalidPaths = listOf(
+            "" to "domain module must be a valid relative filesystem path: ",
+            ":demo-domain" to "domain module must be a valid relative filesystem path: :demo-domain",
+            rootedPath to "domain module must be a valid relative filesystem path: $rootedPath",
+            "../demo-domain" to "domain module must be a valid relative filesystem path: ../demo-domain",
+        )
+
+        invalidPaths.forEach { (modulePath, message) ->
+            val config = aggregateConfig(domainModule = modulePath)
+
+            val ex = assertThrows(IllegalArgumentException::class.java) {
+                requireRelativeModule(config, "domain")
+            }
+
+            assertEquals(message, ex.message)
+        }
+    }
+
+    private fun aggregateConfig(
+        domainModule: String? = "demo-domain",
+        adapterModule: String? = "demo-adapter",
+    ): ProjectConfig =
+        ProjectConfig(
+            basePackage = "com.acme.demo",
+            layout = ProjectLayout.MULTI_MODULE,
+            modules = buildMap {
+                domainModule?.let { put("domain", it) }
+                adapterModule?.let { put("adapter", it) }
+            },
+            sources = emptyMap(),
+            generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+            templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+        )
 }
