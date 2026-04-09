@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.codegen.template
 
 import com.google.gson.Gson
+import com.only4.cap4k.plugin.codegen.misc.isDirectoryNodeType
 import com.only4.cap4k.plugin.codegen.pebble.PebbleTemplateRenderer.renderString
 import java.util.regex.Pattern
 
@@ -73,7 +74,7 @@ class TemplateNode : PathNode() {
     }
 
     fun nodeType(): String = (this.type ?: "file").lowercase()
-    fun isDirNode(): Boolean = nodeType() == "dir"
+    fun isDirNode(): Boolean = isDirectoryNodeType(type)
     fun isFileNode(): Boolean = nodeType() == "file"
     fun uniqueKey(): String = "${this.name ?: ""}#${this.pattern}"
     private fun compiledPattern(): Pattern {
@@ -119,7 +120,7 @@ class TemplateNode : PathNode() {
             if (node == null) return
             when (node.type?.lowercase()) {
                 "file" -> result.add(wrapPathFile(node))
-                "dir", "root", null -> node.children?.forEach { dfsChildren(it) }
+                "dir", "package", "root", null -> node.children?.forEach { dfsChildren(it) }
                 else -> node.children?.forEach { dfsChildren(it) }
             }
         }

@@ -10,6 +10,8 @@ private const val PACKAGE_SPLITTER = "."
 private val cache = mutableMapOf<String, List<File>>()
 private const val SRC_MAIN_KOTLIN = "src.main.kotlin."
 private const val SRC_TEST_KOTLIN = "src.test.kotlin."
+private const val NODE_TYPE_DIR = "dir"
+private const val NODE_TYPE_PACKAGE = "package"
 
 private val WINDOWS_ABSOLUTE_REGEX = Regex("^[A-Za-z]:[\\\\/].*")
 private val HTTP_REGEX = Regex("^https?://", RegexOption.IGNORE_CASE)
@@ -145,6 +147,23 @@ fun resolvePackage(filePath: String): String {
     val className = resolveClassName(filePath)
     require(className.contains(PACKAGE_SPLITTER)) { "无法从路径解析包名: $filePath" }
     return className.substringBeforeLast(PACKAGE_SPLITTER)
+}
+
+fun isPackageNodeType(nodeType: String?): Boolean =
+    nodeType.equals(NODE_TYPE_PACKAGE, ignoreCase = true)
+
+fun isDirectoryNodeType(nodeType: String?): Boolean =
+    nodeType.equals(NODE_TYPE_DIR, ignoreCase = true) || isPackageNodeType(nodeType)
+
+fun resolveTemplatePackage(nodeType: String?, parentPath: String, basePackage: String): String? {
+    if (!isPackageNodeType(nodeType)) return null
+
+    val fullPackage = resolvePackage("${parentPath}${File.separator}X.kt")
+    require(fullPackage == basePackage || fullPackage.startsWith("$basePackage.")) {
+        "模板路径不在 basePackage 下: $parentPath"
+    }
+
+    return fullPackage.removePrefix(basePackage).removePrefix(PACKAGE_SPLITTER)
 }
 
 /**

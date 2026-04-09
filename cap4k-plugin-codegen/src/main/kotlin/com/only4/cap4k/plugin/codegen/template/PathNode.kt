@@ -13,7 +13,7 @@ import com.only4.cap4k.plugin.codegen.pebble.PebbleTemplateRenderer.renderString
  */
 open class PathNode {
     /**
-     * 节点类型：root|dir|file|segment
+     * 节点类型：root|dir|package|file|segment
      */
     var type: String? = null
 

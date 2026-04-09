@@ -80,9 +80,9 @@ object TagAliasResolver {
     )
 
     private val aggregateTagAliasMap: Map<String, String> = mapOf(
-        "entity" to "aggregate",
+        "entity" to "entity",
+        "entities" to "entity",
         "aggregate" to "aggregate",
-        "entities" to "aggregate",
         "aggregates" to "aggregate",
         "schema" to "schema",
         "schemas" to "schema",

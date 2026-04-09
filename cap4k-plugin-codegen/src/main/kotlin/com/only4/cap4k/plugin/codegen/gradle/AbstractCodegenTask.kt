@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.codegen.gradle
 
 import com.only4.cap4k.plugin.codegen.context.BaseContext
 import com.only4.cap4k.plugin.codegen.core.*
+import com.only4.cap4k.plugin.codegen.misc.isDirectoryNodeType
 import com.only4.cap4k.plugin.codegen.gradle.extension.CodegenExtension
 import com.only4.cap4k.plugin.codegen.misc.resolvePackage
 import com.only4.cap4k.plugin.codegen.template.PathNode
@@ -198,7 +199,7 @@ abstract class AbstractCodegenTask : DefaultTask(), BaseContext {
                 parentPath
             }
 
-            "dir" -> {
+            "dir", "package" -> {
                 val dirPath = renderDir(pathNode, parentPath)
                 pathNode.children?.forEach { render(it, dirPath) }
                 dirPath
@@ -218,7 +219,7 @@ abstract class AbstractCodegenTask : DefaultTask(), BaseContext {
     }
 
     private fun renderDir(pathNode: PathNode, parentPath: String): String {
-        require(pathNode.type.equals("dir", ignoreCase = true)) { "pathNode must be a directory type" }
+        require(isDirectoryNodeType(pathNode.type)) { "pathNode must be a directory type" }
 
         val name = pathNode.name?.takeIf { it.isNotBlank() } ?: return parentPath
         val path = "$parentPath${File.separator}$name"
