@@ -34,7 +34,7 @@ class PipelinePlugin : Plugin<Project> {
             task.extension = extension
         }
 
-        project.afterEvaluate {
+        project.gradle.projectsEvaluated {
             val kspTasks = project.rootProject.allprojects
                 .mapNotNull { candidate -> candidate.tasks.findByName("kspKotlin") }
             if (kspTasks.isNotEmpty()) {
