@@ -11,7 +11,13 @@ class KspMetadataSourceProvider : SourceProvider {
     override val id: String = "ksp-metadata"
 
     override fun collect(config: ProjectConfig): KspMetadataSnapshot {
-        val inputDir = File(config.sources[id]?.options?.get("inputDir").toString())
+        val inputDirOption = config.sources[id]?.options?.get("inputDir")?.toString()?.trim()
+        require(!inputDirOption.isNullOrEmpty()) { "ksp-metadata source requires a non-blank inputDir option." }
+
+        val inputDir = File(inputDirOption)
+        require(inputDir.exists()) { "ksp-metadata inputDir does not exist: ${inputDir.path}" }
+        require(inputDir.isDirectory) { "ksp-metadata inputDir is not a directory: ${inputDir.path}" }
+
         val aggregates = inputDir
             .listFiles()
             ?.filter { file ->
