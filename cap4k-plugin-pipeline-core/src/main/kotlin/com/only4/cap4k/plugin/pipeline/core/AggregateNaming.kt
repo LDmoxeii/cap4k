@@ -7,8 +7,11 @@ internal object AggregateNaming {
         tableName.split("_")
             .filter { it.isNotBlank() }
             .joinToString("") { part ->
-                val normalized = part.lowercase(Locale.ROOT)
-                normalized.replaceFirstChar { character -> character.uppercase(Locale.ROOT) }
+                if (part.all { it.isUpperCase() }) {
+                    part.lowercase(Locale.ROOT).replaceFirstChar { character -> character.uppercase(Locale.ROOT) }
+                } else {
+                    part.replaceFirstChar { character -> character.uppercase(Locale.ROOT) }
+                }
             }
 
     fun schemaName(tableName: String): String = "S${entityName(tableName)}"

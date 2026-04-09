@@ -242,6 +242,35 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `preserves mixed case jdbc table names in aggregate models`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseAggregateConfig(),
+            snapshots = listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "VideoPost",
+                            comment = "Video post",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, null, "", true),
+                                DbColumnSnapshot("title", "VARCHAR", "String", false, null, "", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = listOf(listOf("title")),
+                        )
+                    )
+                )
+            ),
+        )
+
+        assertEquals("SVideoPost", model.schemas.single().name)
+        assertEquals("VideoPost", model.entities.single().name)
+        assertEquals("VideoPostRepository", model.repositories.single().name)
+    }
+
+    @Test
     fun `fails fast when db table has no primary key`() {
         val assembler = DefaultCanonicalAssembler()
 
