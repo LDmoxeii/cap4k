@@ -5,12 +5,14 @@ import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.RequestKind
+import java.nio.file.InvalidPathException
+import java.nio.file.Path
 
 class DesignArtifactPlanner : GeneratorProvider {
     override val id: String = "design"
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        val applicationRoot = config.modules["application"] ?: error("application module is required")
+        val applicationRoot = requireApplicationModuleRoot(config)
         val basePath = config.basePackage.replace(".", "/")
 
         return model.requests.map { request ->
@@ -36,5 +38,31 @@ class DesignArtifactPlanner : GeneratorProvider {
                 conflictPolicy = config.templates.conflictPolicy,
             )
         }
+    }
+
+    private fun requireApplicationModuleRoot(config: ProjectConfig): String {
+        val applicationRoot = config.modules["application"] ?: error("application module is required")
+        if (applicationRoot.startsWith(":")) {
+            throw IllegalArgumentException(
+                "application module must be a valid relative filesystem path: $applicationRoot",
+            )
+        }
+
+        val path = try {
+            Path.of(applicationRoot)
+        } catch (ex: InvalidPathException) {
+            throw IllegalArgumentException(
+                "application module must be a valid relative filesystem path: $applicationRoot",
+                ex,
+            )
+        }
+
+        if (path.isAbsolute) {
+            throw IllegalArgumentException(
+                "application module must be a valid relative filesystem path: $applicationRoot",
+            )
+        }
+
+        return applicationRoot
     }
 }
