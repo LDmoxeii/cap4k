@@ -109,7 +109,7 @@ class PebbleArtifactRendererTest {
             overrideDirs = emptyList()
         )
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<IllegalStateException> {
             resolver.resolve("design/not-exists.kt.peb")
         }
 
