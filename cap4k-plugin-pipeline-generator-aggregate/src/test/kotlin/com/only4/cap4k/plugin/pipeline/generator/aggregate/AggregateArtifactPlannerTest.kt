@@ -103,11 +103,9 @@ class AggregateArtifactPlannerTest {
 
     @Test
     fun `rejects invalid shared module paths`() {
-        val rootedPath = Path.of("C:/").toString()
         val invalidPaths = listOf(
             "" to "domain module must be a valid relative filesystem path: ",
             ":demo-domain" to "domain module must be a valid relative filesystem path: :demo-domain",
-            rootedPath to "domain module must be a valid relative filesystem path: $rootedPath",
             "../demo-domain" to "domain module must be a valid relative filesystem path: ../demo-domain",
         )
 
@@ -119,6 +117,27 @@ class AggregateArtifactPlannerTest {
             }
 
             assertEquals(message, ex.message)
+        }
+
+        val absolutePath = Path.of("absolute-demo-domain").toAbsolutePath().toString()
+        val absoluteConfig = aggregateConfig(domainModule = absolutePath)
+
+        val absoluteEx = assertThrows(IllegalArgumentException::class.java) {
+            requireRelativeModule(absoluteConfig, "domain")
+        }
+
+        assertEquals("domain module must be a valid relative filesystem path: $absolutePath", absoluteEx.message)
+
+        val rootedRelativePath = Path.of("\\demo-domain")
+        if (rootedRelativePath.root != null && !rootedRelativePath.isAbsolute) {
+            val rootedPath = rootedRelativePath.toString()
+            val rootedConfig = aggregateConfig(domainModule = rootedPath)
+
+            val rootedEx = assertThrows(IllegalArgumentException::class.java) {
+                requireRelativeModule(rootedConfig, "domain")
+            }
+
+            assertEquals("domain module must be a valid relative filesystem path: $rootedPath", rootedEx.message)
         }
     }
 
