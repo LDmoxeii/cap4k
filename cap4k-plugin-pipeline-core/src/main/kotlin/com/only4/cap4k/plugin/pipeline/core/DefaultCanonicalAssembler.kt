@@ -56,6 +56,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
         val aggregateModels = dbTables.map { table ->
             require(table.primaryKey.isNotEmpty()) { "db table ${table.tableName} must define a primary key" }
+            require(table.primaryKey.size == 1) { "db table ${table.tableName} must define a single-column primary key" }
 
             val entityName = AggregateNaming.entityName(table.tableName)
             val schemaName = AggregateNaming.schemaName(table.tableName)

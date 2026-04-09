@@ -213,6 +213,35 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `normalizes uppercase jdbc table names into aggregate models`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseAggregateConfig(),
+            snapshots = listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "VIDEO_POST",
+                            comment = "Video post",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, null, "", true),
+                                DbColumnSnapshot("title", "VARCHAR", "String", false, null, "", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = listOf(listOf("title")),
+                        )
+                    )
+                )
+            ),
+        )
+
+        assertEquals("SVideoPost", model.schemas.single().name)
+        assertEquals("VideoPost", model.entities.single().name)
+        assertEquals("VideoPostRepository", model.repositories.single().name)
+    }
+
+    @Test
     fun `fails fast when db table has no primary key`() {
         val assembler = DefaultCanonicalAssembler()
 
@@ -238,6 +267,35 @@ class DefaultCanonicalAssemblerTest {
         }
 
         assertEquals("db table audit_log must define a primary key", error.message)
+    }
+
+    @Test
+    fun `fails when db table has composite primary key`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembler.assemble(
+                config = baseAggregateConfig(),
+                snapshots = listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "audit_log",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("tenant_id", "BIGINT", "Long", false, null, "", true),
+                                    DbColumnSnapshot("event_id", "VARCHAR", "String", false, null, "", true),
+                                ),
+                                primaryKey = listOf("tenant_id", "event_id"),
+                                uniqueConstraints = emptyList(),
+                            )
+                        )
+                    )
+                ),
+            )
+        }
+
+        assertEquals("db table audit_log must define a single-column primary key", error.message)
     }
 
     private fun baseConfig(): ProjectConfig {
