@@ -33,6 +33,7 @@ jackson = "2.17.2"
 # Database drivers
 mysql = "8.0.33"
 postgresql = "42.7.2"
+h2 = "2.3.232"
 
 # Testing
 junit = "5.13.4"
@@ -73,6 +74,7 @@ querydsl = { module = "com.querydsl:querydsl-core" }
 hibernate-core = { module = "org.hibernate:hibernate-core", version.ref = "hibernate-core" }
 mysql = { module = "mysql:mysql-connector-java", version.ref = "mysql" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+h2 = { module = "com.h2database:h2", version.ref = "h2" }
 
 # AOP
 aspectjweaver = { module = "org.aspectj:aspectjweaver" }
