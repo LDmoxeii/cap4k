@@ -95,9 +95,46 @@ class PipelinePluginFunctionalTest {
     }
 
     @OptIn(ExperimentalPathApi::class)
-    private fun copyFixture(targetDir: Path) {
+    @Test
+    fun `cap4kPlan and cap4kGenerate produce aggregate artifacts from db schema`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate")
+        copyFixture(projectDir, "aggregate-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan", "cap4kGenerate")
+            .build()
+
+        val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planFile.exists())
+        assertTrue(
+            File(
+                projectDir.toFile(),
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt"
+            ).exists()
+        )
+        assertTrue(
+            File(
+                projectDir.toFile(),
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+            ).exists()
+        )
+        assertTrue(
+            File(
+                projectDir.toFile(),
+                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt"
+            ).exists()
+        )
+        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/entity.kt.peb\""))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    private fun copyFixture(targetDir: Path, fixtureName: String = "design-sample") {
         val sourceDir = Path.of(
-            requireNotNull(javaClass.getResource("/functional/design-sample")) {
+            requireNotNull(javaClass.getResource("/functional/$fixtureName")) {
                 "Missing functional fixture directory"
             }.toURI()
         )

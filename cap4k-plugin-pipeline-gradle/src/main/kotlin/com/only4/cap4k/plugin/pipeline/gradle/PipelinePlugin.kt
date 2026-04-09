@@ -11,13 +11,16 @@ import com.only4.cap4k.plugin.pipeline.core.DefaultCanonicalAssembler
 import com.only4.cap4k.plugin.pipeline.core.DefaultPipelineRunner
 import com.only4.cap4k.plugin.pipeline.core.FilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.NoopArtifactExporter
+import com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleArtifactRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
+import com.only4.cap4k.plugin.pipeline.source.db.DbSchemaSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.designjson.DesignJsonSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ksp.KspMetadataSourceProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.provider.Property
 
 class PipelinePlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -46,27 +49,68 @@ class PipelinePlugin : Plugin<Project> {
 }
 
 internal fun buildConfig(project: Project, extension: PipelineExtension): ProjectConfig {
+    val modules = buildMap {
+        extension.applicationModulePath.optionalValue()?.let { put("application", it) }
+        extension.domainModulePath.optionalValue()?.let { put("domain", it) }
+        extension.adapterModulePath.optionalValue()?.let { put("adapter", it) }
+    }
+    val designJsonEnabled = extension.designFiles.files.isNotEmpty()
+    val kspMetadataDir = extension.kspMetadataDir.optionalValue()
+    val dbUrl = extension.dbUrl.optionalValue()
+    val aggregateEnabled = dbUrl != null && "domain" in modules && "adapter" in modules
+
     return ProjectConfig(
         basePackage = extension.basePackage.get(),
         layout = ProjectLayout.MULTI_MODULE,
-        modules = mapOf("application" to extension.applicationModulePath.get()),
-        sources = mapOf(
-            "design-json" to SourceConfig(
-                enabled = true,
-                options = mapOf(
-                    "files" to extension.designFiles.files.map { file -> file.absolutePath }
+        modules = modules,
+        sources = buildMap {
+            if (designJsonEnabled) {
+                put(
+                    "design-json",
+                    SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "files" to extension.designFiles.files.map { file -> file.absolutePath }
+                        )
+                    )
                 )
-            ),
-            "ksp-metadata" to SourceConfig(
-                enabled = true,
-                options = mapOf(
-                    "inputDir" to project.file(extension.kspMetadataDir.get()).absolutePath
+            }
+            if (kspMetadataDir != null) {
+                put(
+                    "ksp-metadata",
+                    SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "inputDir" to project.file(kspMetadataDir).absolutePath
+                        )
+                    )
                 )
-            ),
-        ),
-        generators = mapOf(
-            "design" to GeneratorConfig(enabled = true)
-        ),
+            }
+            if (dbUrl != null) {
+                put(
+                    "db",
+                    SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "url" to dbUrl,
+                            "username" to extension.dbUsername.orNull.orEmpty(),
+                            "password" to extension.dbPassword.orNull.orEmpty(),
+                            "schema" to extension.dbSchema.orNull.orEmpty(),
+                            "includeTables" to extension.dbIncludeTables.orNull.orEmpty(),
+                            "excludeTables" to extension.dbExcludeTables.orNull.orEmpty(),
+                        )
+                    )
+                )
+            }
+        },
+        generators = buildMap {
+            if (designJsonEnabled) {
+                put("design", GeneratorConfig(enabled = true))
+            }
+            if (aggregateEnabled) {
+                put("aggregate", GeneratorConfig(enabled = true))
+            }
+        },
         templates = TemplateConfig(
             preset = "ddd-default",
             overrideDirs = listOf(project.file(extension.templateOverrideDir.get()).absolutePath),
@@ -75,13 +119,19 @@ internal fun buildConfig(project: Project, extension: PipelineExtension): Projec
     )
 }
 
+private fun Property<String>.optionalValue(): String? = orNull?.trim()?.takeIf { it.isNotEmpty() }
+
 internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner {
     return DefaultPipelineRunner(
         sources = listOf(
+            DbSchemaSourceProvider(),
             DesignJsonSourceProvider(),
             KspMetadataSourceProvider(),
         ),
-        generators = listOf(DesignArtifactPlanner()),
+        generators = listOf(
+            DesignArtifactPlanner(),
+            AggregateArtifactPlanner(),
+        ),
         assembler = DefaultCanonicalAssembler(),
         renderer = PebbleArtifactRenderer(
             PresetTemplateResolver(
