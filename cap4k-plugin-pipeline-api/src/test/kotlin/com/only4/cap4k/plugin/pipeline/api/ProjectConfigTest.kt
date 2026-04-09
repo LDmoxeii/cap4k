@@ -11,8 +11,8 @@ class ProjectConfigTest {
             basePackage = "com.only4.example",
             layout = ProjectLayout.MULTI_MODULE,
             modules = mapOf(
-                "api" to ":sample-api",
-                "core" to ":sample-core",
+                "api" to "sample-api",
+                "core" to "sample-core",
             ),
             sources = mapOf(
                 "design-json" to SourceConfig(enabled = true),
@@ -31,7 +31,7 @@ class ProjectConfigTest {
 
         assertEquals(setOf("design-json"), config.enabledSourceIds())
         assertEquals(setOf("design"), config.enabledGeneratorIds())
-        assertEquals(":sample-api", config.modules["api"])
+        assertEquals("sample-api", config.modules["api"])
         assertEquals(ConflictPolicy.SKIP, config.templates.conflictPolicy)
     }
 }

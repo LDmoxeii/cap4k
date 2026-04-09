@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.api
 data class ProjectConfig(
     val basePackage: String,
     val layout: ProjectLayout,
+    // Module role -> repository-relative filesystem path.
     val modules: Map<String, String>,
     val sources: Map<String, SourceConfig>,
     val generators: Map<String, GeneratorConfig>,

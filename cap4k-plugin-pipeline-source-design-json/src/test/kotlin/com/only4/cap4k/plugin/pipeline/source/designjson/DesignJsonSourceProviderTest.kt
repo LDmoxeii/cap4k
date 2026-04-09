@@ -1,0 +1,117 @@
+package com.only4.cap4k.plugin.pipeline.source.designjson
+
+import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
+import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
+import com.only4.cap4k.plugin.pipeline.api.SourceConfig
+import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import java.io.File
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.Path
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+
+class DesignJsonSourceProviderTest {
+    @TempDir
+    lateinit var tempDir: Path
+
+    @Test
+    fun `loads command and query entries from configured files`() {
+        val fixture = File("src/test/resources/fixtures/design/design.json").path
+        val config = ProjectConfig(
+            basePackage = "com.only4.cap4k",
+            layout = ProjectLayout.SINGLE_MODULE,
+            modules = emptyMap(),
+            sources = mapOf(
+                "design-json" to SourceConfig(
+                    enabled = true,
+                    options = mapOf("files" to listOf(fixture)),
+                ),
+            ),
+            generators = emptyMap(),
+            templates = TemplateConfig(
+                preset = "default",
+                overrideDirs = emptyList(),
+                conflictPolicy = ConflictPolicy.SKIP,
+            ),
+        )
+
+        val provider = DesignJsonSourceProvider()
+        val snapshot = provider.collect(config) as DesignSpecSnapshot
+
+        assertEquals(2, snapshot.entries.size)
+        assertEquals("cmd", snapshot.entries.first().tag)
+        assertEquals("order.submit", snapshot.entries.first().packageName)
+        assertEquals("submit order command", snapshot.entries.first().description)
+        assertEquals(listOf("Order"), snapshot.entries.first().aggregates)
+        assertEquals(1, snapshot.entries.first().requestFields.size)
+        assertEquals("orderId", snapshot.entries.first().requestFields.first().name)
+        assertEquals("Long", snapshot.entries.first().requestFields.first().type)
+        assertEquals(1, snapshot.entries.first().responseFields.size)
+        assertEquals("accepted", snapshot.entries.first().responseFields.first().name)
+        assertEquals("Boolean", snapshot.entries.first().responseFields.first().type)
+        assertEquals("FindOrder", snapshot.entries.last().name)
+        assertEquals("orderId", snapshot.entries.last().requestFields.first().name)
+        assertEquals("Long", snapshot.entries.last().requestFields.first().type)
+        assertEquals("status", snapshot.entries.last().responseFields.first().name)
+        assertEquals("String", snapshot.entries.last().responseFields.first().type)
+    }
+
+    @Test
+    fun `defaults missing field type to kotlin String`() {
+        val tempFile = tempDir.resolve("default-type-design.json")
+        val content = """
+            [
+              {
+                "tag": "cmd",
+                "package": "order.submit",
+                "name": "CreateOrder",
+                "desc": "中文描述",
+                "aggregates": ["Order"],
+                "requestFields": [
+                  { "name": "note" }
+                ],
+                "responseFields": []
+              }
+            ]
+        """.trimIndent()
+        Files.writeString(tempFile, content, StandardCharsets.UTF_8)
+
+        val config = ProjectConfig(
+            basePackage = "com.only4.cap4k",
+            layout = ProjectLayout.SINGLE_MODULE,
+            modules = emptyMap(),
+            sources = mapOf(
+                "design-json" to SourceConfig(
+                    enabled = true,
+                    options = mapOf("files" to listOf(tempFile.toString())),
+                ),
+            ),
+            generators = emptyMap(),
+            templates = TemplateConfig(
+                preset = "default",
+                overrideDirs = emptyList(),
+                conflictPolicy = ConflictPolicy.SKIP,
+            ),
+        )
+
+        val provider = DesignJsonSourceProvider()
+        val snapshot = provider.collect(config) as DesignSpecSnapshot
+
+        assertEquals("中文描述", snapshot.entries.first().description)
+        assertEquals("kotlin.String", snapshot.entries.first().requestFields.first().type)
+    }
+
+    @Test
+    fun `declares utf8 charset when reading design files`() {
+        val sourceFile = File(
+            "src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProvider.kt",
+        )
+        val source = sourceFile.readText(StandardCharsets.UTF_8)
+        assertTrue(source.contains("Charsets.UTF_8"))
+    }
+}
