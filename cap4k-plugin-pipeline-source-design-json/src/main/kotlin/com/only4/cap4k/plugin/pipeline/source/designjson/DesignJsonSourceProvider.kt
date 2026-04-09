@@ -21,7 +21,7 @@ class DesignJsonSourceProvider : SourceProvider {
     }
 
     private fun parseFile(file: File): List<DesignSpecEntry> {
-        val array = file.reader().use { JsonParser.parseReader(it).asJsonArray }
+        val array = file.reader(Charsets.UTF_8).use { JsonParser.parseReader(it).asJsonArray }
         return array.map { element ->
             val obj = element.asJsonObject
             DesignSpecEntry(
