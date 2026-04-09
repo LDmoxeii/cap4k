@@ -43,5 +43,15 @@ include("cap4k-plugin-code-analysis-compiler")
 include("cap4k-plugin-code-analysis-flow-export")
 include("cap4k-plugin-codegen-ksp")
 include("cap4k-plugin-codegen")
+include(
+    "cap4k-plugin-pipeline-api",
+    "cap4k-plugin-pipeline-core",
+    "cap4k-plugin-pipeline-renderer-api",
+    "cap4k-plugin-pipeline-renderer-pebble",
+    "cap4k-plugin-pipeline-source-design-json",
+    "cap4k-plugin-pipeline-source-ksp-metadata",
+    "cap4k-plugin-pipeline-generator-design",
+    "cap4k-plugin-pipeline-gradle"
+)
 
 rootProject.name = "cap4k"
