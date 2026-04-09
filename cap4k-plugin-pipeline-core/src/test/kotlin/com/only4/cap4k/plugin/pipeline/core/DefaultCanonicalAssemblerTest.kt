@@ -271,6 +271,35 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `normalizes uppercase jdbc table names with digits into aggregate models`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseAggregateConfig(),
+            snapshots = listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "OAUTH2_CLIENT",
+                            comment = "Oauth2 client",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, null, "", true),
+                                DbColumnSnapshot("client_name", "VARCHAR", "String", false, null, "", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = listOf(listOf("client_name")),
+                        )
+                    )
+                )
+            ),
+        )
+
+        assertEquals("SOauth2Client", model.schemas.single().name)
+        assertEquals("Oauth2Client", model.entities.single().name)
+        assertEquals("Oauth2ClientRepository", model.repositories.single().name)
+    }
+
+    @Test
     fun `fails fast when db table has no primary key`() {
         val assembler = DefaultCanonicalAssembler()
 

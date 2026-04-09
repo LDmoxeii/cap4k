@@ -7,7 +7,7 @@ internal object AggregateNaming {
         tableName.split("_")
             .filter { it.isNotBlank() }
             .joinToString("") { part ->
-                if (part.all { it.isUpperCase() }) {
+                if (part.isUppercaseToken()) {
                     part.lowercase(Locale.ROOT).replaceFirstChar { character -> character.uppercase(Locale.ROOT) }
                 } else {
                     part.replaceFirstChar { character -> character.uppercase(Locale.ROOT) }
@@ -19,4 +19,7 @@ internal object AggregateNaming {
     fun repositoryName(tableName: String): String = "${entityName(tableName)}Repository"
 
     fun tableSegment(tableName: String): String = tableName.lowercase(Locale.ROOT)
+
+    private fun String.isUppercaseToken(): Boolean =
+        any(Char::isLetter) && filter(Char::isLetter).all(Char::isUpperCase)
 }
