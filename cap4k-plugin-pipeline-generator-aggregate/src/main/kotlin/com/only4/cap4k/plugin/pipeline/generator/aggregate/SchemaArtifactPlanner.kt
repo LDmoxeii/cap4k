@@ -19,6 +19,7 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                 context = mapOf(
                     "packageName" to schema.packageName,
                     "typeName" to schema.name,
+                    "comment" to schema.comment,
                     "entityName" to schema.entityName,
                     "fields" to schema.fields,
                 ),

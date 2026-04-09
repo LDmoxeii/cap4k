@@ -17,7 +17,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 context = mapOf(
                     "packageName" to entity.packageName,
                     "typeName" to entity.name,
+                    "comment" to entity.comment,
                     "tableName" to entity.tableName,
+                    "idField" to entity.idField,
                     "fields" to entity.fields,
                 ),
                 conflictPolicy = config.templates.conflictPolicy,

@@ -35,7 +35,7 @@ class AggregateArtifactPlannerTest {
                     name = "SVideoPost",
                     packageName = "com.acme.demo.domain._share.meta.video_post",
                     entityName = "VideoPost",
-                    comment = "",
+                    comment = "Video post schema",
                     fields = listOf(FieldModel("id", "Long")),
                 )
             ),
@@ -44,7 +44,7 @@ class AggregateArtifactPlannerTest {
                     name = "VideoPost",
                     packageName = "com.acme.demo.domain.aggregates.video_post",
                     tableName = "video_post",
-                    comment = "",
+                    comment = "Video post entity",
                     fields = listOf(FieldModel("id", "Long")),
                     idField = FieldModel("id", "Long"),
                 )
@@ -67,8 +67,20 @@ class AggregateArtifactPlannerTest {
             planItems.first { it.templateId == "aggregate/schema.kt.peb" }.outputPath,
         )
         assertEquals(
+            "Video post schema",
+            planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context["comment"],
+        )
+        assertEquals(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
             planItems.first { it.templateId == "aggregate/entity.kt.peb" }.outputPath,
+        )
+        assertEquals(
+            "Video post entity",
+            planItems.first { it.templateId == "aggregate/entity.kt.peb" }.context["comment"],
+        )
+        assertEquals(
+            FieldModel("id", "Long"),
+            planItems.first { it.templateId == "aggregate/entity.kt.peb" }.context["idField"],
         )
         assertEquals(
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt",
