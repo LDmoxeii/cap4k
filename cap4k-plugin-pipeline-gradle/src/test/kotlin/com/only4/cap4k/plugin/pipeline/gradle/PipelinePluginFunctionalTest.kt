@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -129,6 +130,34 @@ class PipelinePluginFunctionalTest {
             ).exists()
         )
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/entity.kt.peb\""))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan fails fast on partial aggregate configuration`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-invalid")
+        copyFixture(projectDir, "aggregate-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace(
+                "    adapterModulePath.set(\"demo-adapter\")\n",
+                "    adapterModulePath.set(\"\")\n",
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(
+            result.output.contains(
+                "Aggregate pipeline config requires dbUrl, domainModulePath, and adapterModulePath when any are set."
+            )
+        )
+        assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
     }
 
     @OptIn(ExperimentalPathApi::class)

@@ -49,14 +49,18 @@ class PipelinePlugin : Plugin<Project> {
 }
 
 internal fun buildConfig(project: Project, extension: PipelineExtension): ProjectConfig {
+    val domainModulePath = extension.domainModulePath.optionalValue()
+    val adapterModulePath = extension.adapterModulePath.optionalValue()
+    val dbUrl = extension.dbUrl.optionalValue()
+    validateAggregateConfig(dbUrl = dbUrl, domainModulePath = domainModulePath, adapterModulePath = adapterModulePath)
+
     val modules = buildMap {
         extension.applicationModulePath.optionalValue()?.let { put("application", it) }
-        extension.domainModulePath.optionalValue()?.let { put("domain", it) }
-        extension.adapterModulePath.optionalValue()?.let { put("adapter", it) }
+        domainModulePath?.let { put("domain", it) }
+        adapterModulePath?.let { put("adapter", it) }
     }
     val designJsonEnabled = extension.designFiles.files.isNotEmpty()
     val kspMetadataDir = extension.kspMetadataDir.optionalValue()
-    val dbUrl = extension.dbUrl.optionalValue()
     val aggregateEnabled = dbUrl != null && "domain" in modules && "adapter" in modules
 
     return ProjectConfig(
@@ -120,6 +124,26 @@ internal fun buildConfig(project: Project, extension: PipelineExtension): Projec
 }
 
 private fun Property<String>.optionalValue(): String? = orNull?.trim()?.takeIf { it.isNotEmpty() }
+
+private fun validateAggregateConfig(dbUrl: String?, domainModulePath: String?, adapterModulePath: String?) {
+    val aggregateFields = listOf(
+        "dbUrl" to dbUrl,
+        "domainModulePath" to domainModulePath,
+        "adapterModulePath" to adapterModulePath,
+    )
+    val configuredFields = aggregateFields.filter { (_, value) -> value != null }
+    if (configuredFields.isEmpty() || configuredFields.size == aggregateFields.size) {
+        return
+    }
+
+    val missingFields = aggregateFields
+        .filter { (_, value) -> value == null }
+        .joinToString(", ") { (name, _) -> name }
+    error(
+        "Aggregate pipeline config requires dbUrl, domainModulePath, and adapterModulePath when any are set. " +
+            "Missing: $missingFields."
+    )
+}
 
 internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner {
     return DefaultPipelineRunner(
