@@ -1,11 +1,16 @@
 package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
+import com.only4.cap4k.plugin.pipeline.api.EntityModel
+import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.RequestKind
 import com.only4.cap4k.plugin.pipeline.api.RequestModel
+import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
+import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SourceSnapshot
 import java.util.Locale
 
@@ -15,14 +20,17 @@ interface CanonicalAssembler {
 
 class DefaultCanonicalAssembler : CanonicalAssembler {
     override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalModel {
-        val designSnapshot = snapshots.filterIsInstance<DesignSpecSnapshot>().firstOrNull() ?: return CanonicalModel()
+        val designSnapshot = snapshots.filterIsInstance<DesignSpecSnapshot>().firstOrNull()
+        val dbTables = snapshots
+            .filterIsInstance<DbSchemaSnapshot>()
+            .flatMap { it.tables }
 
         val aggregateLookup = snapshots
             .filterIsInstance<KspMetadataSnapshot>()
             .flatMap { it.aggregates }
             .associateBy { it.aggregateName }
 
-        val requests = designSnapshot.entries.mapNotNull { entry ->
+        val requests = designSnapshot?.entries.orEmpty().mapNotNull { entry ->
             val kind = when (entry.tag.lowercase(Locale.ROOT)) {
                 "cmd", "command" -> RequestKind.COMMAND
                 "qry", "query" -> RequestKind.QUERY
@@ -46,6 +54,53 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             )
         }
 
-        return CanonicalModel(requests = requests)
+        val aggregateModels = dbTables.map { table ->
+            require(table.primaryKey.isNotEmpty()) { "db table ${table.tableName} must define a primary key" }
+
+            val entityName = AggregateNaming.entityName(table.tableName)
+            val schemaName = AggregateNaming.schemaName(table.tableName)
+            val repositoryName = AggregateNaming.repositoryName(table.tableName)
+            val segment = AggregateNaming.tableSegment(table.tableName)
+            val fields = table.columns.map {
+                FieldModel(
+                    name = it.name,
+                    type = it.kotlinType,
+                    nullable = it.nullable,
+                    defaultValue = it.defaultValue,
+                )
+            }
+            val idField = fields.first { it.name == table.primaryKey.first() }
+
+            Triple(
+                SchemaModel(
+                    name = schemaName,
+                    packageName = "${config.basePackage}.domain._share.meta.$segment",
+                    entityName = entityName,
+                    comment = table.comment,
+                    fields = fields,
+                ),
+                EntityModel(
+                    name = entityName,
+                    packageName = "${config.basePackage}.domain.aggregates.$segment",
+                    tableName = table.tableName,
+                    comment = table.comment,
+                    fields = fields,
+                    idField = idField,
+                ),
+                RepositoryModel(
+                    name = repositoryName,
+                    packageName = "${config.basePackage}.adapter.domain.repositories",
+                    entityName = entityName,
+                    idType = idField.type,
+                ),
+            )
+        }
+
+        return CanonicalModel(
+            requests = requests,
+            schemas = aggregateModels.map { it.first },
+            entities = aggregateModels.map { it.second },
+            repositories = aggregateModels.map { it.third },
+        )
     }
 }
