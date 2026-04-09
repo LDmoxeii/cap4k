@@ -8,6 +8,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.copyToRecursively
+import kotlin.io.path.readText
+import kotlin.io.path.writeText
 
 class PipelinePluginFunctionalTest {
 
@@ -16,6 +18,8 @@ class PipelinePluginFunctionalTest {
     fun `cap4kPlan writes pretty printed plan json`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-plan")
         copyFixture(projectDir)
+
+        val metadataFile = projectDir.resolve("domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -26,6 +30,7 @@ class PipelinePluginFunctionalTest {
         val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(metadataFile.toFile().exists())
         assertTrue(planFile.exists())
         assertTrue(planFile.readText().contains("\n  {"))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/command.kt.peb\""))
@@ -38,6 +43,8 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-generate")
         copyFixture(projectDir)
 
+        val metadataFile = projectDir.resolve("domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
+
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
             .withPluginClasspath()
@@ -45,6 +52,7 @@ class PipelinePluginFunctionalTest {
             .build()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(metadataFile.toFile().exists())
         assertTrue(
             File(
                 projectDir.toFile(),
@@ -57,6 +65,33 @@ class PipelinePluginFunctionalTest {
                 "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt"
             ).exists()
         )
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate keeps existing files on rerun because default conflict policy is skip`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-rerun")
+        copyFixture(projectDir)
+
+        GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val commandFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt"
+        )
+        commandFile.writeText("sentinel")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(commandFile.readText() == "sentinel")
     }
 
     @OptIn(ExperimentalPathApi::class)

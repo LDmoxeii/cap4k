@@ -24,7 +24,7 @@ class DefaultCanonicalAssemblerTest {
             config = ProjectConfig(
                 basePackage = "com.acme.demo",
                 layout = MULTI_MODULE,
-                modules = mapOf("application" to ":demo-application"),
+                modules = mapOf("application" to "demo-application"),
                 sources = emptyMap(),
                 generators = emptyMap(),
                 templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
@@ -179,7 +179,7 @@ class DefaultCanonicalAssemblerTest {
         return ProjectConfig(
             basePackage = "com.acme.demo",
             layout = MULTI_MODULE,
-            modules = mapOf("application" to ":demo-application"),
+            modules = mapOf("application" to "demo-application"),
             sources = emptyMap(),
             generators = emptyMap(),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),

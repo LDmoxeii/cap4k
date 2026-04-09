@@ -23,15 +23,24 @@ class PipelinePlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val extension = project.extensions.create("cap4kPipeline", PipelineExtension::class.java)
 
-        project.tasks.register("cap4kPlan", Cap4kPlanTask::class.java) { task ->
+        val planTask = project.tasks.register("cap4kPlan", Cap4kPlanTask::class.java) { task ->
             task.group = "cap4k"
             task.description = "Plans Cap4k pipeline artifacts."
             task.extension = extension
         }
-        project.tasks.register("cap4kGenerate", Cap4kGenerateTask::class.java) { task ->
+        val generateTask = project.tasks.register("cap4kGenerate", Cap4kGenerateTask::class.java) { task ->
             task.group = "cap4k"
             task.description = "Generates artifacts from the Cap4k pipeline."
             task.extension = extension
+        }
+
+        project.afterEvaluate {
+            val kspTasks = project.rootProject.allprojects
+                .mapNotNull { candidate -> candidate.tasks.findByName("kspKotlin") }
+            if (kspTasks.isNotEmpty()) {
+                planTask.configure { task -> task.dependsOn(kspTasks) }
+                generateTask.configure { task -> task.dependsOn(kspTasks) }
+            }
         }
     }
 }
