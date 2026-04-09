@@ -20,6 +20,7 @@ import com.only4.cap4k.plugin.pipeline.source.designjson.DesignJsonSourceProvide
 import com.only4.cap4k.plugin.pipeline.source.ksp.KspMetadataSourceProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 
 class PipelinePlugin : Plugin<Project> {
@@ -38,6 +39,7 @@ class PipelinePlugin : Plugin<Project> {
         }
 
         project.gradle.projectsEvaluated {
+            validateAggregateConfig(extension)
             val kspTasks = project.rootProject.allprojects
                 .mapNotNull { candidate -> candidate.tasks.findByName("kspKotlin") }
             if (kspTasks.isNotEmpty()) {
@@ -49,19 +51,17 @@ class PipelinePlugin : Plugin<Project> {
 }
 
 internal fun buildConfig(project: Project, extension: PipelineExtension): ProjectConfig {
-    val domainModulePath = extension.domainModulePath.optionalValue()
-    val adapterModulePath = extension.adapterModulePath.optionalValue()
-    val dbUrl = extension.dbUrl.optionalValue()
-    validateAggregateConfig(dbUrl = dbUrl, domainModulePath = domainModulePath, adapterModulePath = adapterModulePath)
+    val aggregateConfig = aggregateConfigState(extension)
+    validateAggregateConfig(aggregateConfig)
 
     val modules = buildMap {
         extension.applicationModulePath.optionalValue()?.let { put("application", it) }
-        domainModulePath?.let { put("domain", it) }
-        adapterModulePath?.let { put("adapter", it) }
+        aggregateConfig.domainModulePath?.let { put("domain", it) }
+        aggregateConfig.adapterModulePath?.let { put("adapter", it) }
     }
     val designJsonEnabled = extension.designFiles.files.isNotEmpty()
     val kspMetadataDir = extension.kspMetadataDir.optionalValue()
-    val aggregateEnabled = dbUrl != null && "domain" in modules && "adapter" in modules
+    val aggregateEnabled = aggregateConfig.dbUrl != null && "domain" in modules && "adapter" in modules
 
     return ProjectConfig(
         basePackage = extension.basePackage.get(),
@@ -90,13 +90,13 @@ internal fun buildConfig(project: Project, extension: PipelineExtension): Projec
                     )
                 )
             }
-            if (dbUrl != null) {
+            if (aggregateConfig.dbUrl != null) {
                 put(
                     "db",
                     SourceConfig(
                         enabled = true,
                         options = mapOf(
-                            "url" to dbUrl,
+                            "url" to aggregateConfig.dbUrl,
                             "username" to extension.dbUsername.orNull.orEmpty(),
                             "password" to extension.dbPassword.orNull.orEmpty(),
                             "schema" to extension.dbSchema.orNull.orEmpty(),
@@ -125,20 +125,52 @@ internal fun buildConfig(project: Project, extension: PipelineExtension): Projec
 
 private fun Property<String>.optionalValue(): String? = orNull?.trim()?.takeIf { it.isNotEmpty() }
 
-private fun validateAggregateConfig(dbUrl: String?, domainModulePath: String?, adapterModulePath: String?) {
-    val aggregateFields = listOf(
-        "dbUrl" to dbUrl,
-        "domainModulePath" to domainModulePath,
-        "adapterModulePath" to adapterModulePath,
+private fun aggregateConfigState(extension: PipelineExtension): AggregateConfigState =
+    AggregateConfigState(
+        dbUrl = extension.dbUrl.optionalValue(),
+        domainModulePath = extension.domainModulePath.optionalValue(),
+        adapterModulePath = extension.adapterModulePath.optionalValue(),
+        hasSignals = listOf(
+            extension.dbUrl.isPresent,
+            extension.domainModulePath.isPresent,
+            extension.adapterModulePath.isPresent,
+            extension.dbUsername.isPresent,
+            extension.dbPassword.isPresent,
+            extension.dbSchema.isPresent,
+            extension.dbIncludeTables.hasConfiguredValues(),
+            extension.dbExcludeTables.hasConfiguredValues(),
+        ).any { it }
     )
-    val configuredFields = aggregateFields.filter { (_, value) -> value != null }
-    if (configuredFields.isEmpty() || configuredFields.size == aggregateFields.size) {
+
+private data class AggregateConfigState(
+    val dbUrl: String?,
+    val domainModulePath: String?,
+    val adapterModulePath: String?,
+    val hasSignals: Boolean,
+)
+
+private fun ListProperty<String>.hasConfiguredValues(): Boolean =
+    orNull?.any { it.isNotBlank() } == true
+
+private fun validateAggregateConfig(extension: PipelineExtension) {
+    validateAggregateConfig(aggregateConfigState(extension))
+}
+
+private fun validateAggregateConfig(config: AggregateConfigState) {
+    if (!config.hasSignals) {
         return
     }
 
-    val missingFields = aggregateFields
-        .filter { (_, value) -> value == null }
+    val missingFields = listOf(
+        "dbUrl" to config.dbUrl,
+        "domainModulePath" to config.domainModulePath,
+        "adapterModulePath" to config.adapterModulePath,
+    ).filter { (_, value) -> value == null }
         .joinToString(", ") { (name, _) -> name }
+    if (missingFields.isEmpty()) {
+        return
+    }
+
     error(
         "Aggregate pipeline config requires dbUrl, domainModulePath, and adapterModulePath when any are set. " +
             "Missing: $missingFields."

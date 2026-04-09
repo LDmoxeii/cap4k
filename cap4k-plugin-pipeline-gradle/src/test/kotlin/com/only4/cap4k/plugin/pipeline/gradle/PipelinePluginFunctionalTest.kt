@@ -141,8 +141,8 @@ class PipelinePluginFunctionalTest {
         val buildFile = projectDir.resolve("build.gradle.kts")
         buildFile.writeText(
             buildFile.readText().replace(
-                "    adapterModulePath.set(\"demo-adapter\")\n",
-                "    adapterModulePath.set(\"\")\n",
+                "    adapterModulePath.set(\"demo-adapter\")",
+                "    adapterModulePath.set(\"\")",
             )
         )
 
@@ -158,6 +158,72 @@ class PipelinePluginFunctionalTest {
             )
         )
         assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan fails during configuration when auxiliary db field is set without aggregate trio`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-invalid")
+        copyFixture(projectDir, "design-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace(
+                "    templateOverrideDir.set(\"codegen/templates\")",
+                """
+                |    templateOverrideDir.set("codegen/templates")
+                |    dbSchema.set("PUBLIC")
+                """.trimMargin()
+            )
+        )
+
+        val metadataFile = projectDir.resolve("domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(
+            result.output.contains(
+                "Aggregate pipeline config requires dbUrl, domainModulePath, and adapterModulePath when any are set."
+            )
+        )
+        assertTrue(result.output.contains("Missing: dbUrl, domainModulePath, adapterModulePath."))
+        assertFalse(metadataFile.toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan ignores blank db include and exclude tables without triggering aggregate validation`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-blank-db-lists")
+        copyFixture(projectDir, "design-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace(
+                "    templateOverrideDir.set(\"codegen/templates\")",
+                """
+                |    templateOverrideDir.set("codegen/templates")
+                |    dbIncludeTables.set(listOf("   "))
+                |    dbExcludeTables.set(listOf(""))
+                """.trimMargin()
+            )
+        )
+
+        val metadataFile = projectDir.resolve("domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
+        val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(metadataFile.toFile().exists())
+        assertTrue(planFile.exists())
     }
 
     @OptIn(ExperimentalPathApi::class)
