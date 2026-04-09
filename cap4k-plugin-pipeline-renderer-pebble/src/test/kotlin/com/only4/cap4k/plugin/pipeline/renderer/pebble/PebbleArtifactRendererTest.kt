@@ -179,7 +179,7 @@ class PebbleArtifactRendererTest {
         val entityContent = rendered[1].content
         val repositoryContent = rendered[2].content
 
-        assertTrue(schemaContent.contains("class OrderSchema"))
+        assertTrue(schemaContent.contains("object OrderSchema"))
         assertTrue(schemaContent.contains("const val id = \"id\""))
         assertTrue(schemaContent.contains("const val orderNo = \"orderNo\""))
         assertTrue(entityContent.contains("data class Order("))
