@@ -1,0 +1,9 @@
+package {{ packageName }}
+
+class {{ typeName }} {
+    companion object {
+{% for field in fields %}
+        const val {{ field.name }} = "{{ field.name }}"
+{% endfor %}
+    }
+}

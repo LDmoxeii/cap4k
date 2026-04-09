@@ -103,6 +103,91 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `falls back to preset aggregate templates and renders aggregate content`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/schema.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/OrderSchema.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.order",
+                        "typeName" to "OrderSchema",
+                        "entityName" to "Order",
+                        "fields" to listOf(
+                            FieldModel("id", "Long"),
+                            FieldModel("orderNo", "String", nullable = true)
+                        )
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/entity.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/Order.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.order",
+                        "typeName" to "Order",
+                        "comment" to "Order aggregate",
+                        "idField" to FieldModel("id", "Long"),
+                        "fields" to listOf(
+                            FieldModel("id", "Long"),
+                            FieldModel("orderNo", "String", nullable = true)
+                        )
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "adapter",
+                    templateId = "aggregate/repository.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/OrderRepository.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.domain.repositories",
+                        "typeName" to "OrderRepository",
+                        "entityName" to "Order",
+                        "idType" to "Long"
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val schemaContent = rendered[0].content
+        val entityContent = rendered[1].content
+        val repositoryContent = rendered[2].content
+
+        assertTrue(schemaContent.contains("class OrderSchema"))
+        assertTrue(schemaContent.contains("const val id = \"id\""))
+        assertTrue(schemaContent.contains("const val orderNo = \"orderNo\""))
+        assertTrue(entityContent.contains("data class Order("))
+        assertTrue(entityContent.contains("val orderNo: String?"))
+        assertTrue(repositoryContent.contains("interface OrderRepository"))
+    }
+
+    @Test
     fun `throws clear error when template is missing`() {
         val resolver = PresetTemplateResolver(
             preset = "ddd-default",
