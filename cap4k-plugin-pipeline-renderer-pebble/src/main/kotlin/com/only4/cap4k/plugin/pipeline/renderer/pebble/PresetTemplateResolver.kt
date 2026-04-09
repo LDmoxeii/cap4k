@@ -18,7 +18,7 @@ class PresetTemplateResolver(
 
         val resourcePath = "presets/$preset/$templateId"
         val resource = javaClass.classLoader.getResource(resourcePath)
-            ?: error("Template not found: $resourcePath")
+            ?: throw IllegalArgumentException("Template not found: $resourcePath")
         return resource.readText()
     }
 }
