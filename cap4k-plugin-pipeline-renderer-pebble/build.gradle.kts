@@ -9,7 +9,6 @@ dependencies {
     implementation(project(":cap4k-plugin-pipeline-renderer-api"))
     implementation(libs.pebble)
 
-    testImplementation(kotlin("test"))
     testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")

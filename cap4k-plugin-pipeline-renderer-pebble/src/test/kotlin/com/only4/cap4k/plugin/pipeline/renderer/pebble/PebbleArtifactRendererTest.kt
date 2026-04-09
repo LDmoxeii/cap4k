@@ -3,8 +3,8 @@ package com.only4.cap4k.plugin.pipeline.renderer.pebble
 import com.only4.cap4k.plugin.pipeline.api.*
 import java.nio.file.Files
 import kotlin.io.path.writeText
-import kotlin.test.Test
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
 class PebbleArtifactRendererTest {
 
