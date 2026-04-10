@@ -13,6 +13,8 @@ open class PipelineExtension @Inject constructor(objects: ObjectFactory) {
     val adapterModulePath: Property<String> = objects.property(String::class.java)
     val designFiles: ConfigurableFileCollection = objects.fileCollection()
     val kspMetadataDir: Property<String> = objects.property(String::class.java)
+    val irAnalysisInputDirs: ConfigurableFileCollection = objects.fileCollection()
+    val flowOutputDir: Property<String> = objects.property(String::class.java)
     val dbUrl: Property<String> = objects.property(String::class.java)
     val dbUsername: Property<String> = objects.property(String::class.java)
     val dbPassword: Property<String> = objects.property(String::class.java)

@@ -227,6 +227,45 @@ class PipelinePluginFunctionalTest {
     }
 
     @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan and cap4kGenerate produce flow artifacts from ir analysis fixture`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-flow")
+        copyFixture(projectDir, "flow-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan", "cap4kGenerate")
+            .build()
+
+        val planFile = projectDir.resolve("build/cap4k/plan.json")
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planFile.toFile().exists())
+        assertTrue(planFile.readText().contains("\"templateId\": \"flow/index.json.peb\""))
+        assertTrue(projectDir.resolve("flows/OrderController_submit.json").toFile().exists())
+        assertTrue(projectDir.resolve("flows/OrderController_submit.mmd").toFile().exists())
+        assertTrue(projectDir.resolve("flows/index.json").toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan fails clearly when ir analysis fixture misses rels json`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-flow-invalid")
+        copyFixture(projectDir, "flow-sample")
+        projectDir.resolve("analysis/app/build/cap4k-code-analysis/rels.json").toFile().delete()
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("ir-analysis inputDir is missing nodes.json or rels.json"))
+        assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
     private fun copyFixture(targetDir: Path, fixtureName: String = "design-sample") {
         val sourceDir = Path.of(
             requireNotNull(javaClass.getResource("/functional/$fixtureName")) {

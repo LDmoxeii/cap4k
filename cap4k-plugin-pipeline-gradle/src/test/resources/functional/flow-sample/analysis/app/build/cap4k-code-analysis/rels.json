@@ -1,0 +1,12 @@
+[
+  {
+    "fromId": "OrderController::submit",
+    "toId": "SubmitOrderCmd",
+    "type": "ControllerMethodToCommand"
+  },
+  {
+    "fromId": "SubmitOrderCmd",
+    "toId": "SubmitOrderHandler",
+    "type": "CommandToCommandHandler"
+  }
+]
