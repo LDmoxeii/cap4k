@@ -39,8 +39,8 @@ internal object DesignTypeResolver {
         val rawText = type.tokenText
         val simpleName = rawText.substringAfterLast('.')
         val kind = when {
-            rawText in builtInTypeNames -> DesignResolvedTypeKind.BUILTIN
             rawText in innerTypeNames -> DesignResolvedTypeKind.INNER
+            rawText in builtInTypeNames -> DesignResolvedTypeKind.BUILTIN
             rawText.contains('.') -> DesignResolvedTypeKind.EXPLICIT_FQCN
             else -> DesignResolvedTypeKind.UNRESOLVED
         }

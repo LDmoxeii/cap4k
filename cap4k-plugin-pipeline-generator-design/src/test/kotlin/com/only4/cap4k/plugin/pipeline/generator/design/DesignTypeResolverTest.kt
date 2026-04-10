@@ -38,6 +38,20 @@ class DesignTypeResolverTest {
     }
 
     @Test
+    fun `inner type wins over built-in name`() {
+        val resolved = resolve("Pair", innerTypes = setOf("Pair"))
+        val plan = plan(
+            type = "Pair",
+            innerTypes = setOf("Pair"),
+        )
+
+        assertEquals(DesignResolvedTypeKind.INNER, resolved.kind)
+        assertEquals("Pair", plan.renderedTypes.single().renderedText)
+        assertEquals(emptyList<String>(), plan.imports)
+        assertFalse(plan.renderedTypes.single().qualifiedFallback)
+    }
+
+    @Test
     fun `unique fqcn imports and renders short name`() {
         val resolved = resolve("java.time.LocalDateTime")
         val plan = plan("java.time.LocalDateTime")
