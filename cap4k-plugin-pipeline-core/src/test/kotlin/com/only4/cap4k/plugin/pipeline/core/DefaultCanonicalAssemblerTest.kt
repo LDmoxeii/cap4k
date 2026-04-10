@@ -7,10 +7,14 @@ import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DesignFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrEdgeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrNodeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
+import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
+import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
 import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
@@ -220,6 +224,117 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(2, model.analysisGraph!!.nodes.size)
         assertEquals("controllermethod", model.analysisGraph!!.nodes.first().type)
         assertEquals("ControllerMethodToCommand", model.analysisGraph!!.edges.single().type)
+    }
+
+    @Test
+    fun `assembles drawing board from design elements with supported tags and first wins deduplication`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val supportedField = DesignFieldSnapshot(name = "orderId", type = "Long", nullable = false, defaultValue = "0")
+        val responseField = DesignFieldSnapshot(name = "accepted", type = "Boolean")
+        val duplicateField = DesignFieldSnapshot(name = "ignored", type = "String")
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                IrAnalysisSnapshot(
+                    inputDirs = listOf("app/build/cap4k-code-analysis"),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                    designElements = listOf(
+                        DesignElementSnapshot(
+                            tag = "cmd",
+                            packageName = "order.submit",
+                            name = "SubmitOrder",
+                            description = "submit order",
+                            aggregates = listOf("Order"),
+                            entity = "Order",
+                            persist = true,
+                            requestFields = listOf(supportedField),
+                            responseFields = listOf(responseField),
+                        ),
+                        DesignElementSnapshot(
+                            tag = "cmd",
+                            packageName = "order.submit",
+                            name = "SubmitOrder",
+                            description = "duplicate submit order",
+                            aggregates = listOf("Ignored"),
+                            entity = "Ignored",
+                            persist = false,
+                            requestFields = listOf(duplicateField),
+                            responseFields = listOf(duplicateField),
+                        ),
+                        DesignElementSnapshot(
+                            tag = "qry",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            description = "find order",
+                            aggregates = listOf("Order"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignElementSnapshot(
+                            tag = "evt",
+                            packageName = "order.events",
+                            name = "OrderCreated",
+                            description = "order created",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val drawingBoard = model.drawingBoard
+        assertEquals(2, drawingBoard!!.elements.size)
+        assertEquals(
+            DrawingBoardElementModel(
+                tag = "cmd",
+                packageName = "order.submit",
+                name = "SubmitOrder",
+                description = "submit order",
+                aggregates = listOf("Order"),
+                entity = "Order",
+                persist = true,
+                requestFields = listOf(DrawingBoardFieldModel(name = "orderId", type = "Long", nullable = false, defaultValue = "0")),
+                responseFields = listOf(DrawingBoardFieldModel(name = "accepted", type = "Boolean")),
+            ),
+            drawingBoard.elements.first(),
+        )
+        assertEquals(listOf("cmd", "qry"), drawingBoard.elementsByTag.keys.toList())
+        assertEquals(1, drawingBoard.elementsByTag.getValue("cmd").size)
+        assertEquals("FindOrder", drawingBoard.elementsByTag.getValue("qry").single().name)
+    }
+
+    @Test
+    fun `leaves drawing board null when no supported design elements exist`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                IrAnalysisSnapshot(
+                    inputDirs = listOf("app/build/cap4k-code-analysis"),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                    designElements = listOf(
+                        DesignElementSnapshot(
+                            tag = "evt",
+                            packageName = "order.events",
+                            name = "OrderCreated",
+                            description = "order created",
+                        ),
+                        DesignElementSnapshot(
+                            tag = "unknown",
+                            packageName = "order.events",
+                            name = "OrderArchived",
+                            description = "order archived",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertNull(model.drawingBoard)
     }
 
     @Test

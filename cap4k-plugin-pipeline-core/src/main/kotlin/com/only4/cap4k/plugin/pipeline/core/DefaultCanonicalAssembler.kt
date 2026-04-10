@@ -4,6 +4,10 @@ import com.only4.cap4k.plugin.pipeline.api.AnalysisEdgeModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
+import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
+import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
@@ -125,12 +129,73 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             )
         }
 
+        val drawingBoard = analysisSnapshot
+            ?.designElements
+            .orEmpty()
+            .mapNotNull { it.toDrawingBoardElementOrNull() }
+            .fold(linkedMapOf<String, DrawingBoardElementModel>()) { acc, element ->
+                val key = drawingBoardElementKey(element)
+                acc.putIfAbsent(key, element)
+                acc
+            }
+            .values
+            .toList()
+            .takeIf { it.isNotEmpty() }
+            ?.let { elements ->
+                DrawingBoardModel(
+                    elements = elements,
+                    elementsByTag = elements.groupBy { it.tag },
+                )
+            }
+
         return CanonicalModel(
             requests = requests,
             schemas = aggregateModels.map { it.first },
             entities = aggregateModels.map { it.second },
             repositories = aggregateModels.map { it.third },
             analysisGraph = analysisGraph,
+            drawingBoard = drawingBoard,
         )
+    }
+
+    private fun DesignElementSnapshot.toDrawingBoardElementOrNull(): DrawingBoardElementModel? {
+        val normalizedTag = tag.lowercase(Locale.ROOT)
+        if (normalizedTag !in SupportedDrawingBoardTags) {
+            return null
+        }
+
+        return DrawingBoardElementModel(
+            tag = normalizedTag,
+            packageName = packageName,
+            name = name,
+            description = description,
+            aggregates = aggregates,
+            entity = entity,
+            persist = persist,
+            requestFields = requestFields.map { field ->
+                DrawingBoardFieldModel(
+                    name = field.name,
+                    type = field.type,
+                    nullable = field.nullable,
+                    defaultValue = field.defaultValue,
+                )
+            },
+            responseFields = responseFields.map { field ->
+                DrawingBoardFieldModel(
+                    name = field.name,
+                    type = field.type,
+                    nullable = field.nullable,
+                    defaultValue = field.defaultValue,
+                )
+            },
+        )
+    }
+
+    private fun drawingBoardElementKey(element: DrawingBoardElementModel): String {
+        return "${element.tag}|${element.packageName}|${element.name}"
+    }
+
+    private companion object {
+        val SupportedDrawingBoardTags = setOf("cli", "cmd", "qry", "payload", "de")
     }
 }
