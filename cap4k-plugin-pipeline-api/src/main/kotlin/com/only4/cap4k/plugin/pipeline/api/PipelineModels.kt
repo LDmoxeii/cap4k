@@ -7,6 +7,24 @@ data class FieldModel(
     val defaultValue: String? = null,
 )
 
+data class DbColumnSnapshot(
+    val name: String,
+    val dbType: String,
+    val kotlinType: String,
+    val nullable: Boolean,
+    val defaultValue: String? = null,
+    val comment: String = "",
+    val isPrimaryKey: Boolean = false,
+)
+
+data class DbTableSnapshot(
+    val tableName: String,
+    val comment: String,
+    val columns: List<DbColumnSnapshot>,
+    val primaryKey: List<String>,
+    val uniqueConstraints: List<List<String>>,
+)
+
 data class DesignSpecEntry(
     val tag: String,
     val packageName: String,
@@ -28,6 +46,11 @@ sealed interface SourceSnapshot {
     val id: String
 }
 
+data class DbSchemaSnapshot(
+    override val id: String = "db",
+    val tables: List<DbTableSnapshot>,
+) : SourceSnapshot
+
 data class DesignSpecSnapshot(
     override val id: String = "design-json",
     val entries: List<DesignSpecEntry>,
@@ -37,6 +60,30 @@ data class KspMetadataSnapshot(
     override val id: String = "ksp-metadata",
     val aggregates: List<AggregateMetadataRecord>,
 ) : SourceSnapshot
+
+data class SchemaModel(
+    val name: String,
+    val packageName: String,
+    val entityName: String,
+    val comment: String,
+    val fields: List<FieldModel>,
+)
+
+data class EntityModel(
+    val name: String,
+    val packageName: String,
+    val tableName: String,
+    val comment: String,
+    val fields: List<FieldModel>,
+    val idField: FieldModel,
+)
+
+data class RepositoryModel(
+    val name: String,
+    val packageName: String,
+    val entityName: String,
+    val idType: String,
+)
 
 enum class RequestKind {
     COMMAND,
@@ -56,6 +103,9 @@ data class RequestModel(
 
 data class CanonicalModel(
     val requests: List<RequestModel> = emptyList(),
+    val schemas: List<SchemaModel> = emptyList(),
+    val entities: List<EntityModel> = emptyList(),
+    val repositories: List<RepositoryModel> = emptyList(),
 )
 
 data class ArtifactPlanItem(

@@ -1,0 +1,7 @@
+package {{ packageName }}
+
+data class {{ typeName }}(
+{% for field in fields %}
+    val {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
+{% endfor %}
+)

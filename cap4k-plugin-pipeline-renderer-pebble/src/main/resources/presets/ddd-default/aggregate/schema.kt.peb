@@ -1,0 +1,7 @@
+package {{ packageName }}
+
+object {{ typeName }} {
+{% for field in fields %}
+        const val {{ field.name }} = "{{ field.name }}"
+{% endfor %}
+}
