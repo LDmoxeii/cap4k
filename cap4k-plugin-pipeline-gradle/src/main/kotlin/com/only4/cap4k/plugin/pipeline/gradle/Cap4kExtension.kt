@@ -7,23 +7,6 @@ import org.gradle.api.provider.Property
 import javax.inject.Inject
 
 open class Cap4kExtension @Inject constructor(objects: ObjectFactory) {
-    val basePackage: Property<String> = objects.property(String::class.java)
-    val applicationModulePath: Property<String> = objects.property(String::class.java)
-    val domainModulePath: Property<String> = objects.property(String::class.java)
-    val adapterModulePath: Property<String> = objects.property(String::class.java)
-    val designFiles: ConfigurableFileCollection = objects.fileCollection()
-    val kspMetadataDir: Property<String> = objects.property(String::class.java)
-    val irAnalysisInputDirs: ConfigurableFileCollection = objects.fileCollection()
-    val drawingBoardOutputDir: Property<String> = objects.property(String::class.java)
-    val flowOutputDir: Property<String> = objects.property(String::class.java)
-    val dbUrl: Property<String> = objects.property(String::class.java)
-    val dbUsername: Property<String> = objects.property(String::class.java)
-    val dbPassword: Property<String> = objects.property(String::class.java)
-    val dbSchema: Property<String> = objects.property(String::class.java)
-    val dbIncludeTables: ListProperty<String> = objects.listProperty(String::class.java)
-    val dbExcludeTables: ListProperty<String> = objects.listProperty(String::class.java)
-    val templateOverrideDir: Property<String> = objects.property(String::class.java)
-
     val project: Cap4kProjectExtension = objects.newInstance(Cap4kProjectExtension::class.java)
     val sources: Cap4kSourcesExtension = objects.newInstance(Cap4kSourcesExtension::class.java)
     val generators: Cap4kGeneratorsExtension = objects.newInstance(Cap4kGeneratorsExtension::class.java)
@@ -45,8 +28,6 @@ open class Cap4kExtension @Inject constructor(objects: ObjectFactory) {
         templates.block()
     }
 }
-
-typealias PipelineExtension = Cap4kExtension
 
 open class Cap4kProjectExtension @Inject constructor(objects: ObjectFactory) {
     val basePackage: Property<String> = objects.property(String::class.java)
