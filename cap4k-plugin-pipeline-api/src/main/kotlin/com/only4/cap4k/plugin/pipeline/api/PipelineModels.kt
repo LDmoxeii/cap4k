@@ -46,6 +46,27 @@ sealed interface SourceSnapshot {
     val id: String
 }
 
+data class IrNodeSnapshot(
+    val id: String,
+    val name: String,
+    val fullName: String,
+    val type: String,
+)
+
+data class IrEdgeSnapshot(
+    val fromId: String,
+    val toId: String,
+    val type: String,
+    val label: String? = null,
+)
+
+data class IrAnalysisSnapshot(
+    override val id: String = "ir-analysis",
+    val inputDirs: List<String>,
+    val nodes: List<IrNodeSnapshot>,
+    val edges: List<IrEdgeSnapshot>,
+) : SourceSnapshot
+
 data class DbSchemaSnapshot(
     override val id: String = "db",
     val tables: List<DbTableSnapshot>,
