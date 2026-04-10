@@ -21,6 +21,7 @@ import com.only4.cap4k.plugin.pipeline.source.ksp.KspMetadataSourceProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
+import java.nio.file.Path
 
 class PipelinePlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -83,10 +84,11 @@ internal fun inferDependencies(project: Project, config: ProjectConfig): List<Ta
 }
 
 private fun relevantTasksForInputDir(allProjects: Iterable<Project>, inputDir: String, taskName: String): List<Task> {
-    val normalizedInputDir = normalizePath(inputDir)
+    val normalizedInputDir = inputDir.toNormalizedPath()
     return allProjects.mapNotNull { candidate ->
         val task = candidate.tasks.findByName(taskName) ?: return@mapNotNull null
-        if (normalizedInputDir.startsWith(normalizePath(candidate.layout.buildDirectory.get().asFile.absolutePath))) {
+        val candidateBuildDir = candidate.layout.buildDirectory.get().asFile.toPath().toAbsolutePath().normalize()
+        if (normalizedInputDir.startsWith(candidateBuildDir)) {
             task
         } else {
             null
@@ -102,8 +104,8 @@ private fun Any?.asStringList(): List<String> =
         else -> listOf(this.toString())
     }
 
-private fun normalizePath(path: String): String =
-    path.replace('\\', '/').trimEnd('/')
+private fun String.toNormalizedPath(): Path =
+    Path.of(this).toAbsolutePath().normalize()
 
 internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner {
     return DefaultPipelineRunner(

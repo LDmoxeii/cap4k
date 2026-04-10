@@ -160,6 +160,47 @@ class PipelinePluginTest {
         assertEquals(emptyList<String>(), dependencies.map { it.path })
     }
 
+    @Test
+    fun `ir analysis input dir does not match sibling project build dir by string prefix`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-prefix-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val appProject = ProjectBuilder.builder()
+            .withName("app")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("app"))
+            .build()
+        val appCopyProject = ProjectBuilder.builder()
+            .withName("app-copy")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("app-copy"))
+            .build()
+        appProject.layout.buildDirectory.set(rootProjectDir.resolve("shared/build/app"))
+        appCopyProject.layout.buildDirectory.set(rootProjectDir.resolve("shared/build/app-copy"))
+        appProject.tasks.register("compileKotlin")
+        appCopyProject.tasks.register("compileKotlin")
+
+        val dependencies = inferDependencies(
+            rootProject,
+            projectConfig(
+                sources = mapOf(
+                    "ir-analysis" to SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "inputDirs" to listOf(
+                                appCopyProject.layout.buildDirectory.dir("cap4k-code-analysis").get().asFile.absolutePath
+                            )
+                        ),
+                    )
+                ),
+                generators = mapOf("flow" to GeneratorConfig(enabled = true)),
+            )
+        )
+
+        assertEquals(listOf(":app-copy:compileKotlin"), dependencies.map { it.path })
+    }
+
     private fun readInternalProperty(target: Any, name: String): Any? {
         var type: Class<*>? = target.javaClass
         while (type != null) {
