@@ -41,6 +41,40 @@ class DesignTypeParserTest {
     }
 
     @Test
+    fun `parses nullable generic container type`() {
+        assertParsed(
+            raw = "List<String>?",
+            expected = designType(
+                tokenText = "List",
+                nullable = true,
+                arguments = listOf(
+                    designType(tokenText = "String"),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `parses nullable nested generic container type`() {
+        assertParsed(
+            raw = "Map<String, List<Long>?>",
+            expected = designType(
+                tokenText = "Map",
+                arguments = listOf(
+                    designType(tokenText = "String"),
+                    designType(
+                        tokenText = "List",
+                        nullable = true,
+                        arguments = listOf(
+                            designType(tokenText = "Long"),
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun `parses multiple generic arguments in order`() {
         assertParsed(
             raw = "Map<String, Long>",
