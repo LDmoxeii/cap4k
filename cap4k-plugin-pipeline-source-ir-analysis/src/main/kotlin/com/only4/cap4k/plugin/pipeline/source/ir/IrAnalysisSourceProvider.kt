@@ -2,15 +2,14 @@ package com.only4.cap4k.plugin.pipeline.source.ir
 
 import com.google.gson.JsonElement
 import com.google.gson.JsonParser
-import com.only4.cap4k.plugin.pipeline.api.FieldModel
+import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DesignFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrEdgeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrNodeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import java.io.File
-import java.util.Collections
-import java.util.IdentityHashMap
 
 class IrAnalysisSourceProvider : SourceProvider {
     override val id: String = "ir-analysis"
@@ -54,7 +53,7 @@ class IrAnalysisSourceProvider : SourceProvider {
             }
         }
 
-        val snapshot = IrAnalysisSnapshot(
+        return IrAnalysisSnapshot(
             inputDirs = inputDirs,
             nodes = nodesById.values.toList(),
             edges = edgeKeys.map { key ->
@@ -65,9 +64,8 @@ class IrAnalysisSourceProvider : SourceProvider {
                     label = key.label,
                 )
             },
+            designElements = designElements,
         )
-        parsedDesignElementsBySnapshot[snapshot] = designElements.toList()
-        return snapshot
     }
 
     private fun parseNodes(file: File): List<IrNodeSnapshot> {
@@ -112,7 +110,7 @@ class IrAnalysisSourceProvider : SourceProvider {
         }
     }
 
-    private fun parseDesignFields(array: com.google.gson.JsonArray?): List<FieldModel> {
+    private fun parseDesignFields(array: com.google.gson.JsonArray?): List<DesignFieldSnapshot> {
         if (array == null) {
             return emptyList()
         }
@@ -122,7 +120,7 @@ class IrAnalysisSourceProvider : SourceProvider {
             if (name.isEmpty()) {
                 return@mapNotNull null
             }
-            FieldModel(
+            DesignFieldSnapshot(
                 name = name,
                 type = obj.stringValue("type").orEmpty().trim(),
                 nullable = obj.booleanValue("nullable") ?: false,
@@ -192,21 +190,3 @@ private data class DesignElementKey(
     val packageName: String,
     val name: String,
 )
-
-data class DesignElementSnapshot(
-    val tag: String,
-    val packageName: String,
-    val name: String,
-    val description: String,
-    val aggregates: List<String> = emptyList(),
-    val entity: String? = null,
-    val persist: Boolean? = null,
-    val requestFields: List<FieldModel> = emptyList(),
-    val responseFields: List<FieldModel> = emptyList(),
-)
-
-private val parsedDesignElementsBySnapshot =
-    Collections.synchronizedMap(IdentityHashMap<IrAnalysisSnapshot, List<DesignElementSnapshot>>())
-
-val IrAnalysisSnapshot.designElements: List<DesignElementSnapshot>
-    get() = parsedDesignElementsBySnapshot[this] ?: emptyList()
