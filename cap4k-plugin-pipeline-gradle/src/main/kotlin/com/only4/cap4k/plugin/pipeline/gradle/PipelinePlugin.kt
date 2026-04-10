@@ -25,7 +25,6 @@ import org.gradle.api.Task
 class PipelinePlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-        project.extensions.add("cap4kPipeline", extension)
         val configFactory = Cap4kProjectConfigFactory()
 
         val planTask = project.tasks.register("cap4kPlan", Cap4kPlanTask::class.java) { task ->

@@ -10,6 +10,7 @@ import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -26,6 +27,7 @@ class PipelinePluginTest {
 
         assertNotNull(extension)
         assertInstanceOf(Cap4kExtension::class.java, extension)
+        assertNull(project.extensions.findByName("cap4kPipeline"))
     }
 
     @Test
