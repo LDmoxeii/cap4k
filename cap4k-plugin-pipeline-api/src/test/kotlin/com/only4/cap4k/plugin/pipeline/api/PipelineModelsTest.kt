@@ -100,34 +100,24 @@ class PipelineModelsTest {
 
     @Test
     fun `canonical model keeps optional drawing board alongside existing slices`() {
+        val element = DrawingBoardElementModel(
+            tag = "cmd",
+            packageName = "com.acme.demo.app.command",
+            name = "SubmitOrderCmd",
+            description = "submit order",
+            aggregates = listOf("Order"),
+            entity = "Order",
+            persist = true,
+            requestFields = listOf(
+                DrawingBoardFieldModel(name = "id", type = "Long")
+            ),
+            responseFields = listOf(
+                DrawingBoardFieldModel(name = "success", type = "Boolean", nullable = false)
+            ),
+        )
         val board = DrawingBoardModel(
-            elements = listOf(
-                DrawingBoardElementModel(
-                    tag = "cmd",
-                    packageName = "com.acme.demo.app.command",
-                    name = "SubmitOrderCmd",
-                    description = "submit order",
-                    aggregates = listOf("Order"),
-                    entity = "Order",
-                    persist = true,
-                    requestFields = listOf(
-                        DrawingBoardFieldModel(name = "id", type = "Long")
-                    ),
-                    responseFields = listOf(
-                        DrawingBoardFieldModel(name = "success", type = "Boolean", nullable = false)
-                    ),
-                )
-            ),
-            elementsByTag = mapOf(
-                "cmd" to listOf(
-                    DrawingBoardElementModel(
-                        tag = "cmd",
-                        packageName = "com.acme.demo.app.command",
-                        name = "SubmitOrderCmd",
-                        description = "submit order",
-                    )
-                )
-            ),
+            elements = listOf(element),
+            elementsByTag = mapOf("cmd" to listOf(element)),
         )
 
         val model = CanonicalModel(
