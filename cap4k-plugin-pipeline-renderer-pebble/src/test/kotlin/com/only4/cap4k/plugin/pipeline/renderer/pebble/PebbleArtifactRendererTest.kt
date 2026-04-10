@@ -188,6 +188,80 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `falls back to preset flow templates and renders flow artifacts`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-flow")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "flow",
+                    moduleRole = "project",
+                    templateId = "flow/entry.json.peb",
+                    outputPath = "flows/OrderController_submit.json",
+                    context = mapOf(
+                        "jsonContent" to """{"entryId":"OrderController::submit","edgeCount":2}"""
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "flow",
+                    moduleRole = "project",
+                    templateId = "flow/entry.mmd.peb",
+                    outputPath = "flows/OrderController_submit.mmd",
+                    context = mapOf(
+                        "mermaidText" to """
+                            flowchart TD
+                              N1[OrderController::submit]
+                              N1 -->|ControllerMethodToCommand| N2[SubmitOrderCmd]
+                        """.trimIndent()
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "flow",
+                    moduleRole = "project",
+                    templateId = "flow/index.json.peb",
+                    outputPath = "flows/index.json",
+                    context = mapOf(
+                        "jsonContent" to """{"flowCount":1,"inputDirs":["app/build/cap4k-code-analysis"]}"""
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = mapOf(
+                    "flow" to GeneratorConfig(
+                        enabled = true,
+                        options = mapOf("outputDir" to "flows"),
+                    ),
+                ),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        assertTrue(rendered[0].content.contains("OrderController::submit"))
+        assertTrue(rendered[0].content.contains("edgeCount"))
+        assertTrue(rendered[1].content.contains("flowchart TD"))
+        assertTrue(rendered[1].content.contains("ControllerMethodToCommand"))
+        assertTrue(rendered[2].content.contains("flowCount"))
+        assertTrue(rendered[2].content.contains("app/build/cap4k-code-analysis"))
+    }
+
+    @Test
     fun `throws clear error when template is missing`() {
         val resolver = PresetTemplateResolver(
             preset = "ddd-default",
