@@ -42,6 +42,20 @@ data class AggregateMetadataRecord(
     val rootClassName: String,
 )
 
+data class IrNodeSnapshot(
+    val id: String,
+    val name: String,
+    val fullName: String,
+    val type: String,
+)
+
+data class IrEdgeSnapshot(
+    val fromId: String,
+    val toId: String,
+    val type: String,
+    val label: String? = null,
+)
+
 sealed interface SourceSnapshot {
     val id: String
 }
@@ -59,6 +73,13 @@ data class DesignSpecSnapshot(
 data class KspMetadataSnapshot(
     override val id: String = "ksp-metadata",
     val aggregates: List<AggregateMetadataRecord>,
+) : SourceSnapshot
+
+data class IrAnalysisSnapshot(
+    override val id: String = "ir-analysis",
+    val inputDirs: List<String>,
+    val nodes: List<IrNodeSnapshot>,
+    val edges: List<IrEdgeSnapshot>,
 ) : SourceSnapshot
 
 data class SchemaModel(
@@ -85,6 +106,26 @@ data class RepositoryModel(
     val idType: String,
 )
 
+data class AnalysisNodeModel(
+    val id: String,
+    val name: String,
+    val fullName: String,
+    val type: String,
+)
+
+data class AnalysisEdgeModel(
+    val fromId: String,
+    val toId: String,
+    val type: String,
+    val label: String? = null,
+)
+
+data class AnalysisGraphModel(
+    val inputDirs: List<String>,
+    val nodes: List<AnalysisNodeModel>,
+    val edges: List<AnalysisEdgeModel>,
+)
+
 enum class RequestKind {
     COMMAND,
     QUERY,
@@ -106,6 +147,7 @@ data class CanonicalModel(
     val schemas: List<SchemaModel> = emptyList(),
     val entities: List<EntityModel> = emptyList(),
     val repositories: List<RepositoryModel> = emptyList(),
+    val analysisGraph: AnalysisGraphModel? = null,
 )
 
 data class ArtifactPlanItem(
