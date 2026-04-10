@@ -39,7 +39,16 @@ class PebbleArtifactRendererTest {
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
                     context = mapOf(
                         "packageName" to "com.acme.demo.application.queries",
-                        "typeName" to "FindOrderQry"
+                        "typeName" to "FindOrderQry",
+                        "imports" to emptyList<String>(),
+                        "requestFields" to listOf(
+                            mapOf("name" to "orderId", "type" to "Long", "nullable" to false),
+                        ),
+                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "responseFields" to listOf(
+                            mapOf("name" to "status", "type" to "String", "nullable" to false),
+                        ),
+                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 )
@@ -101,7 +110,133 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
         assertTrue(content.contains("package com.acme.demo.application.queries"))
-        assertTrue(content.contains("class FindOrderQry"))
+        assertTrue(content.contains("object FindOrderQry"))
+    }
+
+    @Test
+    fun `falls back to preset design templates and renders nested types with imports`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-rich")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/command.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.commands.order.submit",
+                        "typeName" to "SubmitOrderCmd",
+                        "imports" to listOf("java.time.LocalDateTime"),
+                        "requestFields" to listOf(
+                            mapOf("name" to "orderId", "type" to "Long", "nullable" to false),
+                            mapOf("name" to "address", "type" to "Address", "nullable" to true),
+                            mapOf("name" to "createdAt", "type" to "LocalDateTime", "nullable" to false),
+                        ),
+                        "requestNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Address",
+                                "fields" to listOf(
+                                    mapOf("name" to "city", "type" to "String", "nullable" to false),
+                                    mapOf("name" to "zipCode", "type" to "String", "nullable" to false),
+                                ),
+                            ),
+                        ),
+                        "responseFields" to listOf(
+                            mapOf("name" to "item", "type" to "Item", "nullable" to true),
+                        ),
+                        "responseNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Item",
+                                "fields" to listOf(
+                                    mapOf("name" to "id", "type" to "Long", "nullable" to false),
+                                ),
+                            ),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("import java.time.LocalDateTime"))
+        assertTrue(content.contains("object SubmitOrderCmd"))
+        assertTrue(content.contains("data class Request("))
+        assertTrue(content.contains("val address: Address?"))
+        assertTrue(content.contains("val createdAt: LocalDateTime"))
+        assertTrue(content.contains("data class Address("))
+        assertTrue(content.contains("val city: String"))
+        assertTrue(content.contains("data class Response("))
+        assertTrue(content.contains("val item: Item?"))
+        assertTrue(content.contains("data class Item("))
+    }
+
+    @Test
+    fun `renders empty request and response as stable objects`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-empty")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.queries.order.read",
+                        "typeName" to "FindOrderQry",
+                        "imports" to emptyList<String>(),
+                        "requestFields" to emptyList<Map<String, Any?>>(),
+                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "responseFields" to emptyList<Map<String, Any?>>(),
+                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("object FindOrderQry"))
+        assertTrue(content.contains("data object Request"))
+        assertTrue(content.contains("data object Response"))
     }
 
     @Test

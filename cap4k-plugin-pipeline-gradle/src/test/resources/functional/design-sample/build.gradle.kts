@@ -22,7 +22,4 @@ cap4k {
             enabled.set(true)
         }
     }
-    templates {
-        overrideDirs.from("codegen/templates")
-    }
 }

@@ -54,18 +54,36 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(metadataFile.toFile().exists())
-        assertTrue(
-            File(
-                projectDir.toFile(),
-                "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt"
-            ).exists()
+        val commandFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt"
         )
-        assertTrue(
-            File(
-                projectDir.toFile(),
-                "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt"
-            ).exists()
+        val queryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt"
         )
+        val commandContent = commandFile.readText()
+        val queryContent = queryFile.readText()
+
+        assertTrue(commandFile.toFile().exists())
+        assertTrue(queryFile.toFile().exists())
+        assertTrue(commandContent.contains("import java.time.LocalDateTime"))
+        assertTrue(commandContent.contains("object SubmitOrderCmd"))
+        assertTrue(commandContent.contains("data class Request("))
+        assertTrue(commandContent.contains("val orderId: Long"))
+        assertTrue(commandContent.contains("val tags: List<String>"))
+        assertTrue(commandContent.contains("val address: Address?"))
+        assertTrue(commandContent.contains("data class Address("))
+        assertTrue(commandContent.contains("val createdAt: LocalDateTime"))
+        assertTrue(commandContent.contains("data class Response("))
+        assertTrue(commandContent.contains("val result: Result?"))
+        assertTrue(commandContent.contains("data class Result("))
+
+        assertTrue(queryContent.contains("object FindOrderQry"))
+        assertTrue(queryContent.contains("data class Request("))
+        assertTrue(queryContent.contains("val orderId: Long"))
+        assertTrue(queryContent.contains("data class Response("))
+        assertTrue(queryContent.contains("val snapshot: Snapshot?"))
+        assertTrue(queryContent.contains("data class Snapshot("))
+        assertTrue(queryContent.contains("val updatedAt: LocalDateTime"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -168,18 +186,22 @@ class PipelinePluginFunctionalTest {
 
         val buildFile = projectDir.resolve("build.gradle.kts")
         buildFile.writeText(
-            buildFile.readText().replace(
-                "        overrideDirs.from(\"codegen/templates\")",
-                """
-                |        overrideDirs.from("codegen/templates")
-                |    }
-                |    sources {
-                |        db {
-                |            enabled.set(true)
-                |            schema.set("PUBLIC")
-                |        }
-                """.trimMargin()
-            )
+            buildFile.readText()
+                .replace("\r\n", "\n")
+                .replace(
+                    """
+                    |    }
+                    |    generators {
+                    """.trimMargin(),
+                    """
+                    |        db {
+                    |            enabled.set(true)
+                    |            schema.set("PUBLIC")
+                    |        }
+                    |    }
+                    |    generators {
+                    """.trimMargin()
+                )
         )
 
         val metadataFile = projectDir.resolve("domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
@@ -206,18 +228,22 @@ class PipelinePluginFunctionalTest {
 
         val buildFile = projectDir.resolve("build.gradle.kts")
         buildFile.writeText(
-            buildFile.readText().replace(
-                "        overrideDirs.from(\"codegen/templates\")",
-                """
-                |        overrideDirs.from("codegen/templates")
-                |    }
-                |    sources {
-                |        db {
-                |            includeTables.set(listOf("   "))
-                |            excludeTables.set(listOf(""))
-                |        }
-                """.trimMargin()
-            )
+            buildFile.readText()
+                .replace("\r\n", "\n")
+                .replace(
+                    """
+                    |    }
+                    |    generators {
+                    """.trimMargin(),
+                    """
+                    |        db {
+                    |            includeTables.set(listOf("   "))
+                    |            excludeTables.set(listOf(""))
+                    |        }
+                    |    }
+                    |    generators {
+                    """.trimMargin()
+                )
         )
 
         val metadataFile = projectDir.resolve("domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
