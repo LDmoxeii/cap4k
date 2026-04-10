@@ -27,7 +27,7 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `factory applies defaults and keeps only enabled blocks`() {
+    fun `factory preserves template override dir order and keeps only enabled blocks`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
@@ -52,7 +52,8 @@ class Cap4kProjectConfigFactoryTest {
             aggregate { enabled.set(false) }
         }
         extension.templates {
-            overrideDirs.from("codegen/templates", project.file("extra/templates"))
+            overrideDirs.from("z-templates", project.file("a-templates"))
+            templateOverrideDir.set("bridge/templates")
         }
 
         val config = Cap4kProjectConfigFactory().build(project, extension)
@@ -65,9 +66,10 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals(ConflictPolicy.SKIP, config.templates.conflictPolicy)
         assertEquals(
             listOf(
-                project.file("codegen/templates").absolutePath,
-                project.file("extra/templates").absolutePath,
-            ).sorted(),
+                project.file("z-templates").absolutePath,
+                project.file("a-templates").absolutePath,
+                project.file("bridge/templates").absolutePath,
+            ),
             config.templates.overrideDirs
         )
     }

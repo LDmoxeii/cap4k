@@ -194,7 +194,7 @@ class Cap4kProjectConfigFactory {
     private fun resolveTemplateOverrideDirs(project: Project, extension: Cap4kExtension): List<String> {
         val overrideDirs = extension.templates.overrideDirs.files.map(File::getAbsolutePath)
         val bridgedDir = extension.templates.templateOverrideDir.optionalValue()?.let { project.file(it).absolutePath }
-        return (overrideDirs + listOfNotNull(bridgedDir)).distinct().sorted()
+        return LinkedHashSet(overrideDirs + listOfNotNull(bridgedDir)).toList()
     }
 }
 
