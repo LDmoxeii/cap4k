@@ -70,6 +70,88 @@ class IrAnalysisSourceProviderTest {
         assertEquals("unknown", snapshot.nodes.first { it.id == "EmptyTypeNode" }.type)
         assertEquals(2, snapshot.edges.size)
         assertEquals("CommandToCommandHandler", snapshot.edges.last().type)
+        assertTrue(snapshot.designElements.isEmpty())
+    }
+
+    @Test
+    fun `collect parses design elements when file exists`() {
+        val dir = Files.createTempDirectory("cap4k-ir-design")
+
+        dir.resolve("nodes.json").writeText("""[]""")
+        dir.resolve("rels.json").writeText("""[]""")
+        dir.resolve("design-elements.json").writeText(
+            """
+            [
+              null,
+              "not-an-object",
+              {
+                "tag": "cmd",
+                "package": "orders",
+                "name": "SubmitOrder",
+                "desc": "submit order",
+                "aggregates": ["Order"],
+                "requestFields": [
+                  {"name": "orderId", "type": "Long", "nullable": false, "defaultValue": "0"},
+                  {"name": " ", "type": "String"},
+                  null
+                ],
+                "responseFields": [
+                  {"name": "accepted", "type": "Boolean"},
+                  {"type": "String"}
+                ]
+              },
+              {
+                "tag": "de",
+                "package": "",
+                "name": "OrderCreated",
+                "entity": "Order",
+                "persist": true
+              },
+              {
+                "tag": " ",
+                "package": "ignored",
+                "name": "Ignored",
+                "desc": "ignored"
+              }
+            ]
+            """.trimIndent()
+        )
+
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString())) as IrAnalysisSnapshot
+
+        assertEquals(2, snapshot.designElements.size)
+        assertEquals("cmd", snapshot.designElements.first().tag)
+        assertEquals("orders", snapshot.designElements.first().packageName)
+        assertEquals("SubmitOrder", snapshot.designElements.first().name)
+        assertEquals("submit order", snapshot.designElements.first().description)
+        assertEquals(listOf("Order"), snapshot.designElements.first().aggregates)
+        assertEquals(1, snapshot.designElements.first().requestFields.size)
+        assertEquals("orderId", snapshot.designElements.first().requestFields.first().name)
+        assertEquals("Long", snapshot.designElements.first().requestFields.first().type)
+        assertEquals(false, snapshot.designElements.first().requestFields.first().nullable)
+        assertEquals("0", snapshot.designElements.first().requestFields.first().defaultValue)
+        assertEquals(1, snapshot.designElements.first().responseFields.size)
+        assertEquals("accepted", snapshot.designElements.first().responseFields.first().name)
+        assertEquals("Boolean", snapshot.designElements.first().responseFields.first().type)
+        assertEquals("", snapshot.designElements.last().packageName)
+        assertEquals("OrderCreated", snapshot.designElements.last().name)
+        assertEquals("", snapshot.designElements.last().description)
+        assertTrue(snapshot.designElements.last().aggregates.isEmpty())
+        assertTrue(snapshot.designElements.last().requestFields.isEmpty())
+        assertTrue(snapshot.designElements.last().responseFields.isEmpty())
+        assertEquals("Order", snapshot.designElements.last().entity)
+        assertEquals(true, snapshot.designElements.last().persist)
+    }
+
+    @Test
+    fun `collect returns empty design elements when file is absent`() {
+        val dir = Files.createTempDirectory("cap4k-ir-no-design")
+        dir.resolve("nodes.json").writeText("""[]""")
+        dir.resolve("rels.json").writeText("""[]""")
+
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString())) as IrAnalysisSnapshot
+
+        assertTrue(snapshot.designElements.isEmpty())
     }
 
     @Test
