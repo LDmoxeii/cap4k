@@ -265,8 +265,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.toFile().exists())
         assertTrue(planFile.readText().contains("\"templateId\": \"drawing-board/document.json.peb\""))
-        assertTrue(projectDir.resolve("design/cli.json").toFile().exists())
-        assertTrue(projectDir.resolve("design/cmd.json").toFile().exists())
+        assertTrue(projectDir.resolve("design/drawing_board_cli.json").toFile().exists())
+        assertTrue(projectDir.resolve("design/drawing_board_cmd.json").toFile().exists())
     }
 
     @OptIn(ExperimentalPathApi::class)

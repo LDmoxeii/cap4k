@@ -21,7 +21,16 @@ class DrawingBoardArtifactPlannerTest {
 
         val plan = planner.plan(config(), model())
 
-        assertEquals(listOf("cli", "cmd", "qry", "payload", "de"), plan.map { it.outputPath.removePrefix("design/").removeSuffix(".json") })
+        assertEquals(
+            listOf(
+                "drawing_board_cli",
+                "drawing_board_cmd",
+                "drawing_board_qry",
+                "drawing_board_payload",
+                "drawing_board_de",
+            ),
+            plan.map { it.outputPath.removePrefix("design/").removeSuffix(".json") }
+        )
         assertEquals(
             listOf(
                 "drawing-board/document.json.peb",
@@ -46,10 +55,10 @@ class DrawingBoardArtifactPlannerTest {
         val planner = DrawingBoardArtifactPlanner()
 
         val defaultPlan = planner.plan(config(outputDir = " "), model())
-        assertEquals("design/cli.json", defaultPlan.first().outputPath)
+        assertEquals("design/drawing_board_cli.json", defaultPlan.first().outputPath)
 
         val missingOptionPlan = planner.plan(config(includeOutputDir = false), model())
-        assertEquals("design/cli.json", missingOptionPlan.first().outputPath)
+        assertEquals("design/drawing_board_cli.json", missingOptionPlan.first().outputPath)
 
         val absolutePath = Path.of("design").toAbsolutePath().toString()
         val absoluteEx = assertThrows(IllegalArgumentException::class.java) {
@@ -91,7 +100,7 @@ class DrawingBoardArtifactPlannerTest {
 
         val plan = planner.plan(config(outputDir = "design/generated"), model())
 
-        assertEquals("design/generated/cli.json", plan.first().outputPath)
+        assertEquals("design/generated/drawing_board_cli.json", plan.first().outputPath)
     }
 
     @Test

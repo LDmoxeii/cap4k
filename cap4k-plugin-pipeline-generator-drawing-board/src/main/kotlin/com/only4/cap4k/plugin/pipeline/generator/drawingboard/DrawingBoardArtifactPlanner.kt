@@ -28,7 +28,7 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
                         generatorId = id,
                         moduleRole = "project",
                         templateId = "drawing-board/document.json.peb",
-                        outputPath = "$outputDir/$tag.json",
+                        outputPath = "$outputDir/drawing_board_$tag.json",
                         context = mapOf(
                             "drawingBoardTag" to tag,
                             "elements" to elements,
