@@ -2,10 +2,27 @@ plugins {
     id("com.only4.cap4k.plugin.pipeline")
 }
 
-cap4kPipeline {
-    basePackage.set("com.acme.demo")
-    applicationModulePath.set("demo-application")
-    designFiles.from("design/design.json")
-    kspMetadataDir.set("domain/build/generated/ksp/main/resources/metadata")
-    templateOverrideDir.set("codegen/templates")
+cap4k {
+    project {
+        basePackage.set("com.acme.demo")
+        applicationModulePath.set("demo-application")
+    }
+    sources {
+        designJson {
+            enabled.set(true)
+            files.from("design/design.json")
+        }
+        kspMetadata {
+            enabled.set(true)
+            inputDir.set("domain/build/generated/ksp/main/resources/metadata")
+        }
+    }
+    generators {
+        design {
+            enabled.set(true)
+        }
+    }
+    templates {
+        overrideDirs.from("codegen/templates")
+    }
 }

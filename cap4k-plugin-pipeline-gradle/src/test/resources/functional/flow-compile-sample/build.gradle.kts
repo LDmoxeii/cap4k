@@ -52,9 +52,23 @@ tasks.register("compileKotlin") {
     }
 }
 
-cap4kPipeline {
-    basePackage.set("com.acme.demo")
-    irAnalysisInputDirs.from(analysisDir)
-    flowOutputDir.set("flows")
-    templateOverrideDir.set("template-overrides")
+cap4k {
+    project {
+        basePackage.set("com.acme.demo")
+    }
+    sources {
+        irAnalysis {
+            enabled.set(true)
+            inputDirs.from(analysisDir)
+        }
+    }
+    generators {
+        flow {
+            enabled.set(true)
+            outputDir.set("flows")
+        }
+    }
+    templates {
+        overrideDirs.from("template-overrides")
+    }
 }

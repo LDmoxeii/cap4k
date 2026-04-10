@@ -5,17 +5,31 @@ plugins {
 val schemaScriptPath = layout.projectDirectory.file("schema.sql").asFile.absolutePath.replace("\\", "/")
 val dbFilePath = layout.buildDirectory.file("h2/demo").get().asFile.absolutePath.replace("\\", "/")
 
-cap4kPipeline {
-    basePackage.set("com.acme.demo")
-    domainModulePath.set("demo-domain")
-    adapterModulePath.set("demo-adapter")
-    dbUrl.set(
-        "jdbc:h2:file:$dbFilePath;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false;INIT=RUNSCRIPT FROM '$schemaScriptPath'"
-    )
-    dbUsername.set("sa")
-    dbPassword.set("")
-    dbSchema.set("PUBLIC")
-    dbIncludeTables.set(listOf("video_post"))
-    dbExcludeTables.set(emptyList())
-    templateOverrideDir.set("template-overrides")
+cap4k {
+    project {
+        basePackage.set("com.acme.demo")
+        domainModulePath.set("demo-domain")
+        adapterModulePath.set("demo-adapter")
+    }
+    sources {
+        db {
+            enabled.set(true)
+            url.set(
+                "jdbc:h2:file:$dbFilePath;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false;INIT=RUNSCRIPT FROM '$schemaScriptPath'"
+            )
+            username.set("sa")
+            password.set("secret")
+            schema.set("PUBLIC")
+            includeTables.set(listOf("video_post"))
+            excludeTables.set(emptyList())
+        }
+    }
+    generators {
+        aggregate {
+            enabled.set(true)
+        }
+    }
+    templates {
+        overrideDirs.from("template-overrides")
+    }
 }

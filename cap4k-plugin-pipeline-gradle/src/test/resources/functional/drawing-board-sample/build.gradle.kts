@@ -2,9 +2,23 @@ plugins {
     id("com.only4.cap4k.plugin.pipeline")
 }
 
-cap4kPipeline {
-    basePackage.set("com.acme.demo")
-    irAnalysisInputDirs.from("analysis/app/build/cap4k-code-analysis")
-    drawingBoardOutputDir.set("design")
-    templateOverrideDir.set("template-overrides")
+cap4k {
+    project {
+        basePackage.set("com.acme.demo")
+    }
+    sources {
+        irAnalysis {
+            enabled.set(true)
+            inputDirs.from("analysis/app/build/cap4k-code-analysis")
+        }
+    }
+    generators {
+        drawingBoard {
+            enabled.set(true)
+            outputDir.set("design")
+        }
+    }
+    templates {
+        overrideDirs.from("template-overrides")
+    }
 }

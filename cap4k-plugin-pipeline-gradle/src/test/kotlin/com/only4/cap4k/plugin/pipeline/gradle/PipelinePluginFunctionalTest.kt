@@ -141,8 +141,8 @@ class PipelinePluginFunctionalTest {
         val buildFile = projectDir.resolve("build.gradle.kts")
         buildFile.writeText(
             buildFile.readText().replace(
-                "    adapterModulePath.set(\"demo-adapter\")",
-                "    adapterModulePath.set(\"\")",
+                "        adapterModulePath.set(\"demo-adapter\")",
+                "        adapterModulePath.set(\"\")",
             )
         )
 
@@ -154,7 +154,7 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(
             result.output.contains(
-                "Aggregate pipeline config requires dbUrl, domainModulePath, and adapterModulePath when any are set."
+                "project.domainModulePath and project.adapterModulePath are required when aggregate is enabled."
             )
         )
         assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
@@ -169,10 +169,15 @@ class PipelinePluginFunctionalTest {
         val buildFile = projectDir.resolve("build.gradle.kts")
         buildFile.writeText(
             buildFile.readText().replace(
-                "    templateOverrideDir.set(\"codegen/templates\")",
+                "        overrideDirs.from(\"codegen/templates\")",
                 """
-                |    templateOverrideDir.set("codegen/templates")
-                |    dbSchema.set("PUBLIC")
+                |        overrideDirs.from("codegen/templates")
+                |    }
+                |    sources {
+                |        db {
+                |            enabled.set(true)
+                |            schema.set("PUBLIC")
+                |        }
                 """.trimMargin()
             )
         )
@@ -187,10 +192,9 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(
             result.output.contains(
-                "Aggregate pipeline config requires dbUrl, domainModulePath, and adapterModulePath when any are set."
+                "sources.db.url is required when db is enabled."
             )
         )
-        assertTrue(result.output.contains("Missing: dbUrl, domainModulePath, adapterModulePath."))
         assertFalse(metadataFile.toFile().exists())
     }
 
@@ -203,11 +207,15 @@ class PipelinePluginFunctionalTest {
         val buildFile = projectDir.resolve("build.gradle.kts")
         buildFile.writeText(
             buildFile.readText().replace(
-                "    templateOverrideDir.set(\"codegen/templates\")",
+                "        overrideDirs.from(\"codegen/templates\")",
                 """
-                |    templateOverrideDir.set("codegen/templates")
-                |    dbIncludeTables.set(listOf("   "))
-                |    dbExcludeTables.set(listOf(""))
+                |        overrideDirs.from("codegen/templates")
+                |    }
+                |    sources {
+                |        db {
+                |            includeTables.set(listOf("   "))
+                |            excludeTables.set(listOf(""))
+                |        }
                 """.trimMargin()
             )
         )
