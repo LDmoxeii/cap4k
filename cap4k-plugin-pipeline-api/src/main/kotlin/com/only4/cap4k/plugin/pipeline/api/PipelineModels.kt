@@ -161,8 +161,14 @@ data class DrawingBoardElementModel(
 
 data class DrawingBoardModel(
     val elements: List<DrawingBoardElementModel>,
-    val elementsByTag: Map<String, List<DrawingBoardElementModel>>,
-)
+    val elementsByTag: Map<String, List<DrawingBoardElementModel>> = elements.groupBy { it.tag },
+) {
+    init {
+        require(elementsByTag == elements.groupBy { it.tag }) {
+            "elementsByTag must match elements grouped by tag"
+        }
+    }
+}
 
 data class AnalysisGraphModel(
     val inputDirs: List<String>,
