@@ -1,27 +1,33 @@
 [
 {%- for element in elements %}
   {
-    "tag": "{{ element.tag }}",
-    "package": "{{ element.packageName }}",
-    "name": "{{ element.name }}",
-    "desc": "{{ element.description }}",
-    "aggregates": [{% for agg in element.aggregates %}"{{ agg }}"{% if not loop.last %}, {% endif %}{% endfor %}],
-{%- if element.entity is not null %}
-    "entity": "{{ element.entity }}",
+    "tag": {{ element.tag | json | raw }},
+    "package": {{ element.packageName | json | raw }},
+    "name": {{ element.name | json | raw }},
+    "desc": {{ element.description | json | raw }},
+    "aggregates": [{% for aggregate in element.aggregates %}{{ aggregate | json | raw }}{% if not loop.last %}, {% endif %}{% endfor %}]
+{%- if element.entity is not null %},
+    "entity": {{ element.entity | json | raw }}
 {%- endif %}
-{%- if element.persist is not null %}
-    "persist": {{ element.persist }},
-{%- endif %}
-    "requestFields": {% if element.requestFields|length == 0 %}[]{% else %}[
-{%- for field in element.requestFields %}
-      { "name": "{{ field.name }}", "type": "{{ field.type }}", "nullable": {{ field.nullable }}{% if field.defaultValue is not null %}, "defaultValue": "{{ field.defaultValue }}"{% endif %} }{% if not loop.last %},{% endif %}
-{%- endfor %}
-    ]{% endif %},
-    "responseFields": {% if element.responseFields|length == 0 %}[]{% else %}[
-{%- for field in element.responseFields %}
-      { "name": "{{ field.name }}", "type": "{{ field.type }}", "nullable": {{ field.nullable }}{% if field.defaultValue is not null %}, "defaultValue": "{{ field.defaultValue }}"{% endif %} }{% if not loop.last %},{% endif %}
-{%- endfor %}
-    ]{% endif %}
+{%- if element.persist is not null %},
+    "persist": {{ element.persist }}
+{%- endif %},
+    "requestFields": [{% for field in element.requestFields %}
+      {
+        "name": {{ field.name | json | raw }},
+        "type": {{ field.type | json | raw }},
+        "nullable": {{ field.nullable }}{% if field.defaultValue is not null %},
+        "defaultValue": {{ field.defaultValue | json | raw }}{% endif %}
+      }{% if not loop.last %}, {% endif %}{% endfor %}
+    ],
+    "responseFields": [{% for field in element.responseFields %}
+      {
+        "name": {{ field.name | json | raw }},
+        "type": {{ field.type | json | raw }},
+        "nullable": {{ field.nullable }}{% if field.defaultValue is not null %},
+        "defaultValue": {{ field.defaultValue | json | raw }}{% endif %}
+      }{% if not loop.last %}, {% endif %}{% endfor %}
+    ]
   }{% if not loop.last %},{% endif %}
 {%- endfor %}
 ]

@@ -1,5 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.renderer.pebble
 
+import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.api.*
 import java.nio.file.Files
 import kotlin.io.path.writeText
@@ -264,6 +265,81 @@ class PebbleArtifactRendererTest {
             rendered[1].content,
         )
         assertEquals("""{"flowCount":1,"inputDirs":["app/build/cap4k-code-analysis"]}""", rendered[2].content)
+    }
+
+    @Test
+    fun `falls back to preset drawing board template and renders valid json`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-drawing-board")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "drawing-board",
+                    moduleRole = "project",
+                    templateId = "drawing-board/document.json.peb",
+                    outputPath = "design/cmd.json",
+                    context = mapOf(
+                        "drawingBoardTag" to "cmd",
+                        "elements" to listOf(
+                            DrawingBoardElementModel(
+                                tag = "cmd",
+                                packageName = "orders.api",
+                                name = "Submit\"Order",
+                                description = "line1\nline2",
+                                aggregates = listOf("Order", "Ops\\Audit"),
+                                entity = "OrderEntity",
+                                persist = true,
+                                requestFields = listOf(
+                                    DrawingBoardFieldModel(
+                                        name = "remark",
+                                        type = "String",
+                                        nullable = true,
+                                        defaultValue = "say \"hi\""
+                                    )
+                                ),
+                                responseFields = listOf(
+                                    DrawingBoardFieldModel(
+                                        name = "status",
+                                        type = "String",
+                                    )
+                                ),
+                            )
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
+
+        assertEquals("cmd", element["tag"].asString)
+        assertEquals("orders.api", element["package"].asString)
+        assertEquals("Submit\"Order", element["name"].asString)
+        assertEquals("line1\nline2", element["desc"].asString)
+        assertEquals("Ops\\Audit", element["aggregates"].asJsonArray[1].asString)
+        assertEquals(true, element["persist"].asBoolean)
+        assertEquals("say \"hi\"", element["requestFields"].asJsonArray[0].asJsonObject["defaultValue"].asString)
+        assertEquals("status", element["responseFields"].asJsonArray[0].asJsonObject["name"].asString)
     }
 
     @Test
