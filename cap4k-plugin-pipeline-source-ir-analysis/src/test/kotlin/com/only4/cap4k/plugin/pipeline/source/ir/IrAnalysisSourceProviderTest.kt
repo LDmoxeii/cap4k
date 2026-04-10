@@ -24,14 +24,20 @@ class IrAnalysisSourceProviderTest {
             """
             [
               {"id":"OrderController::submit","name":"","fullName":"","type":"controllermethod"},
-              {"id":"SubmitOrderCmd","name":"SubmitOrderCmd","fullName":"com.acme.demo.SubmitOrderCmd","type":"command"}
+              {"id":"SubmitOrderCmd","name":"SubmitOrderCmd","fullName":"com.acme.demo.SubmitOrderCmd","type":"command"},
+              {"id":{"value":"BrokenNode"}},
+              null,
+              "not-an-object"
             ]
             """.trimIndent()
         )
         dirA.resolve("rels.json").writeText(
             """
             [
-              {"fromId":"OrderController::submit","toId":"SubmitOrderCmd","type":"ControllerMethodToCommand"}
+              {"fromId":"OrderController::submit","toId":"SubmitOrderCmd","type":"ControllerMethodToCommand"},
+              {"fromId":{"value":"bad"},"toId":"SubmitOrderCmd","type":"ControllerMethodToCommand"},
+              null,
+              "not-an-object"
             ]
             """.trimIndent()
         )
@@ -39,14 +45,18 @@ class IrAnalysisSourceProviderTest {
             """
             [
               {"id":"OrderController::submit","name":"later-value","fullName":"later-value","type":"controllermethod"},
-              {"id":"SubmitOrderHandler","name":"SubmitOrderHandler","fullName":"com.acme.demo.SubmitOrderHandler","type":"commandhandler"}
+              {"id":"SubmitOrderHandler","name":"SubmitOrderHandler","fullName":"com.acme.demo.SubmitOrderHandler","type":"commandhandler"},
+              {"id":"EmptyTypeNode","name":"EmptyTypeNode","fullName":"com.acme.demo.EmptyTypeNode","type":""}
             ]
             """.trimIndent()
         )
         dirB.resolve("rels.json").writeText(
             """
             [
-              {"fromId":"SubmitOrderCmd","toId":"SubmitOrderHandler","type":"CommandToCommandHandler"}
+              {"fromId":"SubmitOrderCmd","toId":"SubmitOrderHandler","type":"CommandToCommandHandler"},
+              {"fromId":"SubmitOrderCmd","toId":"SubmitOrderHandler"},
+              null,
+              "not-an-object"
             ]
             """.trimIndent()
         )
@@ -54,9 +64,10 @@ class IrAnalysisSourceProviderTest {
         val snapshot = IrAnalysisSourceProvider().collect(config(dirA.toString(), dirB.toString())) as IrAnalysisSnapshot
 
         assertEquals(listOf(dirA.toString(), dirB.toString()), snapshot.inputDirs)
-        assertEquals(3, snapshot.nodes.size)
+        assertEquals(4, snapshot.nodes.size)
         assertEquals("submit", snapshot.nodes.first { it.id == "OrderController::submit" }.name)
         assertEquals("OrderController::submit", snapshot.nodes.first { it.id == "OrderController::submit" }.fullName)
+        assertEquals("unknown", snapshot.nodes.first { it.id == "EmptyTypeNode" }.type)
         assertEquals(2, snapshot.edges.size)
         assertEquals("CommandToCommandHandler", snapshot.edges.last().type)
     }
