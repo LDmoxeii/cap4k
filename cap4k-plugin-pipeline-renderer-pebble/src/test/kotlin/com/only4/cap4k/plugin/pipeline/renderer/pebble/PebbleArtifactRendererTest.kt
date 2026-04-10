@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.renderer.pebble
 import com.only4.cap4k.plugin.pipeline.api.*
 import java.nio.file.Files
 import kotlin.io.path.writeText
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -253,12 +254,16 @@ class PebbleArtifactRendererTest {
             )
         )
 
-        assertTrue(rendered[0].content.contains("OrderController::submit"))
-        assertTrue(rendered[0].content.contains("edgeCount"))
-        assertTrue(rendered[1].content.contains("flowchart TD"))
-        assertTrue(rendered[1].content.contains("ControllerMethodToCommand"))
-        assertTrue(rendered[2].content.contains("flowCount"))
-        assertTrue(rendered[2].content.contains("app/build/cap4k-code-analysis"))
+        assertEquals("""{"entryId":"OrderController::submit","edgeCount":2}""", rendered[0].content)
+        assertEquals(
+            """
+            flowchart TD
+              N1[OrderController::submit]
+              N1 -->|ControllerMethodToCommand| N2[SubmitOrderCmd]
+            """.trimIndent(),
+            rendered[1].content,
+        )
+        assertEquals("""{"flowCount":1,"inputDirs":["app/build/cap4k-code-analysis"]}""", rendered[2].content)
     }
 
     @Test

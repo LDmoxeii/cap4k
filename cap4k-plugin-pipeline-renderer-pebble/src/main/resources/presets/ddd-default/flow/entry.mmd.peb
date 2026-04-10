@@ -1,1 +1,1 @@
-{{ mermaidText }}
+{{ mermaidText | raw }}
