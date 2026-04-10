@@ -6,9 +6,6 @@ import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
-import java.time.temporal.ChronoUnit
 
 internal data class PlannedFlowEntry(
     val slug: String,
@@ -55,7 +52,6 @@ private data class FlowEntryPayload(
 )
 
 private data class FlowIndexPayload(
-    val generatedAt: String,
     val inputDirs: List<String>,
     val entryTypes: List<String>,
     val entryTypeCounts: Map<String, Int>,
@@ -126,7 +122,7 @@ internal fun buildPlannedFlows(graph: AnalysisGraphModel): PlannedFlowSet {
         .filter { it.type in allowedEdgeTypes }
         .distinctBy { EdgeKey(it.fromId, it.toId, it.type, it.label) }
     val adjacency = edges.groupBy { it.fromId }
-    val entryNodes = graph.nodes
+    val entryNodes = nodesById.values
         .filter { it.type.lowercase() in entryNodeTypes }
         .sortedBy { it.id }
 
@@ -168,7 +164,6 @@ internal fun buildPlannedFlows(graph: AnalysisGraphModel): PlannedFlowSet {
         entries = plannedEntries,
         indexJsonContent = gson.toJson(
             FlowIndexPayload(
-                generatedAt = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.SECONDS).toString(),
                 inputDirs = graph.inputDirs,
                 entryTypes = entryTypeCounts.keys.sorted(),
                 entryTypeCounts = entryTypeCounts.toSortedMap(),

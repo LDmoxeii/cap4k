@@ -174,6 +174,73 @@ class FlowArtifactPlannerTest {
         )
     }
 
+    @Test
+    fun `keeps index json deterministic`() {
+        val planner = FlowArtifactPlanner()
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("app/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    AnalysisNodeModel(
+                        id = "OrderController::submit",
+                        name = "OrderController::submit",
+                        fullName = "OrderController::submit",
+                        type = "controllermethod",
+                    ),
+                ),
+                edges = emptyList(),
+            ),
+        )
+
+        val indexJson = planner.plan(config(), model).last().context["jsonContent"] as String
+
+        assertTrue(!indexJson.contains("generatedAt"))
+    }
+
+    @Test
+    fun `deduplicates duplicate entry node ids before planning artifacts`() {
+        val planner = FlowArtifactPlanner()
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("app/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    AnalysisNodeModel(
+                        id = "OrderController::submit",
+                        name = "OrderController::submit",
+                        fullName = "OrderController::submit",
+                        type = "controllermethod",
+                    ),
+                    AnalysisNodeModel(
+                        id = "OrderController::submit",
+                        name = "OrderController::submit duplicate",
+                        fullName = "OrderController::submit duplicate",
+                        type = "controllermethod",
+                    ),
+                    AnalysisNodeModel(
+                        id = "SubmitOrderCmd",
+                        name = "SubmitOrderCmd",
+                        fullName = "SubmitOrderCmd",
+                        type = "command",
+                    ),
+                ),
+                edges = listOf(
+                    AnalysisEdgeModel("OrderController::submit", "SubmitOrderCmd", "ControllerMethodToCommand"),
+                ),
+            ),
+        )
+
+        val plan = planner.plan(config(), model)
+        val jsonEntries = plan.filter { it.templateId == "flow/entry.json.peb" }
+        val mermaidEntries = plan.filter { it.templateId == "flow/entry.mmd.peb" }
+        val indexJson = plan.last().context["jsonContent"] as String
+
+        assertEquals(1, jsonEntries.size)
+        assertEquals(1, mermaidEntries.size)
+        assertEquals("flows/OrderController_submit.json", jsonEntries.single().outputPath)
+        assertTrue(indexJson.contains("\"flowCount\": 1"))
+        assertTrue(indexJson.contains("\"controllermethod\": 1"))
+    }
+
     private fun config(outputDir: String = "flows"): ProjectConfig =
         ProjectConfig(
             basePackage = "com.acme.demo",
