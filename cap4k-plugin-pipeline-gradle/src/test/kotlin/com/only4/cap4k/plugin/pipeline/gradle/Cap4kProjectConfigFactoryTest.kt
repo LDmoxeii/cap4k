@@ -1,8 +1,10 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
+import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 class Cap4kProjectConfigFactoryTest {
@@ -25,60 +27,310 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `project and nested blocks can be configured with typed properties`() {
+    fun `factory applies defaults and keeps only enabled blocks`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
         extension.project {
             basePackage.set("com.acme.demo")
             applicationModulePath.set("demo-application")
-            domainModulePath.set("demo-domain")
-            adapterModulePath.set("demo-adapter")
         }
         extension.sources {
             designJson {
                 enabled.set(true)
                 files.from(project.file("design/design.json"))
             }
-            kspMetadata {
-                enabled.set(true)
-                inputDir.set("domain/build/generated/ksp/main/resources/metadata")
-            }
             db {
-                enabled.set(true)
+                enabled.set(false)
                 url.set("jdbc:h2:mem:test")
                 username.set("sa")
-                password.set("")
-                schema.set("PUBLIC")
-            }
-            irAnalysis {
-                enabled.set(true)
-                inputDirs.from(project.file("analysis/app/build/cap4k-code-analysis"))
+                password.set("secret")
             }
         }
         extension.generators {
             design { enabled.set(true) }
-            aggregate { enabled.set(true) }
-            drawingBoard {
-                enabled.set(true)
-                outputDir.set("design")
-            }
-            flow {
-                enabled.set(true)
-                outputDir.set("flows")
-            }
+            aggregate { enabled.set(false) }
         }
         extension.templates {
-            preset.set("ddd-default")
-            overrideDirs.from("codegen/templates")
-            conflictPolicy.set("SKIP")
+            overrideDirs.from("codegen/templates", project.file("extra/templates"))
         }
 
         val config = Cap4kProjectConfigFactory().build(project, extension)
 
         assertEquals("com.acme.demo", config.basePackage)
-        assertEquals("demo-application", config.modules["application"])
-        assertEquals("demo-domain", config.modules["domain"])
-        assertEquals("demo-adapter", config.modules["adapter"])
+        assertEquals(mapOf("application" to "demo-application"), config.modules)
+        assertEquals(setOf("design-json"), config.enabledSourceIds())
+        assertEquals(setOf("design"), config.enabledGeneratorIds())
+        assertEquals("ddd-default", config.templates.preset)
+        assertEquals(ConflictPolicy.SKIP, config.templates.conflictPolicy)
+        assertEquals(
+            listOf(
+                project.file("codegen/templates").absolutePath,
+                project.file("extra/templates").absolutePath,
+            ).sorted(),
+            config.templates.overrideDirs
+        )
+    }
+
+    @Test
+    fun `disabled blocks do not trigger validation`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            designJson { enabled.set(false) }
+            kspMetadata { enabled.set(false) }
+            db {
+                enabled.set(false)
+                url.set("jdbc:h2:mem:test")
+            }
+            irAnalysis { enabled.set(false) }
+        }
+        extension.generators {
+            design { enabled.set(false) }
+            aggregate { enabled.set(false) }
+            flow { enabled.set(false) }
+            drawingBoard { enabled.set(false) }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(emptyMap<String, String>(), config.modules)
+        assertEquals(emptySet<String>(), config.enabledSourceIds())
+        assertEquals(emptySet<String>(), config.enabledGeneratorIds())
+    }
+
+    @Test
+    fun `project base package is required always`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("project.basePackage is required.", error.message)
+    }
+
+    @Test
+    fun `design generator requires application module path`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            design { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("project.applicationModulePath is required when design is enabled.", error.message)
+    }
+
+    @Test
+    fun `aggregate generator requires aggregate modules`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:test")
+                username.set("sa")
+                password.set("secret")
+            }
+        }
+        extension.generators {
+            aggregate { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals(
+            "project.domainModulePath and project.adapterModulePath are required when aggregate is enabled.",
+            error.message
+        )
+    }
+
+    @Test
+    fun `enabled design json source requires files`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            designJson { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("sources.designJson.files must not be empty when designJson is enabled.", error.message)
+    }
+
+    @Test
+    fun `enabled ksp metadata source requires input dir`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            kspMetadata { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("sources.kspMetadata.inputDir is required when kspMetadata is enabled.", error.message)
+    }
+
+    @Test
+    fun `enabled db source requires url username and password`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:test")
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("sources.db.username is required when db is enabled.", error.message)
+    }
+
+    @Test
+    fun `enabled ir analysis source requires input dirs`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            irAnalysis { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("sources.irAnalysis.inputDirs must not be empty when irAnalysis is enabled.", error.message)
+    }
+
+    @Test
+    fun `design generator requires enabled design json source`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            applicationModulePath.set("demo-application")
+        }
+        extension.generators {
+            design { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("design generator requires enabled designJson source.", error.message)
+    }
+
+    @Test
+    fun `aggregate generator requires enabled db source`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.generators {
+            aggregate { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("aggregate generator requires enabled db source.", error.message)
+    }
+
+    @Test
+    fun `flow generator requires enabled ir analysis source`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.generators {
+            flow {
+                enabled.set(true)
+                outputDir.set("flows")
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("flow generator requires enabled irAnalysis source.", error.message)
+    }
+
+    @Test
+    fun `drawing board generator requires enabled ir analysis source`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.generators {
+            drawingBoard {
+                enabled.set(true)
+                outputDir.set("design")
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("drawingBoard generator requires enabled irAnalysis source.", error.message)
     }
 }
