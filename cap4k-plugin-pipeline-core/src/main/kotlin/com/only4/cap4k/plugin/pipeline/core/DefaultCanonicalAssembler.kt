@@ -1,10 +1,14 @@
 package com.only4.cap4k.plugin.pipeline.core
 
+import com.only4.cap4k.plugin.pipeline.api.AnalysisEdgeModel
+import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
+import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
+import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.RequestKind
@@ -29,6 +33,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             .filterIsInstance<KspMetadataSnapshot>()
             .flatMap { it.aggregates }
             .associateBy { it.aggregateName }
+
+        val analysisSnapshot = snapshots.filterIsInstance<IrAnalysisSnapshot>().firstOrNull()
 
         val requests = designSnapshot?.entries.orEmpty().mapNotNull { entry ->
             val kind = when (entry.tag.lowercase(Locale.ROOT)) {
@@ -97,11 +103,34 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             )
         }
 
+        val analysisGraph = analysisSnapshot?.let {
+            AnalysisGraphModel(
+                inputDirs = it.inputDirs,
+                nodes = it.nodes.map { node ->
+                    AnalysisNodeModel(
+                        id = node.id,
+                        name = node.name,
+                        fullName = node.fullName,
+                        type = node.type,
+                    )
+                },
+                edges = it.edges.map { edge ->
+                    AnalysisEdgeModel(
+                        fromId = edge.fromId,
+                        toId = edge.toId,
+                        type = edge.type,
+                        label = edge.label,
+                    )
+                },
+            )
+        }
+
         return CanonicalModel(
             requests = requests,
             schemas = aggregateModels.map { it.first },
             entities = aggregateModels.map { it.second },
             repositories = aggregateModels.map { it.third },
+            analysisGraph = analysisGraph,
         )
     }
 }
