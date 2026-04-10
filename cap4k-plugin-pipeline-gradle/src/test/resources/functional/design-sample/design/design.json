@@ -6,10 +6,17 @@
     "desc": "submit order command",
     "aggregates": ["Order"],
     "requestFields": [
-      { "name": "orderId", "type": "Long" }
+      { "name": "orderId", "type": "Long" },
+      { "name": "tags", "type": "List<String>" },
+      { "name": "address", "type": "Address", "nullable": true },
+      { "name": "address.city", "type": "String" },
+      { "name": "address.zipCode", "type": "String" },
+      { "name": "createdAt", "type": "java.time.LocalDateTime" }
     ],
     "responseFields": [
-      { "name": "accepted", "type": "Boolean" }
+      { "name": "accepted", "type": "Boolean" },
+      { "name": "result", "type": "Result", "nullable": true },
+      { "name": "result.id", "type": "Long" }
     ]
   },
   {
@@ -22,7 +29,9 @@
       { "name": "orderId", "type": "Long" }
     ],
     "responseFields": [
-      { "name": "status", "type": "String" }
+      { "name": "status", "type": "String" },
+      { "name": "snapshot", "type": "Snapshot", "nullable": true },
+      { "name": "snapshot.updatedAt", "type": "java.time.LocalDateTime" }
     ]
   }
 ]

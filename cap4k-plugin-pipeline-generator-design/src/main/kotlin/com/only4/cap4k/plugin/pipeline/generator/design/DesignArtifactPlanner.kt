@@ -29,12 +29,10 @@ class DesignArtifactPlanner : GeneratorProvider {
                 moduleRole = "application",
                 templateId = templateId,
                 outputPath = "$applicationRoot/src/main/kotlin/$basePath/application/$subdir/$packagePath/${request.typeName}.kt",
-                context = mapOf(
-                    "packageName" to "${config.basePackage}.application.$subdir.${request.packageName}",
-                    "typeName" to request.typeName,
-                    "description" to request.description,
-                    "aggregateName" to request.aggregateName,
-                ),
+                context = DesignRenderModelFactory.create(
+                    packageName = "${config.basePackage}.application.$subdir.${request.packageName}",
+                    request = request,
+                ).toContextMap(),
                 conflictPolicy = config.templates.conflictPolicy,
             )
         }
