@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.api
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 class PipelineModelsTest {
@@ -67,5 +68,77 @@ class PipelineModelsTest {
         assertEquals("video_post", snapshot.tables.single().tableName)
         assertEquals(listOf("id"), snapshot.tables.single().primaryKey)
         assertEquals("Long", snapshot.tables.single().columns.single().kotlinType)
+    }
+
+    @Test
+    fun `ir analysis snapshot preserves input dirs nodes and edges`() {
+        val snapshot = IrAnalysisSnapshot(
+            inputDirs = listOf("app/build/cap4k-code-analysis"),
+            nodes = listOf(
+                IrNodeSnapshot(
+                    id = "OrderController::submit",
+                    name = "OrderController::submit",
+                    fullName = "com.acme.demo.adapter.web.OrderController::submit",
+                    type = "controllermethod",
+                )
+            ),
+            edges = listOf(
+                IrEdgeSnapshot(
+                    fromId = "OrderController::submit",
+                    toId = "SubmitOrderCmd",
+                    type = "ControllerMethodToCommand",
+                    label = null,
+                )
+            ),
+        )
+
+        assertEquals("ir-analysis", snapshot.id)
+        assertEquals("OrderController::submit", snapshot.nodes.single().id)
+        assertEquals("ControllerMethodToCommand", snapshot.edges.single().type)
+    }
+
+    @Test
+    fun `canonical model keeps optional analysis graph alongside existing slices`() {
+        val graph = AnalysisGraphModel(
+            inputDirs = listOf("app/build/cap4k-code-analysis"),
+            nodes = listOf(
+                AnalysisNodeModel(
+                    id = "OrderController::submit",
+                    name = "OrderController::submit",
+                    fullName = "com.acme.demo.adapter.web.OrderController::submit",
+                    type = "controllermethod",
+                )
+            ),
+            edges = listOf(
+                AnalysisEdgeModel(
+                    fromId = "OrderController::submit",
+                    toId = "SubmitOrderCmd",
+                    type = "ControllerMethodToCommand",
+                    label = null,
+                )
+            ),
+        )
+
+        val model = CanonicalModel(
+            requests = listOf(
+                RequestModel(
+                    kind = RequestKind.COMMAND,
+                    packageName = "order.submit",
+                    typeName = "SubmitOrderCmd",
+                    description = "submit order",
+                )
+            ),
+            analysisGraph = graph,
+        )
+
+        assertEquals("SubmitOrderCmd", model.requests.single().typeName)
+        assertEquals("OrderController::submit", model.analysisGraph!!.nodes.single().id)
+        assertEquals("ControllerMethodToCommand", model.analysisGraph!!.edges.single().type)
+    }
+
+    @Test
+    fun `canonical model defaults analysis graph to null`() {
+        val model = CanonicalModel()
+        assertNull(model.analysisGraph)
     }
 }

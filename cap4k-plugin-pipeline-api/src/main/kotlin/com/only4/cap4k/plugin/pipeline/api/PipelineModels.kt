@@ -82,6 +82,26 @@ data class KspMetadataSnapshot(
     val aggregates: List<AggregateMetadataRecord>,
 ) : SourceSnapshot
 
+data class AnalysisNodeModel(
+    val id: String,
+    val name: String,
+    val fullName: String,
+    val type: String,
+)
+
+data class AnalysisEdgeModel(
+    val fromId: String,
+    val toId: String,
+    val type: String,
+    val label: String? = null,
+)
+
+data class AnalysisGraphModel(
+    val inputDirs: List<String>,
+    val nodes: List<AnalysisNodeModel>,
+    val edges: List<AnalysisEdgeModel>,
+)
+
 data class SchemaModel(
     val name: String,
     val packageName: String,
@@ -127,6 +147,7 @@ data class CanonicalModel(
     val schemas: List<SchemaModel> = emptyList(),
     val entities: List<EntityModel> = emptyList(),
     val repositories: List<RepositoryModel> = emptyList(),
+    val analysisGraph: AnalysisGraphModel? = null,
 )
 
 data class ArtifactPlanItem(
