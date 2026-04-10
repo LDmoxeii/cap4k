@@ -29,6 +29,8 @@ open class Cap4kExtension @Inject constructor(objects: ObjectFactory) {
     }
 }
 
+internal typealias PipelineExtension = Cap4kExtension
+
 open class Cap4kProjectExtension @Inject constructor(objects: ObjectFactory) {
     val basePackage: Property<String> = objects.property(String::class.java)
     val applicationModulePath: Property<String> = objects.property(String::class.java)
@@ -129,4 +131,53 @@ open class Cap4kTemplatesExtension @Inject constructor(objects: ObjectFactory) {
     val preset: Property<String> = objects.property(String::class.java).convention("ddd-default")
     val overrideDirs: ConfigurableFileCollection = objects.fileCollection()
     val conflictPolicy: Property<String> = objects.property(String::class.java).convention("SKIP")
+    internal val templateOverrideDir: Property<String> = objects.property(String::class.java)
 }
+
+internal val Cap4kExtension.basePackage: Property<String>
+    get() = project.basePackage
+
+internal val Cap4kExtension.applicationModulePath: Property<String>
+    get() = project.applicationModulePath
+
+internal val Cap4kExtension.domainModulePath: Property<String>
+    get() = project.domainModulePath
+
+internal val Cap4kExtension.adapterModulePath: Property<String>
+    get() = project.adapterModulePath
+
+internal val Cap4kExtension.designFiles: ConfigurableFileCollection
+    get() = sources.designJson.files
+
+internal val Cap4kExtension.kspMetadataDir: Property<String>
+    get() = sources.kspMetadata.inputDir
+
+internal val Cap4kExtension.irAnalysisInputDirs: ConfigurableFileCollection
+    get() = sources.irAnalysis.inputDirs
+
+internal val Cap4kExtension.drawingBoardOutputDir: Property<String>
+    get() = generators.drawingBoard.outputDir
+
+internal val Cap4kExtension.flowOutputDir: Property<String>
+    get() = generators.flow.outputDir
+
+internal val Cap4kExtension.dbUrl: Property<String>
+    get() = sources.db.url
+
+internal val Cap4kExtension.dbUsername: Property<String>
+    get() = sources.db.username
+
+internal val Cap4kExtension.dbPassword: Property<String>
+    get() = sources.db.password
+
+internal val Cap4kExtension.dbSchema: Property<String>
+    get() = sources.db.schema
+
+internal val Cap4kExtension.dbIncludeTables: ListProperty<String>
+    get() = sources.db.includeTables
+
+internal val Cap4kExtension.dbExcludeTables: ListProperty<String>
+    get() = sources.db.excludeTables
+
+internal val Cap4kExtension.templateOverrideDir: Property<String>
+    get() = templates.templateOverrideDir
