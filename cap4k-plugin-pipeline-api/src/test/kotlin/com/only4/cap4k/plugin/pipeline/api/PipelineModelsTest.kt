@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 class PipelineModelsTest {
 
     @Test
-    fun `ir analysis snapshot preserves input dirs nodes and edges`() {
+    fun `ir analysis snapshot preserves input dirs nodes edges and design elements`() {
         val snapshot = IrAnalysisSnapshot(
             inputDirs = listOf("app/build/cap4k-code-analysis"),
             nodes = listOf(
@@ -26,12 +26,31 @@ class PipelineModelsTest {
                     label = null,
                 )
             ),
+            designElements = listOf(
+                DesignElementSnapshot(
+                    tag = "cmd",
+                    packageName = "com.acme.demo.app.command",
+                    name = "SubmitOrderCmd",
+                    description = "submit order",
+                    aggregates = listOf("Order"),
+                    entity = "Order",
+                    persist = true,
+                    requestFields = listOf(
+                        DesignFieldSnapshot(name = "id", type = "Long")
+                    ),
+                    responseFields = listOf(
+                        DesignFieldSnapshot(name = "success", type = "Boolean", nullable = false)
+                    ),
+                )
+            ),
         )
 
         assertEquals("ir-analysis", snapshot.id)
         assertEquals(listOf("app/build/cap4k-code-analysis"), snapshot.inputDirs)
         assertEquals("OrderController::submit", snapshot.nodes.single().id)
         assertEquals("ControllerMethodToCommand", snapshot.edges.single().type)
+        assertEquals("cmd", snapshot.designElements.single().tag)
+        assertEquals("SubmitOrderCmd", snapshot.designElements.single().name)
     }
 
     @Test
@@ -77,6 +96,61 @@ class PipelineModelsTest {
     fun `canonical model defaults analysis graph to null`() {
         val model = CanonicalModel()
         assertNull(model.analysisGraph)
+    }
+
+    @Test
+    fun `canonical model keeps optional drawing board alongside existing slices`() {
+        val board = DrawingBoardModel(
+            elements = listOf(
+                DrawingBoardElementModel(
+                    tag = "cmd",
+                    packageName = "com.acme.demo.app.command",
+                    name = "SubmitOrderCmd",
+                    description = "submit order",
+                    aggregates = listOf("Order"),
+                    entity = "Order",
+                    persist = true,
+                    requestFields = listOf(
+                        DrawingBoardFieldModel(name = "id", type = "Long")
+                    ),
+                    responseFields = listOf(
+                        DrawingBoardFieldModel(name = "success", type = "Boolean", nullable = false)
+                    ),
+                )
+            ),
+            elementsByTag = mapOf(
+                "cmd" to listOf(
+                    DrawingBoardElementModel(
+                        tag = "cmd",
+                        packageName = "com.acme.demo.app.command",
+                        name = "SubmitOrderCmd",
+                        description = "submit order",
+                    )
+                )
+            ),
+        )
+
+        val model = CanonicalModel(
+            requests = listOf(
+                RequestModel(
+                    kind = RequestKind.COMMAND,
+                    packageName = "order.submit",
+                    typeName = "SubmitOrderCmd",
+                    description = "submit order",
+                )
+            ),
+            drawingBoard = board,
+        )
+
+        assertEquals("SubmitOrderCmd", model.requests.single().typeName)
+        assertEquals("cmd", model.drawingBoard!!.elements.single().tag)
+        assertEquals("SubmitOrderCmd", model.drawingBoard!!.elementsByTag["cmd"]!!.single().name)
+    }
+
+    @Test
+    fun `canonical model defaults drawing board to null`() {
+        val model = CanonicalModel()
+        assertNull(model.drawingBoard)
     }
 
     @Test
