@@ -55,6 +55,28 @@ class DesignTypeParserTest {
     }
 
     @Test
+    fun `parses nested generic structure`() {
+        assertParsed(
+            raw = "List<Map<String, com.foo.Status?>>",
+            expected = designType(
+                tokenText = "List",
+                arguments = listOf(
+                    designType(
+                        tokenText = "Map",
+                        arguments = listOf(
+                            designType(tokenText = "String"),
+                            designType(
+                                tokenText = "com.foo.Status",
+                                nullable = true,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun `parses fqcn child type with nullability`() {
         assertParsed(
             raw = "List<com.foo.Status?>",
