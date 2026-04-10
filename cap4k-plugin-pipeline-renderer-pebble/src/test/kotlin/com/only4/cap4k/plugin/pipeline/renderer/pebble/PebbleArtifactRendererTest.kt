@@ -325,4 +325,102 @@ class PebbleArtifactRendererTest {
         assertTrue(artifact.outputPath == outputPath)
         assertTrue(artifact.conflictPolicy == conflictPolicy)
     }
+
+    @Test
+    fun `renders drawing board json with optional entity persist and field metadata`() {
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = emptyList()
+            )
+        )
+
+        val outputPath = "design/cmd.json"
+        val conflictPolicy = ConflictPolicy.SKIP
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "drawing-board",
+                    moduleRole = "project",
+                    templateId = "drawing-board/document.json.peb",
+                    outputPath = outputPath,
+                    context = mapOf(
+                        "elements" to listOf(
+                            DrawingBoardElementModel(
+                                tag = "cmd",
+                                packageName = "orders",
+                                name = "SubmitOrder",
+                                description = "submit order",
+                                aggregates = listOf("Order"),
+                                entity = "Order",
+                                persist = true,
+                                requestFields = listOf(
+                                    DrawingBoardFieldModel(
+                                        name = "id",
+                                        type = "Long",
+                                        nullable = false,
+                                        defaultValue = null
+                                    )
+                                ),
+                                responseFields = listOf(
+                                    DrawingBoardFieldModel(
+                                        name = "accepted",
+                                        type = "Boolean",
+                                        nullable = true,
+                                        defaultValue = "false"
+                                    )
+                                )
+                            ),
+                            DrawingBoardElementModel(
+                                tag = "qry",
+                                packageName = "orders",
+                                name = "FindOrder",
+                                description = "find order",
+                                aggregates = emptyList(),
+                                requestFields = emptyList(),
+                                responseFields = emptyList()
+                            )
+                        )
+                    ),
+                    conflictPolicy = conflictPolicy
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val artifact = rendered.single()
+        assertTrue(artifact.outputPath == outputPath)
+        assertTrue(artifact.conflictPolicy == conflictPolicy)
+
+        val content = artifact.content
+        assertTrue(content.startsWith("["))
+        assertTrue(content.contains("\"tag\": \"cmd\""))
+        assertTrue(content.contains("\"package\": \"orders\""))
+        assertTrue(content.contains("\"name\": \"SubmitOrder\""))
+        assertTrue(content.contains("\"desc\": \"submit order\""))
+        assertTrue(content.contains("\"aggregates\": [\"Order\"]"))
+        assertTrue(content.contains("\"entity\": \"Order\""))
+        assertTrue(content.contains("\"persist\": true"))
+        assertTrue(content.contains("\"requestFields\": ["))
+        assertTrue(content.contains("\"name\": \"id\""))
+        assertTrue(content.contains("\"nullable\": false"))
+        assertTrue(content.contains("\"responseFields\": ["))
+        assertTrue(content.contains("\"name\": \"accepted\""))
+        assertTrue(content.contains("\"nullable\": true"))
+        assertTrue(content.contains("\"defaultValue\": \"false\""))
+        assertTrue(!content.contains("\"entity\": null"))
+        assertTrue(!content.contains("\"persist\": null"))
+        assertTrue(!content.contains("\"defaultValue\": null"))
+    }
 }
