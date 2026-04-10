@@ -2,6 +2,36 @@ package com.only4.cap4k.plugin.pipeline.generator.design
 
 internal object DesignImportPlanner {
 
+    private val reservedSimpleNames = setOf(
+        "Any",
+        "Array",
+        "Boolean",
+        "Byte",
+        "Char",
+        "Collection",
+        "Double",
+        "Float",
+        "Int",
+        "Iterable",
+        "List",
+        "Long",
+        "Map",
+        "MutableCollection",
+        "MutableIterable",
+        "MutableList",
+        "MutableMap",
+        "MutableSet",
+        "Nothing",
+        "Number",
+        "Pair",
+        "Sequence",
+        "Set",
+        "Short",
+        "String",
+        "Triple",
+        "Unit",
+    )
+
     fun plan(
         types: List<DesignResolvedTypeModel>,
         innerTypeNames: Set<String> = emptySet(),
@@ -13,7 +43,8 @@ internal object DesignImportPlanner {
             .filter { group ->
                 group.all { it.fqcn != null } &&
                     group.mapNotNull { it.fqcn }.distinct().size == 1 &&
-                    group.first().simpleName !in innerTypeNames
+                    group.first().simpleName !in innerTypeNames &&
+                    group.first().simpleName !in reservedSimpleNames
             }
             .map { it.first().fqcn!! }
             .toSet()

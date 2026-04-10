@@ -64,6 +64,15 @@ class DesignTypeResolverTest {
     }
 
     @Test
+    fun `fqcn that collides with a built-in stays qualified and unimported`() {
+        val plan = plan("java.util.List<java.lang.String>")
+
+        assertEquals("java.util.List<java.lang.String>", plan.renderedTypes.single().renderedText)
+        assertEquals(emptyList<String>(), plan.imports)
+        assertTrue(plan.renderedTypes.single().qualifiedFallback)
+    }
+
+    @Test
     fun `colliding fqcn names render qualified names and produce no imports`() {
         val resolvedFoo = resolve("com.foo.Status")
         val resolvedBar = resolve("com.bar.Status")
