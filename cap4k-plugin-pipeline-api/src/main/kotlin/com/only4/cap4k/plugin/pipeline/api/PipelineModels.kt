@@ -35,6 +35,25 @@ data class DesignSpecEntry(
     val responseFields: List<FieldModel>,
 )
 
+data class DesignFieldSnapshot(
+    val name: String,
+    val type: String,
+    val nullable: Boolean = false,
+    val defaultValue: String? = null,
+)
+
+data class DesignElementSnapshot(
+    val tag: String,
+    val packageName: String,
+    val name: String,
+    val description: String,
+    val aggregates: List<String> = emptyList(),
+    val entity: String? = null,
+    val persist: Boolean? = null,
+    val requestFields: List<DesignFieldSnapshot> = emptyList(),
+    val responseFields: List<DesignFieldSnapshot> = emptyList(),
+)
+
 data class AggregateMetadataRecord(
     val aggregateName: String,
     val rootQualifiedName: String,
@@ -80,6 +99,7 @@ data class IrAnalysisSnapshot(
     val inputDirs: List<String>,
     val nodes: List<IrNodeSnapshot>,
     val edges: List<IrEdgeSnapshot>,
+    val designElements: List<DesignElementSnapshot> = emptyList(),
 ) : SourceSnapshot
 
 data class SchemaModel(
@@ -120,6 +140,30 @@ data class AnalysisEdgeModel(
     val label: String? = null,
 )
 
+data class DrawingBoardFieldModel(
+    val name: String,
+    val type: String,
+    val nullable: Boolean = false,
+    val defaultValue: String? = null,
+)
+
+data class DrawingBoardElementModel(
+    val tag: String,
+    val packageName: String,
+    val name: String,
+    val description: String,
+    val aggregates: List<String> = emptyList(),
+    val entity: String? = null,
+    val persist: Boolean? = null,
+    val requestFields: List<DrawingBoardFieldModel> = emptyList(),
+    val responseFields: List<DrawingBoardFieldModel> = emptyList(),
+)
+
+data class DrawingBoardModel(
+    val elements: List<DrawingBoardElementModel>,
+    val elementsByTag: Map<String, List<DrawingBoardElementModel>>,
+)
+
 data class AnalysisGraphModel(
     val inputDirs: List<String>,
     val nodes: List<AnalysisNodeModel>,
@@ -148,6 +192,7 @@ data class CanonicalModel(
     val entities: List<EntityModel> = emptyList(),
     val repositories: List<RepositoryModel> = emptyList(),
     val analysisGraph: AnalysisGraphModel? = null,
+    val drawingBoard: DrawingBoardModel? = null,
 )
 
 data class ArtifactPlanItem(
