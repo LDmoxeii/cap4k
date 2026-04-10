@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.api
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
@@ -115,10 +116,7 @@ class PipelineModelsTest {
                 DrawingBoardFieldModel(name = "success", type = "Boolean", nullable = false)
             ),
         )
-        val board = DrawingBoardModel(
-            elements = listOf(element),
-            elementsByTag = mapOf("cmd" to listOf(element)),
-        )
+        val board = DrawingBoardModel(elements = listOf(element))
 
         val model = CanonicalModel(
             requests = listOf(
@@ -135,6 +133,25 @@ class PipelineModelsTest {
         assertEquals("SubmitOrderCmd", model.requests.single().typeName)
         assertEquals("cmd", model.drawingBoard!!.elements.single().tag)
         assertEquals("SubmitOrderCmd", model.drawingBoard!!.elementsByTag["cmd"]!!.single().name)
+    }
+
+    @Test
+    fun `drawing board model rejects mismatched elements by tag`() {
+        val element = DrawingBoardElementModel(
+            tag = "cmd",
+            packageName = "com.acme.demo.app.command",
+            name = "SubmitOrderCmd",
+            description = "submit order",
+        )
+
+        val exception = assertThrows(IllegalArgumentException::class.java) {
+            DrawingBoardModel(
+                elements = listOf(element),
+                elementsByTag = emptyMap(),
+            )
+        }
+
+        assertEquals("elementsByTag must match elements grouped by tag", exception.message)
     }
 
     @Test
