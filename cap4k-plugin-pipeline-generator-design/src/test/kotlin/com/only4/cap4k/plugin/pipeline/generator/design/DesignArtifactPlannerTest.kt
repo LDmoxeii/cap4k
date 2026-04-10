@@ -92,15 +92,20 @@ class DesignArtifactPlannerTest {
         assertEquals("submit order", command.context["description"])
         assertEquals("Order", command.context["aggregateName"])
         assertEquals(
-            listOf("java.time.LocalDateTime"),
+            listOf(
+                "java.time.Instant",
+                "java.time.LocalDateTime",
+            ),
             command.context["imports"],
         )
         assertEquals(
             listOf(
-                DesignRenderFieldModel(name = "id", type = "Long"),
-                DesignRenderFieldModel(name = "tags", type = "List<String>"),
-                DesignRenderFieldModel(name = "address", type = "Address", nullable = true),
-                DesignRenderFieldModel(name = "createdAt", type = "LocalDateTime"),
+                DesignRenderFieldModel(name = "id", renderedType = "Long"),
+                DesignRenderFieldModel(name = "tags", renderedType = "List<String>"),
+                DesignRenderFieldModel(name = "address", renderedType = "Address", nullable = true),
+                DesignRenderFieldModel(name = "shippingAddresses", renderedType = "List<Address>"),
+                DesignRenderFieldModel(name = "createdAt", renderedType = "LocalDateTime"),
+                DesignRenderFieldModel(name = "externalItem", renderedType = "com.foo.Item"),
             ),
             command.context["requestFields"],
         )
@@ -109,8 +114,8 @@ class DesignArtifactPlannerTest {
                 DesignRenderNestedTypeModel(
                     name = "Address",
                     fields = listOf(
-                        DesignRenderFieldModel(name = "city", type = "String"),
-                        DesignRenderFieldModel(name = "zipCode", type = "String"),
+                        DesignRenderFieldModel(name = "city", renderedType = "String"),
+                        DesignRenderFieldModel(name = "zipCode", renderedType = "String"),
                     ),
                 ),
             ),
@@ -118,7 +123,10 @@ class DesignArtifactPlannerTest {
         )
         assertEquals(
             listOf(
-                DesignRenderFieldModel(name = "item", type = "Item", nullable = true),
+                DesignRenderFieldModel(name = "item", renderedType = "Item", nullable = true),
+                DesignRenderFieldModel(name = "relatedItems", renderedType = "List<Item>"),
+                DesignRenderFieldModel(name = "updatedAt", renderedType = "Instant", nullable = true),
+                DesignRenderFieldModel(name = "scheduledAt", renderedType = "LocalDateTime"),
             ),
             command.context["responseFields"],
         )
@@ -127,7 +135,7 @@ class DesignArtifactPlannerTest {
                 DesignRenderNestedTypeModel(
                     name = "Item",
                     fields = listOf(
-                        DesignRenderFieldModel(name = "id", type = "Long"),
+                        DesignRenderFieldModel(name = "id", renderedType = "Long"),
                     ),
                 ),
             ),
@@ -165,13 +173,13 @@ class DesignArtifactPlannerTest {
 
         assertEquals(
             listOf(
-                DesignRenderFieldModel(name = "requestStatus", type = "com.foo.Status"),
+                DesignRenderFieldModel(name = "requestStatus", renderedType = "com.foo.Status"),
             ),
             command.context["requestFields"],
         )
         assertEquals(
             listOf(
-                DesignRenderFieldModel(name = "responseStatus", type = "com.bar.Status"),
+                DesignRenderFieldModel(name = "responseStatus", renderedType = "com.bar.Status"),
             ),
             command.context["responseFields"],
         )
@@ -423,11 +431,16 @@ class DesignArtifactPlannerTest {
                     FieldModel("address", "Address", nullable = true),
                     FieldModel("address.city", "String"),
                     FieldModel("address.zipCode", "String"),
+                    FieldModel("shippingAddresses", "List<Address>"),
                     FieldModel("createdAt", "java.time.LocalDateTime"),
+                    FieldModel("externalItem", "com.foo.Item"),
                 ),
                 responseFields = listOf(
                     FieldModel("item", "Item", nullable = true),
                     FieldModel("item.id", "Long"),
+                    FieldModel("relatedItems", "List<Item>"),
+                    FieldModel("updatedAt", "java.time.Instant", nullable = true),
+                    FieldModel("scheduledAt", "java.time.LocalDateTime"),
                 ),
             ),
         ),

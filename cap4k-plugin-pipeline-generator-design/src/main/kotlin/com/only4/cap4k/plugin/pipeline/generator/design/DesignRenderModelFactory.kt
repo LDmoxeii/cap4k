@@ -2,37 +2,9 @@ package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.RequestModel
+import java.util.ArrayDeque
 
 internal object DesignRenderModelFactory {
-    private val builtInTypes = setOf(
-        "Any",
-        "Array",
-        "Boolean",
-        "Byte",
-        "Char",
-        "Collection",
-        "Double",
-        "Float",
-        "Int",
-        "Iterable",
-        "List",
-        "Long",
-        "Map",
-        "MutableCollection",
-        "MutableList",
-        "MutableMap",
-        "MutableSet",
-        "Nothing",
-        "Number",
-        "Pair",
-        "Sequence",
-        "Set",
-        "Short",
-        "String",
-        "Triple",
-        "Unit",
-    )
-
     private val collectionWrapperTypes = setOf(
         "Collection",
         "Iterable",
@@ -44,31 +16,35 @@ internal object DesignRenderModelFactory {
     )
 
     fun create(packageName: String, request: RequestModel): DesignRenderModel {
-        val fqcnCollisionNames = collectCollidingFqcnSimpleNames(
-            request.requestFields + request.responseFields,
+        val requestNamespace = buildNamespace(request.requestFields, "request")
+        val responseNamespace = buildNamespace(request.responseFields, "response")
+        val importPlan = DesignImportPlanner.plan(
+            types = requestNamespace.resolvedTypes + responseNamespace.resolvedTypes,
+            innerTypeNames = requestNamespace.nestedTypeNames + responseNamespace.nestedTypeNames,
         )
-        val requestNamespace = buildNamespace(request.requestFields, "request", fqcnCollisionNames)
-        val responseNamespace = buildNamespace(request.responseFields, "response", fqcnCollisionNames)
+        val renderedTypes = ArrayDeque(importPlan.renderedTypes)
+        val requestFields = renderFields(requestNamespace.fields, renderedTypes)
+        val requestNestedTypes = renderNestedTypes(requestNamespace.nestedTypes, renderedTypes)
+        val responseFields = renderFields(responseNamespace.fields, renderedTypes)
+        val responseNestedTypes = renderNestedTypes(responseNamespace.nestedTypes, renderedTypes)
 
         return DesignRenderModel(
             packageName = packageName,
             typeName = request.typeName,
             description = request.description,
             aggregateName = request.aggregateName,
-            imports = (requestNamespace.imports + responseNamespace.imports).distinct(),
-            requestFields = requestNamespace.fields,
-            responseFields = responseNamespace.fields,
-            requestNestedTypes = requestNamespace.nestedTypes,
-            responseNestedTypes = responseNamespace.nestedTypes,
+            imports = importPlan.imports,
+            requestFields = requestFields,
+            responseFields = responseFields,
+            requestNestedTypes = requestNestedTypes,
+            responseNestedTypes = responseNestedTypes,
         )
     }
 
     private fun buildNamespace(
         fields: List<FieldModel>,
         namespace: String,
-        collidingFqcnSimpleNames: Set<String>,
-    ): NamespaceRenderResult {
-        val imports = linkedSetOf<String>()
+    ): NamespaceModel {
         val directFields = linkedMapOf<String, FieldModel>()
         val directFieldDeclarations = linkedMapOf<String, MutableList<FieldModel>>()
         val nestedGroups = linkedMapOf<String, NestedGroup>()
@@ -94,16 +70,19 @@ internal object DesignRenderModelFactory {
                 throw IllegalArgumentException("duplicate nested type name in $namespace namespace: $nestedTypeName")
             }
 
-            val group = nestedGroups.getOrPut(
-                rootName,
-            ) {
+            val group = nestedGroups.getOrPut(rootName) {
                 NestedGroup(rootName = rootName, nestedTypeName = nestedTypeName)
             }
             if (group.nestedTypeName != nestedTypeName) {
                 throw IllegalArgumentException("duplicate nested type name in $namespace namespace: $nestedTypeName")
             }
 
-            group.fields += field.toRenderField(name = parts[1])
+            group.fields += RawFieldModel(
+                name = parts[1],
+                type = field.type,
+                nullable = field.nullable,
+                defaultValue = field.defaultValue,
+            )
         }
 
         nestedGroups.values.forEach { group ->
@@ -127,135 +106,37 @@ internal object DesignRenderModelFactory {
             nestedTypeNames += group.nestedTypeName
         }
 
-        val renderedDirectFields = directFields.values.map { field ->
-            field.toRenderField(
-                type = renderType(
-                    type = field.type,
-                    imports = imports,
-                    reservedSimpleNames = nestedTypeNames,
-                    collidingFqcnSimpleNames = collidingFqcnSimpleNames,
-                ),
-            )
-        }
+        return NamespaceModel(
+            fields = directFields.values.map { it.toPreparedField(innerTypeNames = nestedTypeNames) },
+            nestedTypes = nestedGroups.values.map { group ->
+                PreparedNestedTypeModel(
+                    name = group.nestedTypeName,
+                    fields = group.fields.map { it.toPreparedField(innerTypeNames = nestedTypeNames) },
+                )
+            },
+            nestedTypeNames = nestedTypeNames,
+        )
+    }
 
-        val renderedNestedTypes = nestedGroups.values.map { group ->
+    private fun renderFields(
+        fields: List<PreparedFieldModel>,
+        renderedTypes: ArrayDeque<DesignRenderedTypeModel>,
+    ): List<DesignRenderFieldModel> {
+        return fields.map { field ->
+            field.toRenderField(renderedType = renderedTypes.removeFirst().renderedText)
+        }
+    }
+
+    private fun renderNestedTypes(
+        nestedTypes: List<PreparedNestedTypeModel>,
+        renderedTypes: ArrayDeque<DesignRenderedTypeModel>,
+    ): List<DesignRenderNestedTypeModel> {
+        return nestedTypes.map { nestedType ->
             DesignRenderNestedTypeModel(
-                name = group.nestedTypeName,
-                fields = group.fields.map { field ->
-                    field.copy(
-                        type = renderType(
-                            type = field.type,
-                            imports = imports,
-                            reservedSimpleNames = nestedTypeNames,
-                            collidingFqcnSimpleNames = collidingFqcnSimpleNames,
-                        ),
-                    )
-                },
+                name = nestedType.name,
+                fields = renderFields(nestedType.fields, renderedTypes),
             )
         }
-
-        return NamespaceRenderResult(
-            fields = renderedDirectFields,
-            nestedTypes = renderedNestedTypes,
-            imports = imports.toList(),
-        )
-    }
-
-    private fun renderType(
-        type: String,
-        imports: MutableSet<String>,
-        reservedSimpleNames: Set<String>,
-        collidingFqcnSimpleNames: Set<String>,
-    ): String {
-        val trimmed = type.trim()
-        if (trimmed.isEmpty()) {
-            return trimmed
-        }
-
-        val rendered = renderGenericType(trimmed, imports, reservedSimpleNames, collidingFqcnSimpleNames)
-        return rendered ?: trimmed
-    }
-
-    private fun renderGenericType(
-        type: String,
-        imports: MutableSet<String>,
-        reservedSimpleNames: Set<String>,
-        collidingFqcnSimpleNames: Set<String>,
-    ): String? {
-        val genericStart = type.indexOf('<')
-        if (genericStart < 0) {
-            return renderSimpleType(type, imports, reservedSimpleNames, collidingFqcnSimpleNames)
-        }
-
-        val genericEnd = type.lastIndexOf('>')
-        if (genericEnd <= genericStart) {
-            return null
-        }
-
-        val rootType = type.substring(0, genericStart).trim()
-        val argsText = type.substring(genericStart + 1, genericEnd)
-        val renderedRootType = renderSimpleType(
-            rootType,
-            imports,
-            reservedSimpleNames,
-            collidingFqcnSimpleNames,
-        )
-        val renderedArgs = splitGenericArguments(argsText).map { argument ->
-            renderType(argument, imports, reservedSimpleNames, collidingFqcnSimpleNames)
-        }
-
-        return "$renderedRootType<${renderedArgs.joinToString(", ")}>"
-    }
-
-    private fun renderSimpleType(
-        type: String,
-        imports: MutableSet<String>,
-        reservedSimpleNames: Set<String>,
-        collidingFqcnSimpleNames: Set<String>,
-    ): String {
-        val trimmed = type.trim()
-        if (trimmed.isEmpty()) {
-            return trimmed
-        }
-
-        if (trimmed in builtInTypes) {
-            return trimmed
-        }
-
-        val simpleName = trimmed.substringAfterLast('.')
-        if (simpleName != trimmed) {
-            if (simpleName in reservedSimpleNames || simpleName in collidingFqcnSimpleNames) {
-                return trimmed
-            }
-
-            imports += trimmed
-            return simpleName
-        }
-
-        return trimmed
-    }
-
-    private fun splitGenericArguments(text: String): List<String> {
-        if (text.isBlank()) {
-            return emptyList()
-        }
-
-        val result = mutableListOf<String>()
-        var depth = 0
-        var start = 0
-        text.forEachIndexed { index, char ->
-            when (char) {
-                '<' -> depth++
-                '>' -> depth--
-                ',' -> if (depth == 0) {
-                    result += text.substring(start, index).trim()
-                    start = index + 1
-                }
-            }
-        }
-
-        result += text.substring(start).trim()
-        return result.filter { it.isNotEmpty() }
     }
 
     private fun toNestedTypeName(rawName: String): String {
@@ -288,70 +169,101 @@ internal object DesignRenderModelFactory {
             return false
         }
 
-        val args = splitGenericArguments(trimmed.substring(genericStart + 1, genericEnd))
-        return args.size == 1 && simpleTypeName(args.single()) == nestedTypeName
+        val arguments = splitGenericArguments(trimmed.substring(genericStart + 1, genericEnd))
+        return arguments.size == 1 && simpleTypeName(arguments.single()) == nestedTypeName
+    }
+
+    private fun splitGenericArguments(text: String): List<String> {
+        if (text.isBlank()) {
+            return emptyList()
+        }
+
+        val result = mutableListOf<String>()
+        var depth = 0
+        var start = 0
+        text.forEachIndexed { index, char ->
+            when (char) {
+                '<' -> depth++
+                '>' -> depth--
+                ',' -> if (depth == 0) {
+                    result += text.substring(start, index).trim()
+                    start = index + 1
+                }
+            }
+        }
+
+        result += text.substring(start).trim()
+        return result.filter { it.isNotEmpty() }
     }
 
     private fun simpleTypeName(type: String): String = type.trim().substringAfterLast('.')
 
-    private fun collectCollidingFqcnSimpleNames(fields: List<FieldModel>): Set<String> {
-        val fqcnBySimpleName = linkedMapOf<String, MutableSet<String>>()
+    private fun FieldModel.toPreparedField(innerTypeNames: Set<String>): PreparedFieldModel {
+        return PreparedFieldModel(
+            name = name,
+            nullable = nullable,
+            defaultValue = defaultValue,
+            resolvedType = DesignTypeResolver.resolve(
+                type = DesignTypeParser.parse(type),
+                innerTypeNames = innerTypeNames,
+            ),
+        )
+    }
 
-        fields.forEach { field ->
-            collectFqcnTypes(field.type).forEach { fqcn ->
-                val simpleName = simpleTypeName(fqcn)
-                fqcnBySimpleName.getOrPut(simpleName) { linkedSetOf() }.add(fqcn)
+    private fun RawFieldModel.toPreparedField(innerTypeNames: Set<String>): PreparedFieldModel {
+        return PreparedFieldModel(
+            name = name,
+            nullable = nullable,
+            defaultValue = defaultValue,
+            resolvedType = DesignTypeResolver.resolve(
+                type = DesignTypeParser.parse(type),
+                innerTypeNames = innerTypeNames,
+            ),
+        )
+    }
+
+    private fun PreparedFieldModel.toRenderField(renderedType: String): DesignRenderFieldModel {
+        return DesignRenderFieldModel(
+            name = name,
+            renderedType = renderedType,
+            nullable = nullable,
+            defaultValue = defaultValue,
+        )
+    }
+
+    private data class NamespaceModel(
+        val fields: List<PreparedFieldModel>,
+        val nestedTypes: List<PreparedNestedTypeModel>,
+        val nestedTypeNames: Set<String>,
+    ) {
+        val resolvedTypes: List<DesignResolvedTypeModel>
+            get() = fields.map { it.resolvedType } + nestedTypes.flatMap { nestedType ->
+                nestedType.fields.map { it.resolvedType }
             }
-        }
-
-        return fqcnBySimpleName
-            .filterValues { it.size > 1 }
-            .keys
     }
 
-    private fun collectFqcnTypes(type: String): List<String> {
-        val trimmed = type.trim()
-        if (trimmed.isEmpty()) {
-            return emptyList()
-        }
-
-        val genericStart = trimmed.indexOf('<')
-        if (genericStart < 0) {
-            return if (trimmed.contains('.')) listOf(trimmed) else emptyList()
-        }
-
-        val genericEnd = trimmed.lastIndexOf('>')
-        if (genericEnd <= genericStart) {
-            return if (trimmed.contains('.')) listOf(trimmed) else emptyList()
-        }
-
-        val rootType = trimmed.substring(0, genericStart).trim()
-        val args = splitGenericArguments(trimmed.substring(genericStart + 1, genericEnd))
-        return buildList {
-            addAll(collectFqcnTypes(rootType))
-            args.forEach { addAll(collectFqcnTypes(it)) }
-        }
-    }
-
-    private fun FieldModel.toRenderField(
-        name: String = this.name,
-        type: String = this.type,
-    ): DesignRenderFieldModel = DesignRenderFieldModel(
-        name = name,
-        type = type,
-        nullable = nullable,
-        defaultValue = defaultValue,
+    private data class PreparedFieldModel(
+        val name: String,
+        val nullable: Boolean,
+        val defaultValue: String?,
+        val resolvedType: DesignResolvedTypeModel,
     )
 
-    private data class NamespaceRenderResult(
-        val fields: List<DesignRenderFieldModel>,
-        val nestedTypes: List<DesignRenderNestedTypeModel>,
-        val imports: List<String>,
+    private data class PreparedNestedTypeModel(
+        val name: String,
+        val fields: List<PreparedFieldModel>,
     )
 
     private data class NestedGroup(
         val rootName: String,
         val nestedTypeName: String,
-        val fields: MutableList<DesignRenderFieldModel> = mutableListOf(),
+        val fields: MutableList<RawFieldModel> = mutableListOf(),
+    )
+
+    private data class RawFieldModel(
+        val name: String,
+        val type: String,
+        val nullable: Boolean,
+        val defaultValue: String?,
     )
 }

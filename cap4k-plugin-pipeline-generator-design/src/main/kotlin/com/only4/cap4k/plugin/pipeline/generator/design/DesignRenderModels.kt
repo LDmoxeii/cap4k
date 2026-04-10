@@ -2,10 +2,13 @@ package com.only4.cap4k.plugin.pipeline.generator.design
 
 internal data class DesignRenderFieldModel(
     val name: String,
-    val type: String,
+    val renderedType: String,
     val nullable: Boolean = false,
     val defaultValue: String? = null,
-)
+) {
+    val type: String
+        get() = renderedType
+}
 
 internal data class DesignRenderNestedTypeModel(
     val name: String,
