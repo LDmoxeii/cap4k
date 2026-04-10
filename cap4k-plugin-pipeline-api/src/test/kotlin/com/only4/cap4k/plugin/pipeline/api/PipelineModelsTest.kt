@@ -29,6 +29,7 @@ class PipelineModelsTest {
         )
 
         assertEquals("ir-analysis", snapshot.id)
+        assertEquals(listOf("app/build/cap4k-code-analysis"), snapshot.inputDirs)
         assertEquals("OrderController::submit", snapshot.nodes.single().id)
         assertEquals("ControllerMethodToCommand", snapshot.edges.single().type)
     }
