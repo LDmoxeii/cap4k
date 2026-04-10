@@ -250,6 +250,27 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kPlan and cap4kGenerate produce drawing board artifacts from ir analysis fixture`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-drawing-board")
+        copyFixture(projectDir, "drawing-board-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan", "cap4kGenerate")
+            .build()
+
+        val planFile = projectDir.resolve("build/cap4k/plan.json")
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planFile.toFile().exists())
+        assertTrue(planFile.readText().contains("\"templateId\": \"drawing-board/document.json.peb\""))
+        assertTrue(projectDir.resolve("design/cli.json").toFile().exists())
+        assertTrue(projectDir.resolve("design/cmd.json").toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan depends on compileKotlin when flow input is produced during compilation`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-flow-compile")
         copyFixture(projectDir, "flow-compile-sample")

@@ -13,6 +13,7 @@ import com.only4.cap4k.plugin.pipeline.core.FilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.NoopArtifactExporter
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.drawingboard.DrawingBoardArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.flow.FlowArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleArtifactRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
@@ -73,6 +74,7 @@ internal fun buildConfig(project: Project, extension: PipelineExtension): Projec
     val irInputDirs = extension.irAnalysisInputDirs.files.map { it.absolutePath }.sorted()
     val aggregateEnabled = aggregateConfig.dbUrl != null && "domain" in modules && "adapter" in modules
     val flowEnabled = irInputDirs.isNotEmpty()
+    val drawingBoardEnabled = flowEnabled && extension.drawingBoardOutputDir.isPresent
 
     return ProjectConfig(
         basePackage = extension.basePackage.get(),
@@ -133,6 +135,17 @@ internal fun buildConfig(project: Project, extension: PipelineExtension): Projec
             }
             if (aggregateEnabled) {
                 put("aggregate", GeneratorConfig(enabled = true))
+            }
+            if (drawingBoardEnabled) {
+                put(
+                    "drawing-board",
+                    GeneratorConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "outputDir" to extension.drawingBoardOutputDir.optionalValue().orEmpty().ifBlank { "design" },
+                        ),
+                    )
+                )
             }
             if (flowEnabled) {
                 put(
@@ -219,6 +232,7 @@ internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled:
         generators = listOf(
             DesignArtifactPlanner(),
             AggregateArtifactPlanner(),
+            DrawingBoardArtifactPlanner(),
             FlowArtifactPlanner(),
         ),
         assembler = DefaultCanonicalAssembler(),

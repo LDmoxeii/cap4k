@@ -1,0 +1,33 @@
+[
+{%- for element in elements %}
+  {
+    "tag": {{ element.tag | json | raw }},
+    "package": {{ element.packageName | json | raw }},
+    "name": {{ element.name | json | raw }},
+    "desc": {{ element.description | json | raw }},
+    "aggregates": [{% for aggregate in element.aggregates %}{{ aggregate | json | raw }}{% if not loop.last %}, {% endif %}{% endfor %}]
+{%- if element.entity is not null %},
+    "entity": {{ element.entity | json | raw }}
+{%- endif %}
+{%- if element.persist is not null %},
+    "persist": {{ element.persist }}
+{%- endif %},
+    "requestFields": [{% for field in element.requestFields %}
+      {
+        "name": {{ field.name | json | raw }},
+        "type": {{ field.type | json | raw }},
+        "nullable": {{ field.nullable }}{% if field.defaultValue is not null %},
+        "defaultValue": {{ field.defaultValue | json | raw }}{% endif %}
+      }{% if not loop.last %}, {% endif %}{% endfor %}
+    ],
+    "responseFields": [{% for field in element.responseFields %}
+      {
+        "name": {{ field.name | json | raw }},
+        "type": {{ field.type | json | raw }},
+        "nullable": {{ field.nullable }}{% if field.defaultValue is not null %},
+        "defaultValue": {{ field.defaultValue | json | raw }}{% endif %}
+      }{% if not loop.last %}, {% endif %}{% endfor %}
+    ]
+  }{% if not loop.last %},{% endif %}
+{%- endfor %}
+]

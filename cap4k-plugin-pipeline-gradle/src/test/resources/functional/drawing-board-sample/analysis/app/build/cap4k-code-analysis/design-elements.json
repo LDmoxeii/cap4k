@@ -1,0 +1,45 @@
+[
+  {
+    "tag": "cli",
+    "package": "orders.api",
+    "name": "FetchOrder",
+    "desc": "fetch order",
+    "aggregates": [
+      "Order"
+    ],
+    "requestFields": [
+      {
+        "name": "id",
+        "type": "Long",
+        "nullable": false
+      }
+    ],
+    "responseFields": [
+      {
+        "name": "status",
+        "type": "String",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "tag": "cmd",
+    "package": "orders.api",
+    "name": "SubmitOrder",
+    "desc": "submit order",
+    "aggregates": [
+      "Order"
+    ],
+    "entity": "OrderEntity",
+    "persist": true,
+    "requestFields": [
+      {
+        "name": "remark",
+        "type": "String",
+        "nullable": true,
+        "defaultValue": "draft"
+      }
+    ],
+    "responseFields": []
+  }
+]

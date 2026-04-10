@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":cap4k-plugin-pipeline-api"))
     implementation(project(":cap4k-plugin-pipeline-core"))
     implementation(project(":cap4k-plugin-pipeline-generator-aggregate"))
+    implementation(project(":cap4k-plugin-pipeline-generator-drawing-board"))
     implementation(project(":cap4k-plugin-pipeline-generator-flow"))
     implementation(project(":cap4k-plugin-pipeline-renderer-api"))
     implementation(project(":cap4k-plugin-pipeline-renderer-pebble"))
