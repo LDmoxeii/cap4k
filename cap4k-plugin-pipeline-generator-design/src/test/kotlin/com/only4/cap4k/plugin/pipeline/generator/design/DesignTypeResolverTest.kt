@@ -96,6 +96,33 @@ class DesignTypeResolverTest {
         assertTrue(plan.renderedTypes[1].qualifiedFallback)
     }
 
+    @Test
+    fun `external fqcn does not import when unresolved short name shares simple name`() {
+        val plan = plan(
+            types = listOf("Status", "com.foo.Status"),
+        )
+
+        assertEquals("Status", plan.renderedTypes[0].renderedText)
+        assertEquals("com.foo.Status", plan.renderedTypes[1].renderedText)
+        assertEquals(emptyList<String>(), plan.imports)
+        assertTrue(plan.renderedTypes[1].qualifiedFallback)
+    }
+
+    @Test
+    fun `number resolves as built-in and stays unimported`() {
+        assertBuiltInAndUnimported("Number")
+    }
+
+    @Test
+    fun `pair resolves as built-in and stays unimported`() {
+        assertBuiltInAndUnimported("Pair")
+    }
+
+    @Test
+    fun `triple resolves as built-in and stays unimported`() {
+        assertBuiltInAndUnimported("Triple")
+    }
+
     private fun resolve(
         raw: String,
         innerTypes: Set<String> = emptySet(),
@@ -117,4 +144,15 @@ class DesignTypeResolverTest {
         type: String,
         innerTypes: Set<String> = emptySet(),
     ): DesignImportPlan = plan(listOf(type), innerTypes)
+
+    private fun assertBuiltInAndUnimported(raw: String) {
+        val resolved = resolve(raw)
+        val plan = plan(raw)
+
+        assertEquals(DesignResolvedTypeKind.BUILTIN, resolved.kind)
+        assertEquals(emptySet<String>(), resolved.importCandidates)
+        assertEquals(raw, plan.renderedTypes.single().renderedText)
+        assertEquals(emptyList<String>(), plan.imports)
+        assertFalse(plan.renderedTypes.single().qualifiedFallback)
+    }
 }

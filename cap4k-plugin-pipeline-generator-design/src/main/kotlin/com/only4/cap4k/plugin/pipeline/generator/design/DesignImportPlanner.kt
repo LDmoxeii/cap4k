@@ -6,15 +6,16 @@ internal object DesignImportPlanner {
         types: List<DesignResolvedTypeModel>,
         innerTypeNames: Set<String> = emptySet(),
     ): DesignImportPlan {
-        val importCandidates = types.flatMap { flattenImportCandidates(it) }
-        val importableFqcns = importCandidates
+        val references = types.flatMap { flattenReferences(it) }
+        val importableFqcns = references
             .groupBy { it.simpleName }
             .values
             .filter { group ->
-                val distinctFqcns = group.map { it.fqcn }.distinct()
-                distinctFqcns.size == 1 && group.first().simpleName !in innerTypeNames
+                group.all { it.fqcn != null } &&
+                    group.mapNotNull { it.fqcn }.distinct().size == 1 &&
+                    group.first().simpleName !in innerTypeNames
             }
-            .map { it.first().fqcn }
+            .map { it.first().fqcn!! }
             .toSet()
 
         return DesignImportPlan(
@@ -23,18 +24,16 @@ internal object DesignImportPlanner {
         )
     }
 
-    private fun flattenImportCandidates(type: DesignResolvedTypeModel): List<ImportCandidate> {
-        val own = when (type.kind) {
-            DesignResolvedTypeKind.EXPLICIT_FQCN -> listOf(
-                ImportCandidate(
-                    fqcn = type.rawText,
-                    simpleName = type.simpleName,
-                ),
-            )
-            else -> emptyList()
-        }
+    private fun flattenReferences(type: DesignResolvedTypeModel): List<TypeReference> {
+        val own = TypeReference(
+            simpleName = type.simpleName,
+            fqcn = when (type.kind) {
+                DesignResolvedTypeKind.EXPLICIT_FQCN -> type.rawText
+                else -> null
+            },
+        )
 
-        return own + type.arguments.flatMap(::flattenImportCandidates)
+        return listOf(own) + type.arguments.flatMap(::flattenReferences)
     }
 
     private fun render(
@@ -78,8 +77,9 @@ internal object DesignImportPlanner {
         )
     }
 
-    private data class ImportCandidate(
-        val fqcn: String,
+    private data class TypeReference(
         val simpleName: String,
+        val fqcn: String?,
     )
+
 }
