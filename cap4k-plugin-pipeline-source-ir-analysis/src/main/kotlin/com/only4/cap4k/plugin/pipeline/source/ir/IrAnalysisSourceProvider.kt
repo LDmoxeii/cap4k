@@ -104,8 +104,8 @@ class IrAnalysisSourceProvider : SourceProvider {
                 aggregates = obj.stringList("aggregates"),
                 entity = obj.stringValue("entity"),
                 persist = obj.booleanValue("persist"),
-                requestFields = parseDesignFields(obj["requestFields"]?.asJsonArray),
-                responseFields = parseDesignFields(obj["responseFields"]?.asJsonArray),
+                requestFields = parseDesignFields(obj.jsonArrayOrEmpty("requestFields")),
+                responseFields = parseDesignFields(obj.jsonArrayOrEmpty("responseFields")),
             )
         }
     }
@@ -164,6 +164,11 @@ class IrAnalysisSourceProvider : SourceProvider {
     private fun com.google.gson.JsonObject.booleanValue(name: String): Boolean? {
         val element = get(name) ?: return null
         return if (element.isJsonPrimitive && element.asJsonPrimitive.isBoolean) element.asBoolean else null
+    }
+
+    private fun com.google.gson.JsonObject.jsonArrayOrEmpty(name: String): com.google.gson.JsonArray? {
+        val element = get(name) ?: return null
+        return if (element.isJsonArray) element.asJsonArray else null
     }
 
     private fun com.google.gson.JsonObject.stringList(name: String): List<String> {

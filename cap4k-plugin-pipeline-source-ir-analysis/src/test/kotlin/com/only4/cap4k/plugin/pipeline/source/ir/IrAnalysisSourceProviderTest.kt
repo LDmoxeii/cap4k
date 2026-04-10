@@ -144,6 +144,34 @@ class IrAnalysisSourceProviderTest {
     }
 
     @Test
+    fun `collect skips malformed nested request and response fields`() {
+        val dir = Files.createTempDirectory("cap4k-ir-malformed-fields")
+
+        dir.resolve("nodes.json").writeText("""[]""")
+        dir.resolve("rels.json").writeText("""[]""")
+        dir.resolve("design-elements.json").writeText(
+            """
+            [
+              {
+                "tag": "cmd",
+                "package": "orders",
+                "name": "SubmitOrder",
+                "desc": "submit order",
+                "requestFields": { "name": "orderId" },
+                "responseFields": "not-an-array"
+              }
+            ]
+            """.trimIndent()
+        )
+
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString())) as IrAnalysisSnapshot
+
+        assertEquals(1, snapshot.designElements.size)
+        assertTrue(snapshot.designElements.first().requestFields.isEmpty())
+        assertTrue(snapshot.designElements.first().responseFields.isEmpty())
+    }
+
+    @Test
     fun `collect returns empty design elements when file is absent`() {
         val dir = Files.createTempDirectory("cap4k-ir-no-design")
         dir.resolve("nodes.json").writeText("""[]""")
