@@ -54,6 +54,7 @@ include(
     "cap4k-plugin-pipeline-source-ir-analysis",
     "cap4k-plugin-pipeline-generator-design",
     "cap4k-plugin-pipeline-generator-aggregate",
+    "cap4k-plugin-pipeline-generator-flow",
     "cap4k-plugin-pipeline-gradle"
 )
 
