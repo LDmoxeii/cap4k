@@ -42,10 +42,6 @@ data class AggregateMetadataRecord(
     val rootClassName: String,
 )
 
-sealed interface SourceSnapshot {
-    val id: String
-}
-
 data class IrNodeSnapshot(
     val id: String,
     val name: String,
@@ -60,12 +56,9 @@ data class IrEdgeSnapshot(
     val label: String? = null,
 )
 
-data class IrAnalysisSnapshot(
-    override val id: String = "ir-analysis",
-    val inputDirs: List<String>,
-    val nodes: List<IrNodeSnapshot>,
-    val edges: List<IrEdgeSnapshot>,
-) : SourceSnapshot
+sealed interface SourceSnapshot {
+    val id: String
+}
 
 data class DbSchemaSnapshot(
     override val id: String = "db",
@@ -82,25 +75,12 @@ data class KspMetadataSnapshot(
     val aggregates: List<AggregateMetadataRecord>,
 ) : SourceSnapshot
 
-data class AnalysisNodeModel(
-    val id: String,
-    val name: String,
-    val fullName: String,
-    val type: String,
-)
-
-data class AnalysisEdgeModel(
-    val fromId: String,
-    val toId: String,
-    val type: String,
-    val label: String? = null,
-)
-
-data class AnalysisGraphModel(
+data class IrAnalysisSnapshot(
+    override val id: String = "ir-analysis",
     val inputDirs: List<String>,
-    val nodes: List<AnalysisNodeModel>,
-    val edges: List<AnalysisEdgeModel>,
-)
+    val nodes: List<IrNodeSnapshot>,
+    val edges: List<IrEdgeSnapshot>,
+) : SourceSnapshot
 
 data class SchemaModel(
     val name: String,
@@ -124,6 +104,26 @@ data class RepositoryModel(
     val packageName: String,
     val entityName: String,
     val idType: String,
+)
+
+data class AnalysisNodeModel(
+    val id: String,
+    val name: String,
+    val fullName: String,
+    val type: String,
+)
+
+data class AnalysisEdgeModel(
+    val fromId: String,
+    val toId: String,
+    val type: String,
+    val label: String? = null,
+)
+
+data class AnalysisGraphModel(
+    val inputDirs: List<String>,
+    val nodes: List<AnalysisNodeModel>,
+    val edges: List<AnalysisEdgeModel>,
 )
 
 enum class RequestKind {

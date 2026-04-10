@@ -7,6 +7,9 @@ import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
+import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
+import com.only4.cap4k.plugin.pipeline.api.IrEdgeSnapshot
+import com.only4.cap4k.plugin.pipeline.api.IrNodeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -177,6 +180,53 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(1, model.requests.size)
         assertEquals("Order", model.requests.first().aggregateName)
         assertNull(model.requests.first().aggregatePackageName)
+    }
+
+    @Test
+    fun `maps ir analysis snapshot into canonical analysis graph`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                IrAnalysisSnapshot(
+                    inputDirs = listOf("app/build/cap4k-code-analysis"),
+                    nodes = listOf(
+                        IrNodeSnapshot(
+                            id = "OrderController::submit",
+                            name = "OrderController::submit",
+                            fullName = "com.acme.demo.adapter.web.OrderController::submit",
+                            type = "controllermethod",
+                        ),
+                        IrNodeSnapshot(
+                            id = "SubmitOrderCmd",
+                            name = "SubmitOrderCmd",
+                            fullName = "com.acme.demo.application.commands.SubmitOrderCmd",
+                            type = "command",
+                        ),
+                    ),
+                    edges = listOf(
+                        IrEdgeSnapshot(
+                            fromId = "OrderController::submit",
+                            toId = "SubmitOrderCmd",
+                            type = "ControllerMethodToCommand",
+                        )
+                    ),
+                )
+            ),
+        )
+
+        assertEquals(listOf("app/build/cap4k-code-analysis"), model.analysisGraph!!.inputDirs)
+        assertEquals(2, model.analysisGraph!!.nodes.size)
+        assertEquals("controllermethod", model.analysisGraph!!.nodes.first().type)
+        assertEquals("ControllerMethodToCommand", model.analysisGraph!!.edges.single().type)
+    }
+
+    @Test
+    fun `keeps analysis graph null when ir snapshot is absent`() {
+        val assembler = DefaultCanonicalAssembler()
+        val model = assembler.assemble(config = baseConfig(), snapshots = emptyList())
+        assertNull(model.analysisGraph)
     }
 
     @Test

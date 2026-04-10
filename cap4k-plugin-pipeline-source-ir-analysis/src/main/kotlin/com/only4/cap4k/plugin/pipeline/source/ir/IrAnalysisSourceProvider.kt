@@ -1,5 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.source.ir
 
+import com.google.gson.JsonElement
 import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrEdgeSnapshot
@@ -55,14 +56,14 @@ class IrAnalysisSourceProvider : SourceProvider {
     private fun parseNodes(file: File): List<IrNodeSnapshot> {
         val array = file.reader(Charsets.UTF_8).use { JsonParser.parseReader(it).asJsonArray }
         return array.mapNotNull { element ->
-            val obj = element.asJsonObject
-            val id = obj["id"]?.asString?.trim().orEmpty()
+            val obj = element.asJsonObjectOrNull() ?: return@mapNotNull null
+            val id = obj.stringValue("id").orEmpty().trim()
             if (id.isEmpty()) {
                 return@mapNotNull null
             }
-            val normalizedName = obj["name"]?.asString?.trim().orEmpty().ifBlank { shortNameForId(id) }
-            val normalizedFullName = obj["fullName"]?.asString?.trim().orEmpty().ifBlank { id }
-            val normalizedType = obj["type"]?.asString?.trim().orEmpty().ifBlank { "unknown" }
+            val normalizedName = obj.stringValue("name").orEmpty().trim().ifBlank { shortNameForId(id) }
+            val normalizedFullName = obj.stringValue("fullName").orEmpty().trim().ifBlank { id }
+            val normalizedType = obj.stringValue("type").orEmpty().trim().ifBlank { "unknown" }
             IrNodeSnapshot(
                 id = id,
                 name = normalizedName,
@@ -75,10 +76,10 @@ class IrAnalysisSourceProvider : SourceProvider {
     private fun parseEdges(file: File): List<IrEdgeSnapshot> {
         val array = file.reader(Charsets.UTF_8).use { JsonParser.parseReader(it).asJsonArray }
         return array.mapNotNull { element ->
-            val obj = element.asJsonObject
-            val fromId = obj["fromId"]?.asString?.trim().orEmpty()
-            val toId = obj["toId"]?.asString?.trim().orEmpty()
-            val type = obj["type"]?.asString?.trim().orEmpty()
+            val obj = element.asJsonObjectOrNull() ?: return@mapNotNull null
+            val fromId = obj.stringValue("fromId").orEmpty().trim()
+            val toId = obj.stringValue("toId").orEmpty().trim()
+            val type = obj.stringValue("type").orEmpty().trim()
             if (fromId.isEmpty() || toId.isEmpty() || type.isEmpty()) {
                 return@mapNotNull null
             }
@@ -86,7 +87,7 @@ class IrAnalysisSourceProvider : SourceProvider {
                 fromId = fromId,
                 toId = toId,
                 type = type,
-                label = obj["label"]?.asString,
+                label = obj.stringValue("label"),
             )
         }
     }
@@ -95,6 +96,13 @@ class IrAnalysisSourceProvider : SourceProvider {
         val normalized = id.replace('$', '.')
         val byMethod = normalized.substringAfterLast("::", missingDelimiterValue = normalized)
         return byMethod.substringAfterLast('.')
+    }
+
+    private fun JsonElement.asJsonObjectOrNull() = if (isJsonObject) asJsonObject else null
+
+    private fun com.google.gson.JsonObject.stringValue(name: String): String? {
+        val element = get(name) ?: return null
+        return if (element.isJsonPrimitive) element.asString else null
     }
 }
 

@@ -13,10 +13,12 @@ import com.only4.cap4k.plugin.pipeline.core.FilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.NoopArtifactExporter
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.flow.FlowArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleArtifactRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
 import com.only4.cap4k.plugin.pipeline.source.db.DbSchemaSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.designjson.DesignJsonSourceProvider
+import com.only4.cap4k.plugin.pipeline.source.ir.IrAnalysisSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ksp.KspMetadataSourceProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -61,7 +63,9 @@ internal fun buildConfig(project: Project, extension: PipelineExtension): Projec
     }
     val designJsonEnabled = extension.designFiles.files.isNotEmpty()
     val kspMetadataDir = extension.kspMetadataDir.optionalValue()
+    val irInputDirs = extension.irAnalysisInputDirs.files.map { it.absolutePath }.sorted()
     val aggregateEnabled = aggregateConfig.dbUrl != null && "domain" in modules && "adapter" in modules
+    val flowEnabled = irInputDirs.isNotEmpty()
 
     return ProjectConfig(
         basePackage = extension.basePackage.get(),
@@ -106,6 +110,15 @@ internal fun buildConfig(project: Project, extension: PipelineExtension): Projec
                     )
                 )
             }
+            if (flowEnabled) {
+                put(
+                    "ir-analysis",
+                    SourceConfig(
+                        enabled = true,
+                        options = mapOf("inputDirs" to irInputDirs),
+                    )
+                )
+            }
         },
         generators = buildMap {
             if (designJsonEnabled) {
@@ -113,6 +126,17 @@ internal fun buildConfig(project: Project, extension: PipelineExtension): Projec
             }
             if (aggregateEnabled) {
                 put("aggregate", GeneratorConfig(enabled = true))
+            }
+            if (flowEnabled) {
+                put(
+                    "flow",
+                    GeneratorConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "outputDir" to extension.flowOutputDir.optionalValue().orEmpty().ifBlank { "flows" },
+                        ),
+                    )
+                )
             }
         },
         templates = TemplateConfig(
@@ -183,10 +207,12 @@ internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled:
             DbSchemaSourceProvider(),
             DesignJsonSourceProvider(),
             KspMetadataSourceProvider(),
+            IrAnalysisSourceProvider(),
         ),
         generators = listOf(
             DesignArtifactPlanner(),
             AggregateArtifactPlanner(),
+            FlowArtifactPlanner(),
         ),
         assembler = DefaultCanonicalAssembler(),
         renderer = PebbleArtifactRenderer(
