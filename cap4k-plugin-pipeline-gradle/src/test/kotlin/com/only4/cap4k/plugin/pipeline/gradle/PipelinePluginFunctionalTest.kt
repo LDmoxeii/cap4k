@@ -250,6 +250,24 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kPlan depends on compileKotlin when flow input is produced during compilation`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-flow-compile")
+        copyFixture(projectDir, "flow-compile-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(projectDir.resolve("build/cap4k-code-analysis/nodes.json").toFile().exists())
+        assertTrue(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
+        assertTrue(projectDir.resolve("build/cap4k/plan.json").readText().contains("\"templateId\": \"flow/index.json.peb\""))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan fails clearly when ir analysis fixture misses rels json`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-flow-invalid")
         copyFixture(projectDir, "flow-sample")

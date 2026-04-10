@@ -20,7 +20,7 @@ dependencies {
     implementation(project(":cap4k-plugin-pipeline-source-ksp-metadata"))
     implementation(project(":cap4k-plugin-pipeline-generator-design"))
     implementation(libs.gson)
-    runtimeOnly(libs.h2)
+    implementation(libs.h2)
 
     testImplementation(gradleTestKit())
     testImplementation(platform(libs.junit.bom))

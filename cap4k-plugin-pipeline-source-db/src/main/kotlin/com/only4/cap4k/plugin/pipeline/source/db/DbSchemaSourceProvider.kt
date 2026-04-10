@@ -7,6 +7,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import java.sql.DatabaseMetaData
 import java.sql.DriverManager
+import java.sql.SQLException
 import java.util.Locale
 
 class DbSchemaSourceProvider : SourceProvider {
@@ -20,6 +21,8 @@ class DbSchemaSourceProvider : SourceProvider {
         val schema = (source.options["schema"] as? String ?: "").ifBlank { null }
         val includeTableRequests = requestedTableNames(source.options["includeTables"])
         val excludeTableRequests = requestedTableNames(source.options["excludeTables"])
+
+        ensureDriverAvailable(url)
 
         DriverManager.getConnection(url, username, password).use { connection ->
             val metadata = connection.metaData
@@ -125,4 +128,35 @@ class DbSchemaSourceProvider : SourceProvider {
     }
 
     private fun normalizeIdentifier(identifier: String): String = identifier.lowercase(Locale.ROOT)
+
+    private fun ensureDriverAvailable(url: String) {
+        if (hasDriver(url)) {
+            return
+        }
+
+        knownDriverClassNames(url).forEach { className ->
+            runCatching {
+                Class.forName(className, true, javaClass.classLoader)
+            }
+            if (hasDriver(url)) {
+                return
+            }
+        }
+    }
+
+    private fun hasDriver(url: String): Boolean =
+        try {
+            DriverManager.getDriver(url)
+            true
+        } catch (_: SQLException) {
+            false
+        }
+
+    private fun knownDriverClassNames(url: String): List<String> = when {
+        url.startsWith("jdbc:h2:") -> listOf("org.h2.Driver")
+        url.startsWith("jdbc:mysql:") -> listOf("com.mysql.cj.jdbc.Driver", "com.mysql.jdbc.Driver")
+        url.startsWith("jdbc:mariadb:") -> listOf("org.mariadb.jdbc.Driver")
+        url.startsWith("jdbc:postgresql:") -> listOf("org.postgresql.Driver")
+        else -> emptyList()
+    }
 }

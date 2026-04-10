@@ -42,11 +42,18 @@ class PipelinePlugin : Plugin<Project> {
 
         project.gradle.projectsEvaluated {
             validateAggregateConfig(extension)
-            val kspTasks = project.rootProject.allprojects
+            val allProjects = project.rootProject.allprojects
+            val kspTasks = allProjects
                 .mapNotNull { candidate -> candidate.tasks.findByName("kspKotlin") }
             if (kspTasks.isNotEmpty()) {
                 planTask.configure { task -> task.dependsOn(kspTasks) }
                 generateTask.configure { task -> task.dependsOn(kspTasks) }
+            }
+            val compileKotlinTasks = allProjects
+                .mapNotNull { candidate -> candidate.tasks.findByName("compileKotlin") }
+            if (extension.irAnalysisInputDirs.files.isNotEmpty() && compileKotlinTasks.isNotEmpty()) {
+                planTask.configure { task -> task.dependsOn(compileKotlinTasks) }
+                generateTask.configure { task -> task.dependsOn(compileKotlinTasks) }
             }
         }
     }
