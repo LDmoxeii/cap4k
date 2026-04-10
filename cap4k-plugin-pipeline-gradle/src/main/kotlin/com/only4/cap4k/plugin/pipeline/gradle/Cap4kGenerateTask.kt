@@ -6,11 +6,14 @@ import org.gradle.api.tasks.TaskAction
 
 abstract class Cap4kGenerateTask : DefaultTask() {
     @get:Internal
-    lateinit var extension: PipelineExtension
+    lateinit var extension: Cap4kExtension
+
+    @get:Internal
+    lateinit var configFactory: Cap4kProjectConfigFactory
 
     @TaskAction
     fun generate() {
-        val config = buildConfig(project, extension)
+        val config = configFactory.build(project, extension)
         buildRunner(project, config, exportEnabled = true).run(config)
     }
 }
