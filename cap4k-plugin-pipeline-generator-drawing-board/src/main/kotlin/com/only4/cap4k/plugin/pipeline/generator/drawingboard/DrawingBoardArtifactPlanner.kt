@@ -47,7 +47,10 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
             ?.toString()
             ?.trim()
             .orEmpty()
-            .ifBlank { "design" }
+
+        if (rawValue.isBlank()) {
+            return "design"
+        }
 
         val path = try {
             Path.of(rawValue)
@@ -59,11 +62,16 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
             throw invalidOutputDir(rawValue)
         }
 
-        return path.normalize()
+        val normalized = path.normalize()
             .toString()
             .replace('\\', '/')
             .trimEnd('/')
-            .ifBlank { "design" }
+
+        if (normalized.isBlank()) {
+            throw invalidOutputDir(rawValue)
+        }
+
+        return normalized
     }
 
     private fun invalidOutputDir(value: String, cause: Throwable? = null): IllegalArgumentException =
