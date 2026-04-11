@@ -1,3 +1,45 @@
 package {{ packageName }}
+// override: helper-based design template
+{% for import in imports(imports) %}
+import {{ import }}
+{% endfor %}
 
-class {{ typeName }}
+object {{ typeName }} {
+{% if requestFields|length > 0 %}
+    data class Request(
+{% for field in requestFields %}
+        val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+{% endfor %}
+    ) {
+{% else %}
+    class Request {
+{% endif %}
+{% for nestedType in requestNestedTypes %}
+
+        data class {{ nestedType.name }}(
+{% for field in nestedType.fields %}
+            val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+{% endfor %}
+        )
+{% endfor %}
+    }
+
+{% if responseFields|length > 0 %}
+    data class Response(
+{% for field in responseFields %}
+        val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+{% endfor %}
+    ) {
+{% else %}
+    class Response {
+{% endif %}
+{% for nestedType in responseNestedTypes %}
+
+        data class {{ nestedType.name }}(
+{% for field in nestedType.fields %}
+            val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+{% endfor %}
+        )
+{% endfor %}
+    }
+}

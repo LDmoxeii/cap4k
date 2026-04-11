@@ -107,6 +107,88 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kGenerate supports helper based override design templates`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-helper-override")
+        copyFixture(projectDir)
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent.replace(
+                """
+                |    }
+                |}
+                |
+                |tasks.named("cap4kPlan") {
+                """.trimMargin(),
+                """
+                |    }
+                |    templates {
+                |        overrideDirs.from("codegen/templates")
+                |    }
+                |}
+                |
+                |tasks.named("cap4kPlan") {
+                """.trimMargin()
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val commandFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt"
+        )
+        val queryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt"
+        )
+        val commandContent = commandFile.readText()
+        val queryContent = queryFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(commandFile.toFile().exists())
+        assertTrue(queryFile.toFile().exists())
+        assertTrue(commandContent.contains("// override: helper-based design template"))
+        assertTrue(queryContent.contains("// override: helper-based design template"))
+        assertTrue(commandContent.contains("object SubmitOrderCmd"))
+        assertTrue(commandContent.contains("data class Request("))
+        assertTrue(commandContent.contains("data class Response("))
+        assertTrue(commandContent.contains("import java.time.LocalDateTime"))
+        assertTrue(commandContent.contains("import java.util.UUID"))
+        assertFalse(commandContent.contains("import com.foo.Status"))
+        assertFalse(commandContent.contains("import com.bar.Status"))
+        assertTrue(commandContent.contains("val requestStatus: com.foo.Status"))
+        assertTrue(commandContent.contains("val responseStatus: com.bar.Status"))
+        assertTrue(commandContent.contains("val address: Address?"))
+        assertFalse(commandContent.contains("val address: Address??"))
+        assertTrue(commandContent.contains("val result: Result?"))
+        assertFalse(commandContent.contains("val result: Result??"))
+        assertTrue(commandContent.contains("data class Address("))
+        assertTrue(commandContent.contains("val city: String"))
+        assertTrue(commandContent.contains("val addressId: UUID"))
+        assertTrue(commandContent.contains("data class Result("))
+        assertTrue(commandContent.contains("val receiptId: UUID"))
+        assertTrue(queryContent.contains("object FindOrderQry"))
+        assertTrue(queryContent.contains("data class Request("))
+        assertTrue(queryContent.contains("data class Response("))
+        assertTrue(queryContent.contains("import java.time.LocalDateTime"))
+        assertTrue(queryContent.contains("import java.util.UUID"))
+        assertFalse(queryContent.contains("import com.foo.Status"))
+        assertFalse(queryContent.contains("import com.bar.Status"))
+        assertTrue(queryContent.contains("val requestStatus: com.foo.Status"))
+        assertTrue(queryContent.contains("val responseStatus: com.bar.Status"))
+        assertTrue(queryContent.contains("val snapshot: Snapshot?"))
+        assertFalse(queryContent.contains("val snapshot: Snapshot??"))
+        assertTrue(queryContent.contains("data class Snapshot("))
+        assertTrue(queryContent.contains("val updatedAt: LocalDateTime"))
+        assertTrue(queryContent.contains("val snapshotId: UUID"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kGenerate keeps existing files on rerun because default conflict policy is skip`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-rerun")
         copyFixture(projectDir)

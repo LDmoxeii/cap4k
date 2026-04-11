@@ -13,6 +13,366 @@ import org.junit.jupiter.api.assertThrows
 class PebbleArtifactRendererTest {
 
     @Test
+    fun `type helper reads renderedType from object and passes through string input`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-type")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText(
+                """
+                {{ type(field) | raw }}
+                {{ type("String") | raw }}
+                """.trimIndent()
+            )
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
+                    context = mapOf(
+                        "field" to RenderedTypeCarrier("List<com.foo.Status?>")
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        assertEquals(
+            "List<com.foo.Status?>",
+            rendered.single().content.substringBefore("String")
+        )
+        assertTrue(rendered.single().content.contains("String"))
+    }
+
+    @Test
+    fun `imports helper accepts direct list input and normalizes whitespace variants`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-imports")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText(
+                """
+                {{ imports(importValues) | json | raw }}
+                """.trimIndent()
+            )
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
+                    context = mapOf(
+                        "importValues" to listOf(
+                            "  java.time.LocalDateTime  ",
+                            "\tjava.util.UUID",
+                            "java.time.LocalDateTime",
+                            "java.util.UUID  ",
+                            "  ",
+                        )
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        assertEquals(
+            """["java.time.LocalDateTime","java.util.UUID"]""",
+            rendered.single().content.trim()
+        )
+    }
+
+    @Test
+    fun `imports helper preserves order and removes blank and duplicate values from carrier map`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-imports-map")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText(
+                """
+                {{ imports(importCarrier) | json | raw }}
+                """.trimIndent()
+            )
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
+                    context = mapOf(
+                        "importCarrier" to mapOf(
+                            "imports" to listOf(
+                                "java.time.LocalDateTime",
+                                "",
+                                "java.util.UUID",
+                                "java.time.LocalDateTime",
+                                "  ",
+                                "java.util.UUID",
+                            )
+                        )
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        assertEquals(
+            """["java.time.LocalDateTime","java.util.UUID"]""",
+            rendered.single().content.trim()
+        )
+    }
+
+    @Test
+    fun `imports helper returns empty list for null and empty carrier input`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-imports-empty")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText(
+                """
+                {{ imports(emptyCarrier) | json | raw }}|{{ imports(maybeImports) | json | raw }}
+                """.trimIndent()
+            )
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
+                    context = mapOf(
+                        "emptyCarrier" to emptyMap<String, Any?>(),
+                        "maybeImports" to null,
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        assertEquals("[]|[]", rendered.single().content.trim())
+    }
+
+    @Test
+    fun `imports helper fails fast when argument is missing`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-imports-missing")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText("""{{ imports() }}""")
+
+        val exception = assertThrows<Exception> {
+            PebbleArtifactRenderer(
+                templateResolver = PresetTemplateResolver(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString())
+                )
+            ).render(
+                planItems = listOf(
+                    ArtifactPlanItem(
+                        generatorId = "design",
+                        moduleRole = "application",
+                        templateId = "design/query.kt.peb",
+                        outputPath = "demo.kt",
+                        context = emptyMap(),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                ),
+                config = ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = emptyMap(),
+                    generators = emptyMap(),
+                    templates = TemplateConfig(
+                        preset = "ddd-default",
+                        overrideDirs = listOf(overrideDir.toString()),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                )
+            )
+        }
+
+        val illegalArgument = generateSequence<Throwable>(exception) { it.cause }
+            .filterIsInstance<IllegalArgumentException>()
+            .firstOrNull()
+
+        assertTrue(illegalArgument != null)
+        assertTrue(illegalArgument!!.message!!.contains("imports() requires an argument."))
+    }
+
+    @Test
+    fun `type helper fails fast on unsupported input`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-type-invalid")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText("""{{ type(badValue) }}""")
+
+        val exception = assertThrows<Exception> {
+            PebbleArtifactRenderer(
+                templateResolver = PresetTemplateResolver(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString())
+                )
+            ).render(
+                planItems = listOf(
+                    ArtifactPlanItem(
+                        generatorId = "design",
+                        moduleRole = "application",
+                        templateId = "design/query.kt.peb",
+                        outputPath = "demo.kt",
+                        context = mapOf("badValue" to mapOf("name" to "missingRenderedType")),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                ),
+                config = ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = emptyMap(),
+                    generators = emptyMap(),
+                    templates = TemplateConfig(
+                        preset = "ddd-default",
+                        overrideDirs = listOf(overrideDir.toString()),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                )
+            )
+        }
+
+        val illegalArgument = generateSequence<Throwable>(exception) { it.cause }
+            .filterIsInstance<IllegalArgumentException>()
+            .firstOrNull()
+
+        assertTrue(illegalArgument != null)
+        assertTrue(illegalArgument!!.message!!.contains("type()"))
+    }
+
+    @Test
+    fun `imports helper fails fast on unsupported input`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-imports-invalid")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText("""{{ imports(badValue) }}""")
+
+        val exception = assertThrows<Exception> {
+            PebbleArtifactRenderer(
+                templateResolver = PresetTemplateResolver(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString())
+                )
+            ).render(
+                planItems = listOf(
+                    ArtifactPlanItem(
+                        generatorId = "design",
+                        moduleRole = "application",
+                        templateId = "design/query.kt.peb",
+                        outputPath = "demo.kt",
+                        context = mapOf("badValue" to 123),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                ),
+                config = ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = emptyMap(),
+                    generators = emptyMap(),
+                    templates = TemplateConfig(
+                        preset = "ddd-default",
+                        overrideDirs = listOf(overrideDir.toString()),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                )
+            )
+        }
+
+        val illegalArgument = generateSequence<Throwable>(exception) { it.cause }
+            .filterIsInstance<IllegalArgumentException>()
+            .firstOrNull()
+
+        assertTrue(illegalArgument != null)
+        assertTrue(illegalArgument!!.message!!.contains("imports()"))
+    }
+
+    @Test
     fun `prefers override template over preset template`() {
         val overrideDir = Files.createTempDirectory("cap4k-override")
         val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
@@ -645,3 +1005,7 @@ class PebbleArtifactRendererTest {
         assertTrue(!content.contains("\"defaultValue\": null"))
     }
 }
+
+private data class RenderedTypeCarrier(
+    val renderedType: String
+)

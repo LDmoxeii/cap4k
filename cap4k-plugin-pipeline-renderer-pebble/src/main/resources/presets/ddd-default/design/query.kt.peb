@@ -1,5 +1,5 @@
 package {{ packageName }}
-{% for import in imports %}
+{% for import in imports(imports) %}
 import {{ import }}
 {% endfor %}
 
@@ -8,14 +8,14 @@ object {{ typeName }} {
 {% if requestNestedTypes.size > 0 %}
     data class Request(
 {% for field in requestFields %}
-        val {{ field.name }}: {{ field.renderedType | raw }}{% if not loop.last %},{% endif %}
+        val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
 {% endfor %}
     ) {
 {% for nestedType in requestNestedTypes %}
 
         data class {{ nestedType.name }}(
 {% for field in nestedType.fields %}
-            val {{ field.name }}: {{ field.renderedType | raw }}{% if not loop.last %},{% endif %}
+            val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
 {% endfor %}
         )
 {% endfor %}
@@ -23,7 +23,7 @@ object {{ typeName }} {
 {% else %}
     data class Request(
 {% for field in requestFields %}
-        val {{ field.name }}: {{ field.renderedType | raw }}{% if not loop.last %},{% endif %}
+        val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
 {% endfor %}
     )
 {% endif %}
@@ -35,14 +35,14 @@ object {{ typeName }} {
 {% if responseNestedTypes.size > 0 %}
     data class Response(
 {% for field in responseFields %}
-        val {{ field.name }}: {{ field.renderedType | raw }}{% if not loop.last %},{% endif %}
+        val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
 {% endfor %}
     ) {
 {% for nestedType in responseNestedTypes %}
 
         data class {{ nestedType.name }}(
 {% for field in nestedType.fields %}
-            val {{ field.name }}: {{ field.renderedType | raw }}{% if not loop.last %},{% endif %}
+            val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
 {% endfor %}
         )
 {% endfor %}
@@ -50,7 +50,7 @@ object {{ typeName }} {
 {% else %}
     data class Response(
 {% for field in responseFields %}
-        val {{ field.name }}: {{ field.renderedType | raw }}{% if not loop.last %},{% endif %}
+        val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
 {% endfor %}
     )
 {% endif %}
