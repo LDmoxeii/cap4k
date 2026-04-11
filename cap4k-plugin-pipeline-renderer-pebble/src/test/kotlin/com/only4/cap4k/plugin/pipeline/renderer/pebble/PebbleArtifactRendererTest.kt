@@ -5,6 +5,7 @@ import com.only4.cap4k.plugin.pipeline.api.*
 import java.nio.file.Files
 import kotlin.io.path.writeText
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -136,7 +137,7 @@ class PebbleArtifactRendererTest {
                         "imports" to listOf("java.time.LocalDateTime", "java.util.UUID"),
                         "requestFields" to listOf(
                             mapOf("name" to "orderId", "renderedType" to "Long", "nullable" to false),
-                            mapOf("name" to "address", "renderedType" to "Address", "nullable" to true),
+                            mapOf("name" to "address", "renderedType" to "Address?", "nullable" to true),
                             mapOf("name" to "createdAt", "renderedType" to "LocalDateTime", "nullable" to false),
                             mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false),
                         ),
@@ -150,7 +151,7 @@ class PebbleArtifactRendererTest {
                             ),
                         ),
                         "responseFields" to listOf(
-                            mapOf("name" to "item", "renderedType" to "Item", "nullable" to true),
+                            mapOf("name" to "item", "renderedType" to "Item?", "nullable" to true),
                             mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false),
                         ),
                         "responseNestedTypes" to listOf(
@@ -182,15 +183,19 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
         assertTrue(content.contains("import java.time.LocalDateTime"))
         assertTrue(content.contains("import java.util.UUID"))
+        assertFalse(content.contains("import com.foo.Status"))
+        assertFalse(content.contains("import com.bar.Status"))
         assertTrue(content.contains("object SubmitOrderCmd"))
         assertTrue(content.contains("data class Request("))
         assertTrue(content.contains("val address: Address?"))
+        assertFalse(content.contains("val address: Address??"))
         assertTrue(content.contains("val createdAt: LocalDateTime"))
         assertTrue(content.contains("val requestStatus: com.foo.Status"))
         assertTrue(content.contains("data class Address("))
         assertTrue(content.contains("val trackingId: UUID"))
         assertTrue(content.contains("data class Response("))
         assertTrue(content.contains("val item: Item?"))
+        assertFalse(content.contains("val item: Item??"))
         assertTrue(content.contains("val responseStatus: com.bar.Status"))
         assertTrue(content.contains("data class Item("))
     }
