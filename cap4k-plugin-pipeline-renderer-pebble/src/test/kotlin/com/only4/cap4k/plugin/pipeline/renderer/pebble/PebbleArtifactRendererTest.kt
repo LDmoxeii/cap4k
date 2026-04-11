@@ -114,7 +114,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `falls back to preset design templates and renders nested types with imports`() {
+    fun `falls back to preset design templates and renders imports rendered types and nested types`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-rich")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
@@ -133,29 +133,31 @@ class PebbleArtifactRendererTest {
                     context = mapOf(
                         "packageName" to "com.acme.demo.application.commands.order.submit",
                         "typeName" to "SubmitOrderCmd",
-                        "imports" to listOf("java.time.LocalDateTime"),
+                        "imports" to listOf("java.time.LocalDateTime", "java.util.UUID"),
                         "requestFields" to listOf(
-                            mapOf("name" to "orderId", "type" to "Long", "nullable" to false),
-                            mapOf("name" to "address", "type" to "Address", "nullable" to true),
-                            mapOf("name" to "createdAt", "type" to "LocalDateTime", "nullable" to false),
+                            mapOf("name" to "orderId", "renderedType" to "Long", "nullable" to false),
+                            mapOf("name" to "address", "renderedType" to "Address", "nullable" to true),
+                            mapOf("name" to "createdAt", "renderedType" to "LocalDateTime", "nullable" to false),
+                            mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false),
                         ),
                         "requestNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Address",
                                 "fields" to listOf(
-                                    mapOf("name" to "city", "type" to "String", "nullable" to false),
-                                    mapOf("name" to "zipCode", "type" to "String", "nullable" to false),
+                                    mapOf("name" to "city", "renderedType" to "String", "nullable" to false),
+                                    mapOf("name" to "trackingId", "renderedType" to "UUID", "nullable" to false),
                                 ),
                             ),
                         ),
                         "responseFields" to listOf(
-                            mapOf("name" to "item", "type" to "Item", "nullable" to true),
+                            mapOf("name" to "item", "renderedType" to "Item", "nullable" to true),
+                            mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false),
                         ),
                         "responseNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Item",
                                 "fields" to listOf(
-                                    mapOf("name" to "id", "type" to "Long", "nullable" to false),
+                                    mapOf("name" to "id", "renderedType" to "Long", "nullable" to false),
                                 ),
                             ),
                         ),
@@ -179,14 +181,17 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
         assertTrue(content.contains("import java.time.LocalDateTime"))
+        assertTrue(content.contains("import java.util.UUID"))
         assertTrue(content.contains("object SubmitOrderCmd"))
         assertTrue(content.contains("data class Request("))
         assertTrue(content.contains("val address: Address?"))
         assertTrue(content.contains("val createdAt: LocalDateTime"))
+        assertTrue(content.contains("val requestStatus: com.foo.Status"))
         assertTrue(content.contains("data class Address("))
-        assertTrue(content.contains("val city: String"))
+        assertTrue(content.contains("val trackingId: UUID"))
         assertTrue(content.contains("data class Response("))
         assertTrue(content.contains("val item: Item?"))
+        assertTrue(content.contains("val responseStatus: com.bar.Status"))
         assertTrue(content.contains("data class Item("))
     }
 
