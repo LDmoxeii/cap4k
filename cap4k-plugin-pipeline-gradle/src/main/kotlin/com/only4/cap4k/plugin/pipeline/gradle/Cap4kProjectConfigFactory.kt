@@ -10,6 +10,7 @@ import org.gradle.api.Project
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import java.io.File
+import java.util.Locale
 
 class Cap4kProjectConfigFactory {
 
@@ -88,11 +89,25 @@ class Cap4kProjectConfigFactory {
         states: SourceStates,
     ): Map<String, SourceConfig> = buildMap {
         if (states.designJsonEnabled) {
-            val files = extension.sources.designJson.files.files.map(File::getAbsolutePath).sorted()
-            if (files.isEmpty()) {
-                throw IllegalArgumentException("sources.designJson.files must not be empty when designJson is enabled.")
+            val manifestFile = extension.sources.designJson.manifestFile.optionalValue()?.let { project.file(it).absolutePath }
+            if (manifestFile != null) {
+                put(
+                    "design-json",
+                    SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "manifestFile" to manifestFile,
+                            "projectDir" to project.projectDir.absolutePath,
+                        )
+                    )
+                )
+            } else {
+                val files = extension.sources.designJson.files.files.map(File::getAbsolutePath).sorted()
+                if (files.isEmpty()) {
+                    throw IllegalArgumentException("sources.designJson.files must not be empty when designJson is enabled.")
+                }
+                put("design-json", SourceConfig(enabled = true, options = mapOf("files" to files)))
             }
-            put("design-json", SourceConfig(enabled = true, options = mapOf("files" to files)))
         }
 
         if (states.kspMetadataEnabled) {
@@ -144,7 +159,18 @@ class Cap4kProjectConfigFactory {
             put("design", GeneratorConfig(enabled = true))
         }
         if (states.aggregateEnabled) {
-            put("aggregate", GeneratorConfig(enabled = true))
+            put(
+                "aggregate",
+                GeneratorConfig(
+                    enabled = true,
+                    options = mapOf(
+                        "unsupportedTablePolicy" to extension.generators.aggregate.unsupportedTablePolicy
+                            .normalized()
+                            .uppercase(Locale.ROOT)
+                            .ifEmpty { "FAIL" }
+                    ),
+                )
+            )
         }
         if (states.flowEnabled) {
             put(

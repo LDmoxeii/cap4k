@@ -20,6 +20,7 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.sources.irAnalysis.enabled.get())
         assertFalse(extension.generators.design.enabled.get())
         assertFalse(extension.generators.aggregate.enabled.get())
+        assertEquals("FAIL", extension.generators.aggregate.unsupportedTablePolicy.get())
         assertFalse(extension.generators.drawingBoard.enabled.get())
         assertFalse(extension.generators.flow.enabled.get())
         assertEquals("ddd-default", extension.templates.preset.get())
@@ -72,6 +73,64 @@ class Cap4kProjectConfigFactoryTest {
             ),
             config.templates.overrideDirs
         )
+    }
+
+    @Test
+    fun `aggregate unsupported table policy maps into generator options`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:test")
+                username.set("sa")
+                password.set("secret")
+            }
+        }
+        extension.generators {
+            aggregate {
+                enabled.set(true)
+                unsupportedTablePolicy.set("SKIP")
+            }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(
+            "SKIP",
+            config.generators.getValue("aggregate").options["unsupportedTablePolicy"]
+        )
+    }
+
+    @Test
+    fun `design json prefers manifest file when configured`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+        val manifest = project.file("design/manifest.json")
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                manifestFile.set(manifest.path)
+                files.from(project.file("design/ignored-1.json"), project.file("design/ignored-2.json"))
+            }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+        val options = config.sources.getValue("design-json").options
+
+        assertEquals(manifest.absolutePath, options["manifestFile"])
+        assertEquals(project.projectDir.absolutePath, options["projectDir"])
+        assertFalse(options.containsKey("files"))
     }
 
     @Test

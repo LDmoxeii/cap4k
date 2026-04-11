@@ -181,6 +181,11 @@ enum class RequestKind {
     QUERY,
 }
 
+enum class UnsupportedTablePolicy {
+    FAIL,
+    SKIP,
+}
+
 data class RequestModel(
     val kind: RequestKind,
     val packageName: String,
