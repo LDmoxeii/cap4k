@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.google.gson.GsonBuilder
+import com.only4.cap4k.plugin.pipeline.api.PlanReport
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
@@ -21,8 +22,14 @@ abstract class Cap4kPlanTask : DefaultTask() {
         outputFile.writeText(
             GsonBuilder()
                 .setPrettyPrinting()
+                .serializeNulls()
                 .create()
-                .toJson(result.planItems)
+                .toJson(
+                    PlanReport(
+                        items = result.planItems,
+                        diagnostics = result.diagnostics,
+                    )
+                )
         )
     }
 }

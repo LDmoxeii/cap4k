@@ -7,6 +7,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import java.sql.DriverManager
+import java.nio.file.Files
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -199,6 +200,9 @@ class DbSchemaSourceProviderTest {
         ) as DbSchemaSnapshot
 
         assertEquals(emptyList<String>(), snapshot.tables.map { it.tableName })
+        assertEquals(listOf("VIDEO_POST"), snapshot.discoveredTables)
+        assertEquals(emptyList<String>(), snapshot.includedTables)
+        assertEquals(emptyList<String>(), snapshot.excludedTables)
     }
 
     @Test
@@ -248,5 +252,49 @@ class DbSchemaSourceProviderTest {
         assertEquals(listOf("SEQUENCE_ID", "TENANT_ID", "CODE", "REGION_ID"), table.columns.map { it.name })
         assertEquals(listOf("SEQUENCE_ID", "TENANT_ID"), table.primaryKey)
         assertEquals(listOf(listOf("REGION_ID", "CODE")), table.uniqueConstraints)
+    }
+
+    @Test
+    fun `db source records discovered included and excluded table diagnostics`() {
+        val dbFile = Files.createTempDirectory("db-source-diagnostics").resolve("demo").toAbsolutePath().toString()
+        DriverManager.getConnection(
+            "jdbc:h2:file:$dbFile;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false",
+            "sa",
+            "secret",
+        ).use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute("create table video_post (id bigint primary key, title varchar(128) not null)")
+                statement.execute(
+                    "create table audit_log (tenant_id bigint not null, event_id varchar(64) not null, primary key (tenant_id, event_id))"
+                )
+            }
+        }
+
+        val snapshot = DbSchemaSourceProvider().collect(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "url" to "jdbc:h2:file:$dbFile;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false",
+                            "username" to "sa",
+                            "password" to "secret",
+                            "schema" to "PUBLIC",
+                            "includeTables" to listOf("video_post", "audit_log"),
+                            "excludeTables" to listOf("audit_log"),
+                        )
+                    )
+                ),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        ) as DbSchemaSnapshot
+
+        assertEquals(listOf("audit_log", "video_post"), snapshot.discoveredTables)
+        assertEquals(listOf("video_post"), snapshot.includedTables)
+        assertEquals(listOf("audit_log"), snapshot.excludedTables)
     }
 }

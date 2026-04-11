@@ -2,8 +2,12 @@ package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -83,9 +87,9 @@ class DefaultPipelineRunnerTest {
         }
 
         val assembler = object : CanonicalAssembler {
-            override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalModel {
+            override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
                 callOrder += "normalize"
-                return CanonicalModel()
+                return CanonicalAssemblyResult(CanonicalModel())
             }
         }
 
@@ -146,6 +150,7 @@ class DefaultPipelineRunnerTest {
         assertEquals(expectedPlanItems, result.planItems)
         assertEquals(renderedArtifacts, result.renderedArtifacts)
         assertEquals(emptyList<String>(), result.warnings)
+        assertEquals(null, result.diagnostics)
         assertEquals(1, result.writtenPaths.size)
         val writtenPath = Path.of(result.writtenPaths.first())
         assertTrue(Files.exists(writtenPath))
@@ -191,6 +196,73 @@ class DefaultPipelineRunnerTest {
         }
     }
 
+    @Test
+    fun `pipeline result carries aggregate diagnostics`() {
+        val result = DefaultPipelineRunner(
+            sources = listOf(
+                object : SourceProvider {
+                    override val id: String = "db"
+
+                    override fun collect(config: ProjectConfig): SourceSnapshot =
+                        DbSchemaSnapshot(
+                            tables = listOf(
+                                DbTableSnapshot(
+                                    "audit_log",
+                                    "",
+                                    columns = listOf(
+                                        DbColumnSnapshot("tenant_id", "BIGINT", "Long", false, null, "", true),
+                                        DbColumnSnapshot("event_id", "VARCHAR", "String", false, null, "", true),
+                                    ),
+                                    primaryKey = listOf("tenant_id", "event_id"),
+                                    uniqueConstraints = emptyList(),
+                                ),
+                                DbTableSnapshot(
+                                    "video_post",
+                                    "",
+                                    columns = listOf(
+                                        DbColumnSnapshot("id", "BIGINT", "Long", false, null, "", true),
+                                    ),
+                                    primaryKey = listOf("id"),
+                                    uniqueConstraints = emptyList(),
+                                ),
+                            ),
+                            discoveredTables = listOf("audit_log", "video_post"),
+                            includedTables = listOf("audit_log", "video_post"),
+                            excludedTables = emptyList(),
+                        )
+                }
+            ),
+            generators = listOf(
+                object : GeneratorProvider {
+                    override val id: String = "aggregate"
+                    override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> = emptyList()
+                }
+            ),
+            assembler = DefaultCanonicalAssembler(),
+            renderer = object : ArtifactRenderer {
+                override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> = emptyList()
+            },
+            exporter = NoopArtifactExporter(),
+        ).run(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = mapOf("domain" to "demo-domain", "adapter" to "demo-adapter"),
+                sources = mapOf("db" to SourceConfig(enabled = true)),
+                generators = mapOf(
+                    "aggregate" to GeneratorConfig(
+                        enabled = true,
+                        options = mapOf("unsupportedTablePolicy" to "SKIP"),
+                    )
+                ),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        )
+
+        assertEquals(listOf("video_post"), result.diagnostics!!.aggregate!!.supportedTables)
+        assertEquals("composite_primary_key", result.diagnostics!!.aggregate!!.unsupportedTables.single().reason)
+    }
+
     private fun runnerWithSingleArtifact(
         artifact: RenderedArtifact,
         tempRoot: Path = Files.createTempDirectory("pipeline-runner-single-artifact-test"),
@@ -218,7 +290,8 @@ class DefaultPipelineRunnerTest {
         }
 
         val assembler = object : CanonicalAssembler {
-            override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalModel = CanonicalModel()
+            override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult =
+                CanonicalAssemblyResult(CanonicalModel())
         }
 
         val renderer = object : ArtifactRenderer {

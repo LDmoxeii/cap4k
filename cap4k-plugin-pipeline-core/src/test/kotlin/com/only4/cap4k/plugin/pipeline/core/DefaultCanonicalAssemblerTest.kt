@@ -15,6 +15,7 @@ import com.only4.cap4k.plugin.pipeline.api.IrNodeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
+import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
@@ -74,7 +75,7 @@ class DefaultCanonicalAssemblerTest {
                     )
                 ),
             ),
-        )
+        ).model
 
         assertEquals(2, model.requests.size)
         val firstRequest = model.requests.first()
@@ -119,7 +120,7 @@ class DefaultCanonicalAssemblerTest {
                     )
                 ),
             ),
-        )
+        ).model
 
         assertEquals(1, model.requests.size)
         assertEquals(RequestKind.COMMAND, model.requests.first().kind)
@@ -143,7 +144,7 @@ class DefaultCanonicalAssemblerTest {
                     )
                 ),
             ),
-        )
+        ).model
 
         assertEquals(0, model.requests.size)
     }
@@ -179,7 +180,7 @@ class DefaultCanonicalAssemblerTest {
                     )
                 ),
             ),
-        )
+        ).model
 
         assertEquals(1, model.requests.size)
         assertEquals("Order", model.requests.first().aggregateName)
@@ -218,7 +219,7 @@ class DefaultCanonicalAssemblerTest {
                     ),
                 )
             ),
-        )
+        ).model
 
         assertEquals(listOf("app/build/cap4k-code-analysis"), model.analysisGraph!!.inputDirs)
         assertEquals(2, model.analysisGraph!!.nodes.size)
@@ -282,7 +283,7 @@ class DefaultCanonicalAssemblerTest {
                     ),
                 ),
             ),
-        )
+        ).model
 
         val drawingBoard = model.drawingBoard
         assertEquals(2, drawingBoard!!.elements.size)
@@ -332,7 +333,7 @@ class DefaultCanonicalAssemblerTest {
                     ),
                 ),
             ),
-        )
+        ).model
 
         assertNull(model.drawingBoard)
     }
@@ -340,7 +341,7 @@ class DefaultCanonicalAssemblerTest {
     @Test
     fun `keeps analysis graph null when ir snapshot is absent`() {
         val assembler = DefaultCanonicalAssembler()
-        val model = assembler.assemble(config = baseConfig(), snapshots = emptyList())
+        val model = assembler.assemble(config = baseConfig(), snapshots = emptyList()).model
         assertNull(model.analysisGraph)
     }
 
@@ -366,7 +367,7 @@ class DefaultCanonicalAssemblerTest {
                     )
                 )
             ),
-        )
+        ).model
 
         assertEquals("SVideoPost", model.schemas.single().name)
         assertEquals("com.acme.demo.domain._share.meta.video_post", model.schemas.single().packageName)
@@ -399,7 +400,7 @@ class DefaultCanonicalAssemblerTest {
                     )
                 )
             ),
-        )
+        ).model
 
         assertEquals("SVideoPost", model.schemas.single().name)
         assertEquals("VideoPost", model.entities.single().name)
@@ -428,7 +429,7 @@ class DefaultCanonicalAssemblerTest {
                     )
                 )
             ),
-        )
+        ).model
 
         assertEquals("SVideoPost", model.schemas.single().name)
         assertEquals("VideoPost", model.entities.single().name)
@@ -457,7 +458,7 @@ class DefaultCanonicalAssemblerTest {
                     )
                 )
             ),
-        )
+        ).model
 
         assertEquals("SOauth2Client", model.schemas.single().name)
         assertEquals("Oauth2Client", model.entities.single().name)
@@ -489,7 +490,7 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals("db table audit_log must define a primary key", error.message)
+        assertEquals("db table audit_log is unsupported for aggregate generation: missing_primary_key", error.message)
     }
 
     @Test
@@ -518,7 +519,55 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals("db table audit_log must define a single-column primary key", error.message)
+        assertEquals("db table audit_log is unsupported for aggregate generation: composite_primary_key", error.message)
+    }
+
+    @Test
+    fun `skips composite key table when unsupported policy is skip`() {
+        val assembly = DefaultCanonicalAssembler().assemble(
+            config = baseAggregateConfig(
+                generators = mapOf(
+                    "aggregate" to GeneratorConfig(
+                        enabled = true,
+                        options = mapOf("unsupportedTablePolicy" to "SKIP"),
+                    )
+                )
+            ),
+            snapshots = listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            "audit_log",
+                            "",
+                            columns = listOf(
+                                DbColumnSnapshot("tenant_id", "BIGINT", "Long", false, null, "", true),
+                                DbColumnSnapshot("event_id", "VARCHAR", "String", false, null, "", true),
+                            ),
+                            primaryKey = listOf("tenant_id", "event_id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            "video_post",
+                            "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, null, "", true),
+                                DbColumnSnapshot("title", "VARCHAR", "String", false, null, "", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                    ),
+                    discoveredTables = listOf("audit_log", "video_post"),
+                    includedTables = listOf("audit_log", "video_post"),
+                    excludedTables = emptyList(),
+                )
+            ),
+        )
+        val model = assembly.model
+
+        assertEquals(listOf("VideoPost"), model.entities.map { it.name })
+        assertEquals(listOf("video_post"), assembly.diagnostics!!.aggregate!!.supportedTables)
+        assertEquals("audit_log", assembly.diagnostics!!.aggregate!!.unsupportedTables.single().tableName)
     }
 
     private fun baseConfig(): ProjectConfig {
@@ -532,7 +581,7 @@ class DefaultCanonicalAssemblerTest {
         )
     }
 
-    private fun baseAggregateConfig(): ProjectConfig {
+    private fun baseAggregateConfig(generators: Map<String, GeneratorConfig> = emptyMap()): ProjectConfig {
         return ProjectConfig(
             basePackage = "com.acme.demo",
             layout = MULTI_MODULE,
@@ -541,7 +590,7 @@ class DefaultCanonicalAssemblerTest {
                 "adapter" to "demo-adapter",
             ),
             sources = emptyMap(),
-            generators = emptyMap(),
+            generators = generators,
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         )
     }

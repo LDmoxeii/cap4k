@@ -82,6 +82,9 @@ sealed interface SourceSnapshot {
 data class DbSchemaSnapshot(
     override val id: String = "db",
     val tables: List<DbTableSnapshot>,
+    val discoveredTables: List<String> = tables.map { it.tableName }.sorted(),
+    val includedTables: List<String> = tables.map { it.tableName }.sorted(),
+    val excludedTables: List<String> = emptyList(),
 ) : SourceSnapshot
 
 data class DesignSpecSnapshot(
@@ -206,6 +209,28 @@ data class CanonicalModel(
     val drawingBoard: DrawingBoardModel? = null,
 )
 
+data class UnsupportedAggregateTable(
+    val tableName: String,
+    val reason: String,
+)
+
+data class AggregateDiagnostics(
+    val discoveredTables: List<String>,
+    val includedTables: List<String>,
+    val excludedTables: List<String>,
+    val supportedTables: List<String>,
+    val unsupportedTables: List<UnsupportedAggregateTable>,
+)
+
+data class PipelineDiagnostics(
+    val aggregate: AggregateDiagnostics? = null,
+)
+
+data class CanonicalAssemblyResult(
+    val model: CanonicalModel,
+    val diagnostics: PipelineDiagnostics? = null,
+)
+
 data class ArtifactPlanItem(
     val generatorId: String,
     val moduleRole: String,
@@ -221,9 +246,15 @@ data class RenderedArtifact(
     val conflictPolicy: ConflictPolicy,
 )
 
+data class PlanReport(
+    val items: List<ArtifactPlanItem>,
+    val diagnostics: PipelineDiagnostics? = null,
+)
+
 data class PipelineResult(
     val planItems: List<ArtifactPlanItem> = emptyList(),
     val renderedArtifacts: List<RenderedArtifact> = emptyList(),
     val writtenPaths: List<String> = emptyList(),
     val warnings: List<String> = emptyList(),
+    val diagnostics: PipelineDiagnostics? = null,
 )

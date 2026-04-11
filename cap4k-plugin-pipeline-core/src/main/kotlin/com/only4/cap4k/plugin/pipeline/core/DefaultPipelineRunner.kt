@@ -19,7 +19,8 @@ class DefaultPipelineRunner(
             .filter { config.sources[it.id]?.enabled == true }
             .map { it.collect(config) }
 
-        val model = assembler.assemble(config, snapshots)
+        val assembly = assembler.assemble(config, snapshots)
+        val model = assembly.model
 
         val planItems = generators
             .filter { config.generators[it.id]?.enabled == true }
@@ -33,6 +34,7 @@ class DefaultPipelineRunner(
             renderedArtifacts = renderedArtifacts,
             writtenPaths = writtenPaths,
             warnings = emptyList(),
+            diagnostics = assembly.diagnostics,
         )
     }
 }

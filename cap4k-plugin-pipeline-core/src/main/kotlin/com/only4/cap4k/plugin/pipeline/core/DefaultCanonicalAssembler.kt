@@ -3,6 +3,8 @@ package com.only4.cap4k.plugin.pipeline.core
 import com.only4.cap4k.plugin.pipeline.api.AnalysisEdgeModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateDiagnostics
+import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
@@ -15,23 +17,24 @@ import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.RequestKind
 import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SourceSnapshot
+import com.only4.cap4k.plugin.pipeline.api.UnsupportedAggregateTable
+import com.only4.cap4k.plugin.pipeline.api.UnsupportedTablePolicy
 import java.util.Locale
 
 interface CanonicalAssembler {
-    fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalModel
+    fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult
 }
 
 class DefaultCanonicalAssembler : CanonicalAssembler {
-    override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalModel {
+    override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
         val designSnapshot = snapshots.filterIsInstance<DesignSpecSnapshot>().firstOrNull()
-        val dbTables = snapshots
-            .filterIsInstance<DbSchemaSnapshot>()
-            .flatMap { it.tables }
+        val dbSnapshot = snapshots.filterIsInstance<DbSchemaSnapshot>().firstOrNull()
 
         val aggregateLookup = snapshots
             .filterIsInstance<KspMetadataSnapshot>()
@@ -64,9 +67,35 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             )
         }
 
-        val aggregateModels = dbTables.map { table ->
-            require(table.primaryKey.isNotEmpty()) { "db table ${table.tableName} must define a primary key" }
-            require(table.primaryKey.size == 1) { "db table ${table.tableName} must define a single-column primary key" }
+        val aggregatePolicy = config.generators["aggregate"]
+            ?.options
+            ?.get("unsupportedTablePolicy")
+            ?.toString()
+            ?.uppercase(Locale.ROOT)
+            ?.let(UnsupportedTablePolicy::valueOf)
+            ?: UnsupportedTablePolicy.FAIL
+
+        val supportedTables = mutableListOf<com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot>()
+        val unsupportedTables = mutableListOf<UnsupportedAggregateTable>()
+        dbSnapshot?.tables.orEmpty().forEach { table ->
+            val unsupportedReason = when {
+                table.primaryKey.isEmpty() -> "missing_primary_key"
+                table.primaryKey.size != 1 -> "composite_primary_key"
+                else -> null
+            }
+
+            if (unsupportedReason == null) {
+                supportedTables += table
+            } else if (aggregatePolicy == UnsupportedTablePolicy.FAIL) {
+                throw IllegalArgumentException(
+                    "db table ${table.tableName} is unsupported for aggregate generation: $unsupportedReason"
+                )
+            } else {
+                unsupportedTables += UnsupportedAggregateTable(tableName = table.tableName, reason = unsupportedReason)
+            }
+        }
+
+        val aggregateModels = supportedTables.map { table ->
 
             val entityName = AggregateNaming.entityName(table.tableName)
             val schemaName = AggregateNaming.schemaName(table.tableName)
@@ -104,6 +133,18 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     entityName = entityName,
                     idType = idField.type,
                 ),
+            )
+        }
+
+        val diagnostics = dbSnapshot?.let { snapshot ->
+            PipelineDiagnostics(
+                aggregate = AggregateDiagnostics(
+                    discoveredTables = snapshot.discoveredTables,
+                    includedTables = snapshot.includedTables,
+                    excludedTables = snapshot.excludedTables,
+                    supportedTables = supportedTables.map { it.tableName }.sorted(),
+                    unsupportedTables = unsupportedTables.sortedBy { it.tableName },
+                )
             )
         }
 
@@ -148,13 +189,16 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 )
             }
 
-        return CanonicalModel(
-            requests = requests,
-            schemas = aggregateModels.map { it.first },
-            entities = aggregateModels.map { it.second },
-            repositories = aggregateModels.map { it.third },
-            analysisGraph = analysisGraph,
-            drawingBoard = drawingBoard,
+        return CanonicalAssemblyResult(
+            model = CanonicalModel(
+                requests = requests,
+                schemas = aggregateModels.map { it.first },
+                entities = aggregateModels.map { it.second },
+                repositories = aggregateModels.map { it.third },
+                analysisGraph = analysisGraph,
+                drawingBoard = drawingBoard,
+            ),
+            diagnostics = diagnostics,
         )
     }
 

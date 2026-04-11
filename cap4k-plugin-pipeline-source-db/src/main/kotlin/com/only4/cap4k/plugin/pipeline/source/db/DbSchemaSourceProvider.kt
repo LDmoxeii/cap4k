@@ -41,16 +41,23 @@ class DbSchemaSourceProvider : SourceProvider {
                 requestedTables = excludeTableRequests,
                 discoveredTables = discoveredTables,
             )
-            val tables = when {
+            val selectedTables = when {
                 includeTableRequests.isNotEmpty() && includeTables.isEmpty() -> emptyList()
                 includeTableRequests.isEmpty() -> discoveredTables
                 else -> discoveredTables.filter { it in includeTables }
-            }.asSequence()
-                .filterNot { it in excludeTables }
+            }
+            val filteredTables = selectedTables.filterNot { it in excludeTables }
+            val tables = filteredTables
+                .asSequence()
                 .map { readTable(metadata, schema, it) }
                 .toList()
 
-            return DbSchemaSnapshot(tables = tables.sortedBy { it.tableName })
+            return DbSchemaSnapshot(
+                tables = tables.sortedBy { it.tableName },
+                discoveredTables = discoveredTables.sorted(),
+                includedTables = filteredTables.sorted(),
+                excludedTables = excludeTables.sorted(),
+            )
         }
     }
 

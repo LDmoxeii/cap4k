@@ -33,7 +33,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(metadataFile.toFile().exists())
         assertTrue(planFile.exists())
-        assertTrue(planFile.readText().contains("\n  {"))
+        assertTrue(planFile.readText().contains("\n  \"items\""))
+        assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/command.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/query.kt.peb\""))
     }
@@ -248,6 +249,8 @@ class PipelinePluginFunctionalTest {
                 "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt"
             ).exists()
         )
+        assertTrue(planFile.readText().contains("\"items\""))
+        assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/entity.kt.peb\""))
     }
 
