@@ -293,4 +293,111 @@ class DesignJsonSourceProviderTest {
 
         assertTrue(error.message?.contains("manifestFile") == true)
     }
+
+    @Test
+    fun `fails when manifest entry escapes project dir boundary`() {
+        val workspaceDir = tempDir.resolve("workspace")
+        val projectDir = workspaceDir.resolve("project")
+        Files.createDirectories(projectDir)
+
+        val outsideFile = workspaceDir.resolve("outside.json")
+        Files.writeString(
+            outsideFile,
+            """
+                [
+                  {
+                    "tag": "cmd",
+                    "package": "order.submit",
+                    "name": "Outside",
+                    "desc": "outside",
+                    "requestFields": [],
+                    "responseFields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val manifestFile = projectDir.resolve("design-manifest.json")
+        Files.writeString(
+            manifestFile,
+            """
+                [
+                  "../outside.json"
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val config = ProjectConfig(
+            basePackage = "com.only4.cap4k",
+            layout = ProjectLayout.SINGLE_MODULE,
+            modules = emptyMap(),
+            sources = mapOf(
+                "design-json" to SourceConfig(
+                    enabled = true,
+                    options = mapOf(
+                        "manifestFile" to manifestFile.toString(),
+                        "projectDir" to projectDir.toString(),
+                    ),
+                ),
+            ),
+            generators = emptyMap(),
+            templates = TemplateConfig(
+                preset = "default",
+                overrideDirs = emptyList(),
+                conflictPolicy = ConflictPolicy.SKIP,
+            ),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(config)
+        }
+
+        assertTrue(error.message?.contains("escapes projectDir") == true)
+    }
+
+    @Test
+    fun `fails when manifest entry is blank`() {
+        val projectDir = tempDir.resolve("project")
+        Files.createDirectories(projectDir)
+
+        val manifestFile = projectDir.resolve("design-manifest.json")
+        Files.writeString(
+            manifestFile,
+            """
+                [
+                  "   "
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val config = ProjectConfig(
+            basePackage = "com.only4.cap4k",
+            layout = ProjectLayout.SINGLE_MODULE,
+            modules = emptyMap(),
+            sources = mapOf(
+                "design-json" to SourceConfig(
+                    enabled = true,
+                    options = mapOf(
+                        "manifestFile" to manifestFile.toString(),
+                        "projectDir" to projectDir.toString(),
+                    ),
+                ),
+            ),
+            generators = emptyMap(),
+            templates = TemplateConfig(
+                preset = "default",
+                overrideDirs = emptyList(),
+                conflictPolicy = ConflictPolicy.SKIP,
+            ),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(config)
+        }
+
+        assertTrue(error.message?.contains("blank design manifest entry") == true)
+    }
 }

@@ -43,8 +43,19 @@ class DesignJsonSourceProvider : SourceProvider {
             }
 
             val projectDir = File(projectDirOption).canonicalFile
+            val projectDirPath = projectDir.toPath()
             val files = manifestEntries
-                .map { entry -> File(projectDir, entry).canonicalFile }
+                .map { rawEntry ->
+                    val entry = rawEntry.trim()
+                    require(entry.isNotEmpty()) {
+                        "blank design manifest entry"
+                    }
+                    val resolvedFile = File(projectDir, entry).canonicalFile
+                    require(resolvedFile.toPath().startsWith(projectDirPath)) {
+                        "design manifest entry escapes projectDir: $entry"
+                    }
+                    resolvedFile
+                }
 
             val duplicates = files
                 .groupingBy { it.path }
