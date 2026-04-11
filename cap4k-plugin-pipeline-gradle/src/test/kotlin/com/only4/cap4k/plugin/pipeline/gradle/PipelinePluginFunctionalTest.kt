@@ -74,7 +74,9 @@ class PipelinePluginFunctionalTest {
         assertTrue(commandContent.contains("data class Request("))
         assertTrue(commandContent.contains("val orderId: Long"))
         assertTrue(commandContent.contains("val submittedAt: LocalDateTime"))
+        assertTrue(commandContent.contains("val mirroredSubmittedAt: LocalDateTime"))
         assertTrue(commandContent.contains("val externalId: UUID"))
+        assertTrue(commandContent.contains("val trackingId: UUID"))
         assertTrue(commandContent.contains("val requestStatus: com.foo.Status"))
         assertTrue(commandContent.contains("val address: Address?"))
         assertFalse(commandContent.contains("val address: Address??"))
@@ -96,6 +98,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(queryContent.contains("data class Request("))
         assertTrue(queryContent.contains("val orderId: Long"))
         assertTrue(queryContent.contains("val lookupId: UUID"))
+        assertTrue(queryContent.contains("val lookupMirrorId: UUID"))
         assertTrue(queryContent.contains("data class Response("))
         assertTrue(queryContent.contains("val snapshot: Snapshot?"))
         assertFalse(queryContent.contains("val snapshot: Snapshot??"))
@@ -103,6 +106,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(queryContent.contains("val responseStatus: com.bar.Status"))
         assertTrue(queryContent.contains("data class Snapshot("))
         assertTrue(queryContent.contains("val updatedAt: LocalDateTime"))
+        assertTrue(queryContent.contains("val publishedAt: LocalDateTime"))
         assertTrue(queryContent.contains("val snapshotId: UUID"))
     }
 
@@ -161,6 +165,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(commandContent.contains("import java.util.UUID"))
         assertFalse(commandContent.contains("import com.foo.Status"))
         assertFalse(commandContent.contains("import com.bar.Status"))
+        assertTrue(commandContent.contains("val mirroredSubmittedAt: LocalDateTime"))
+        assertTrue(commandContent.contains("val trackingId: UUID"))
         assertTrue(commandContent.contains("val requestStatus: com.foo.Status"))
         assertTrue(commandContent.contains("val responseStatus: com.bar.Status"))
         assertTrue(commandContent.contains("val address: Address?"))
@@ -179,13 +185,42 @@ class PipelinePluginFunctionalTest {
         assertTrue(queryContent.contains("import java.util.UUID"))
         assertFalse(queryContent.contains("import com.foo.Status"))
         assertFalse(queryContent.contains("import com.bar.Status"))
+        assertTrue(queryContent.contains("val lookupMirrorId: UUID"))
         assertTrue(queryContent.contains("val requestStatus: com.foo.Status"))
         assertTrue(queryContent.contains("val responseStatus: com.bar.Status"))
         assertTrue(queryContent.contains("val snapshot: Snapshot?"))
         assertFalse(queryContent.contains("val snapshot: Snapshot??"))
         assertTrue(queryContent.contains("data class Snapshot("))
         assertTrue(queryContent.contains("val updatedAt: LocalDateTime"))
+        assertTrue(queryContent.contains("val publishedAt: LocalDateTime"))
         assertTrue(queryContent.contains("val snapshotId: UUID"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate fails on ambiguous short type`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-ambiguous-short-type")
+        copyFixture(projectDir, "design-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace(
+                """{ "name": "requestStatus", "type": "com.foo.Status" },""",
+                """
+                { "name": "requestStatus", "type": "com.foo.Status" },
+                  { "name": "ambiguousStatus", "type": "Status" },
+                """.trimIndent()
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("failed to resolve type for field ambiguousStatus: Status"))
+        assertTrue(result.output.contains("ambiguous short type: Status -> com.foo.Status, com.bar.Status"))
     }
 
     @OptIn(ExperimentalPathApi::class)

@@ -2,6 +2,9 @@ package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.RequestModel
+import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
+import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver
+import com.only4.cap4k.plugin.pipeline.generator.design.types.SymbolIdentity
 import java.util.ArrayDeque
 
 internal object DesignRenderModelFactory {
@@ -18,9 +21,14 @@ internal object DesignRenderModelFactory {
     fun create(packageName: String, request: RequestModel): DesignRenderModel {
         val requestNamespace = buildNamespace(request.requestFields, "request")
         val responseNamespace = buildNamespace(request.responseFields, "response")
+        val innerTypeNames = requestNamespace.nestedTypeNames + responseNamespace.nestedTypeNames
+        val symbolRegistry = buildSymbolRegistry(request, requestNamespace, responseNamespace)
+        validateNamespaceTypes("request", requestNamespace, symbolRegistry, innerTypeNames)
+        validateNamespaceTypes("response", responseNamespace, symbolRegistry, innerTypeNames)
         val importPlan = DesignImportPlanner.plan(
             types = requestNamespace.resolvedTypes + responseNamespace.resolvedTypes,
-            innerTypeNames = requestNamespace.nestedTypeNames + responseNamespace.nestedTypeNames,
+            innerTypeNames = innerTypeNames,
+            symbolRegistry = symbolRegistry,
         )
         val renderedTypes = ArrayDeque(importPlan.renderedTypes)
         val requestFields = renderFields(requestNamespace.fields, renderedTypes)
@@ -79,6 +87,7 @@ internal object DesignRenderModelFactory {
 
             group.fields += RawFieldModel(
                 name = parts[1],
+                sourceName = field.name,
                 type = field.type,
                 nullable = field.nullable,
                 defaultValue = field.defaultValue,
@@ -124,6 +133,79 @@ internal object DesignRenderModelFactory {
     ): List<DesignRenderFieldModel> {
         return fields.map { field ->
             field.toRenderField(renderedType = renderedTypes.removeFirst().renderedText.withNullability(field.nullable))
+        }
+    }
+
+    private fun buildSymbolRegistry(
+        request: RequestModel,
+        requestNamespace: NamespaceModel,
+        responseNamespace: NamespaceModel,
+    ): DesignSymbolRegistry {
+        val registry = DesignSymbolRegistry()
+        val aggregateName = request.aggregateName?.takeIf { it.isNotBlank() }
+        val aggregatePackageName = request.aggregatePackageName?.takeIf { it.isNotBlank() }
+        if (aggregateName != null && aggregatePackageName != null) {
+            registry.register(
+                SymbolIdentity(
+                    packageName = aggregatePackageName,
+                    typeName = aggregateName,
+                    moduleRole = "domain",
+                    source = "aggregate",
+                ),
+            )
+        }
+
+        (requestNamespace.resolvedTypes + responseNamespace.resolvedTypes)
+            .flatMap(::collectExplicitSymbols)
+            .forEach(registry::register)
+
+        return registry
+    }
+
+    private fun collectExplicitSymbols(type: DesignResolvedTypeModel): List<SymbolIdentity> {
+        val own = if (type.kind == DesignResolvedTypeKind.EXPLICIT_FQCN) {
+            listOf(
+                SymbolIdentity(
+                    packageName = type.rawText.substringBeforeLast('.', missingDelimiterValue = ""),
+                    typeName = type.simpleName,
+                    source = "explicit-fqcn",
+                ),
+            )
+        } else {
+            emptyList()
+        }
+
+        return own + type.arguments.flatMap(::collectExplicitSymbols)
+    }
+
+    private fun validateNamespaceTypes(
+        namespace: String,
+        model: NamespaceModel,
+        symbolRegistry: DesignSymbolRegistry,
+        innerTypeNames: Set<String>,
+    ) {
+        model.fields.forEach { validateFieldType(it, symbolRegistry, innerTypeNames) }
+        model.nestedTypes.forEach { nestedType ->
+            nestedType.fields.forEach { validateFieldType(it, symbolRegistry, innerTypeNames) }
+        }
+    }
+
+    private fun validateFieldType(
+        field: PreparedFieldModel,
+        symbolRegistry: DesignSymbolRegistry,
+        innerTypeNames: Set<String>,
+    ) {
+        try {
+            ImportResolver.resolve(
+                type = field.resolvedType,
+                innerTypeNames = innerTypeNames,
+                symbolRegistry = symbolRegistry,
+            )
+        } catch (ex: IllegalArgumentException) {
+            throw IllegalArgumentException(
+                "failed to resolve type for field ${field.sourceName}: ${field.resolvedType.rawText} (${ex.message})",
+                ex,
+            )
         }
     }
 
@@ -201,6 +283,7 @@ internal object DesignRenderModelFactory {
     private fun FieldModel.toPreparedField(innerTypeNames: Set<String>): PreparedFieldModel {
         return PreparedFieldModel(
             name = name,
+            sourceName = name,
             nullable = nullable,
             defaultValue = defaultValue,
             resolvedType = DesignTypeResolver.resolve(
@@ -213,6 +296,7 @@ internal object DesignRenderModelFactory {
     private fun RawFieldModel.toPreparedField(innerTypeNames: Set<String>): PreparedFieldModel {
         return PreparedFieldModel(
             name = name,
+            sourceName = sourceName,
             nullable = nullable,
             defaultValue = defaultValue,
             resolvedType = DesignTypeResolver.resolve(
@@ -251,6 +335,7 @@ internal object DesignRenderModelFactory {
 
     private data class PreparedFieldModel(
         val name: String,
+        val sourceName: String,
         val nullable: Boolean,
         val defaultValue: String?,
         val resolvedType: DesignResolvedTypeModel,
@@ -269,6 +354,7 @@ internal object DesignRenderModelFactory {
 
     private data class RawFieldModel(
         val name: String,
+        val sourceName: String,
         val type: String,
         val nullable: Boolean,
         val defaultValue: String?,

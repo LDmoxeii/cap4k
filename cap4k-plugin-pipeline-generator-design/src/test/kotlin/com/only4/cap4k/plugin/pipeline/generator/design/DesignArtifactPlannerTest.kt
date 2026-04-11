@@ -187,6 +187,78 @@ class DesignArtifactPlannerTest {
     }
 
     @Test
+    fun `resolves unique short name from explicit fqcn source during planning`() {
+        val planner = DesignArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("application" to "demo-application")),
+            model = CanonicalModel(
+                requests = listOf(
+                    RequestModel(
+                        kind = RequestKind.COMMAND,
+                        packageName = "order.submit",
+                        typeName = "SubmitOrderCmd",
+                        description = "submit order",
+                        aggregateName = "Order",
+                        aggregatePackageName = "com.acme.demo.domain.aggregates.order",
+                        requestFields = listOf(
+                            FieldModel("status", "Status"),
+                            FieldModel("canonicalStatus", "com.foo.Status"),
+                        ),
+                        responseFields = emptyList(),
+                    ),
+                ),
+            ),
+        )
+
+        val command = items.single()
+
+        assertEquals(
+            listOf(
+                DesignRenderFieldModel(name = "status", renderedType = "Status"),
+                DesignRenderFieldModel(name = "canonicalStatus", renderedType = "Status"),
+            ),
+            command.context["requestFields"],
+        )
+        assertEquals(listOf("com.foo.Status"), command.context["imports"])
+    }
+
+    @Test
+    fun `fails fast when short name is ambiguous during planning`() {
+        val planner = DesignArtifactPlanner()
+
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("application" to "demo-application")),
+                model = CanonicalModel(
+                    requests = listOf(
+                        RequestModel(
+                            kind = RequestKind.COMMAND,
+                            packageName = "order.submit",
+                            typeName = "SubmitOrderCmd",
+                            description = "submit order",
+                            aggregateName = "Order",
+                            aggregatePackageName = "com.acme.demo.domain.aggregates.order",
+                            requestFields = listOf(
+                                FieldModel("status", "Status"),
+                                FieldModel("canonicalStatus", "com.foo.Status"),
+                            ),
+                            responseFields = listOf(
+                                FieldModel("otherStatus", "com.bar.Status"),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "failed to resolve type for field status: Status (ambiguous short type: Status -> com.foo.Status, com.bar.Status)",
+            ex.message,
+        )
+    }
+
+    @Test
     fun `fails fast when nested type names collide inside request namespace`() {
         val planner = DesignArtifactPlanner()
 

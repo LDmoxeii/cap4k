@@ -21,7 +21,9 @@ val writeDesignFixture = tasks.register("writeDesignFixture") {
                 "requestFields": [
                   { "name": "orderId", "type": "Long" },
                   { "name": "submittedAt", "type": "java.time.LocalDateTime" },
+                  { "name": "mirroredSubmittedAt", "type": "LocalDateTime" },
                   { "name": "externalId", "type": "java.util.UUID" },
+                  { "name": "trackingId", "type": "UUID" },
                   { "name": "requestStatus", "type": "com.foo.Status" },
                   { "name": "address", "type": "Address", "nullable": true },
                   { "name": "address.city", "type": "String" },
@@ -43,12 +45,14 @@ val writeDesignFixture = tasks.register("writeDesignFixture") {
                 "requestFields": [
                   { "name": "orderId", "type": "Long" },
                   { "name": "lookupId", "type": "java.util.UUID" },
+                  { "name": "lookupMirrorId", "type": "UUID" },
                   { "name": "requestStatus", "type": "com.foo.Status" }
                 ],
                 "responseFields": [
                   { "name": "responseStatus", "type": "com.bar.Status" },
                   { "name": "snapshot", "type": "Snapshot", "nullable": true },
                   { "name": "snapshot.updatedAt", "type": "java.time.LocalDateTime" },
+                  { "name": "snapshot.publishedAt", "type": "LocalDateTime" },
                   { "name": "snapshot.snapshotId", "type": "java.util.UUID" }
                 ]
               }

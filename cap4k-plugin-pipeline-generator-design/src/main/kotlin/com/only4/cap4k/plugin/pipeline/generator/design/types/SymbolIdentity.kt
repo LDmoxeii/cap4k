@@ -8,4 +8,7 @@ internal data class SymbolIdentity(
 ) {
     val simpleName: String
         get() = typeName.substringAfterLast('.')
+
+    val fqcn: String
+        get() = if (packageName.isBlank()) typeName else "$packageName.$typeName"
 }

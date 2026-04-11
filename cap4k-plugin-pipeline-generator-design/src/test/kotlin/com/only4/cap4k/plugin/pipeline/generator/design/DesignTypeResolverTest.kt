@@ -1,7 +1,10 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
+import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
+import com.only4.cap4k.plugin.pipeline.generator.design.types.SymbolIdentity
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -92,43 +95,76 @@ class DesignTypeResolverTest {
     }
 
     @Test
-    fun `unresolved short name stays unresolved and unimported`() {
+    fun `unique registry hit imports and renders short name`() {
         val resolved = resolve("UserId")
-        val plan = plan("UserId")
+        val plan = plan(
+            type = "UserId",
+            registry = registryOf(SymbolIdentity("com.acme.demo.domain.types", "UserId")),
+        )
 
         assertEquals(DesignResolvedTypeKind.UNRESOLVED, resolved.kind)
         assertEquals(emptySet<String>(), resolved.importCandidates)
         assertEquals("UserId", plan.renderedTypes.single().renderedText)
-        assertEquals(emptyList<String>(), plan.imports)
+        assertEquals(listOf("com.acme.demo.domain.types.UserId"), plan.imports)
         assertFalse(plan.renderedTypes.single().qualifiedFallback)
     }
 
     @Test
-    fun `recursive generics preserve qualified fallback inside children`() {
-        val resolved = resolve("List<com.foo.Status?>")
-        val plan = plan(
-            types = listOf("List<com.foo.Status?>", "com.bar.Status"),
-        )
+    fun `unknown short name fails fast`() {
+        val resolved = resolve("UserId")
 
-        assertEquals(DesignResolvedTypeKind.BUILTIN, resolved.kind)
-        assertEquals(setOf("com.foo.Status"), resolved.arguments.single().importCandidates)
-        assertEquals("List<com.foo.Status?>", plan.renderedTypes[0].renderedText)
-        assertEquals("com.bar.Status", plan.renderedTypes[1].renderedText)
-        assertEquals(emptyList<String>(), plan.imports)
-        assertTrue(plan.renderedTypes[0].qualifiedFallback)
-        assertTrue(plan.renderedTypes[1].qualifiedFallback)
+        assertEquals(DesignResolvedTypeKind.UNRESOLVED, resolved.kind)
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            plan("UserId")
+        }
+
+        assertTrue(ex.message!!.contains("UserId"))
+        assertTrue(ex.message!!.contains("unknown"))
     }
 
     @Test
-    fun `external fqcn does not import when unresolved short name shares simple name`() {
+    fun `ambiguous short name fails fast`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            plan(
+                types = listOf("Status"),
+                registry = registryOf(
+                    SymbolIdentity("com.foo", "Status"),
+                    SymbolIdentity("com.bar", "Status"),
+                ),
+            )
+        }
+
+        assertTrue(ex.message!!.contains("Status"))
+        assertTrue(ex.message!!.contains("ambiguous"))
+    }
+
+    @Test
+    fun `matching explicit fqcn becomes registry source for short name`() {
         val plan = plan(
             types = listOf("Status", "com.foo.Status"),
         )
 
         assertEquals("Status", plan.renderedTypes[0].renderedText)
-        assertEquals("com.foo.Status", plan.renderedTypes[1].renderedText)
-        assertEquals(emptyList<String>(), plan.imports)
-        assertTrue(plan.renderedTypes[1].qualifiedFallback)
+        assertEquals("Status", plan.renderedTypes[1].renderedText)
+        assertEquals(listOf("com.foo.Status"), plan.imports)
+        assertFalse(plan.renderedTypes[0].qualifiedFallback)
+        assertFalse(plan.renderedTypes[1].qualifiedFallback)
+    }
+
+    @Test
+    fun `recursive generics import uniquely resolved registry children`() {
+        val resolved = resolve("List<com.foo.Status?>")
+        val plan = plan(
+            types = listOf("List<com.foo.Status?>", "Status"),
+        )
+
+        assertEquals(DesignResolvedTypeKind.BUILTIN, resolved.kind)
+        assertEquals(setOf("com.foo.Status"), resolved.arguments.single().importCandidates)
+        assertEquals("List<Status?>", plan.renderedTypes[0].renderedText)
+        assertEquals("Status", plan.renderedTypes[1].renderedText)
+        assertEquals(listOf("com.foo.Status"), plan.imports)
+        assertFalse(plan.renderedTypes[0].qualifiedFallback)
+        assertFalse(plan.renderedTypes[1].qualifiedFallback)
     }
 
     @Test
@@ -158,15 +194,23 @@ class DesignTypeResolverTest {
     private fun plan(
         types: List<String>,
         innerTypes: Set<String> = emptySet(),
+        registry: DesignSymbolRegistry = DesignSymbolRegistry(),
     ): DesignImportPlan = DesignImportPlanner.plan(
         types = types.map { resolve(it, innerTypes) },
         innerTypeNames = innerTypes,
+        symbolRegistry = registry,
     )
 
     private fun plan(
         type: String,
         innerTypes: Set<String> = emptySet(),
-    ): DesignImportPlan = plan(listOf(type), innerTypes)
+        registry: DesignSymbolRegistry = DesignSymbolRegistry(),
+    ): DesignImportPlan = plan(listOf(type), innerTypes, registry)
+
+    private fun registryOf(vararg symbols: SymbolIdentity): DesignSymbolRegistry =
+        DesignSymbolRegistry().apply {
+            symbols.forEach(::register)
+        }
 
     private fun assertBuiltInAndUnimported(raw: String) {
         val resolved = resolve(raw)
