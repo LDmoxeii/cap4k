@@ -1,0 +1,15 @@
+[
+  {
+    "tag": "cmd",
+    "package": "video.encrypt",
+    "name": "GenerateVideoHlsKey",
+    "desc": "generate key",
+    "aggregates": ["VideoPost"],
+    "requestFields": [
+      { "name": "videoPostId", "type": "Long" }
+    ],
+    "responseFields": [
+      { "name": "keyId", "type": "String" }
+    ]
+  }
+]

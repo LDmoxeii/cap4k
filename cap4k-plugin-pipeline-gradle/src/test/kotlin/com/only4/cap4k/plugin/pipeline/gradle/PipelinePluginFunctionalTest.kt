@@ -217,6 +217,27 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kPlan and cap4kGenerate support manifest driven design inputs`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-manifest")
+        copyFixture(projectDir, "design-manifest-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan", "cap4kGenerate")
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(projectDir.resolve("build/cap4k/plan.json").readText().contains("\"diagnostics\""))
+        assertTrue(
+            projectDir.resolve(
+                "demo-application/src/main/kotlin/com/acme/demo/application/commands/video/encrypt/GenerateVideoHlsKeyCmd.kt"
+            ).toFile().exists()
+        )
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan and cap4kGenerate produce aggregate artifacts from db schema`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate")
         copyFixture(projectDir, "aggregate-sample")
@@ -252,6 +273,31 @@ class PipelinePluginFunctionalTest {
         assertTrue(planFile.readText().contains("\"items\""))
         assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/entity.kt.peb\""))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan skips unsupported tables when aggregate policy is skip`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-skip")
+        copyFixture(projectDir, "aggregate-policy-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan", "cap4kGenerate")
+            .build()
+
+        val planJson = projectDir.resolve("build/cap4k/plan.json").readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planJson.contains("\"unsupportedTables\""))
+        assertTrue(planJson.contains("\"tableName\": \"audit_log\""))
+        assertTrue(planJson.contains("\"reason\": \"composite_primary_key\""))
+        assertTrue(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+            ).toFile().exists()
+        )
     }
 
     @OptIn(ExperimentalPathApi::class)
