@@ -51,6 +51,10 @@ private class ImportsFunction : Function {
         context: EvaluationContext,
         lineNumber: Int,
     ): Any {
+        if (!args.containsKey("value")) {
+            throw IllegalArgumentException("imports() requires an argument.")
+        }
+
         val value = args["value"] ?: return emptyList<String>()
         return normalizeImports(extractImports(value))
     }

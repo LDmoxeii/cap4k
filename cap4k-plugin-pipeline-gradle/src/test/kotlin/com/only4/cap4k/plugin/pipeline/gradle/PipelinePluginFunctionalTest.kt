@@ -112,21 +112,25 @@ class PipelinePluginFunctionalTest {
         copyFixture(projectDir)
 
         val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
         buildFile.writeText(
-            buildFile.readText()
-                .replace(
-                    """
-                    |    }
-                    |}
-                    """.trimMargin(),
-                    """
-                    |    }
-                    |    templates {
-                    |        overrideDirs.from("codegen/templates")
-                    |    }
-                    |}
-                    """.trimMargin()
-                )
+            buildFileContent.replace(
+                """
+                |    }
+                |}
+                |
+                |tasks.named("cap4kPlan") {
+                """.trimMargin(),
+                """
+                |    }
+                |    templates {
+                |        overrideDirs.from("codegen/templates")
+                |    }
+                |}
+                |
+                |tasks.named("cap4kPlan") {
+                """.trimMargin()
+            )
         )
 
         val result = GradleRunner.create()

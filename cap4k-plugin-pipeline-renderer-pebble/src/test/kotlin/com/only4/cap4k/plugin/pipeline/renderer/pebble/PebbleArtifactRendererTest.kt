@@ -232,6 +232,53 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `imports helper fails fast when argument is missing`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-imports-missing")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText("""{{ imports() }}""")
+
+        val exception = assertThrows<Exception> {
+            PebbleArtifactRenderer(
+                templateResolver = PresetTemplateResolver(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString())
+                )
+            ).render(
+                planItems = listOf(
+                    ArtifactPlanItem(
+                        generatorId = "design",
+                        moduleRole = "application",
+                        templateId = "design/query.kt.peb",
+                        outputPath = "demo.kt",
+                        context = emptyMap(),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                ),
+                config = ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = emptyMap(),
+                    generators = emptyMap(),
+                    templates = TemplateConfig(
+                        preset = "ddd-default",
+                        overrideDirs = listOf(overrideDir.toString()),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                )
+            )
+        }
+
+        val illegalArgument = generateSequence<Throwable>(exception) { it.cause }
+            .filterIsInstance<IllegalArgumentException>()
+            .firstOrNull()
+
+        assertTrue(illegalArgument != null)
+        assertTrue(illegalArgument!!.message!!.contains("imports() requires an argument."))
+    }
+
+    @Test
     fun `type helper fails fast on unsupported input`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-helper-type-invalid")
         val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
