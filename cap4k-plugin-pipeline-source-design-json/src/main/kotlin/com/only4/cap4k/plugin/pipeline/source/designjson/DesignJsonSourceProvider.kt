@@ -13,11 +13,55 @@ class DesignJsonSourceProvider : SourceProvider {
     override val id: String = "design-json"
 
     override fun collect(config: ProjectConfig): DesignSpecSnapshot {
-        val files = config.sources[id]?.options?.get("files") as? List<*> ?: emptyList<Any>()
-        val entries = files
-            .map { File(it.toString()) }
+        val options = config.sources[id]?.options ?: emptyMap()
+        val entries = resolveFiles(options)
             .flatMap { parseFile(it) }
         return DesignSpecSnapshot(entries = entries)
+    }
+
+    private fun resolveFiles(options: Map<String, Any?>): List<File> {
+        val manifestFileOption = options["manifestFile"]?.toString()
+        if (!manifestFileOption.isNullOrBlank()) {
+            val projectDirOption = options["projectDir"]?.toString()
+            require(!projectDirOption.isNullOrBlank()) {
+                "design-json source option projectDir is required when manifestFile is set"
+            }
+
+            val manifestFile = File(manifestFileOption).canonicalFile
+            require(manifestFile.exists()) {
+                "design manifest file does not exist: ${manifestFile.path}"
+            }
+
+            val manifestEntries = manifestFile.reader(Charsets.UTF_8).use { reader ->
+                JsonParser.parseReader(reader).asJsonArray.map { it.asString }
+            }
+            require(manifestEntries.isNotEmpty()) {
+                "design manifest file must not be empty"
+            }
+
+            val projectDir = File(projectDirOption).canonicalFile
+            val files = manifestEntries
+                .map { entry -> File(projectDir, entry).canonicalFile }
+
+            val duplicates = files
+                .groupingBy { it.path }
+                .eachCount()
+                .filterValues { it > 1 }
+                .keys
+            require(duplicates.isEmpty()) {
+                "duplicate design manifest entry: ${duplicates.first()}"
+            }
+
+            files.forEach { file ->
+                require(file.exists()) {
+                    "design manifest entry file does not exist: ${file.path}"
+                }
+            }
+            return files
+        }
+
+        val files = options["files"] as? List<*> ?: emptyList<Any>()
+        return files.map { File(it.toString()) }
     }
 
     private fun parseFile(file: File): List<DesignSpecEntry> {

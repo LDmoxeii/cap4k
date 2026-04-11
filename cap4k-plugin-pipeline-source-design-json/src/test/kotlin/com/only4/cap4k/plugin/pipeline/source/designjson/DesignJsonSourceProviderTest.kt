@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -113,5 +114,151 @@ class DesignJsonSourceProviderTest {
         )
         val source = sourceFile.readText(StandardCharsets.UTF_8)
         assertTrue(source.contains("Charsets.UTF_8"))
+    }
+
+    @Test
+    fun `collects design entries from manifest file`() {
+        val projectDir = tempDir.resolve("project")
+        val designDir = projectDir.resolve("design")
+        Files.createDirectories(designDir)
+
+        val firstDesign = designDir.resolve("first.json")
+        Files.writeString(
+            firstDesign,
+            """
+                [
+                  {
+                    "tag": "cmd",
+                    "package": "order.submit",
+                    "name": "SubmitOrder",
+                    "desc": "submit order",
+                    "requestFields": [],
+                    "responseFields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val secondDesign = designDir.resolve("second.json")
+        Files.writeString(
+            secondDesign,
+            """
+                [
+                  {
+                    "tag": "qry",
+                    "package": "order.query",
+                    "name": "FindOrder",
+                    "desc": "find order",
+                    "requestFields": [],
+                    "responseFields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val manifestFile = projectDir.resolve("design-manifest.json")
+        Files.writeString(
+            manifestFile,
+            """
+                [
+                  "design/first.json",
+                  "design/second.json"
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val config = ProjectConfig(
+            basePackage = "com.only4.cap4k",
+            layout = ProjectLayout.SINGLE_MODULE,
+            modules = emptyMap(),
+            sources = mapOf(
+                "design-json" to SourceConfig(
+                    enabled = true,
+                    options = mapOf(
+                        "manifestFile" to manifestFile.toString(),
+                        "projectDir" to projectDir.toString(),
+                    ),
+                ),
+            ),
+            generators = emptyMap(),
+            templates = TemplateConfig(
+                preset = "default",
+                overrideDirs = emptyList(),
+                conflictPolicy = ConflictPolicy.SKIP,
+            ),
+        )
+
+        val snapshot = DesignJsonSourceProvider().collect(config) as DesignSpecSnapshot
+
+        assertEquals(2, snapshot.entries.size)
+        assertEquals("SubmitOrder", snapshot.entries.first().name)
+        assertEquals("FindOrder", snapshot.entries.last().name)
+    }
+
+    @Test
+    fun `fails when manifest contains duplicate file entries`() {
+        val projectDir = tempDir.resolve("project")
+        val designDir = projectDir.resolve("design")
+        Files.createDirectories(designDir)
+
+        val designFile = designDir.resolve("first.json")
+        Files.writeString(
+            designFile,
+            """
+                [
+                  {
+                    "tag": "cmd",
+                    "package": "order.submit",
+                    "name": "SubmitOrder",
+                    "desc": "submit order",
+                    "requestFields": [],
+                    "responseFields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val manifestFile = projectDir.resolve("design-manifest.json")
+        Files.writeString(
+            manifestFile,
+            """
+                [
+                  "design/first.json",
+                  "design/first.json"
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val config = ProjectConfig(
+            basePackage = "com.only4.cap4k",
+            layout = ProjectLayout.SINGLE_MODULE,
+            modules = emptyMap(),
+            sources = mapOf(
+                "design-json" to SourceConfig(
+                    enabled = true,
+                    options = mapOf(
+                        "manifestFile" to manifestFile.toString(),
+                        "projectDir" to projectDir.toString(),
+                    ),
+                ),
+            ),
+            generators = emptyMap(),
+            templates = TemplateConfig(
+                preset = "default",
+                overrideDirs = emptyList(),
+                conflictPolicy = ConflictPolicy.SKIP,
+            ),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(config)
+        }
+
+        assertTrue(error.message?.contains("duplicate design manifest entry") == true)
     }
 }
