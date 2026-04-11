@@ -102,7 +102,7 @@ class DesignArtifactPlannerTest {
             listOf(
                 DesignRenderFieldModel(name = "id", renderedType = "Long"),
                 DesignRenderFieldModel(name = "tags", renderedType = "List<String>"),
-                DesignRenderFieldModel(name = "address", renderedType = "Address", nullable = true),
+                DesignRenderFieldModel(name = "address", renderedType = "Address?", nullable = true),
                 DesignRenderFieldModel(name = "shippingAddresses", renderedType = "List<Address>"),
                 DesignRenderFieldModel(name = "createdAt", renderedType = "LocalDateTime"),
                 DesignRenderFieldModel(name = "externalItem", renderedType = "com.foo.Item"),
@@ -123,9 +123,9 @@ class DesignArtifactPlannerTest {
         )
         assertEquals(
             listOf(
-                DesignRenderFieldModel(name = "item", renderedType = "Item", nullable = true),
+                DesignRenderFieldModel(name = "item", renderedType = "Item?", nullable = true),
                 DesignRenderFieldModel(name = "relatedItems", renderedType = "List<Item>"),
-                DesignRenderFieldModel(name = "updatedAt", renderedType = "Instant", nullable = true),
+                DesignRenderFieldModel(name = "updatedAt", renderedType = "Instant?", nullable = true),
                 DesignRenderFieldModel(name = "scheduledAt", renderedType = "LocalDateTime"),
             ),
             command.context["responseFields"],

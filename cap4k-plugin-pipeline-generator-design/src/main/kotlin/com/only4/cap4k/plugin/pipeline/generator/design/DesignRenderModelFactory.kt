@@ -123,7 +123,7 @@ internal object DesignRenderModelFactory {
         renderedTypes: ArrayDeque<DesignRenderedTypeModel>,
     ): List<DesignRenderFieldModel> {
         return fields.map { field ->
-            field.toRenderField(renderedType = renderedTypes.removeFirst().renderedText)
+            field.toRenderField(renderedType = renderedTypes.removeFirst().renderedText.withNullability(field.nullable))
         }
     }
 
@@ -229,6 +229,13 @@ internal object DesignRenderModelFactory {
             nullable = nullable,
             defaultValue = defaultValue,
         )
+    }
+
+    private fun String.withNullability(nullable: Boolean): String {
+        if (!nullable || endsWith("?")) {
+            return this
+        }
+        return "$this?"
     }
 
     private data class NamespaceModel(
