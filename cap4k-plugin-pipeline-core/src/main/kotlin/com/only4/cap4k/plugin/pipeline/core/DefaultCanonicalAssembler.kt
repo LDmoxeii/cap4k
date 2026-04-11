@@ -16,6 +16,7 @@ import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
+import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.RequestKind
@@ -86,13 +87,23 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
             if (unsupportedReason == null) {
                 supportedTables += table
-            } else if (aggregatePolicy == UnsupportedTablePolicy.FAIL) {
-                throw IllegalArgumentException(
-                    "db table ${table.tableName} is unsupported for aggregate generation: $unsupportedReason"
-                )
             } else {
                 unsupportedTables += UnsupportedAggregateTable(tableName = table.tableName, reason = unsupportedReason)
             }
+        }
+
+        if (aggregatePolicy == UnsupportedTablePolicy.FAIL && unsupportedTables.isNotEmpty()) {
+            val firstUnsupported = unsupportedTables.first()
+            throw PipelineDiagnosticsException(
+                message = "db table ${firstUnsupported.tableName} is unsupported for aggregate generation: ${firstUnsupported.reason}",
+                diagnostics = requireNotNull(
+                    buildDiagnostics(
+                        snapshot = dbSnapshot,
+                        supportedTables = supportedTables,
+                        unsupportedTables = unsupportedTables,
+                    )
+                ) { "aggregate diagnostics must be available for db unsupported table failures" },
+            )
         }
 
         val aggregateModels = supportedTables.map { table ->
@@ -136,17 +147,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             )
         }
 
-        val diagnostics = dbSnapshot?.let { snapshot ->
-            PipelineDiagnostics(
-                aggregate = AggregateDiagnostics(
-                    discoveredTables = snapshot.discoveredTables,
-                    includedTables = snapshot.includedTables,
-                    excludedTables = snapshot.excludedTables,
-                    supportedTables = supportedTables.map { it.tableName }.sorted(),
-                    unsupportedTables = unsupportedTables.sortedBy { it.tableName },
-                )
-            )
-        }
+        val diagnostics = buildDiagnostics(
+            snapshot = dbSnapshot,
+            supportedTables = supportedTables,
+            unsupportedTables = unsupportedTables,
+        )
 
         val analysisGraph = analysisSnapshot?.let {
             AnalysisGraphModel(
@@ -237,6 +242,26 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
     private fun drawingBoardElementKey(element: DrawingBoardElementModel): String {
         return "${element.tag}|${element.packageName}|${element.name}"
+    }
+
+    private fun buildDiagnostics(
+        snapshot: DbSchemaSnapshot?,
+        supportedTables: List<com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot>,
+        unsupportedTables: List<UnsupportedAggregateTable>,
+    ): PipelineDiagnostics? {
+        if (snapshot == null) {
+            return null
+        }
+
+        return PipelineDiagnostics(
+            aggregate = AggregateDiagnostics(
+                discoveredTables = snapshot.discoveredTables,
+                includedTables = snapshot.includedTables,
+                excludedTables = snapshot.excludedTables,
+                supportedTables = supportedTables.map { it.tableName }.sorted(),
+                unsupportedTables = unsupportedTables.sortedBy { it.tableName },
+            )
+        )
     }
 
     private companion object {

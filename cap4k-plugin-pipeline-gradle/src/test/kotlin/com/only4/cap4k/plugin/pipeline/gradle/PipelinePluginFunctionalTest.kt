@@ -256,6 +256,46 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kPlan writes diagnostics envelope before failing on unsupported aggregate table`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-fail-diagnostics")
+        copyFixture(projectDir, "aggregate-sample")
+        projectDir.resolve("build.gradle.kts").writeText(
+            projectDir.resolve("build.gradle.kts").readText().replace(
+                "            includeTables.set(listOf(\"video_post\"))",
+                "            includeTables.set(listOf(\"video_post\", \"audit_log\"))",
+            )
+        )
+        projectDir.resolve("schema.sql").writeText(
+            projectDir.resolve("schema.sql").readText() +
+                """
+
+                create table audit_log (
+                  tenant_id bigint not null,
+                  event_id varchar(64) not null,
+                  constraint pk_audit_log primary key (tenant_id, event_id)
+                );
+                """.trimIndent()
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
+
+        assertTrue(result.output.contains("db table audit_log is unsupported for aggregate generation: composite_primary_key"))
+        assertTrue(planFile.exists())
+        assertTrue(planFile.readText().contains("\"items\": []"))
+        assertTrue(planFile.readText().contains("\"diagnostics\""))
+        assertTrue(planFile.readText().contains("\"unsupportedTables\""))
+        assertTrue(planFile.readText().contains("\"tableName\": \"audit_log\""))
+        assertTrue(planFile.readText().contains("\"reason\": \"composite_primary_key\""))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan fails fast on partial aggregate configuration`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-invalid")
         copyFixture(projectDir, "aggregate-sample")

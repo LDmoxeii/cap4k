@@ -17,6 +17,7 @@ import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
+import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
 import com.only4.cap4k.plugin.pipeline.api.RequestKind
@@ -520,6 +521,51 @@ class DefaultCanonicalAssemblerTest {
         }
 
         assertEquals("db table audit_log is unsupported for aggregate generation: composite_primary_key", error.message)
+    }
+
+    @Test
+    fun `fail mode surfaces diagnostics when unsupported table is encountered`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val error = assertThrows(PipelineDiagnosticsException::class.java) {
+            assembler.assemble(
+                config = baseAggregateConfig(),
+                snapshots = listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "audit_log",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("tenant_id", "BIGINT", "Long", false, null, "", true),
+                                    DbColumnSnapshot("event_id", "VARCHAR", "String", false, null, "", true),
+                                ),
+                                primaryKey = listOf("tenant_id", "event_id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, null, "", true),
+                                    DbColumnSnapshot("title", "VARCHAR", "String", false, null, "", false),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                        ),
+                        discoveredTables = listOf("audit_log", "video_post"),
+                        includedTables = listOf("audit_log", "video_post"),
+                        excludedTables = emptyList(),
+                    )
+                ),
+            )
+        }
+
+        assertEquals("db table audit_log is unsupported for aggregate generation: composite_primary_key", error.message)
+        assertEquals(listOf("video_post"), error.diagnostics.aggregate!!.supportedTables)
+        assertEquals("audit_log", error.diagnostics.aggregate!!.unsupportedTables.single().tableName)
+        assertEquals("composite_primary_key", error.diagnostics.aggregate!!.unsupportedTables.single().reason)
     }
 
     @Test

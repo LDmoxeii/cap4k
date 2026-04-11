@@ -226,6 +226,12 @@ data class PipelineDiagnostics(
     val aggregate: AggregateDiagnostics? = null,
 )
 
+class PipelineDiagnosticsException(
+    message: String,
+    val diagnostics: PipelineDiagnostics,
+    cause: Throwable? = null,
+) : IllegalArgumentException(message, cause)
+
 data class CanonicalAssemblyResult(
     val model: CanonicalModel,
     val diagnostics: PipelineDiagnostics? = null,
