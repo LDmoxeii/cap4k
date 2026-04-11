@@ -60,7 +60,7 @@ class PebbleArtifactRendererTest {
 
         assertEquals(
             "List<com.foo.Status?>",
-            rendered.single().content.substringBefore("String")
+            rendered.single().content.substringBefore("String").trim()
         )
         assertTrue(rendered.single().content.contains("String"))
     }
@@ -541,12 +541,16 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
+        assertFalse(content.contains("package com.acme.demo.application.commands.order.submitimport "))
+        assertTrue(content.contains("package com.acme.demo.application.commands.order.submit"))
         assertTrue(content.contains("import java.time.LocalDateTime"))
         assertTrue(content.contains("import java.util.UUID"))
         assertFalse(content.contains("import com.foo.Status"))
         assertFalse(content.contains("import com.bar.Status"))
         assertTrue(content.contains("object SubmitOrderCmd"))
         assertTrue(content.contains("data class Request("))
+        assertFalse(content.contains("val orderId: Long,        val address: Address?"))
+        assertFalse(content.contains("val address: Address?,        val createdAt: LocalDateTime"))
         assertTrue(content.contains("val address: Address?"))
         assertFalse(content.contains("val address: Address??"))
         assertTrue(content.contains("val createdAt: LocalDateTime"))
@@ -760,16 +764,16 @@ class PebbleArtifactRendererTest {
             )
         )
 
-        assertEquals("""{"entryId":"OrderController::submit","edgeCount":2}""", rendered[0].content)
+        assertEquals("""{"entryId":"OrderController::submit","edgeCount":2}""", rendered[0].content.trim())
         assertEquals(
             """
             flowchart TD
               N1[OrderController::submit]
               N1 -->|ControllerMethodToCommand| N2[SubmitOrderCmd]
             """.trimIndent(),
-            rendered[1].content,
+            rendered[1].content.trim(),
         )
-        assertEquals("""{"flowCount":1,"inputDirs":["app/build/cap4k-code-analysis"]}""", rendered[2].content)
+        assertEquals("""{"flowCount":1,"inputDirs":["app/build/cap4k-code-analysis"]}""", rendered[2].content.trim())
     }
 
     @Test

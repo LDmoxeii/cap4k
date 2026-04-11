@@ -16,6 +16,7 @@ class PebbleArtifactRenderer(
     private val engine = PebbleEngine.Builder()
         .loader(StringLoader())
         .extension(PipelinePebbleExtension())
+        .newLineTrimming(false)
         .build()
 
     override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> =
