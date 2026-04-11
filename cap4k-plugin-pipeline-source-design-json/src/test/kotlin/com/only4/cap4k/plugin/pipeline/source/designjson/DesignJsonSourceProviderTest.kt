@@ -261,4 +261,36 @@ class DesignJsonSourceProviderTest {
 
         assertTrue(error.message?.contains("duplicate design manifest entry") == true)
     }
+
+    @Test
+    fun `fails when manifest option exists but is blank`() {
+        val fixture = File("src/test/resources/fixtures/design/design.json").path
+        val config = ProjectConfig(
+            basePackage = "com.only4.cap4k",
+            layout = ProjectLayout.SINGLE_MODULE,
+            modules = emptyMap(),
+            sources = mapOf(
+                "design-json" to SourceConfig(
+                    enabled = true,
+                    options = mapOf(
+                        "manifestFile" to "   ",
+                        "projectDir" to tempDir.toString(),
+                        "files" to listOf(fixture),
+                    ),
+                ),
+            ),
+            generators = emptyMap(),
+            templates = TemplateConfig(
+                preset = "default",
+                overrideDirs = emptyList(),
+                conflictPolicy = ConflictPolicy.SKIP,
+            ),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(config)
+        }
+
+        assertTrue(error.message?.contains("manifestFile") == true)
+    }
 }

@@ -20,8 +20,11 @@ class DesignJsonSourceProvider : SourceProvider {
     }
 
     private fun resolveFiles(options: Map<String, Any?>): List<File> {
-        val manifestFileOption = options["manifestFile"]?.toString()
-        if (!manifestFileOption.isNullOrBlank()) {
+        if (options.containsKey("manifestFile")) {
+            val manifestFileOption = options["manifestFile"]?.toString()
+            require(!manifestFileOption.isNullOrBlank()) {
+                "design-json source option manifestFile must not be blank"
+            }
             val projectDirOption = options["projectDir"]?.toString()
             require(!projectDirOption.isNullOrBlank()) {
                 "design-json source option projectDir is required when manifestFile is set"
