@@ -565,6 +565,81 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `falls back to preset design templates and renders field default values`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-defaults")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/command.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.commands.order.submit",
+                        "typeName" to "SubmitOrderCmd",
+                        "imports" to emptyList<String>(),
+                        "requestFields" to listOf(
+                            mapOf("name" to "title", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"demo\""),
+                            mapOf("name" to "retryCount", "renderedType" to "Long", "nullable" to false, "defaultValue" to "1L"),
+                        ),
+                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "responseFields" to listOf(
+                            mapOf("name" to "enabled", "renderedType" to "Boolean", "nullable" to false, "defaultValue" to "true"),
+                        ),
+                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.queries",
+                        "typeName" to "FindOrderQry",
+                        "imports" to emptyList<String>(),
+                        "requestFields" to listOf(
+                            mapOf("name" to "status", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"ACTIVE\""),
+                        ),
+                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "responseFields" to emptyList<Map<String, Any?>>(),
+                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val commandContent = rendered[0].content
+        val queryContent = rendered[1].content
+
+        assertTrue(commandContent.contains("val title: String = \"demo\""))
+        assertTrue(commandContent.contains("val retryCount: Long = 1L"))
+        assertTrue(commandContent.contains("val enabled: Boolean = true"))
+        assertTrue(queryContent.contains("val status: String = \"ACTIVE\""))
+    }
+
+    @Test
     fun `renders empty request and response as stable objects`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-empty")
         val renderer = PebbleArtifactRenderer(
