@@ -31,6 +31,18 @@ class DefaultValueFormatterTest {
     }
 
     @Test
+    fun `quoted string with supported escapes remains unchanged`() {
+        val actual = DefaultValueFormatter.format(
+            rawDefaultValue = "\"line1\\nline2\\t\\r\\\$value\\\\\\\"\"",
+            renderedType = "String",
+            nullable = false,
+            fieldName = "title",
+        )
+
+        assertEquals("\"line1\\nline2\\t\\r\\\$value\\\\\\\"\"", actual)
+    }
+
+    @Test
     fun `long literal gets suffix when needed`() {
         val actual = DefaultValueFormatter.format(
             rawDefaultValue = "1",
@@ -122,6 +134,18 @@ class DefaultValueFormatterTest {
         )
 
         assertEquals("VideoStatus.PROCESSING", actual)
+    }
+
+    @Test
+    fun `matching simple constant expression owner is preserved`() {
+        val actual = DefaultValueFormatter.format(
+            rawDefaultValue = "LocalDateTime.MIN",
+            renderedType = "LocalDateTime",
+            nullable = false,
+            fieldName = "createdAt",
+        )
+
+        assertEquals("LocalDateTime.MIN", actual)
     }
 
     @Test
@@ -253,6 +277,23 @@ class DefaultValueFormatterTest {
 
         assertEquals(
             "invalid default value for field title: unsupported default value expression: VideoStatus.PROCESSING",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `malformed quoted string is rejected`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "\"bad\\q\"",
+                renderedType = "String",
+                nullable = false,
+                fieldName = "title",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field title: invalid String literal: \"bad\\q\"",
             ex.message,
         )
     }
@@ -452,6 +493,23 @@ class DefaultValueFormatterTest {
 
         assertEquals(
             "invalid default value for field tags: unsupported default value expression: VideoStatus.PROCESSING",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `mismatched constant expression owner is rejected`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "VideoStatus.PROCESSING",
+                renderedType = "LocalDateTime",
+                nullable = false,
+                fieldName = "createdAt",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field createdAt: unsupported default value expression: VideoStatus.PROCESSING",
             ex.message,
         )
     }

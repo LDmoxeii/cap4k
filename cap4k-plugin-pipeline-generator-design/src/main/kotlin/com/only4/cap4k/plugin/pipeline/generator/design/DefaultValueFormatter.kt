@@ -40,7 +40,7 @@ internal object DefaultValueFormatter {
         }
 
         return when (normalizedType) {
-            "String" -> normalizeString(value)
+            "String" -> normalizeString(value, fieldName)
             "Int" -> normalizeInt(value, fieldName)
             "Long" -> normalizeLong(value, fieldName)
             "Double" -> normalizeDouble(value, fieldName)
@@ -50,8 +50,11 @@ internal object DefaultValueFormatter {
         }
     }
 
-    private fun normalizeString(value: String): String {
+    private fun normalizeString(value: String, fieldName: String): String {
         if (value.length >= 2 && value.first() == '"' && value.last() == '"') {
+            require(isValidQuotedStringLiteral(value)) {
+                "invalid default value for field $fieldName: invalid String literal: $value"
+            }
             return value
         }
         return buildString {
@@ -124,12 +127,21 @@ internal object DefaultValueFormatter {
             if (isCollectionLikeType(normalizedType)) {
                 throw IllegalArgumentException("invalid default value for field $fieldName: unsupported default value expression: $value")
             }
+            require(isCompatibleConstantExpression(value, normalizedType)) {
+                "invalid default value for field $fieldName: unsupported default value expression: $value"
+            }
             return value
         }
         throw IllegalArgumentException("invalid default value for field $fieldName: unsupported default value expression: $value")
     }
 
     private fun isConstantExpression(value: String): Boolean = constantExpressionPattern.matches(value)
+
+    private fun isCompatibleConstantExpression(value: String, normalizedType: String): Boolean {
+        val ownerType = value.substringBeforeLast(".")
+        val renderedType = normalizedType.substringBefore("<").trim()
+        return ownerType == renderedType || ownerType.substringAfterLast(".") == renderedType.substringAfterLast(".")
+    }
 
     private fun isCompatibleEmptyCollection(value: String, normalizedType: String): Boolean {
         val rawType = rawTypeOf(normalizedType)
@@ -146,6 +158,25 @@ internal object DefaultValueFormatter {
 
     private fun rawTypeOf(normalizedType: String): String = normalizedType.substringBefore("<").substringAfterLast(".").trim()
 
+    private fun isValidQuotedStringLiteral(value: String): Boolean {
+        var index = 1
+        while (index < value.length - 1) {
+            if (value[index] == '\\') {
+                if (index + 1 >= value.length - 1) {
+                    return false
+                }
+                if (value[index + 1] !in supportedStringEscapes) {
+                    return false
+                }
+                index += 2
+                continue
+            }
+            index++
+        }
+        return true
+    }
+
     private val builtInScalarTypes = setOf("String", "Int", "Long", "Double", "Float", "Boolean")
     private val collectionLikeTypes = setOf("List", "MutableList", "Set", "MutableSet", "Collection", "MutableCollection", "Iterable")
+    private val supportedStringEscapes = setOf('\\', '"', 'n', 'r', 't', '$')
 }
