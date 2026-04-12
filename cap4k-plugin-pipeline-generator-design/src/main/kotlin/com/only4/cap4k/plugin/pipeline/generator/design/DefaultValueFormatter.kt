@@ -31,6 +31,10 @@ internal object DefaultValueFormatter {
             return value
         }
 
+        if (value in supportedEmptyCollections || isConstantExpression(value)) {
+            return value
+        }
+
         return when (renderedType.removeSuffix("?").trim()) {
             "String" -> normalizeString(value)
             "Long" -> normalizeLong(value, fieldName)
@@ -43,7 +47,17 @@ internal object DefaultValueFormatter {
         if (value.length >= 2 && value.first() == '"' && value.last() == '"') {
             return value
         }
-        return "\"$value\""
+        return buildString {
+            append('"')
+            value.forEach { ch ->
+                when (ch) {
+                    '\\' -> append("\\\\")
+                    '"' -> append("\\\"")
+                    else -> append(ch)
+                }
+            }
+            append('"')
+        }
     }
 
     private fun normalizeLong(value: String, fieldName: String): String {
@@ -61,9 +75,8 @@ internal object DefaultValueFormatter {
     }
 
     private fun normalizeExpression(value: String, fieldName: String): String {
-        if (value in supportedEmptyCollections || constantExpressionPattern.matches(value)) {
-            return value
-        }
         throw IllegalArgumentException("invalid default value for field $fieldName: unsupported default value expression: $value")
     }
+
+    private fun isConstantExpression(value: String): Boolean = constantExpressionPattern.matches(value)
 }

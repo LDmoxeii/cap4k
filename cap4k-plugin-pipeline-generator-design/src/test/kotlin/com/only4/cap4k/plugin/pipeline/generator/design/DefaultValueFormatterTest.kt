@@ -55,6 +55,42 @@ class DefaultValueFormatterTest {
     }
 
     @Test
+    fun `constant expression is preserved for string-compatible type`() {
+        val actual = DefaultValueFormatter.format(
+            rawDefaultValue = "VideoStatus.PROCESSING",
+            renderedType = "String",
+            nullable = false,
+            fieldName = "title",
+        )
+
+        assertEquals("VideoStatus.PROCESSING", actual)
+    }
+
+    @Test
+    fun `constant expression is preserved for long-compatible type`() {
+        val actual = DefaultValueFormatter.format(
+            rawDefaultValue = "java.time.LocalDateTime.MIN",
+            renderedType = "Long",
+            nullable = false,
+            fieldName = "retryCount",
+        )
+
+        assertEquals("java.time.LocalDateTime.MIN", actual)
+    }
+
+    @Test
+    fun `constant expression is preserved for boolean-compatible type`() {
+        val actual = DefaultValueFormatter.format(
+            rawDefaultValue = "FeatureFlags.ENABLED",
+            renderedType = "Boolean",
+            nullable = false,
+            fieldName = "enabled",
+        )
+
+        assertEquals("FeatureFlags.ENABLED", actual)
+    }
+
+    @Test
     fun `supported empty collection expressions are preserved`() {
         assertEquals(
             "emptyList()",
@@ -95,6 +131,18 @@ class DefaultValueFormatterTest {
     }
 
     @Test
+    fun `nullable field accepts null`() {
+        val actual = DefaultValueFormatter.format(
+            rawDefaultValue = "null",
+            renderedType = "String",
+            nullable = true,
+            fieldName = "title",
+        )
+
+        assertEquals("null", actual)
+    }
+
+    @Test
     fun `null default is rejected for non-nullable field`() {
         val ex = assertThrows(IllegalArgumentException::class.java) {
             DefaultValueFormatter.format(
@@ -107,6 +155,62 @@ class DefaultValueFormatterTest {
 
         assertEquals(
             "invalid default value for field title: null is only allowed for nullable fields",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `escapes embedded backslashes and quotes in raw string defaults`() {
+        assertEquals(
+            "\"C:\\\\tmp\"",
+            DefaultValueFormatter.format(
+                rawDefaultValue = "C:\\tmp",
+                renderedType = "String",
+                nullable = false,
+                fieldName = "path",
+            ),
+        )
+        assertEquals(
+            "\"he said \\\"x\\\"\"",
+            DefaultValueFormatter.format(
+                rawDefaultValue = "he said \"x\"",
+                renderedType = "String",
+                nullable = false,
+                fieldName = "message",
+            ),
+        )
+    }
+
+    @Test
+    fun `invalid long literal is rejected`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "12abc",
+                renderedType = "Long",
+                nullable = false,
+                fieldName = "retryCount",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field retryCount: 12abc is not a valid Long literal",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `unsupported expression is rejected`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "foo(bar)",
+                renderedType = "VideoStatus",
+                nullable = false,
+                fieldName = "status",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field status: unsupported default value expression: foo(bar)",
             ex.message,
         )
     }
