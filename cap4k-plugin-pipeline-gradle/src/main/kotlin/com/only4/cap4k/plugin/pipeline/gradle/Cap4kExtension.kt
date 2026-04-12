@@ -8,12 +8,17 @@ import javax.inject.Inject
 
 open class Cap4kExtension @Inject constructor(objects: ObjectFactory) {
     val project: Cap4kProjectExtension = objects.newInstance(Cap4kProjectExtension::class.java)
+    val types: Cap4kTypesExtension = objects.newInstance(Cap4kTypesExtension::class.java)
     val sources: Cap4kSourcesExtension = objects.newInstance(Cap4kSourcesExtension::class.java)
     val generators: Cap4kGeneratorsExtension = objects.newInstance(Cap4kGeneratorsExtension::class.java)
     val templates: Cap4kTemplatesExtension = objects.newInstance(Cap4kTemplatesExtension::class.java)
 
     fun project(block: Cap4kProjectExtension.() -> Unit) {
         project.block()
+    }
+
+    fun types(block: Cap4kTypesExtension.() -> Unit) {
+        types.block()
     }
 
     fun sources(block: Cap4kSourcesExtension.() -> Unit) {
@@ -36,6 +41,10 @@ open class Cap4kProjectExtension @Inject constructor(objects: ObjectFactory) {
     val applicationModulePath: Property<String> = objects.property(String::class.java)
     val domainModulePath: Property<String> = objects.property(String::class.java)
     val adapterModulePath: Property<String> = objects.property(String::class.java)
+}
+
+open class Cap4kTypesExtension @Inject constructor(objects: ObjectFactory) {
+    val registryFile: Property<String> = objects.property(String::class.java)
 }
 
 open class Cap4kSourcesExtension @Inject constructor(objects: ObjectFactory) {
