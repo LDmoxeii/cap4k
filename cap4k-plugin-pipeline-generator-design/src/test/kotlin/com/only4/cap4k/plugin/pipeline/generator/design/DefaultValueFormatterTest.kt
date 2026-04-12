@@ -31,8 +31,6 @@ class DefaultValueFormatterTest {
     }
 
     @Test
-<<<<<<< HEAD
-=======
     fun `quoted string with supported escapes remains unchanged`() {
         val actual = DefaultValueFormatter.format(
             rawDefaultValue = "\"line1\\nline2\\t\\r\\\$value\\\\\\\"\"",
@@ -101,7 +99,6 @@ class DefaultValueFormatterTest {
     }
 
     @Test
->>>>>>> feat/design-default-value
     fun `long literal gets suffix when needed`() {
         val actual = DefaultValueFormatter.format(
             rawDefaultValue = "1",
@@ -114,34 +111,6 @@ class DefaultValueFormatterTest {
     }
 
     @Test
-<<<<<<< HEAD
-    fun `numeric built in defaults preserve kotlin literals`() {
-        assertEquals(
-            "1",
-            DefaultValueFormatter.format(
-                rawDefaultValue = "1",
-                renderedType = "Int",
-                nullable = false,
-                fieldName = "retryCount",
-            ),
-        )
-        assertEquals(
-            "1.0",
-            DefaultValueFormatter.format(
-                rawDefaultValue = "1.0",
-                renderedType = "Double",
-                nullable = false,
-                fieldName = "ratio",
-            ),
-        )
-        assertEquals(
-            "1f",
-            DefaultValueFormatter.format(
-                rawDefaultValue = "1f",
-                renderedType = "Float",
-                nullable = false,
-                fieldName = "scale",
-=======
     fun `int literal is preserved`() {
         val actual = DefaultValueFormatter.format(
             rawDefaultValue = "42",
@@ -183,53 +152,11 @@ class DefaultValueFormatterTest {
                 renderedType = "Double",
                 nullable = false,
                 fieldName = "threshold",
->>>>>>> feat/design-default-value
             ),
         )
     }
 
     @Test
-<<<<<<< HEAD
-    fun `numeric built in defaults reject invalid literals`() {
-        val intEx = assertThrows(IllegalArgumentException::class.java) {
-            DefaultValueFormatter.format(
-                rawDefaultValue = "1.0",
-                renderedType = "Int",
-                nullable = false,
-                fieldName = "retryCount",
-            )
-        }
-        assertEquals(
-            "invalid default value for field retryCount: 1.0 is not a valid Int literal",
-            intEx.message,
-        )
-
-        val doubleEx = assertThrows(IllegalArgumentException::class.java) {
-            DefaultValueFormatter.format(
-                rawDefaultValue = "1f",
-                renderedType = "Double",
-                nullable = false,
-                fieldName = "ratio",
-            )
-        }
-        assertEquals(
-            "invalid default value for field ratio: 1f is not a valid Double literal",
-            doubleEx.message,
-        )
-
-        val floatEx = assertThrows(IllegalArgumentException::class.java) {
-            DefaultValueFormatter.format(
-                rawDefaultValue = "1",
-                renderedType = "Float",
-                nullable = false,
-                fieldName = "scale",
-            )
-        }
-        assertEquals(
-            "invalid default value for field scale: 1 is not a valid Float literal",
-            floatEx.message,
-        )
-=======
     fun `float literal with suffix is preserved`() {
         val actual = DefaultValueFormatter.format(
             rawDefaultValue = "2.5f",
@@ -239,7 +166,6 @@ class DefaultValueFormatterTest {
         )
 
         assertEquals("2.5f", actual)
->>>>>>> feat/design-default-value
     }
 
     @Test
@@ -255,8 +181,6 @@ class DefaultValueFormatterTest {
     }
 
     @Test
-<<<<<<< HEAD
-=======
     fun `constant expression is preserved for compatible custom type`() {
         val actual = DefaultValueFormatter.format(
             rawDefaultValue = "VideoStatus.PROCESSING",
@@ -293,7 +217,6 @@ class DefaultValueFormatterTest {
     }
 
     @Test
->>>>>>> feat/design-default-value
     fun `supported empty collection expressions are preserved`() {
         assertEquals(
             "emptyList()",
@@ -334,34 +257,6 @@ class DefaultValueFormatterTest {
     }
 
     @Test
-<<<<<<< HEAD
-    fun `incompatible empty collection expressions are rejected`() {
-        val mutableListEx = assertThrows(IllegalArgumentException::class.java) {
-            DefaultValueFormatter.format(
-                rawDefaultValue = "emptyList()",
-                renderedType = "MutableList<String>",
-                nullable = false,
-                fieldName = "tags",
-            )
-        }
-        assertEquals(
-            "invalid default value for field tags: emptyList() is incompatible with rendered type MutableList<String>",
-            mutableListEx.message,
-        )
-
-        val setEx = assertThrows(IllegalArgumentException::class.java) {
-            DefaultValueFormatter.format(
-                rawDefaultValue = "mutableListOf()",
-                renderedType = "Set<String>",
-                nullable = false,
-                fieldName = "tags",
-            )
-        }
-        assertEquals(
-            "invalid default value for field tags: mutableListOf() is incompatible with rendered type Set<String>",
-            setEx.message,
-        )
-=======
     fun `nullable compatible empty collection expression is preserved`() {
         val actual = DefaultValueFormatter.format(
             rawDefaultValue = "emptyList()",
@@ -383,7 +278,6 @@ class DefaultValueFormatterTest {
         )
 
         assertEquals("null", actual)
->>>>>>> feat/design-default-value
     }
 
     @Test
@@ -404,8 +298,6 @@ class DefaultValueFormatterTest {
     }
 
     @Test
-<<<<<<< HEAD
-=======
     fun `escapes embedded backslashes and quotes in raw string defaults`() {
         assertEquals(
             "\"C:\\\\tmp\"",
@@ -725,7 +617,6 @@ class DefaultValueFormatterTest {
     }
 
     @Test
->>>>>>> feat/design-default-value
     fun `invalid boolean literal is rejected`() {
         val ex = assertThrows(IllegalArgumentException::class.java) {
             DefaultValueFormatter.format(

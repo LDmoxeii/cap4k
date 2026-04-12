@@ -13,15 +13,9 @@ internal object DefaultValueFormatter {
     )
 
     private val intLiteralPattern = Regex("""-?\d+""")
-<<<<<<< HEAD
-    private val doubleLiteralPattern = Regex("""-?\d+\.\d+(?:[dD])?""")
-    private val floatLiteralPattern = Regex("""-?\d+(?:\.\d+)?[fF]""")
-    private val longLiteralPattern = Regex("""-?\d+[lL]?""")
-=======
     private val longLiteralPattern = Regex("""-?\d+[lL]?""")
     private val doubleLiteralPattern = Regex("""-?(?:(?:\d+\.\d*|\.\d+)(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)""")
     private val floatLiteralPattern = Regex("""-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?[fF]""")
->>>>>>> feat/design-default-value
 
     fun format(
         rawDefaultValue: String?,
@@ -40,24 +34,6 @@ internal object DefaultValueFormatter {
             return value
         }
 
-<<<<<<< HEAD
-        return when (renderedType.removeSuffix("?").trim()) {
-            "String" -> normalizeString(value)
-            "Int" -> normalizeInt(value, fieldName)
-            "Double" -> normalizeDouble(value, fieldName)
-            "Float" -> normalizeFloat(value, fieldName)
-            "Long" -> normalizeLong(value, fieldName)
-            "Boolean" -> normalizeBoolean(value, fieldName)
-            else -> normalizeExpression(value, renderedType.removeSuffix("?").trim(), fieldName)
-        }
-    }
-
-    private fun normalizeString(value: String): String {
-        if (value.length >= 2 && value.first() == '"' && value.last() == '"') {
-            return value
-        }
-        return "\"$value\""
-=======
         val normalizedType = renderedType.removeSuffix("?").trim()
         if (normalizedType in builtInScalarTypes && isConstantExpression(value)) {
             throw IllegalArgumentException("invalid default value for field $fieldName: unsupported default value expression: $value")
@@ -96,20 +72,16 @@ internal object DefaultValueFormatter {
             }
             append('"')
         }
->>>>>>> feat/design-default-value
     }
 
     private fun normalizeLong(value: String, fieldName: String): String {
         require(longLiteralPattern.matches(value)) {
             "invalid default value for field $fieldName: $value is not a valid Long literal"
         }
-<<<<<<< HEAD
-=======
         val parsedValue = value.removeSuffix("l").removeSuffix("L")
         require(parsedValue.toLongOrNull() != null) {
             "invalid default value for field $fieldName: $value is not a valid Long literal"
         }
->>>>>>> feat/design-default-value
         return if (value.endsWith("L")) value else value.removeSuffix("l") + "L"
     }
 
@@ -117,12 +89,9 @@ internal object DefaultValueFormatter {
         require(intLiteralPattern.matches(value)) {
             "invalid default value for field $fieldName: $value is not a valid Int literal"
         }
-<<<<<<< HEAD
-=======
         require(value.toIntOrNull() != null) {
             "invalid default value for field $fieldName: $value is not a valid Int literal"
         }
->>>>>>> feat/design-default-value
         return value
     }
 
@@ -147,16 +116,6 @@ internal object DefaultValueFormatter {
         return value
     }
 
-<<<<<<< HEAD
-    private fun normalizeExpression(value: String, renderedType: String, fieldName: String): String {
-        if (value in supportedEmptyCollections) {
-            require(isCompatibleEmptyCollection(value, renderedType)) {
-                "invalid default value for field $fieldName: $value is incompatible with rendered type $renderedType"
-            }
-            return value
-        }
-        if (constantExpressionPattern.matches(value)) {
-=======
     private fun normalizeExpression(value: String, normalizedType: String, fieldName: String): String {
         if (value in supportedEmptyCollections) {
             require(isCompatibleEmptyCollection(value, normalizedType)) {
@@ -171,20 +130,11 @@ internal object DefaultValueFormatter {
             require(isCompatibleConstantExpression(value, normalizedType)) {
                 "invalid default value for field $fieldName: unsupported default value expression: $value"
             }
->>>>>>> feat/design-default-value
             return value
         }
         throw IllegalArgumentException("invalid default value for field $fieldName: unsupported default value expression: $value")
     }
 
-<<<<<<< HEAD
-    private fun isCompatibleEmptyCollection(value: String, renderedType: String): Boolean {
-        return when (value) {
-            "emptyList()" -> collectionBaseName(renderedType) == "List"
-            "emptySet()" -> collectionBaseName(renderedType) == "Set"
-            "mutableListOf()" -> collectionBaseName(renderedType) == "List" || collectionBaseName(renderedType) == "MutableList"
-            "mutableSetOf()" -> collectionBaseName(renderedType) == "Set" || collectionBaseName(renderedType) == "MutableSet"
-=======
     private fun isConstantExpression(value: String): Boolean = constantExpressionPattern.matches(value)
 
     private fun isCompatibleConstantExpression(value: String, normalizedType: String): Boolean {
@@ -203,14 +153,10 @@ internal object DefaultValueFormatter {
             "emptySet()" -> rawType in setOf("Set", "Collection", "Iterable")
             "mutableListOf()" -> rawType in setOf("MutableList", "MutableCollection", "List", "Collection", "Iterable")
             "mutableSetOf()" -> rawType in setOf("MutableSet", "MutableCollection", "Set", "Collection", "Iterable")
->>>>>>> feat/design-default-value
             else -> false
         }
     }
 
-<<<<<<< HEAD
-    private fun collectionBaseName(renderedType: String): String = renderedType.substringBefore('<').trim()
-=======
     private fun isCollectionLikeType(normalizedType: String): Boolean = rawTypeOf(normalizedType) in collectionLikeTypes
 
     private fun rawTypeOf(normalizedType: String): String = normalizedType.substringBefore("<").substringAfterLast(".").trim()
@@ -254,5 +200,4 @@ internal object DefaultValueFormatter {
     private val builtInScalarTypes = setOf("String", "Int", "Long", "Double", "Float", "Boolean")
     private val collectionLikeTypes = setOf("List", "MutableList", "Set", "MutableSet", "Collection", "MutableCollection", "Iterable")
     private val supportedStringEscapes = setOf('\\', '"', '\'', 'b', 'n', 'r', 't', '$')
->>>>>>> feat/design-default-value
 }
