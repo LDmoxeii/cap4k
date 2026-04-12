@@ -67,6 +67,28 @@ class DefaultValueFormatterTest {
     }
 
     @Test
+    fun `double exponent literals are preserved`() {
+        assertEquals(
+            "1e3",
+            DefaultValueFormatter.format(
+                rawDefaultValue = "1e3",
+                renderedType = "Double",
+                nullable = false,
+                fieldName = "threshold",
+            ),
+        )
+        assertEquals(
+            "1.0e3",
+            DefaultValueFormatter.format(
+                rawDefaultValue = "1.0e3",
+                renderedType = "Double",
+                nullable = false,
+                fieldName = "threshold",
+            ),
+        )
+    }
+
+    @Test
     fun `float literal with suffix is preserved`() {
         val actual = DefaultValueFormatter.format(
             rawDefaultValue = "2.5f",
@@ -380,6 +402,23 @@ class DefaultValueFormatterTest {
         assertEquals(
             "invalid default value for field tags: mutableSetOf() is not compatible with MutableList<String>",
             setEx.message,
+        )
+    }
+
+    @Test
+    fun `collection constant expression is rejected`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "VideoStatus.PROCESSING",
+                renderedType = "List<String>",
+                nullable = false,
+                fieldName = "tags",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field tags: unsupported default value expression: VideoStatus.PROCESSING",
+            ex.message,
         )
     }
 

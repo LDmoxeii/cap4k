@@ -14,7 +14,7 @@ internal object DefaultValueFormatter {
 
     private val intLiteralPattern = Regex("""-?\d+""")
     private val longLiteralPattern = Regex("""-?\d+[lL]?""")
-    private val doubleLiteralPattern = Regex("""-?(?:\d+\.\d*|\.\d+)(?:[eE][+-]?\d+)?""")
+    private val doubleLiteralPattern = Regex("""-?(?:(?:\d+\.\d*|\.\d+)(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)""")
     private val floatLiteralPattern = Regex("""-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?[fF]""")
 
     fun format(
@@ -114,6 +114,9 @@ internal object DefaultValueFormatter {
             return value
         }
         if (isConstantExpression(value)) {
+            if (isCollectionLikeType(normalizedType)) {
+                throw IllegalArgumentException("invalid default value for field $fieldName: unsupported default value expression: $value")
+            }
             return value
         }
         throw IllegalArgumentException("invalid default value for field $fieldName: unsupported default value expression: $value")
@@ -122,7 +125,7 @@ internal object DefaultValueFormatter {
     private fun isConstantExpression(value: String): Boolean = constantExpressionPattern.matches(value)
 
     private fun isCompatibleEmptyCollection(value: String, normalizedType: String): Boolean {
-        val rawType = normalizedType.substringBefore("<").substringAfterLast(".").trim()
+        val rawType = rawTypeOf(normalizedType)
         return when (value) {
             "emptyList()" -> rawType in setOf("List", "Collection", "Iterable")
             "emptySet()" -> rawType in setOf("Set", "Collection", "Iterable")
@@ -132,5 +135,10 @@ internal object DefaultValueFormatter {
         }
     }
 
+    private fun isCollectionLikeType(normalizedType: String): Boolean = rawTypeOf(normalizedType) in collectionLikeTypes
+
+    private fun rawTypeOf(normalizedType: String): String = normalizedType.substringBefore("<").substringAfterLast(".").trim()
+
     private val builtInScalarTypes = setOf("String", "Int", "Long", "Double", "Float", "Boolean")
+    private val collectionLikeTypes = setOf("List", "MutableList", "Set", "MutableSet", "Collection", "MutableCollection", "Iterable")
 }
