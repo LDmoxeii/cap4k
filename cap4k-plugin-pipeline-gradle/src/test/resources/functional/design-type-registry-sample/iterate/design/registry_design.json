@@ -1,0 +1,13 @@
+[
+  {
+    "tag": "cmd",
+    "package": "video.publish",
+    "name": "PublishVideo",
+    "desc": "publish video",
+    "aggregates": ["Video"],
+    "requestFields": [
+      { "name": "targetStatus", "type": "VideoStatus" }
+    ],
+    "responseFields": []
+  }
+]
