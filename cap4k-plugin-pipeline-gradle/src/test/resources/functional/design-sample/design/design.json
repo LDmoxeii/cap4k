@@ -6,12 +6,14 @@
     "desc": "submit order command",
     "aggregates": ["Order"],
     "requestFields": [
-      { "name": "orderId", "type": "Long" },
-      { "name": "tags", "type": "List<String>" },
+      { "name": "title", "type": "String", "defaultValue": "demo" },
+      { "name": "orderId", "type": "Long", "defaultValue": "1" },
+      { "name": "enabled", "type": "Boolean", "defaultValue": "true" },
+      { "name": "tags", "type": "List<String>", "defaultValue": "emptyList()" },
       { "name": "address", "type": "Address", "nullable": true },
       { "name": "address.city", "type": "String" },
       { "name": "address.zipCode", "type": "String" },
-      { "name": "createdAt", "type": "java.time.LocalDateTime" }
+      { "name": "createdAt", "type": "java.time.LocalDateTime", "defaultValue": "java.time.LocalDateTime.MIN" }
     ],
     "responseFields": [
       { "name": "accepted", "type": "Boolean" },

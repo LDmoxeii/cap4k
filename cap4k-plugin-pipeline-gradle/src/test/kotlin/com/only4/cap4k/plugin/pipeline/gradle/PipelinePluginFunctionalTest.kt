@@ -112,6 +112,49 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kGenerate renders explicit default values in generated design source`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-default-values")
+        copyFixture(projectDir, "design-sample")
+        useFixtureDesignJson(projectDir)
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val generatedFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt"
+        )
+        val content = generatedFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedFile.toFile().exists())
+        assertTrue(content.contains("val title: String = \"demo\""))
+        assertTrue(content.contains("val orderId: Long = 1L"))
+        assertTrue(content.contains("val enabled: Boolean = true"))
+        assertTrue(content.contains("val tags: List<String> = emptyList()"))
+        assertTrue(content.contains("val createdAt: LocalDateTime = java.time.LocalDateTime.MIN"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate fails fast for invalid design default value`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-invalid-default-value")
+        copyFixture(projectDir, "design-default-value-invalid-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("invalid default value for field enabled"))
+        assertTrue(result.output.contains("Boolean defaults must be true or false"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kGenerate supports helper based override design templates`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-helper-override")
         copyFixture(projectDir)
@@ -635,5 +678,15 @@ class PipelinePluginFunctionalTest {
             }.toURI()
         )
         sourceDir.copyToRecursively(targetDir, followLinks = false)
+    }
+
+    private fun useFixtureDesignJson(projectDir: Path) {
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val updated = buildFile.readText()
+            .replace("\r\n", "\n")
+            .replace(Regex("""val generatedDesignFile = .*?\n\nval writeDesignFixture = tasks\.register\("writeDesignFixture"\) \{.*?\n\}\n\n""", RegexOption.DOT_MATCHES_ALL), "")
+            .replace("            files.from(generatedDesignFile)", "            files.from(\"design/design.json\")")
+            .replace(Regex("""tasks\.named\("cap4kPlan"\) \{\s+dependsOn\(writeDesignFixture\)\s+\}\s+tasks\.named\("cap4kGenerate"\) \{\s+dependsOn\(writeDesignFixture\)\s+\}\s*"""), "")
+        buildFile.writeText(updated)
     }
 }
