@@ -292,6 +292,23 @@ class DefaultValueFormatterTest {
     }
 
     @Test
+    fun `int overflow literal is rejected`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "2147483648",
+                renderedType = "Int",
+                nullable = false,
+                fieldName = "retryCount",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field retryCount: 2147483648 is not a valid Int literal",
+            ex.message,
+        )
+    }
+
+    @Test
     fun `invalid double literal is rejected`() {
         val ex = assertThrows(IllegalArgumentException::class.java) {
             DefaultValueFormatter.format(
@@ -338,6 +355,23 @@ class DefaultValueFormatterTest {
 
         assertEquals(
             "invalid default value for field retryCount: unsupported default value expression: java.time.LocalDateTime.MIN",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `long overflow literal is rejected`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "9223372036854775808",
+                renderedType = "Long",
+                nullable = false,
+                fieldName = "retryCount",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field retryCount: 9223372036854775808 is not a valid Long literal",
             ex.message,
         )
     }

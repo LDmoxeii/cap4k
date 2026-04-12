@@ -75,11 +75,18 @@ internal object DefaultValueFormatter {
         require(longLiteralPattern.matches(value)) {
             "invalid default value for field $fieldName: $value is not a valid Long literal"
         }
+        val parsedValue = value.removeSuffix("l").removeSuffix("L")
+        require(parsedValue.toLongOrNull() != null) {
+            "invalid default value for field $fieldName: $value is not a valid Long literal"
+        }
         return if (value.endsWith("L")) value else value.removeSuffix("l") + "L"
     }
 
     private fun normalizeInt(value: String, fieldName: String): String {
         require(intLiteralPattern.matches(value)) {
+            "invalid default value for field $fieldName: $value is not a valid Int literal"
+        }
+        require(value.toIntOrNull() != null) {
             "invalid default value for field $fieldName: $value is not a valid Int literal"
         }
         return value
