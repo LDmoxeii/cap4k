@@ -214,6 +214,35 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
+    fun `factory rejects exact duplicate registry keys`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+        val registryFile = project.file("config/project-types.json")
+        registryFile.parentFile.mkdirs()
+        registryFile.writeText(
+            """
+            {
+              "OrderId": "com.acme.order.OrderId",
+              "OrderId": "com.acme.order.LegacyOrderId"
+            }
+            """.trimIndent()
+        )
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.types {
+            this.registryFile.set("config/project-types.json")
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("types.registryFile contains duplicate type name: OrderId", error.message)
+    }
+
+    @Test
     fun `factory rejects registry values that are not fqns`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
@@ -247,6 +276,41 @@ class Cap4kProjectConfigFactoryTest {
     @Test
     fun `factory rejects malformed fqcn forms`() {
         val malformedValues = listOf("com..Foo", "Foo.", ".Foo")
+
+        malformedValues.forEach { malformedValue ->
+            val project = ProjectBuilder.builder().build()
+            val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+            val registryFile = project.file("config/project-types-$malformedValue.json")
+            registryFile.parentFile.mkdirs()
+            registryFile.writeText(
+                """
+                {
+                  "Customer": "$malformedValue"
+                }
+                """.trimIndent()
+            )
+
+            extension.project {
+                basePackage.set("com.acme.demo")
+            }
+            extension.types {
+                this.registryFile.set("config/project-types-$malformedValue.json")
+            }
+
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                Cap4kProjectConfigFactory().build(project, extension)
+            }
+
+            assertEquals(
+                "types.registryFile value for Customer must be a fully qualified name.",
+                error.message
+            )
+        }
+    }
+
+    @Test
+    fun `factory rejects fqcn segments with whitespace or illegal characters`() {
+        val malformedValues = listOf("com.acme.Bad Name", "com.acme.Bad#Name")
 
         malformedValues.forEach { malformedValue ->
             val project = ProjectBuilder.builder().build()
