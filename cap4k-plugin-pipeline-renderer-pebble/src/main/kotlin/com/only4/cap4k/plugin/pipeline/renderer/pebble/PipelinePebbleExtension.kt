@@ -9,6 +9,7 @@ import io.pebbletemplates.pebble.template.PebbleTemplate
 
 internal class PipelinePebbleExtension(
     private val explicitImportCollector: ExplicitImportCollector,
+    private val enableUseHelper: Boolean,
 ) : AbstractExtension() {
     override fun getFilters(): Map<String, Filter> = mapOf(
         "json" to JsonFilter()
@@ -16,9 +17,12 @@ internal class PipelinePebbleExtension(
 
     override fun getFunctions(): Map<String, Function> = mapOf(
         "type" to TypeFunction(),
-        "imports" to ImportsFunction(explicitImportCollector),
-        "use" to UseFunction(explicitImportCollector),
-    )
+        "imports" to ImportsFunction(),
+    ) + if (enableUseHelper) {
+        mapOf("use" to UseFunction(explicitImportCollector))
+    } else {
+        emptyMap()
+    }
 }
 
 internal class ExplicitImportCollector {
@@ -40,7 +44,7 @@ internal class ExplicitImportCollector {
         explicitImports.add(normalizedImport)
     }
 
-    fun mergeWith(baseImports: List<String>): List<String> {
+    fun mergedWith(baseImports: List<String>): List<String> {
         val normalizedBaseImports = normalizeImports(baseImports)
         val mergedImports = LinkedHashSet<String>(normalizedBaseImports)
         val simpleNameToImport = LinkedHashMap<String, String>()
@@ -64,6 +68,8 @@ internal class ExplicitImportCollector {
 
         return mergedImports.toList()
     }
+
+    fun explicitImports(): List<String> = explicitImports.toList()
 }
 
 private class TypeFunction : Function {
@@ -91,12 +97,6 @@ private class TypeFunction : Function {
 }
 
 private class ImportsFunction : Function {
-    private val explicitImportCollector: ExplicitImportCollector
-
-    constructor(explicitImportCollector: ExplicitImportCollector) {
-        this.explicitImportCollector = explicitImportCollector
-    }
-
     override fun getArgumentNames(): List<String> = listOf("value")
 
     override fun execute(
@@ -110,7 +110,7 @@ private class ImportsFunction : Function {
         }
 
         val value = args["value"] ?: return emptyList<String>()
-        return explicitImportCollector.mergeWith(extractImports(value))
+        return normalizeImports(extractImports(value))
     }
 
     private fun extractImports(value: Any): List<String> = when (value) {

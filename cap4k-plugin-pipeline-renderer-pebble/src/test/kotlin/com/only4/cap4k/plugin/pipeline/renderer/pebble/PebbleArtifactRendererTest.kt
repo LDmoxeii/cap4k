@@ -1154,8 +1154,8 @@ class PebbleArtifactRendererTest {
         overrideDesignDir.resolve("query.kt.peb")
             .writeText(
                 """
-                {{ use("java.time.LocalDateTime") -}}
                 {{ imports(imports) | json | raw }}
+                {{ use("java.time.LocalDateTime") -}}
                 """.trimIndent()
             )
 
@@ -1194,6 +1194,57 @@ class PebbleArtifactRendererTest {
         )
 
         assertEquals("""["java.util.UUID","java.time.LocalDateTime"]""", rendered.single().content.trim())
+    }
+
+    @Test
+    fun `use helper is unavailable in aggregate templates`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-non-design")
+        val overrideAggregateDir = Files.createDirectories(overrideDir.resolve("aggregate"))
+        overrideAggregateDir.resolve("schema.kt.peb")
+            .writeText("""{{ use("java.time.LocalDateTime") }}""")
+
+        val exception = assertThrows<Exception> {
+            PebbleArtifactRenderer(
+                templateResolver = PresetTemplateResolver(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString())
+                )
+            ).render(
+                planItems = listOf(
+                    ArtifactPlanItem(
+                        generatorId = "aggregate",
+                        moduleRole = "domain",
+                        templateId = "aggregate/schema.kt.peb",
+                        outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/OrderSchema.kt",
+                        context = mapOf(
+                            "packageName" to "com.acme.demo.domain.aggregates.order",
+                            "typeName" to "OrderSchema",
+                            "entityName" to "Order"
+                        ),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                ),
+                config = ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = emptyMap(),
+                    generators = emptyMap(),
+                    templates = TemplateConfig(
+                        preset = "ddd-default",
+                        overrideDirs = listOf(overrideDir.toString()),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                )
+            )
+        }
+
+        val illegalArgument = generateSequence<Throwable>(exception) { it.cause }
+            .filterIsInstance<IllegalArgumentException>()
+            .firstOrNull()
+
+        assertTrue(illegalArgument == null)
+        assertTrue(exception.message?.contains("use") == true)
     }
 
     @Test
