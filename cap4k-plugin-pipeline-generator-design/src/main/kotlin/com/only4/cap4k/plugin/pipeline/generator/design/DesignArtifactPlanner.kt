@@ -32,6 +32,7 @@ class DesignArtifactPlanner : GeneratorProvider {
                 context = DesignRenderModelFactory.create(
                     packageName = "${config.basePackage}.application.$subdir.${request.packageName}",
                     request = request,
+                    typeRegistry = config.typeRegistry,
                 ).toContextMap(),
                 conflictPolicy = config.templates.conflictPolicy,
             )

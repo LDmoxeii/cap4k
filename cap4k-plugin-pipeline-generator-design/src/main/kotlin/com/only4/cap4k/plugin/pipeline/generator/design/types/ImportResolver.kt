@@ -134,10 +134,10 @@ internal object ImportResolver {
 
             DesignResolvedTypeKind.EXPLICIT_FQCN -> {
                 val candidates = symbolRegistry.findBySimpleName(type.simpleName)
+                val conflictingCandidates = candidates.filterNot { it.source == "project-type-registry" }
                 val canImport = type.simpleName !in builtInTypeNames &&
                     type.simpleName !in innerTypeNames &&
-                    candidates.size == 1 &&
-                    candidates.single().fqcn == type.rawText
+                    conflictingCandidates.all { it.fqcn == type.rawText }
 
                 if (canImport) {
                     ImportResolutionResult(

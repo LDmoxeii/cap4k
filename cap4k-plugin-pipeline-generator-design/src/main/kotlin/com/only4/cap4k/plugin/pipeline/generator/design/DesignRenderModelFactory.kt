@@ -18,11 +18,15 @@ internal object DesignRenderModelFactory {
         "Set",
     )
 
-    fun create(packageName: String, request: RequestModel): DesignRenderModel {
+    fun create(
+        packageName: String,
+        request: RequestModel,
+        typeRegistry: Map<String, String> = emptyMap(),
+    ): DesignRenderModel {
         val requestNamespace = buildNamespace(request.requestFields, "request")
         val responseNamespace = buildNamespace(request.responseFields, "response")
         val innerTypeNames = requestNamespace.nestedTypeNames + responseNamespace.nestedTypeNames
-        val symbolRegistry = buildSymbolRegistry(request, requestNamespace, responseNamespace)
+        val symbolRegistry = buildSymbolRegistry(request, requestNamespace, responseNamespace, typeRegistry)
         validateNamespaceTypes("request", requestNamespace, symbolRegistry, innerTypeNames)
         validateNamespaceTypes("response", responseNamespace, symbolRegistry, innerTypeNames)
         val importPlan = DesignImportPlanner.plan(
@@ -140,6 +144,7 @@ internal object DesignRenderModelFactory {
         request: RequestModel,
         requestNamespace: NamespaceModel,
         responseNamespace: NamespaceModel,
+        typeRegistry: Map<String, String>,
     ): DesignSymbolRegistry {
         val registry = DesignSymbolRegistry()
         val aggregateName = request.aggregateName?.takeIf { it.isNotBlank() }
@@ -151,6 +156,16 @@ internal object DesignRenderModelFactory {
                     typeName = aggregateName,
                     moduleRole = "domain",
                     source = "aggregate",
+                ),
+            )
+        }
+
+        typeRegistry.forEach { (simpleName, fqcn) ->
+            registry.register(
+                SymbolIdentity(
+                    packageName = fqcn.substringBeforeLast('.', missingDelimiterValue = ""),
+                    typeName = simpleName,
+                    source = "project-type-registry",
                 ),
             )
         }
@@ -202,8 +217,13 @@ internal object DesignRenderModelFactory {
                 symbolRegistry = symbolRegistry,
             )
         } catch (ex: IllegalArgumentException) {
+            val advisory = if (ex.message?.startsWith("unknown short type:") == true) {
+                "; use a fully qualified name or register it in type-registry.json; sibling design-entry references are not supported"
+            } else {
+                ""
+            }
             throw IllegalArgumentException(
-                "failed to resolve type for field ${field.sourceName}: ${field.resolvedType.rawText} (${ex.message})",
+                "failed to resolve type for field ${field.sourceName}: ${field.resolvedType.rawText} (${ex.message}$advisory)",
                 ex,
             )
         }
