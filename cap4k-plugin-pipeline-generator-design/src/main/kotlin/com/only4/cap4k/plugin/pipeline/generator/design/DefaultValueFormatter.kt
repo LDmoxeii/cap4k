@@ -140,7 +140,10 @@ internal object DefaultValueFormatter {
     private fun isCompatibleConstantExpression(value: String, normalizedType: String): Boolean {
         val ownerType = value.substringBeforeLast(".")
         val renderedType = normalizedType.substringBefore("<").trim()
-        return ownerType == renderedType || ownerType.substringAfterLast(".") == renderedType.substringAfterLast(".")
+        if (renderedType.contains(".")) {
+            return ownerType == renderedType
+        }
+        return ownerType == renderedType || ownerType.substringAfterLast(".") == renderedType
     }
 
     private fun isCompatibleEmptyCollection(value: String, normalizedType: String): Boolean {
@@ -161,11 +164,26 @@ internal object DefaultValueFormatter {
     private fun isValidQuotedStringLiteral(value: String): Boolean {
         var index = 1
         while (index < value.length - 1) {
-            if (value[index] == '\\') {
+            val current = value[index]
+            if (current == '"') {
+                return false
+            }
+            if (current == '\\') {
                 if (index + 1 >= value.length - 1) {
                     return false
                 }
-                if (value[index + 1] !in supportedStringEscapes) {
+                val escape = value[index + 1]
+                if (escape == 'u') {
+                    if (index + 5 >= value.length) {
+                        return false
+                    }
+                    if (!value.substring(index + 2, index + 6).all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }) {
+                        return false
+                    }
+                    index += 6
+                    continue
+                }
+                if (escape !in supportedStringEscapes) {
                     return false
                 }
                 index += 2

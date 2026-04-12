@@ -43,6 +43,18 @@ class DefaultValueFormatterTest {
     }
 
     @Test
+    fun `quoted string with unicode escape remains unchanged`() {
+        val actual = DefaultValueFormatter.format(
+            rawDefaultValue = "\"\\u0041\"",
+            renderedType = "String",
+            nullable = false,
+            fieldName = "title",
+        )
+
+        assertEquals("\"\\u0041\"", actual)
+    }
+
+    @Test
     fun `long literal gets suffix when needed`() {
         val actual = DefaultValueFormatter.format(
             rawDefaultValue = "1",
@@ -146,6 +158,18 @@ class DefaultValueFormatterTest {
         )
 
         assertEquals("LocalDateTime.MIN", actual)
+    }
+
+    @Test
+    fun `matching fqcn constant expression owner is preserved`() {
+        val actual = DefaultValueFormatter.format(
+            rawDefaultValue = "com.foo.Status.OK",
+            renderedType = "com.foo.Status",
+            nullable = false,
+            fieldName = "status",
+        )
+
+        assertEquals("com.foo.Status.OK", actual)
     }
 
     @Test
@@ -294,6 +318,23 @@ class DefaultValueFormatterTest {
 
         assertEquals(
             "invalid default value for field title: invalid String literal: \"bad\\q\"",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `quoted string with bare inner quote is rejected`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "\"a\"b\"",
+                renderedType = "String",
+                nullable = false,
+                fieldName = "title",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field title: invalid String literal: \"a\"b\"",
             ex.message,
         )
     }
@@ -510,6 +551,23 @@ class DefaultValueFormatterTest {
 
         assertEquals(
             "invalid default value for field createdAt: unsupported default value expression: VideoStatus.PROCESSING",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `mismatched fqcn constant expression owner is rejected`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "com.bar.Status.OK",
+                renderedType = "com.foo.Status",
+                nullable = false,
+                fieldName = "status",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field status: unsupported default value expression: com.bar.Status.OK",
             ex.message,
         )
     }
