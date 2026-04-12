@@ -230,6 +230,9 @@ class Cap4kProjectConfigFactory {
             require(normalizedKey !in reservedTypeNames) {
                 "types.registryFile cannot override built-in type: $normalizedKey"
             }
+            require(normalizedKey !in registry) {
+                "types.registryFile contains duplicate type name after normalization: $normalizedKey"
+            }
 
             val normalizedValue = value.asRegistryValue(normalizedKey)
             registry[normalizedKey] = normalizedValue
@@ -297,7 +300,8 @@ private fun JsonElement.asRegistryValue(key: String): String {
     require(normalizedValue.isNotEmpty()) {
         "types.registryFile value for $key must not be blank."
     }
-    require(normalizedValue.contains('.')) {
+    val segments = normalizedValue.split('.')
+    require(segments.size >= 2 && segments.all { it.isNotBlank() }) {
         "types.registryFile value for $key must be a fully qualified name."
     }
     return normalizedValue
