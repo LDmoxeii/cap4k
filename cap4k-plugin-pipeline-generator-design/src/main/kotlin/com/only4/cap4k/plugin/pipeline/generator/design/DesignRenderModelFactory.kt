@@ -4,6 +4,7 @@ import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver
+import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver.UnknownShortTypeFailure
 import com.only4.cap4k.plugin.pipeline.generator.design.types.SymbolIdentity
 import java.util.ArrayDeque
 
@@ -220,13 +221,8 @@ internal object DesignRenderModelFactory {
                 symbolRegistry = symbolRegistry,
             )
         } catch (ex: IllegalArgumentException) {
-            val advisory = if (ex.message?.startsWith("unknown short type:") == true) {
-                val shortTypeName = ex.message
-                    ?.substringAfter("unknown short type: ")
-                    ?.substringBefore(';')
-                    ?.substringBefore('(')
-                    ?.trim()
-                    .orEmpty()
+            val advisory = if (ex is UnknownShortTypeFailure) {
+                val shortTypeName = ex.shortType
                 val siblingAdvisory = if (shortTypeName in siblingRequestTypeNames) {
                     "; sibling design-entry references are not supported"
                 } else {

@@ -388,6 +388,48 @@ class DesignArtifactPlannerTest {
     }
 
     @Test
+    fun `different-package sibling design entry keeps generic unknown short type guidance`() {
+        val planner = DesignArtifactPlanner()
+
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("application" to "demo-application")),
+                model = CanonicalModel(
+                    requests = listOf(
+                        RequestModel(
+                            kind = RequestKind.COMMAND,
+                            packageName = "video.publish",
+                            typeName = "PublishVideoCmd",
+                            description = "publish video",
+                            aggregateName = "Video",
+                            aggregatePackageName = "com.acme.demo.domain.aggregates.video",
+                            requestFields = listOf(
+                                FieldModel("fileList", "List<VideoPostProcessingFileSpec>"),
+                            ),
+                            responseFields = emptyList(),
+                        ),
+                        RequestModel(
+                            kind = RequestKind.QUERY,
+                            packageName = "video.processing",
+                            typeName = "VideoPostProcessingFileSpec",
+                            description = "video post processing file spec",
+                            aggregateName = "Video",
+                            aggregatePackageName = "com.acme.demo.domain.aggregates.video",
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "failed to resolve type for field fileList: List (unknown short type: VideoPostProcessingFileSpec; use a fully qualified name or register it in type-registry.json)",
+            ex.message,
+        )
+    }
+
+    @Test
     fun `explicit fqcn source wins over registry fallback for same short name`() {
         val planner = DesignArtifactPlanner()
 

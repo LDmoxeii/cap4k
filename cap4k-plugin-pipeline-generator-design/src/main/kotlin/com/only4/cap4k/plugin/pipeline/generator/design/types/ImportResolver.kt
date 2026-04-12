@@ -167,9 +167,7 @@ internal object ImportResolver {
                 }
 
                 when (selectedCandidates.size) {
-                    0 -> throw IllegalArgumentException(
-                        "unknown short type: ${type.rawText}",
-                    )
+                    0 -> throw UnknownShortTypeFailure(type.rawText)
 
                     1 -> ImportResolutionResult(
                         renderedType = type.simpleName,
@@ -177,11 +175,25 @@ internal object ImportResolver {
                         qualifiedFallback = false,
                     )
 
-                    else -> throw IllegalArgumentException(
-                        "ambiguous short type: ${type.rawText} -> ${selectedCandidates.joinToString { it.fqcn }}",
+                    else -> throw AmbiguousShortTypeFailure(
+                        shortType = type.rawText,
+                        candidates = selectedCandidates.map { it.fqcn },
                     )
                 }
             }
         }
     }
+
+    internal sealed class ShortTypeResolutionFailure(
+        message: String,
+    ) : IllegalArgumentException(message)
+
+    internal class UnknownShortTypeFailure(
+        val shortType: String,
+    ) : ShortTypeResolutionFailure("unknown short type: $shortType")
+
+    internal class AmbiguousShortTypeFailure(
+        val shortType: String,
+        val candidates: List<String>,
+    ) : ShortTypeResolutionFailure("ambiguous short type: $shortType -> ${candidates.joinToString()}")
 }
