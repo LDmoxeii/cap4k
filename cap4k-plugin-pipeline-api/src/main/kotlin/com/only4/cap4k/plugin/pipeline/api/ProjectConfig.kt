@@ -5,6 +5,7 @@ data class ProjectConfig(
     val layout: ProjectLayout,
     // Module role -> repository-relative filesystem path.
     val modules: Map<String, String>,
+    val typeRegistry: Map<String, String> = emptyMap(),
     val sources: Map<String, SourceConfig>,
     val generators: Map<String, GeneratorConfig>,
     val templates: TemplateConfig,

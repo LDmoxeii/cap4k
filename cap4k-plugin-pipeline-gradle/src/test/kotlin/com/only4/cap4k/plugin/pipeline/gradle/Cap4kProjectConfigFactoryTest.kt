@@ -25,6 +25,7 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.generators.flow.enabled.get())
         assertEquals("ddd-default", extension.templates.preset.get())
         assertEquals("SKIP", extension.templates.conflictPolicy.get())
+        assertEquals(null, extension.types.registryFile.orNull)
     }
 
     @Test
@@ -73,6 +74,23 @@ class Cap4kProjectConfigFactoryTest {
             ),
             config.templates.overrideDirs
         )
+    }
+
+    @Test
+    fun `factory leaves project type registry empty until parsing is implemented`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.types {
+            registryFile.set("config/project-types.yml")
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(emptyMap<String, String>(), config.typeRegistry)
     }
 
     @Test
