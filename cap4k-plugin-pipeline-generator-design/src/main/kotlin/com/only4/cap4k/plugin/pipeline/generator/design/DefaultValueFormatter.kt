@@ -12,6 +12,9 @@ internal object DefaultValueFormatter {
         """(?:[A-Za-z_][A-Za-z0-9_]*\.)+[A-Z][A-Za-z0-9_]*""",
     )
 
+    private val intLiteralPattern = Regex("""-?\d+""")
+    private val doubleLiteralPattern = Regex("""-?\d+\.\d+(?:[dD])?""")
+    private val floatLiteralPattern = Regex("""-?\d+(?:\.\d+)?[fF]""")
     private val longLiteralPattern = Regex("""-?\d+[lL]?""")
 
     fun format(
@@ -33,9 +36,12 @@ internal object DefaultValueFormatter {
 
         return when (renderedType.removeSuffix("?").trim()) {
             "String" -> normalizeString(value)
+            "Int" -> normalizeInt(value, fieldName)
+            "Double" -> normalizeDouble(value, fieldName)
+            "Float" -> normalizeFloat(value, fieldName)
             "Long" -> normalizeLong(value, fieldName)
             "Boolean" -> normalizeBoolean(value, fieldName)
-            else -> normalizeExpression(value, fieldName)
+            else -> normalizeExpression(value, renderedType.removeSuffix("?").trim(), fieldName)
         }
     }
 
@@ -53,6 +59,27 @@ internal object DefaultValueFormatter {
         return if (value.endsWith("L")) value else value.removeSuffix("l") + "L"
     }
 
+    private fun normalizeInt(value: String, fieldName: String): String {
+        require(intLiteralPattern.matches(value)) {
+            "invalid default value for field $fieldName: $value is not a valid Int literal"
+        }
+        return value
+    }
+
+    private fun normalizeDouble(value: String, fieldName: String): String {
+        require(doubleLiteralPattern.matches(value)) {
+            "invalid default value for field $fieldName: $value is not a valid Double literal"
+        }
+        return value
+    }
+
+    private fun normalizeFloat(value: String, fieldName: String): String {
+        require(floatLiteralPattern.matches(value)) {
+            "invalid default value for field $fieldName: $value is not a valid Float literal"
+        }
+        return value
+    }
+
     private fun normalizeBoolean(value: String, fieldName: String): String {
         require(value == "true" || value == "false") {
             "invalid default value for field $fieldName: Boolean defaults must be true or false"
@@ -60,10 +87,28 @@ internal object DefaultValueFormatter {
         return value
     }
 
-    private fun normalizeExpression(value: String, fieldName: String): String {
-        if (value in supportedEmptyCollections || constantExpressionPattern.matches(value)) {
+    private fun normalizeExpression(value: String, renderedType: String, fieldName: String): String {
+        if (value in supportedEmptyCollections) {
+            require(isCompatibleEmptyCollection(value, renderedType)) {
+                "invalid default value for field $fieldName: $value is incompatible with rendered type $renderedType"
+            }
+            return value
+        }
+        if (constantExpressionPattern.matches(value)) {
             return value
         }
         throw IllegalArgumentException("invalid default value for field $fieldName: unsupported default value expression: $value")
     }
+
+    private fun isCompatibleEmptyCollection(value: String, renderedType: String): Boolean {
+        return when (value) {
+            "emptyList()" -> collectionBaseName(renderedType) == "List"
+            "emptySet()" -> collectionBaseName(renderedType) == "Set"
+            "mutableListOf()" -> collectionBaseName(renderedType) == "List" || collectionBaseName(renderedType) == "MutableList"
+            "mutableSetOf()" -> collectionBaseName(renderedType) == "Set" || collectionBaseName(renderedType) == "MutableSet"
+            else -> false
+        }
+    }
+
+    private fun collectionBaseName(renderedType: String): String = renderedType.substringBefore('<').trim()
 }
