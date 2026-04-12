@@ -31,11 +31,12 @@ internal object DefaultValueFormatter {
             return value
         }
 
-        if (value in supportedEmptyCollections || isConstantExpression(value)) {
-            return value
+        val normalizedType = renderedType.removeSuffix("?").trim()
+        if (normalizedType in builtInScalarTypes && isConstantExpression(value)) {
+            throw IllegalArgumentException("invalid default value for field $fieldName: unsupported default value expression: $value")
         }
 
-        return when (renderedType.removeSuffix("?").trim()) {
+        return when (normalizedType) {
             "String" -> normalizeString(value)
             "Long" -> normalizeLong(value, fieldName)
             "Boolean" -> normalizeBoolean(value, fieldName)
@@ -53,6 +54,10 @@ internal object DefaultValueFormatter {
                 when (ch) {
                     '\\' -> append("\\\\")
                     '"' -> append("\\\"")
+                    '\n' -> append("\\n")
+                    '\r' -> append("\\r")
+                    '\t' -> append("\\t")
+                    '$' -> append("\\$")
                     else -> append(ch)
                 }
             }
@@ -75,8 +80,13 @@ internal object DefaultValueFormatter {
     }
 
     private fun normalizeExpression(value: String, fieldName: String): String {
+        if (value in supportedEmptyCollections || isConstantExpression(value)) {
+            return value
+        }
         throw IllegalArgumentException("invalid default value for field $fieldName: unsupported default value expression: $value")
     }
 
     private fun isConstantExpression(value: String): Boolean = constantExpressionPattern.matches(value)
+
+    private val builtInScalarTypes = setOf("String", "Long", "Boolean")
 }

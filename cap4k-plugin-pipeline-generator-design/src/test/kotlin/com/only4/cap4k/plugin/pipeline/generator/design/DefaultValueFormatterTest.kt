@@ -55,39 +55,15 @@ class DefaultValueFormatterTest {
     }
 
     @Test
-    fun `constant expression is preserved for string-compatible type`() {
+    fun `constant expression is preserved for compatible custom type`() {
         val actual = DefaultValueFormatter.format(
             rawDefaultValue = "VideoStatus.PROCESSING",
-            renderedType = "String",
+            renderedType = "VideoStatus",
             nullable = false,
-            fieldName = "title",
+            fieldName = "status",
         )
 
         assertEquals("VideoStatus.PROCESSING", actual)
-    }
-
-    @Test
-    fun `constant expression is preserved for long-compatible type`() {
-        val actual = DefaultValueFormatter.format(
-            rawDefaultValue = "java.time.LocalDateTime.MIN",
-            renderedType = "Long",
-            nullable = false,
-            fieldName = "retryCount",
-        )
-
-        assertEquals("java.time.LocalDateTime.MIN", actual)
-    }
-
-    @Test
-    fun `constant expression is preserved for boolean-compatible type`() {
-        val actual = DefaultValueFormatter.format(
-            rawDefaultValue = "FeatureFlags.ENABLED",
-            renderedType = "Boolean",
-            nullable = false,
-            fieldName = "enabled",
-        )
-
-        assertEquals("FeatureFlags.ENABLED", actual)
     }
 
     @Test
@@ -182,6 +158,36 @@ class DefaultValueFormatterTest {
     }
 
     @Test
+    fun `escapes newline tab carriage return and dollar in raw string defaults`() {
+        assertEquals(
+            "\"line1\\nline2\\t\\r\\\$value\"",
+            DefaultValueFormatter.format(
+                rawDefaultValue = "line1\nline2\t\r\$value",
+                renderedType = "String",
+                nullable = false,
+                fieldName = "message",
+            ),
+        )
+    }
+
+    @Test
+    fun `dotted expression is rejected for string field`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "VideoStatus.PROCESSING",
+                renderedType = "String",
+                nullable = false,
+                fieldName = "title",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field title: unsupported default value expression: VideoStatus.PROCESSING",
+            ex.message,
+        )
+    }
+
+    @Test
     fun `invalid long literal is rejected`() {
         val ex = assertThrows(IllegalArgumentException::class.java) {
             DefaultValueFormatter.format(
@@ -194,6 +200,40 @@ class DefaultValueFormatterTest {
 
         assertEquals(
             "invalid default value for field retryCount: 12abc is not a valid Long literal",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `dotted expression is rejected for long field`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "java.time.LocalDateTime.MIN",
+                renderedType = "Long",
+                nullable = false,
+                fieldName = "retryCount",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field retryCount: unsupported default value expression: java.time.LocalDateTime.MIN",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `dotted expression is rejected for boolean field`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "FeatureFlags.ENABLED",
+                renderedType = "Boolean",
+                nullable = false,
+                fieldName = "enabled",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field enabled: unsupported default value expression: FeatureFlags.ENABLED",
             ex.message,
         )
     }
