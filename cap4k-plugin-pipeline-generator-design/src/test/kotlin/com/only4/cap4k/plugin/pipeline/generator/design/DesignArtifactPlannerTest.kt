@@ -144,6 +144,39 @@ class DesignArtifactPlannerTest {
     }
 
     @Test
+    fun `planner carries kotlin-ready default values into template context`() {
+        val planner = DesignArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("application" to "demo-application")),
+            model = CanonicalModel(
+                requests = listOf(
+                    RequestModel(
+                        kind = RequestKind.COMMAND,
+                        packageName = "video_post",
+                        typeName = "UpdateVideoPostCmd",
+                        description = "update video post",
+                        aggregateName = null,
+                        aggregatePackageName = null,
+                        requestFields = listOf(
+                            FieldModel("title", "String", nullable = false, defaultValue = "demo"),
+                            FieldModel("retryCount", "Long", nullable = false, defaultValue = "1"),
+                        ),
+                        responseFields = emptyList(),
+                    ),
+                ),
+            ),
+        )
+
+        val context = items.single().context
+        val requestFields = requireNotNull(context["requestFields"] as? List<*>)
+            .map { requireNotNull(it as? DesignRenderFieldModel) }
+
+        assertEquals("\"demo\"", requestFields[0].defaultValue)
+        assertEquals("1L", requestFields[1].defaultValue)
+    }
+
+    @Test
     fun `renders colliding fqcn types fully qualified without imports`() {
         val planner = DesignArtifactPlanner()
 
