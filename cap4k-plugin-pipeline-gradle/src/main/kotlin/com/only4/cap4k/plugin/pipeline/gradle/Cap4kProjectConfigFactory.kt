@@ -1,5 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
+import com.google.gson.JsonElement
+import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -35,11 +37,13 @@ class Cap4kProjectConfigFactory {
         val sources = buildSources(project, extension, sourceStates)
         val generators = buildGenerators(extension, generatorStates)
         validateGeneratorDependencies(sourceStates, generatorStates)
+        val typeRegistry = buildTypeRegistry(project, extension)
 
         return ProjectConfig(
             basePackage = basePackage,
             layout = ProjectLayout.MULTI_MODULE,
             modules = modules,
+            typeRegistry = typeRegistry,
             sources = sources,
             generators = generators,
             templates = TemplateConfig(
@@ -202,6 +206,38 @@ class Cap4kProjectConfigFactory {
         }
     }
 
+    private fun buildTypeRegistry(project: Project, extension: Cap4kExtension): Map<String, String> {
+        val registryFile = extension.types.registryFile.optionalValue() ?: return emptyMap()
+        val file = project.file(registryFile).absoluteFile
+        require(file.exists()) {
+            "types.registryFile does not exist: ${file.path}"
+        }
+
+        val root = file.reader(Charsets.UTF_8).use { reader -> JsonParser.parseReader(reader) }
+        require(root.isJsonObject) {
+            "types.registryFile must contain a JSON object."
+        }
+
+        val registry = linkedMapOf<String, String>()
+        for ((key, value) in root.asJsonObject.entrySet()) {
+            val normalizedKey = key.trim()
+            require(normalizedKey.isNotEmpty()) {
+                "types.registryFile contains a blank type name."
+            }
+            require(!normalizedKey.contains('.')) {
+                "types.registryFile type name must be a simple name: $normalizedKey"
+            }
+            require(normalizedKey !in reservedTypeNames) {
+                "types.registryFile cannot override built-in type: $normalizedKey"
+            }
+
+            val normalizedValue = value.asRegistryValue(normalizedKey)
+            registry[normalizedKey] = normalizedValue
+        }
+
+        return registry
+    }
+
     private fun validateGeneratorDependencies(sources: SourceStates, generators: GeneratorStates) {
         if (generators.designEnabled && !sources.designJsonEnabled) {
             throw IllegalArgumentException("design generator requires enabled designJson source.")
@@ -252,3 +288,47 @@ private fun Property<String>.normalized(): String =
 
 private fun ListProperty<String>.normalizedValues(): List<String> =
     orNull.orEmpty().mapNotNull { value -> value.trim().takeIf { it.isNotEmpty() } }
+
+private fun JsonElement.asRegistryValue(key: String): String {
+    require(isJsonPrimitive && asJsonPrimitive.isString) {
+        "types.registryFile value for $key must be a string FQN."
+    }
+    val normalizedValue = asString.trim()
+    require(normalizedValue.isNotEmpty()) {
+        "types.registryFile value for $key must not be blank."
+    }
+    require(normalizedValue.contains('.')) {
+        "types.registryFile value for $key must be a fully qualified name."
+    }
+    return normalizedValue
+}
+
+private val reservedTypeNames = setOf(
+    "Any",
+    "Array",
+    "Boolean",
+    "Byte",
+    "Char",
+    "Collection",
+    "Double",
+    "Float",
+    "Int",
+    "Iterable",
+    "List",
+    "Long",
+    "Map",
+    "MutableCollection",
+    "MutableIterable",
+    "MutableList",
+    "MutableMap",
+    "MutableSet",
+    "Nothing",
+    "Number",
+    "Pair",
+    "Sequence",
+    "Set",
+    "Short",
+    "String",
+    "Triple",
+    "Unit",
+)

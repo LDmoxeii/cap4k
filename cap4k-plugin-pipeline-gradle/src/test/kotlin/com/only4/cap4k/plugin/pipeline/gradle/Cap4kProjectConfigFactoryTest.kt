@@ -77,7 +77,40 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `factory leaves project type registry empty until parsing is implemented`() {
+    fun `factory loads project type registry from json file`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+        val registryFile = project.file("config/project-types.json")
+        registryFile.parentFile.mkdirs()
+        registryFile.writeText(
+            """
+            {
+              "OrderId": "com.acme.order.OrderId",
+              "Customer": "com.acme.customer.Customer"
+            }
+            """.trimIndent()
+        )
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.types {
+            this.registryFile.set("config/project-types.json")
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(
+            linkedMapOf(
+                "OrderId" to "com.acme.order.OrderId",
+                "Customer" to "com.acme.customer.Customer",
+            ),
+            config.typeRegistry
+        )
+    }
+
+    @Test
+    fun `factory rejects missing project type registry file`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
@@ -85,12 +118,126 @@ class Cap4kProjectConfigFactoryTest {
             basePackage.set("com.acme.demo")
         }
         extension.types {
-            registryFile.set("config/project-types.yml")
+            this.registryFile.set("config/missing-project-types.json")
         }
 
-        val config = Cap4kProjectConfigFactory().build(project, extension)
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
 
-        assertEquals(emptyMap<String, String>(), config.typeRegistry)
+        assertEquals(
+            "types.registryFile does not exist: ${project.file("config/missing-project-types.json").absoluteFile.path}",
+            error.message
+        )
+    }
+
+    @Test
+    fun `factory rejects registry root that is not a json object`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+        val registryFile = project.file("config/project-types.json")
+        registryFile.parentFile.mkdirs()
+        registryFile.writeText("""["not", "an", "object"]""")
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.types {
+            this.registryFile.set("config/project-types.json")
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("types.registryFile must contain a JSON object.", error.message)
+    }
+
+    @Test
+    fun `factory rejects registry keys that are not simple names`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+        val registryFile = project.file("config/project-types.json")
+        registryFile.parentFile.mkdirs()
+        registryFile.writeText(
+            """
+            {
+              "bad.name": "com.acme.Bad"
+            }
+            """.trimIndent()
+        )
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.types {
+            this.registryFile.set("config/project-types.json")
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("types.registryFile type name must be a simple name: bad.name", error.message)
+    }
+
+    @Test
+    fun `factory rejects registry values that are not fqns`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+        val registryFile = project.file("config/project-types.json")
+        registryFile.parentFile.mkdirs()
+        registryFile.writeText(
+            """
+            {
+              "Customer": "Customer"
+            }
+            """.trimIndent()
+        )
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.types {
+            this.registryFile.set("config/project-types.json")
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals(
+            "types.registryFile value for Customer must be a fully qualified name.",
+            error.message
+        )
+    }
+
+    @Test
+    fun `factory rejects built in type overrides`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+        val registryFile = project.file("config/project-types.json")
+        registryFile.parentFile.mkdirs()
+        registryFile.writeText(
+            """
+            {
+              "String": "com.acme.text.StringAlias"
+            }
+            """.trimIndent()
+        )
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.types {
+            this.registryFile.set("config/project-types.json")
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("types.registryFile cannot override built-in type: String", error.message)
     }
 
     @Test
