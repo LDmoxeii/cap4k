@@ -22,13 +22,14 @@ internal object DesignRenderModelFactory {
         packageName: String,
         request: RequestModel,
         typeRegistry: Map<String, String> = emptyMap(),
+        siblingRequestTypeNames: Set<String> = emptySet(),
     ): DesignRenderModel {
         val requestNamespace = buildNamespace(request.requestFields, "request")
         val responseNamespace = buildNamespace(request.responseFields, "response")
         val innerTypeNames = requestNamespace.nestedTypeNames + responseNamespace.nestedTypeNames
         val symbolRegistry = buildSymbolRegistry(request, requestNamespace, responseNamespace, typeRegistry)
-        validateNamespaceTypes("request", requestNamespace, symbolRegistry, innerTypeNames)
-        validateNamespaceTypes("response", responseNamespace, symbolRegistry, innerTypeNames)
+        validateNamespaceTypes("request", requestNamespace, symbolRegistry, innerTypeNames, siblingRequestTypeNames)
+        validateNamespaceTypes("response", responseNamespace, symbolRegistry, innerTypeNames, siblingRequestTypeNames)
         val importPlan = DesignImportPlanner.plan(
             types = requestNamespace.resolvedTypes + responseNamespace.resolvedTypes,
             innerTypeNames = innerTypeNames,
@@ -198,10 +199,11 @@ internal object DesignRenderModelFactory {
         model: NamespaceModel,
         symbolRegistry: DesignSymbolRegistry,
         innerTypeNames: Set<String>,
+        siblingRequestTypeNames: Set<String> = emptySet(),
     ) {
-        model.fields.forEach { validateFieldType(it, symbolRegistry, innerTypeNames) }
+        model.fields.forEach { validateFieldType(it, symbolRegistry, innerTypeNames, siblingRequestTypeNames) }
         model.nestedTypes.forEach { nestedType ->
-            nestedType.fields.forEach { validateFieldType(it, symbolRegistry, innerTypeNames) }
+            nestedType.fields.forEach { validateFieldType(it, symbolRegistry, innerTypeNames, siblingRequestTypeNames) }
         }
     }
 
@@ -209,6 +211,7 @@ internal object DesignRenderModelFactory {
         field: PreparedFieldModel,
         symbolRegistry: DesignSymbolRegistry,
         innerTypeNames: Set<String>,
+        siblingRequestTypeNames: Set<String>,
     ) {
         try {
             ImportResolver.resolve(
@@ -218,7 +221,18 @@ internal object DesignRenderModelFactory {
             )
         } catch (ex: IllegalArgumentException) {
             val advisory = if (ex.message?.startsWith("unknown short type:") == true) {
-                "; use a fully qualified name or register it in type-registry.json"
+                val shortTypeName = ex.message
+                    ?.substringAfter("unknown short type: ")
+                    ?.substringBefore(';')
+                    ?.substringBefore('(')
+                    ?.trim()
+                    .orEmpty()
+                val siblingAdvisory = if (shortTypeName in siblingRequestTypeNames) {
+                    "; sibling design-entry references are not supported"
+                } else {
+                    ""
+                }
+                "; use a fully qualified name or register it in type-registry.json$siblingAdvisory"
             } else {
                 ""
             }
