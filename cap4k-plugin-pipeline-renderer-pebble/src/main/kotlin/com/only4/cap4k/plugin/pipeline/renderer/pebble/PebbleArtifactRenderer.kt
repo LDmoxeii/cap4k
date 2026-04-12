@@ -13,14 +13,13 @@ class PebbleArtifactRenderer(
     private val templateResolver: TemplateResolver,
 ) : ArtifactRenderer {
 
-    private val engine = PebbleEngine.Builder()
-        .loader(StringLoader())
-        .extension(PipelinePebbleExtension())
-        .newLineTrimming(false)
-        .build()
-
     override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> =
         planItems.map { item ->
+            val engine = PebbleEngine.Builder()
+                .loader(StringLoader())
+                .extension(PipelinePebbleExtension(ExplicitImportCollector()))
+                .newLineTrimming(false)
+                .build()
             val templateText = templateResolver.resolve(item.templateId)
             val template = engine.getLiteralTemplate(templateText)
             val writer = StringWriter()

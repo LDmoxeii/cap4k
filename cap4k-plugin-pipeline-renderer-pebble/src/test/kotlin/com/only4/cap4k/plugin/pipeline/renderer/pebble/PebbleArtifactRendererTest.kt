@@ -1146,6 +1146,498 @@ class PebbleArtifactRendererTest {
         assertTrue(!content.contains("\"persist\": null"))
         assertTrue(!content.contains("\"defaultValue\": null"))
     }
+
+    @Test
+    fun `use helper merges explicit imports with computed imports`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-merge")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText(
+                """
+                {{ use("java.time.LocalDateTime") -}}
+                {{ imports(imports) | json | raw }}
+                """.trimIndent()
+            )
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
+                    context = mapOf(
+                        "imports" to listOf("java.util.UUID")
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        assertEquals("""["java.util.UUID","java.time.LocalDateTime"]""", rendered.single().content.trim())
+    }
+
+    @Test
+    fun `use helper deduplicates repeated explicit imports`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-dedupe")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText(
+                """
+                {{ use("java.time.LocalDateTime") -}}
+                {{ use("java.time.LocalDateTime") -}}
+                {{ imports(imports) | json | raw }}
+                """.trimIndent()
+            )
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
+                    context = mapOf(
+                        "imports" to emptyList<String>()
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        assertEquals("""["java.time.LocalDateTime"]""", rendered.single().content.trim())
+    }
+
+    @Test
+    fun `use helper does not affect type helper output`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-type")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText(
+                """
+                {{ use("java.time.LocalDateTime") -}}
+                {{ type(field) | raw }}
+                """.trimIndent()
+            )
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
+                    context = mapOf(
+                        "field" to RenderedTypeCarrier("List<com.foo.Status?>")
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        assertEquals("List<com.foo.Status?>", rendered.single().content.trim())
+    }
+
+    @Test
+    fun `use helper fails fast when argument is missing`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-missing")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText("""{{ use() }}""")
+
+        val exception = assertThrows<Exception> {
+            PebbleArtifactRenderer(
+                templateResolver = PresetTemplateResolver(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString())
+                )
+            ).render(
+                planItems = listOf(
+                    ArtifactPlanItem(
+                        generatorId = "design",
+                        moduleRole = "application",
+                        templateId = "design/query.kt.peb",
+                        outputPath = "demo.kt",
+                        context = emptyMap(),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                ),
+                config = ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = emptyMap(),
+                    generators = emptyMap(),
+                    templates = TemplateConfig(
+                        preset = "ddd-default",
+                        overrideDirs = listOf(overrideDir.toString()),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                )
+            )
+        }
+
+        val illegalArgument = generateSequence<Throwable>(exception) { it.cause }
+            .filterIsInstance<IllegalArgumentException>()
+            .firstOrNull()
+
+        assertTrue(illegalArgument != null)
+        assertTrue(illegalArgument!!.message!!.contains("use() requires exactly one argument"))
+    }
+
+    @Test
+    fun `use helper fails fast when argument is not a string`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-non-string")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText("""{{ use(badValue) }}""")
+
+        val exception = assertThrows<Exception> {
+            PebbleArtifactRenderer(
+                templateResolver = PresetTemplateResolver(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString())
+                )
+            ).render(
+                planItems = listOf(
+                    ArtifactPlanItem(
+                        generatorId = "design",
+                        moduleRole = "application",
+                        templateId = "design/query.kt.peb",
+                        outputPath = "demo.kt",
+                        context = mapOf("badValue" to 123),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                ),
+                config = ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = emptyMap(),
+                    generators = emptyMap(),
+                    templates = TemplateConfig(
+                        preset = "ddd-default",
+                        overrideDirs = listOf(overrideDir.toString()),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                )
+            )
+        }
+
+        val illegalArgument = generateSequence<Throwable>(exception) { it.cause }
+            .filterIsInstance<IllegalArgumentException>()
+            .firstOrNull()
+
+        assertTrue(illegalArgument != null)
+        assertTrue(illegalArgument!!.message!!.contains("use() requires a string fully qualified type name"))
+    }
+
+    @Test
+    fun `use helper fails fast when argument is a short name`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-short-name")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText("""{{ use("LocalDateTime") }}""")
+
+        val exception = assertThrows<Exception> {
+            PebbleArtifactRenderer(
+                templateResolver = PresetTemplateResolver(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString())
+                )
+            ).render(
+                planItems = listOf(
+                    ArtifactPlanItem(
+                        generatorId = "design",
+                        moduleRole = "application",
+                        templateId = "design/query.kt.peb",
+                        outputPath = "demo.kt",
+                        context = emptyMap(),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                ),
+                config = ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = emptyMap(),
+                    generators = emptyMap(),
+                    templates = TemplateConfig(
+                        preset = "ddd-default",
+                        overrideDirs = listOf(overrideDir.toString()),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                )
+            )
+        }
+
+        val illegalArgument = generateSequence<Throwable>(exception) { it.cause }
+            .filterIsInstance<IllegalArgumentException>()
+            .firstOrNull()
+
+        assertTrue(illegalArgument != null)
+        assertTrue(illegalArgument!!.message!!.contains("use() requires a fully qualified type name"))
+    }
+
+    @Test
+    fun `use helper fails fast when argument is a wildcard import`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-wildcard")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText("""{{ use("java.time.*") }}""")
+
+        val exception = assertThrows<Exception> {
+            PebbleArtifactRenderer(
+                templateResolver = PresetTemplateResolver(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString())
+                )
+            ).render(
+                planItems = listOf(
+                    ArtifactPlanItem(
+                        generatorId = "design",
+                        moduleRole = "application",
+                        templateId = "design/query.kt.peb",
+                        outputPath = "demo.kt",
+                        context = emptyMap(),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                ),
+                config = ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = emptyMap(),
+                    generators = emptyMap(),
+                    templates = TemplateConfig(
+                        preset = "ddd-default",
+                        overrideDirs = listOf(overrideDir.toString()),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                )
+            )
+        }
+
+        val illegalArgument = generateSequence<Throwable>(exception) { it.cause }
+            .filterIsInstance<IllegalArgumentException>()
+            .firstOrNull()
+
+        assertTrue(illegalArgument != null)
+        assertTrue(illegalArgument!!.message!!.contains("use() requires a fully qualified type name"))
+    }
+
+    @Test
+    fun `use helper fails fast when import name is malformed`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-malformed")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText("""{{ use("java.time.Local-DateTime") }}""")
+
+        val exception = assertThrows<Exception> {
+            PebbleArtifactRenderer(
+                templateResolver = PresetTemplateResolver(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString())
+                )
+            ).render(
+                planItems = listOf(
+                    ArtifactPlanItem(
+                        generatorId = "design",
+                        moduleRole = "application",
+                        templateId = "design/query.kt.peb",
+                        outputPath = "demo.kt",
+                        context = emptyMap(),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                ),
+                config = ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = emptyMap(),
+                    generators = emptyMap(),
+                    templates = TemplateConfig(
+                        preset = "ddd-default",
+                        overrideDirs = listOf(overrideDir.toString()),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                )
+            )
+        }
+
+        val illegalArgument = generateSequence<Throwable>(exception) { it.cause }
+            .filterIsInstance<IllegalArgumentException>()
+            .firstOrNull()
+
+        assertTrue(illegalArgument != null)
+        assertTrue(illegalArgument!!.message!!.contains("use() requires a fully qualified type name"))
+    }
+
+    @Test
+    fun `use helper fails fast on collisions with computed imports`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-computed-collision")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText(
+                """
+                {{ use("com.bar.Status") -}}
+                {{ imports(imports) | json | raw }}
+                """.trimIndent()
+            )
+
+        val exception = assertThrows<Exception> {
+            PebbleArtifactRenderer(
+                templateResolver = PresetTemplateResolver(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString())
+                )
+            ).render(
+                planItems = listOf(
+                    ArtifactPlanItem(
+                        generatorId = "design",
+                        moduleRole = "application",
+                        templateId = "design/query.kt.peb",
+                        outputPath = "demo.kt",
+                        context = mapOf(
+                            "imports" to listOf("com.foo.Status")
+                        ),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                ),
+                config = ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = emptyMap(),
+                    generators = emptyMap(),
+                    templates = TemplateConfig(
+                        preset = "ddd-default",
+                        overrideDirs = listOf(overrideDir.toString()),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                )
+            )
+        }
+
+        val illegalArgument = generateSequence<Throwable>(exception) { it.cause }
+            .filterIsInstance<IllegalArgumentException>()
+            .firstOrNull()
+
+        assertTrue(illegalArgument != null)
+        assertTrue(illegalArgument!!.message!!.contains("use() import conflict"))
+    }
+
+    @Test
+    fun `use helper fails fast on collisions between explicit imports`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-explicit-collision")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText(
+                """
+                {{ use("com.foo.Status") -}}
+                {{ use("com.bar.Status") -}}
+                {{ imports(imports) | json | raw }}
+                """.trimIndent()
+            )
+
+        val exception = assertThrows<Exception> {
+            PebbleArtifactRenderer(
+                templateResolver = PresetTemplateResolver(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString())
+                )
+            ).render(
+                planItems = listOf(
+                    ArtifactPlanItem(
+                        generatorId = "design",
+                        moduleRole = "application",
+                        templateId = "design/query.kt.peb",
+                        outputPath = "demo.kt",
+                        context = mapOf(
+                            "imports" to emptyList<String>()
+                        ),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                ),
+                config = ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = emptyMap(),
+                    generators = emptyMap(),
+                    templates = TemplateConfig(
+                        preset = "ddd-default",
+                        overrideDirs = listOf(overrideDir.toString()),
+                        conflictPolicy = ConflictPolicy.SKIP
+                    )
+                )
+            )
+        }
+
+        val illegalArgument = generateSequence<Throwable>(exception) { it.cause }
+            .filterIsInstance<IllegalArgumentException>()
+            .firstOrNull()
+
+        assertTrue(illegalArgument != null)
+        assertTrue(illegalArgument!!.message!!.contains("use() import conflict"))
+    }
 }
 
 private data class RenderedTypeCarrier(

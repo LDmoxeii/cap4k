@@ -7,15 +7,63 @@ import io.pebbletemplates.pebble.extension.Function
 import io.pebbletemplates.pebble.template.EvaluationContext
 import io.pebbletemplates.pebble.template.PebbleTemplate
 
-internal class PipelinePebbleExtension : AbstractExtension() {
+internal class PipelinePebbleExtension(
+    private val explicitImportCollector: ExplicitImportCollector,
+) : AbstractExtension() {
     override fun getFilters(): Map<String, Filter> = mapOf(
         "json" to JsonFilter()
     )
 
     override fun getFunctions(): Map<String, Function> = mapOf(
         "type" to TypeFunction(),
-        "imports" to ImportsFunction(),
+        "imports" to ImportsFunction(explicitImportCollector),
+        "use" to UseFunction(explicitImportCollector),
     )
+}
+
+internal class ExplicitImportCollector {
+    private val explicitImports = LinkedHashSet<String>()
+    private val explicitImportsBySimpleName = LinkedHashMap<String, String>()
+
+    fun register(rawImport: String) {
+        val normalizedImport = rawImport.trim()
+        validateExplicitImport(normalizedImport)
+
+        val simpleName = normalizedImport.substringAfterLast('.')
+        val existingImport = explicitImportsBySimpleName.putIfAbsent(simpleName, normalizedImport)
+        if (existingImport != null && existingImport != normalizedImport) {
+            throw IllegalArgumentException(
+                "use() import conflict: $simpleName is already bound to $existingImport, cannot also import $normalizedImport"
+            )
+        }
+
+        explicitImports.add(normalizedImport)
+    }
+
+    fun mergeWith(baseImports: List<String>): List<String> {
+        val normalizedBaseImports = normalizeImports(baseImports)
+        val mergedImports = LinkedHashSet<String>(normalizedBaseImports)
+        val simpleNameToImport = LinkedHashMap<String, String>()
+
+        for (baseImport in normalizedBaseImports) {
+            simpleNameToImport.putIfAbsent(baseImport.substringAfterLast('.'), baseImport)
+        }
+
+        for (explicitImport in explicitImports) {
+            val simpleName = explicitImport.substringAfterLast('.')
+            val existingImport = simpleNameToImport[simpleName]
+            if (existingImport != null && existingImport != explicitImport) {
+                throw IllegalArgumentException(
+                    "use() import conflict: $simpleName is already bound to $existingImport, cannot also import $explicitImport"
+                )
+            }
+
+            simpleNameToImport.putIfAbsent(simpleName, explicitImport)
+            mergedImports.add(explicitImport)
+        }
+
+        return mergedImports.toList()
+    }
 }
 
 private class TypeFunction : Function {
@@ -43,6 +91,12 @@ private class TypeFunction : Function {
 }
 
 private class ImportsFunction : Function {
+    private val explicitImportCollector: ExplicitImportCollector
+
+    constructor(explicitImportCollector: ExplicitImportCollector) {
+        this.explicitImportCollector = explicitImportCollector
+    }
+
     override fun getArgumentNames(): List<String> = listOf("value")
 
     override fun execute(
@@ -56,7 +110,7 @@ private class ImportsFunction : Function {
         }
 
         val value = args["value"] ?: return emptyList<String>()
-        return normalizeImports(extractImports(value))
+        return explicitImportCollector.mergeWith(extractImports(value))
     }
 
     private fun extractImports(value: Any): List<String> = when (value) {
@@ -75,16 +129,32 @@ private class ImportsFunction : Function {
             "imports() requires a List<String> or a map exposing imports."
         )
     }
+}
 
-    private fun normalizeImports(imports: List<String>): List<String> {
-        val uniqueImports = LinkedHashSet<String>()
-        for (import in imports) {
-            val normalizedImport = import.trim()
-            if (normalizedImport.isNotBlank()) {
-                uniqueImports.add(normalizedImport)
-            }
+private class UseFunction(
+    private val explicitImportCollector: ExplicitImportCollector,
+) : Function {
+    override fun getArgumentNames(): List<String> = listOf("value")
+
+    override fun execute(
+        args: Map<String, Any?>,
+        self: PebbleTemplate,
+        context: EvaluationContext,
+        lineNumber: Int,
+    ): Any {
+        if (!args.containsKey("value")) {
+            throw IllegalArgumentException("use() requires exactly one argument.")
         }
-        return uniqueImports.toList()
+
+        val value = args["value"]
+            ?: throw IllegalArgumentException("use() requires a string fully qualified type name.")
+        val importName = value as? String
+            ?: throw IllegalArgumentException("use() requires a string fully qualified type name.")
+
+        val normalizedImport = importName.trim()
+        validateExplicitImport(normalizedImport)
+        explicitImportCollector.register(normalizedImport)
+        return ""
     }
 }
 
@@ -128,3 +198,24 @@ private fun readProperty(value: Any, propertyName: String): Any? {
     field.isAccessible = true
     return field.get(value)
 }
+
+private fun validateExplicitImport(importName: String) {
+    if (!EXPLICIT_IMPORT_PATTERN.matches(importName)) {
+        throw IllegalArgumentException("use() requires a fully qualified type name: $importName")
+    }
+}
+
+private fun normalizeImports(imports: List<String>): List<String> {
+    val uniqueImports = LinkedHashSet<String>()
+    for (import in imports) {
+        val normalizedImport = import.trim()
+        if (normalizedImport.isNotBlank()) {
+            uniqueImports.add(normalizedImport)
+        }
+    }
+    return uniqueImports.toList()
+}
+
+private val EXPLICIT_IMPORT_PATTERN = Regex(
+    """^([A-Za-z_$][A-Za-z0-9_$]*\.)+[A-Za-z_$][A-Za-z0-9_$]*$"""
+)
