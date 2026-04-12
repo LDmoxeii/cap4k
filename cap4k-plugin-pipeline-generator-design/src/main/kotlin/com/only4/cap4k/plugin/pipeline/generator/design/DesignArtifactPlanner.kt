@@ -15,7 +15,12 @@ class DesignArtifactPlanner : GeneratorProvider {
         val applicationRoot = requireApplicationModuleRoot(config)
         val basePath = config.basePackage.replace(".", "/")
 
-        return model.requests.map { request ->
+        return model.requests.mapIndexed { index, request ->
+            val siblingRequestTypeNames = model.requests.withIndex()
+                .asSequence()
+                .filter { it.index != index && it.value.packageName == request.packageName }
+                .map { it.value.typeName }
+                .toSet()
             val packagePath = request.packageName.replace(".", "/")
             val subdir = if (request.kind == RequestKind.COMMAND) "commands" else "queries"
             val templateId = if (request.kind == RequestKind.COMMAND) {
@@ -32,6 +37,8 @@ class DesignArtifactPlanner : GeneratorProvider {
                 context = DesignRenderModelFactory.create(
                     packageName = "${config.basePackage}.application.$subdir.${request.packageName}",
                     request = request,
+                    typeRegistry = config.typeRegistry,
+                    siblingRequestTypeNames = siblingRequestTypeNames,
                 ).toContextMap(),
                 conflictPolicy = config.templates.conflictPolicy,
             )

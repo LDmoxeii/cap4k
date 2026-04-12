@@ -198,6 +198,70 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kGenerate resolves short type from project type registry`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-type-registry")
+        copyFixture(projectDir, "design-type-registry-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val generatedFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/commands/video/publish/PublishVideoCmd.kt"
+        )
+        val content = generatedFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedFile.toFile().exists())
+        assertTrue(content.contains("import com.acme.demo.domain.video.VideoStatus"))
+        assertTrue(content.contains("val targetStatus: VideoStatus"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate fails when same-package sibling request name is used as a short type`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-sibling-short-type")
+        copyFixture(projectDir, "design-type-registry-sample")
+        projectDir.resolve("iterate/design/registry_design.json").writeText(
+            """
+            [
+              {
+                "tag": "cmd",
+                "package": "video.publish",
+                "name": "StartVideoProcessing",
+                "desc": "start video processing",
+                "aggregates": ["Video"],
+                "requestFields": [
+                  { "name": "fileSpec", "type": "VideoPostProcessingFileSpecQry" }
+                ],
+                "responseFields": []
+              },
+              {
+                "tag": "qry",
+                "package": "video.publish",
+                "name": "VideoPostProcessingFileSpec",
+                "desc": "video processing file spec",
+                "aggregates": ["Video"],
+                "requestFields": [],
+                "responseFields": []
+              }
+            ]
+            """.trimIndent()
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .buildAndFail()
+        assertTrue(result.output.contains("failed to resolve type for field fileSpec: VideoPostProcessingFileSpecQry"))
+        assertTrue(result.output.contains("sibling design-entry references are not supported"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kGenerate fails on ambiguous short type`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-ambiguous-short-type")
         copyFixture(projectDir, "design-sample")

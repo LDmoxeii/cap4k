@@ -4,6 +4,7 @@ import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver
+import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver.UnknownShortTypeFailure
 import com.only4.cap4k.plugin.pipeline.generator.design.types.SymbolIdentity
 import java.util.ArrayDeque
 
@@ -18,13 +19,18 @@ internal object DesignRenderModelFactory {
         "Set",
     )
 
-    fun create(packageName: String, request: RequestModel): DesignRenderModel {
+    fun create(
+        packageName: String,
+        request: RequestModel,
+        typeRegistry: Map<String, String> = emptyMap(),
+        siblingRequestTypeNames: Set<String> = emptySet(),
+    ): DesignRenderModel {
         val requestNamespace = buildNamespace(request.requestFields, "request")
         val responseNamespace = buildNamespace(request.responseFields, "response")
         val innerTypeNames = requestNamespace.nestedTypeNames + responseNamespace.nestedTypeNames
-        val symbolRegistry = buildSymbolRegistry(request, requestNamespace, responseNamespace)
-        validateNamespaceTypes("request", requestNamespace, symbolRegistry, innerTypeNames)
-        validateNamespaceTypes("response", responseNamespace, symbolRegistry, innerTypeNames)
+        val symbolRegistry = buildSymbolRegistry(request, requestNamespace, responseNamespace, typeRegistry)
+        validateNamespaceTypes("request", requestNamespace, symbolRegistry, innerTypeNames, siblingRequestTypeNames)
+        validateNamespaceTypes("response", responseNamespace, symbolRegistry, innerTypeNames, siblingRequestTypeNames)
         val importPlan = DesignImportPlanner.plan(
             types = requestNamespace.resolvedTypes + responseNamespace.resolvedTypes,
             innerTypeNames = innerTypeNames,
@@ -140,6 +146,7 @@ internal object DesignRenderModelFactory {
         request: RequestModel,
         requestNamespace: NamespaceModel,
         responseNamespace: NamespaceModel,
+        typeRegistry: Map<String, String>,
     ): DesignSymbolRegistry {
         val registry = DesignSymbolRegistry()
         val aggregateName = request.aggregateName?.takeIf { it.isNotBlank() }
@@ -151,6 +158,16 @@ internal object DesignRenderModelFactory {
                     typeName = aggregateName,
                     moduleRole = "domain",
                     source = "aggregate",
+                ),
+            )
+        }
+
+        typeRegistry.forEach { (simpleName, fqcn) ->
+            registry.register(
+                SymbolIdentity(
+                    packageName = fqcn.substringBeforeLast('.', missingDelimiterValue = ""),
+                    typeName = simpleName,
+                    source = "project-type-registry",
                 ),
             )
         }
@@ -183,10 +200,11 @@ internal object DesignRenderModelFactory {
         model: NamespaceModel,
         symbolRegistry: DesignSymbolRegistry,
         innerTypeNames: Set<String>,
+        siblingRequestTypeNames: Set<String> = emptySet(),
     ) {
-        model.fields.forEach { validateFieldType(it, symbolRegistry, innerTypeNames) }
+        model.fields.forEach { validateFieldType(it, symbolRegistry, innerTypeNames, siblingRequestTypeNames) }
         model.nestedTypes.forEach { nestedType ->
-            nestedType.fields.forEach { validateFieldType(it, symbolRegistry, innerTypeNames) }
+            nestedType.fields.forEach { validateFieldType(it, symbolRegistry, innerTypeNames, siblingRequestTypeNames) }
         }
     }
 
@@ -194,6 +212,7 @@ internal object DesignRenderModelFactory {
         field: PreparedFieldModel,
         symbolRegistry: DesignSymbolRegistry,
         innerTypeNames: Set<String>,
+        siblingRequestTypeNames: Set<String>,
     ) {
         try {
             ImportResolver.resolve(
@@ -202,8 +221,19 @@ internal object DesignRenderModelFactory {
                 symbolRegistry = symbolRegistry,
             )
         } catch (ex: IllegalArgumentException) {
+            val advisory = if (ex is UnknownShortTypeFailure) {
+                val shortTypeName = ex.shortType
+                val siblingAdvisory = if (shortTypeName in siblingRequestTypeNames) {
+                    "; sibling design-entry references are not supported"
+                } else {
+                    ""
+                }
+                "; use a fully qualified name or register it in type-registry.json$siblingAdvisory"
+            } else {
+                ""
+            }
             throw IllegalArgumentException(
-                "failed to resolve type for field ${field.sourceName}: ${field.resolvedType.rawText} (${ex.message})",
+                "failed to resolve type for field ${field.sourceName}: ${field.resolvedType.rawText} (${ex.message}$advisory)",
                 ex,
             )
         }

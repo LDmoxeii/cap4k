@@ -224,6 +224,47 @@ class DesignArtifactPlannerTest {
     }
 
     @Test
+    fun `resolves short type from project registry during planning`() {
+        val planner = DesignArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(
+                modules = mapOf("application" to "demo-application"),
+                typeRegistry = mapOf("VideoStatus" to "com.acme.demo.domain.video.VideoStatus"),
+            ),
+            model = CanonicalModel(
+                requests = listOf(
+                    RequestModel(
+                        kind = RequestKind.COMMAND,
+                        packageName = "video.publish",
+                        typeName = "PublishVideoCmd",
+                        description = "publish video",
+                        aggregateName = "Video",
+                        aggregatePackageName = "com.acme.demo.domain.aggregates.video",
+                        requestFields = listOf(
+                            FieldModel("status", "VideoStatus"),
+                        ),
+                        responseFields = emptyList(),
+                    ),
+                ),
+            ),
+        )
+
+        val command = items.single()
+
+        assertEquals(
+            listOf(
+                DesignRenderFieldModel(name = "status", renderedType = "VideoStatus"),
+            ),
+            command.context["requestFields"],
+        )
+        assertEquals(
+            listOf("com.acme.demo.domain.video.VideoStatus"),
+            command.context["imports"],
+        )
+    }
+
+    @Test
     fun `fails fast when short name is ambiguous during planning`() {
         val planner = DesignArtifactPlanner()
 
@@ -256,6 +297,176 @@ class DesignArtifactPlannerTest {
             "failed to resolve type for field status: Status (ambiguous short type: Status -> com.foo.Status, com.bar.Status)",
             ex.message,
         )
+    }
+
+    @Test
+    fun `fails fast when sibling design entry short type is unresolved during planning`() {
+        val planner = DesignArtifactPlanner()
+
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("application" to "demo-application")),
+                model = CanonicalModel(
+                    requests = listOf(
+                        RequestModel(
+                            kind = RequestKind.COMMAND,
+                            packageName = "video.publish",
+                            typeName = "PublishVideoCmd",
+                            description = "publish video",
+                            aggregateName = "Video",
+                            aggregatePackageName = "com.acme.demo.domain.aggregates.video",
+                            requestFields = listOf(
+                                FieldModel("fileList", "List<VideoPostProcessingFileSpec>"),
+                            ),
+                            responseFields = emptyList(),
+                        ),
+                        RequestModel(
+                            kind = RequestKind.COMMAND,
+                            packageName = "video.processing",
+                            typeName = "VideoPostProcessingFileSpec",
+                            description = "video post processing file spec",
+                            aggregateName = "Video",
+                            aggregatePackageName = "com.acme.demo.domain.aggregates.video",
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "failed to resolve type for field fileList: List (unknown short type: VideoPostProcessingFileSpec; use a fully qualified name or register it in type-registry.json)",
+            ex.message,
+        )
+        assertEquals(
+            false,
+            ex.message!!.contains("sibling design-entry references are not supported"),
+        )
+    }
+
+    @Test
+    fun `same-package sibling design entry adds unsupported guidance for unknown short type`() {
+        val planner = DesignArtifactPlanner()
+
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("application" to "demo-application")),
+                model = CanonicalModel(
+                    requests = listOf(
+                        RequestModel(
+                            kind = RequestKind.COMMAND,
+                            packageName = "video.publish",
+                            typeName = "PublishVideoCmd",
+                            description = "publish video",
+                            aggregateName = "Video",
+                            aggregatePackageName = "com.acme.demo.domain.aggregates.video",
+                            requestFields = listOf(
+                                FieldModel("fileList", "List<VideoPostProcessingFileSpec>"),
+                            ),
+                            responseFields = emptyList(),
+                        ),
+                        RequestModel(
+                            kind = RequestKind.QUERY,
+                            packageName = "video.publish",
+                            typeName = "VideoPostProcessingFileSpec",
+                            description = "video post processing file spec",
+                            aggregateName = "Video",
+                            aggregatePackageName = "com.acme.demo.domain.aggregates.video",
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "failed to resolve type for field fileList: List (unknown short type: VideoPostProcessingFileSpec; use a fully qualified name or register it in type-registry.json; sibling design-entry references are not supported)",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `different-package sibling design entry keeps generic unknown short type guidance`() {
+        val planner = DesignArtifactPlanner()
+
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("application" to "demo-application")),
+                model = CanonicalModel(
+                    requests = listOf(
+                        RequestModel(
+                            kind = RequestKind.COMMAND,
+                            packageName = "video.publish",
+                            typeName = "PublishVideoCmd",
+                            description = "publish video",
+                            aggregateName = "Video",
+                            aggregatePackageName = "com.acme.demo.domain.aggregates.video",
+                            requestFields = listOf(
+                                FieldModel("fileList", "List<VideoPostProcessingFileSpec>"),
+                            ),
+                            responseFields = emptyList(),
+                        ),
+                        RequestModel(
+                            kind = RequestKind.QUERY,
+                            packageName = "video.processing",
+                            typeName = "VideoPostProcessingFileSpec",
+                            description = "video post processing file spec",
+                            aggregateName = "Video",
+                            aggregatePackageName = "com.acme.demo.domain.aggregates.video",
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "failed to resolve type for field fileList: List (unknown short type: VideoPostProcessingFileSpec; use a fully qualified name or register it in type-registry.json)",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `explicit fqcn source wins over registry fallback for same short name`() {
+        val planner = DesignArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(
+                modules = mapOf("application" to "demo-application"),
+                typeRegistry = mapOf("Status" to "com.acme.demo.domain.status.Status"),
+            ),
+            model = CanonicalModel(
+                requests = listOf(
+                    RequestModel(
+                        kind = RequestKind.COMMAND,
+                        packageName = "order.submit",
+                        typeName = "SubmitOrderCmd",
+                        description = "submit order",
+                        aggregateName = "Order",
+                        aggregatePackageName = "com.acme.demo.domain.aggregates.order",
+                        requestFields = listOf(
+                            FieldModel("status", "Status"),
+                            FieldModel("canonicalStatus", "com.foo.Status"),
+                        ),
+                        responseFields = emptyList(),
+                    ),
+                ),
+            ),
+        )
+
+        val command = items.single()
+
+        assertEquals(
+            listOf(
+                DesignRenderFieldModel(name = "status", renderedType = "Status"),
+                DesignRenderFieldModel(name = "canonicalStatus", renderedType = "Status"),
+            ),
+            command.context["requestFields"],
+        )
+        assertEquals(listOf("com.foo.Status"), command.context["imports"])
     }
 
     @Test
@@ -454,10 +665,14 @@ class DesignArtifactPlannerTest {
         }
     }
 
-    private fun projectConfig(modules: Map<String, String>) = ProjectConfig(
+    private fun projectConfig(
+        modules: Map<String, String>,
+        typeRegistry: Map<String, String> = emptyMap(),
+    ) = ProjectConfig(
         basePackage = "com.acme.demo",
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
+        typeRegistry = typeRegistry,
         sources = emptyMap(),
         generators = mapOf("design" to GeneratorConfig(enabled = true)),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),

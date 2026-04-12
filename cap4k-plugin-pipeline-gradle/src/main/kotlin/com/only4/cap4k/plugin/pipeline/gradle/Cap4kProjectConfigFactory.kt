@@ -1,5 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonToken
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -35,11 +37,13 @@ class Cap4kProjectConfigFactory {
         val sources = buildSources(project, extension, sourceStates)
         val generators = buildGenerators(extension, generatorStates)
         validateGeneratorDependencies(sourceStates, generatorStates)
+        val typeRegistry = buildTypeRegistry(project, extension)
 
         return ProjectConfig(
             basePackage = basePackage,
             layout = ProjectLayout.MULTI_MODULE,
             modules = modules,
+            typeRegistry = typeRegistry,
             sources = sources,
             generators = generators,
             templates = TemplateConfig(
@@ -202,6 +206,54 @@ class Cap4kProjectConfigFactory {
         }
     }
 
+    private fun buildTypeRegistry(project: Project, extension: Cap4kExtension): Map<String, String> {
+        val registryFile = extension.types.registryFile.optionalValue() ?: return emptyMap()
+        val file = project.file(registryFile).absoluteFile
+        require(file.exists()) {
+            "types.registryFile does not exist: ${file.path}"
+        }
+        val registry = linkedMapOf<String, String>()
+        file.reader(Charsets.UTF_8).use { reader ->
+            val jsonReader = JsonReader(reader)
+            require(jsonReader.peek() == JsonToken.BEGIN_OBJECT) {
+                "types.registryFile must contain a JSON object."
+            }
+            jsonReader.beginObject()
+
+            val rawKeys = linkedSetOf<String>()
+            while (jsonReader.hasNext()) {
+                val rawKey = jsonReader.nextName()
+                require(rawKeys.add(rawKey)) {
+                    "types.registryFile contains duplicate type name: $rawKey"
+                }
+
+                val normalizedKey = rawKey.trim()
+                require(normalizedKey.isNotEmpty()) {
+                    "types.registryFile contains a blank type name."
+                }
+                require(!normalizedKey.contains('.')) {
+                    "types.registryFile type name must be a simple name: $normalizedKey"
+                }
+                require(normalizedKey !in reservedTypeNames) {
+                    "types.registryFile cannot override built-in type: $normalizedKey"
+                }
+                require(normalizedKey !in registry) {
+                    "types.registryFile contains duplicate type name after normalization: $normalizedKey"
+                }
+
+                require(jsonReader.peek() == JsonToken.STRING) {
+                    "types.registryFile value for $normalizedKey must be a string FQN."
+                }
+                val normalizedValue = jsonReader.nextString().asRegistryValue(normalizedKey)
+                registry[normalizedKey] = normalizedValue
+            }
+
+            jsonReader.endObject()
+        }
+
+        return registry
+    }
+
     private fun validateGeneratorDependencies(sources: SourceStates, generators: GeneratorStates) {
         if (generators.designEnabled && !sources.designJsonEnabled) {
             throw IllegalArgumentException("design generator requires enabled designJson source.")
@@ -252,3 +304,61 @@ private fun Property<String>.normalized(): String =
 
 private fun ListProperty<String>.normalizedValues(): List<String> =
     orNull.orEmpty().mapNotNull { value -> value.trim().takeIf { it.isNotEmpty() } }
+
+private fun String.asRegistryValue(key: String): String {
+    require(isNotBlank()) {
+        "types.registryFile value for $key must not be blank."
+    }
+    require(this == trim()) {
+        "types.registryFile value for $key must be a fully qualified name."
+    }
+    val segments = split('.')
+    require(segments.size >= 2 && segments.all { it.isValidQualifiedNameSegment() }) {
+        "types.registryFile value for $key must be a fully qualified name."
+    }
+    return this
+}
+
+private fun Char.isJavaIdentifierStartChar(): Boolean = Character.isJavaIdentifierStart(this)
+
+private fun Char.isJavaIdentifierPartChar(): Boolean = Character.isJavaIdentifierPart(this)
+
+private fun String.isValidQualifiedNameSegment(): Boolean {
+    if (isEmpty()) {
+        return false
+    }
+    if (!first().isJavaIdentifierStartChar()) {
+        return false
+    }
+    return drop(1).all { it.isJavaIdentifierPartChar() }
+}
+
+private val reservedTypeNames = setOf(
+    "Any",
+    "Array",
+    "Boolean",
+    "Byte",
+    "Char",
+    "Collection",
+    "Double",
+    "Float",
+    "Int",
+    "Iterable",
+    "List",
+    "Long",
+    "Map",
+    "MutableCollection",
+    "MutableIterable",
+    "MutableList",
+    "MutableMap",
+    "MutableSet",
+    "Nothing",
+    "Number",
+    "Pair",
+    "Sequence",
+    "Set",
+    "Short",
+    "String",
+    "Triple",
+    "Unit",
+)

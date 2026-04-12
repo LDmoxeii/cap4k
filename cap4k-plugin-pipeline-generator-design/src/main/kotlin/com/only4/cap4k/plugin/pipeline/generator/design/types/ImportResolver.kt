@@ -134,10 +134,10 @@ internal object ImportResolver {
 
             DesignResolvedTypeKind.EXPLICIT_FQCN -> {
                 val candidates = symbolRegistry.findBySimpleName(type.simpleName)
+                val conflictingCandidates = candidates.filterNot { it.source == "project-type-registry" }
                 val canImport = type.simpleName !in builtInTypeNames &&
                     type.simpleName !in innerTypeNames &&
-                    candidates.size == 1 &&
-                    candidates.single().fqcn == type.rawText
+                    conflictingCandidates.all { it.fqcn == type.rawText }
 
                 if (canImport) {
                     ImportResolutionResult(
@@ -156,22 +156,44 @@ internal object ImportResolver {
 
             DesignResolvedTypeKind.UNRESOLVED -> {
                 val candidates = symbolRegistry.findBySimpleName(type.simpleName)
-                when {
-                    candidates.isEmpty() -> throw IllegalArgumentException(
-                        "unknown short type: ${type.rawText}",
-                    )
+                val nonRegistryCandidates = candidates.filterNot { it.source == "project-type-registry" }
+                val registryCandidates = candidates.filter { it.source == "project-type-registry" }
+                val selectedCandidates = when {
+                    nonRegistryCandidates.size == 1 -> nonRegistryCandidates
+                    nonRegistryCandidates.size > 1 -> nonRegistryCandidates
+                    registryCandidates.size == 1 -> registryCandidates
+                    registryCandidates.size > 1 -> registryCandidates
+                    else -> emptyList()
+                }
 
-                    candidates.size > 1 -> throw IllegalArgumentException(
-                        "ambiguous short type: ${type.rawText} -> ${candidates.joinToString { it.fqcn }}",
-                    )
+                when (selectedCandidates.size) {
+                    0 -> throw UnknownShortTypeFailure(type.rawText)
 
-                    else -> ImportResolutionResult(
+                    1 -> ImportResolutionResult(
                         renderedType = type.simpleName,
-                        imports = setOf(candidates.single().fqcn),
+                        imports = setOf(selectedCandidates.single().fqcn),
                         qualifiedFallback = false,
+                    )
+
+                    else -> throw AmbiguousShortTypeFailure(
+                        shortType = type.rawText,
+                        candidates = selectedCandidates.map { it.fqcn },
                     )
                 }
             }
         }
     }
+
+    internal sealed class ShortTypeResolutionFailure(
+        message: String,
+    ) : IllegalArgumentException(message)
+
+    internal class UnknownShortTypeFailure(
+        val shortType: String,
+    ) : ShortTypeResolutionFailure("unknown short type: $shortType")
+
+    internal class AmbiguousShortTypeFailure(
+        val shortType: String,
+        val candidates: List<String>,
+    ) : ShortTypeResolutionFailure("ambiguous short type: $shortType -> ${candidates.joinToString()}")
 }
