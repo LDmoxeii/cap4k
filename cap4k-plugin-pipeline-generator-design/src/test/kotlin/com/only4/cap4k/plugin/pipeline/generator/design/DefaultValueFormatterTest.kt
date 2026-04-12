@@ -43,6 +43,42 @@ class DefaultValueFormatterTest {
     }
 
     @Test
+    fun `int literal is preserved`() {
+        val actual = DefaultValueFormatter.format(
+            rawDefaultValue = "42",
+            renderedType = "Int",
+            nullable = false,
+            fieldName = "retryCount",
+        )
+
+        assertEquals("42", actual)
+    }
+
+    @Test
+    fun `double literal is preserved`() {
+        val actual = DefaultValueFormatter.format(
+            rawDefaultValue = "3.14",
+            renderedType = "Double",
+            nullable = false,
+            fieldName = "threshold",
+        )
+
+        assertEquals("3.14", actual)
+    }
+
+    @Test
+    fun `float literal with suffix is preserved`() {
+        val actual = DefaultValueFormatter.format(
+            rawDefaultValue = "2.5f",
+            renderedType = "Float",
+            nullable = false,
+            fieldName = "ratio",
+        )
+
+        assertEquals("2.5f", actual)
+    }
+
+    @Test
     fun `explicit constant expression is preserved`() {
         val actual = DefaultValueFormatter.format(
             rawDefaultValue = "java.time.LocalDateTime.MIN",
@@ -104,6 +140,18 @@ class DefaultValueFormatterTest {
                 fieldName = "tags",
             ),
         )
+    }
+
+    @Test
+    fun `nullable compatible empty collection expression is preserved`() {
+        val actual = DefaultValueFormatter.format(
+            rawDefaultValue = "emptyList()",
+            renderedType = "List<String>?",
+            nullable = true,
+            fieldName = "tags",
+        )
+
+        assertEquals("emptyList()", actual)
     }
 
     @Test
@@ -205,6 +253,57 @@ class DefaultValueFormatterTest {
     }
 
     @Test
+    fun `invalid int literal is rejected`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "12abc",
+                renderedType = "Int",
+                nullable = false,
+                fieldName = "retryCount",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field retryCount: 12abc is not a valid Int literal",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `invalid double literal is rejected`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "3.14d",
+                renderedType = "Double",
+                nullable = false,
+                fieldName = "threshold",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field threshold: 3.14d is not a valid Double literal",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `invalid float literal is rejected`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "2.5",
+                renderedType = "Float",
+                nullable = false,
+                fieldName = "ratio",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field ratio: 2.5 is not a valid Float literal",
+            ex.message,
+        )
+    }
+
+    @Test
     fun `dotted expression is rejected for long field`() {
         val ex = assertThrows(IllegalArgumentException::class.java) {
             DefaultValueFormatter.format(
@@ -252,6 +351,35 @@ class DefaultValueFormatterTest {
         assertEquals(
             "invalid default value for field status: unsupported default value expression: foo(bar)",
             ex.message,
+        )
+    }
+
+    @Test
+    fun `incompatible empty collection expressions are rejected`() {
+        val listEx = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "emptyList()",
+                renderedType = "Set<String>",
+                nullable = false,
+                fieldName = "tags",
+            )
+        }
+        assertEquals(
+            "invalid default value for field tags: emptyList() is not compatible with Set<String>",
+            listEx.message,
+        )
+
+        val setEx = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = "mutableSetOf()",
+                renderedType = "MutableList<String>",
+                nullable = false,
+                fieldName = "tags",
+            )
+        }
+        assertEquals(
+            "invalid default value for field tags: mutableSetOf() is not compatible with MutableList<String>",
+            setEx.message,
         )
     }
 

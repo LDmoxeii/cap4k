@@ -12,7 +12,10 @@ internal object DefaultValueFormatter {
         """(?:[A-Za-z_][A-Za-z0-9_]*\.)+[A-Z][A-Za-z0-9_]*""",
     )
 
+    private val intLiteralPattern = Regex("""-?\d+""")
     private val longLiteralPattern = Regex("""-?\d+[lL]?""")
+    private val doubleLiteralPattern = Regex("""-?(?:\d+\.\d*|\.\d+)(?:[eE][+-]?\d+)?""")
+    private val floatLiteralPattern = Regex("""-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?[fF]""")
 
     fun format(
         rawDefaultValue: String?,
@@ -38,9 +41,12 @@ internal object DefaultValueFormatter {
 
         return when (normalizedType) {
             "String" -> normalizeString(value)
+            "Int" -> normalizeInt(value, fieldName)
             "Long" -> normalizeLong(value, fieldName)
+            "Double" -> normalizeDouble(value, fieldName)
+            "Float" -> normalizeFloat(value, fieldName)
             "Boolean" -> normalizeBoolean(value, fieldName)
-            else -> normalizeExpression(value, fieldName)
+            else -> normalizeExpression(value, normalizedType, fieldName)
         }
     }
 
@@ -72,6 +78,27 @@ internal object DefaultValueFormatter {
         return if (value.endsWith("L")) value else value.removeSuffix("l") + "L"
     }
 
+    private fun normalizeInt(value: String, fieldName: String): String {
+        require(intLiteralPattern.matches(value)) {
+            "invalid default value for field $fieldName: $value is not a valid Int literal"
+        }
+        return value
+    }
+
+    private fun normalizeDouble(value: String, fieldName: String): String {
+        require(doubleLiteralPattern.matches(value)) {
+            "invalid default value for field $fieldName: $value is not a valid Double literal"
+        }
+        return value
+    }
+
+    private fun normalizeFloat(value: String, fieldName: String): String {
+        require(floatLiteralPattern.matches(value)) {
+            "invalid default value for field $fieldName: $value is not a valid Float literal"
+        }
+        return value
+    }
+
     private fun normalizeBoolean(value: String, fieldName: String): String {
         require(value == "true" || value == "false") {
             "invalid default value for field $fieldName: Boolean defaults must be true or false"
@@ -79,8 +106,14 @@ internal object DefaultValueFormatter {
         return value
     }
 
-    private fun normalizeExpression(value: String, fieldName: String): String {
-        if (value in supportedEmptyCollections || isConstantExpression(value)) {
+    private fun normalizeExpression(value: String, normalizedType: String, fieldName: String): String {
+        if (value in supportedEmptyCollections) {
+            require(isCompatibleEmptyCollection(value, normalizedType)) {
+                "invalid default value for field $fieldName: $value is not compatible with $normalizedType"
+            }
+            return value
+        }
+        if (isConstantExpression(value)) {
             return value
         }
         throw IllegalArgumentException("invalid default value for field $fieldName: unsupported default value expression: $value")
@@ -88,5 +121,16 @@ internal object DefaultValueFormatter {
 
     private fun isConstantExpression(value: String): Boolean = constantExpressionPattern.matches(value)
 
-    private val builtInScalarTypes = setOf("String", "Long", "Boolean")
+    private fun isCompatibleEmptyCollection(value: String, normalizedType: String): Boolean {
+        val rawType = normalizedType.substringBefore("<").substringAfterLast(".").trim()
+        return when (value) {
+            "emptyList()" -> rawType in setOf("List", "Collection", "Iterable")
+            "emptySet()" -> rawType in setOf("Set", "Collection", "Iterable")
+            "mutableListOf()" -> rawType in setOf("MutableList", "MutableCollection", "List", "Collection", "Iterable")
+            "mutableSetOf()" -> rawType in setOf("MutableSet", "MutableCollection", "Set", "Collection", "Iterable")
+            else -> false
+        }
+    }
+
+    private val builtInScalarTypes = setOf("String", "Int", "Long", "Double", "Float", "Boolean")
 }
