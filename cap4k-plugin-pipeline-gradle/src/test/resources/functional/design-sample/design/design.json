@@ -6,17 +6,25 @@
     "desc": "submit order command",
     "aggregates": ["Order"],
     "requestFields": [
-      { "name": "orderId", "type": "Long" },
-      { "name": "tags", "type": "List<String>" },
+      { "name": "orderId", "type": "Long", "defaultValue": "1" },
+      { "name": "submittedAt", "type": "java.time.LocalDateTime" },
+      { "name": "mirroredSubmittedAt", "type": "LocalDateTime" },
+      { "name": "externalId", "type": "java.util.UUID" },
+      { "name": "trackingId", "type": "UUID" },
+      { "name": "requestStatus", "type": "com.foo.Status" },
+      { "name": "title", "type": "String", "defaultValue": "demo" },
+      { "name": "enabled", "type": "Boolean", "defaultValue": "true" },
+      { "name": "tags", "type": "List<String>", "defaultValue": "emptyList()" },
       { "name": "address", "type": "Address", "nullable": true },
       { "name": "address.city", "type": "String" },
-      { "name": "address.zipCode", "type": "String" },
-      { "name": "createdAt", "type": "java.time.LocalDateTime" }
+      { "name": "address.addressId", "type": "java.util.UUID" },
+      { "name": "createdAt", "type": "java.time.LocalDateTime", "defaultValue": "java.time.LocalDateTime.MIN" }
     ],
     "responseFields": [
       { "name": "accepted", "type": "Boolean" },
+      { "name": "responseStatus", "type": "com.bar.Status" },
       { "name": "result", "type": "Result", "nullable": true },
-      { "name": "result.id", "type": "Long" }
+      { "name": "result.receiptId", "type": "java.util.UUID" }
     ]
   },
   {
@@ -26,12 +34,17 @@
     "desc": "find order query",
     "aggregates": ["Order"],
     "requestFields": [
-      { "name": "orderId", "type": "Long" }
+      { "name": "orderId", "type": "Long" },
+      { "name": "lookupId", "type": "java.util.UUID" },
+      { "name": "lookupMirrorId", "type": "UUID" },
+      { "name": "requestStatus", "type": "com.foo.Status" }
     ],
     "responseFields": [
-      { "name": "status", "type": "String" },
+      { "name": "responseStatus", "type": "com.bar.Status" },
       { "name": "snapshot", "type": "Snapshot", "nullable": true },
-      { "name": "snapshot.updatedAt", "type": "java.time.LocalDateTime" }
+      { "name": "snapshot.updatedAt", "type": "java.time.LocalDateTime" },
+      { "name": "snapshot.publishedAt", "type": "LocalDateTime" },
+      { "name": "snapshot.snapshotId", "type": "java.util.UUID" }
     ]
   }
 ]

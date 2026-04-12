@@ -341,7 +341,12 @@ internal object DesignRenderModelFactory {
             name = name,
             renderedType = renderedType,
             nullable = nullable,
-            defaultValue = defaultValue,
+            defaultValue = DefaultValueFormatter.format(
+                rawDefaultValue = defaultValue,
+                renderedType = renderedType,
+                nullable = nullable,
+                fieldName = sourceName,
+            ),
         )
     }
 

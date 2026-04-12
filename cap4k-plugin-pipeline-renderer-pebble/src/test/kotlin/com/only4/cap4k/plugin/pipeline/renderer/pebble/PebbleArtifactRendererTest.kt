@@ -565,6 +565,144 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `renders field default values in preset command design template`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-command-defaults")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/command.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.commands.order.submit",
+                        "typeName" to "SubmitOrderCmd",
+                        "imports" to emptyList<String>(),
+                        "requestFields" to listOf(
+                            mapOf("name" to "title", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"demo\""),
+                            mapOf("name" to "retryCount", "renderedType" to "Long", "nullable" to false, "defaultValue" to "1L"),
+                        ),
+                        "requestNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Metadata",
+                                "fields" to listOf(
+                                    mapOf("name" to "source", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"api\""),
+                                ),
+                            ),
+                        ),
+                        "responseFields" to listOf(
+                            mapOf("name" to "enabled", "renderedType" to "Boolean", "nullable" to false, "defaultValue" to "true"),
+                        ),
+                        "responseNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Result",
+                                "fields" to listOf(
+                                    mapOf("name" to "status", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"OK\""),
+                                ),
+                            ),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("val title: String = \"demo\""))
+        assertTrue(content.contains("val retryCount: Long = 1L"))
+        assertTrue(content.contains("val source: String = \"api\""))
+        assertTrue(content.contains("val enabled: Boolean = true"))
+        assertTrue(content.contains("val status: String = \"OK\""))
+    }
+
+    @Test
+    fun `renders field default values in preset query design template`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-defaults")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.queries",
+                        "typeName" to "FindOrderQry",
+                        "imports" to emptyList<String>(),
+                        "requestFields" to listOf(
+                            mapOf("name" to "status", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"ACTIVE\""),
+                        ),
+                        "requestNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Criteria",
+                                "fields" to listOf(
+                                    mapOf("name" to "priority", "renderedType" to "Long", "nullable" to false, "defaultValue" to "1L"),
+                                ),
+                            ),
+                        ),
+                        "responseFields" to listOf(
+                            mapOf("name" to "fallback", "renderedType" to "Boolean", "nullable" to false, "defaultValue" to "false"),
+                        ),
+                        "responseNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Result",
+                                "fields" to listOf(
+                                    mapOf("name" to "code", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"DONE\""),
+                                ),
+                            ),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("val status: String = \"ACTIVE\""))
+        assertTrue(content.contains("val priority: Long = 1L"))
+        assertTrue(content.contains("val fallback: Boolean = false"))
+        assertTrue(content.contains("val code: String = \"DONE\""))
+    }
+
+    @Test
     fun `renders empty request and response as stable objects`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-empty")
         val renderer = PebbleArtifactRenderer(

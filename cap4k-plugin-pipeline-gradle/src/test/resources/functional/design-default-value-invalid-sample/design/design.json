@@ -1,0 +1,12 @@
+[
+  {
+    "tag": "cmd",
+    "package": "video.post",
+    "name": "InvalidVideoPost",
+    "desc": "invalid video post command",
+    "requestFields": [
+      { "name": "enabled", "type": "Boolean", "defaultValue": "yes" }
+    ],
+    "responseFields": []
+  }
+]

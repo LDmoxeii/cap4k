@@ -4,6 +4,7 @@ internal data class DesignRenderFieldModel(
     val name: String,
     val renderedType: String,
     val nullable: Boolean = false,
+    // Kotlin-ready right-hand-side expression, not raw design input.
     val defaultValue: String? = null,
 ) {
     val type: String
