@@ -306,15 +306,17 @@ private fun ListProperty<String>.normalizedValues(): List<String> =
     orNull.orEmpty().mapNotNull { value -> value.trim().takeIf { it.isNotEmpty() } }
 
 private fun String.asRegistryValue(key: String): String {
-    val normalizedValue = trim()
-    require(normalizedValue.isNotEmpty()) {
+    require(isNotBlank()) {
         "types.registryFile value for $key must not be blank."
     }
-    val segments = normalizedValue.split('.')
+    require(this == trim()) {
+        "types.registryFile value for $key must be a fully qualified name."
+    }
+    val segments = split('.')
     require(segments.size >= 2 && segments.all { it.isValidQualifiedNameSegment() }) {
         "types.registryFile value for $key must be a fully qualified name."
     }
-    return normalizedValue
+    return this
 }
 
 private fun Char.isJavaIdentifierStartChar(): Boolean = Character.isJavaIdentifierStart(this)
