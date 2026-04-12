@@ -43,6 +43,30 @@ class DefaultValueFormatterTest {
     }
 
     @Test
+    fun `quoted string with backspace escape remains unchanged`() {
+        val actual = DefaultValueFormatter.format(
+            rawDefaultValue = "\"line1\\bline2\"",
+            renderedType = "String",
+            nullable = false,
+            fieldName = "title",
+        )
+
+        assertEquals("\"line1\\bline2\"", actual)
+    }
+
+    @Test
+    fun `quoted string with apostrophe escape remains unchanged`() {
+        val actual = DefaultValueFormatter.format(
+            rawDefaultValue = "\"it\\'s fine\"",
+            renderedType = "String",
+            nullable = false,
+            fieldName = "title",
+        )
+
+        assertEquals("\"it\\'s fine\"", actual)
+    }
+
+    @Test
     fun `quoted string with unicode escape remains unchanged`() {
         val actual = DefaultValueFormatter.format(
             rawDefaultValue = "\"\\u0041\"",
@@ -52,6 +76,26 @@ class DefaultValueFormatterTest {
         )
 
         assertEquals("\"\\u0041\"", actual)
+    }
+
+    @Test
+    fun `quoted string containing a raw newline is rejected`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            DefaultValueFormatter.format(
+                rawDefaultValue = """
+                    |"line1
+                    |line2"
+                """.trimMargin(),
+                renderedType = "String",
+                nullable = false,
+                fieldName = "title",
+            )
+        }
+
+        assertEquals(
+            "invalid default value for field title: invalid String literal: \"line1\nline2\"",
+            ex.message,
+        )
     }
 
     @Test

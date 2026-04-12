@@ -168,6 +168,9 @@ internal object DefaultValueFormatter {
             if (current == '"') {
                 return false
             }
+            if (current == '\n' || current == '\r') {
+                return false
+            }
             if (current == '\\') {
                 if (index + 1 >= value.length - 1) {
                     return false
@@ -196,5 +199,5 @@ internal object DefaultValueFormatter {
 
     private val builtInScalarTypes = setOf("String", "Int", "Long", "Double", "Float", "Boolean")
     private val collectionLikeTypes = setOf("List", "MutableList", "Set", "MutableSet", "Collection", "MutableCollection", "Iterable")
-    private val supportedStringEscapes = setOf('\\', '"', 'n', 'r', 't', '$')
+    private val supportedStringEscapes = setOf('\\', '"', '\'', 'b', 'n', 'r', 't', '$')
 }
