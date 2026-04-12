@@ -218,7 +218,7 @@ internal object DesignRenderModelFactory {
             )
         } catch (ex: IllegalArgumentException) {
             val advisory = if (ex.message?.startsWith("unknown short type:") == true) {
-                "; use a fully qualified name or register it in type-registry.json; sibling design-entry references are not supported"
+                "; use a fully qualified name or register it in type-registry.json"
             } else {
                 ""
             }

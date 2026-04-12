@@ -156,19 +156,29 @@ internal object ImportResolver {
 
             DesignResolvedTypeKind.UNRESOLVED -> {
                 val candidates = symbolRegistry.findBySimpleName(type.simpleName)
-                when {
-                    candidates.isEmpty() -> throw IllegalArgumentException(
+                val nonRegistryCandidates = candidates.filterNot { it.source == "project-type-registry" }
+                val registryCandidates = candidates.filter { it.source == "project-type-registry" }
+                val selectedCandidates = when {
+                    nonRegistryCandidates.size == 1 -> nonRegistryCandidates
+                    nonRegistryCandidates.size > 1 -> nonRegistryCandidates
+                    registryCandidates.size == 1 -> registryCandidates
+                    registryCandidates.size > 1 -> registryCandidates
+                    else -> emptyList()
+                }
+
+                when (selectedCandidates.size) {
+                    0 -> throw IllegalArgumentException(
                         "unknown short type: ${type.rawText}",
                     )
 
-                    candidates.size > 1 -> throw IllegalArgumentException(
-                        "ambiguous short type: ${type.rawText} -> ${candidates.joinToString { it.fqcn }}",
+                    1 -> ImportResolutionResult(
+                        renderedType = type.simpleName,
+                        imports = setOf(selectedCandidates.single().fqcn),
+                        qualifiedFallback = false,
                     )
 
-                    else -> ImportResolutionResult(
-                        renderedType = type.simpleName,
-                        imports = setOf(candidates.single().fqcn),
-                        qualifiedFallback = false,
+                    else -> throw IllegalArgumentException(
+                        "ambiguous short type: ${type.rawText} -> ${selectedCandidates.joinToString { it.fqcn }}",
                     )
                 }
             }

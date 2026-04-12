@@ -335,11 +335,54 @@ class DesignArtifactPlannerTest {
             )
         }
 
-        assertEquals("failed to resolve type for field fileList: List (unknown short type: VideoPostProcessingFileSpec; use a fully qualified name or register it in type-registry.json; sibling design-entry references are not supported)", ex.message)
         assertEquals(
-            true,
+            "failed to resolve type for field fileList: List (unknown short type: VideoPostProcessingFileSpec; use a fully qualified name or register it in type-registry.json)",
+            ex.message,
+        )
+        assertEquals(
+            false,
             ex.message!!.contains("sibling design-entry references are not supported"),
         )
+    }
+
+    @Test
+    fun `explicit fqcn source wins over registry fallback for same short name`() {
+        val planner = DesignArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(
+                modules = mapOf("application" to "demo-application"),
+                typeRegistry = mapOf("Status" to "com.acme.demo.domain.status.Status"),
+            ),
+            model = CanonicalModel(
+                requests = listOf(
+                    RequestModel(
+                        kind = RequestKind.COMMAND,
+                        packageName = "order.submit",
+                        typeName = "SubmitOrderCmd",
+                        description = "submit order",
+                        aggregateName = "Order",
+                        aggregatePackageName = "com.acme.demo.domain.aggregates.order",
+                        requestFields = listOf(
+                            FieldModel("status", "Status"),
+                            FieldModel("canonicalStatus", "com.foo.Status"),
+                        ),
+                        responseFields = emptyList(),
+                    ),
+                ),
+            ),
+        )
+
+        val command = items.single()
+
+        assertEquals(
+            listOf(
+                DesignRenderFieldModel(name = "status", renderedType = "Status"),
+                DesignRenderFieldModel(name = "canonicalStatus", renderedType = "Status"),
+            ),
+            command.context["requestFields"],
+        )
+        assertEquals(listOf("com.foo.Status"), command.context["imports"])
     }
 
     @Test
