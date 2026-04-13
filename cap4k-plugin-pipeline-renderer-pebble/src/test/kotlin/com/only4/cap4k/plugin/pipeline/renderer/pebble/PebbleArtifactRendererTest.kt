@@ -863,6 +863,100 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `bounded query presets render empty request contracts and nested types`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-bounded-query-empty")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query_list.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderListQry.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.queries",
+                        "typeName" to "FindOrderListQry",
+                        "imports" to emptyList<String>(),
+                        "requestFields" to emptyList<Map<String, Any?>>(),
+                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "responseFields" to emptyList<Map<String, Any?>>(),
+                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query_page.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderPageQry.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.queries",
+                        "typeName" to "FindOrderPageQry",
+                        "imports" to emptyList<String>(),
+                        "requestFields" to listOf(
+                            mapOf("name" to "createdAfter", "renderedType" to "LocalDateTime", "nullable" to false),
+                        ),
+                        "requestNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Criteria",
+                                "fields" to listOf(
+                                    mapOf("name" to "origin", "renderedType" to "String", "nullable" to false),
+                                ),
+                            ),
+                        ),
+                        "responseFields" to listOf(
+                            mapOf("name" to "items", "renderedType" to "List<Item>", "nullable" to false),
+                        ),
+                        "responseNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Item",
+                                "fields" to listOf(
+                                    mapOf("name" to "id", "renderedType" to "Long", "nullable" to false),
+                                ),
+                            ),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val listContent = rendered[0].content
+        assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.ListQueryParam"))
+        assertTrue(listContent.contains("class Request : ListQueryParam<Response>"))
+        assertTrue(listContent.contains("data object Response"))
+
+        val pageContent = rendered[1].content
+        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.PageQueryParam"))
+        assertTrue(pageContent.contains("data class Request("))
+        assertTrue(pageContent.contains(") : PageQueryParam<Response>()"))
+        assertTrue(pageContent.contains("data class Criteria("))
+        assertTrue(pageContent.contains("val origin: String"))
+        assertTrue(pageContent.contains("data class Response("))
+        assertTrue(pageContent.contains("val items: List<Item>"))
+        assertTrue(pageContent.contains("data class Item("))
+        assertTrue(pageContent.contains("val id: Long"))
+    }
+
+    @Test
     fun `renders empty request as contract class and response as stable object`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-empty")
         val renderer = PebbleArtifactRenderer(
