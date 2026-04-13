@@ -1524,6 +1524,8 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("import java.io.Serializable"))
         assertTrue(content.contains("import java.time.LocalDateTime"))
         assertTrue(content.contains("import java.util.UUID"))
+        assertFalse(content.contains("import com.foo.Status"))
+        assertFalse(content.contains("import com.bar.Status"))
         assertTrue(content.contains("val retryCount: Long = 1L"))
         assertTrue(content.contains("val createdAt: LocalDateTime = java.time.LocalDateTime.MIN"))
         assertTrue(content.contains("val enabled: Boolean = true"))
