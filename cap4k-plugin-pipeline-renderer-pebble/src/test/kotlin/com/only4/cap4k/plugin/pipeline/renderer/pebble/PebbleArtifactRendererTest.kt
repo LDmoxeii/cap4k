@@ -1197,6 +1197,119 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `use helper merges explicit imports with carrier map imports`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-map-merge")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb")
+            .writeText(
+                """
+                {{ use("java.time.LocalDateTime") -}}
+                {{ imports(importCarrier) | json | raw }}
+                """.trimIndent()
+            )
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
+                    context = mapOf(
+                        "importCarrier" to mapOf(
+                            "imports" to listOf("java.util.UUID")
+                        )
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        assertEquals("""["java.util.UUID","java.time.LocalDateTime"]""", rendered.single().content.trim())
+    }
+
+    @Test
+    fun `design helper session is cleared between artifacts`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-design-session")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("first.kt.peb")
+            .writeText("""{{ use("java.time.LocalDateTime") -}}""")
+        overrideDesignDir.resolve("second.kt.peb")
+            .writeText(
+                """
+                {{ imports(importCarrier) | json | raw }}
+                """.trimIndent()
+            )
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/first.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/First.kt",
+                    context = emptyMap(),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/second.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/Second.kt",
+                    context = mapOf(
+                        "importCarrier" to mapOf(
+                            "imports" to listOf("java.util.UUID")
+                        )
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        assertEquals(2, rendered.size)
+        assertEquals("", rendered[0].content.trim())
+        assertEquals("""["java.util.UUID"]""", rendered[1].content.trim())
+    }
+
+    @Test
     fun `use helper is unavailable in aggregate templates`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-non-design")
         val overrideAggregateDir = Files.createDirectories(overrideDir.resolve("aggregate"))

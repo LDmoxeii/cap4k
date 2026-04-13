@@ -8,7 +8,7 @@ import io.pebbletemplates.pebble.template.EvaluationContext
 import io.pebbletemplates.pebble.template.PebbleTemplate
 
 internal class PipelinePebbleExtension(
-    private val explicitImportCollector: ExplicitImportCollector,
+    private val sessionProvider: () -> PebbleRenderSession?,
     private val enableUseHelper: Boolean,
 ) : AbstractExtension() {
     override fun getFilters(): Map<String, Filter> = mapOf(
@@ -17,9 +17,9 @@ internal class PipelinePebbleExtension(
 
     override fun getFunctions(): Map<String, Function> = mapOf(
         "type" to TypeFunction(),
-        "imports" to ImportsFunction(),
+        "imports" to ImportsFunction(sessionProvider),
     ) + if (enableUseHelper) {
-        mapOf("use" to UseFunction(explicitImportCollector))
+        mapOf("use" to UseFunction(sessionProvider))
     } else {
         emptyMap()
     }
@@ -97,6 +97,12 @@ private class TypeFunction : Function {
 }
 
 private class ImportsFunction : Function {
+    private val sessionProvider: () -> PebbleRenderSession?
+
+    constructor(sessionProvider: () -> PebbleRenderSession?) {
+        this.sessionProvider = sessionProvider
+    }
+
     override fun getArgumentNames(): List<String> = listOf("value")
 
     override fun execute(
@@ -110,7 +116,9 @@ private class ImportsFunction : Function {
         }
 
         val value = args["value"] ?: return emptyList<String>()
-        return normalizeImports(extractImports(value))
+        val baseImports = extractImports(value)
+        return sessionProvider()?.explicitImportCollector?.mergedWith(baseImports)
+            ?: normalizeImports(baseImports)
     }
 
     private fun extractImports(value: Any): List<String> = when (value) {
@@ -132,7 +140,7 @@ private class ImportsFunction : Function {
 }
 
 private class UseFunction(
-    private val explicitImportCollector: ExplicitImportCollector,
+    private val sessionProvider: () -> PebbleRenderSession?,
 ) : Function {
     override fun getArgumentNames(): List<String> = listOf("value")
 
@@ -153,7 +161,12 @@ private class UseFunction(
 
         val normalizedImport = importName.trim()
         validateExplicitImport(normalizedImport)
-        explicitImportCollector.register(normalizedImport)
+        val session = sessionProvider()
+        if (session?.phase != RenderPhase.COLLECTING) {
+            return ""
+        }
+
+        session.explicitImportCollector.register(normalizedImport)
         return ""
     }
 }
