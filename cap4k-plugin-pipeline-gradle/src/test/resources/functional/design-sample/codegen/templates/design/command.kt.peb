@@ -1,45 +1,46 @@
+{{ use("java.io.Serializable") -}}
 package {{ packageName }}
-// override: helper-based design template
+// override: migration-friendly design template
 {% for import in imports(imports) %}
 import {{ import }}
 {% endfor %}
 
-object {{ typeName }} {
+object {{ typeName }} : Serializable {
 {% if requestFields|length > 0 %}
     data class Request(
 {% for field in requestFields %}
-        val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+        val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
-    ) {
+    ) : Serializable {
 {% else %}
-    class Request {
+    class Request : Serializable {
 {% endif %}
 {% for nestedType in requestNestedTypes %}
 
         data class {{ nestedType.name }}(
 {% for field in nestedType.fields %}
-            val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+            val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
-        )
+        ) : Serializable
 {% endfor %}
     }
 
 {% if responseFields|length > 0 %}
     data class Response(
 {% for field in responseFields %}
-        val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+        val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
-    ) {
+    ) : Serializable {
 {% else %}
-    class Response {
+    class Response : Serializable {
 {% endif %}
 {% for nestedType in responseNestedTypes %}
 
         data class {{ nestedType.name }}(
 {% for field in nestedType.fields %}
-            val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+            val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
-        )
+        ) : Serializable
 {% endfor %}
     }
 }
