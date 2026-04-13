@@ -78,7 +78,7 @@ Define the helper-first contract, keep default templates aligned with it, and ad
 
 Pros:
 
-- matches the handoff-defined next mainline step
+- matches the roadmap-defined next mainline step
 - improves migration readiness without changing architectural ownership
 - keeps the work focused on template adoption rather than helper invention
 
