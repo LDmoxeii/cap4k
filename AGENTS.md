@@ -4,8 +4,8 @@
 
 When continuing work in `cap4k`, read this file first, then read:
 
-- [Mainline roadmap](C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/mainline-roadmap.md)
-- [Original architecture reset spec](C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/specs/2026-04-09-cap4k-pipeline-redesign-design.md)
+- [Mainline roadmap](docs/superpowers/mainline-roadmap.md)
+- [Original architecture reset spec](docs/superpowers/specs/2026-04-09-cap4k-pipeline-redesign-design.md)
 
 ## What This Project Is Doing
 
@@ -44,9 +44,9 @@ There are three kinds of work in this repo now:
 
 ## Reading Order
 
-1. [AGENTS.md](C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/AGENTS.md)
-2. [mainline-roadmap.md](C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/mainline-roadmap.md)
-3. [2026-04-09-cap4k-pipeline-redesign-design.md](C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/specs/2026-04-09-cap4k-pipeline-redesign-design.md)
+1. [AGENTS.md](AGENTS.md)
+2. [mainline-roadmap.md](docs/superpowers/mainline-roadmap.md)
+3. [2026-04-09-cap4k-pipeline-redesign-design.md](docs/superpowers/specs/2026-04-09-cap4k-pipeline-redesign-design.md)
 4. the most recent relevant specs under `docs/superpowers/specs/`
 
 ## Notes
