@@ -4,7 +4,7 @@
 
 When continuing work in `cap4k`, read this file first, then read:
 
-- [Mainline handoff](C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/2026-04-13-cap4k-mainline-handoff.md)
+- [Mainline roadmap](C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/mainline-roadmap.md)
 - [Original architecture reset spec](C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/specs/2026-04-09-cap4k-pipeline-redesign-design.md)
 
 ## What This Project Is Doing
@@ -26,31 +26,30 @@ The stable direction is:
 - Short-name auto resolution must stay conservative.
 - Symbol identity and explicit FQN remain the source of truth for imports.
 - `use()` is design-template-only and must remain a thin explicit-import helper.
+- Bootstrap or arch-template migration, when implemented, must remain a separate capability rather than widening design-template helper authority.
 
-## Mainline vs. Integration Work
+## Work Classification
 
-There are two kinds of work in this repo now:
+There are three kinds of work in this repo now:
 
 1. Mainline design-generator quality work
 2. Real-project integration boundary work
+3. Bootstrap or arch-template migration work
 
-If the user says "continue the original mainline", use the handoff document and continue the next pending mainline slice.
+## Continuing Work
 
-If the user says "unblock real project integration", read the handoff document section on support tracks first. Do not silently turn an integration workaround into a new global framework rule.
+- If the user says "continue the original mainline", use the roadmap document and continue the current mainline slice from there.
+- If the user says "unblock real project integration", read the relevant integration specs first. Do not silently turn an integration workaround into a new global framework rule.
+- If the user says "work on bootstrap" or "work on arch-template migration", treat that as a separate slice. Do not silently mix it into design-template migration.
 
-## Current Next Mainline Target
+## Reading Order
 
-The next mainline step is:
-
-- design template migration / helper adoption
-
-That means:
-
-- consolidate recommended template usage around `type()`, `imports()`, `use()`, and formatted `defaultValue`
-- migrate default/override design-template patterns toward the new helper contract
-- avoid reopening generator-core or source-layer decisions unless the user explicitly changes scope
+1. [AGENTS.md](C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/AGENTS.md)
+2. [mainline-roadmap.md](C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/mainline-roadmap.md)
+3. [2026-04-09-cap4k-pipeline-redesign-design.md](C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/specs/2026-04-09-cap4k-pipeline-redesign-design.md)
+4. the most recent relevant specs under `docs/superpowers/specs/`
 
 ## Notes
 
 - `docs/superpowers/specs/` and `docs/superpowers/plans/` contain the historical slices
-- the handoff doc explains which slices are completed, which are support tracks, and what should come next
+- the roadmap document records completed mainline slices, the next mainline slice, and durable bootstrap decisions
