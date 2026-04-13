@@ -1460,6 +1460,78 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `migration style override template composes helper contract`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-migration-contract")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("command.kt.peb")
+            .writeText(
+                """
+                {{ use("java.io.Serializable") -}}
+                {% for importValue in imports(imports) %}
+                import {{ importValue }}
+                {% endfor %}
+                {% for field in requestFields %}
+                val {{ field.name }}: {{ type(field) | raw }} = {{ field.defaultValue }}
+                {% endfor %}
+                """.trimIndent()
+            )
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/command.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/SubmitOrderCmd.kt",
+                    context = mapOf(
+                        "imports" to listOf(
+                            "java.time.LocalDateTime",
+                            "java.util.UUID",
+                        ),
+                        "requestFields" to listOf(
+                            mapOf("name" to "retryCount", "renderedType" to "Long", "nullable" to false, "defaultValue" to "1L"),
+                            mapOf("name" to "createdAt", "renderedType" to "LocalDateTime", "nullable" to false, "defaultValue" to "java.time.LocalDateTime.MIN"),
+                            mapOf("name" to "enabled", "renderedType" to "Boolean", "nullable" to false, "defaultValue" to "true"),
+                            mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false, "defaultValue" to "com.foo.Status.ACTIVE"),
+                            mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false, "defaultValue" to "com.bar.Status.PENDING"),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("import java.io.Serializable"))
+        assertTrue(content.contains("import java.time.LocalDateTime"))
+        assertTrue(content.contains("import java.util.UUID"))
+        assertTrue(content.contains("val retryCount: Long = 1L"))
+        assertTrue(content.contains("val createdAt: LocalDateTime = java.time.LocalDateTime.MIN"))
+        assertTrue(content.contains("val enabled: Boolean = true"))
+        assertTrue(content.contains("val requestStatus: com.foo.Status = com.foo.Status.ACTIVE"))
+        assertTrue(content.contains("val responseStatus: com.bar.Status = com.bar.Status.PENDING"))
+    }
+
+    @Test
     fun `use helper fails fast when argument is missing`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-missing")
         val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
