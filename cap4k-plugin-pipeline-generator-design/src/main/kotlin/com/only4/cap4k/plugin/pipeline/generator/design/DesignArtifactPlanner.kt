@@ -5,6 +5,7 @@ import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.RequestKind
+import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
@@ -23,11 +24,7 @@ class DesignArtifactPlanner : GeneratorProvider {
                 .toSet()
             val packagePath = request.packageName.replace(".", "/")
             val subdir = if (request.kind == RequestKind.COMMAND) "commands" else "queries"
-            val templateId = if (request.kind == RequestKind.COMMAND) {
-                "design/command.kt.peb"
-            } else {
-                "design/query.kt.peb"
-            }
+            val templateId = resolveTemplateId(request)
 
             ArtifactPlanItem(
                 generatorId = id,
@@ -85,5 +82,19 @@ class DesignArtifactPlanner : GeneratorProvider {
         }
 
         return applicationRoot
+    }
+
+    private fun resolveTemplateId(request: RequestModel): String {
+        return when (request.kind) {
+            RequestKind.COMMAND -> "design/command.kt.peb"
+            RequestKind.QUERY -> {
+                val typeName = request.typeName
+                when {
+                    typeName.endsWith("PageQry") -> "design/query_page.kt.peb"
+                    typeName.endsWith("ListQry") -> "design/query_list.kt.peb"
+                    else -> "design/query.kt.peb"
+                }
+            }
+        }
     }
 }

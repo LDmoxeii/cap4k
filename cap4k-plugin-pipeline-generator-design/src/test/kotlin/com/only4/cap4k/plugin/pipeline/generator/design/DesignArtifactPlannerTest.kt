@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.generator.design
 import com.only4.cap4k.plugin.pipeline.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
 
@@ -74,6 +75,106 @@ class DesignArtifactPlannerTest {
             query.context["responseNestedTypes"],
         )
         assertEquals(ConflictPolicy.SKIP, query.conflictPolicy)
+    }
+
+    @Test
+    fun `plans bounded query template variants from conservative suffixes`() {
+        val planner = DesignArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("application" to "demo-application")),
+            model = CanonicalModel(
+                requests = listOf(
+                    RequestModel(
+                        kind = RequestKind.QUERY,
+                        packageName = "order.read",
+                        typeName = "FindOrderQry",
+                        description = "find order",
+                        aggregateName = "Order",
+                        aggregatePackageName = "com.acme.demo.domain.aggregates.order",
+                        requestFields = emptyList(),
+                        responseFields = emptyList(),
+                    ),
+                    RequestModel(
+                        kind = RequestKind.QUERY,
+                        packageName = "order.read",
+                        typeName = "FindOrderListQry",
+                        description = "find order",
+                        aggregateName = "Order",
+                        aggregatePackageName = "com.acme.demo.domain.aggregates.order",
+                        requestFields = emptyList(),
+                        responseFields = emptyList(),
+                    ),
+                    RequestModel(
+                        kind = RequestKind.QUERY,
+                        packageName = "order.read",
+                        typeName = "FindOrderPageQry",
+                        description = "find order",
+                        aggregateName = "Order",
+                        aggregatePackageName = "com.acme.demo.domain.aggregates.order",
+                        requestFields = emptyList(),
+                        responseFields = emptyList(),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(3, items.size)
+
+        fun ArtifactPlanItem.typeName() = requireNotNull(this.context["typeName"]) as String
+
+        val defaultQuery = items.single { it.typeName() == "FindOrderQry" }
+        assertEquals("design/query.kt.peb", defaultQuery.templateId)
+
+        val listQuery = items.single { it.typeName() == "FindOrderListQry" }
+        assertEquals("design/query_list.kt.peb", listQuery.templateId)
+        assertEquals(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderListQry.kt",
+            listQuery.outputPath,
+        )
+
+        val pageQuery = items.single { it.typeName() == "FindOrderPageQry" }
+        assertEquals("design/query_page.kt.peb", pageQuery.templateId)
+        assertEquals(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt",
+            pageQuery.outputPath,
+        )
+    }
+
+    @Test
+    fun `keeps default query template when page or list are not suffix variants`() {
+        val planner = DesignArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("application" to "demo-application")),
+            model = CanonicalModel(
+                requests = listOf(
+                    RequestModel(
+                        kind = RequestKind.QUERY,
+                        packageName = "order.read",
+                        typeName = "FindOrderPageableQry",
+                        description = "find order",
+                        aggregateName = "Order",
+                        aggregatePackageName = "com.acme.demo.domain.aggregates.order",
+                        requestFields = emptyList(),
+                        responseFields = emptyList(),
+                    ),
+                    RequestModel(
+                        kind = RequestKind.QUERY,
+                        packageName = "order.read",
+                        typeName = "FindOrderListingQry",
+                        description = "find order",
+                        aggregateName = "Order",
+                        aggregatePackageName = "com.acme.demo.domain.aggregates.order",
+                        requestFields = emptyList(),
+                        responseFields = emptyList(),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(2, items.size)
+        assertTrue(items.all { it.templateId == "design/query.kt.peb" })
     }
 
     @Test
