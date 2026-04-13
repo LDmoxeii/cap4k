@@ -1,22 +1,24 @@
 # Cap4k Design Template Migration / Helper Adoption Design
 
 Date: 2026-04-13
-Status: Draft for review
+Status: Implemented and merged
 
 ## Summary
 
-The pipeline design-generator mainline already has the helper surface it needs:
+This document is the historical design record for the helper-adoption slice that has now been implemented and merged into mainline.
+
+The pipeline design-generator mainline already has the helper surface it needed:
 
 - `type()` for template-side type rendering
 - `imports()` for final import emission
 - `use()` for explicit design-template-only imports
 - Kotlin-ready `defaultValue` in render models
 
-What is still missing is the adoption slice that turns those helper capabilities into a stable migration contract for design templates.
+At design time, what was missing was the adoption slice that turns those helper capabilities into a stable migration contract for design templates.
 
-The default preset templates are already close to the intended direction, but the project still lacks a clearly defined, migration-friendly template contract and a functional fixture that proves realistic helper combinations remain stable in override templates.
+The default preset templates were already close to the intended direction, but the project lacked a clearly defined, migration-friendly template contract and a functional fixture that proved realistic helper combinations remained stable in override templates.
 
-This slice formalizes that contract, keeps the default design templates aligned with it, and adds functional migration fixtures that validate helper-first template overrides under realistic design-generation scenarios.
+This slice formalized that contract, kept the default design templates aligned with it, and added functional migration fixtures that validate helper-first template overrides under realistic design-generation scenarios.
 
 ## Why This Slice
 
@@ -127,14 +129,14 @@ The default design preset templates already use:
 
 This means the preset templates are already close to the intended steady state.
 
-However, two gaps remain:
+At design time, two gaps remained:
 
 1. the recommended contract is not yet written down as a clear design rule set
 2. the functional override fixture still represents an earlier helper-only stage and does not prove the full migration-oriented helper combination, especially around `use()` plus default-value-aware field rendering
 
-So the gap is no longer helper existence.
+So the gap was no longer helper existence.
 
-The gap is helper adoption discipline.
+The gap was helper adoption discipline.
 
 ## Design Principles
 
@@ -419,7 +421,7 @@ Mitigation:
 
 ## Acceptance Criteria
 
-This slice is complete when:
+This slice was considered complete when:
 
 - the recommended helper-first contract for pipeline design templates is explicit
 - default command and query preset templates reflect that contract consistently
@@ -430,7 +432,7 @@ This slice is complete when:
 
 ## Expected Outcome
 
-After this slice:
+After this slice (now achieved):
 
 - the pipeline design-template surface has a stable migration contract
 - preset design templates act as the canonical example of that contract

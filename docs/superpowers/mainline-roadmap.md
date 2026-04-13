@@ -37,6 +37,14 @@ Status:
 
 - complete
 
+Traceability:
+
+- [pipeline redesign design](specs/2026-04-09-cap4k-pipeline-redesign-design.md)
+- [pipeline db aggregate minimal design](specs/2026-04-09-cap4k-pipeline-db-aggregate-minimal-design.md)
+- [pipeline ir flow design](specs/2026-04-10-cap4k-pipeline-ir-flow-design.md)
+- [pipeline drawing-board design](specs/2026-04-10-cap4k-pipeline-drawing-board-design.md)
+- [pipeline DSL consolidation design](specs/2026-04-10-cap4k-pipeline-dsl-consolidation-design.md)
+
 ### Phase B: Design Generator Quality Mainline
 
 Completed:
@@ -52,6 +60,16 @@ Completed:
 Status:
 
 - current mainline is complete through helper adoption and migration-contract stabilization
+
+Traceability:
+
+- [design generator minimal usable design](specs/2026-04-10-cap4k-design-generator-minimal-usable-design.md)
+- [design generator type/import resolution design](specs/2026-04-10-cap4k-design-generator-type-import-resolution-design.md)
+- [design generator auto-import design](specs/2026-04-11-cap4k-design-generator-auto-import-design.md)
+- [design generator template helpers design](specs/2026-04-11-cap4k-design-generator-template-helpers-design.md)
+- [design generator default value design](specs/2026-04-12-cap4k-design-generator-default-value-design.md)
+- [design generator use helper design](specs/2026-04-12-cap4k-design-generator-use-helper-design.md)
+- [design template migration / helper adoption design](specs/2026-04-13-cap4k-design-template-migration-helper-adoption-design.md)
 
 ## Current Mainline Contract
 
@@ -113,6 +131,14 @@ The following remain separate from the default mainline path:
 - real-project integration boundary work
 - project-specific unblock work
 - broader bootstrap flexibility beyond slot-based extension
+
+## Support Track Docs
+
+Concrete support-track references:
+
+- [real project local integration](specs/2026-04-09-cap4k-only-danmuku-local-integration-design.md)
+- [real project integration boundaries](specs/2026-04-11-cap4k-real-project-integration-boundaries-design.md)
+- [project type registry](specs/2026-04-12-cap4k-project-type-registry-design.md)
 
 ## Continue Rules
 
