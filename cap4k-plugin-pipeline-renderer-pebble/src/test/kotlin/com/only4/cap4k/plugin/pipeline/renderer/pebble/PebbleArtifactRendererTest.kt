@@ -703,6 +703,166 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `default query preset uses request param contract`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-contract")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.queries",
+                        "typeName" to "FindOrderQry",
+                        "imports" to listOf(
+                            "java.time.LocalDateTime",
+                            "java.util.UUID",
+                        ),
+                        "requestFields" to listOf(
+                            mapOf("name" to "lookupId", "renderedType" to "UUID", "nullable" to false),
+                            mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false),
+                            mapOf("name" to "createdAfter", "renderedType" to "LocalDateTime", "nullable" to false),
+                        ),
+                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "responseFields" to listOf(
+                            mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false),
+                        ),
+                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(content.contains("import java.time.LocalDateTime"))
+        assertTrue(content.contains("import java.util.UUID"))
+        assertFalse(content.contains("import com.foo.Status"))
+        assertFalse(content.contains("import com.bar.Status"))
+        assertTrue(content.contains("object FindOrderQry"))
+        assertTrue(content.contains("data class Request("))
+        assertTrue(content.contains(") : RequestParam<Response>"))
+        assertTrue(content.contains("val lookupId: UUID"))
+        assertTrue(content.contains("val requestStatus: com.foo.Status"))
+        assertTrue(content.contains("val responseStatus: com.bar.Status"))
+    }
+
+    @Test
+    fun `bounded query presets render list and page request contracts`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-bounded-query-contracts")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query_list.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderListQry.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.queries",
+                        "typeName" to "FindOrderListQry",
+                        "imports" to listOf(
+                            "java.util.UUID",
+                        ),
+                        "requestFields" to listOf(
+                            mapOf("name" to "listCursorId", "renderedType" to "UUID", "nullable" to false),
+                            mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false),
+                        ),
+                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "responseFields" to listOf(
+                            mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false),
+                        ),
+                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "design",
+                    moduleRole = "application",
+                    templateId = "design/query_page.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderPageQry.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.queries",
+                        "typeName" to "FindOrderPageQry",
+                        "imports" to listOf(
+                            "java.time.LocalDateTime",
+                        ),
+                        "requestFields" to listOf(
+                            mapOf("name" to "createdAfter", "renderedType" to "LocalDateTime", "nullable" to false),
+                            mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false),
+                        ),
+                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "responseFields" to listOf(
+                            mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false),
+                        ),
+                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val listContent = rendered[0].content
+        assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.ListQueryParam"))
+        assertTrue(listContent.contains("data class Request("))
+        assertTrue(listContent.contains(") : ListQueryParam<Response>"))
+        assertTrue(listContent.contains("val listCursorId: UUID"))
+        assertFalse(listContent.contains("import com.foo.Status"))
+        assertFalse(listContent.contains("import com.bar.Status"))
+        assertTrue(listContent.contains("val requestStatus: com.foo.Status"))
+        assertTrue(listContent.contains("val responseStatus: com.bar.Status"))
+
+        val pageContent = rendered[1].content
+        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.PageQueryParam"))
+        assertTrue(pageContent.contains("data class Request("))
+        assertTrue(pageContent.contains(") : PageQueryParam<Response>()"))
+        assertTrue(pageContent.contains("val createdAfter: LocalDateTime"))
+        assertFalse(pageContent.contains("import com.foo.Status"))
+        assertFalse(pageContent.contains("import com.bar.Status"))
+        assertTrue(pageContent.contains("val requestStatus: com.foo.Status"))
+        assertTrue(pageContent.contains("val responseStatus: com.bar.Status"))
+    }
+
+    @Test
     fun `renders empty request and response as stable objects`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-empty")
         val renderer = PebbleArtifactRenderer(

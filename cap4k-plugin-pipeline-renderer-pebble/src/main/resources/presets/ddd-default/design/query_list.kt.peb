@@ -1,4 +1,4 @@
-{{ use("com.only4.cap4k.ddd.core.application.RequestParam") -}}
+{{ use("com.only4.cap4k.ddd.core.application.query.ListQueryParam") -}}
 package {{ packageName }}
 {% for import in imports(imports) %}
 import {{ import }}
@@ -11,7 +11,7 @@ object {{ typeName }} {
 {% for field in requestFields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
-    ) : RequestParam<Response> {
+    ) : ListQueryParam<Response> {
 {% for nestedType in requestNestedTypes %}
 
         data class {{ nestedType.name }}(
@@ -26,7 +26,7 @@ object {{ typeName }} {
 {% for field in requestFields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
-    ) : RequestParam<Response>
+    ) : ListQueryParam<Response>
 {% endif %}
 {% else %}
     data object Request
