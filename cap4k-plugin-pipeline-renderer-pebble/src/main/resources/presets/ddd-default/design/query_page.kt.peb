@@ -29,7 +29,7 @@ object {{ typeName }} {
     ) : PageQueryParam<Response>()
 {% endif %}
 {% else %}
-    data object Request
+    class Request : PageQueryParam<Response>()
 {% endif %}
 
 {% if responseFields.size > 0 %}

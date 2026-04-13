@@ -29,7 +29,7 @@ object {{ typeName }} {
     ) : RequestParam<Response>
 {% endif %}
 {% else %}
-    data object Request
+    class Request : RequestParam<Response>
 {% endif %}
 
 {% if responseFields.size > 0 %}

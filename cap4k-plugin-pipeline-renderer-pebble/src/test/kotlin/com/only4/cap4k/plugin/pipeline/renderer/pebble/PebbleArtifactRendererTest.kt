@@ -863,7 +863,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `renders empty request and response as stable objects`() {
+    fun `renders empty request as contract class and response as stable object`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-empty")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
@@ -907,7 +907,8 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
         assertTrue(content.contains("object FindOrderQry"))
-        assertTrue(content.contains("data object Request"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(content.contains("class Request : RequestParam<Response>"))
         assertTrue(content.contains("data object Response"))
     }
 

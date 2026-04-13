@@ -29,7 +29,7 @@ object {{ typeName }} {
     ) : ListQueryParam<Response>
 {% endif %}
 {% else %}
-    data object Request
+    class Request : ListQueryParam<Response>
 {% endif %}
 
 {% if responseFields.size > 0 %}
