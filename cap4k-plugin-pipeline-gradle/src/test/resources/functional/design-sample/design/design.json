@@ -46,5 +46,41 @@
       { "name": "snapshot.publishedAt", "type": "LocalDateTime" },
       { "name": "snapshot.snapshotId", "type": "java.util.UUID" }
     ]
+  },
+  {
+    "tag": "qry",
+    "package": "order.read",
+    "name": "FindOrderList",
+    "desc": "find order list query",
+    "aggregates": ["Order"],
+    "requestFields": [
+      { "name": "customerId", "type": "Long" },
+      { "name": "listCursorId", "type": "java.util.UUID" },
+      { "name": "requestStatus", "type": "com.foo.Status" }
+    ],
+    "responseFields": [
+      { "name": "responseStatus", "type": "com.bar.Status" },
+      { "name": "summary", "type": "Summary", "nullable": true },
+      { "name": "summary.updatedAt", "type": "java.time.LocalDateTime" },
+      { "name": "summary.summaryId", "type": "java.util.UUID" }
+    ]
+  },
+  {
+    "tag": "qry",
+    "package": "order.read",
+    "name": "FindOrderPage",
+    "desc": "find order page query",
+    "aggregates": ["Order"],
+    "requestFields": [
+      { "name": "keyword", "type": "String" },
+      { "name": "createdAfter", "type": "java.time.LocalDateTime" },
+      { "name": "requestStatus", "type": "com.foo.Status" }
+    ],
+    "responseFields": [
+      { "name": "responseStatus", "type": "com.bar.Status" },
+      { "name": "snapshot", "type": "Snapshot", "nullable": true },
+      { "name": "snapshot.publishedAt", "type": "java.time.LocalDateTime" },
+      { "name": "snapshot.snapshotId", "type": "java.util.UUID" }
+    ]
   }
 ]

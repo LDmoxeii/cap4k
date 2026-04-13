@@ -37,6 +37,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/command.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/query.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"design/query_list.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"design/query_page.kt.peb\""))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -91,11 +93,13 @@ class PipelinePluginFunctionalTest {
         assertTrue(commandContent.contains("val receiptId: UUID"))
 
         assertTrue(queryContent.contains("object FindOrderQry"))
+        assertTrue(queryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
         assertTrue(queryContent.contains("import java.time.LocalDateTime"))
         assertTrue(queryContent.contains("import java.util.UUID"))
         assertFalse(queryContent.contains("import com.foo.Status"))
         assertFalse(queryContent.contains("import com.bar.Status"))
         assertTrue(queryContent.contains("data class Request("))
+        assertTrue(queryContent.contains(") : RequestParam<Response>"))
         assertTrue(queryContent.contains("val orderId: Long"))
         assertTrue(queryContent.contains("val lookupId: UUID"))
         assertTrue(queryContent.contains("val lookupMirrorId: UUID"))
@@ -108,6 +112,68 @@ class PipelinePluginFunctionalTest {
         assertTrue(queryContent.contains("val updatedAt: LocalDateTime"))
         assertTrue(queryContent.contains("val publishedAt: LocalDateTime"))
         assertTrue(queryContent.contains("val snapshotId: UUID"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate renders list and page query variants from repository config`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-generate-list-page")
+        copyFixture(projectDir)
+
+        val metadataFile = projectDir.resolve("domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(metadataFile.toFile().exists())
+
+        val listQueryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderListQry.kt"
+        )
+        val pageQueryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt"
+        )
+        val listQueryContent = listQueryFile.readText()
+        val pageQueryContent = pageQueryFile.readText()
+
+        assertTrue(listQueryFile.toFile().exists())
+        assertTrue(pageQueryFile.toFile().exists())
+
+        assertTrue(listQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.ListQueryParam"))
+        assertFalse(listQueryContent.contains("import com.foo.Status"))
+        assertFalse(listQueryContent.contains("import com.bar.Status"))
+        assertTrue(listQueryContent.contains("data class Request("))
+        assertTrue(listQueryContent.contains(") : ListQueryParam<Response>"))
+        assertTrue(listQueryContent.contains("val customerId: Long"))
+        assertTrue(listQueryContent.contains("val listCursorId: UUID"))
+        assertTrue(listQueryContent.contains("val requestStatus: com.foo.Status"))
+        assertTrue(listQueryContent.contains("data class Response("))
+        assertTrue(listQueryContent.contains("val responseStatus: com.bar.Status"))
+        assertTrue(listQueryContent.contains("val summary: Summary?"))
+        assertFalse(listQueryContent.contains("val summary: Summary??"))
+        assertTrue(listQueryContent.contains("data class Summary("))
+        assertTrue(listQueryContent.contains("val updatedAt: LocalDateTime"))
+        assertTrue(listQueryContent.contains("val summaryId: UUID"))
+
+        assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.PageQueryParam"))
+        assertFalse(pageQueryContent.contains("import com.foo.Status"))
+        assertFalse(pageQueryContent.contains("import com.bar.Status"))
+        assertTrue(pageQueryContent.contains("data class Request("))
+        assertTrue(pageQueryContent.contains(") : PageQueryParam<Response>()"))
+        assertTrue(pageQueryContent.contains("val keyword: String"))
+        assertTrue(pageQueryContent.contains("val createdAfter: LocalDateTime"))
+        assertTrue(pageQueryContent.contains("val requestStatus: com.foo.Status"))
+        assertTrue(pageQueryContent.contains("data class Response("))
+        assertTrue(pageQueryContent.contains("val responseStatus: com.bar.Status"))
+        assertTrue(pageQueryContent.contains("val snapshot: Snapshot?"))
+        assertFalse(pageQueryContent.contains("val snapshot: Snapshot??"))
+        assertTrue(pageQueryContent.contains("data class Snapshot("))
+        assertTrue(pageQueryContent.contains("val publishedAt: LocalDateTime"))
+        assertTrue(pageQueryContent.contains("val snapshotId: UUID"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -158,6 +224,80 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kGenerate supports override list and page query templates`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-list-page-override")
+        copyFixture(projectDir)
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent.replace(
+                """
+                |        design {
+                |            enabled.set(true)
+                |        }
+                """.trimMargin(),
+                """
+                |        design {
+                |            enabled.set(true)
+                |        }
+                |        templates {
+                |            overrideDirs.from("codegen/templates")
+                |        }
+                """.trimMargin()
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val listQueryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderListQry.kt"
+        )
+        val pageQueryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt"
+        )
+        val listQueryContent = listQueryFile.readText()
+        val pageQueryContent = pageQueryFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(listQueryFile.toFile().exists())
+        assertTrue(pageQueryFile.toFile().exists())
+
+        assertTrue(listQueryContent.contains("// override: representative list query migration template"))
+        assertTrue(listQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.ListQueryParam"))
+        assertTrue(listQueryContent.contains("data class Request("))
+        assertTrue(listQueryContent.contains(") : ListQueryParam<Response>"))
+        assertFalse(listQueryContent.contains("import com.foo.Status"))
+        assertFalse(listQueryContent.contains("import com.bar.Status"))
+        assertTrue(listQueryContent.contains("val customerId: Long"))
+        assertTrue(listQueryContent.contains("val listCursorId: UUID"))
+        assertTrue(listQueryContent.contains("val requestStatus: com.foo.Status"))
+        assertTrue(listQueryContent.contains("val responseStatus: com.bar.Status"))
+        assertTrue(listQueryContent.contains("data class Summary("))
+        assertTrue(listQueryContent.contains("val updatedAt: LocalDateTime"))
+        assertTrue(listQueryContent.contains("val summaryId: UUID"))
+
+        assertTrue(pageQueryContent.contains("// override: representative page query migration template"))
+        assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.PageQueryParam"))
+        assertTrue(pageQueryContent.contains("data class Request("))
+        assertTrue(pageQueryContent.contains(") : PageQueryParam<Response>()"))
+        assertFalse(pageQueryContent.contains("import com.foo.Status"))
+        assertFalse(pageQueryContent.contains("import com.bar.Status"))
+        assertTrue(pageQueryContent.contains("val keyword: String"))
+        assertTrue(pageQueryContent.contains("val createdAfter: LocalDateTime"))
+        assertTrue(pageQueryContent.contains("val requestStatus: com.foo.Status"))
+        assertTrue(pageQueryContent.contains("val responseStatus: com.bar.Status"))
+        assertTrue(pageQueryContent.contains("data class Snapshot("))
+        assertTrue(pageQueryContent.contains("val publishedAt: LocalDateTime"))
+        assertTrue(pageQueryContent.contains("val snapshotId: UUID"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kGenerate supports migration friendly override design templates`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-helper-override")
         copyFixture(projectDir)
@@ -201,9 +341,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(commandFile.toFile().exists())
         assertTrue(queryFile.toFile().exists())
         assertTrue(commandContent.contains("// override: migration-friendly design template"))
-        assertTrue(queryContent.contains("// override: migration-friendly design template"))
+        assertTrue(queryContent.contains("// override: representative default query migration template"))
         assertTrue(commandContent.contains("import java.io.Serializable"))
-        assertTrue(queryContent.contains("import java.io.Serializable"))
         assertTrue(commandContent.contains("object SubmitOrderCmd : Serializable"))
         assertTrue(commandContent.contains("data class Request("))
         assertTrue(commandContent.contains("data class Response("))
@@ -227,7 +366,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(commandContent.contains("val addressId: UUID"))
         assertTrue(commandContent.contains("data class Result("))
         assertTrue(commandContent.contains("val receiptId: UUID"))
-        assertTrue(queryContent.contains("object FindOrderQry : Serializable"))
+        assertTrue(queryContent.contains("object FindOrderQry"))
         assertTrue(queryContent.contains("data class Request("))
         assertTrue(queryContent.contains("data class Response("))
         assertTrue(queryContent.contains("import java.time.LocalDateTime"))

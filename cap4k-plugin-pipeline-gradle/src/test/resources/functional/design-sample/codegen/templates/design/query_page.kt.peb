@@ -1,6 +1,6 @@
-{{ use("com.only4.cap4k.ddd.core.application.RequestParam") -}}
+{{ use("com.only4.cap4k.ddd.core.application.query.PageQueryParam") -}}
 package {{ packageName }}
-// override: representative default query migration template
+// override: representative page query migration template
 {% for import in imports(imports) %}
 import {{ import }}
 {% endfor %}
@@ -12,7 +12,7 @@ object {{ typeName }} {
 {% for field in requestFields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
-    ) : RequestParam<Response> {
+    ) : PageQueryParam<Response>() {
 {% for nestedType in requestNestedTypes %}
 
         data class {{ nestedType.name }}(
@@ -27,10 +27,10 @@ object {{ typeName }} {
 {% for field in requestFields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
-    ) : RequestParam<Response>
+    ) : PageQueryParam<Response>()
 {% endif %}
 {% else %}
-    class Request : RequestParam<Response>
+    class Request : PageQueryParam<Response>()
 {% endif %}
 
 {% if responseFields|length > 0 %}
