@@ -671,6 +671,204 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kPlan includes client and client handler artifacts from fixture`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-client-plan")
+        copyFixture(projectDir, "design-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .build()
+
+        val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
+        val content = planFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planFile.exists())
+        assertTrue(content.contains("\"templateId\": \"design/client.kt.peb\""))
+        assertTrue(content.contains("\"templateId\": \"design/client_handler.kt.peb\""))
+        assertTrue(
+            content.contains(
+                "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt"
+            )
+        )
+        assertTrue(
+            content.contains(
+                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt"
+            )
+        )
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate renders client and client handler files from fixture`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-client-generate")
+        copyFixture(projectDir, "design-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val clientFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt"
+        )
+        val handlerFile = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt"
+        )
+        val clientContent = clientFile.readText()
+        val handlerContent = handlerFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(clientFile.toFile().exists())
+        assertTrue(handlerFile.toFile().exists())
+        assertTrue(clientContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(clientContent.contains("object IssueTokenCli"))
+        assertTrue(clientContent.contains(") : RequestParam<Response>"))
+        assertTrue(clientContent.contains("val account: String"))
+        assertTrue(clientContent.contains("val token: String"))
+        assertTrue(handlerContent.contains("import com.only4.cap4k.ddd.core.application.RequestHandler"))
+        assertTrue(handlerContent.contains("import com.acme.demo.application.distributed.clients.authorize.IssueTokenCli"))
+        assertTrue(
+            handlerContent.contains(
+                "class IssueTokenCliHandler : RequestHandler<IssueTokenCli.Request, IssueTokenCli.Response>"
+            )
+        )
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate supports override client and client handler templates`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-client-override")
+        copyFixture(projectDir, "design-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent.replace(
+                """
+                |    generators {
+                |        design {
+                |            enabled.set(true)
+                |        }
+                |        designClient {
+                |            enabled.set(true)
+                |        }
+                |        designClientHandler {
+                |            enabled.set(true)
+                |        }
+                |    }
+                """.trimMargin(),
+                """
+                |    generators {
+                |        design {
+                |            enabled.set(true)
+                |        }
+                |        designClient {
+                |            enabled.set(true)
+                |        }
+                |        designClientHandler {
+                |            enabled.set(true)
+                |        }
+                |    }
+                |    templates {
+                |        overrideDirs.from("codegen/templates")
+                |    }
+                """.trimMargin()
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val clientContent = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt"
+        ).readText()
+        val handlerContent = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt"
+        ).readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(clientContent.contains("// override: representative client migration template"))
+        assertTrue(handlerContent.contains("// override: representative client handler migration template"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan fails fast when design client lacks application module path`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-client-missing-application")
+        copyFixture(projectDir, "design-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent.replace(
+                "        applicationModulePath.set(\"demo-application\")",
+                "        applicationModulePath.set(\"\")",
+            ).replace(
+                """
+                |        design {
+                |            enabled.set(true)
+                |        }
+                """.trimMargin(),
+                """
+                |        design {
+                |            enabled.set(false)
+                |        }
+                """.trimMargin()
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("project.applicationModulePath is required when designClient is enabled."))
+        assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan fails fast when design client handler is enabled without design client`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-client-handler-without-client")
+        copyFixture(projectDir, "design-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent.replace(
+                """
+                |        designClient {
+                |            enabled.set(true)
+                |        }
+                """.trimMargin(),
+                """
+                |        designClient {
+                |            enabled.set(false)
+                |        }
+                """.trimMargin()
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("designClientHandler generator requires enabled designClient generator."))
+        assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `plain design generation does not require adapter module path`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-without-adapter-module")
         copyFixture(projectDir, "design-sample")

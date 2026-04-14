@@ -82,5 +82,18 @@
       { "name": "snapshot.publishedAt", "type": "java.time.LocalDateTime" },
       { "name": "snapshot.snapshotId", "type": "java.util.UUID" }
     ]
+  },
+  {
+    "tag": "cli",
+    "package": "authorize",
+    "name": "IssueToken",
+    "desc": "issue token client",
+    "aggregates": ["Order"],
+    "requestFields": [
+      { "name": "account", "type": "String" }
+    ],
+    "responseFields": [
+      { "name": "token", "type": "String" }
+    ]
   }
 ]

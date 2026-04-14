@@ -22,5 +22,11 @@ cap4k {
         design {
             enabled.set(true)
         }
+        designClient {
+            enabled.set(true)
+        }
+        designClientHandler {
+            enabled.set(true)
+        }
     }
 }

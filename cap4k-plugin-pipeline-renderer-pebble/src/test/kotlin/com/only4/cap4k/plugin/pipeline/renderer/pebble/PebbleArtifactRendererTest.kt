@@ -2347,6 +2347,224 @@ class PebbleArtifactRendererTest {
         val pageContent = rendered[2].content
         assertTrue(pageContent.contains("return PageData.empty(pageSize = request.pageSize, pageNum = request.pageNum)"))
     }
+
+    @Test
+    fun `default client preset uses request param contract and helper-driven fields`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-client-contract")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-client",
+                    moduleRole = "application",
+                    templateId = "design/client.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.distributed.clients.authorize",
+                        "typeName" to "IssueTokenCli",
+                        "imports" to listOf(
+                            "java.time.LocalDateTime",
+                            "java.util.UUID",
+                        ),
+                        "requestFields" to listOf(
+                            mapOf("name" to "account", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"guest\""),
+                            mapOf("name" to "issuedAt", "renderedType" to "LocalDateTime", "nullable" to false),
+                            mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false),
+                            mapOf("name" to "profile", "renderedType" to "Profile?", "nullable" to true),
+                        ),
+                        "requestNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Profile",
+                                "fields" to listOf(
+                                    mapOf("name" to "profileId", "renderedType" to "UUID", "nullable" to false),
+                                    mapOf("name" to "source", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"web\""),
+                                ),
+                            ),
+                        ),
+                        "responseFields" to listOf(
+                            mapOf("name" to "token", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"demo-token\""),
+                            mapOf("name" to "expiresAt", "renderedType" to "LocalDateTime", "nullable" to false),
+                            mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false),
+                            mapOf("name" to "payload", "renderedType" to "Payload?", "nullable" to true),
+                        ),
+                        "responseNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Payload",
+                                "fields" to listOf(
+                                    mapOf("name" to "traceId", "renderedType" to "UUID", "nullable" to false),
+                                ),
+                            ),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(content.contains("import java.time.LocalDateTime"))
+        assertTrue(content.contains("import java.util.UUID"))
+        assertFalse(content.contains("import com.foo.Status"))
+        assertFalse(content.contains("import com.bar.Status"))
+        assertTrue(content.contains("object IssueTokenCli"))
+        assertTrue(content.contains(") : RequestParam<Response>"))
+        assertTrue(content.contains("val account: String = \"guest\""))
+        assertTrue(content.contains("val issuedAt: LocalDateTime"))
+        assertTrue(content.contains("val requestStatus: com.foo.Status"))
+        assertTrue(content.contains("val profile: Profile?"))
+        assertFalse(content.contains("val profile: Profile??"))
+        assertTrue(content.contains("data class Profile("))
+        assertTrue(content.contains("val profileId: UUID"))
+        assertTrue(content.contains("val source: String = \"web\""))
+        assertTrue(content.contains("val token: String = \"demo-token\""))
+        assertTrue(content.contains("val expiresAt: LocalDateTime"))
+        assertTrue(content.contains("val responseStatus: com.bar.Status"))
+        assertTrue(content.contains("val payload: Payload?"))
+        assertFalse(content.contains("val payload: Payload??"))
+        assertTrue(content.contains("data class Payload("))
+        assertTrue(content.contains("val traceId: UUID"))
+    }
+
+    @Test
+    fun `default client handler preset renders request handler contract and import list type`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-client-handler-contract")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-client-handler",
+                    moduleRole = "adapter",
+                    templateId = "design/client_handler.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.application.distributed.clients.authorize",
+                        "typeName" to "IssueTokenCliHandler",
+                        "clientTypeName" to "IssueTokenCli",
+                        "imports" to listOf("com.acme.demo.application.distributed.clients.authorize.IssueTokenCli"),
+                        "responseFields" to listOf(
+                            mapOf("name" to "token"),
+                            mapOf("name" to "expiresAt"),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("import org.springframework.stereotype.Service"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.RequestHandler"))
+        assertTrue(content.contains("import com.acme.demo.application.distributed.clients.authorize.IssueTokenCli"))
+        assertTrue(content.contains("class IssueTokenCliHandler : RequestHandler<IssueTokenCli.Request, IssueTokenCli.Response>"))
+        assertTrue(content.contains("token = TODO(\"set token\")"))
+        assertTrue(content.contains("expiresAt = TODO(\"set expiresAt\")"))
+    }
+
+    @Test
+    fun `client presets keep empty response output valid for request side and handler side`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-client-empty-response")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-client",
+                    moduleRole = "application",
+                    templateId = "design/client.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.distributed.clients.authorize",
+                        "typeName" to "IssueTokenCli",
+                        "imports" to emptyList<String>(),
+                        "requestFields" to listOf(
+                            mapOf("name" to "account", "renderedType" to "String", "nullable" to false),
+                        ),
+                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "responseFields" to emptyList<Map<String, Any?>>(),
+                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "design-client-handler",
+                    moduleRole = "adapter",
+                    templateId = "design/client_handler.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.application.distributed.clients.authorize",
+                        "typeName" to "IssueTokenCliHandler",
+                        "clientTypeName" to "IssueTokenCli",
+                        "imports" to listOf("com.acme.demo.application.distributed.clients.authorize.IssueTokenCli"),
+                        "responseFields" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val clientContent = rendered[0].content
+        assertTrue(clientContent.contains(") : RequestParam<Response>"))
+        assertTrue(clientContent.contains("data object Response"))
+
+        val handlerContent = rendered[1].content
+        assertTrue(handlerContent.contains("class IssueTokenCliHandler : RequestHandler<IssueTokenCli.Request, IssueTokenCli.Response>"))
+        assertTrue(handlerContent.contains("return IssueTokenCli.Response"))
+        assertFalse(handlerContent.contains("return IssueTokenCli.Response("))
+    }
 }
 
 private data class RenderedTypeCarrier(
