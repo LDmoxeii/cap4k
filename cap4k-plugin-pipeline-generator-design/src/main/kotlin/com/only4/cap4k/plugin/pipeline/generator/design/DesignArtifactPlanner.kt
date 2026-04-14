@@ -6,14 +6,12 @@ import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.RequestKind
 import com.only4.cap4k.plugin.pipeline.api.RequestModel
-import java.nio.file.InvalidPathException
-import java.nio.file.Path
 
 class DesignArtifactPlanner : GeneratorProvider {
     override val id: String = "design"
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        val applicationRoot = requireApplicationModuleRoot(config)
+        val applicationRoot = requireRelativeModuleRoot(config, "application")
         val basePath = config.basePackage.replace(".", "/")
 
         return model.requests.mapIndexed { index, request ->
@@ -42,59 +40,10 @@ class DesignArtifactPlanner : GeneratorProvider {
         }
     }
 
-    private fun requireApplicationModuleRoot(config: ProjectConfig): String {
-        val applicationRoot = config.modules["application"] ?: error("application module is required")
-        if (applicationRoot.isBlank()) {
-            throw IllegalArgumentException(
-                "application module must be a valid relative filesystem path: $applicationRoot",
-            )
-        }
-        if (applicationRoot.startsWith(":")) {
-            throw IllegalArgumentException(
-                "application module must be a valid relative filesystem path: $applicationRoot",
-            )
-        }
-
-        val path = try {
-            Path.of(applicationRoot)
-        } catch (ex: InvalidPathException) {
-            throw IllegalArgumentException(
-                "application module must be a valid relative filesystem path: $applicationRoot",
-                ex,
-            )
-        }
-
-        if (path.isAbsolute) {
-            throw IllegalArgumentException(
-                "application module must be a valid relative filesystem path: $applicationRoot",
-            )
-        }
-        if (path.root != null) {
-            throw IllegalArgumentException(
-                "application module must be a valid relative filesystem path: $applicationRoot",
-            )
-        }
-        val normalized = path.normalize()
-        if (normalized.nameCount > 0 && normalized.getName(0).toString() == "..") {
-            throw IllegalArgumentException(
-                "application module must be a valid relative filesystem path: $applicationRoot",
-            )
-        }
-
-        return applicationRoot
-    }
-
     private fun resolveTemplateId(request: RequestModel): String {
         return when (request.kind) {
             RequestKind.COMMAND -> "design/command.kt.peb"
-            RequestKind.QUERY -> {
-                val typeName = request.typeName
-                when {
-                    typeName.endsWith("PageQry") -> "design/query_page.kt.peb"
-                    typeName.endsWith("ListQry") -> "design/query_list.kt.peb"
-                    else -> "design/query.kt.peb"
-                }
-            }
+            RequestKind.QUERY -> requireNotNull(DesignQueryVariantResolver.resolve(request)).requestTemplateId
         }
     }
 }
