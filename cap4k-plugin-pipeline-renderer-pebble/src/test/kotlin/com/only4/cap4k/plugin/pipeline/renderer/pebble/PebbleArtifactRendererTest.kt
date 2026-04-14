@@ -2251,12 +2251,17 @@ class PebbleArtifactRendererTest {
         assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.ListQuery"))
         assertTrue(listContent.contains("import com.acme.demo.application.queries.order.read.FindOrderListQry"))
         assertTrue(listContent.contains("class FindOrderListQryHandler : ListQuery<FindOrderListQry.Request, FindOrderListQry.Response>"))
+        assertTrue(listContent.contains("override fun exec(request: FindOrderListQry.Request): List<FindOrderListQry.Response>"))
+        assertTrue(listContent.contains("return listOf("))
         assertTrue(listContent.contains("responseStatus = TODO(\"set responseStatus\")"))
 
         val pageContent = rendered[1].content
+        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.share.PageData"))
         assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.PageQuery"))
         assertTrue(pageContent.contains("import com.acme.demo.application.queries.order.read.FindOrderPageQry"))
         assertTrue(pageContent.contains("class FindOrderPageQryHandler : PageQuery<FindOrderPageQry.Request, FindOrderPageQry.Response>"))
+        assertTrue(pageContent.contains("override fun exec(request: FindOrderPageQry.Request): PageData<FindOrderPageQry.Response>"))
+        assertTrue(pageContent.contains("return PageData.create(request, 1L, listOf("))
         assertTrue(pageContent.contains("responseStatus = TODO(\"set responseStatus\")"))
     }
 
@@ -2286,6 +2291,36 @@ class PebbleArtifactRendererTest {
                         "responseFields" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "design-query-handler",
+                    moduleRole = "adapter",
+                    templateId = "design/query_list_handler.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.queries.order.read",
+                        "typeName" to "FindOrderListQryHandler",
+                        "description" to "find order list query",
+                        "queryTypeName" to "FindOrderListQry",
+                        "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderListQry"),
+                        "responseFields" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "design-query-handler",
+                    moduleRole = "adapter",
+                    templateId = "design/query_page_handler.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.queries.order.read",
+                        "typeName" to "FindOrderPageQryHandler",
+                        "description" to "find order page query",
+                        "queryTypeName" to "FindOrderPageQry",
+                        "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderPageQry"),
+                        "responseFields" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
                 )
             ),
             config = ProjectConfig(
@@ -2302,9 +2337,15 @@ class PebbleArtifactRendererTest {
             )
         )
 
-        val content = rendered.single().content
-        assertTrue(content.contains("return FindOrderQry.Response"))
-        assertFalse(content.contains("return FindOrderQry.Response("))
+        val defaultContent = rendered[0].content
+        assertTrue(defaultContent.contains("return FindOrderQry.Response"))
+        assertFalse(defaultContent.contains("return FindOrderQry.Response("))
+
+        val listContent = rendered[1].content
+        assertTrue(listContent.contains("return emptyList()"))
+
+        val pageContent = rendered[2].content
+        assertTrue(pageContent.contains("return PageData.empty(pageSize = request.pageSize, pageNum = request.pageNum)"))
     }
 }
 
