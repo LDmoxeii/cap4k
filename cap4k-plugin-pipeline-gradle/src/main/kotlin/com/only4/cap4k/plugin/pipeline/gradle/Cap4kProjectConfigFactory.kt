@@ -27,6 +27,7 @@ class Cap4kProjectConfigFactory {
         )
         val generatorStates = GeneratorStates(
             designEnabled = extension.generators.design.enabled.get(),
+            designQueryHandlerEnabled = extension.generators.designQueryHandler.enabled.get(),
             aggregateEnabled = extension.generators.aggregate.enabled.get(),
             flowEnabled = extension.generators.flow.enabled.get(),
             drawingBoardEnabled = extension.generators.drawingBoard.enabled.get(),
@@ -63,6 +64,12 @@ class Cap4kProjectConfigFactory {
                 "design"
             )
         }
+        if (generators.designQueryHandlerEnabled) {
+            extension.project.adapterModulePath.requiredWhenEnabled(
+                "project.adapterModulePath",
+                "designQueryHandler"
+            )
+        }
         if (generators.aggregateEnabled) {
             val missingDomain = extension.project.domainModulePath.optionalValue() == null
             val missingAdapter = extension.project.adapterModulePath.optionalValue() == null
@@ -80,6 +87,9 @@ class Cap4kProjectConfigFactory {
     ): Map<String, String> = buildMap {
         if (generators.designEnabled) {
             put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
+        }
+        if (generators.designQueryHandlerEnabled) {
+            put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
         }
         if (generators.aggregateEnabled) {
             put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
@@ -161,6 +171,9 @@ class Cap4kProjectConfigFactory {
     ): Map<String, GeneratorConfig> = buildMap {
         if (states.designEnabled) {
             put("design", GeneratorConfig(enabled = true))
+        }
+        if (states.designQueryHandlerEnabled) {
+            put("design-query-handler", GeneratorConfig(enabled = true))
         }
         if (states.aggregateEnabled) {
             put(
@@ -255,6 +268,9 @@ class Cap4kProjectConfigFactory {
     }
 
     private fun validateGeneratorDependencies(sources: SourceStates, generators: GeneratorStates) {
+        if (generators.designQueryHandlerEnabled && !generators.designEnabled) {
+            throw IllegalArgumentException("designQueryHandler generator requires enabled design generator.")
+        }
         if (generators.designEnabled && !sources.designJsonEnabled) {
             throw IllegalArgumentException("design generator requires enabled designJson source.")
         }
@@ -285,6 +301,7 @@ private data class SourceStates(
 
 private data class GeneratorStates(
     val designEnabled: Boolean,
+    val designQueryHandlerEnabled: Boolean,
     val aggregateEnabled: Boolean,
     val flowEnabled: Boolean,
     val drawingBoardEnabled: Boolean,

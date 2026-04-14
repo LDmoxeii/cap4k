@@ -19,6 +19,7 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.sources.db.enabled.get())
         assertFalse(extension.sources.irAnalysis.enabled.get())
         assertFalse(extension.generators.design.enabled.get())
+        assertFalse(extension.generators.designQueryHandler.enabled.get())
         assertFalse(extension.generators.aggregate.enabled.get())
         assertEquals("FAIL", extension.generators.aggregate.unsupportedTablePolicy.get())
         assertFalse(extension.generators.drawingBoard.enabled.get())
@@ -26,6 +27,92 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals("ddd-default", extension.templates.preset.get())
         assertEquals("SKIP", extension.templates.conflictPolicy.get())
         assertEquals(null, extension.types.registryFile.orNull)
+    }
+
+    @Test
+    fun `factory includes adapter module and design query handler generator when enabled`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            applicationModulePath.set("demo-application")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            design { enabled.set(true) }
+            designQueryHandler { enabled.set(true) }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(
+            mapOf(
+                "application" to "demo-application",
+                "adapter" to "demo-adapter",
+            ),
+            config.modules,
+        )
+        assertEquals(setOf("design", "design-query-handler"), config.enabledGeneratorIds())
+    }
+
+    @Test
+    fun `design query handler generator requires adapter module path`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            applicationModulePath.set("demo-application")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            design { enabled.set(true) }
+            designQueryHandler { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("project.adapterModulePath is required when designQueryHandler is enabled.", error.message)
+    }
+
+    @Test
+    fun `design query handler generator requires enabled design generator`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            designQueryHandler { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("designQueryHandler generator requires enabled design generator.", error.message)
     }
 
     @Test

@@ -98,12 +98,18 @@ open class IrAnalysisSourceExtension @Inject constructor(objects: ObjectFactory)
 
 open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) {
     val design: DesignGeneratorExtension = objects.newInstance(DesignGeneratorExtension::class.java)
+    val designQueryHandler: DesignQueryHandlerGeneratorExtension =
+        objects.newInstance(DesignQueryHandlerGeneratorExtension::class.java)
     val aggregate: AggregateGeneratorExtension = objects.newInstance(AggregateGeneratorExtension::class.java)
     val drawingBoard: DrawingBoardGeneratorExtension = objects.newInstance(DrawingBoardGeneratorExtension::class.java)
     val flow: FlowGeneratorExtension = objects.newInstance(FlowGeneratorExtension::class.java)
 
     fun design(block: DesignGeneratorExtension.() -> Unit) {
         design.block()
+    }
+
+    fun designQueryHandler(block: DesignQueryHandlerGeneratorExtension.() -> Unit) {
+        designQueryHandler.block()
     }
 
     fun aggregate(block: AggregateGeneratorExtension.() -> Unit) {
@@ -120,6 +126,10 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
 }
 
 open class DesignGeneratorExtension @Inject constructor(objects: ObjectFactory) {
+    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+}
+
+open class DesignQueryHandlerGeneratorExtension @Inject constructor(objects: ObjectFactory) {
     val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }
 
