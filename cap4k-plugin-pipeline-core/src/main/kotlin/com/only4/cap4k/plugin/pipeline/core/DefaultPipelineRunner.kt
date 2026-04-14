@@ -15,6 +15,18 @@ class DefaultPipelineRunner(
     private val exporter: ArtifactExporter,
 ) : PipelineRunner {
     override fun run(config: ProjectConfig): PipelineResult {
+        val enabledGeneratorIds = config.generators.asSequence()
+            .filter { it.value.enabled }
+            .map { it.key }
+            .toSet()
+        val installedGeneratorIds = generators.map { it.id }.toSet()
+        val missingGeneratorIds = enabledGeneratorIds
+            .filter { it !in installedGeneratorIds }
+            .sorted()
+        require(missingGeneratorIds.isEmpty()) {
+            "enabled generators have no registered providers: ${missingGeneratorIds.joinToString(", ")}"
+        }
+
         val snapshots = sources
             .filter { config.sources[it.id]?.enabled == true }
             .map { it.collect(config) }

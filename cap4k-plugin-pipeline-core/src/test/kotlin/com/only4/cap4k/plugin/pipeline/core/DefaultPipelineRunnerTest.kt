@@ -159,6 +159,59 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
+    fun `run fails fast when enabled generator has no registered provider`() {
+        val callOrder = mutableListOf<String>()
+        val sourceProvider = object : SourceProvider {
+            override val id: String = "design-json"
+
+            override fun collect(config: ProjectConfig): SourceSnapshot {
+                callOrder += "collect"
+                return DesignSpecSnapshot(entries = emptyList())
+            }
+        }
+        val assembler = object : CanonicalAssembler {
+            override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
+                callOrder += "normalize"
+                return CanonicalAssemblyResult(CanonicalModel())
+            }
+        }
+        val renderer = object : ArtifactRenderer {
+            override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> {
+                callOrder += "render"
+                return emptyList()
+            }
+        }
+
+        val runner = DefaultPipelineRunner(
+            sources = listOf(sourceProvider),
+            generators = emptyList(),
+            assembler = assembler,
+            renderer = renderer,
+            exporter = NoopArtifactExporter(),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runner.run(
+                ProjectConfig(
+                    basePackage = "com.only4.cap4k.sample",
+                    layout = ProjectLayout.SINGLE_MODULE,
+                    modules = mapOf("app" to "sample-app"),
+                    sources = mapOf("design-json" to SourceConfig(enabled = true)),
+                    generators = mapOf("missing-generator" to GeneratorConfig(enabled = true)),
+                    templates = TemplateConfig(
+                        preset = "default",
+                        overrideDirs = emptyList(),
+                        conflictPolicy = ConflictPolicy.OVERWRITE,
+                    ),
+                )
+            )
+        }
+
+        assertEquals("enabled generators have no registered providers: missing-generator", error.message)
+        assertEquals(emptyList<String>(), callOrder)
+    }
+
+    @Test
     fun `run fails when rendered artifact output path escapes export root`() {
         val runner = runnerWithSingleArtifact(
             RenderedArtifact(
