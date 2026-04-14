@@ -48,6 +48,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             val kind = when (entry.tag.lowercase(Locale.ROOT)) {
                 "cmd", "command" -> RequestKind.COMMAND
                 "qry", "query" -> RequestKind.QUERY
+                "cli", "client", "clients" -> RequestKind.CLIENT
                 else -> return@mapNotNull null
             }
             val aggregateName = entry.aggregates.firstOrNull()
@@ -59,6 +60,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 typeName = when (kind) {
                     RequestKind.COMMAND -> "${entry.name}Cmd"
                     RequestKind.QUERY -> "${entry.name}Qry"
+                    RequestKind.CLIENT -> "${entry.name}Cli"
                 },
                 description = entry.description,
                 aggregateName = aggregateName,

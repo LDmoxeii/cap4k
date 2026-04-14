@@ -182,6 +182,7 @@ data class AnalysisGraphModel(
 enum class RequestKind {
     COMMAND,
     QUERY,
+    CLIENT,
 }
 
 enum class UnsupportedTablePolicy {

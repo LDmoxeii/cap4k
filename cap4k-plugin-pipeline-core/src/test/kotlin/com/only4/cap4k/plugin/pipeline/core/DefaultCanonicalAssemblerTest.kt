@@ -30,6 +30,127 @@ import org.junit.jupiter.api.Test
 class DefaultCanonicalAssemblerTest {
 
     @Test
+    fun `client design tags map into CLIENT request kind`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "cli",
+                            packageName = "auth.client",
+                            name = "IssueToken",
+                            description = "issue token",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "client",
+                            packageName = "auth.client",
+                            name = "RefreshToken",
+                            description = "refresh token",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "clients",
+                            packageName = "auth.client",
+                            name = "RevokeToken",
+                            description = "revoke token",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    )
+                ),
+            ),
+        ).model
+
+        assertEquals(
+            listOf(RequestKind.CLIENT, RequestKind.CLIENT, RequestKind.CLIENT),
+            model.requests.map { it.kind },
+        )
+        assertEquals("IssueTokenCli", model.requests.first().typeName)
+    }
+
+    @Test
+    fun `client naming keeps command and query mappings unchanged`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "cmd",
+                            packageName = "order.submit",
+                            name = "SubmitOrder",
+                            description = "submit order",
+                            aggregates = listOf("Order"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "client",
+                            packageName = "order.remote",
+                            name = "IssueToken",
+                            description = "issue token",
+                            aggregates = listOf("Order"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "qry",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            description = "find order",
+                            aggregates = listOf("Order"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    )
+                ),
+                KspMetadataSnapshot(
+                    aggregates = listOf(
+                        AggregateMetadataRecord(
+                            aggregateName = "Order",
+                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
+                            rootPackageName = "com.acme.demo.domain.aggregates.order",
+                            rootClassName = "Order",
+                        )
+                    )
+                ),
+            ),
+        ).model
+
+        assertEquals(
+            listOf(RequestKind.COMMAND, RequestKind.CLIENT, RequestKind.QUERY),
+            model.requests.map { it.kind },
+        )
+        assertEquals(
+            listOf("SubmitOrderCmd", "IssueTokenCli", "FindOrderQry"),
+            model.requests.map { it.typeName },
+        )
+        assertEquals(
+            listOf("Order", "Order", "Order"),
+            model.requests.map { it.aggregateName },
+        )
+        assertEquals(
+            listOf(
+                "com.acme.demo.domain.aggregates.order",
+                "com.acme.demo.domain.aggregates.order",
+                "com.acme.demo.domain.aggregates.order",
+            ),
+            model.requests.map { it.aggregatePackageName },
+        )
+    }
+
+    @Test
     fun `maps design entries and ksp aggregates into canonical requests`() {
         val assembler = DefaultCanonicalAssembler()
 
