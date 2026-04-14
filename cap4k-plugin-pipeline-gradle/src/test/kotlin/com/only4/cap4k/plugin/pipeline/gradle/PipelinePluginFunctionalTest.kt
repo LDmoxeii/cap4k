@@ -387,6 +387,262 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kPlan includes query handler artifacts when enabled`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-query-handler-plan")
+        copyFixture(projectDir, "design-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText()
+                .replace("\r\n", "\n")
+                .replace(
+                    """
+                    |        design {
+                    |            enabled.set(true)
+                    |        }
+                    """.trimMargin(),
+                    """
+                    |        design {
+                    |            enabled.set(true)
+                    |        }
+                    |        designQueryHandler {
+                    |            enabled.set(true)
+                    |        }
+                    """.trimMargin()
+                )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .build()
+
+        val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
+        val content = planFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planFile.exists())
+        assertTrue(content.contains("\"templateId\": \"design/query_handler.kt.peb\""))
+        assertTrue(content.contains("\"templateId\": \"design/query_list_handler.kt.peb\""))
+        assertTrue(content.contains("\"templateId\": \"design/query_page_handler.kt.peb\""))
+        assertTrue(content.contains("demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt"))
+        assertTrue(content.contains("demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt"))
+        assertTrue(content.contains("demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate renders query handler variants into adapter module`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-query-handler-generate")
+        copyFixture(projectDir, "design-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText()
+                .replace("\r\n", "\n")
+                .replace(
+                    """
+                    |        design {
+                    |            enabled.set(true)
+                    |        }
+                    """.trimMargin(),
+                    """
+                    |        design {
+                    |            enabled.set(true)
+                    |        }
+                    |        designQueryHandler {
+                    |            enabled.set(true)
+                    |        }
+                    """.trimMargin()
+                )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val defaultHandlerFile = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt"
+        )
+        val listHandlerFile = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt"
+        )
+        val pageHandlerFile = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt"
+        )
+
+        val defaultContent = defaultHandlerFile.readText()
+        val listContent = listHandlerFile.readText()
+        val pageContent = pageHandlerFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(defaultHandlerFile.toFile().exists())
+        assertTrue(listHandlerFile.toFile().exists())
+        assertTrue(pageHandlerFile.toFile().exists())
+
+        assertTrue(defaultContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
+        assertTrue(defaultContent.contains("import com.acme.demo.application.queries.order.read.FindOrderQry"))
+        assertTrue(defaultContent.contains("class FindOrderQryHandler : Query<FindOrderQry.Request, FindOrderQry.Response>"))
+        assertTrue(defaultContent.contains("responseStatus = TODO(\"set responseStatus\")"))
+        assertTrue(defaultContent.contains("snapshot = TODO(\"set snapshot\")"))
+
+        assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.ListQuery"))
+        assertTrue(listContent.contains("import com.acme.demo.application.queries.order.read.FindOrderListQry"))
+        assertTrue(listContent.contains("class FindOrderListQryHandler : ListQuery<FindOrderListQry.Request, FindOrderListQry.Response>"))
+        assertTrue(listContent.contains("override fun exec(request: FindOrderListQry.Request): List<FindOrderListQry.Response>"))
+        assertTrue(listContent.contains("return listOf("))
+        assertTrue(listContent.contains("responseStatus = TODO(\"set responseStatus\")"))
+        assertTrue(listContent.contains("summary = TODO(\"set summary\")"))
+
+        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.PageQuery"))
+        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.share.PageData"))
+        assertTrue(pageContent.contains("import com.acme.demo.application.queries.order.read.FindOrderPageQry"))
+        assertTrue(pageContent.contains("class FindOrderPageQryHandler : PageQuery<FindOrderPageQry.Request, FindOrderPageQry.Response>"))
+        assertTrue(pageContent.contains("override fun exec(request: FindOrderPageQry.Request): PageData<FindOrderPageQry.Response>"))
+        assertTrue(pageContent.contains("return PageData.create(request, 1L, listOf("))
+        assertTrue(pageContent.contains("responseStatus = TODO(\"set responseStatus\")"))
+        assertTrue(pageContent.contains("snapshot = TODO(\"set snapshot\")"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate supports override query handler templates`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-query-handler-override")
+        copyFixture(projectDir, "design-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent.replace(
+                """
+                |    generators {
+                |        design {
+                |            enabled.set(true)
+                |        }
+                |    }
+                """.trimMargin(),
+                """
+                |    generators {
+                |        design {
+                |            enabled.set(true)
+                |        }
+                |        designQueryHandler {
+                |            enabled.set(true)
+                |        }
+                |    }
+                |    templates {
+                |        overrideDirs.from("codegen/templates")
+                |    }
+                """.trimMargin()
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val defaultContent = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt"
+        ).readText()
+        val listContent = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt"
+        ).readText()
+        val pageContent = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt"
+        ).readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(defaultContent.contains("// override: representative default query handler migration template"))
+        assertTrue(listContent.contains("// override: representative list query handler migration template"))
+        assertTrue(pageContent.contains("// override: representative page query handler migration template"))
+        assertTrue(listContent.contains("override fun exec(request: FindOrderListQry.Request): List<FindOrderListQry.Response>"))
+        assertTrue(listContent.contains("return listOf("))
+        assertTrue(pageContent.contains("override fun exec(request: FindOrderPageQry.Request): PageData<FindOrderPageQry.Response>"))
+        assertTrue(pageContent.contains("return PageData.create(request, 1L, listOf("))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan fails fast when design query handler lacks adapter module path`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-query-handler-missing-adapter")
+        copyFixture(projectDir, "design-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent
+                .replace("        adapterModulePath.set(\"demo-adapter\")", "        adapterModulePath.set(\"\")")
+                .replace(
+                    """
+                    |        design {
+                    |            enabled.set(true)
+                    |        }
+                    """.trimMargin(),
+                    """
+                    |        design {
+                    |            enabled.set(true)
+                    |        }
+                    |        designQueryHandler {
+                    |            enabled.set(true)
+                    |        }
+                    """.trimMargin()
+                )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("project.adapterModulePath is required when designQueryHandler is enabled."))
+        assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan fails fast when design query handler is enabled without design`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-query-handler-without-design")
+        copyFixture(projectDir, "design-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent
+                .replace(
+                    """
+                    |        design {
+                    |            enabled.set(true)
+                    |        }
+                    """.trimMargin(),
+                    """
+                    |        design {
+                    |            enabled.set(false)
+                    |        }
+                    |        designQueryHandler {
+                    |            enabled.set(true)
+                    |        }
+                    """.trimMargin()
+                )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("designQueryHandler generator requires enabled design generator."))
+        assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kGenerate resolves short type from project type registry`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-type-registry")
         copyFixture(projectDir, "design-type-registry-sample")

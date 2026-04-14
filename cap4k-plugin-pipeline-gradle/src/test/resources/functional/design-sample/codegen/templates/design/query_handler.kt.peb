@@ -1,0 +1,22 @@
+{{ use("org.springframework.stereotype.Service") -}}
+{{ use("com.only4.cap4k.ddd.core.application.query.Query") -}}
+package {{ packageName }}
+// override: representative default query handler migration template
+{% for import in imports(imports) %}
+import {{ import }}
+{% endfor %}
+
+@Service
+class {{ typeName }} : Query<{{ queryTypeName }}.Request, {{ queryTypeName }}.Response> {
+    override fun exec(request: {{ queryTypeName }}.Request): {{ queryTypeName }}.Response {
+{% if responseFields|length > 0 %}
+        return {{ queryTypeName }}.Response(
+{% for field in responseFields %}
+            {{ field.name }} = TODO("set {{ field.name }}"){% if not loop.last %},{% endif %}
+{% endfor %}
+        )
+{% else %}
+        return {{ queryTypeName }}.Response
+{% endif %}
+    }
+}

@@ -6,6 +6,7 @@ cap4k {
     project {
         basePackage.set("com.acme.demo")
         applicationModulePath.set("demo-application")
+        adapterModulePath.set("demo-adapter")
     }
     sources {
         designJson {
