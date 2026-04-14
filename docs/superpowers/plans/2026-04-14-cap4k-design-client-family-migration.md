@@ -14,7 +14,7 @@
 
 - Modify: `cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt`
 - Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt`
-- Modify: `cap4k-plugin-pipeline-api/src/test/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModelsTest.kt`
+- Modify: `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kExtension.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactory.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactoryTest.kt`
@@ -38,23 +38,24 @@
 **Files:**
 - Modify: `cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt`
 - Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt`
-- Modify: `cap4k-plugin-pipeline-api/src/test/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModelsTest.kt`
+- Modify: `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kExtension.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactory.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactoryTest.kt`
 
 - [ ] **Step 1: Add failing canonical tests for `CLIENT` mapping**
 
-Add tests that prove:
+Add tests in `DefaultCanonicalAssemblerTest.kt` that prove:
 
 - `cli`, `client`, and `clients` map into `RequestKind.CLIENT`
 - `IssueToken` becomes `IssueTokenCli`
 - command and query naming remain unchanged when client family is added
+- the request order and existing aggregate wiring stay unchanged after adding the client family
 
 Run:
 
 ```powershell
-./gradlew :cap4k-plugin-pipeline-api:test --tests "*client request kind*" --tests "*command and query mappings remain unchanged*" --rerun-tasks
+./gradlew :cap4k-plugin-pipeline-core:test --tests "*client design tags map into CLIENT request kind*" --tests "*client naming keeps command and query mappings unchanged*" --rerun-tasks
 ```
 
 Expected: FAIL because `RequestKind.CLIENT` does not exist yet.
@@ -135,15 +136,15 @@ with the dependency rules from Step 3.
 Run:
 
 ```powershell
-./gradlew :cap4k-plugin-pipeline-api:test :cap4k-plugin-pipeline-gradle:test --tests "*client*" --rerun-tasks
+./gradlew :cap4k-plugin-pipeline-core:test :cap4k-plugin-pipeline-gradle:test --tests "*client*" --rerun-tasks
 ```
 
-Expected: PASS for the new client-family canonical and config tests.
+Expected: PASS for the new client-family canonical and config tests, including the real `DefaultCanonicalAssembler` tag-to-kind and naming assertions.
 
 - [ ] **Step 6: Commit the canonical/DSL slice**
 
 ```bash
-git add cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt cap4k-plugin-pipeline-api/src/test/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModelsTest.kt cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kExtension.kt cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactory.kt cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactoryTest.kt
+git add cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kExtension.kt cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactory.kt cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactoryTest.kt
 git commit -m "feat: add design client family config"
 ```
 
@@ -173,9 +174,14 @@ Handler-side test should assert:
 - output path ends with:
   - `adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt`
 - context includes:
+  - `packageName = "com.acme.demo.adapter.application.distributed.clients.authorize"`
   - `typeName = "IssueTokenCliHandler"`
   - `clientTypeName = "IssueTokenCli"`
   - import for `com.acme.demo.application.distributed.clients.authorize.IssueTokenCli`
+
+Request-side test should also assert context includes:
+
+- `packageName = "com.acme.demo.application.distributed.clients.authorize"`
 
 - [ ] **Step 2: Run focused planner tests and confirm they fail**
 
@@ -193,6 +199,8 @@ Expected: FAIL because planners do not exist yet.
 - emit `design/client.kt.peb`
 - write to:
   - `<applicationRoot>/src/main/kotlin/<base>/application/distributed/clients/<package>/<TypeName>.kt`
+- set render package to:
+  - `<basePackage>.application.distributed.clients.<package>`
 
 `DesignClientHandlerArtifactPlanner` should:
 
@@ -200,6 +208,8 @@ Expected: FAIL because planners do not exist yet.
 - emit `design/client_handler.kt.peb`
 - write to:
   - `<adapterRoot>/src/main/kotlin/<base>/adapter/application/distributed/clients/<package>/<TypeName>Handler.kt`
+- set render package to:
+  - `<basePackage>.adapter.application.distributed.clients.<package>`
 
 Register both in `PipelinePlugin.kt` beside the existing design-family planners.
 
@@ -235,8 +245,12 @@ git commit -m "feat: add design client planners"
 Add tests that prove:
 
 - `design/client.kt.peb` renders `RequestParam<Response>`
+- `design/client.kt.peb` emits helper-driven imports through `imports(imports)`
+- `design/client.kt.peb` renders request/response field types through `type()`
+- `design/client.kt.peb` preserves Kotlin-ready `defaultValue` expressions in generated fields
 - `design/client_handler.kt.peb` renders `RequestHandler<IssueTokenCli.Request, IssueTokenCli.Response>`
-- handler template imports the generated `IssueTokenCli`
+- handler template imports the generated `IssueTokenCli` from the render-model import list
+- empty response cases remain valid for both request-side and handler-side output
 
 - [ ] **Step 2: Implement bounded preset templates**
 
@@ -244,22 +258,36 @@ Add tests that prove:
 
 ```pebble
 {{ use("com.only4.cap4k.ddd.core.application.RequestParam") -}}
+package {{ packageName }}
+{% for import in imports(imports) %}
+import {{ import }}
+{% endfor %}
 ```
 
 and generate:
 
 ```kotlin
 object {{ typeName }} {
-    data class Request(...) : RequestParam<Response>
-    data class Response(...)
+    data class Request(
+        val account: {{ type(field) | raw }} = {{ field.defaultValue | raw }}
+    ) : RequestParam<Response>
+    data class Response(
+        val token: {{ type(field) | raw }} = {{ field.defaultValue | raw }}
+    )
 }
 ```
+
+The real template should keep the old-family object contract and use loops over `requestFields`, `responseFields`, `requestNestedTypes`, and `responseNestedTypes`, not hard-coded field names.
 
 `client_handler.kt.peb` must use:
 
 ```pebble
 {{ use("org.springframework.stereotype.Service") -}}
 {{ use("com.only4.cap4k.ddd.core.application.RequestHandler") -}}
+package {{ packageName }}
+{% for import in imports(imports) %}
+import {{ import }}
+{% endfor %}
 ```
 
 and generate:
@@ -268,6 +296,8 @@ and generate:
 @Service
 class {{ typeName }} : RequestHandler<{{ clientTypeName }}.Request, {{ clientTypeName }}.Response>
 ```
+
+The real handler template must import the generated `*Cli` type through helper-driven imports, not inline fully-qualified references.
 
 - [ ] **Step 3: Add failing functional tests**
 
@@ -281,8 +311,38 @@ Add functional tests that prove:
 - invalid config fails when:
   - `designClient` lacks `applicationModulePath`
   - `designClientHandler` is enabled without `designClient`
+- the fixture build enables both generators explicitly and wires both module paths through `cap4k { generators { ... } }`
 
 - [ ] **Step 4: Update the fixture and override templates**
+
+Update `design-sample/build.gradle.kts` so the functional fixture enables the bounded pair explicitly:
+
+```kotlin
+cap4k {
+    project {
+        basePackage.set("com.only4.demo")
+        applicationModulePath.set("demo-application")
+        adapterModulePath.set("demo-adapter")
+    }
+    sources {
+        designJson {
+            enabled.set(true)
+            files.from("design/design.json")
+        }
+    }
+    generators {
+        designClient {
+            enabled.set(true)
+        }
+        designClientHandler {
+            enabled.set(true)
+        }
+    }
+    templates {
+        overrideDirs.from("codegen/templates")
+    }
+}
+```
 
 Update `design-sample/design/design.json` with one representative entry:
 
@@ -309,6 +369,8 @@ Add override templates containing marker comments:
 // override: representative client handler migration template
 ```
 
+The fixture should stay minimal: one bounded client request, request fields, response fields, and one handler.
+
 - [ ] **Step 5: Run renderer and functional tests**
 
 ```powershell
@@ -329,6 +391,7 @@ git commit -m "test: cover design client migration flow"
 
 **Files:**
 - Verify only: `cap4k-plugin-pipeline-api`
+- Verify only: `cap4k-plugin-pipeline-core`
 - Verify only: `cap4k-plugin-pipeline-generator-design`
 - Verify only: `cap4k-plugin-pipeline-renderer-pebble`
 - Verify only: `cap4k-plugin-pipeline-gradle`
@@ -337,6 +400,7 @@ git commit -m "test: cover design client migration flow"
 
 ```powershell
 ./gradlew :cap4k-plugin-pipeline-api:test
+./gradlew :cap4k-plugin-pipeline-core:test
 ./gradlew :cap4k-plugin-pipeline-generator-design:test
 ./gradlew :cap4k-plugin-pipeline-renderer-pebble:test
 ./gradlew :cap4k-plugin-pipeline-gradle:test
@@ -347,7 +411,7 @@ Expected: all PASS.
 - [ ] **Step 2: Run combined verification**
 
 ```powershell
-./gradlew :cap4k-plugin-pipeline-api:test :cap4k-plugin-pipeline-generator-design:test :cap4k-plugin-pipeline-renderer-pebble:test :cap4k-plugin-pipeline-gradle:test
+./gradlew :cap4k-plugin-pipeline-api:test :cap4k-plugin-pipeline-core:test :cap4k-plugin-pipeline-generator-design:test :cap4k-plugin-pipeline-renderer-pebble:test :cap4k-plugin-pipeline-gradle:test
 ```
 
 Expected: `BUILD SUCCESSFUL`.
