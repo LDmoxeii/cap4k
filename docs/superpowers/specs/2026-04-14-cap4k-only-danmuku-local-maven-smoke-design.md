@@ -138,7 +138,7 @@ The namespace should stay under a dedicated integration path, for example:
 - application query package:
   - `edu.only4.danmuku.application.queries.pipeline.integration.video_post.read`
 - adapter query-handler package:
-  - `edu.only4.danmuku.adapter.application.queries.pipeline.integration.video_post.read`
+  - `edu.only4.danmuku.adapter.queries.pipeline.integration.video_post.read`
 
 The file names and package names should include `PipelineSmoke` or `pipeline.integration` to make cleanup unambiguous.
 
@@ -170,7 +170,7 @@ The smoke run is successful when all of the following are true:
   - `only-danmuku-application/src/main/kotlin/.../application/commands/pipeline/integration/...`
   - `only-danmuku-application/src/main/kotlin/.../application/queries/pipeline/integration/...`
 - generated adapter artifacts appear under:
-  - `only-danmuku-adapter/src/main/kotlin/.../adapter/application/queries/pipeline/integration/...`
+  - `only-danmuku-adapter/src/main/kotlin/.../adapter/queries/pipeline/integration/...`
 - the generated family includes:
   - one command
   - one default query
