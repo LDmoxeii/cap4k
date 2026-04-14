@@ -426,6 +426,9 @@ class PipelinePluginFunctionalTest {
         assertTrue(content.contains("\"templateId\": \"design/query_handler.kt.peb\""))
         assertTrue(content.contains("\"templateId\": \"design/query_list_handler.kt.peb\""))
         assertTrue(content.contains("\"templateId\": \"design/query_page_handler.kt.peb\""))
+        assertTrue(content.contains("demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt"))
+        assertTrue(content.contains("demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderListQry.kt"))
+        assertTrue(content.contains("demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt"))
         assertTrue(content.contains("demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt"))
         assertTrue(content.contains("demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt"))
         assertTrue(content.contains("demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt"))
@@ -473,15 +476,30 @@ class PipelinePluginFunctionalTest {
         val pageHandlerFile = projectDir.resolve(
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt"
         )
+        val defaultQueryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt"
+        )
+        val listQueryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderListQry.kt"
+        )
+        val pageQueryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt"
+        )
 
         val defaultContent = defaultHandlerFile.readText()
         val listContent = listHandlerFile.readText()
         val pageContent = pageHandlerFile.readText()
+        val defaultQueryContent = defaultQueryFile.readText()
+        val listQueryContent = listQueryFile.readText()
+        val pageQueryContent = pageQueryFile.readText()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(defaultHandlerFile.toFile().exists())
         assertTrue(listHandlerFile.toFile().exists())
         assertTrue(pageHandlerFile.toFile().exists())
+        assertTrue(defaultQueryFile.toFile().exists())
+        assertTrue(listQueryFile.toFile().exists())
+        assertTrue(pageQueryFile.toFile().exists())
 
         assertTrue(defaultContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
         assertTrue(defaultContent.contains("import com.acme.demo.application.queries.order.read.FindOrderQry"))
@@ -505,6 +523,16 @@ class PipelinePluginFunctionalTest {
         assertTrue(pageContent.contains("return PageData.create(request, 1L, listOf("))
         assertTrue(pageContent.contains("responseStatus = TODO(\"set responseStatus\")"))
         assertTrue(pageContent.contains("snapshot = TODO(\"set snapshot\")"))
+
+        assertTrue(defaultQueryContent.contains("object FindOrderQry"))
+        assertTrue(defaultQueryContent.contains("data class Request("))
+        assertTrue(defaultQueryContent.contains(") : RequestParam<Response>"))
+        assertTrue(listQueryContent.contains("object FindOrderListQry"))
+        assertTrue(listQueryContent.contains("data class Request("))
+        assertTrue(listQueryContent.contains(") : ListQueryParam<Response>"))
+        assertTrue(pageQueryContent.contains("object FindOrderPageQry"))
+        assertTrue(pageQueryContent.contains("data class Request("))
+        assertTrue(pageQueryContent.contains(") : PageQueryParam<Response>()"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -639,6 +667,50 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(result.output.contains("designQueryHandler generator requires enabled design generator."))
         assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `plain design generation does not require adapter module path`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-without-adapter-module")
+        copyFixture(projectDir, "design-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent.replace(
+                "        adapterModulePath.set(\"demo-adapter\")",
+                "        adapterModulePath.set(\"\")",
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val defaultQueryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt"
+        )
+        val listQueryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderListQry.kt"
+        )
+        val pageQueryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt"
+        )
+
+        val defaultQueryContent = defaultQueryFile.readText()
+        val listQueryContent = listQueryFile.readText()
+        val pageQueryContent = pageQueryFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(defaultQueryFile.toFile().exists())
+        assertTrue(listQueryFile.toFile().exists())
+        assertTrue(pageQueryFile.toFile().exists())
+        assertTrue(defaultQueryContent.contains(") : RequestParam<Response>"))
+        assertTrue(listQueryContent.contains(") : ListQueryParam<Response>"))
+        assertTrue(pageQueryContent.contains(") : PageQueryParam<Response>()"))
     }
 
     @OptIn(ExperimentalPathApi::class)
