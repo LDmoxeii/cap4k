@@ -13,15 +13,24 @@ class DesignArtifactPlanner : GeneratorProvider {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val applicationRoot = requireRelativeModuleRoot(config, "application")
         val basePath = config.basePackage.replace(".", "/")
+        val plannedEntries = model.requests.withIndex()
+            .filter { entry ->
+                entry.value.kind == RequestKind.COMMAND || entry.value.kind == RequestKind.QUERY
+            }
 
-        return model.requests.mapIndexed { index, request ->
-            val siblingRequestTypeNames = model.requests.withIndex()
+        return plannedEntries.map { entry ->
+            val request = entry.value
+            val siblingRequestTypeNames = plannedEntries
                 .asSequence()
-                .filter { it.index != index && it.value.packageName == request.packageName }
+                .filter { it.index != entry.index && it.value.packageName == request.packageName }
                 .map { it.value.typeName }
                 .toSet()
             val packagePath = request.packageName.replace(".", "/")
-            val subdir = if (request.kind == RequestKind.COMMAND) "commands" else "queries"
+            val subdir = when (request.kind) {
+                RequestKind.COMMAND -> "commands"
+                RequestKind.QUERY -> "queries"
+                RequestKind.CLIENT -> error("client requests must be filtered before planning design artifacts")
+            }
             val templateId = resolveTemplateId(request)
 
             ArtifactPlanItem(
@@ -44,6 +53,7 @@ class DesignArtifactPlanner : GeneratorProvider {
         return when (request.kind) {
             RequestKind.COMMAND -> "design/command.kt.peb"
             RequestKind.QUERY -> requireNotNull(DesignQueryVariantResolver.resolve(request)).requestTemplateId
+            RequestKind.CLIENT -> error("client requests must be filtered before resolving design template")
         }
     }
 }

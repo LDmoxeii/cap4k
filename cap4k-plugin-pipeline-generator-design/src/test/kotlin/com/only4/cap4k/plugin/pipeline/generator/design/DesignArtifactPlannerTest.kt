@@ -78,6 +78,66 @@ class DesignArtifactPlannerTest {
     }
 
     @Test
+    fun `ignores client requests and keeps planning command and query artifacts`() {
+        val planner = DesignArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("application" to "demo-application")),
+            model = CanonicalModel(
+                requests = listOf(
+                    RequestModel(
+                        kind = RequestKind.COMMAND,
+                        packageName = "order.submit",
+                        typeName = "SubmitOrderCmd",
+                        description = "submit order",
+                        aggregateName = "Order",
+                        aggregatePackageName = "com.acme.demo.domain.aggregates.order",
+                        requestFields = emptyList(),
+                        responseFields = emptyList(),
+                    ),
+                    RequestModel(
+                        kind = RequestKind.CLIENT,
+                        packageName = "order.remote",
+                        typeName = "IssueTokenCli",
+                        description = "issue token",
+                        aggregateName = "Order",
+                        aggregatePackageName = "com.acme.demo.domain.aggregates.order",
+                        requestFields = emptyList(),
+                        responseFields = emptyList(),
+                    ),
+                    RequestModel(
+                        kind = RequestKind.QUERY,
+                        packageName = "order.read",
+                        typeName = "FindOrderQry",
+                        description = "find order",
+                        aggregateName = "Order",
+                        aggregatePackageName = "com.acme.demo.domain.aggregates.order",
+                        requestFields = emptyList(),
+                        responseFields = emptyList(),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(2, items.size)
+        assertEquals(
+            listOf(
+                "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
+                "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt",
+            ),
+            items.map { it.outputPath },
+        )
+        assertEquals(
+            listOf("design/command.kt.peb", "design/query.kt.peb"),
+            items.map { it.templateId },
+        )
+        assertEquals(
+            listOf("SubmitOrderCmd", "FindOrderQry"),
+            items.map { requireNotNull(it.context["typeName"]) as String },
+        )
+    }
+
+    @Test
     fun `plans bounded query template variants from conservative suffixes`() {
         val planner = DesignArtifactPlanner()
 
