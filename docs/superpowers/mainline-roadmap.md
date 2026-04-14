@@ -56,10 +56,12 @@ Completed:
 - default value
 - `use()` helper
 - design template migration / helper adoption
+- representative old design template / override migration
+- design query-handler family migration
 
 Status:
 
-- current mainline is complete through helper adoption and migration-contract stabilization
+- current mainline is complete through representative migration and query-handler family migration
 
 Traceability:
 
@@ -70,6 +72,8 @@ Traceability:
 - [design generator default value design](specs/2026-04-12-cap4k-design-generator-default-value-design.md)
 - [design generator use helper design](specs/2026-04-12-cap4k-design-generator-use-helper-design.md)
 - [design template migration / helper adoption design](specs/2026-04-13-cap4k-design-template-migration-helper-adoption-design.md)
+- [representative design template / override migration design](specs/2026-04-14-cap4k-representative-design-template-override-migration-design.md)
+- [design query-handler family migration design](specs/2026-04-14-cap4k-design-query-handler-family-migration-design.md)
 
 ## Current Mainline Contract
 
@@ -87,19 +91,13 @@ These points remain in force:
 
 The next mainline slice is:
 
-- representative old design template / override migration
-
-Recommended first group:
-
-- `command.kt.peb`
-- `query.kt.peb`
-- `query_list.kt.peb`
-- `query_page.kt.peb`
+- design client / client_handler family migration
 
 Scope:
 
-- migrate a representative set of old design-template or override patterns into helper-first pipeline-compatible forms
-- prove those migration patterns with fixtures or tests
+- continue representative old design-family migration on the helper-first pipeline contract
+- migrate old `client` and `client_handler` template families into bounded pipeline-owned template ids
+- prove the migrated family with fixtures or tests
 
 Non-goals:
 
@@ -107,6 +105,7 @@ Non-goals:
 - do not add sibling design-entry type support
 - do not widen `use()` beyond design templates
 - do not mix bootstrap migration into this slice
+- do not turn support-track real-project findings into default framework rules without explicit approval
 
 ## Separate Future Slice
 
