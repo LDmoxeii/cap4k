@@ -1,6 +1,6 @@
 # Cap4k Mainline Roadmap
 
-Date: 2026-04-13
+Date: 2026-04-14
 
 ## Purpose
 
@@ -62,6 +62,7 @@ Completed:
 Status:
 
 - current mainline is complete through representative migration and query-handler family migration
+- roadmap completion state follows merged repository history; some linked slice specs may still retain pre-merge draft headers
 
 Traceability:
 
