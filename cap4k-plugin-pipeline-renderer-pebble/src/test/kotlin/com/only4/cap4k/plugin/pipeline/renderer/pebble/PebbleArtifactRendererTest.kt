@@ -2131,6 +2131,181 @@ class PebbleArtifactRendererTest {
         assertTrue(illegalArgument != null)
         assertTrue(illegalArgument!!.message!!.contains("use() import conflict"))
     }
+
+    @Test
+    fun `default query handler preset renders service stub`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-handler-contract")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-query-handler",
+                    moduleRole = "adapter",
+                    templateId = "design/query_handler.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.queries.order.read",
+                        "typeName" to "FindOrderQryHandler",
+                        "description" to "find order query",
+                        "queryTypeName" to "FindOrderQry",
+                        "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderQry"),
+                        "responseFields" to listOf(
+                            mapOf("name" to "responseStatus"),
+                            mapOf("name" to "snapshot"),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("import org.springframework.stereotype.Service"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
+        assertTrue(content.contains("import com.acme.demo.application.queries.order.read.FindOrderQry"))
+        assertTrue(content.contains("class FindOrderQryHandler : Query<FindOrderQry.Request, FindOrderQry.Response>"))
+        assertTrue(content.contains("responseStatus = TODO(\"set responseStatus\")"))
+        assertTrue(content.contains("snapshot = TODO(\"set snapshot\")"))
+    }
+
+    @Test
+    fun `bounded query handler presets render list and page contracts`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-bounded-query-handler-contracts")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-query-handler",
+                    moduleRole = "adapter",
+                    templateId = "design/query_list_handler.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.queries.order.read",
+                        "typeName" to "FindOrderListQryHandler",
+                        "description" to "find order list query",
+                        "queryTypeName" to "FindOrderListQry",
+                        "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderListQry"),
+                        "responseFields" to listOf(
+                            mapOf("name" to "responseStatus"),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "design-query-handler",
+                    moduleRole = "adapter",
+                    templateId = "design/query_page_handler.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.queries.order.read",
+                        "typeName" to "FindOrderPageQryHandler",
+                        "description" to "find order page query",
+                        "queryTypeName" to "FindOrderPageQry",
+                        "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderPageQry"),
+                        "responseFields" to listOf(
+                            mapOf("name" to "responseStatus"),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val listContent = rendered[0].content
+        assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.ListQuery"))
+        assertTrue(listContent.contains("import com.acme.demo.application.queries.order.read.FindOrderListQry"))
+        assertTrue(listContent.contains("class FindOrderListQryHandler : ListQuery<FindOrderListQry.Request, FindOrderListQry.Response>"))
+        assertTrue(listContent.contains("responseStatus = TODO(\"set responseStatus\")"))
+
+        val pageContent = rendered[1].content
+        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.PageQuery"))
+        assertTrue(pageContent.contains("import com.acme.demo.application.queries.order.read.FindOrderPageQry"))
+        assertTrue(pageContent.contains("class FindOrderPageQryHandler : PageQuery<FindOrderPageQry.Request, FindOrderPageQry.Response>"))
+        assertTrue(pageContent.contains("responseStatus = TODO(\"set responseStatus\")"))
+    }
+
+    @Test
+    fun `query handler presets return object response when response fields are empty`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-handler-empty-response")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-query-handler",
+                    moduleRole = "adapter",
+                    templateId = "design/query_handler.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.queries.order.read",
+                        "typeName" to "FindOrderQryHandler",
+                        "description" to "find order query",
+                        "queryTypeName" to "FindOrderQry",
+                        "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderQry"),
+                        "responseFields" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("return FindOrderQry.Response"))
+        assertFalse(content.contains("return FindOrderQry.Response("))
+    }
 }
 
 private data class RenderedTypeCarrier(
