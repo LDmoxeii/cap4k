@@ -550,11 +550,23 @@ class PipelinePluginFunctionalTest {
                 |        design {
                 |            enabled.set(true)
                 |        }
+                |        designClient {
+                |            enabled.set(true)
+                |        }
+                |        designClientHandler {
+                |            enabled.set(true)
+                |        }
                 |    }
                 """.trimMargin(),
                 """
                 |    generators {
                 |        design {
+                |            enabled.set(true)
+                |        }
+                |        designClient {
+                |            enabled.set(true)
+                |        }
+                |        designClientHandler {
                 |            enabled.set(true)
                 |        }
                 |        designQueryHandler {
@@ -876,10 +888,32 @@ class PipelinePluginFunctionalTest {
         val buildFile = projectDir.resolve("build.gradle.kts")
         val buildFileContent = buildFile.readText().replace("\r\n", "\n")
         buildFile.writeText(
-            buildFileContent.replace(
-                "        adapterModulePath.set(\"demo-adapter\")",
-                "        adapterModulePath.set(\"\")",
-            )
+            buildFileContent
+                .replace("        adapterModulePath.set(\"demo-adapter\")", "        adapterModulePath.set(\"\")")
+                .replace(
+                    """
+                    |        designClient {
+                    |            enabled.set(true)
+                    |        }
+                    """.trimMargin(),
+                    """
+                    |        designClient {
+                    |            enabled.set(false)
+                    |        }
+                    """.trimMargin()
+                )
+                .replace(
+                    """
+                    |        designClientHandler {
+                    |            enabled.set(true)
+                    |        }
+                    """.trimMargin(),
+                    """
+                    |        designClientHandler {
+                    |            enabled.set(false)
+                    |        }
+                    """.trimMargin()
+                )
         )
 
         val result = GradleRunner.create()
