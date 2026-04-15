@@ -1413,8 +1413,12 @@ class PipelinePluginFunctionalTest {
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt"
         )
         val content = payloadFile.readText()
-        val requestSection = content.substringAfter("data class Request(").substringBefore("\n\n    data class Response(")
-        val responseSection = content.substringAfter("data class Response(").substringBeforeLast("\n}")
+        val responseIndex = content.indexOf("    data class Response(")
+        val requestSection = content.substring(
+            startIndex = content.indexOf("    data class Request("),
+            endIndex = responseIndex
+        )
+        val responseSection = content.substring(responseIndex)
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(payloadFile.toFile().exists())
@@ -1462,8 +1466,12 @@ class PipelinePluginFunctionalTest {
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt"
         )
         val content = payloadFile.readText()
-        val requestSection = content.substringAfter("data class Request(").substringBefore("\n\n    data class Response(")
-        val responseSection = content.substringAfter("data class Response(").substringBeforeLast("\n}")
+        val responseIndex = content.indexOf("    data class Response(")
+        val requestSection = content.substring(
+            startIndex = content.indexOf("    data class Request("),
+            endIndex = responseIndex
+        )
+        val responseSection = content.substring(responseIndex)
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(payloadFile.toFile().exists())
@@ -1483,8 +1491,9 @@ class PipelinePluginFunctionalTest {
         copyFixture(projectDir, "design-api-payload-sample")
 
         val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
         buildFile.writeText(
-            buildFile.readText().replace(
+            buildFileContent.replace(
                 "        adapterModulePath.set(\"demo-adapter\")\n",
                 "",
             )

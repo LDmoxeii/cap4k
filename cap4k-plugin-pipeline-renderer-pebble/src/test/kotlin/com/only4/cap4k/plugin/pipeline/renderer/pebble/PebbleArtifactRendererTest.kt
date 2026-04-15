@@ -2640,8 +2640,12 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
         val importLines = Regex("^import .+$", RegexOption.MULTILINE).findAll(content).map { it.value }.toList()
-        val requestSection = content.substringAfter("data class Request(").substringBefore("\n\n    data class Response(")
-        val responseSection = content.substringAfter("data class Response(").substringBeforeLast("\n}")
+        val responseIndex = content.indexOf("    data class Response(")
+        val requestSection = content.substring(
+            startIndex = content.indexOf("    data class Request("),
+            endIndex = responseIndex
+        )
+        val responseSection = content.substring(responseIndex)
         val nestedAddressCount = Regex("^ {8}data class Address\\(", RegexOption.MULTILINE).findAll(content).count()
         val outerAddressCount = Regex("^ {4}data class Address\\(", RegexOption.MULTILINE).findAll(content).count()
         val nestedResultCount = Regex("^ {8}data class Result\\(", RegexOption.MULTILINE).findAll(content).count()
