@@ -1460,8 +1460,9 @@ class PipelinePluginFunctionalTest {
         copyFixture(projectDir, "design-validator-sample")
 
         val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
         buildFile.writeText(
-            buildFile.readText().replace(
+            buildFileContent.replace(
                 "        applicationModulePath.set(\"demo-application\")\n",
                 "",
             )
@@ -1483,8 +1484,9 @@ class PipelinePluginFunctionalTest {
         copyFixture(projectDir, "design-validator-sample")
 
         val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
         buildFile.writeText(
-            buildFile.readText().replace(
+            buildFileContent.replace(
                 """
                 |    sources {
                 |        designJson {
