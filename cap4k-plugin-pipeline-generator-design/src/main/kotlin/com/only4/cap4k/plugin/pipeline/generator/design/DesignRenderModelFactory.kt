@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
+import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
@@ -54,6 +55,25 @@ internal object DesignRenderModelFactory {
             description = payload.description,
             aggregateName = null,
             aggregatePackageName = null,
+            requestNamespace = requestNamespace,
+            responseNamespace = responseNamespace,
+            typeRegistry = typeRegistry,
+        )
+    }
+
+    fun createForDomainEvent(
+        packageName: String,
+        event: DomainEventModel,
+        typeRegistry: Map<String, String> = emptyMap(),
+    ): DesignRenderModel {
+        val requestNamespace = buildNamespace(event.fields, "request")
+        val responseNamespace = buildNamespace(emptyList(), "response")
+        return createRenderModel(
+            packageName = packageName,
+            typeName = event.typeName,
+            description = event.description,
+            aggregateName = event.aggregateName,
+            aggregatePackageName = event.aggregatePackageName,
             requestNamespace = requestNamespace,
             responseNamespace = responseNamespace,
             typeRegistry = typeRegistry,
