@@ -94,6 +94,8 @@ The canonical model should gain:
 - `persist`
 - `fields`
 
+When the source omits `persist`, canonical assembly should default it to `false` to preserve old `DomainEventDesign.persist` semantics.
+
 This slice should continue to use `FieldModel` for event fields so it can reuse the current field parsing, type resolution, nested-type handling, and default-value pipeline.
 
 The source contract should remain narrow:
@@ -149,6 +151,8 @@ Dependency rules:
 
 This slice should not require adapter module paths.
 
+The handler-generator dependency is intentional and follows the current bounded handler-family gating pattern already used by `designQueryHandler` and `designClientHandler`, rather than introducing a new special-case rule.
+
 ## Event-Side Planner
 
 Add a dedicated planner for domain-event artifacts:
@@ -177,6 +181,9 @@ The planner should provide render context with:
 - `imports`
 - `fields`
 - `nestedTypes`
+
+The synthetic constructor field `entity: {{ Aggregate }}` is derived from `aggregateName` and `aggregateType` at render time.
+It is not inserted into canonical `fields`.
 
 The event-side planner should use the current pipeline nested-type contract for event fields rather than reviving the old flat nested-type resolver behavior.
 
@@ -225,7 +232,7 @@ The event-side template should preserve old-family shape while using the helper-
 
 - `use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate")`
 - `use("com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent")`
-- explicit helper-driven import for aggregate type when needed
+- `use(aggregateType)` for the aggregate entity type import
 - `imports(imports)` for import rendering
 - `type(field)` and Kotlin-ready `defaultValue`
 
@@ -276,14 +283,21 @@ This slice does not introduce pattern routing, alias routing, or runtime handler
 
 ## Validation Strategy
 
-Validation should cover three levels.
+Validation should cover four levels.
+
+### Assembler / Canonical
+
+Add canonical-assembly tests that verify:
+
+- only `domain_event` entries land in canonical `domainEvents`
+- old-compatible event naming rules are preserved
+- omitted `persist` defaults to `false`
+- the synthetic `entity` constructor field is not inserted into canonical `fields`
 
 ### Planner / Unit
 
 Add planner-level tests that verify:
 
-- only `domain_event` entries land in canonical `domainEvents`
-- old-compatible event naming rules are preserved
 - event-side artifacts land under domain `.../events`
 - handler-side artifacts land under application `.../events`
 - handler names end in `Subscriber`
@@ -298,6 +312,7 @@ Add renderer regression coverage that verifies:
 
 - `design/domain_event.kt.peb` renders `@DomainEvent` and `@Aggregate`
 - the event class keeps `entity: Aggregate` as the first field
+- `use(aggregateType)` drives the aggregate import dynamically
 - `design/domain_event_handler.kt.peb` renders `@Service` and `@EventListener`
 - helper-driven imports are emitted through `imports(imports)`
 - override template resolution works for both bounded template ids
