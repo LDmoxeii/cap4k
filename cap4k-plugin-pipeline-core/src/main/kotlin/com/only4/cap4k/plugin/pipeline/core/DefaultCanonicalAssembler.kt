@@ -262,15 +262,15 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
     private fun String.normalizeValidatorTypeName(): String {
-        val normalized = trim()
-        if (normalized.isEmpty()) {
-            return normalized
+        val parts = trim()
+            .split(UpperCamelSplitRegex)
+            .filter { it.isNotEmpty() }
+        if (parts.isEmpty()) {
+            return ""
         }
-        return normalized.replaceFirstChar { character ->
-            if (character.isLowerCase()) {
+        return parts.joinToString("") { part ->
+            part.lowercase(Locale.ROOT).replaceFirstChar { character ->
                 character.titlecase(Locale.ROOT)
-            } else {
-                character.toString()
             }
         }
     }
@@ -297,5 +297,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
     private companion object {
         val SupportedDrawingBoardTags = setOf("cli", "cmd", "qry", "payload", "de")
+        val UpperCamelSplitRegex = Regex("(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+")
     }
 }

@@ -169,6 +169,24 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
+                            tag = "validator",
+                            packageName = "auth.validator",
+                            name = "issue_token",
+                            description = "issue token validator snake",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "validator",
+                            packageName = "auth.validator",
+                            name = "issue-token",
+                            description = "issue token validator kebab",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
                             tag = "validators",
                             packageName = "auth.validator",
                             name = "pluralAlias",
@@ -200,12 +218,13 @@ class DefaultCanonicalAssemblerTest {
             ),
         ).model
 
-        assertEquals(1, model.validators.size)
-        val validator = model.validators.single()
-        assertEquals("auth.validator", validator.packageName)
-        assertEquals("IssueToken", validator.typeName)
-        assertEquals("issue token validator", validator.description)
-        assertEquals("Long", validator.valueType)
+        assertEquals(3, model.validators.size)
+        assertEquals(
+            listOf("IssueToken", "IssueToken", "IssueToken"),
+            model.validators.map { it.typeName },
+        )
+        assertEquals(listOf("auth.validator", "auth.validator", "auth.validator"), model.validators.map { it.packageName })
+        assertEquals(listOf("Long", "Long", "Long"), model.validators.map { it.valueType })
         assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.RequestModel>(), model.requests)
     }
 
