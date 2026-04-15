@@ -23,6 +23,7 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.generators.designClient.enabled.get())
         assertFalse(extension.generators.designClientHandler.enabled.get())
         assertFalse(extension.generators.designValidator.enabled.get())
+        assertFalse(extension.generators.designApiPayload.enabled.get())
         assertFalse(extension.generators.aggregate.enabled.get())
         assertEquals("FAIL", extension.generators.aggregate.unsupportedTablePolicy.get())
         assertFalse(extension.generators.drawingBoard.enabled.get())
@@ -91,6 +92,31 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
+    fun `factory includes adapter module and design api payload generator when enabled`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            designApiPayload { enabled.set(true) }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(mapOf("adapter" to "demo-adapter"), config.modules)
+        assertEquals(setOf("design-api-payload"), config.enabledGeneratorIds())
+    }
+
+    @Test
     fun `design validator generator requires application module path`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
@@ -133,6 +159,51 @@ class Cap4kProjectConfigFactoryTest {
         }
 
         assertEquals("designValidator generator requires enabled designJson source.", error.message)
+    }
+
+    @Test
+    fun `design api payload generator requires adapter module path`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            designApiPayload { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("project.adapterModulePath is required when designApiPayload is enabled.", error.message)
+    }
+
+    @Test
+    fun `design api payload generator requires enabled design json source`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.generators {
+            designApiPayload { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("designApiPayload generator requires enabled designJson source.", error.message)
     }
 
     @Test

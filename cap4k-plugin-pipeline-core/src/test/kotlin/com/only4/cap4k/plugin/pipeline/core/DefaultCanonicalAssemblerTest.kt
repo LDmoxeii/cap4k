@@ -267,6 +267,126 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `api payload entries assemble into dedicated api payload slice and keep request assembly unchanged`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val requestFields = listOf(FieldModel(name = "accountIds", type = "List<Long>"))
+        val responseFields = listOf(FieldModel(name = "saved", type = "Int"))
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "api_payload",
+                            packageName = "auth.payload",
+                            name = "batchSaveAccountList",
+                            description = "batch save account payload",
+                            aggregates = emptyList(),
+                            requestFields = requestFields,
+                            responseFields = responseFields,
+                        ),
+                        DesignSpecEntry(
+                            tag = "cmd",
+                            packageName = "order.submit",
+                            name = "SubmitOrder",
+                            description = "submit order",
+                            aggregates = listOf("Order"),
+                            requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+                        ),
+                    )
+                ),
+            ),
+        ).model
+
+        assertEquals(1, model.apiPayloads.size)
+        val payload = model.apiPayloads.single()
+        assertEquals("auth.payload", payload.packageName)
+        assertEquals("BatchSaveAccountList", payload.typeName)
+        assertEquals("batch save account payload", payload.description)
+        assertEquals(requestFields, payload.requestFields)
+        assertEquals(responseFields, payload.responseFields)
+
+        assertEquals(1, model.requests.size)
+        assertEquals(RequestKind.COMMAND, model.requests.single().kind)
+        assertEquals("SubmitOrderCmd", model.requests.single().typeName)
+    }
+
+    @Test
+    fun `api payload slice skips legacy payload aliases`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "payload",
+                            packageName = "auth.payload",
+                            name = "LegacyPayload",
+                            description = "legacy payload alias",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "request_payload",
+                            packageName = "auth.payload",
+                            name = "LegacyRequestPayload",
+                            description = "legacy request payload alias",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "req_payload",
+                            packageName = "auth.payload",
+                            name = "LegacyReqPayload",
+                            description = "legacy req payload alias",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "request",
+                            packageName = "auth.payload",
+                            name = "LegacyRequest",
+                            description = "legacy request alias",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "req",
+                            packageName = "auth.payload",
+                            name = "LegacyReq",
+                            description = "legacy req alias",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "api_payload",
+                            packageName = "auth.payload",
+                            name = "BatchSaveAccountList",
+                            description = "canonical payload",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    )
+                ),
+            ),
+        ).model
+
+        assertEquals(1, model.apiPayloads.size)
+        assertEquals("BatchSaveAccountList", model.apiPayloads.single().typeName)
+    }
+
+    @Test
     fun `maps design entries and ksp aggregates into canonical requests`() {
         val assembler = DefaultCanonicalAssembler()
 

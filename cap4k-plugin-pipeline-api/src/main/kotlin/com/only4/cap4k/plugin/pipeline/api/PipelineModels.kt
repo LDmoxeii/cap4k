@@ -208,9 +208,18 @@ data class ValidatorModel(
     val valueType: String,
 )
 
+data class ApiPayloadModel(
+    val packageName: String,
+    val typeName: String,
+    val description: String,
+    val requestFields: List<FieldModel> = emptyList(),
+    val responseFields: List<FieldModel> = emptyList(),
+)
+
 data class CanonicalModel(
     val requests: List<RequestModel> = emptyList(),
     val validators: List<ValidatorModel> = emptyList(),
+    val apiPayloads: List<ApiPayloadModel> = emptyList(),
     val schemas: List<SchemaModel> = emptyList(),
     val entities: List<EntityModel> = emptyList(),
     val repositories: List<RepositoryModel> = emptyList(),

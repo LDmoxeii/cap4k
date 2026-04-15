@@ -106,6 +106,8 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
         objects.newInstance(DesignClientHandlerGeneratorExtension::class.java)
     val designValidator: DesignValidatorGeneratorExtension =
         objects.newInstance(DesignValidatorGeneratorExtension::class.java)
+    val designApiPayload: DesignApiPayloadGeneratorExtension =
+        objects.newInstance(DesignApiPayloadGeneratorExtension::class.java)
     val aggregate: AggregateGeneratorExtension = objects.newInstance(AggregateGeneratorExtension::class.java)
     val drawingBoard: DrawingBoardGeneratorExtension = objects.newInstance(DrawingBoardGeneratorExtension::class.java)
     val flow: FlowGeneratorExtension = objects.newInstance(FlowGeneratorExtension::class.java)
@@ -128,6 +130,10 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
 
     fun designValidator(block: DesignValidatorGeneratorExtension.() -> Unit) {
         designValidator.block()
+    }
+
+    fun designApiPayload(block: DesignApiPayloadGeneratorExtension.() -> Unit) {
+        designApiPayload.block()
     }
 
     fun aggregate(block: AggregateGeneratorExtension.() -> Unit) {
@@ -160,6 +166,10 @@ open class DesignClientHandlerGeneratorExtension @Inject constructor(objects: Ob
 }
 
 open class DesignValidatorGeneratorExtension @Inject constructor(objects: ObjectFactory) {
+    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+}
+
+open class DesignApiPayloadGeneratorExtension @Inject constructor(objects: ObjectFactory) {
     val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }
 

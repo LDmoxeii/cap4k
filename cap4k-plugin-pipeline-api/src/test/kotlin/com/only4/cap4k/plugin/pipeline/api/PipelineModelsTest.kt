@@ -220,6 +220,66 @@ class PipelineModelsTest {
     }
 
     @Test
+    fun `canonical model keeps dedicated api payload slice alongside requests validators and aggregate slices`() {
+        val payload = ApiPayloadModel(
+            packageName = "auth.payload",
+            typeName = "BatchSaveAccountList",
+            description = "batch save account payload",
+            requestFields = listOf(FieldModel(name = "accountIds", type = "List<Long>")),
+            responseFields = listOf(FieldModel(name = "saved", type = "Int")),
+        )
+        val request = RequestModel(
+            kind = RequestKind.COMMAND,
+            packageName = "order.submit",
+            typeName = "SubmitOrderCmd",
+            description = "submit order",
+        )
+        val validator = ValidatorModel(
+            packageName = "auth.validator",
+            typeName = "IssueToken",
+            description = "issue token validator",
+            valueType = "Long",
+        )
+        val schema = SchemaModel(
+            name = "SVideoPost",
+            packageName = "com.acme.demo.domain._share.meta.video_post",
+            entityName = "VideoPost",
+            comment = "Video post schema",
+            fields = listOf(FieldModel(name = "id", type = "Long")),
+        )
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "Video post",
+            fields = listOf(FieldModel(name = "id", type = "Long")),
+            idField = FieldModel(name = "id", type = "Long"),
+        )
+        val repository = RepositoryModel(
+            name = "VideoPostRepository",
+            packageName = "com.acme.demo.adapter.domain.repositories",
+            entityName = "VideoPost",
+            idType = "Long",
+        )
+
+        val model = CanonicalModel(
+            requests = listOf(request),
+            validators = listOf(validator),
+            apiPayloads = listOf(payload),
+            schemas = listOf(schema),
+            entities = listOf(entity),
+            repositories = listOf(repository),
+        )
+
+        assertEquals(listOf(request), model.requests)
+        assertEquals(listOf(validator), model.validators)
+        assertEquals(listOf(payload), model.apiPayloads)
+        assertEquals(listOf(schema), model.schemas)
+        assertEquals(listOf(entity), model.entities)
+        assertEquals(listOf(repository), model.repositories)
+    }
+
+    @Test
     fun `db schema snapshot preserves normalized table metadata`() {
         val snapshot = DbSchemaSnapshot(
             tables = listOf(

@@ -4,6 +4,7 @@ import com.only4.cap4k.plugin.pipeline.api.AnalysisEdgeModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateDiagnostics
+import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
@@ -80,6 +81,20 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     typeName = entry.name.normalizeValidatorTypeName(),
                     description = entry.description,
                     valueType = "Long",
+                )
+            }
+            .toList()
+
+        val apiPayloads = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "api_payload" }
+            .map { entry ->
+                ApiPayloadModel(
+                    packageName = entry.packageName,
+                    typeName = entry.name.normalizeUpperCamelTypeName(),
+                    description = entry.description,
+                    requestFields = entry.requestFields,
+                    responseFields = entry.responseFields,
                 )
             }
             .toList()
@@ -214,6 +229,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             model = CanonicalModel(
                 requests = requests,
                 validators = validators,
+                apiPayloads = apiPayloads,
                 schemas = aggregateModels.map { it.first },
                 entities = aggregateModels.map { it.second },
                 repositories = aggregateModels.map { it.third },
@@ -262,6 +278,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
     private fun String.normalizeValidatorTypeName(): String {
+        return normalizeUpperCamelTypeName()
+    }
+
+    private fun String.normalizeUpperCamelTypeName(): String {
         val parts = trim()
             .split(UpperCamelSplitRegex)
             .filter { it.isNotEmpty() }
