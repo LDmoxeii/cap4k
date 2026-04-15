@@ -63,7 +63,8 @@ internal fun inferDependencies(project: Project, config: ProjectConfig): List<Ta
     val inferredDependencies = linkedSetOf<Task>()
     val allProjects = project.rootProject.allprojects
 
-    val shouldDependOnKsp = config.enabledGeneratorIds().contains("design") &&
+    val enabledGenerators = config.enabledGeneratorIds()
+    val shouldDependOnKsp = enabledGenerators.any { it == "design" || it == "design-domain-event" } &&
         config.enabledSourceIds().contains("ksp-metadata")
     if (shouldDependOnKsp) {
         val kspInputDir = config.sources["ksp-metadata"]

@@ -538,10 +538,11 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `domain event assembly skips entries without exactly one resolved aggregate`() {
+    fun `domain event assembly fails when aggregates is empty`() {
         val assembler = DefaultCanonicalAssembler()
 
-        val model = assembler.assemble(
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembler.assemble(
             config = baseConfig(),
             snapshots = listOf(
                 DesignSpecSnapshot(
@@ -552,24 +553,6 @@ class DefaultCanonicalAssemblerTest {
                             name = "NoAggregate",
                             description = "missing aggregate",
                             aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "domain_event",
-                            packageName = "order",
-                            name = "UnknownAggregate",
-                            description = "unknown aggregate",
-                            aggregates = listOf("Unknown"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "domain_event",
-                            packageName = "order",
-                            name = "TooManyAggregates",
-                            description = "multiple aggregates",
-                            aggregates = listOf("Order", "Customer"),
                             requestFields = emptyList(),
                             responseFields = emptyList(),
                         ),
@@ -586,9 +569,86 @@ class DefaultCanonicalAssemblerTest {
                     )
                 ),
             ),
-        ).model
+        )
+        }
 
-        assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.DomainEventModel>(), model.domainEvents)
+        assertEquals("domain_event NoAggregate must declare exactly one aggregate, but found 0.", error.message)
+    }
+
+    @Test
+    fun `domain event assembly fails when aggregates has more than one item`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembler.assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "domain_event",
+                                packageName = "order",
+                                name = "TooManyAggregates",
+                                description = "multiple aggregates",
+                                aggregates = listOf("Order", "Customer"),
+                                requestFields = emptyList(),
+                                responseFields = emptyList(),
+                            ),
+                        )
+                    ),
+                    KspMetadataSnapshot(
+                        aggregates = listOf(
+                            AggregateMetadataRecord(
+                                aggregateName = "Order",
+                                rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
+                                rootPackageName = "com.acme.demo.domain.aggregates.order",
+                                rootClassName = "Order",
+                            )
+                        )
+                    ),
+                ),
+            )
+        }
+
+        assertEquals("domain_event TooManyAggregates must declare exactly one aggregate, but found 2.", error.message)
+    }
+
+    @Test
+    fun `domain event assembly fails when aggregate metadata is missing`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembler.assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "domain_event",
+                                packageName = "order",
+                                name = "UnknownAggregate",
+                                description = "unknown aggregate",
+                                aggregates = listOf("Unknown"),
+                                requestFields = emptyList(),
+                                responseFields = emptyList(),
+                            ),
+                        )
+                    ),
+                    KspMetadataSnapshot(
+                        aggregates = listOf(
+                            AggregateMetadataRecord(
+                                aggregateName = "Order",
+                                rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
+                                rootPackageName = "com.acme.demo.domain.aggregates.order",
+                                rootClassName = "Order",
+                            )
+                        )
+                    ),
+                ),
+            )
+        }
+
+        assertEquals("domain_event UnknownAggregate references missing aggregate metadata: Unknown.", error.message)
     }
 
     @Test

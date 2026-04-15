@@ -367,6 +367,9 @@ class Cap4kProjectConfigFactory {
         if (generators.designDomainEventEnabled && !sources.designJsonEnabled) {
             throw IllegalArgumentException("designDomainEvent generator requires enabled designJson source.")
         }
+        if (generators.designDomainEventEnabled && !sources.kspMetadataEnabled) {
+            throw IllegalArgumentException("designDomainEvent generator requires enabled kspMetadata source.")
+        }
         if (generators.designDomainEventHandlerEnabled && !generators.designDomainEventEnabled) {
             throw IllegalArgumentException("designDomainEventHandler generator requires enabled designDomainEvent generator.")
         }

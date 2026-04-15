@@ -1899,6 +1899,40 @@ class PipelinePluginFunctionalTest {
     }
 
     @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan domain event flow fails when ksp metadata source is disabled`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-no-ksp-metadata")
+        copyFixture(projectDir, "design-domain-event-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent.replace(
+                """
+                |        kspMetadata {
+                |            enabled.set(true)
+                |            inputDir.set("design/metadata")
+                |        }
+                """.trimMargin(),
+                """
+                |        kspMetadata {
+                |            enabled.set(false)
+                |            inputDir.set("design/metadata")
+                |        }
+                """.trimMargin(),
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("designDomainEvent generator requires enabled kspMetadata source."))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
     private fun copyFixture(targetDir: Path, fixtureName: String = "design-sample") {
         val sourceDir = Path.of(
             requireNotNull(javaClass.getResource("/functional/$fixtureName")) {

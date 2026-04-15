@@ -81,6 +81,36 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `design domain event with ksp metadata depends on relevant ksp task only`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-ksp-domain-event-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("domain"))
+            .build()
+        domainProject.tasks.register("kspKotlin")
+        rootProject.tasks.register("kspKotlin")
+
+        val dependencies = inferDependencies(
+            rootProject,
+            projectConfig(
+                sources = mapOf(
+                    "ksp-metadata" to SourceConfig(
+                        enabled = true,
+                        options = mapOf("inputDir" to domainProject.layout.buildDirectory.dir("generated/ksp/main").get().asFile.absolutePath),
+                    )
+                ),
+                generators = mapOf("design-domain-event" to GeneratorConfig(enabled = true)),
+            )
+        )
+
+        assertEquals(listOf(":domain:kspKotlin"), dependencies.map { it.path })
+    }
+
+    @Test
     fun `flow with ir analysis depends on relevant compile task only`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-flow-root")
         val rootProject = ProjectBuilder.builder()

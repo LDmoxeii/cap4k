@@ -3,12 +3,14 @@ package com.only4.cap4k.plugin.pipeline.core
 import com.only4.cap4k.plugin.pipeline.api.AnalysisEdgeModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
 import com.only4.cap4k.plugin.pipeline.api.AggregateDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
@@ -103,9 +105,9 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val domainEvents = designSnapshot?.entries.orEmpty()
             .asSequence()
             .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "domain_event" }
-            .mapNotNull { entry ->
-                val aggregateName = entry.aggregates.singleOrNull() ?: return@mapNotNull null
-                val aggregate = aggregateLookup[aggregateName] ?: return@mapNotNull null
+            .map { entry ->
+                val aggregateName = resolveDomainEventAggregateName(entry)
+                val aggregate = resolveDomainEventAggregateMetadata(entry, aggregateName, aggregateLookup)
                 DomainEventModel(
                     packageName = entry.packageName,
                     typeName = entry.name.toDomainEventTypeName(),
@@ -322,6 +324,24 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             else -> "${rawName}DomainEvent"
         }
         return candidate.normalizeUpperCamelTypeName()
+    }
+
+    private fun resolveDomainEventAggregateName(entry: DesignSpecEntry): String {
+        val aggregateCount = entry.aggregates.size
+        require(aggregateCount == 1) {
+            "domain_event ${entry.name} must declare exactly one aggregate, but found $aggregateCount."
+        }
+        return entry.aggregates.first()
+    }
+
+    private fun resolveDomainEventAggregateMetadata(
+        entry: DesignSpecEntry,
+        aggregateName: String,
+        aggregateLookup: Map<String, AggregateMetadataRecord>,
+    ): AggregateMetadataRecord {
+        return requireNotNull(aggregateLookup[aggregateName]) {
+            "domain_event ${entry.name} references missing aggregate metadata: $aggregateName."
+        }
     }
 
     private fun buildDiagnostics(
