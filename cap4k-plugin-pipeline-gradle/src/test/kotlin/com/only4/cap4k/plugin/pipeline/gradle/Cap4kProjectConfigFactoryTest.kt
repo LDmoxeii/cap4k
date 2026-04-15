@@ -22,6 +22,7 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.generators.designQueryHandler.enabled.get())
         assertFalse(extension.generators.designClient.enabled.get())
         assertFalse(extension.generators.designClientHandler.enabled.get())
+        assertFalse(extension.generators.designValidator.enabled.get())
         assertFalse(extension.generators.aggregate.enabled.get())
         assertEquals("FAIL", extension.generators.aggregate.unsupportedTablePolicy.get())
         assertFalse(extension.generators.drawingBoard.enabled.get())
@@ -62,6 +63,76 @@ class Cap4kProjectConfigFactoryTest {
             config.modules,
         )
         assertEquals(setOf("design-client", "design-client-handler"), config.enabledGeneratorIds())
+    }
+
+    @Test
+    fun `factory includes application module and design validator generator when enabled`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            applicationModulePath.set("demo-application")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            designValidator { enabled.set(true) }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(mapOf("application" to "demo-application"), config.modules)
+        assertEquals(setOf("design-validator"), config.enabledGeneratorIds())
+    }
+
+    @Test
+    fun `design validator generator requires application module path`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            designValidator { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("project.applicationModulePath is required when designValidator is enabled.", error.message)
+    }
+
+    @Test
+    fun `design validator generator requires enabled design json source`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            applicationModulePath.set("demo-application")
+        }
+        extension.generators {
+            designValidator { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("designValidator generator requires enabled designJson source.", error.message)
     }
 
     @Test

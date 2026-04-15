@@ -26,6 +26,7 @@ import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SourceSnapshot
 import com.only4.cap4k.plugin.pipeline.api.UnsupportedAggregateTable
 import com.only4.cap4k.plugin.pipeline.api.UnsupportedTablePolicy
+import com.only4.cap4k.plugin.pipeline.api.ValidatorModel
 import java.util.Locale
 
 interface CanonicalAssembler {
@@ -69,6 +70,19 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 responseFields = entry.responseFields,
             )
         }
+
+        val validators = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "validator" }
+            .map { entry ->
+                ValidatorModel(
+                    packageName = entry.packageName,
+                    typeName = entry.name.normalizeValidatorTypeName(),
+                    description = entry.description,
+                    valueType = "Long",
+                )
+            }
+            .toList()
 
         val aggregatePolicy = config.generators["aggregate"]
             ?.options
@@ -199,6 +213,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return CanonicalAssemblyResult(
             model = CanonicalModel(
                 requests = requests,
+                validators = validators,
                 schemas = aggregateModels.map { it.first },
                 entities = aggregateModels.map { it.second },
                 repositories = aggregateModels.map { it.third },
@@ -244,6 +259,20 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
     private fun drawingBoardElementKey(element: DrawingBoardElementModel): String {
         return "${element.tag}|${element.packageName}|${element.name}"
+    }
+
+    private fun String.normalizeValidatorTypeName(): String {
+        val normalized = trim()
+        if (normalized.isEmpty()) {
+            return normalized
+        }
+        return normalized.replaceFirstChar { character ->
+            if (character.isLowerCase()) {
+                character.titlecase(Locale.ROOT)
+            } else {
+                character.toString()
+            }
+        }
     }
 
     private fun buildDiagnostics(

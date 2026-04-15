@@ -30,6 +30,7 @@ class Cap4kProjectConfigFactory {
             designQueryHandlerEnabled = extension.generators.designQueryHandler.enabled.get(),
             designClientEnabled = extension.generators.designClient.enabled.get(),
             designClientHandlerEnabled = extension.generators.designClientHandler.enabled.get(),
+            designValidatorEnabled = extension.generators.designValidator.enabled.get(),
             aggregateEnabled = extension.generators.aggregate.enabled.get(),
             flowEnabled = extension.generators.flow.enabled.get(),
             drawingBoardEnabled = extension.generators.drawingBoard.enabled.get(),
@@ -84,6 +85,12 @@ class Cap4kProjectConfigFactory {
                 "designClientHandler"
             )
         }
+        if (generators.designValidatorEnabled) {
+            extension.project.applicationModulePath.requiredWhenEnabled(
+                "project.applicationModulePath",
+                "designValidator"
+            )
+        }
         if (generators.aggregateEnabled) {
             val missingDomain = extension.project.domainModulePath.optionalValue() == null
             val missingAdapter = extension.project.adapterModulePath.optionalValue() == null
@@ -110,6 +117,9 @@ class Cap4kProjectConfigFactory {
         }
         if (generators.designClientHandlerEnabled) {
             put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
+        }
+        if (generators.designValidatorEnabled) {
+            put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
         }
         if (generators.aggregateEnabled) {
             put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
@@ -200,6 +210,9 @@ class Cap4kProjectConfigFactory {
         }
         if (states.designClientHandlerEnabled) {
             put("design-client-handler", GeneratorConfig(enabled = true))
+        }
+        if (states.designValidatorEnabled) {
+            put("design-validator", GeneratorConfig(enabled = true))
         }
         if (states.aggregateEnabled) {
             put(
@@ -306,6 +319,9 @@ class Cap4kProjectConfigFactory {
         if (generators.designEnabled && !sources.designJsonEnabled) {
             throw IllegalArgumentException("design generator requires enabled designJson source.")
         }
+        if (generators.designValidatorEnabled && !sources.designJsonEnabled) {
+            throw IllegalArgumentException("designValidator generator requires enabled designJson source.")
+        }
         if (generators.aggregateEnabled && !sources.dbEnabled) {
             throw IllegalArgumentException("aggregate generator requires enabled db source.")
         }
@@ -336,6 +352,7 @@ private data class GeneratorStates(
     val designQueryHandlerEnabled: Boolean,
     val designClientEnabled: Boolean,
     val designClientHandlerEnabled: Boolean,
+    val designValidatorEnabled: Boolean,
     val aggregateEnabled: Boolean,
     val flowEnabled: Boolean,
     val drawingBoardEnabled: Boolean,

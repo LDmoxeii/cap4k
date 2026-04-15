@@ -196,6 +196,30 @@ class PipelineModelsTest {
     }
 
     @Test
+    fun `canonical model keeps dedicated validators slice alongside requests`() {
+        val request = RequestModel(
+            kind = RequestKind.COMMAND,
+            packageName = "order.submit",
+            typeName = "SubmitOrderCmd",
+            description = "submit order",
+        )
+        val validator = ValidatorModel(
+            packageName = "auth.validator",
+            typeName = "IssueToken",
+            description = "issue token validator",
+            valueType = "Long",
+        )
+
+        val model = CanonicalModel(
+            requests = listOf(request),
+            validators = listOf(validator),
+        )
+
+        assertEquals(listOf(request), model.requests)
+        assertEquals(listOf(validator), model.validators)
+    }
+
+    @Test
     fun `db schema snapshot preserves normalized table metadata`() {
         val snapshot = DbSchemaSnapshot(
             tables = listOf(

@@ -151,6 +151,103 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `validator entries assemble into validators slice with normalized naming and fixed value type`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "validator",
+                            packageName = "auth.validator",
+                            name = "issueToken",
+                            description = "issue token validator",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "validators",
+                            packageName = "auth.validator",
+                            name = "pluralAlias",
+                            description = "legacy alias",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "validater",
+                            packageName = "auth.validator",
+                            name = "misspelledAlias",
+                            description = "legacy alias",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "validate",
+                            packageName = "auth.validator",
+                            name = "verbAlias",
+                            description = "legacy alias",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    )
+                ),
+            ),
+        ).model
+
+        assertEquals(1, model.validators.size)
+        val validator = model.validators.single()
+        assertEquals("auth.validator", validator.packageName)
+        assertEquals("IssueToken", validator.typeName)
+        assertEquals("issue token validator", validator.description)
+        assertEquals("Long", validator.valueType)
+        assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.RequestModel>(), model.requests)
+    }
+
+    @Test
+    fun `validator entries keep request assembly unchanged`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "validator",
+                            packageName = "auth.validator",
+                            name = "issueToken",
+                            description = "issue token validator",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "cmd",
+                            packageName = "order.submit",
+                            name = "SubmitOrder",
+                            description = "submit order",
+                            aggregates = listOf("Order"),
+                            requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+                        ),
+                    )
+                ),
+            ),
+        ).model
+
+        assertEquals(1, model.requests.size)
+        assertEquals(RequestKind.COMMAND, model.requests.single().kind)
+        assertEquals("SubmitOrderCmd", model.requests.single().typeName)
+        assertEquals(1, model.validators.size)
+    }
+
+    @Test
     fun `maps design entries and ksp aggregates into canonical requests`() {
         val assembler = DefaultCanonicalAssembler()
 
