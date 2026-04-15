@@ -399,6 +399,153 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `domain event entries assemble into dedicated canonical domain events with old compatible naming`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "domain_event",
+                            packageName = "order",
+                            name = "OrderCreated",
+                            description = "order created event",
+                            aggregates = listOf("Order"),
+                            persist = true,
+                            requestFields = listOf(
+                                FieldModel(name = "reason", type = "String"),
+                                FieldModel(name = "snapshot", type = "Snapshot", nullable = true),
+                                FieldModel(name = "snapshot.traceId", type = "UUID"),
+                            ),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "domain_event",
+                            packageName = "order",
+                            name = "OrderCreatedEvt",
+                            description = "evt naming keeps suffix",
+                            aggregates = listOf("Order"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "domain_event",
+                            packageName = "order",
+                            name = "OrderCreatedEvent",
+                            description = "event naming keeps suffix",
+                            aggregates = listOf("Order"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "domain-event",
+                            packageName = "order",
+                            name = "IgnoredOrderCreated",
+                            description = "unsupported alias",
+                            aggregates = listOf("Order"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    )
+                ),
+                KspMetadataSnapshot(
+                    aggregates = listOf(
+                        AggregateMetadataRecord(
+                            aggregateName = "Order",
+                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
+                            rootPackageName = "com.acme.demo.domain.aggregates.order",
+                            rootClassName = "Order",
+                        )
+                    )
+                ),
+            ),
+        ).model
+
+        assertEquals(3, model.domainEvents.size)
+        assertEquals(
+            listOf("OrderCreatedDomainEvent", "OrderCreatedEvt", "OrderCreatedEvent"),
+            model.domainEvents.map { it.typeName },
+        )
+        assertEquals(listOf("Order", "Order", "Order"), model.domainEvents.map { it.aggregateName })
+        assertEquals(
+            listOf(
+                "com.acme.demo.domain.aggregates.order",
+                "com.acme.demo.domain.aggregates.order",
+                "com.acme.demo.domain.aggregates.order",
+            ),
+            model.domainEvents.map { it.aggregatePackageName },
+        )
+        assertEquals(true, model.domainEvents.first().persist)
+        assertEquals(false, model.domainEvents[1].persist)
+        assertEquals(false, model.domainEvents[2].persist)
+        assertEquals(
+            listOf(
+                FieldModel(name = "reason", type = "String"),
+                FieldModel(name = "snapshot", type = "Snapshot", nullable = true),
+                FieldModel(name = "snapshot.traceId", type = "UUID"),
+            ),
+            model.domainEvents.first().fields,
+        )
+        assertEquals(false, model.domainEvents.first().fields.any { it.name == "entity" })
+    }
+
+    @Test
+    fun `domain event assembly skips entries without exactly one resolved aggregate`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "domain_event",
+                            packageName = "order",
+                            name = "NoAggregate",
+                            description = "missing aggregate",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "domain_event",
+                            packageName = "order",
+                            name = "UnknownAggregate",
+                            description = "unknown aggregate",
+                            aggregates = listOf("Unknown"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "domain_event",
+                            packageName = "order",
+                            name = "TooManyAggregates",
+                            description = "multiple aggregates",
+                            aggregates = listOf("Order", "Customer"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    )
+                ),
+                KspMetadataSnapshot(
+                    aggregates = listOf(
+                        AggregateMetadataRecord(
+                            aggregateName = "Order",
+                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
+                            rootPackageName = "com.acme.demo.domain.aggregates.order",
+                            rootClassName = "Order",
+                        )
+                    )
+                ),
+            ),
+        ).model
+
+        assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.DomainEventModel>(), model.domainEvents)
+    }
+
+    @Test
     fun `maps design entries and ksp aggregates into canonical requests`() {
         val assembler = DefaultCanonicalAssembler()
 

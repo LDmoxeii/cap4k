@@ -31,6 +31,7 @@ data class DesignSpecEntry(
     val name: String,
     val description: String,
     val aggregates: List<String>,
+    val persist: Boolean? = null,
     val requestFields: List<FieldModel>,
     val responseFields: List<FieldModel>,
 )
@@ -216,9 +217,20 @@ data class ApiPayloadModel(
     val responseFields: List<FieldModel> = emptyList(),
 )
 
+data class DomainEventModel(
+    val packageName: String,
+    val typeName: String,
+    val description: String,
+    val aggregateName: String,
+    val aggregatePackageName: String,
+    val persist: Boolean,
+    val fields: List<FieldModel> = emptyList(),
+)
+
 data class CanonicalModel(
     val requests: List<RequestModel> = emptyList(),
     val validators: List<ValidatorModel> = emptyList(),
+    val domainEvents: List<DomainEventModel> = emptyList(),
     val schemas: List<SchemaModel> = emptyList(),
     val entities: List<EntityModel> = emptyList(),
     val repositories: List<RepositoryModel> = emptyList(),

@@ -24,6 +24,8 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.generators.designClientHandler.enabled.get())
         assertFalse(extension.generators.designValidator.enabled.get())
         assertFalse(extension.generators.designApiPayload.enabled.get())
+        assertFalse(extension.generators.designDomainEvent.enabled.get())
+        assertFalse(extension.generators.designDomainEventHandler.enabled.get())
         assertFalse(extension.generators.aggregate.enabled.get())
         assertEquals("FAIL", extension.generators.aggregate.unsupportedTablePolicy.get())
         assertFalse(extension.generators.drawingBoard.enabled.get())
@@ -117,6 +119,39 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
+    fun `factory includes domain and application modules and domain event family generators when enabled`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            designDomainEvent { enabled.set(true) }
+            designDomainEventHandler { enabled.set(true) }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(
+            mapOf(
+                "domain" to "demo-domain",
+                "application" to "demo-application",
+            ),
+            config.modules,
+        )
+        assertEquals(setOf("design-domain-event", "design-domain-event-handler"), config.enabledGeneratorIds())
+    }
+
+    @Test
     fun `design validator generator requires application module path`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
@@ -204,6 +239,104 @@ class Cap4kProjectConfigFactoryTest {
         }
 
         assertEquals("designApiPayload generator requires enabled designJson source.", error.message)
+    }
+
+    @Test
+    fun `design domain event generator requires domain module path`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            designDomainEvent { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("project.domainModulePath is required when designDomainEvent is enabled.", error.message)
+    }
+
+    @Test
+    fun `design domain event handler generator requires application module path`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            designDomainEvent { enabled.set(true) }
+            designDomainEventHandler { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("project.applicationModulePath is required when designDomainEventHandler is enabled.", error.message)
+    }
+
+    @Test
+    fun `design domain event generator requires enabled design json source`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+        }
+        extension.generators {
+            designDomainEvent { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("designDomainEvent generator requires enabled designJson source.", error.message)
+    }
+
+    @Test
+    fun `design domain event handler generator requires enabled design domain event generator`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            applicationModulePath.set("demo-application")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            designDomainEventHandler { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("designDomainEventHandler generator requires enabled designDomainEvent generator.", error.message)
     }
 
     @Test

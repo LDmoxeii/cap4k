@@ -32,6 +32,8 @@ class Cap4kProjectConfigFactory {
             designClientHandlerEnabled = extension.generators.designClientHandler.enabled.get(),
             designValidatorEnabled = extension.generators.designValidator.enabled.get(),
             designApiPayloadEnabled = extension.generators.designApiPayload.enabled.get(),
+            designDomainEventEnabled = extension.generators.designDomainEvent.enabled.get(),
+            designDomainEventHandlerEnabled = extension.generators.designDomainEventHandler.enabled.get(),
             aggregateEnabled = extension.generators.aggregate.enabled.get(),
             flowEnabled = extension.generators.flow.enabled.get(),
             drawingBoardEnabled = extension.generators.drawingBoard.enabled.get(),
@@ -98,6 +100,18 @@ class Cap4kProjectConfigFactory {
                 "designApiPayload"
             )
         }
+        if (generators.designDomainEventEnabled) {
+            extension.project.domainModulePath.requiredWhenEnabled(
+                "project.domainModulePath",
+                "designDomainEvent"
+            )
+        }
+        if (generators.designDomainEventHandlerEnabled) {
+            extension.project.applicationModulePath.requiredWhenEnabled(
+                "project.applicationModulePath",
+                "designDomainEventHandler"
+            )
+        }
         if (generators.aggregateEnabled) {
             val missingDomain = extension.project.domainModulePath.optionalValue() == null
             val missingAdapter = extension.project.adapterModulePath.optionalValue() == null
@@ -130,6 +144,12 @@ class Cap4kProjectConfigFactory {
         }
         if (generators.designApiPayloadEnabled) {
             put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
+        }
+        if (generators.designDomainEventEnabled) {
+            put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
+        }
+        if (generators.designDomainEventHandlerEnabled) {
+            put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
         }
         if (generators.aggregateEnabled) {
             put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
@@ -226,6 +246,12 @@ class Cap4kProjectConfigFactory {
         }
         if (states.designApiPayloadEnabled) {
             put("design-api-payload", GeneratorConfig(enabled = true))
+        }
+        if (states.designDomainEventEnabled) {
+            put("design-domain-event", GeneratorConfig(enabled = true))
+        }
+        if (states.designDomainEventHandlerEnabled) {
+            put("design-domain-event-handler", GeneratorConfig(enabled = true))
         }
         if (states.aggregateEnabled) {
             put(
@@ -338,6 +364,12 @@ class Cap4kProjectConfigFactory {
         if (generators.designApiPayloadEnabled && !sources.designJsonEnabled) {
             throw IllegalArgumentException("designApiPayload generator requires enabled designJson source.")
         }
+        if (generators.designDomainEventEnabled && !sources.designJsonEnabled) {
+            throw IllegalArgumentException("designDomainEvent generator requires enabled designJson source.")
+        }
+        if (generators.designDomainEventHandlerEnabled && !generators.designDomainEventEnabled) {
+            throw IllegalArgumentException("designDomainEventHandler generator requires enabled designDomainEvent generator.")
+        }
         if (generators.aggregateEnabled && !sources.dbEnabled) {
             throw IllegalArgumentException("aggregate generator requires enabled db source.")
         }
@@ -370,6 +402,8 @@ private data class GeneratorStates(
     val designClientHandlerEnabled: Boolean,
     val designValidatorEnabled: Boolean,
     val designApiPayloadEnabled: Boolean,
+    val designDomainEventEnabled: Boolean,
+    val designDomainEventHandlerEnabled: Boolean,
     val aggregateEnabled: Boolean,
     val flowEnabled: Boolean,
     val drawingBoardEnabled: Boolean,

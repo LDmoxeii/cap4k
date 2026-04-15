@@ -108,6 +108,10 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
         objects.newInstance(DesignValidatorGeneratorExtension::class.java)
     val designApiPayload: DesignApiPayloadGeneratorExtension =
         objects.newInstance(DesignApiPayloadGeneratorExtension::class.java)
+    val designDomainEvent: DesignDomainEventGeneratorExtension =
+        objects.newInstance(DesignDomainEventGeneratorExtension::class.java)
+    val designDomainEventHandler: DesignDomainEventHandlerGeneratorExtension =
+        objects.newInstance(DesignDomainEventHandlerGeneratorExtension::class.java)
     val aggregate: AggregateGeneratorExtension = objects.newInstance(AggregateGeneratorExtension::class.java)
     val drawingBoard: DrawingBoardGeneratorExtension = objects.newInstance(DrawingBoardGeneratorExtension::class.java)
     val flow: FlowGeneratorExtension = objects.newInstance(FlowGeneratorExtension::class.java)
@@ -134,6 +138,14 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
 
     fun designApiPayload(block: DesignApiPayloadGeneratorExtension.() -> Unit) {
         designApiPayload.block()
+    }
+
+    fun designDomainEvent(block: DesignDomainEventGeneratorExtension.() -> Unit) {
+        designDomainEvent.block()
+    }
+
+    fun designDomainEventHandler(block: DesignDomainEventHandlerGeneratorExtension.() -> Unit) {
+        designDomainEventHandler.block()
     }
 
     fun aggregate(block: AggregateGeneratorExtension.() -> Unit) {
@@ -170,6 +182,14 @@ open class DesignValidatorGeneratorExtension @Inject constructor(objects: Object
 }
 
 open class DesignApiPayloadGeneratorExtension @Inject constructor(objects: ObjectFactory) {
+    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+}
+
+open class DesignDomainEventGeneratorExtension @Inject constructor(objects: ObjectFactory) {
+    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+}
+
+open class DesignDomainEventHandlerGeneratorExtension @Inject constructor(objects: ObjectFactory) {
     val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }
 

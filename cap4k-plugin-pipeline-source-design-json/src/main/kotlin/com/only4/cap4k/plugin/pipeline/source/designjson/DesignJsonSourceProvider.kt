@@ -88,6 +88,7 @@ class DesignJsonSourceProvider : SourceProvider {
                 name = obj["name"].asString,
                 description = obj["desc"]?.asString ?: "",
                 aggregates = obj["aggregates"]?.asJsonArray?.map { it.asString } ?: emptyList(),
+                persist = obj["persist"]?.asBoolean,
                 requestFields = parseFields(obj["requestFields"]?.asJsonArray),
                 responseFields = parseFields(obj["responseFields"]?.asJsonArray),
             )

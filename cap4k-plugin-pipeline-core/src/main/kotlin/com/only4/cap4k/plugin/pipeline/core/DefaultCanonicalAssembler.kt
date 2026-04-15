@@ -7,6 +7,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
@@ -95,6 +96,24 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     description = entry.description,
                     requestFields = entry.requestFields,
                     responseFields = entry.responseFields,
+                )
+            }
+            .toList()
+
+        val domainEvents = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "domain_event" }
+            .mapNotNull { entry ->
+                val aggregateName = entry.aggregates.singleOrNull() ?: return@mapNotNull null
+                val aggregate = aggregateLookup[aggregateName] ?: return@mapNotNull null
+                DomainEventModel(
+                    packageName = entry.packageName,
+                    typeName = entry.name.toDomainEventTypeName(),
+                    description = entry.description,
+                    aggregateName = aggregateName,
+                    aggregatePackageName = aggregate.rootPackageName,
+                    persist = entry.persist ?: false,
+                    fields = entry.requestFields,
                 )
             }
             .toList()
@@ -230,6 +249,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 requests = requests,
                 validators = validators,
                 apiPayloads = apiPayloads,
+                domainEvents = domainEvents,
                 schemas = aggregateModels.map { it.first },
                 entities = aggregateModels.map { it.second },
                 repositories = aggregateModels.map { it.third },
@@ -292,6 +312,13 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             part.lowercase(Locale.ROOT).replaceFirstChar { character ->
                 character.titlecase(Locale.ROOT)
             }
+        }
+    }
+
+    private fun String.toDomainEventTypeName(): String {
+        return when {
+            endsWith("Evt") || endsWith("Event") -> this
+            else -> "${this}DomainEvent"
         }
     }
 
