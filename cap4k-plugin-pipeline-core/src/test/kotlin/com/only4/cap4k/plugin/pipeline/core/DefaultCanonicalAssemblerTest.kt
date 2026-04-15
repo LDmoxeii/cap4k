@@ -440,6 +440,42 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
+                            tag = "domain_event",
+                            packageName = "order",
+                            name = "order_created",
+                            description = "snake case",
+                            aggregates = listOf("Order"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "domain_event",
+                            packageName = "order",
+                            name = "order-created",
+                            description = "kebab case",
+                            aggregates = listOf("Order"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "domain_event",
+                            packageName = "order",
+                            name = "order created event",
+                            description = "space separated words",
+                            aggregates = listOf("Order"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "domain_event",
+                            packageName = "order",
+                            name = "orderCreated",
+                            description = "lower camel",
+                            aggregates = listOf("Order"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
                             tag = "domain-event",
                             packageName = "order",
                             name = "IgnoredOrderCreated",
@@ -463,23 +499,33 @@ class DefaultCanonicalAssemblerTest {
             ),
         ).model
 
-        assertEquals(3, model.domainEvents.size)
-        assertEquals(
-            listOf("OrderCreatedDomainEvent", "OrderCreatedEvt", "OrderCreatedEvent"),
-            model.domainEvents.map { it.typeName },
-        )
-        assertEquals(listOf("Order", "Order", "Order"), model.domainEvents.map { it.aggregateName })
+        assertEquals(7, model.domainEvents.size)
         assertEquals(
             listOf(
+                "OrderCreatedDomainEvent",
+                "OrderCreatedEvt",
+                "OrderCreatedEvent",
+                "OrderCreatedDomainEvent",
+                "OrderCreatedDomainEvent",
+                "OrderCreatedEventDomainEvent",
+                "OrderCreatedDomainEvent",
+            ),
+            model.domainEvents.map { it.typeName },
+        )
+        assertEquals(List(7) { "Order" }, model.domainEvents.map { it.aggregateName })
+        assertEquals(
+            listOf(
+                "com.acme.demo.domain.aggregates.order",
+                "com.acme.demo.domain.aggregates.order",
+                "com.acme.demo.domain.aggregates.order",
+                "com.acme.demo.domain.aggregates.order",
                 "com.acme.demo.domain.aggregates.order",
                 "com.acme.demo.domain.aggregates.order",
                 "com.acme.demo.domain.aggregates.order",
             ),
             model.domainEvents.map { it.aggregatePackageName },
         )
-        assertEquals(true, model.domainEvents.first().persist)
-        assertEquals(false, model.domainEvents[1].persist)
-        assertEquals(false, model.domainEvents[2].persist)
+        assertEquals(listOf(true, false, false, false, false, false, false), model.domainEvents.map { it.persist })
         assertEquals(
             listOf(
                 FieldModel(name = "reason", type = "String"),

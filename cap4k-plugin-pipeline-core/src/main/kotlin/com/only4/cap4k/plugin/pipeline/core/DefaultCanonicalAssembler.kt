@@ -316,10 +316,12 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
     private fun String.toDomainEventTypeName(): String {
-        return when {
-            endsWith("Evt") || endsWith("Event") -> this
-            else -> "${this}DomainEvent"
+        val rawName = trim()
+        val candidate = when {
+            rawName.endsWith("Evt") || rawName.endsWith("Event") -> rawName
+            else -> "${rawName}DomainEvent"
         }
+        return candidate.normalizeUpperCamelTypeName()
     }
 
     private fun buildDiagnostics(
