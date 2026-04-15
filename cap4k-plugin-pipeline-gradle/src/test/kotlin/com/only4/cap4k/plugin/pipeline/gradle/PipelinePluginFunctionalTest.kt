@@ -1686,6 +1686,215 @@ class PipelinePluginFunctionalTest {
     }
 
     @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan domain event flow emits domain event and domain event handler templates`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-plan")
+        copyFixture(projectDir, "design-domain-event-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .build()
+
+        val planFile = projectDir.resolve("build/cap4k/plan.json")
+        val planContent = planFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planFile.toFile().exists())
+        assertTrue(planContent.contains("\"templateId\": \"design/domain_event.kt.peb\""))
+        assertTrue(planContent.contains("\"templateId\": \"design/domain_event_handler.kt.peb\""))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate domain event flow writes domain event and domain event subscriber artifacts`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-generate")
+        copyFixture(projectDir, "design-domain-event-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val eventFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt"
+        )
+        val handlerFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt"
+        )
+        val eventContent = eventFile.readText()
+        val handlerContent = handlerFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(eventFile.toFile().exists())
+        assertTrue(handlerFile.toFile().exists())
+        assertTrue(eventContent.contains("@DomainEvent"))
+        assertTrue(eventContent.contains("@Aggregate"))
+        assertTrue(eventContent.contains("class OrderCreatedDomainEvent("))
+        assertTrue(eventContent.contains("val entity: Order"))
+        assertTrue(handlerContent.contains("@Service"))
+        assertTrue(handlerContent.contains("@EventListener(OrderCreatedDomainEvent::class)"))
+        assertTrue(handlerContent.contains("class OrderCreatedDomainEventSubscriber"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate domain event flow supports override template replacement for event and handler`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-override")
+        copyFixture(projectDir, "design-domain-event-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace("\r\n", "\n") +
+                """
+
+                cap4k {
+                    templates {
+                        overrideDirs.from("codegen/templates")
+                    }
+                }
+                """.trimIndent()
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val eventFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt"
+        )
+        val handlerFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt"
+        )
+        val eventContent = eventFile.readText()
+        val handlerContent = handlerFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(eventFile.toFile().exists())
+        assertTrue(handlerFile.toFile().exists())
+        assertTrue(eventContent.contains("// override: representative domain event migration template"))
+        assertTrue(handlerContent.contains("// override: representative domain event handler migration template"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan domain event flow fails when design domain event misses domain module path`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-no-domain")
+        copyFixture(projectDir, "design-domain-event-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent.replace(
+                "        domainModulePath.set(\"demo-domain\")\n",
+                "",
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("project.domainModulePath is required when designDomainEvent is enabled."))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan domain event flow fails when design domain event handler misses application module path`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-handler-no-application")
+        copyFixture(projectDir, "design-domain-event-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent.replace(
+                "        applicationModulePath.set(\"demo-application\")\n",
+                "",
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("project.applicationModulePath is required when designDomainEventHandler is enabled."))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan domain event flow fails when design domain event is disabled and handler is enabled`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-disabled")
+        copyFixture(projectDir, "design-domain-event-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent.replace(
+                """
+                |        designDomainEvent {
+                |            enabled.set(true)
+                |        }
+                """.trimMargin(),
+                """
+                |        designDomainEvent {
+                |            enabled.set(false)
+                |        }
+                """.trimMargin(),
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("designDomainEventHandler generator requires enabled designDomainEvent generator."))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan domain event flow fails when design json source is disabled`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-no-designjson")
+        copyFixture(projectDir, "design-domain-event-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent.replace(
+                """
+                |        designJson {
+                |            enabled.set(true)
+                |            files.from("design/design.json")
+                |        }
+                """.trimMargin(),
+                """
+                |        designJson {
+                |            enabled.set(false)
+                |            files.from("design/design.json")
+                |        }
+                """.trimMargin(),
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("designDomainEvent generator requires enabled designJson source."))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
     private fun copyFixture(targetDir: Path, fixtureName: String = "design-sample") {
         val sourceDir = Path.of(
             requireNotNull(javaClass.getResource("/functional/$fixtureName")) {

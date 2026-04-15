@@ -2739,6 +2739,207 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `domain event preset resolves domain event template and renders helper-first contract`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-domain-event")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-domain-event",
+                    moduleRole = "domain",
+                    templateId = "design/domain_event.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.order.events",
+                        "typeName" to "OrderCreatedDomainEvent",
+                        "description" to "order created event",
+                        "aggregateName" to "Order",
+                        "aggregateType" to "com.acme.demo.domain.order.Order",
+                        "persist" to true,
+                        "imports" to listOf("java.util.UUID"),
+                        "fields" to listOf(
+                            mapOf("name" to "reason", "renderedType" to "String", "nullable" to false),
+                            mapOf("name" to "snapshot", "renderedType" to "Snapshot?", "nullable" to true),
+                        ),
+                        "nestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Snapshot",
+                                "fields" to listOf(
+                                    mapOf("name" to "traceId", "renderedType" to "UUID", "nullable" to false),
+                                ),
+                            ),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("@DomainEvent"))
+        assertTrue(content.contains("@Aggregate"))
+        assertTrue(content.contains("class OrderCreatedDomainEvent("))
+        assertTrue(content.contains("val entity: Order"))
+        assertTrue(content.indexOf("val entity: Order") < content.indexOf("val reason: String"))
+        assertTrue(content.contains("import com.acme.demo.domain.order.Order"))
+        assertTrue(content.contains("data class Snapshot("))
+        assertTrue(content.contains("val traceId: UUID"))
+    }
+
+    @Test
+    fun `domain event preset resolves domain event handler template and renders event listener contract`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-domain-event-handler")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-domain-event-handler",
+                    moduleRole = "application",
+                    templateId = "design/domain_event_handler.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.order.events",
+                        "typeName" to "OrderCreatedDomainEventSubscriber",
+                        "domainEventTypeName" to "OrderCreatedDomainEvent",
+                        "domainEventType" to "com.acme.demo.domain.order.events.OrderCreatedDomainEvent",
+                        "aggregateName" to "Order",
+                        "description" to "order created event",
+                        "imports" to listOf("com.acme.demo.domain.order.events.OrderCreatedDomainEvent"),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("@Service"))
+        assertTrue(content.contains("@EventListener(OrderCreatedDomainEvent::class)"))
+        assertTrue(content.contains("class OrderCreatedDomainEventSubscriber"))
+        assertTrue(content.contains("import com.acme.demo.domain.order.events.OrderCreatedDomainEvent"))
+    }
+
+    @Test
+    fun `domain event presets support override template resolution for event and handler templates`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-design-domain-event-family")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("domain_event.kt.peb").writeText(
+            """
+            // override: renderer domain event template
+            package {{ packageName }}
+            class {{ typeName }}Override
+            """.trimIndent()
+        )
+        overrideDesignDir.resolve("domain_event_handler.kt.peb").writeText(
+            """
+            // override: renderer domain event handler template
+            package {{ packageName }}
+            class {{ typeName }}Override
+            """.trimIndent()
+        )
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-domain-event",
+                    moduleRole = "domain",
+                    templateId = "design/domain_event.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.order.events",
+                        "typeName" to "OrderCreatedDomainEvent",
+                        "description" to "order created event",
+                        "aggregateName" to "Order",
+                        "aggregateType" to "com.acme.demo.domain.order.Order",
+                        "persist" to true,
+                        "imports" to emptyList<String>(),
+                        "fields" to emptyList<Map<String, Any?>>(),
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "design-domain-event-handler",
+                    moduleRole = "application",
+                    templateId = "design/domain_event_handler.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.order.events",
+                        "typeName" to "OrderCreatedDomainEventSubscriber",
+                        "domainEventTypeName" to "OrderCreatedDomainEvent",
+                        "domainEventType" to "com.acme.demo.domain.order.events.OrderCreatedDomainEvent",
+                        "aggregateName" to "Order",
+                        "description" to "order created event",
+                        "imports" to emptyList<String>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val eventContent = rendered[0].content
+        val handlerContent = rendered[1].content
+        assertTrue(eventContent.contains("// override: renderer domain event template"))
+        assertTrue(eventContent.contains("class OrderCreatedDomainEventOverride"))
+        assertTrue(handlerContent.contains("// override: renderer domain event handler template"))
+        assertTrue(handlerContent.contains("class OrderCreatedDomainEventSubscriberOverride"))
+    }
+
+    @Test
     fun `validator preset resolves design validator template and renders constraint contract`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-validator")
         val renderer = PebbleArtifactRenderer(

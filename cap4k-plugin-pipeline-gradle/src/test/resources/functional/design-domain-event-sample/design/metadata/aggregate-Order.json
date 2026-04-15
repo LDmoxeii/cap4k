@@ -1,0 +1,8 @@
+{
+  "aggregateName": "Order",
+  "aggregateRoot": {
+    "qualifiedName": "com.acme.demo.domain.order.Order",
+    "packageName": "com.acme.demo.domain.order",
+    "className": "Order"
+  }
+}

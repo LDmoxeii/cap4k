@@ -1,0 +1,25 @@
+package {{ packageName }}
+// override: representative domain event migration template
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent") -}}
+{{ use(aggregateType) -}}
+{% for import in imports(imports) %}
+import {{ import }}
+{% endfor %}
+
+@DomainEvent(persist = {{ persist }})
+@Aggregate({{ aggregateName }}::class)
+class {{ typeName }}(
+    val entity: {{ aggregateName }}{% if fields.size > 0 %},{% endif %}
+{% for field in fields %}
+    val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+{% endfor %}
+) {
+{% for nestedType in nestedTypes %}
+    data class {{ nestedType.name }}(
+{% for field in nestedType.fields %}
+        val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+{% endfor %}
+    )
+{% endfor %}
+}

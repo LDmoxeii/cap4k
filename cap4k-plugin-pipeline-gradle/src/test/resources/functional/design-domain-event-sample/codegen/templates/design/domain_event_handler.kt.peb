@@ -1,0 +1,15 @@
+package {{ packageName }}
+// override: representative domain event handler migration template
+{{ use("org.springframework.context.event.EventListener") -}}
+{{ use("org.springframework.stereotype.Service") -}}
+{% for import in imports(imports) %}
+import {{ import }}
+{% endfor %}
+
+@Service
+class {{ typeName }} {
+
+    @EventListener({{ domainEventTypeName }}::class)
+    fun on(event: {{ domainEventTypeName }}) {
+    }
+}
