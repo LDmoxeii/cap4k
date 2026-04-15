@@ -1,5 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
+import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
@@ -27,8 +28,57 @@ internal object DesignRenderModelFactory {
     ): DesignRenderModel {
         val requestNamespace = buildNamespace(request.requestFields, "request")
         val responseNamespace = buildNamespace(request.responseFields, "response")
+        return createRenderModel(
+            packageName = packageName,
+            typeName = request.typeName,
+            description = request.description,
+            aggregateName = request.aggregateName,
+            aggregatePackageName = request.aggregatePackageName,
+            requestNamespace = requestNamespace,
+            responseNamespace = responseNamespace,
+            typeRegistry = typeRegistry,
+            siblingRequestTypeNames = siblingRequestTypeNames,
+        )
+    }
+
+    fun createForApiPayload(
+        packageName: String,
+        payload: ApiPayloadModel,
+        typeRegistry: Map<String, String> = emptyMap(),
+    ): DesignRenderModel {
+        val requestNamespace = buildNamespace(payload.requestFields, "request")
+        val responseNamespace = buildNamespace(payload.responseFields, "response")
+        return createRenderModel(
+            packageName = packageName,
+            typeName = payload.typeName,
+            description = payload.description,
+            aggregateName = null,
+            aggregatePackageName = null,
+            requestNamespace = requestNamespace,
+            responseNamespace = responseNamespace,
+            typeRegistry = typeRegistry,
+        )
+    }
+
+    private fun createRenderModel(
+        packageName: String,
+        typeName: String,
+        description: String,
+        aggregateName: String?,
+        aggregatePackageName: String?,
+        requestNamespace: NamespaceModel,
+        responseNamespace: NamespaceModel,
+        typeRegistry: Map<String, String>,
+        siblingRequestTypeNames: Set<String> = emptySet(),
+    ): DesignRenderModel {
         val innerTypeNames = requestNamespace.nestedTypeNames + responseNamespace.nestedTypeNames
-        val symbolRegistry = buildSymbolRegistry(request, requestNamespace, responseNamespace, typeRegistry)
+        val symbolRegistry = buildSymbolRegistry(
+            aggregateName = aggregateName,
+            aggregatePackageName = aggregatePackageName,
+            requestNamespace = requestNamespace,
+            responseNamespace = responseNamespace,
+            typeRegistry = typeRegistry,
+        )
         validateNamespaceTypes("request", requestNamespace, symbolRegistry, innerTypeNames, siblingRequestTypeNames)
         validateNamespaceTypes("response", responseNamespace, symbolRegistry, innerTypeNames, siblingRequestTypeNames)
         val importPlan = DesignImportPlanner.plan(
@@ -44,9 +94,9 @@ internal object DesignRenderModelFactory {
 
         return DesignRenderModel(
             packageName = packageName,
-            typeName = request.typeName,
-            description = request.description,
-            aggregateName = request.aggregateName,
+            typeName = typeName,
+            description = description,
+            aggregateName = aggregateName,
             imports = importPlan.imports,
             requestFields = requestFields,
             responseFields = responseFields,
@@ -143,19 +193,20 @@ internal object DesignRenderModelFactory {
     }
 
     private fun buildSymbolRegistry(
-        request: RequestModel,
+        aggregateName: String?,
+        aggregatePackageName: String?,
         requestNamespace: NamespaceModel,
         responseNamespace: NamespaceModel,
         typeRegistry: Map<String, String>,
     ): DesignSymbolRegistry {
         val registry = DesignSymbolRegistry()
-        val aggregateName = request.aggregateName?.takeIf { it.isNotBlank() }
-        val aggregatePackageName = request.aggregatePackageName?.takeIf { it.isNotBlank() }
-        if (aggregateName != null && aggregatePackageName != null) {
+        val resolvedAggregateName = aggregateName?.takeIf { it.isNotBlank() }
+        val resolvedAggregatePackageName = aggregatePackageName?.takeIf { it.isNotBlank() }
+        if (resolvedAggregateName != null && resolvedAggregatePackageName != null) {
             registry.register(
                 SymbolIdentity(
-                    packageName = aggregatePackageName,
-                    typeName = aggregateName,
+                    packageName = resolvedAggregatePackageName,
+                    typeName = resolvedAggregateName,
                     moduleRole = "domain",
                     source = "aggregate",
                 ),

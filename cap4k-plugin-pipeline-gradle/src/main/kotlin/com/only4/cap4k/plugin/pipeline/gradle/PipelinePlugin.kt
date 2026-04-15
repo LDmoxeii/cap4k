@@ -10,6 +10,7 @@ import com.only4.cap4k.plugin.pipeline.core.FilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.NoopArtifactExporter
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignApiPayloadArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignClientArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignClientHandlerArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryHandlerArtifactPlanner
@@ -125,6 +126,7 @@ internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled:
             DesignClientArtifactPlanner(),
             DesignClientHandlerArtifactPlanner(),
             DesignValidatorArtifactPlanner(),
+            DesignApiPayloadArtifactPlanner(),
             AggregateArtifactPlanner(),
             DrawingBoardArtifactPlanner(),
             FlowArtifactPlanner(),
