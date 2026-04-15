@@ -1,6 +1,6 @@
 # Cap4k Mainline Roadmap
 
-Date: 2026-04-14
+Date: 2026-04-15
 
 ## Purpose
 
@@ -58,10 +58,11 @@ Completed:
 - design template migration / helper adoption
 - representative old design template / override migration
 - design query-handler family migration
+- design client / client_handler family migration
 
 Status:
 
-- current mainline is complete through representative migration and query-handler family migration
+- current mainline is complete through representative migration, query-handler family migration, and client family migration
 - roadmap completion state follows merged repository history; some linked slice specs may still retain pre-merge draft headers
 
 Traceability:
@@ -75,6 +76,7 @@ Traceability:
 - [design template migration / helper adoption design](specs/2026-04-13-cap4k-design-template-migration-helper-adoption-design.md)
 - [representative design template / override migration design](specs/2026-04-14-cap4k-representative-design-template-override-migration-design.md)
 - [design query-handler family migration design](specs/2026-04-14-cap4k-design-query-handler-family-migration-design.md)
+- [design client family migration design](specs/2026-04-14-cap4k-design-client-family-migration-design.md)
 
 ## Current Mainline Contract
 
@@ -92,12 +94,12 @@ These points remain in force:
 
 The next mainline slice is:
 
-- design client / client_handler family migration
+- design validator family migration
 
 Scope:
 
 - continue representative old design-family migration on the helper-first pipeline contract
-- migrate old `client` and `client_handler` template families into bounded pipeline-owned template ids
+- migrate the old `validator` family into bounded pipeline-owned template ids
 - prove the migrated family with fixtures or tests
 
 Non-goals:
