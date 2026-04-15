@@ -60,10 +60,11 @@ Completed:
 - design query-handler family migration
 - design client / client_handler family migration
 - design validator family migration
+- design api_payload migration
 
 Status:
 
-- current mainline is complete through representative migration, query-handler family migration, client family migration, and validator family migration
+- current mainline is complete through representative migration, query-handler family migration, client family migration, validator family migration, and api_payload migration
 - roadmap completion state follows merged repository history; some linked slice specs may still retain pre-merge draft headers
 
 Traceability:
@@ -79,6 +80,7 @@ Traceability:
 - [design query-handler family migration design](specs/2026-04-14-cap4k-design-query-handler-family-migration-design.md)
 - [design client family migration design](specs/2026-04-14-cap4k-design-client-family-migration-design.md)
 - [design validator family migration design](specs/2026-04-15-cap4k-design-validator-family-migration-design.md)
+- [design api payload migration design](specs/2026-04-15-cap4k-design-api-payload-migration-design.md)
 
 ## Current Mainline Contract
 
@@ -96,12 +98,12 @@ These points remain in force:
 
 The next mainline slice is:
 
-- design api_payload migration
+- design domain_event / domain_event_handler family migration
 
 Scope:
 
 - continue representative old design-family migration on the helper-first pipeline contract
-- migrate the old `api_payload` family into bounded pipeline-owned template ids
+- migrate the old `domain_event` and `domain_event_handler` families into bounded pipeline-owned template ids
 - prove the migrated family with fixtures or tests
 
 Non-goals:
