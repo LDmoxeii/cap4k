@@ -1,0 +1,18 @@
+[
+  {
+    "tag": "api_payload",
+    "package": "account",
+    "name": "BatchSaveAccountList",
+    "desc": "batch save account list payload",
+    "aggregates": [],
+    "requestFields": [
+      { "name": "address", "type": "Address", "nullable": true },
+      { "name": "address.city", "type": "String" },
+      { "name": "address.zipCode", "type": "String", "defaultValue": "000000" }
+    ],
+    "responseFields": [
+      { "name": "result", "type": "Result", "nullable": true },
+      { "name": "result.success", "type": "Boolean", "defaultValue": "true" }
+    ]
+  }
+]

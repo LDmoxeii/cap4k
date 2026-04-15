@@ -2567,6 +2567,157 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `api payload preset renders outer object helper imports nested request and response hierarchy and defaults`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-api-payload-contract")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-api-payload",
+                    moduleRole = "adapter",
+                    templateId = "design/api_payload.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.portal.api.payload.account",
+                        "typeName" to "BatchSaveAccountList",
+                        "imports" to listOf(
+                            "java.time.LocalDateTime",
+                            "java.util.UUID",
+                        ),
+                        "requestFields" to listOf(
+                            mapOf("name" to "address", "renderedType" to "Address?", "nullable" to true),
+                            mapOf("name" to "note", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"demo\""),
+                            mapOf("name" to "requestedAt", "renderedType" to "LocalDateTime", "nullable" to false),
+                        ),
+                        "requestNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Address",
+                                "fields" to listOf(
+                                    mapOf("name" to "city", "renderedType" to "String", "nullable" to false),
+                                    mapOf("name" to "zipCode", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"000000\""),
+                                ),
+                            ),
+                        ),
+                        "responseFields" to listOf(
+                            mapOf("name" to "result", "renderedType" to "Result?", "nullable" to true),
+                            mapOf("name" to "code", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"ok\""),
+                            mapOf("name" to "responseId", "renderedType" to "UUID", "nullable" to false),
+                        ),
+                        "responseNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Result",
+                                "fields" to listOf(
+                                    mapOf("name" to "success", "renderedType" to "Boolean", "nullable" to false, "defaultValue" to "true"),
+                                ),
+                            ),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        val requestSection = content.substringAfter("data class Request(").substringBefore("\n\n    data class Response(")
+        val responseSection = content.substringAfter("data class Response(").substringBeforeLast("\n}")
+
+        assertTrue(content.contains("package com.acme.demo.adapter.portal.api.payload.account"))
+        assertTrue(content.contains("import java.time.LocalDateTime"))
+        assertTrue(content.contains("import java.util.UUID"))
+        assertTrue(content.contains("object BatchSaveAccountList"))
+        assertTrue(content.contains("val address: Address?"))
+        assertFalse(content.contains("val address: Address??"))
+        assertTrue(content.contains("val note: String = \"demo\""))
+        assertTrue(content.contains("val requestedAt: LocalDateTime"))
+        assertTrue(content.contains("val result: Result?"))
+        assertFalse(content.contains("val result: Result??"))
+        assertTrue(content.contains("val code: String = \"ok\""))
+        assertTrue(content.contains("val responseId: UUID"))
+        assertTrue(requestSection.contains("data class Address("))
+        assertTrue(requestSection.contains("val city: String"))
+        assertTrue(requestSection.contains("val zipCode: String = \"000000\""))
+        assertFalse(requestSection.contains("data class Result("))
+        assertTrue(responseSection.contains("data class Result("))
+        assertTrue(responseSection.contains("val success: Boolean = true"))
+        assertFalse(responseSection.contains("data class Address("))
+    }
+
+    @Test
+    fun `api payload preset supports override template resolution for design api payload`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-design-api-payload")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("api_payload.kt.peb").writeText(
+            """
+            // override: renderer api payload template
+            package {{ packageName }}
+            object {{ typeName }}Override
+            """.trimIndent()
+        )
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-api-payload",
+                    moduleRole = "adapter",
+                    templateId = "design/api_payload.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.portal.api.payload.account",
+                        "typeName" to "BatchSaveAccountList",
+                        "imports" to emptyList<String>(),
+                        "requestFields" to emptyList<Map<String, Any?>>(),
+                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "responseFields" to emptyList<Map<String, Any?>>(),
+                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("// override: renderer api payload template"))
+        assertTrue(content.contains("object BatchSaveAccountListOverride"))
+    }
+
+    @Test
     fun `validator preset resolves design validator template and renders constraint contract`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-validator")
         val renderer = PebbleArtifactRenderer(

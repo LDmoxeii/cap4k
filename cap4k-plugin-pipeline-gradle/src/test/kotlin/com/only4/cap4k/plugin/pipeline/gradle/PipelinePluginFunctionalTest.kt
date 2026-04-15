@@ -1378,6 +1378,167 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kPlan api payload flow emits design api payload template`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-plan")
+        copyFixture(projectDir, "design-api-payload-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .build()
+
+        val planFile = projectDir.resolve("build/cap4k/plan.json")
+        val planContent = planFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planFile.toFile().exists())
+        assertTrue(planContent.contains("\"templateId\": \"design/api_payload.kt.peb\""))
+        assertTrue(planContent.contains("adapter/portal/api/payload/account/BatchSaveAccountList.kt"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate api payload flow writes payload under adapter portal api payload`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-generate")
+        copyFixture(projectDir, "design-api-payload-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val payloadFile = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt"
+        )
+        val content = payloadFile.readText()
+        val requestSection = content.substringAfter("data class Request(").substringBefore("\n\n    data class Response(")
+        val responseSection = content.substringAfter("data class Response(").substringBeforeLast("\n}")
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(payloadFile.toFile().exists())
+        assertTrue(content.contains("package com.acme.demo.adapter.portal.api.payload.account"))
+        assertTrue(content.contains("object BatchSaveAccountList"))
+        assertTrue(content.contains("val address: Address?"))
+        assertFalse(content.contains("val address: Address??"))
+        assertTrue(requestSection.contains("data class Address("))
+        assertTrue(requestSection.contains("val city: String"))
+        assertTrue(requestSection.contains("val zipCode: String = \"000000\""))
+        assertFalse(requestSection.contains("data class Result("))
+        assertTrue(content.contains("val result: Result?"))
+        assertFalse(content.contains("val result: Result??"))
+        assertTrue(responseSection.contains("data class Result("))
+        assertTrue(responseSection.contains("val success: Boolean = true"))
+        assertFalse(responseSection.contains("data class Address("))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate api payload flow supports override template replacement`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-override")
+        copyFixture(projectDir, "design-api-payload-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace("\r\n", "\n") +
+                """
+
+                cap4k {
+                    templates {
+                        overrideDirs.from("codegen/templates")
+                    }
+                }
+                """.trimIndent()
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val payloadFile = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt"
+        )
+        val content = payloadFile.readText()
+        val requestSection = content.substringAfter("data class Request(").substringBefore("\n\n    data class Response(")
+        val responseSection = content.substringAfter("data class Response(").substringBeforeLast("\n}")
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(payloadFile.toFile().exists())
+        assertTrue(content.contains("// override: representative api payload migration template"))
+        assertTrue(content.contains("object BatchSaveAccountList"))
+        assertTrue(requestSection.contains("data class Address("))
+        assertTrue(requestSection.contains("val zipCode: String = \"000000\""))
+        assertFalse(requestSection.contains("data class Result("))
+        assertTrue(responseSection.contains("data class Result("))
+        assertTrue(responseSection.contains("val success: Boolean = true"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan api payload flow fails when design api payload misses adapter module path`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-no-adapter")
+        copyFixture(projectDir, "design-api-payload-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace(
+                "        adapterModulePath.set(\"demo-adapter\")\n",
+                "",
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("project.adapterModulePath is required when designApiPayload is enabled."))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan api payload flow fails when design api payload has no enabled design json source`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-no-designjson")
+        copyFixture(projectDir, "design-api-payload-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent.replace(
+                """
+                |    sources {
+                |        designJson {
+                |            enabled.set(true)
+                |            files.from("design/design.json")
+                |        }
+                |    }
+                """.trimMargin(),
+                """
+                |    sources {
+                |        designJson {
+                |            enabled.set(false)
+                |            files.from("design/design.json")
+                |        }
+                |    }
+                """.trimMargin(),
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("designApiPayload generator requires enabled designJson source."))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan validator flow emits design validator template`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-plan")
         copyFixture(projectDir, "design-validator-sample")
