@@ -2587,8 +2587,11 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.adapter.portal.api.payload.account",
                         "typeName" to "BatchSaveAccountList",
                         "imports" to listOf(
+                            "  java.time.LocalDateTime  ",
+                            "\tjava.util.UUID",
                             "java.time.LocalDateTime",
-                            "java.util.UUID",
+                            "java.util.UUID  ",
+                            "  ",
                         ),
                         "requestFields" to listOf(
                             mapOf("name" to "address", "renderedType" to "Address?", "nullable" to true),
@@ -2636,12 +2639,22 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
+        val importLines = Regex("^import .+$", RegexOption.MULTILINE).findAll(content).map { it.value }.toList()
         val requestSection = content.substringAfter("data class Request(").substringBefore("\n\n    data class Response(")
         val responseSection = content.substringAfter("data class Response(").substringBeforeLast("\n}")
+        val nestedAddressCount = Regex("^ {8}data class Address\\(", RegexOption.MULTILINE).findAll(content).count()
+        val outerAddressCount = Regex("^ {4}data class Address\\(", RegexOption.MULTILINE).findAll(content).count()
+        val nestedResultCount = Regex("^ {8}data class Result\\(", RegexOption.MULTILINE).findAll(content).count()
+        val outerResultCount = Regex("^ {4}data class Result\\(", RegexOption.MULTILINE).findAll(content).count()
 
         assertTrue(content.contains("package com.acme.demo.adapter.portal.api.payload.account"))
-        assertTrue(content.contains("import java.time.LocalDateTime"))
-        assertTrue(content.contains("import java.util.UUID"))
+        assertEquals(
+            listOf(
+                "import java.time.LocalDateTime",
+                "import java.util.UUID",
+            ),
+            importLines
+        )
         assertTrue(content.contains("object BatchSaveAccountList"))
         assertTrue(content.contains("val address: Address?"))
         assertFalse(content.contains("val address: Address??"))
@@ -2651,10 +2664,14 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("val result: Result??"))
         assertTrue(content.contains("val code: String = \"ok\""))
         assertTrue(content.contains("val responseId: UUID"))
+        assertEquals(1, nestedAddressCount)
+        assertEquals(0, outerAddressCount)
         assertTrue(requestSection.contains("data class Address("))
         assertTrue(requestSection.contains("val city: String"))
         assertTrue(requestSection.contains("val zipCode: String = \"000000\""))
         assertFalse(requestSection.contains("data class Result("))
+        assertEquals(1, nestedResultCount)
+        assertEquals(0, outerResultCount)
         assertTrue(responseSection.contains("data class Result("))
         assertTrue(responseSection.contains("val success: Boolean = true"))
         assertFalse(responseSection.contains("data class Address("))
