@@ -26,15 +26,26 @@ class DesignDomainEventArtifactPlannerTest {
         val event = items.single()
         assertEquals("design-domain-event", event.generatorId)
         assertEquals("design/domain_event.kt.peb", event.templateId)
-        assertTrue(event.outputPath.endsWith("domain/order/events/OrderCreatedDomainEvent.kt"))
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
+            event.outputPath,
+        )
+        assertEquals("domain", event.moduleRole)
+        assertEquals(ConflictPolicy.SKIP, event.conflictPolicy)
         assertEquals("com.acme.demo.domain.order.events", event.context["packageName"])
+        assertEquals("OrderCreatedDomainEvent", event.context["typeName"])
+        assertEquals("order created event", event.context["description"])
+        assertEquals("Order", event.context["aggregateName"])
+        assertEquals("com.acme.demo.domain.order.Order", event.context["aggregateType"])
         assertEquals(false, event.context["persist"])
+        assertTrue(event.context.containsKey("fields"))
+        assertTrue(event.context.containsKey("nestedTypes"))
         assertEquals(
             listOf(
                 DesignRenderFieldModel(name = "reason", renderedType = "String"),
                 DesignRenderFieldModel(name = "snapshot", renderedType = "Snapshot?", nullable = true),
             ),
-            event.context["requestFields"],
+            event.context["fields"],
         )
         assertEquals(
             listOf(
@@ -43,10 +54,12 @@ class DesignDomainEventArtifactPlannerTest {
                     fields = listOf(DesignRenderFieldModel(name = "traceId", renderedType = "UUID")),
                 ),
             ),
-            event.context["requestNestedTypes"],
+            event.context["nestedTypes"],
         )
-        val requestFields = event.context["requestFields"] as List<*>
-        assertTrue(requestFields.none { (it as? DesignRenderFieldModel)?.name == "entity" })
+        assertTrue(!event.context.containsKey("responseFields"))
+        assertTrue(!event.context.containsKey("responseNestedTypes"))
+        val fields = event.context["fields"] as List<*>
+        assertTrue(fields.none { (it as? DesignRenderFieldModel)?.name == "entity" })
     }
 
     private fun domainEvent() = DomainEventModel(

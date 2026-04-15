@@ -42,11 +42,18 @@ class DesignDomainEventHandlerArtifactPlannerTest {
         val handler = items.single()
         assertEquals("design-domain-event-handler", handler.generatorId)
         assertEquals("design/domain_event_handler.kt.peb", handler.templateId)
-        assertTrue(
-            handler.outputPath.endsWith("application/order/events/OrderCreatedDomainEventSubscriber.kt"),
+        assertEquals(
+            "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt",
+            handler.outputPath,
         )
+        assertEquals("application", handler.moduleRole)
+        assertEquals(ConflictPolicy.SKIP, handler.conflictPolicy)
         assertEquals("com.acme.demo.application.order.events", handler.context["packageName"])
         assertEquals("OrderCreatedDomainEventSubscriber", handler.context["typeName"])
+        assertEquals("OrderCreatedDomainEvent", handler.context["domainEventTypeName"])
+        assertEquals("com.acme.demo.domain.order.events.OrderCreatedDomainEvent", handler.context["domainEventType"])
+        assertEquals("Order", handler.context["aggregateName"])
+        assertEquals("order created event", handler.context["description"])
         assertEquals(
             listOf("com.acme.demo.domain.order.events.OrderCreatedDomainEvent"),
             handler.context["imports"],

@@ -14,17 +14,26 @@ class DesignDomainEventArtifactPlanner : GeneratorProvider {
 
         return model.domainEvents.map { event ->
             val packagePath = event.packageName.replace(".", "/")
+            val renderModel = DesignRenderModelFactory.createForDomainEvent(
+                packageName = "${config.basePackage}.domain.${event.packageName}.events",
+                event = event,
+                typeRegistry = config.typeRegistry,
+            )
             ArtifactPlanItem(
                 generatorId = id,
                 moduleRole = "domain",
                 templateId = "design/domain_event.kt.peb",
                 outputPath = "$domainRoot/src/main/kotlin/$basePath/domain/$packagePath/events/${event.typeName}.kt",
-                context = DesignRenderModelFactory.createForDomainEvent(
-                    packageName = "${config.basePackage}.domain.${event.packageName}.events",
-                    event = event,
-                    typeRegistry = config.typeRegistry,
-                ).toContextMap() + mapOf(
+                context = mapOf(
+                    "packageName" to renderModel.packageName,
+                    "typeName" to renderModel.typeName,
+                    "description" to renderModel.description,
+                    "aggregateName" to renderModel.aggregateName,
+                    "aggregateType" to "${event.aggregatePackageName}.${event.aggregateName}",
                     "persist" to event.persist,
+                    "imports" to renderModel.imports,
+                    "fields" to renderModel.requestFields,
+                    "nestedTypes" to renderModel.requestNestedTypes,
                 ),
                 conflictPolicy = config.templates.conflictPolicy,
             )
