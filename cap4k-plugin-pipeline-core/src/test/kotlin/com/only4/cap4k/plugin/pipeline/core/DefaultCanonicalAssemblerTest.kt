@@ -21,6 +21,7 @@ import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
 import com.only4.cap4k.plugin.pipeline.api.RequestKind
+import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -310,8 +311,19 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(responseFields, payload.responseFields)
 
         assertEquals(1, model.requests.size)
-        assertEquals(RequestKind.COMMAND, model.requests.single().kind)
-        assertEquals("SubmitOrderCmd", model.requests.single().typeName)
+        assertEquals(
+            RequestModel(
+                kind = RequestKind.COMMAND,
+                packageName = "order.submit",
+                typeName = "SubmitOrderCmd",
+                description = "submit order",
+                aggregateName = "Order",
+                aggregatePackageName = null,
+                requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
+                responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+            ),
+            model.requests.single(),
+        )
     }
 
     @Test

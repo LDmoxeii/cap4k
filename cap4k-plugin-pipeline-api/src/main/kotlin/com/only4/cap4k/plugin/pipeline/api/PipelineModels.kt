@@ -219,12 +219,12 @@ data class ApiPayloadModel(
 data class CanonicalModel(
     val requests: List<RequestModel> = emptyList(),
     val validators: List<ValidatorModel> = emptyList(),
-    val apiPayloads: List<ApiPayloadModel> = emptyList(),
     val schemas: List<SchemaModel> = emptyList(),
     val entities: List<EntityModel> = emptyList(),
     val repositories: List<RepositoryModel> = emptyList(),
     val analysisGraph: AnalysisGraphModel? = null,
     val drawingBoard: DrawingBoardModel? = null,
+    val apiPayloads: List<ApiPayloadModel> = emptyList(),
 )
 
 data class UnsupportedAggregateTable(
