@@ -107,6 +107,9 @@ That update should:
 
 This roadmap advance belongs to the slice because it records the transition from old-family migration to post-migration hardening.
 
+This spec intentionally precedes that roadmap edit.
+Until implementation begins, the roadmap may still temporarily show the previous completed slice as the current next step.
+
 ### 2. Shared Compile Harness
 
 The core of this slice should be a shared functional harness that supports:
@@ -123,6 +126,9 @@ It should support at least:
 - compile invocation after generation
 - clear failure localization by fixture and family
 - reuse across multiple design-family samples
+
+It must also solve compile dependency resolution for generated source in a shared way.
+Generated artifacts do not compile against the plugin classpath alone, and the required compile classpath is not uniform across families.
 
 This harness should remain narrow and should not become a general-purpose integration framework.
 
@@ -200,6 +206,36 @@ The harness should be suitable for:
 
 - existing design-family fixtures that can be made compile-capable with small additions
 - new integrated samples that intentionally combine families
+
+### Compile Dependency Resolution
+
+The shared harness must provide one reusable strategy for compile-time dependency resolution.
+
+That strategy must not rely on hand-written, per-fixture bespoke dependency wiring as the default mechanism.
+It must be capable of supplying the compile classpath needed by generated source after `cap4kGenerate`.
+
+Acceptable implementation mechanisms include:
+
+- a shared local Maven publication or consumption path
+- a shared composite-build or included-build style path
+- a shared file- or jar-based dependency path
+
+The exact implementation choice may be deferred to planning, but the spec must treat this as a first-class design requirement rather than an incidental fixture detail.
+
+### Dependency Surface Considerations
+
+The compile dependency surface is not identical across migrated families.
+
+Representative differences include:
+
+- some generated artifacts rely only on Kotlin or JDK-visible types plus sibling generated source
+- query- and client-oriented request contracts rely on `ddd-core` application abstractions
+- handler-side families additionally pull in Spring compile dependencies
+- validator generation relies on validation and Kotlin reflection types rather than the same contract set as query or client generation
+- domain-event generation depends on aggregate metadata plus event-side framework annotations
+
+The integrated compile sample therefore needs the union of the family-level compile surfaces it exercises.
+The shared harness should make that union manageable without turning every fixture into a large custom build.
 
 The harness should not:
 
