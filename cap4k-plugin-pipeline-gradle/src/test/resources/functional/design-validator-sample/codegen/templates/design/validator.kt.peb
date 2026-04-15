@@ -1,0 +1,4 @@
+// override: representative validator migration template
+package {{ packageName }}
+
+annotation class {{ typeName }}

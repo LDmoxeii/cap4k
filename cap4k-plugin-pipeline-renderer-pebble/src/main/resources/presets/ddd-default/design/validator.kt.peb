@@ -1,0 +1,26 @@
+{{ use("jakarta.validation.Constraint") -}}
+{{ use("jakarta.validation.ConstraintValidator") -}}
+{{ use("jakarta.validation.ConstraintValidatorContext") -}}
+{{ use("jakarta.validation.Payload") -}}
+{{ use("kotlin.reflect.KClass") -}}
+package {{ packageName }}
+{% for import in imports(imports) %}
+import {{ import }}
+{% endfor %}
+
+/**
+ * {{ description }}
+ */
+@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)
+@Retention(AnnotationRetention.RUNTIME)
+@Constraint(validatedBy = [{{ typeName }}.Validator::class])
+@MustBeDocumented
+annotation class {{ typeName }}(
+    val message: String = "校验未通过",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = [],
+) {
+    class Validator : ConstraintValidator<{{ typeName }}, {{ valueType }}> {
+        override fun isValid(value: {{ valueType }}?, context: ConstraintValidatorContext): Boolean = true
+    }
+}

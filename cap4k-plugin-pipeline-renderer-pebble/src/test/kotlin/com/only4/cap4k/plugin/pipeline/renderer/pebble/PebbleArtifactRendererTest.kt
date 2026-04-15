@@ -2565,6 +2565,114 @@ class PebbleArtifactRendererTest {
         assertTrue(handlerContent.contains("return IssueTokenCli.Response"))
         assertFalse(handlerContent.contains("return IssueTokenCli.Response("))
     }
+
+    @Test
+    fun `validator preset resolves design validator template and renders constraint contract`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-validator")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-validator",
+                    moduleRole = "application",
+                    templateId = "design/validator.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/validators/authorize/IssueToken.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.validators.authorize",
+                        "typeName" to "IssueToken",
+                        "description" to "issue token validator",
+                        "valueType" to "Long",
+                        "imports" to listOf("java.util.UUID"),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("package com.acme.demo.application.validators.authorize"))
+        assertTrue(content.contains("import java.util.UUID"))
+        assertTrue(content.contains("@Constraint"))
+        assertTrue(content.contains("annotation class IssueToken("))
+        assertTrue(content.contains("val message: String"))
+        assertTrue(content.contains("val groups: Array<KClass<*>>"))
+        assertTrue(content.contains("val payload: Array<KClass<out Payload>>"))
+        assertTrue(content.contains("class Validator : ConstraintValidator<IssueToken, Long>"))
+        assertTrue(content.contains("override fun isValid(value: Long?, context: ConstraintValidatorContext): Boolean = true"))
+    }
+
+    @Test
+    fun `validator preset supports override template resolution for design validator`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-design-validator")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("validator.kt.peb").writeText(
+            """
+            // override: renderer validator template
+            package {{ packageName }}
+            annotation class {{ typeName }}
+            """.trimIndent()
+        )
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-validator",
+                    moduleRole = "application",
+                    templateId = "design/validator.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/validators/authorize/IssueToken.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.validators.authorize",
+                        "typeName" to "IssueToken",
+                        "description" to "issue token validator",
+                        "valueType" to "Long",
+                        "imports" to emptyList<String>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("// override: renderer validator template"))
+        assertTrue(content.contains("annotation class IssueToken"))
+    }
 }
 
 private data class RenderedTypeCarrier(

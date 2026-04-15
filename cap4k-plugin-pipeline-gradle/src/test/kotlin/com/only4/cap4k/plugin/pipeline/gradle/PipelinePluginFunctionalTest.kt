@@ -1377,6 +1377,143 @@ class PipelinePluginFunctionalTest {
     }
 
     @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan validator flow emits design validator template`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-plan")
+        copyFixture(projectDir, "design-validator-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .build()
+
+        val planFile = projectDir.resolve("build/cap4k/plan.json")
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planFile.toFile().exists())
+        assertTrue(planFile.readText().contains("\"templateId\": \"design/validator.kt.peb\""))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate validator flow writes validator under application validators`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-generate")
+        copyFixture(projectDir, "design-validator-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val validatorFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/authorize/IssueToken.kt"
+        )
+        val content = validatorFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(validatorFile.toFile().exists())
+        assertTrue(content.contains("annotation class IssueToken"))
+        assertTrue(content.contains("ConstraintValidator<IssueToken, Long>"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate validator flow supports override validator template replacement`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-override")
+        copyFixture(projectDir, "design-validator-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace("\r\n", "\n") +
+                """
+
+                cap4k {
+                    templates {
+                        overrideDirs.from("codegen/templates")
+                    }
+                }
+                """.trimIndent()
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val validatorFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/authorize/IssueToken.kt"
+        )
+        val content = validatorFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(validatorFile.toFile().exists())
+        assertTrue(content.contains("// override: representative validator migration template"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan validator flow fails when design validator misses application module path`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-no-application")
+        copyFixture(projectDir, "design-validator-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace(
+                "        applicationModulePath.set(\"demo-application\")\n",
+                "",
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("project.applicationModulePath is required when designValidator is enabled."))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan validator flow fails when design validator has no enabled design json source`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-no-designjson")
+        copyFixture(projectDir, "design-validator-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace(
+                """
+                |    sources {
+                |        designJson {
+                |            enabled.set(true)
+                |            files.from("design/design.json")
+                |        }
+                |    }
+                """.trimMargin(),
+                """
+                |    sources {
+                |        designJson {
+                |            enabled.set(false)
+                |            files.from("design/design.json")
+                |        }
+                |    }
+                """.trimMargin(),
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("designValidator generator requires enabled designJson source."))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
     private fun copyFixture(targetDir: Path, fixtureName: String = "design-sample") {
         val sourceDir = Path.of(
             requireNotNull(javaClass.getResource("/functional/$fixtureName")) {
