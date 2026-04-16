@@ -19,7 +19,9 @@
     "requestFields": [
       { "name": "orderId", "type": "Long" }
     ],
-    "responseFields": []
+    "responseFields": [
+      { "name": "orderId", "type": "Long" }
+    ]
   },
   {
     "tag": "query",
@@ -30,7 +32,9 @@
     "requestFields": [
       { "name": "customerId", "type": "Long" }
     ],
-    "responseFields": []
+    "responseFields": [
+      { "name": "count", "type": "Int" }
+    ]
   },
   {
     "tag": "query",
@@ -41,7 +45,9 @@
     "requestFields": [
       { "name": "keyword", "type": "String" }
     ],
-    "responseFields": []
+    "responseFields": [
+      { "name": "total", "type": "Long" }
+    ]
   },
   {
     "tag": "client",

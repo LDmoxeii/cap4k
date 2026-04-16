@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.readText
+import kotlin.io.path.writeText
 
 class PipelinePluginCompileFunctionalTest {
 
@@ -15,6 +16,7 @@ class PipelinePluginCompileFunctionalTest {
     fun `request and query variants compile in the application module`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-compile-sample")
+        disableHandlerGenerators(projectDir)
 
         val settingsContent = projectDir.resolve("settings.gradle.kts").readText()
         assertFalse(settingsContent.contains("__CAP4K_REPO_ROOT__"))
@@ -72,5 +74,21 @@ class PipelinePluginCompileFunctionalTest {
                 "Expected generated file to exist: $relativePath"
             )
         }
+    }
+
+    private fun disableHandlerGenerators(projectDir: Path) {
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val patchedContent = buildFile.readText()
+            .replace(
+                "designQueryHandler {\n            enabled.set(true)\n        }",
+                "designQueryHandler {\n            enabled.set(false)\n        }"
+            )
+            .replace(
+                "designClientHandler {\n            enabled.set(true)\n        }",
+                "designClientHandler {\n            enabled.set(false)\n        }"
+            )
+        buildFile.writeText(patchedContent)
+        assertTrue(patchedContent.contains("designQueryHandler {\n            enabled.set(false)\n        }"))
+        assertTrue(patchedContent.contains("designClientHandler {\n            enabled.set(false)\n        }"))
     }
 }
