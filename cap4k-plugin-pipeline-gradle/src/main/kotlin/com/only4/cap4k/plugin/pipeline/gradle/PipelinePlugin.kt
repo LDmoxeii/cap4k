@@ -68,6 +68,9 @@ class PipelinePlugin : Plugin<Project> {
         }
 
         project.gradle.projectsEvaluated {
+            if (!shouldInferPipelineDependencies(project.gradle.startParameter.taskNames)) {
+                return@projectsEvaluated
+            }
             val config = configFactory.build(project, extension)
             val inferredDependencies = inferDependencies(project, config)
             if (inferredDependencies.isNotEmpty()) {
@@ -77,6 +80,14 @@ class PipelinePlugin : Plugin<Project> {
         }
     }
 }
+
+internal fun shouldInferPipelineDependencies(taskNames: List<String>): Boolean =
+    taskNames.any { taskName ->
+        taskName == "cap4kPlan" ||
+            taskName.endsWith(":cap4kPlan") ||
+            taskName == "cap4kGenerate" ||
+            taskName.endsWith(":cap4kGenerate")
+    }
 
 internal fun inferDependencies(project: Project, config: ProjectConfig): List<Task> {
     val inferredDependencies = linkedSetOf<Task>()

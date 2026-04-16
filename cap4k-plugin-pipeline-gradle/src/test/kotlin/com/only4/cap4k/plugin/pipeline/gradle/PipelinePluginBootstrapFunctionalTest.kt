@@ -72,4 +72,17 @@ class PipelinePluginBootstrapFunctionalTest {
 
         assertTrue(result.output.contains("unsupported bootstrap slot role"))
     }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan and cap4kGenerate still require project base package`() {
+        listOf("cap4kPlan", "cap4kGenerate").forEach { taskName ->
+            val projectDir = Files.createTempDirectory("pipeline-functional-bootstrap-regular-$taskName")
+            FunctionalFixtureSupport.copyFixture(projectDir, "bootstrap-sample")
+
+            val result = FunctionalFixtureSupport.runner(projectDir, taskName).buildAndFail()
+
+            assertTrue(result.output.contains("project.basePackage is required"))
+        }
+    }
 }

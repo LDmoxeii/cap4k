@@ -13,6 +13,7 @@ import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleBootstrapRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -55,6 +56,19 @@ class PipelinePluginTest {
 
         assertInstanceOf(Cap4kProjectConfigFactory::class.java, planConfigFactory)
         assertSame(planConfigFactory, generateConfigFactory)
+    }
+
+    @Test
+    fun `pipeline dependency inference is enabled for regular pipeline task requests`() {
+        assertTrue(shouldInferPipelineDependencies(listOf("cap4kPlan")))
+        assertTrue(shouldInferPipelineDependencies(listOf(":app:cap4kGenerate")))
+    }
+
+    @Test
+    fun `pipeline dependency inference is skipped for bootstrap only task requests`() {
+        assertFalse(shouldInferPipelineDependencies(listOf("cap4kBootstrapPlan")))
+        assertFalse(shouldInferPipelineDependencies(listOf(":app:cap4kBootstrap")))
+        assertFalse(shouldInferPipelineDependencies(emptyList()))
     }
 
     @Test

@@ -3,9 +3,6 @@ plugins {
 }
 
 cap4k {
-    project {
-        basePackage.set("edu.only4.danmuku")
-    }
     bootstrap {
         enabled.set(true)
         preset.set("ddd-multi-module")
