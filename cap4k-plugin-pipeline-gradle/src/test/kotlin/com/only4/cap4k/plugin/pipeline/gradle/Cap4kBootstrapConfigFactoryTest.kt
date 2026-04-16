@@ -14,15 +14,24 @@ class Cap4kBootstrapConfigFactoryTest {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
-        extension.bootstrap.enabled.set(true)
-        extension.bootstrap.preset.set("ddd-multi-module")
-        extension.bootstrap.projectName.set("only-danmuku")
-        extension.bootstrap.basePackage.set("edu.only4.danmuku")
-        extension.bootstrap.modules.domainModuleName.set("only-danmuku-domain")
-        extension.bootstrap.modules.applicationModuleName.set("only-danmuku-application")
-        extension.bootstrap.modules.adapterModuleName.set("only-danmuku-adapter")
-        extension.bootstrap.slots.root.from("codegen/bootstrap-slots/root")
-        extension.bootstrap.slots.modulePackage("domain").from("codegen/bootstrap-slots/domain-package")
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+            }
+            templates {
+                preset.set("ddd-default-bootstrap")
+            }
+            slots {
+                root.from("codegen/bootstrap-slots/root")
+                modulePackage("domain").from("codegen/bootstrap-slots/domain-package")
+            }
+        }
 
         val config = Cap4kBootstrapConfigFactory().build(project, extension)
 
@@ -55,14 +64,20 @@ class Cap4kBootstrapConfigFactoryTest {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
-        extension.bootstrap.enabled.set(true)
-        extension.bootstrap.preset.set("ddd-multi-module")
-        extension.bootstrap.projectName.set("only-danmuku")
-        extension.bootstrap.basePackage.set("edu.only4.danmuku")
-        extension.bootstrap.modules.domainModuleName.set("only-danmuku-domain")
-        extension.bootstrap.modules.applicationModuleName.set("only-danmuku-application")
-        extension.bootstrap.modules.adapterModuleName.set("only-danmuku-adapter")
-        extension.bootstrap.slots.moduleRoot("start").from("codegen/bootstrap-slots/start-root")
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+            }
+            slots {
+                moduleRoot("start").from("codegen/bootstrap-slots/start-root")
+            }
+        }
 
         val error = assertThrows(IllegalArgumentException::class.java) {
             Cap4kBootstrapConfigFactory().build(project, extension)

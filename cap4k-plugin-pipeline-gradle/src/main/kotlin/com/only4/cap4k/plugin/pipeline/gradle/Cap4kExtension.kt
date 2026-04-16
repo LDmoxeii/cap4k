@@ -228,6 +228,18 @@ open class Cap4kBootstrapExtension @Inject constructor(objects: ObjectFactory) {
     val slots: Cap4kBootstrapSlotsExtension =
         objects.newInstance(Cap4kBootstrapSlotsExtension::class.java)
     val conflictPolicy: Property<String> = objects.property(String::class.java).convention("FAIL")
+
+    fun modules(block: Cap4kBootstrapModulesExtension.() -> Unit) {
+        modules.block()
+    }
+
+    fun templates(block: Cap4kBootstrapTemplatesExtension.() -> Unit) {
+        templates.block()
+    }
+
+    fun slots(block: Cap4kBootstrapSlotsExtension.() -> Unit) {
+        slots.block()
+    }
 }
 
 open class Cap4kBootstrapModulesExtension @Inject constructor(objects: ObjectFactory) {
