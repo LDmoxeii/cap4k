@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.readText
 
 class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
 
@@ -80,5 +81,42 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         assertTrue(domainCompile.output.contains("BUILD SUCCESSFUL"))
         assertTrue(applicationCompile.output.contains("BUILD SUCCESSFUL"))
         assertTrue(adapterCompile.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `generated bootstrap project remains usable with fixed template override and slots`() {
+        val fixtureDir = Files.createTempDirectory("bootstrap-generated-project-override")
+        FunctionalFixtureSupport.copyFixture(fixtureDir, "bootstrap-generated-project-override-sample")
+
+        val (bootstrapResult, helpResult) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProject(
+            fixtureDir,
+            projectName = "only-danmuku",
+            "help",
+        )
+        val domainCompile = FunctionalFixtureSupport.generatedProjectRunner(
+            fixtureDir,
+            projectName = "only-danmuku",
+            ":only-danmuku-domain:compileKotlin",
+        ).build()
+        val generatedRootBuild = fixtureDir.resolve("only-danmuku/build.gradle.kts").readText()
+        val generatedReadme = fixtureDir.resolve("only-danmuku/README.md").readText()
+
+        assertTrue(bootstrapResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(helpResult.output.contains("Welcome to Gradle"))
+        assertTrue(domainCompile.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedRootBuild.contains("// override: bootstrap generated-project hardening"))
+        assertTrue(generatedReadme.contains("# only-danmuku"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `generated-project verification does not mask invalid bootstrap configuration`() {
+        val fixtureDir = Files.createTempDirectory("bootstrap-generated-project-invalid")
+        FunctionalFixtureSupport.copyFixture(fixtureDir, "bootstrap-generated-project-invalid-sample")
+
+        val result = FunctionalFixtureSupport.runner(fixtureDir, "cap4kBootstrapPlan").buildAndFail()
+
+        assertTrue(result.output.contains("unsupported bootstrap slot role"))
     }
 }

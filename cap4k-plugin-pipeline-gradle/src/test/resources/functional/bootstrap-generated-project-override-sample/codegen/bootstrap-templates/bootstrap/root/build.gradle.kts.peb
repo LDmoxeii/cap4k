@@ -1,0 +1,12 @@
+plugins {
+    kotlin("jvm") version "2.2.20" apply false
+}
+
+// override: bootstrap generated-project hardening
+group = "{{ basePackage }}"
+version = "0.1.0-SNAPSHOT"
+
+subprojects {
+    group = rootProject.group
+    version = rootProject.version
+}
