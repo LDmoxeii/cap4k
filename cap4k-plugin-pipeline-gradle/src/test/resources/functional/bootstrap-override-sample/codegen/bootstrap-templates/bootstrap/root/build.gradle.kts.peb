@@ -1,0 +1,3 @@
+// override: bootstrap root build template
+group = "{{ basePackage }}"
+version = "0.1.0-SNAPSHOT"

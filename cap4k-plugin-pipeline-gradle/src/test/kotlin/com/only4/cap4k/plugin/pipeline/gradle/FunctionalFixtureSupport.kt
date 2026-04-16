@@ -15,7 +15,7 @@ object FunctionalFixtureSupport {
     fun copyFixture(targetDir: Path, fixtureName: String = "design-sample") {
         val sourceDir = Path.of(
             requireNotNull(FunctionalFixtureSupport::class.java.getResource("/functional/$fixtureName")) {
-                "Missing functional fixture directory"
+                "Missing functional fixture directory: $fixtureName"
             }.toURI()
         )
         sourceDir.copyToRecursively(targetDir, followLinks = false)

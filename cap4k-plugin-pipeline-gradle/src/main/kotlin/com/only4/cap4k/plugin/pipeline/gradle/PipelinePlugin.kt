@@ -11,6 +11,7 @@ import com.only4.cap4k.plugin.pipeline.core.DefaultBootstrapRunner
 import com.only4.cap4k.plugin.pipeline.core.DefaultPipelineRunner
 import com.only4.cap4k.plugin.pipeline.core.FilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.NoopArtifactExporter
+import com.only4.cap4k.plugin.pipeline.bootstrap.DddMultiModuleBootstrapPresetProvider
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignApiPayloadArtifactPlanner
@@ -171,7 +172,7 @@ internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled:
 
 internal fun buildBootstrapRunner(project: Project, config: BootstrapConfig, exportEnabled: Boolean): BootstrapRunner {
     return DefaultBootstrapRunner(
-        providers = emptyList(),
+        providers = listOf(DddMultiModuleBootstrapPresetProvider()),
         renderer = PebbleBootstrapRenderer(
             PresetTemplateResolver(
                 preset = config.templates.preset,

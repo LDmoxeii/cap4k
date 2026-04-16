@@ -93,31 +93,34 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `bootstrap plan task fails at missing provider after valid bootstrap config`() {
-        val project = ProjectBuilder.builder().build()
+    fun `bootstrap plan task writes bootstrap plan report for valid bootstrap config`() {
+        val project = ProjectBuilder.builder()
+            .withProjectDir(tempProjectDir("pipeline-bootstrap-plan-task"))
+            .build()
         project.pluginManager.apply(PipelinePlugin::class.java)
         configureValidBootstrap(project.extensions.getByType(Cap4kExtension::class.java))
         val planTask = project.tasks.named("cap4kBootstrapPlan", Cap4kBootstrapPlanTask::class.java).get()
 
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            planTask.runPlan()
-        }
+        planTask.runPlan()
 
-        assertTrue(error.message!!.contains("no registered bootstrap provider"))
+        val planFile = project.layout.buildDirectory.file("cap4k/bootstrap-plan.json").get().asFile
+        assertTrue(planFile.exists())
+        assertTrue(planFile.readText().contains("\"templateId\": \"bootstrap/root/settings.gradle.kts.peb\""))
     }
 
     @Test
-    fun `bootstrap generate task fails at missing provider after valid bootstrap config`() {
-        val project = ProjectBuilder.builder().build()
+    fun `bootstrap generate task writes bootstrap skeleton files for valid bootstrap config`() {
+        val project = ProjectBuilder.builder()
+            .withProjectDir(tempProjectDir("pipeline-bootstrap-generate-task"))
+            .build()
         project.pluginManager.apply(PipelinePlugin::class.java)
         configureValidBootstrap(project.extensions.getByType(Cap4kExtension::class.java))
         val generateTask = project.tasks.named("cap4kBootstrap", Cap4kBootstrapTask::class.java).get()
 
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            generateTask.generate()
-        }
+        generateTask.generate()
 
-        assertTrue(error.message!!.contains("no registered bootstrap provider"))
+        assertTrue(project.projectDir.resolve("only-danmuku/settings.gradle.kts").exists())
+        assertTrue(project.projectDir.resolve("only-danmuku/build.gradle.kts").exists())
     }
 
     @Test
