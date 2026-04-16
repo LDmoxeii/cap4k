@@ -108,6 +108,24 @@ class PipelinePluginCompileFunctionalTest {
         )
     }
 
+    @Test
+    fun `api payload generation participates in adapter compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-api-payload-compile-sample")
+
+        val (generateResult, compileResult) = FunctionalFixtureSupport.generateThenCompile(
+            projectDir,
+            ":demo-adapter:compileKotlin"
+        )
+
+        assertGeneratedFilesExist(
+            projectDir,
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/order/SubmitOrderPayload.kt",
+        )
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
     private fun assertGeneratedFilesExist(projectDir: Path, vararg relativePaths: String) {
         relativePaths.forEach { relativePath ->
             assertTrue(

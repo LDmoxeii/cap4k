@@ -1,0 +1,18 @@
+[
+  {
+    "tag": "api_payload",
+    "package": "order",
+    "name": "SubmitOrderPayload",
+    "desc": "submit order payload",
+    "aggregates": [],
+    "requestFields": [
+      { "name": "orderId", "type": "Long" },
+      { "name": "address", "type": "Address", "nullable": true },
+      { "name": "address.city", "type": "String" }
+    ],
+    "responseFields": [
+      { "name": "receipt", "type": "Receipt", "nullable": true },
+      { "name": "receipt.number", "type": "String" }
+    ]
+  }
+]
