@@ -66,7 +66,7 @@ object FunctionalFixtureSupport {
         vararg arguments: String,
     ): GradleRunner {
         val generatedDir = generatedProjectDir(fixtureDir, projectName)
-        return runner(generatedDir, *arguments)
+        return generatedProjectBuildRunner(generatedDir, *arguments)
     }
 
     fun generatedProjectDir(fixtureDir: Path, projectName: String): Path {
@@ -76,6 +76,10 @@ object FunctionalFixtureSupport {
         }
         return generated
     }
+
+    private fun generatedProjectBuildRunner(projectDir: Path, vararg arguments: String): GradleRunner = GradleRunner.create()
+        .withProjectDir(projectDir.toFile())
+        .withArguments(*arguments)
 
     private fun discoverRepositoryRoot(): Path {
         val startPoints = linkedSetOf<Path>()

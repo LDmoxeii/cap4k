@@ -1,5 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
@@ -41,8 +42,14 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         val generatedMarker = fixtureDir.resolve(
             "only-danmuku/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/domain/SmokeDomainMarker.kt"
         )
+        val rootReadme = fixtureDir.resolve("README.md")
+        val rootMarker = fixtureDir.resolve(
+            "only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/domain/SmokeDomainMarker.kt"
+        )
 
         assertTrue(generatedReadme.toFile().exists())
         assertTrue(generatedMarker.toFile().exists())
+        assertFalse(rootReadme.toFile().exists())
+        assertFalse(rootMarker.toFile().exists())
     }
 }
