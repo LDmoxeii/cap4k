@@ -48,9 +48,21 @@ class PipelinePluginCompileFunctionalTest {
 
     @Test
     fun `query-handler and client-handler variants compile in the adapter module`() {
+        val redProjectDir = Files.createTempDirectory("pipeline-functional-design-compile-adapter-red")
+        FunctionalFixtureSupport.copyCompileFixture(redProjectDir, "design-compile-sample")
+        removeApplicationCompileSmokeSource(redProjectDir)
+
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(redProjectDir, ":demo-adapter:compileKotlin")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateCompileResult.task(":demo-adapter:compileKotlin")?.outcome
+        )
+        assertTrue(beforeGenerateCompileResult.output.contains("FindOrderQryHandler"))
+
         val projectDir = Files.createTempDirectory("pipeline-functional-design-compile-adapter")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-compile-sample")
-
         val (generateResult, compileResult) = FunctionalFixtureSupport.generateThenCompile(
             projectDir,
             ":demo-adapter:compileKotlin"
@@ -78,17 +90,26 @@ class PipelinePluginCompileFunctionalTest {
 
     private fun disableHandlerGenerators(projectDir: Path) {
         val buildFile = projectDir.resolve("build.gradle.kts")
+        val designQueryHandlerBlock = Regex(
+            """designQueryHandler\s*\{\s*enabled\.set\(true\)\s*}""",
+            setOf(RegexOption.MULTILINE, RegexOption.DOT_MATCHES_ALL),
+        )
+        val designClientHandlerBlock = Regex(
+            """designClientHandler\s*\{\s*enabled\.set\(true\)\s*}""",
+            setOf(RegexOption.MULTILINE, RegexOption.DOT_MATCHES_ALL),
+        )
         val patchedContent = buildFile.readText()
-            .replace(
-                "designQueryHandler {\n            enabled.set(true)\n        }",
-                "designQueryHandler {\n            enabled.set(false)\n        }"
-            )
-            .replace(
-                "designClientHandler {\n            enabled.set(true)\n        }",
-                "designClientHandler {\n            enabled.set(false)\n        }"
-            )
+            .replace(designQueryHandlerBlock, "designQueryHandler {\n            enabled.set(false)\n        }")
+            .replace(designClientHandlerBlock, "designClientHandler {\n            enabled.set(false)\n        }")
         buildFile.writeText(patchedContent)
         assertTrue(patchedContent.contains("designQueryHandler {\n            enabled.set(false)\n        }"))
         assertTrue(patchedContent.contains("designClientHandler {\n            enabled.set(false)\n        }"))
+    }
+
+    private fun removeApplicationCompileSmokeSource(projectDir: Path) {
+        val applicationCompileSmokePath = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/smoke/CompileSmoke.kt"
+        )
+        Files.deleteIfExists(applicationCompileSmokePath)
     }
 }
