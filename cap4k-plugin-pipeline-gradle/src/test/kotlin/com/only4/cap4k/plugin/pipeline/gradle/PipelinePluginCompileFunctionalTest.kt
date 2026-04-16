@@ -142,6 +142,24 @@ class PipelinePluginCompileFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-domain-event-compile-sample")
 
+        val beforeGenerateDomainCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateDomainCompileResult.task(":demo-domain:compileKotlin")?.outcome
+        )
+        assertTrue(beforeGenerateDomainCompileResult.output.contains("OrderCreatedDomainEvent"))
+
+        val beforeGenerateApplicationCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-application:compileKotlin", "-x", ":demo-domain:compileKotlin")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateApplicationCompileResult.task(":demo-application:compileKotlin")?.outcome
+        )
+        assertTrue(beforeGenerateApplicationCompileResult.output.contains("OrderCreatedDomainEventSubscriber"))
+
         val generateResult = FunctionalFixtureSupport
             .runner(projectDir, "cap4kGenerate")
             .build()
