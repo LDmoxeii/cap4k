@@ -1360,6 +1360,35 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `wrapper task depending on cap4kGenerate still infers compileKotlin dependency`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-flow-wrapper")
+        copyFixture(projectDir, "flow-compile-sample")
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace("\r\n", "\n") +
+                """
+
+                tasks.register("cap4kGenerateWrapper") {
+                    dependsOn("cap4kGenerate")
+                }
+                """.trimIndent()
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerateWrapper")
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(projectDir.resolve("build/cap4k-code-analysis/nodes.json").toFile().exists())
+        assertTrue(projectDir.resolve("flows/OrderController_submit.json").toFile().exists())
+        assertTrue(projectDir.resolve("flows/OrderController_submit.mmd").toFile().exists())
+        assertTrue(projectDir.resolve("flows/index.json").toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan fails clearly when ir analysis fixture misses rels json`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-flow-invalid")
         copyFixture(projectDir, "flow-sample")

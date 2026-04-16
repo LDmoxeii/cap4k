@@ -68,7 +68,7 @@ class PipelinePlugin : Plugin<Project> {
         }
 
         project.gradle.projectsEvaluated {
-            if (!shouldInferPipelineDependencies(project.gradle.startParameter.taskNames)) {
+            if (!shouldInferPipelineDependencies(extension)) {
                 return@projectsEvaluated
             }
             val config = configFactory.build(project, extension)
@@ -81,13 +81,29 @@ class PipelinePlugin : Plugin<Project> {
     }
 }
 
-internal fun shouldInferPipelineDependencies(taskNames: List<String>): Boolean =
-    taskNames.any { taskName ->
-        taskName == "cap4kPlan" ||
-            taskName.endsWith(":cap4kPlan") ||
-            taskName == "cap4kGenerate" ||
-            taskName.endsWith(":cap4kGenerate")
-    }
+internal fun shouldInferPipelineDependencies(extension: Cap4kExtension): Boolean =
+    hasEnabledRegularSource(extension) || hasEnabledRegularGenerator(extension)
+
+private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf(
+    extension.sources.designJson.enabled,
+    extension.sources.kspMetadata.enabled,
+    extension.sources.db.enabled,
+    extension.sources.irAnalysis.enabled,
+).any { it.orNull == true }
+
+private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean = listOf(
+    extension.generators.design.enabled,
+    extension.generators.designQueryHandler.enabled,
+    extension.generators.designClient.enabled,
+    extension.generators.designClientHandler.enabled,
+    extension.generators.designValidator.enabled,
+    extension.generators.designApiPayload.enabled,
+    extension.generators.designDomainEvent.enabled,
+    extension.generators.designDomainEventHandler.enabled,
+    extension.generators.aggregate.enabled,
+    extension.generators.drawingBoard.enabled,
+    extension.generators.flow.enabled,
+).any { it.orNull == true }
 
 internal fun inferDependencies(project: Project, config: ProjectConfig): List<Task> {
     val inferredDependencies = linkedSetOf<Task>()

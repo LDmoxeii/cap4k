@@ -59,16 +59,26 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `pipeline dependency inference is enabled for regular pipeline task requests`() {
-        assertTrue(shouldInferPipelineDependencies(listOf("cap4kPlan")))
-        assertTrue(shouldInferPipelineDependencies(listOf(":app:cap4kGenerate")))
+    fun `pipeline dependency inference is skipped when regular pipeline sources and generators are all disabled`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply(PipelinePlugin::class.java)
+        val extension = project.extensions.getByType(Cap4kExtension::class.java)
+
+        assertFalse(shouldInferPipelineDependencies(extension))
     }
 
     @Test
-    fun `pipeline dependency inference is skipped for bootstrap only task requests`() {
-        assertFalse(shouldInferPipelineDependencies(listOf("cap4kBootstrapPlan")))
-        assertFalse(shouldInferPipelineDependencies(listOf(":app:cap4kBootstrap")))
-        assertFalse(shouldInferPipelineDependencies(emptyList()))
+    fun `pipeline dependency inference is enabled when regular pipeline source or generator is enabled`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply(PipelinePlugin::class.java)
+        val extension = project.extensions.getByType(Cap4kExtension::class.java)
+
+        extension.sources.irAnalysis.enabled.set(true)
+        assertTrue(shouldInferPipelineDependencies(extension))
+
+        extension.sources.irAnalysis.enabled.set(false)
+        extension.generators.flow.enabled.set(true)
+        assertTrue(shouldInferPipelineDependencies(extension))
     }
 
     @Test
