@@ -86,6 +86,21 @@ Traceability:
 - [design domain event family migration design](specs/2026-04-15-cap4k-design-domain-event-family-migration-design.md)
 - [design generator compile-level / integrated verification hardening design](specs/2026-04-15-cap4k-design-generator-compile-level-integrated-verification-hardening-design.md)
 
+### Phase C: Bootstrap Capability Mainline
+
+Completed:
+
+- bootstrap / arch-template migration
+
+Status:
+
+- the first bounded bootstrap capability slice is complete
+- bootstrap now exists as a separate capability with its own DSL, tasks, preset, bounded slots, renderer flow, and functional closure
+
+Traceability:
+
+- [bootstrap / arch-template migration design](specs/2026-04-16-cap4k-bootstrap-arch-template-migration-design.md)
+
 ## Current Mainline Contract
 
 These points remain in force:
@@ -100,24 +115,26 @@ These points remain in force:
 
 ## Current Next Mainline Slice
 
-The original design-generator quality mainline is now complete through compile-level hardening.
+The original design-generator quality mainline is complete, and the first bounded bootstrap capability slice is now complete.
 
 The next explicit framework slice is:
 
-- bootstrap / arch-template migration
+- bootstrap generated-project verification hardening
 
 Scope:
 
-- introduce bootstrap as a separate framework capability rather than widening design generators
-- migrate old arch-template / project bootstrap behavior into the bounded slot-based bootstrap contract
-- prove representative bootstrap presets and bounded slot-based file insertion without restoring open architecture-tree mutation
+- harden bootstrap by verifying that representative generated project skeletons are not only emitted correctly, but remain usable as real Gradle/Kotlin project outputs
+- extend bootstrap quality gates beyond file-exists assertions into generated-project validation
+- keep verification centered on the existing bounded bootstrap contract: one preset, fixed template ids, and bounded slots
+- catch bootstrap regressions in generated settings/build/module/package scaffold structure without reopening the bootstrap DSL
 
 Non-goals:
 
 - do not reopen generator-core architecture
-- do not reopen the completed design-generator quality line inside this slice
-- do not widen `use()` or other design-template helper boundaries
+- do not reopen the completed bootstrap contract just implemented
+- do not add new presets or broader slot flexibility by default
 - do not restore arbitrary insertion into any architecture-tree node
+- do not revive old `archTemplate` JSON as a runtime DSL
 - do not turn support-track real-project findings into default framework rules without explicit approval
 
 ## Bootstrap Decision
