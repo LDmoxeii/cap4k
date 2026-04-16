@@ -3,7 +3,7 @@
     "tag": "domain_event",
     "package": "order",
     "name": "OrderCreated",
-    "desc": "order created event",
+    "desc": "order \"created\" event",
     "aggregates": ["Order"],
     "persist": false,
     "requestFields": [
