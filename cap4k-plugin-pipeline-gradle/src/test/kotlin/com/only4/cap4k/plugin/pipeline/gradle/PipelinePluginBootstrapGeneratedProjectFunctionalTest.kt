@@ -101,12 +101,18 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         ).build()
         val generatedRootBuild = fixtureDir.resolve("only-danmuku/build.gradle.kts").readText()
         val generatedReadme = fixtureDir.resolve("only-danmuku/README.md").readText()
+        val generatedDomainMarkerPath = fixtureDir.resolve(
+            "only-danmuku/only-danmuku-domain/src/main/kotlin/OverrideDomainMarker.kt"
+        )
+        val generatedDomainMarker = generatedDomainMarkerPath.readText()
 
         assertTrue(bootstrapResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(helpResult.output.contains("Welcome to Gradle"))
         assertTrue(domainCompile.output.contains("BUILD SUCCESSFUL"))
         assertTrue(generatedRootBuild.contains("// override: bootstrap generated-project hardening"))
         assertTrue(generatedReadme.contains("# only-danmuku"))
+        assertTrue(generatedDomainMarkerPath.toFile().exists())
+        assertTrue(generatedDomainMarker.contains("package edu.only4.danmuku.domain"))
     }
 
     @OptIn(ExperimentalPathApi::class)
