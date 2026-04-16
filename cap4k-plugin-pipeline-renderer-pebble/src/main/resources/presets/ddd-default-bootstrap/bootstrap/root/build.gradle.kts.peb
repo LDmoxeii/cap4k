@@ -1,3 +1,7 @@
+plugins {
+    kotlin("jvm") version "2.2.20" apply false
+}
+
 group = "{{ basePackage }}"
 version = "0.1.0-SNAPSHOT"
 

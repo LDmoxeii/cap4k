@@ -27,7 +27,8 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
 
         assertTrue(bootstrapResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(helpResult.output.contains("Welcome to Gradle"))
-        assertTrue(tasksResult.output.contains("Build tasks"))
+        assertTrue(tasksResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(tasksResult.output.contains("Tasks runnable from root project"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -40,11 +41,11 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
 
         val generatedReadme = fixtureDir.resolve("only-danmuku/README.md")
         val generatedMarker = fixtureDir.resolve(
-            "only-danmuku/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/domain/SmokeDomainMarker.kt"
+            "only-danmuku/only-danmuku-domain/src/main/kotlin/SmokeDomainMarker.kt"
         )
         val rootReadme = fixtureDir.resolve("README.md")
         val rootMarker = fixtureDir.resolve(
-            "only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/domain/SmokeDomainMarker.kt"
+            "only-danmuku-domain/src/main/kotlin/SmokeDomainMarker.kt"
         )
 
         assertTrue(generatedReadme.toFile().exists())
