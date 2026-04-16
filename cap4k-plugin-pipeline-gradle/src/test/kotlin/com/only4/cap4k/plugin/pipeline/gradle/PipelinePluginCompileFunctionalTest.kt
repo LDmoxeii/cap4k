@@ -17,6 +17,15 @@ class PipelinePluginCompileFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-validator-compile-sample")
 
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-application:compileKotlin")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateCompileResult.task(":demo-application:compileKotlin")?.outcome
+        )
+        assertTrue(beforeGenerateCompileResult.output.contains("OrderIdValid"))
+
         val generateResult = FunctionalFixtureSupport
             .runner(projectDir, "cap4kGenerate")
             .build()
