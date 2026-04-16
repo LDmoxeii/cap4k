@@ -6,7 +6,6 @@ import com.only4.cap4k.plugin.pipeline.renderer.api.BootstrapRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.api.TemplateResolver
 import io.pebbletemplates.pebble.PebbleEngine
 import io.pebbletemplates.pebble.loader.StringLoader
-import java.io.File
 import java.io.StringWriter
 
 class PebbleBootstrapRenderer(
@@ -19,20 +18,10 @@ class PebbleBootstrapRenderer(
 
     override fun render(planItems: List<BootstrapPlanItem>): List<RenderedArtifact> =
         planItems.map { item ->
-            val templateId = item.templateId
-            val sourcePath = item.sourcePath
-            val content = when {
-                !templateId.isNullOrBlank() -> renderTemplate(templateId, item.context)
-                !sourcePath.isNullOrBlank() -> File(sourcePath).readText()
-                else -> error("BootstrapPlanItem requires templateId or sourcePath.")
-            }
-            RenderedArtifact(item.outputPath, content, item.conflictPolicy)
+            val templateText = templateResolver.resolve(item.sourcePath ?: item.templateId!!)
+            val template = engine.getLiteralTemplate(templateText)
+            val writer = StringWriter()
+            template.evaluate(writer, item.context)
+            RenderedArtifact(item.outputPath, writer.toString(), item.conflictPolicy)
         }
-
-    private fun renderTemplate(templateId: String, context: Map<String, Any?>): String {
-        val template = engine.getLiteralTemplate(templateResolver.resolve(templateId))
-        val writer = StringWriter()
-        template.evaluate(writer, context)
-        return writer.toString()
-    }
 }

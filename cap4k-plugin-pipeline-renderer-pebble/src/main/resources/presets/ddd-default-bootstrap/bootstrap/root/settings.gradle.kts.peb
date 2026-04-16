@@ -1,0 +1,5 @@
+rootProject.name = "{{ projectName }}"
+
+include(":{{ domainModuleName }}")
+include(":{{ applicationModuleName }}")
+include(":{{ adapterModuleName }}")

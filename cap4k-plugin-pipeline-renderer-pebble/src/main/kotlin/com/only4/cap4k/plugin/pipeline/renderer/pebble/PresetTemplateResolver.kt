@@ -9,6 +9,13 @@ class PresetTemplateResolver(
 ) : TemplateResolver {
 
     override fun resolve(templateId: String): String {
+        if (templateId.isNotBlank()) {
+            val directFile = File(templateId)
+            if (directFile.isAbsolute && directFile.exists()) {
+                return directFile.readText()
+            }
+        }
+
         for (dir in overrideDirs) {
             val file = File(dir, templateId)
             if (file.exists()) {
