@@ -1,7 +1,10 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
+import com.only4.cap4k.plugin.pipeline.api.BootstrapSlotBinding
+import com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.Project
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import javax.inject.Inject
@@ -12,6 +15,7 @@ open class Cap4kExtension @Inject constructor(objects: ObjectFactory) {
     val sources: Cap4kSourcesExtension = objects.newInstance(Cap4kSourcesExtension::class.java)
     val generators: Cap4kGeneratorsExtension = objects.newInstance(Cap4kGeneratorsExtension::class.java)
     val templates: Cap4kTemplatesExtension = objects.newInstance(Cap4kTemplatesExtension::class.java)
+    val bootstrap: Cap4kBootstrapExtension = objects.newInstance(Cap4kBootstrapExtension::class.java)
 
     fun project(block: Cap4kProjectExtension.() -> Unit) {
         project.block()
@@ -31,6 +35,10 @@ open class Cap4kExtension @Inject constructor(objects: ObjectFactory) {
 
     fun templates(block: Cap4kTemplatesExtension.() -> Unit) {
         templates.block()
+    }
+
+    fun bootstrap(block: Cap4kBootstrapExtension.() -> Unit) {
+        bootstrap.block()
     }
 }
 
@@ -206,6 +214,73 @@ open class DrawingBoardGeneratorExtension @Inject constructor(objects: ObjectFac
 open class FlowGeneratorExtension @Inject constructor(objects: ObjectFactory) {
     val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
     val outputDir: Property<String> = objects.property(String::class.java)
+}
+
+open class Cap4kBootstrapExtension @Inject constructor(objects: ObjectFactory) {
+    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val preset: Property<String> = objects.property(String::class.java).convention("ddd-multi-module")
+    val projectName: Property<String> = objects.property(String::class.java)
+    val basePackage: Property<String> = objects.property(String::class.java)
+    val modules: Cap4kBootstrapModulesExtension =
+        objects.newInstance(Cap4kBootstrapModulesExtension::class.java)
+    val templates: Cap4kBootstrapTemplatesExtension =
+        objects.newInstance(Cap4kBootstrapTemplatesExtension::class.java)
+    val slots: Cap4kBootstrapSlotsExtension =
+        objects.newInstance(Cap4kBootstrapSlotsExtension::class.java)
+    val conflictPolicy: Property<String> = objects.property(String::class.java).convention("FAIL")
+}
+
+open class Cap4kBootstrapModulesExtension @Inject constructor(objects: ObjectFactory) {
+    val domainModuleName: Property<String> = objects.property(String::class.java)
+    val applicationModuleName: Property<String> = objects.property(String::class.java)
+    val adapterModuleName: Property<String> = objects.property(String::class.java)
+}
+
+open class Cap4kBootstrapTemplatesExtension @Inject constructor(objects: ObjectFactory) {
+    val preset: Property<String> = objects.property(String::class.java).convention("ddd-default-bootstrap")
+    val overrideDirs: ConfigurableFileCollection = objects.fileCollection()
+}
+
+open class Cap4kBootstrapSlotsExtension @Inject constructor(private val objects: ObjectFactory) {
+    val root: ConfigurableFileCollection = objects.fileCollection()
+    val buildLogic: ConfigurableFileCollection = objects.fileCollection()
+
+    private val moduleRoot: MutableMap<String, ConfigurableFileCollection> = linkedMapOf()
+    private val modulePackage: MutableMap<String, ConfigurableFileCollection> = linkedMapOf()
+
+    fun moduleRoot(role: String): ConfigurableFileCollection =
+        moduleRoot.getOrPut(role) { objects.fileCollection() }
+
+    fun modulePackage(role: String): ConfigurableFileCollection =
+        modulePackage.getOrPut(role) { objects.fileCollection() }
+
+    fun bindings(project: Project): List<BootstrapSlotBinding> = buildList {
+        addBindings(project, BootstrapSlotKind.ROOT, null, root)
+        addBindings(project, BootstrapSlotKind.BUILD_LOGIC, null, buildLogic)
+        moduleRoot.forEach { (role, sourceDirs) ->
+            addBindings(project, BootstrapSlotKind.MODULE_ROOT, role, sourceDirs)
+        }
+        modulePackage.forEach { (role, sourceDirs) ->
+            addBindings(project, BootstrapSlotKind.MODULE_PACKAGE, role, sourceDirs)
+        }
+    }
+
+    private fun MutableList<BootstrapSlotBinding>.addBindings(
+        project: Project,
+        kind: BootstrapSlotKind,
+        role: String?,
+        sourceDirs: ConfigurableFileCollection,
+    ) {
+        sourceDirs.files.map { project.file(it).absolutePath }.sorted().forEach { sourceDir ->
+            add(
+                BootstrapSlotBinding(
+                    kind = kind,
+                    role = role,
+                    sourceDir = sourceDir,
+                )
+            )
+        }
+    }
 }
 
 open class Cap4kTemplatesExtension @Inject constructor(objects: ObjectFactory) {
