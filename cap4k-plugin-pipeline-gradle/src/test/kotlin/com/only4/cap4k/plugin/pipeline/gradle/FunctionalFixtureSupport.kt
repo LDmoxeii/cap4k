@@ -27,7 +27,9 @@ object FunctionalFixtureSupport {
 
         val repoRoot = discoverRepositoryRoot()
         val settingsFile = targetDir.resolve("settings.gradle.kts")
-        val repoPath = repoRoot.toString().replace("\\", "/")
+        val repoPath = repoRoot.toString()
+            .replace("\\", "/")
+            .replace("$", "\\$")
         settingsFile.writeText(settingsFile.readText().replace("__CAP4K_REPO_ROOT__", repoPath))
     }
 
@@ -46,16 +48,38 @@ object FunctionalFixtureSupport {
     }
 
     private fun discoverRepositoryRoot(): Path {
-        var cursor = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize()
+        val startPoints = linkedSetOf<Path>()
+        val userDir = System.getProperty("user.dir")
+        if (!userDir.isNullOrBlank()) {
+            startPoints.add(Path.of(userDir).toAbsolutePath().normalize())
+        }
+        resolveClassLocationStartPoint()?.let { startPoints.add(it) }
+
+        for (start in startPoints) {
+            searchUpwardForRepositoryRoot(start)?.let { return it }
+        }
+
+        throw IllegalStateException(
+            "Unable to locate cap4k repository root from start points: ${
+                startPoints.joinToString { it.toString() }
+            }"
+        )
+    }
+
+    private fun resolveClassLocationStartPoint(): Path? = runCatching {
+        val location = FunctionalFixtureSupport::class.java.protectionDomain.codeSource.location
+        val path = Path.of(location.toURI()).toAbsolutePath().normalize()
+        if (Files.isRegularFile(path)) path.parent else path
+    }.getOrNull()
+
+    private fun searchUpwardForRepositoryRoot(start: Path): Path? {
+        var cursor = start
         while (true) {
             if (isRepositoryRoot(cursor)) {
                 return cursor
             }
-            cursor = cursor.parent ?: break
+            cursor = cursor.parent ?: return null
         }
-        throw IllegalStateException(
-            "Unable to locate cap4k repository root from user.dir=${System.getProperty("user.dir")}"
-        )
     }
 
     private fun isRepositoryRoot(dir: Path): Boolean = Files.exists(dir.resolve("settings.gradle.kts")) &&
