@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import java.time.Duration
 
 plugins {
     id("buildsrc.convention.kotlin-jvm")
@@ -47,8 +46,4 @@ kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
     }
-}
-
-tasks.withType<Test>().configureEach {
-    timeout.set(Duration.ofMinutes(20))
 }
