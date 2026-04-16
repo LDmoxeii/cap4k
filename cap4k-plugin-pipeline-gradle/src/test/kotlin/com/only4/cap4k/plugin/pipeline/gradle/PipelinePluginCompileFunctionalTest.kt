@@ -11,11 +11,17 @@ class PipelinePluginCompileFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-compile-sample")
 
-        val (generateResult, compileResult) = FunctionalFixtureSupport.generateThenCompile(
-            projectDir,
-            ":demo-application:compileKotlin"
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-application:compileKotlin")
+            .buildAndFail()
+        assertTrue(beforeGenerateCompileResult.output.contains("BUILD FAILED"))
+        assertTrue(
+            beforeGenerateCompileResult.output.contains("Unresolved reference") ||
+                beforeGenerateCompileResult.output.contains("Cannot access")
         )
 
+        val generateResult = FunctionalFixtureSupport.runner(projectDir, "cap4kGenerate").build()
+        val compileResult = FunctionalFixtureSupport.runner(projectDir, ":demo-application:compileKotlin").build()
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
