@@ -13,6 +13,26 @@ import kotlin.io.path.writeText
 class PipelinePluginCompileFunctionalTest {
 
     @Test
+    fun `validator generation participates in application compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-validator-compile-sample")
+
+        val generateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-application:compileKotlin")
+            .build()
+
+        assertGeneratedFilesExist(
+            projectDir,
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/order/OrderIdValid.kt",
+        )
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
     fun `request and query variants compile in the application module`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-compile-sample")

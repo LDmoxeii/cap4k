@@ -1,0 +1,11 @@
+[
+  {
+    "tag": "validator",
+    "package": "order",
+    "name": "OrderIdValid",
+    "desc": "order id validator",
+    "aggregates": [],
+    "requestFields": [],
+    "responseFields": []
+  }
+]
