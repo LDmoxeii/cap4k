@@ -62,11 +62,10 @@ Completed:
 - design validator family migration
 - design api_payload migration
 - design domain_event / domain_event_handler family migration
-- design generator compile-level / integrated verification hardening
 
 Status:
 
-- current mainline is complete through representative migration, query-handler family migration, client family migration, validator family migration, and api_payload migration
+- current mainline is complete through representative migration, query-handler family migration, client family migration, validator family migration, api_payload migration, and domain_event / domain_event_handler family migration
 - roadmap completion state follows merged repository history; some linked slice specs may still retain pre-merge draft headers
 
 Traceability:
