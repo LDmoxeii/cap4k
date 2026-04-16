@@ -18,7 +18,8 @@ class PebbleBootstrapRenderer(
 
     override fun render(planItems: List<BootstrapPlanItem>): List<RenderedArtifact> =
         planItems.map { item ->
-            val templateText = templateResolver.resolve(item.sourcePath ?: item.templateId!!)
+            val resolvedTemplateId = item.sourcePath?.takeIf { it.isNotBlank() } ?: item.templateId!!
+            val templateText = templateResolver.resolve(resolvedTemplateId)
             val template = engine.getLiteralTemplate(templateText)
             val writer = StringWriter()
             template.evaluate(writer, item.context)
