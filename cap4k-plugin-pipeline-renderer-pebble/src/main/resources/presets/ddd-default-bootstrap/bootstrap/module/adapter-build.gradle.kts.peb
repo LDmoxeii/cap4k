@@ -1,3 +1,18 @@
-// {{ moduleRole }} module
+plugins {
+    kotlin("jvm") version "2.2.20"
+}
+
 group = "{{ basePackage }}"
 version = "0.1.0-SNAPSHOT"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation(project(":{{ applicationModuleName }}"))
+}
+
+kotlin {
+    jvmToolchain(17)
+}

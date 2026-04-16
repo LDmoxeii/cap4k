@@ -53,4 +53,32 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         assertFalse(rootReadme.toFile().exists())
         assertFalse(rootMarker.toFile().exists())
     }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `generated bootstrap project domain application and adapter modules compile`() {
+        val fixtureDir = Files.createTempDirectory("bootstrap-generated-project-compile")
+        FunctionalFixtureSupport.copyFixture(fixtureDir, "bootstrap-generated-project-smoke-sample")
+
+        val (bootstrapResult, domainCompile) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProject(
+            fixtureDir,
+            projectName = "only-danmuku",
+            ":only-danmuku-domain:compileKotlin",
+        )
+        val applicationCompile = FunctionalFixtureSupport.generatedProjectRunner(
+            fixtureDir,
+            projectName = "only-danmuku",
+            ":only-danmuku-application:compileKotlin",
+        ).build()
+        val adapterCompile = FunctionalFixtureSupport.generatedProjectRunner(
+            fixtureDir,
+            projectName = "only-danmuku",
+            ":only-danmuku-adapter:compileKotlin",
+        ).build()
+
+        assertTrue(bootstrapResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(domainCompile.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(applicationCompile.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(adapterCompile.output.contains("BUILD SUCCESSFUL"))
+    }
 }
