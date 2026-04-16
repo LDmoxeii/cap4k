@@ -1,6 +1,6 @@
 # Cap4k Mainline Roadmap
 
-Date: 2026-04-15
+Date: 2026-04-16
 
 ## Purpose
 
@@ -62,10 +62,11 @@ Completed:
 - design validator family migration
 - design api_payload migration
 - design domain_event / domain_event_handler family migration
+- design generator compile-level / integrated verification hardening
 
 Status:
 
-- current mainline is complete through representative migration, query-handler family migration, client family migration, validator family migration, api_payload migration, and domain_event / domain_event_handler family migration
+- the original design-generator quality mainline is complete through compile-level / integrated verification hardening
 - roadmap completion state follows merged repository history; some linked slice specs may still retain pre-merge draft headers
 
 Traceability:
@@ -83,6 +84,7 @@ Traceability:
 - [design validator family migration design](specs/2026-04-15-cap4k-design-validator-family-migration-design.md)
 - [design api payload migration design](specs/2026-04-15-cap4k-design-api-payload-migration-design.md)
 - [design domain event family migration design](specs/2026-04-15-cap4k-design-domain-event-family-migration-design.md)
+- [design generator compile-level / integrated verification hardening design](specs/2026-04-15-cap4k-design-generator-compile-level-integrated-verification-hardening-design.md)
 
 ## Current Mainline Contract
 
@@ -98,27 +100,25 @@ These points remain in force:
 
 ## Current Next Mainline Slice
 
-The next mainline slice is: design generator compile-level / integrated verification hardening
+The original design-generator quality mainline is now complete through compile-level hardening.
+
+The next explicit framework slice is:
+
+- bootstrap / arch-template migration
 
 Scope:
 
-- raise representative design-family verification from generate-only to generate-plus-compile
-- add a shared compile-capable functional harness
-- add family-level compile verification and one small integrated compile sample
+- introduce bootstrap as a separate framework capability rather than widening design generators
+- migrate old arch-template / project bootstrap behavior into the bounded slot-based bootstrap contract
+- prove representative bootstrap presets and bounded slot-based file insertion without restoring open architecture-tree mutation
 
 Non-goals:
 
 - do not reopen generator-core architecture
-- do not add sibling design-entry type support
-- do not widen `use()` beyond design templates
-- do not mix bootstrap migration into this slice
+- do not reopen the completed design-generator quality line inside this slice
+- do not widen `use()` or other design-template helper boundaries
+- do not restore arbitrary insertion into any architecture-tree node
 - do not turn support-track real-project findings into default framework rules without explicit approval
-
-## Separate Future Slice
-
-The following is a separate future slice, not the current next mainline target:
-
-- bootstrap / arch-template migration
 
 ## Bootstrap Decision
 
