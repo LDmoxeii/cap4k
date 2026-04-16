@@ -37,8 +37,11 @@ class PipelinePluginBootstrapFunctionalTest {
         val generatedRootBuild = projectDir.resolve("only-danmuku/build.gradle.kts")
         val generatedDomainBuild = projectDir.resolve("only-danmuku/only-danmuku-domain/build.gradle.kts")
         val generatedSlotReadme = projectDir.resolve("only-danmuku/README.md")
-        val generatedPackageMarker = projectDir.resolve(
+        val generatedFixedPackageMarker = projectDir.resolve(
             "only-danmuku/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/domain/DomainBootstrapMarker.kt"
+        )
+        val generatedSlotPackageMarker = projectDir.resolve(
+            "only-danmuku/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/SlotDomainMarker.kt"
         )
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
@@ -46,7 +49,8 @@ class PipelinePluginBootstrapFunctionalTest {
         assertTrue(generatedRootBuild.toFile().exists())
         assertTrue(generatedDomainBuild.toFile().exists())
         assertTrue(generatedSlotReadme.toFile().exists())
-        assertTrue(generatedPackageMarker.toFile().exists())
+        assertTrue(generatedFixedPackageMarker.toFile().exists())
+        assertTrue(generatedSlotPackageMarker.toFile().exists())
     }
 
     @OptIn(ExperimentalPathApi::class)

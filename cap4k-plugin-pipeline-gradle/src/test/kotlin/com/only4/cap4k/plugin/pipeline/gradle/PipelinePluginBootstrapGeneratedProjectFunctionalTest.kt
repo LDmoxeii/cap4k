@@ -23,11 +23,11 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         )
         val generatedReadme = fixtureDir.resolve("only-danmuku/README.md")
         val generatedMarker = fixtureDir.resolve(
-            "only-danmuku/only-danmuku-domain/src/main/kotlin/SmokeDomainMarker.kt"
+            "only-danmuku/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/SmokeDomainMarker.kt"
         )
         val rootReadme = fixtureDir.resolve("README.md")
-        val rootMarker = fixtureDir.resolve(
-            "only-danmuku-domain/src/main/kotlin/SmokeDomainMarker.kt"
+        val generatedFlatMarker = fixtureDir.resolve(
+            "only-danmuku/only-danmuku-domain/src/main/kotlin/SmokeDomainMarker.kt"
         )
 
         assertTrue(bootstrapResult.output.contains("BUILD SUCCESSFUL"))
@@ -37,7 +37,7 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         assertTrue(generatedReadme.toFile().exists())
         assertTrue(generatedMarker.toFile().exists())
         assertFalse(rootReadme.toFile().exists())
-        assertFalse(rootMarker.toFile().exists())
+        assertFalse(generatedFlatMarker.toFile().exists())
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -73,7 +73,7 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         val generatedRootBuild = fixtureDir.resolve("only-danmuku/build.gradle.kts").readText()
         val generatedReadme = fixtureDir.resolve("only-danmuku/README.md").readText()
         val generatedDomainMarkerPath = fixtureDir.resolve(
-            "only-danmuku/only-danmuku-domain/src/main/kotlin/OverrideDomainMarker.kt"
+            "only-danmuku/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/OverrideDomainMarker.kt"
         )
         val generatedDomainMarker = generatedDomainMarkerPath.readText()
 

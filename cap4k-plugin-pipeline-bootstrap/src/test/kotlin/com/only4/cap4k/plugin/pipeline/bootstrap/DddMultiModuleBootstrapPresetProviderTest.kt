@@ -8,6 +8,7 @@ import com.only4.cap4k.plugin.pipeline.api.BootstrapTemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class DddMultiModuleBootstrapPresetProviderTest {
@@ -48,7 +49,46 @@ class DddMultiModuleBootstrapPresetProviderTest {
         val items = DddMultiModuleBootstrapPresetProvider().plan(config)
 
         assertTrue(items.any { it.slotId == "root" && it.sourcePath!!.endsWith("slots/root/README.md.peb") })
-        assertTrue(items.any { it.slotId == "module-package:domain" && it.outputPath.contains("only-danmuku-domain/src/main/kotlin/edu/only4/danmuku") })
+        assertTrue(items.any {
+            it.slotId == "module-package:domain" &&
+                it.outputPath == "only-danmuku/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/DomainSlotMarker.kt"
+        })
+    }
+
+    @Test
+    fun `module package output path prepends base package path when slot path is not package-rooted`() {
+        val outputPath = resolveSlotOutputPath(
+            binding = BootstrapSlotBinding(
+                kind = BootstrapSlotKind.MODULE_PACKAGE,
+                role = "domain",
+                sourceDir = "src/test/resources/slots/domain-package",
+            ),
+            renderedRelativePath = "SmokeDomainMarker.kt",
+            config = config,
+        )
+
+        assertEquals(
+            "only-danmuku/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/SmokeDomainMarker.kt",
+            outputPath
+        )
+    }
+
+    @Test
+    fun `module package output path keeps package-rooted slot path without double prefix`() {
+        val outputPath = resolveSlotOutputPath(
+            binding = BootstrapSlotBinding(
+                kind = BootstrapSlotKind.MODULE_PACKAGE,
+                role = "domain",
+                sourceDir = "src/test/resources/slots/domain-package",
+            ),
+            renderedRelativePath = "edu/only4/danmuku/DomainSlotMarker.kt",
+            config = config,
+        )
+
+        assertEquals(
+            "only-danmuku/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/DomainSlotMarker.kt",
+            outputPath
+        )
     }
 
     @Test

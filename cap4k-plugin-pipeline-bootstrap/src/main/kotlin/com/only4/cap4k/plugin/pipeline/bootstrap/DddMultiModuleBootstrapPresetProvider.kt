@@ -130,7 +130,7 @@ internal fun resolveSlotOutputPath(
             "${config.projectName}/${requireNotNull(moduleName)}/$boundedRelative"
 
         com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.MODULE_PACKAGE ->
-            "${config.projectName}/${requireNotNull(moduleName)}/src/main/kotlin/$boundedRelative"
+            "${config.projectName}/${requireNotNull(moduleName)}/src/main/kotlin/${resolveModulePackageRelativePath(boundedRelative, config)}"
     }
 }
 
@@ -145,6 +145,18 @@ internal fun resolveModuleName(role: String, config: BootstrapConfig): String =
 private fun BootstrapConfig.basePackagePath(): String = basePackage.replace('.', '/')
 
 private fun trimPebExtension(path: String): String = path.removeSuffix(".peb")
+
+private fun resolveModulePackageRelativePath(
+    boundedRelativePath: String,
+    config: BootstrapConfig,
+): String {
+    val basePackagePath = config.basePackagePath()
+    return when {
+        boundedRelativePath == basePackagePath -> boundedRelativePath
+        boundedRelativePath.startsWith("$basePackagePath/") -> boundedRelativePath
+        else -> "$basePackagePath/$boundedRelativePath"
+    }
+}
 
 internal fun validateBootstrapPathSegments(config: BootstrapConfig) {
     requireSafePathSegment("bootstrap.projectName", config.projectName)
