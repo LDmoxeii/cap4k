@@ -11,35 +11,16 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `generated bootstrap project accepts help and tasks commands`() {
+    fun `generated bootstrap project accepts help and tasks commands and keeps slot files in generated subtree`() {
         val fixtureDir = Files.createTempDirectory("bootstrap-generated-project-smoke")
         FunctionalFixtureSupport.copyFixture(fixtureDir, "bootstrap-generated-project-smoke-sample")
 
-        val (bootstrapResult, helpResult) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProject(
+        val (bootstrapResult, generatedBuildResult) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProject(
             fixtureDir,
             projectName = "only-danmuku",
             "help",
-        )
-        val tasksResult = FunctionalFixtureSupport.generatedProjectRunner(
-            fixtureDir,
-            projectName = "only-danmuku",
             "tasks",
-        ).build()
-
-        assertTrue(bootstrapResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(helpResult.output.contains("Welcome to Gradle"))
-        assertTrue(tasksResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(tasksResult.output.contains("Tasks runnable from root project"))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `generated bootstrap project keeps slot files inside generated subtree`() {
-        val fixtureDir = Files.createTempDirectory("bootstrap-generated-project-slot-smoke")
-        FunctionalFixtureSupport.copyFixture(fixtureDir, "bootstrap-generated-project-smoke-sample")
-
-        FunctionalFixtureSupport.runner(fixtureDir, "cap4kBootstrap").build()
-
+        )
         val generatedReadme = fixtureDir.resolve("only-danmuku/README.md")
         val generatedMarker = fixtureDir.resolve(
             "only-danmuku/only-danmuku-domain/src/main/kotlin/SmokeDomainMarker.kt"
@@ -49,6 +30,10 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
             "only-danmuku-domain/src/main/kotlin/SmokeDomainMarker.kt"
         )
 
+        assertTrue(bootstrapResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedBuildResult.output.contains("Welcome to Gradle"))
+        assertTrue(generatedBuildResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedBuildResult.output.contains("Tasks runnable from root project"))
         assertTrue(generatedReadme.toFile().exists())
         assertTrue(generatedMarker.toFile().exists())
         assertFalse(rootReadme.toFile().exists())
@@ -61,26 +46,16 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         val fixtureDir = Files.createTempDirectory("bootstrap-generated-project-compile")
         FunctionalFixtureSupport.copyFixture(fixtureDir, "bootstrap-generated-project-smoke-sample")
 
-        val (bootstrapResult, domainCompile) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProject(
+        val (bootstrapResult, compileResult) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProject(
             fixtureDir,
             projectName = "only-danmuku",
             ":only-danmuku-domain:compileKotlin",
-        )
-        val applicationCompile = FunctionalFixtureSupport.generatedProjectRunner(
-            fixtureDir,
-            projectName = "only-danmuku",
             ":only-danmuku-application:compileKotlin",
-        ).build()
-        val adapterCompile = FunctionalFixtureSupport.generatedProjectRunner(
-            fixtureDir,
-            projectName = "only-danmuku",
             ":only-danmuku-adapter:compileKotlin",
-        ).build()
+        )
 
         assertTrue(bootstrapResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(domainCompile.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(applicationCompile.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(adapterCompile.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -89,16 +64,12 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         val fixtureDir = Files.createTempDirectory("bootstrap-generated-project-override")
         FunctionalFixtureSupport.copyFixture(fixtureDir, "bootstrap-generated-project-override-sample")
 
-        val (bootstrapResult, helpResult) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProject(
+        val (bootstrapResult, generatedBuildResult) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProject(
             fixtureDir,
             projectName = "only-danmuku",
             "help",
-        )
-        val domainCompile = FunctionalFixtureSupport.generatedProjectRunner(
-            fixtureDir,
-            projectName = "only-danmuku",
             ":only-danmuku-domain:compileKotlin",
-        ).build()
+        )
         val generatedRootBuild = fixtureDir.resolve("only-danmuku/build.gradle.kts").readText()
         val generatedReadme = fixtureDir.resolve("only-danmuku/README.md").readText()
         val generatedDomainMarkerPath = fixtureDir.resolve(
@@ -107,8 +78,8 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         val generatedDomainMarker = generatedDomainMarkerPath.readText()
 
         assertTrue(bootstrapResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(helpResult.output.contains("Welcome to Gradle"))
-        assertTrue(domainCompile.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedBuildResult.output.contains("Welcome to Gradle"))
+        assertTrue(generatedBuildResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(generatedRootBuild.contains("// override: bootstrap generated-project hardening"))
         assertTrue(generatedReadme.contains("# only-danmuku"))
         assertTrue(generatedDomainMarkerPath.toFile().exists())
