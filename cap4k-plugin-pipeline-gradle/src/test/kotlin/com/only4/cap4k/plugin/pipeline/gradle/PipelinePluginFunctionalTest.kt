@@ -1,14 +1,13 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
+import com.only4.cap4k.plugin.pipeline.gradle.FunctionalFixtureSupport.copyFixture
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
 import java.nio.file.Files
-import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
-import kotlin.io.path.copyToRecursively
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
@@ -1932,13 +1931,4 @@ class PipelinePluginFunctionalTest {
         assertTrue(result.output.contains("designDomainEvent generator requires enabled kspMetadata source."))
     }
 
-    @OptIn(ExperimentalPathApi::class)
-    private fun copyFixture(targetDir: Path, fixtureName: String = "design-sample") {
-        val sourceDir = Path.of(
-            requireNotNull(javaClass.getResource("/functional/$fixtureName")) {
-                "Missing functional fixture directory"
-            }.toURI()
-        )
-        sourceDir.copyToRecursively(targetDir, followLinks = false)
-    }
 }
