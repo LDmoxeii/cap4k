@@ -18,7 +18,7 @@ abstract class Cap4kBootstrapPlanTask : DefaultTask() {
         val config = configFactory.build(project, extension)
         val outputFile = project.layout.buildDirectory.file("cap4k/bootstrap-plan.json").get().asFile
         outputFile.parentFile.mkdirs()
-        val result = buildBootstrapRunner(project, exportEnabled = false).run(config)
+        val result = buildBootstrapRunner(project, config, exportEnabled = false).run(config)
         outputFile.writeText(
             GsonBuilder()
                 .setPrettyPrinting()

@@ -1,17 +1,24 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.BootstrapConfig
+import com.only4.cap4k.plugin.pipeline.api.BootstrapModulesConfig
+import com.only4.cap4k.plugin.pipeline.api.BootstrapTemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleBootstrapRenderer
+import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
 
@@ -57,6 +64,60 @@ class PipelinePluginTest {
 
         assertNotNull(project.tasks.findByName("cap4kBootstrapPlan"))
         assertNotNull(project.tasks.findByName("cap4kBootstrap"))
+    }
+
+    @Test
+    fun `build bootstrap runner uses template preset and override dirs from config`() {
+        val project = ProjectBuilder.builder().build()
+        val config = BootstrapConfig(
+            preset = "ddd-multi-module",
+            projectName = "demo",
+            basePackage = "com.acme.demo",
+            modules = BootstrapModulesConfig("demo-domain", "demo-application", "demo-adapter"),
+            templates = BootstrapTemplateConfig(
+                preset = "custom-bootstrap-preset",
+                overrideDirs = listOf("/tmp/bootstrap-templates"),
+            ),
+            slots = emptyList(),
+            conflictPolicy = ConflictPolicy.FAIL,
+        )
+
+        val runner = buildBootstrapRunner(project, config, exportEnabled = false)
+        val renderer = readInternalProperty(runner, "renderer")
+        val resolver = readInternalProperty(renderer!!, "templateResolver")
+
+        assertInstanceOf(PebbleBootstrapRenderer::class.java, renderer)
+        assertInstanceOf(PresetTemplateResolver::class.java, resolver)
+        assertEquals("custom-bootstrap-preset", readInternalProperty(resolver!!, "preset"))
+        assertEquals(listOf("/tmp/bootstrap-templates"), readInternalProperty(resolver, "overrideDirs"))
+    }
+
+    @Test
+    fun `bootstrap plan task fails at missing provider after valid bootstrap config`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply(PipelinePlugin::class.java)
+        configureValidBootstrap(project.extensions.getByType(Cap4kExtension::class.java))
+        val planTask = project.tasks.named("cap4kBootstrapPlan", Cap4kBootstrapPlanTask::class.java).get()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            planTask.runPlan()
+        }
+
+        assertTrue(error.message!!.contains("no registered bootstrap provider"))
+    }
+
+    @Test
+    fun `bootstrap generate task fails at missing provider after valid bootstrap config`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply(PipelinePlugin::class.java)
+        configureValidBootstrap(project.extensions.getByType(Cap4kExtension::class.java))
+        val generateTask = project.tasks.named("cap4kBootstrap", Cap4kBootstrapTask::class.java).get()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            generateTask.generate()
+        }
+
+        assertTrue(error.message!!.contains("no registered bootstrap provider"))
     }
 
     @Test
@@ -269,6 +330,23 @@ class PipelinePluginTest {
                 conflictPolicy = ConflictPolicy.SKIP,
             ),
         )
+
+    private fun configureValidBootstrap(extension: Cap4kExtension) {
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+            }
+            templates {
+                preset.set("ddd-default-bootstrap")
+            }
+        }
+    }
 
     private fun tempProjectDir(prefix: String): File =
         kotlin.io.path.createTempDirectory(prefix).toFile()

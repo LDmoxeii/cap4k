@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.gradle
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.BootstrapRunner
+import com.only4.cap4k.plugin.pipeline.api.BootstrapConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineRunner
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.core.DefaultCanonicalAssembler
@@ -168,13 +169,13 @@ internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled:
     )
 }
 
-internal fun buildBootstrapRunner(project: Project, exportEnabled: Boolean): BootstrapRunner {
+internal fun buildBootstrapRunner(project: Project, config: BootstrapConfig, exportEnabled: Boolean): BootstrapRunner {
     return DefaultBootstrapRunner(
         providers = emptyList(),
         renderer = PebbleBootstrapRenderer(
             PresetTemplateResolver(
-                preset = "ddd-default-bootstrap",
-                overrideDirs = emptyList(),
+                preset = config.templates.preset,
+                overrideDirs = config.templates.overrideDirs,
             )
         ),
         exporter = if (exportEnabled) {

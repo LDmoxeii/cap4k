@@ -14,6 +14,6 @@ abstract class Cap4kBootstrapTask : DefaultTask() {
     @TaskAction
     fun generate() {
         val config = configFactory.build(project, extension)
-        buildBootstrapRunner(project, exportEnabled = true).run(config)
+        buildBootstrapRunner(project, config, exportEnabled = true).run(config)
     }
 }
