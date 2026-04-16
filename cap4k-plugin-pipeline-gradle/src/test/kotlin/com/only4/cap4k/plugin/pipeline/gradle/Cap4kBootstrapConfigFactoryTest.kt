@@ -85,4 +85,127 @@ class Cap4kBootstrapConfigFactoryTest {
 
         assertTrue(error.message!!.contains("unsupported bootstrap slot role"))
     }
+
+    @Test
+    fun `build fails when bootstrap is disabled`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kBootstrapConfigFactory().build(project, extension)
+        }
+
+        assertTrue(error.message!!.contains("bootstrap.enabled must be true"))
+    }
+
+    @Test
+    fun `build fails when preset is unsupported`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("unknown-preset")
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kBootstrapConfigFactory().build(project, extension)
+        }
+
+        assertTrue(error.message!!.contains("unsupported bootstrap preset"))
+    }
+
+    @Test
+    fun `build fails when base package is missing`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            projectName.set("only-danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kBootstrapConfigFactory().build(project, extension)
+        }
+
+        assertTrue(error.message!!.contains("bootstrap.basePackage is required"))
+    }
+
+    @Test
+    fun `build fails when one bootstrap module name is missing`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kBootstrapConfigFactory().build(project, extension)
+        }
+
+        assertTrue(error.message!!.contains("bootstrap.modules.adapterModuleName is required"))
+    }
+
+    @Test
+    fun `build falls back to default bootstrap template preset when blank`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+            }
+            templates {
+                preset.set("   ")
+            }
+        }
+
+        val config = Cap4kBootstrapConfigFactory().build(project, extension)
+
+        assertEquals("ddd-default-bootstrap", config.templates.preset)
+    }
+
+    @Test
+    fun `build falls back to fail conflict policy when blank`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+            }
+            conflictPolicy.set(" ")
+        }
+
+        val config = Cap4kBootstrapConfigFactory().build(project, extension)
+
+        assertEquals(ConflictPolicy.FAIL, config.conflictPolicy)
+    }
 }

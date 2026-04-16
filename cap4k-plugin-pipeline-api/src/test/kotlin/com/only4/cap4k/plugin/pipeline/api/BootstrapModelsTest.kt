@@ -30,4 +30,47 @@ class BootstrapModelsTest {
 
         assertTrue(error.message!!.contains("templateId or sourcePath"))
     }
+
+    @Test
+    fun `bootstrap plan item accepts source path without template id`() {
+        val item = BootstrapPlanItem(
+            presetId = "ddd-multi-module",
+            outputPath = "demo/settings.gradle.kts",
+            conflictPolicy = ConflictPolicy.FAIL,
+            sourcePath = "codegen/bootstrap-slots/root/settings.gradle.kts",
+        )
+
+        assertEquals("codegen/bootstrap-slots/root/settings.gradle.kts", item.sourcePath)
+    }
+
+    @Test
+    fun `bootstrap slot id maps root kind`() {
+        val binding = BootstrapSlotBinding(
+            kind = BootstrapSlotKind.ROOT,
+            sourceDir = "codegen/bootstrap-slots/root"
+        )
+
+        assertEquals("root", binding.slotId)
+    }
+
+    @Test
+    fun `bootstrap slot id maps build logic kind`() {
+        val binding = BootstrapSlotBinding(
+            kind = BootstrapSlotKind.BUILD_LOGIC,
+            sourceDir = "codegen/bootstrap-slots/build-logic"
+        )
+
+        assertEquals("build-logic", binding.slotId)
+    }
+
+    @Test
+    fun `bootstrap slot id maps module root kind`() {
+        val binding = BootstrapSlotBinding(
+            kind = BootstrapSlotKind.MODULE_ROOT,
+            role = "application",
+            sourceDir = "codegen/bootstrap-slots/application-root"
+        )
+
+        assertEquals("module-root:application", binding.slotId)
+    }
 }
