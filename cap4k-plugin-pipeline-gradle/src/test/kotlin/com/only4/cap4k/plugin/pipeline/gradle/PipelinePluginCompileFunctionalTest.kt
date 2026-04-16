@@ -113,10 +113,21 @@ class PipelinePluginCompileFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-api-payload-compile-sample")
 
-        val (generateResult, compileResult) = FunctionalFixtureSupport.generateThenCompile(
-            projectDir,
-            ":demo-adapter:compileKotlin"
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-adapter:compileKotlin")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateCompileResult.task(":demo-adapter:compileKotlin")?.outcome
         )
+        assertTrue(beforeGenerateCompileResult.output.contains("SubmitOrderPayload"))
+
+        val generateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-adapter:compileKotlin")
+            .build()
 
         assertGeneratedFilesExist(
             projectDir,
