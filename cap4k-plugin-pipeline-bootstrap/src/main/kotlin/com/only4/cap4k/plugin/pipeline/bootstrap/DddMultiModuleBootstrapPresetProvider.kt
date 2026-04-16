@@ -12,6 +12,7 @@ class DddMultiModuleBootstrapPresetProvider : BootstrapPresetProvider {
     override val presetId: String = "ddd-multi-module"
 
     override fun plan(config: BootstrapConfig): List<BootstrapPlanItem> {
+        validateBootstrapPathSegments(config)
         val context = bootstrapContext(config)
         return buildList {
             add(fixed("bootstrap/root/settings.gradle.kts.peb", "${config.projectName}/settings.gradle.kts", config, context))
@@ -144,6 +145,22 @@ internal fun resolveModuleName(role: String, config: BootstrapConfig): String =
 private fun BootstrapConfig.basePackagePath(): String = basePackage.replace('.', '/')
 
 private fun trimPebExtension(path: String): String = path.removeSuffix(".peb")
+
+internal fun validateBootstrapPathSegments(config: BootstrapConfig) {
+    requireSafePathSegment("bootstrap.projectName", config.projectName)
+    requireSafePathSegment("bootstrap.modules.domainModuleName", config.modules.domainModuleName)
+    requireSafePathSegment("bootstrap.modules.applicationModuleName", config.modules.applicationModuleName)
+    requireSafePathSegment("bootstrap.modules.adapterModuleName", config.modules.adapterModuleName)
+}
+
+private fun requireSafePathSegment(fieldName: String, value: String) {
+    val trimmed = value.trim()
+    require(trimmed.isNotEmpty()) { "$fieldName must be a safe path segment: $value" }
+    require(!trimmed.contains('/') && !trimmed.contains('\\')) { "$fieldName must be a safe path segment: $value" }
+    require(trimmed != "." && trimmed != "..") { "$fieldName must be a safe path segment: $value" }
+    require(!trimmed.contains("..")) { "$fieldName must be a safe path segment: $value" }
+    require(!trimmed.contains(':')) { "$fieldName must be a safe path segment: $value" }
+}
 
 private fun normalizeRelativePath(value: String): String {
     val normalized = value.replace('\\', '/').trim().trimStart('/')

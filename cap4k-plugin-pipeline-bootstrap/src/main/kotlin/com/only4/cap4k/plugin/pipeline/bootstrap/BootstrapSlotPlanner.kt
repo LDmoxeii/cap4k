@@ -12,7 +12,12 @@ internal object BootstrapSlotPlanner {
     fun plan(config: BootstrapConfig): List<BootstrapPlanItem> =
         config.slots.flatMap { binding ->
             val root = Path.of(binding.sourceDir)
-            if (!Files.exists(root)) return@flatMap emptyList()
+            require(Files.exists(root)) {
+                "bootstrap slot sourceDir does not exist for ${binding.slotId}: ${binding.sourceDir}"
+            }
+            require(Files.isDirectory(root)) {
+                "bootstrap slot sourceDir must be a directory for ${binding.slotId}: ${binding.sourceDir}"
+            }
 
             Files.walk(root).use { paths ->
                 paths

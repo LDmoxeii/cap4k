@@ -7,6 +7,7 @@ import com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind
 import com.only4.cap4k.plugin.pipeline.api.BootstrapTemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 class DddMultiModuleBootstrapPresetProviderTest {
@@ -48,5 +49,34 @@ class DddMultiModuleBootstrapPresetProviderTest {
 
         assertTrue(items.any { it.slotId == "root" && it.sourcePath!!.endsWith("slots/root/README.md.peb") })
         assertTrue(items.any { it.slotId == "module-package:domain" && it.outputPath.contains("only-danmuku-domain/src/main/kotlin/edu/only4/danmuku") })
+    }
+
+    @Test
+    fun `plan fails when project name is not a safe path segment`() {
+        val invalidConfig = config.copy(projectName = "../shared")
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DddMultiModuleBootstrapPresetProvider().plan(invalidConfig)
+        }
+
+        assertTrue(error.message!!.contains("bootstrap.projectName"))
+    }
+
+    @Test
+    fun `plan fails when configured slot source dir does not exist`() {
+        val invalidConfig = config.copy(
+            slots = listOf(
+                BootstrapSlotBinding(
+                    kind = BootstrapSlotKind.ROOT,
+                    sourceDir = "src/test/resources/slots/not-exists"
+                )
+            )
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DddMultiModuleBootstrapPresetProvider().plan(invalidConfig)
+        }
+
+        assertTrue(error.message!!.contains("bootstrap slot sourceDir"))
     }
 }
