@@ -7,7 +7,7 @@ import {{ import }}
 {% endfor %}
 
 /**
- * {{ descriptionText | raw }}
+ * {{ descriptionCommentText | raw }}
  */
 @DomainEvent(persist = {{ persist }})
 @Aggregate(

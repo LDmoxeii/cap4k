@@ -1569,6 +1569,13 @@ class PipelinePluginFunctionalTest {
     fun `cap4kGenerate validator flow writes validator under application validators`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-generate")
         copyFixture(projectDir, "design-validator-sample")
+        val designFile = projectDir.resolve("design/design.json")
+        designFile.writeText(
+            designFile.readText().replace(
+                "\"desc\": \"issue token validator\"",
+                "\"desc\": \"issue */ validator\"",
+            )
+        )
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -1585,6 +1592,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(validatorFile.toFile().exists())
         assertTrue(content.contains("annotation class IssueToken"))
         assertTrue(content.contains("ConstraintValidator<IssueToken, Long>"))
+        assertTrue(content.contains("* issue * / validator"))
+        assertFalse(content.contains("* issue */ validator"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1714,7 +1723,7 @@ class PipelinePluginFunctionalTest {
         designFile.writeText(
             designFile.readText().replace(
                 "\"desc\": \"order created event\"",
-                "\"desc\": \"order \\\"created\\\" event\"",
+                "\"desc\": \"order */ \\\"created\\\" event\"",
             )
         )
 
@@ -1741,8 +1750,9 @@ class PipelinePluginFunctionalTest {
         assertTrue(eventContent.contains("aggregate = \"Order\""))
         assertTrue(eventContent.contains("name = \"OrderCreatedDomainEvent\""))
         assertTrue(eventContent.contains("type = Aggregate.TYPE_DOMAIN_EVENT"))
-        assertTrue(eventContent.contains("* order \"created\" event"))
-        assertTrue(eventContent.contains("description = \"order \\\"created\\\" event\""))
+        assertTrue(eventContent.contains("* order * / \"created\" event"))
+        assertFalse(eventContent.contains("* order */ \"created\" event"))
+        assertTrue(eventContent.contains("description = \"order */ \\\"created\\\" event\""))
         assertFalse(eventContent.contains("&quot;"))
         assertTrue(eventContent.contains("import com.acme.demo.domain.order.Order"))
         assertTrue(eventContent.contains("import java.util.UUID"))
@@ -1752,6 +1762,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(eventContent.contains("val traceId: UUID"))
         assertTrue(handlerContent.contains("@Service"))
         assertTrue(handlerContent.contains("@EventListener(OrderCreatedDomainEvent::class)"))
+        assertTrue(handlerContent.contains("* order * / \"created\" event"))
+        assertFalse(handlerContent.contains("* order */ \"created\" event"))
         assertTrue(handlerContent.contains("class OrderCreatedDomainEventSubscriber"))
     }
 

@@ -16,6 +16,13 @@ class PipelinePluginCompileFunctionalTest {
     fun `validator generation participates in application compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-validator-compile-sample")
+        val designFile = projectDir.resolve("design/design.json")
+        designFile.writeText(
+            designFile.readText().replace(
+                "\"desc\": \"order id validator\"",
+                "\"desc\": \"order */ validator\"",
+            )
+        )
 
         val beforeGenerateCompileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-application:compileKotlin")
@@ -32,11 +39,16 @@ class PipelinePluginCompileFunctionalTest {
         val compileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-application:compileKotlin")
             .build()
+        val generatedValidator = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/order/OrderIdValid.kt"
+        ).readText()
 
         assertGeneratedFilesExist(
             projectDir,
             "demo-application/src/main/kotlin/com/acme/demo/application/validators/order/OrderIdValid.kt",
         )
+        assertTrue(generatedValidator.contains("* order * / validator"))
+        assertFalse(generatedValidator.contains("* order */ validator"))
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
@@ -141,6 +153,13 @@ class PipelinePluginCompileFunctionalTest {
     fun `domain event generation participates in domain and application compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-domain-event-compile-sample")
+        val designFile = projectDir.resolve("design/design.json")
+        designFile.writeText(
+            designFile.readText().replace(
+                "\"desc\": \"order \\\"created\\\" event\"",
+                "\"desc\": \"order */ created\"",
+            )
+        )
 
         val beforeGenerateDomainCompileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-domain:compileKotlin")
@@ -169,12 +188,22 @@ class PipelinePluginCompileFunctionalTest {
         val applicationCompileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-application:compileKotlin")
             .build()
+        val generatedEvent = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt"
+        ).readText()
+        val generatedHandler = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt"
+        ).readText()
 
         assertGeneratedFilesExist(
             projectDir,
             "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt",
         )
+        assertTrue(generatedEvent.contains("* order * / created"))
+        assertFalse(generatedEvent.contains("* order */ created"))
+        assertTrue(generatedHandler.contains("* order * / created"))
+        assertFalse(generatedHandler.contains("* order */ created"))
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(domainCompileResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(applicationCompileResult.output.contains("BUILD SUCCESSFUL"))

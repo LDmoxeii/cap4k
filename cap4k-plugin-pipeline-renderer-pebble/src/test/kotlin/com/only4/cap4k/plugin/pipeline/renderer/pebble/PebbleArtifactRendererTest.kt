@@ -2758,9 +2758,10 @@ class PebbleArtifactRendererTest {
                     context = mapOf(
                         "packageName" to "com.acme.demo.domain.order.events",
                         "typeName" to "OrderCreatedDomainEvent",
-                        "description" to "order \"created\" event",
-                        "descriptionText" to "order \"created\" event",
-                        "descriptionKotlinStringLiteral" to "\"order \\\"created\\\" event\"",
+                        "description" to "order */ \"created\" event",
+                        "descriptionText" to "order */ \"created\" event",
+                        "descriptionCommentText" to "order * / \"created\" event",
+                        "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" event\"",
                         "aggregateName" to "Order",
                         "aggregateType" to "com.acme.demo.domain.order.Order",
                         "persist" to true,
@@ -2798,8 +2799,9 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
         assertTrue(content.contains("@DomainEvent"))
         assertTrue(content.contains("@Aggregate"))
-        assertTrue(content.contains("* order \"created\" event"))
-        assertTrue(content.contains("description = \"order \\\"created\\\" event\""))
+        assertTrue(content.contains("* order * / \"created\" event"))
+        assertFalse(content.contains("* order */ \"created\" event"))
+        assertTrue(content.contains("description = \"order */ \\\"created\\\" event\""))
         assertFalse(content.contains("&quot;"))
         assertTrue(content.contains("class OrderCreatedDomainEvent("))
         assertTrue(content.contains("val entity: Order"))
@@ -2832,7 +2834,8 @@ class PebbleArtifactRendererTest {
                         "domainEventTypeName" to "OrderCreatedDomainEvent",
                         "domainEventType" to "com.acme.demo.domain.order.events.OrderCreatedDomainEvent",
                         "aggregateName" to "Order",
-                        "description" to "order created event",
+                        "description" to "order */ created event",
+                        "descriptionCommentText" to "order * / created event",
                         "imports" to listOf("com.acme.demo.domain.order.events.OrderCreatedDomainEvent"),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
@@ -2855,6 +2858,8 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
         assertTrue(content.contains("@Service"))
         assertTrue(content.contains("@EventListener(OrderCreatedDomainEvent::class)"))
+        assertTrue(content.contains("* order * / created event"))
+        assertFalse(content.contains("* order */ created event"))
         assertTrue(content.contains("class OrderCreatedDomainEventSubscriber"))
         assertTrue(content.contains("import com.acme.demo.domain.order.events.OrderCreatedDomainEvent"))
     }
@@ -2964,7 +2969,8 @@ class PebbleArtifactRendererTest {
                     context = mapOf(
                         "packageName" to "com.acme.demo.application.validators.authorize",
                         "typeName" to "IssueToken",
-                        "description" to "issue token validator",
+                        "description" to "issue */ token validator",
+                        "descriptionCommentText" to "issue * / token validator",
                         "valueType" to "Long",
                         "imports" to listOf("java.util.UUID"),
                     ),
@@ -2988,6 +2994,8 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
         assertTrue(content.contains("package com.acme.demo.application.validators.authorize"))
         assertTrue(content.contains("import java.util.UUID"))
+        assertTrue(content.contains("* issue * / token validator"))
+        assertFalse(content.contains("* issue */ token validator"))
         assertTrue(content.contains("@Constraint"))
         assertTrue(content.contains("annotation class IssueToken("))
         assertTrue(content.contains("val message: String"))

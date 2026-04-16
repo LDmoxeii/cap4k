@@ -6,6 +6,7 @@ internal data class DesignValidatorRenderModel(
     val packageName: String,
     val typeName: String,
     val description: String,
+    val descriptionCommentText: String,
     val valueType: String,
     val imports: List<String>,
 ) {
@@ -13,6 +14,7 @@ internal data class DesignValidatorRenderModel(
         "packageName" to packageName,
         "typeName" to typeName,
         "description" to description,
+        "descriptionCommentText" to descriptionCommentText,
         "valueType" to valueType,
         "imports" to imports,
     )
@@ -24,6 +26,7 @@ internal object DesignValidatorRenderModelFactory {
             packageName = "$basePackage.application.validators.${validator.packageName}",
             typeName = validator.typeName,
             description = validator.description,
+            descriptionCommentText = validator.description.toKDocCommentText(),
             valueType = validator.valueType,
             imports = emptyList(),
         )

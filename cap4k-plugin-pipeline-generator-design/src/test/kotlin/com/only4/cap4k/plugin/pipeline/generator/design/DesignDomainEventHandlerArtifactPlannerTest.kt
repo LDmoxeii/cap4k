@@ -25,7 +25,7 @@ class DesignDomainEventHandlerArtifactPlannerTest {
                     DomainEventModel(
                         packageName = "order",
                         typeName = "OrderCreatedDomainEvent",
-                        description = "order created event",
+                        description = "order */ created event",
                         aggregateName = "Order",
                         aggregatePackageName = "com.acme.demo.domain.order",
                         persist = false,
@@ -53,7 +53,8 @@ class DesignDomainEventHandlerArtifactPlannerTest {
         assertEquals("OrderCreatedDomainEvent", handler.context["domainEventTypeName"])
         assertEquals("com.acme.demo.domain.order.events.OrderCreatedDomainEvent", handler.context["domainEventType"])
         assertEquals("Order", handler.context["aggregateName"])
-        assertEquals("order created event", handler.context["description"])
+        assertEquals("order */ created event", handler.context["description"])
+        assertEquals("order * / created event", handler.context["descriptionCommentText"])
         assertEquals(
             listOf("com.acme.demo.domain.order.events.OrderCreatedDomainEvent"),
             handler.context["imports"],

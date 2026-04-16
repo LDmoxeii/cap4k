@@ -27,7 +27,7 @@ class DesignValidatorArtifactPlannerTest {
                     ValidatorModel(
                         packageName = "authorize",
                         typeName = "IssueToken",
-                        description = "issue token validator",
+                        description = "issue */ token validator",
                         valueType = "Long",
                     ),
                 ),
@@ -42,7 +42,8 @@ class DesignValidatorArtifactPlannerTest {
         )
         assertEquals("com.acme.demo.application.validators.authorize", validator.context["packageName"])
         assertEquals("IssueToken", validator.context["typeName"])
-        assertEquals("issue token validator", validator.context["description"])
+        assertEquals("issue */ token validator", validator.context["description"])
+        assertEquals("issue * / token validator", validator.context["descriptionCommentText"])
         assertEquals("Long", validator.context["valueType"])
         assertEquals(emptyList<String>(), validator.context["imports"])
     }

@@ -117,6 +117,7 @@ internal object DesignRenderModelFactory {
             typeName = typeName,
             description = description,
             descriptionText = description,
+            descriptionCommentText = description.toKDocCommentText(),
             descriptionKotlinStringLiteral = description.toKotlinStringLiteral(),
             aggregateName = aggregateName,
             imports = importPlan.imports,
