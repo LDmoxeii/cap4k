@@ -137,6 +137,31 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
 
+    @Test
+    fun `domain event generation participates in domain and application compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-domain-event-compile-sample")
+
+        val generateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
+        val domainCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .build()
+        val applicationCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-application:compileKotlin")
+            .build()
+
+        assertGeneratedFilesExist(
+            projectDir,
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt",
+        )
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(domainCompileResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(applicationCompileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
     private fun assertGeneratedFilesExist(projectDir: Path, vararg relativePaths: String) {
         relativePaths.forEach { relativePath ->
             assertTrue(
