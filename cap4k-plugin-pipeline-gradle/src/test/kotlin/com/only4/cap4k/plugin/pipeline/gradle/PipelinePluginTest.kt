@@ -51,6 +51,15 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `plugin registers bootstrap tasks`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply("com.only4.cap4k.plugin.pipeline")
+
+        assertNotNull(project.tasks.findByName("cap4kBootstrapPlan"))
+        assertNotNull(project.tasks.findByName("cap4kBootstrap"))
+    }
+
+    @Test
     fun `design with ksp metadata depends on relevant ksp task only`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-ksp-root")
         val rootProject = ProjectBuilder.builder()

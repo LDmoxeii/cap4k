@@ -2,9 +2,11 @@ package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
+import com.only4.cap4k.plugin.pipeline.api.BootstrapRunner
 import com.only4.cap4k.plugin.pipeline.api.PipelineRunner
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.core.DefaultCanonicalAssembler
+import com.only4.cap4k.plugin.pipeline.core.DefaultBootstrapRunner
 import com.only4.cap4k.plugin.pipeline.core.DefaultPipelineRunner
 import com.only4.cap4k.plugin.pipeline.core.FilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.NoopArtifactExporter
@@ -20,6 +22,7 @@ import com.only4.cap4k.plugin.pipeline.generator.design.DesignValidatorArtifactP
 import com.only4.cap4k.plugin.pipeline.generator.drawingboard.DrawingBoardArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.flow.FlowArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleArtifactRenderer
+import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleBootstrapRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
 import com.only4.cap4k.plugin.pipeline.source.db.DbSchemaSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.designjson.DesignJsonSourceProvider
@@ -34,6 +37,20 @@ class PipelinePlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
         val configFactory = Cap4kProjectConfigFactory()
+        val bootstrapConfigFactory = Cap4kBootstrapConfigFactory()
+
+        project.tasks.register("cap4kBootstrapPlan", Cap4kBootstrapPlanTask::class.java) { task ->
+            task.group = "cap4k"
+            task.description = "Plans bootstrap skeleton files."
+            task.extension = extension
+            task.configFactory = bootstrapConfigFactory
+        }
+        project.tasks.register("cap4kBootstrap", Cap4kBootstrapTask::class.java) { task ->
+            task.group = "cap4k"
+            task.description = "Generates bootstrap skeleton files."
+            task.extension = extension
+            task.configFactory = bootstrapConfigFactory
+        }
 
         val planTask = project.tasks.register("cap4kPlan", Cap4kPlanTask::class.java) { task ->
             task.group = "cap4k"
@@ -141,6 +158,23 @@ internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled:
             PresetTemplateResolver(
                 preset = config.templates.preset,
                 overrideDirs = config.templates.overrideDirs,
+            )
+        ),
+        exporter = if (exportEnabled) {
+            FilesystemArtifactExporter(project.projectDir.toPath())
+        } else {
+            NoopArtifactExporter()
+        },
+    )
+}
+
+internal fun buildBootstrapRunner(project: Project, exportEnabled: Boolean): BootstrapRunner {
+    return DefaultBootstrapRunner(
+        providers = emptyList(),
+        renderer = PebbleBootstrapRenderer(
+            PresetTemplateResolver(
+                preset = "ddd-default-bootstrap",
+                overrideDirs = emptyList(),
             )
         ),
         exporter = if (exportEnabled) {
