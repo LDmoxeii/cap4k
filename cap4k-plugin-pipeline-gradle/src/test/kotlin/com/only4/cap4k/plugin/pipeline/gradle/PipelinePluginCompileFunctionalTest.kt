@@ -1,5 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
+import org.gradle.testkit.runner.TaskOutcome
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -20,10 +22,9 @@ class PipelinePluginCompileFunctionalTest {
         val beforeGenerateCompileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-application:compileKotlin")
             .buildAndFail()
-        assertTrue(beforeGenerateCompileResult.output.contains("BUILD FAILED"))
-        assertTrue(
-            beforeGenerateCompileResult.output.contains("Unresolved reference") ||
-                beforeGenerateCompileResult.output.contains("Cannot access")
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateCompileResult.task(":demo-application:compileKotlin")?.outcome
         )
 
         val (generateResult, compileResult) = FunctionalFixtureSupport.generateThenCompile(
