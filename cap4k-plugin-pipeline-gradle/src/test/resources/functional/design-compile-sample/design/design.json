@@ -1,28 +1,24 @@
 [
   {
-    "tag": "cmd",
+    "tag": "command",
     "package": "order.submit",
     "name": "SubmitOrder",
-    "desc": "submit order command",
+    "desc": "submit order",
     "aggregates": ["Order"],
     "requestFields": [
       { "name": "orderId", "type": "Long" }
     ],
-    "responseFields": [
-      { "name": "accepted", "type": "Boolean" }
-    ]
+    "responseFields": []
   },
   {
-    "tag": "qry",
+    "tag": "query",
     "package": "order.read",
     "name": "FindOrder",
-    "desc": "find order query",
+    "desc": "find order",
     "aggregates": ["Order"],
     "requestFields": [
       { "name": "orderId", "type": "Long" }
     ],
-    "responseFields": [
-      { "name": "found", "type": "Boolean" }
-    ]
+    "responseFields": []
   }
 ]
