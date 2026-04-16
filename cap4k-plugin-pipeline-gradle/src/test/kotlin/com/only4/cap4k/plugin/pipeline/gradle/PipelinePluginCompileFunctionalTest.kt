@@ -180,6 +180,75 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(applicationCompileResult.output.contains("BUILD SUCCESSFUL"))
     }
 
+    @Test
+    fun `integrated compile sample keeps migrated design families compile-safe together`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-integrated-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-integrated-compile-sample")
+
+        val beforeGenerateDomainCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateDomainCompileResult.task(":demo-domain:compileKotlin")?.outcome
+        )
+        assertTrue(beforeGenerateDomainCompileResult.output.contains("OrderCreatedDomainEvent"))
+
+        val beforeGenerateApplicationCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-application:compileKotlin", "-x", ":demo-domain:compileKotlin")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateApplicationCompileResult.task(":demo-application:compileKotlin")?.outcome
+        )
+        assertTrue(beforeGenerateApplicationCompileResult.output.contains("FindOrderQry"))
+
+        val beforeGenerateAdapterCompileResult = FunctionalFixtureSupport
+            .runner(
+                projectDir,
+                ":demo-adapter:compileKotlin",
+                "-x",
+                ":demo-domain:compileKotlin",
+                "-x",
+                ":demo-application:compileKotlin"
+            )
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateAdapterCompileResult.task(":demo-adapter:compileKotlin")?.outcome
+        )
+        assertTrue(beforeGenerateAdapterCompileResult.output.contains("FindOrderQryHandler"))
+
+        val generateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
+        val domainCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .build()
+        val applicationCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-application:compileKotlin")
+            .build()
+        val adapterCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-adapter:compileKotlin")
+            .build()
+
+        assertGeneratedFilesExist(
+            projectDir,
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt",
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt",
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/order/OrderIdValid.kt",
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/order/SubmitOrderPayload.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt",
+        )
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(domainCompileResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(applicationCompileResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(adapterCompileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
     private fun assertGeneratedFilesExist(projectDir: Path, vararg relativePaths: String) {
         relativePaths.forEach { relativePath ->
             assertTrue(
