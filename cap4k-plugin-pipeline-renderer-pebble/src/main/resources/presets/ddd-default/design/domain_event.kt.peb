@@ -12,7 +12,9 @@ import {{ import }}
 @DomainEvent(persist = {{ persist }})
 @Aggregate(
     aggregate = "{{ aggregateName }}",
-    type = Aggregate.TYPE_DOMAIN_EVENT
+    name = "{{ typeName }}",
+    type = Aggregate.TYPE_DOMAIN_EVENT,
+    description = "{{ description }}"
 )
 class {{ typeName }}(
     val entity: {{ aggregateName }}{% if fields.size > 0 %},{% endif %}
