@@ -61,6 +61,8 @@ Completed:
 - design client / client_handler family migration
 - design validator family migration
 - design api_payload migration
+- design domain_event / domain_event_handler family migration
+- design generator compile-level / integrated verification hardening
 
 Status:
 
@@ -96,15 +98,13 @@ These points remain in force:
 
 ## Current Next Mainline Slice
 
-The next mainline slice is:
-
-- design domain_event / domain_event_handler family migration
+The next mainline slice is: design generator compile-level / integrated verification hardening
 
 Scope:
 
-- continue representative old design-family migration on the helper-first pipeline contract
-- migrate the old `domain_event` and `domain_event_handler` families into bounded pipeline-owned template ids
-- prove the migrated family with fixtures or tests
+- raise representative design-family verification from generate-only to generate-plus-compile
+- add a shared compile-capable functional harness
+- add family-level compile verification and one small integrated compile sample
 
 Non-goals:
 
