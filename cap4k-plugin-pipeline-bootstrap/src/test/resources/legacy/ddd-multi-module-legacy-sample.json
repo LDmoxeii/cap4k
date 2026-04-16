@@ -1,0 +1,23 @@
+{
+  "nodes": [
+    "{{ artifactId }}",
+    "{{ artifactId }}-domain",
+    "{{ artifactId }}-application",
+    "{{ artifactId }}-adapter"
+  ],
+  "templates": [
+    "template/settings.gradle.kts.peb",
+    "template/build.gradle.kts.peb",
+    "template/build.gradle-domain.kts.peb",
+    "template/build.gradle-application.kts.peb",
+    "template/build.gradle-adapter.kts.peb",
+    "template/_tpl/kotlin/Query.kt",
+    "template/_tpl/kotlin/QueryHandler.kt",
+    "template/_tpl/kotlin/DomainEvent.kt"
+  ],
+  "routing": {
+    "query": "template/_tpl/kotlin/Query.kt",
+    "query_handler": "template/_tpl/kotlin/QueryHandler.kt",
+    "domain_event": "template/_tpl/kotlin/DomainEvent.kt"
+  }
+}

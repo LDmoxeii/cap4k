@@ -9,6 +9,7 @@ dependencies {
     implementation(gradleApi())
     implementation(gradleKotlinDsl())
     implementation(project(":cap4k-plugin-pipeline-api"))
+    implementation(project(":cap4k-plugin-pipeline-bootstrap"))
     implementation(project(":cap4k-plugin-pipeline-core"))
     implementation(project(":cap4k-plugin-pipeline-generator-aggregate"))
     implementation(project(":cap4k-plugin-pipeline-generator-drawing-board"))

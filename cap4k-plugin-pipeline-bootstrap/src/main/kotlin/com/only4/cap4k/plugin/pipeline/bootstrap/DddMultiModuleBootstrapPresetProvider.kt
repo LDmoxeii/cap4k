@@ -1,0 +1,217 @@
+package com.only4.cap4k.plugin.pipeline.bootstrap
+
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import com.only4.cap4k.plugin.pipeline.api.BootstrapConfig
+import com.only4.cap4k.plugin.pipeline.api.BootstrapPlanItem
+import com.only4.cap4k.plugin.pipeline.api.BootstrapPresetProvider
+import java.io.File
+import java.nio.charset.StandardCharsets
+
+class DddMultiModuleBootstrapPresetProvider : BootstrapPresetProvider {
+    override val presetId: String = "ddd-multi-module"
+
+    override fun plan(config: BootstrapConfig): List<BootstrapPlanItem> {
+        val context = bootstrapContext(config)
+        return buildList {
+            add(fixed("bootstrap/root/settings.gradle.kts.peb", "${config.projectName}/settings.gradle.kts", config, context))
+            add(fixed("bootstrap/root/build.gradle.kts.peb", "${config.projectName}/build.gradle.kts", config, context))
+            add(
+                fixed(
+                    templateId = "bootstrap/module/domain-build.gradle.kts.peb",
+                    outputPath = "${config.projectName}/${config.modules.domainModuleName}/build.gradle.kts",
+                    config = config,
+                    context = context + mapOf("moduleRole" to "domain"),
+                )
+            )
+            add(
+                fixed(
+                    templateId = "bootstrap/module/application-build.gradle.kts.peb",
+                    outputPath = "${config.projectName}/${config.modules.applicationModuleName}/build.gradle.kts",
+                    config = config,
+                    context = context + mapOf("moduleRole" to "application"),
+                )
+            )
+            add(
+                fixed(
+                    templateId = "bootstrap/module/adapter-build.gradle.kts.peb",
+                    outputPath = "${config.projectName}/${config.modules.adapterModuleName}/build.gradle.kts",
+                    config = config,
+                    context = context + mapOf("moduleRole" to "adapter"),
+                )
+            )
+            addAll(packageMarkers(config, context))
+            addAll(BootstrapSlotPlanner.plan(config))
+        }
+    }
+}
+
+private val moduleRoles: Set<String> = setOf("domain", "application", "adapter")
+
+internal fun bootstrapContext(config: BootstrapConfig): Map<String, Any?> =
+    mapOf(
+        "projectName" to config.projectName,
+        "basePackage" to config.basePackage,
+        "basePackagePath" to config.basePackagePath(),
+        "domainModuleName" to config.modules.domainModuleName,
+        "applicationModuleName" to config.modules.applicationModuleName,
+        "adapterModuleName" to config.modules.adapterModuleName,
+    )
+
+internal fun fixed(
+    templateId: String,
+    outputPath: String,
+    config: BootstrapConfig,
+    context: Map<String, Any?>,
+): BootstrapPlanItem =
+    BootstrapPlanItem(
+        presetId = config.preset,
+        templateId = templateId,
+        outputPath = outputPath,
+        conflictPolicy = config.conflictPolicy,
+        context = context,
+    )
+
+internal fun packageMarkers(
+    config: BootstrapConfig,
+    context: Map<String, Any?>,
+): List<BootstrapPlanItem> {
+    val packagePath = config.basePackagePath()
+    return moduleRoles.map { role ->
+        val markerName = role.replaceFirstChar { it.titlecase() } + "BootstrapMarker"
+        val packageName = "${config.basePackage}.$role"
+        val moduleName = resolveModuleName(role, config)
+
+        fixed(
+            templateId = "bootstrap/module/package-marker.kt.peb",
+            outputPath = "${config.projectName}/$moduleName/src/main/kotlin/$packagePath/$role/$markerName.kt",
+            config = config,
+            context = context + mapOf(
+                "moduleRole" to role,
+                "moduleName" to moduleName,
+                "packageName" to packageName,
+                "markerName" to markerName,
+            ),
+        )
+    }
+}
+
+internal fun renderRelativePath(relativePath: String, config: BootstrapConfig): String {
+    val replacements = mapOf(
+        "{{ projectName }}" to config.projectName,
+        "{{ basePackage }}" to config.basePackage,
+        "{{ basePackagePath }}" to config.basePackagePath(),
+        "__projectName__" to config.projectName,
+        "__basePackage__" to config.basePackage,
+        "__basePackagePath__" to config.basePackagePath(),
+    )
+    val rendered = replacements.entries.fold(relativePath.replace('\\', '/')) { acc, entry ->
+        acc.replace(entry.key, entry.value)
+    }
+    return trimPebExtension(normalizeRelativePath(rendered))
+}
+
+internal fun resolveSlotOutputPath(
+    binding: com.only4.cap4k.plugin.pipeline.api.BootstrapSlotBinding,
+    renderedRelativePath: String,
+    config: BootstrapConfig,
+): String {
+    val boundedRelative = normalizeRelativePath(renderedRelativePath)
+    val moduleName = binding.role?.let { resolveModuleName(it, config) }
+    return when (binding.kind) {
+        com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.ROOT ->
+            "${config.projectName}/$boundedRelative"
+
+        com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.BUILD_LOGIC ->
+            "${config.projectName}/build-logic/$boundedRelative"
+
+        com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.MODULE_ROOT ->
+            "${config.projectName}/${requireNotNull(moduleName)}/$boundedRelative"
+
+        com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.MODULE_PACKAGE ->
+            "${config.projectName}/${requireNotNull(moduleName)}/src/main/kotlin/$boundedRelative"
+    }
+}
+
+internal fun resolveModuleName(role: String, config: BootstrapConfig): String =
+    when (role) {
+        "domain" -> config.modules.domainModuleName
+        "application" -> config.modules.applicationModuleName
+        "adapter" -> config.modules.adapterModuleName
+        else -> throw IllegalArgumentException("unsupported bootstrap slot role: $role")
+    }
+
+private fun BootstrapConfig.basePackagePath(): String = basePackage.replace('.', '/')
+
+private fun trimPebExtension(path: String): String = path.removeSuffix(".peb")
+
+private fun normalizeRelativePath(value: String): String {
+    val normalized = value.replace('\\', '/').trim().trimStart('/')
+    require(normalized.isNotBlank()) { "bootstrap slot path must not be blank." }
+    require(!normalized.split('/').contains("..")) { "bootstrap slot path must stay within project subtree: $value" }
+    return normalized
+}
+
+internal data class LegacyArchTemplateSample(
+    val raw: JsonObject,
+)
+
+internal data class LegacyArchTemplateMapping(
+    val structuralNodes: Set<String>,
+    val fixedTemplateFiles: Set<String>,
+    val routingTags: Set<String>,
+)
+
+internal object LegacyArchTemplateMappingSamples {
+    fun load(resourcePath: String): LegacyArchTemplateSample {
+        val directFile = File(resourcePath)
+        val content = when {
+            directFile.exists() -> directFile.readText()
+            else -> {
+                val stream = LegacyArchTemplateMappingSamples::class.java.classLoader.getResourceAsStream(resourcePath)
+                    ?: error("legacy sample not found: $resourcePath")
+                stream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+            }
+        }
+        return LegacyArchTemplateSample(
+            raw = JsonParser.parseString(content).asJsonObject
+        )
+    }
+}
+
+internal object LegacyArchTemplateMapper {
+    fun classify(sample: LegacyArchTemplateSample): LegacyArchTemplateMapping {
+        val nodes = sample.raw.getAsJsonArray("nodes")
+            ?.mapNotNull { element -> element.takeIf { it.isJsonPrimitive }?.asString }
+            ?.toSet()
+            .orEmpty()
+
+        val routing = sample.raw.getAsJsonObject("routing")
+        val routingTags = routing
+            ?.entrySet()
+            ?.map { it.key }
+            ?.toSet()
+            .orEmpty()
+        val routedTemplateFiles = routing
+            ?.entrySet()
+            ?.mapNotNull { entry -> entry.value.takeIf { it.isJsonPrimitive }?.asString }
+            ?.toSet()
+            .orEmpty()
+
+        val fixedTemplateFiles = sample.raw.getAsJsonArray("templates")
+            ?.mapNotNull { element -> element.takeIf { it.isJsonPrimitive }?.asString }
+            ?.filter { candidate ->
+                candidate.endsWith(".peb") &&
+                    candidate !in routedTemplateFiles &&
+                    !candidate.contains("/_tpl/")
+            }
+            ?.toSet()
+            .orEmpty()
+
+        return LegacyArchTemplateMapping(
+            structuralNodes = nodes,
+            fixedTemplateFiles = fixedTemplateFiles,
+            routingTags = routingTags,
+        )
+    }
+}

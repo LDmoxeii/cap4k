@@ -46,6 +46,7 @@ include("cap4k-plugin-codegen")
 include(
     "cap4k-plugin-pipeline-api",
     "cap4k-plugin-pipeline-core",
+    "cap4k-plugin-pipeline-bootstrap",
     "cap4k-plugin-pipeline-renderer-api",
     "cap4k-plugin-pipeline-renderer-pebble",
     "cap4k-plugin-pipeline-source-design-json",
