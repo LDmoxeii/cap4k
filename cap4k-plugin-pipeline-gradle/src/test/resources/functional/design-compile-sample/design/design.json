@@ -20,5 +20,40 @@
       { "name": "orderId", "type": "Long" }
     ],
     "responseFields": []
+  },
+  {
+    "tag": "query",
+    "package": "order.read",
+    "name": "FindOrderList",
+    "desc": "find order list",
+    "aggregates": ["Order"],
+    "requestFields": [
+      { "name": "customerId", "type": "Long" }
+    ],
+    "responseFields": []
+  },
+  {
+    "tag": "query",
+    "package": "order.read",
+    "name": "FindOrderPage",
+    "desc": "find order page",
+    "aggregates": ["Order"],
+    "requestFields": [
+      { "name": "keyword", "type": "String" }
+    ],
+    "responseFields": []
+  },
+  {
+    "tag": "client",
+    "package": "authorize",
+    "name": "IssueToken",
+    "desc": "issue token",
+    "aggregates": ["Order"],
+    "requestFields": [
+      { "name": "account", "type": "String" }
+    ],
+    "responseFields": [
+      { "name": "token", "type": "String" }
+    ]
   }
 ]

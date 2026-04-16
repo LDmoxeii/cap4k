@@ -27,7 +27,13 @@ class DesignClientHandlerArtifactPlanner : GeneratorProvider {
                     context = DesignClientHandlerRenderModelFactory.create(
                         basePackage = config.basePackage,
                         request = request,
-                    ).toContextMap(),
+                    ).toContextMap() + mapOf(
+                        "responseFields" to request.responseFields
+                            .asSequence()
+                            .filterNot { it.name.contains('.') }
+                            .map { field -> mapOf("name" to field.name) }
+                            .toList()
+                    ),
                     conflictPolicy = config.templates.conflictPolicy,
                 )
             }
