@@ -1710,6 +1710,13 @@ class PipelinePluginFunctionalTest {
     fun `cap4kGenerate domain event flow writes domain event and domain event subscriber artifacts`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-generate")
         copyFixture(projectDir, "design-domain-event-sample")
+        val designFile = projectDir.resolve("design/design.json")
+        designFile.writeText(
+            designFile.readText().replace(
+                "\"desc\": \"order created event\"",
+                "\"desc\": \"order \\\"created\\\" event\"",
+            )
+        )
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -1734,7 +1741,9 @@ class PipelinePluginFunctionalTest {
         assertTrue(eventContent.contains("aggregate = \"Order\""))
         assertTrue(eventContent.contains("name = \"OrderCreatedDomainEvent\""))
         assertTrue(eventContent.contains("type = Aggregate.TYPE_DOMAIN_EVENT"))
-        assertTrue(eventContent.contains("description = \"order created event\""))
+        assertTrue(eventContent.contains("* order \"created\" event"))
+        assertTrue(eventContent.contains("description = \"order \\\"created\\\" event\""))
+        assertFalse(eventContent.contains("&quot;"))
         assertTrue(eventContent.contains("import com.acme.demo.domain.order.Order"))
         assertTrue(eventContent.contains("import java.util.UUID"))
         assertTrue(eventContent.contains("class OrderCreatedDomainEvent("))

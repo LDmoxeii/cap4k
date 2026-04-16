@@ -34,7 +34,9 @@ class DesignDomainEventArtifactPlannerTest {
         assertEquals(ConflictPolicy.SKIP, event.conflictPolicy)
         assertEquals("com.acme.demo.domain.order.events", event.context["packageName"])
         assertEquals("OrderCreatedDomainEvent", event.context["typeName"])
-        assertEquals("order created event", event.context["description"])
+        assertEquals("order \"created\" event", event.context["description"])
+        assertEquals("order \"created\" event", event.context["descriptionText"])
+        assertEquals("\"order \\\"created\\\" event\"", event.context["descriptionKotlinStringLiteral"])
         assertEquals("Order", event.context["aggregateName"])
         assertEquals("com.acme.demo.domain.order.Order", event.context["aggregateType"])
         assertEquals(false, event.context["persist"])
@@ -65,7 +67,7 @@ class DesignDomainEventArtifactPlannerTest {
     private fun domainEvent() = DomainEventModel(
         packageName = "order",
         typeName = "OrderCreatedDomainEvent",
-        description = "order created event",
+        description = "order \"created\" event",
         aggregateName = "Order",
         aggregatePackageName = "com.acme.demo.domain.order",
         persist = false,

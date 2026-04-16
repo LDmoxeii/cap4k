@@ -2758,7 +2758,9 @@ class PebbleArtifactRendererTest {
                     context = mapOf(
                         "packageName" to "com.acme.demo.domain.order.events",
                         "typeName" to "OrderCreatedDomainEvent",
-                        "description" to "order created event",
+                        "description" to "order \"created\" event",
+                        "descriptionText" to "order \"created\" event",
+                        "descriptionKotlinStringLiteral" to "\"order \\\"created\\\" event\"",
                         "aggregateName" to "Order",
                         "aggregateType" to "com.acme.demo.domain.order.Order",
                         "persist" to true,
@@ -2796,6 +2798,9 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
         assertTrue(content.contains("@DomainEvent"))
         assertTrue(content.contains("@Aggregate"))
+        assertTrue(content.contains("* order \"created\" event"))
+        assertTrue(content.contains("description = \"order \\\"created\\\" event\""))
+        assertFalse(content.contains("&quot;"))
         assertTrue(content.contains("class OrderCreatedDomainEvent("))
         assertTrue(content.contains("val entity: Order"))
         assertTrue(content.indexOf("val entity: Order") < content.indexOf("val reason: String"))

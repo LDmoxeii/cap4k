@@ -28,6 +28,8 @@ class DesignDomainEventArtifactPlanner : GeneratorProvider {
                     "packageName" to renderModel.packageName,
                     "typeName" to renderModel.typeName,
                     "description" to renderModel.description,
+                    "descriptionText" to renderModel.descriptionText,
+                    "descriptionKotlinStringLiteral" to renderModel.descriptionKotlinStringLiteral,
                     "aggregateName" to renderModel.aggregateName,
                     "aggregateType" to "${event.aggregatePackageName}.${event.aggregateName}",
                     "persist" to event.persist,

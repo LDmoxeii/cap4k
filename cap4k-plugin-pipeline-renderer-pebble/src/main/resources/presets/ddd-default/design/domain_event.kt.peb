@@ -7,14 +7,14 @@ import {{ import }}
 {% endfor %}
 
 /**
- * {{ description }}
+ * {{ descriptionText | raw }}
  */
 @DomainEvent(persist = {{ persist }})
 @Aggregate(
     aggregate = "{{ aggregateName }}",
     name = "{{ typeName }}",
     type = Aggregate.TYPE_DOMAIN_EVENT,
-    description = "{{ description }}"
+    description = {{ descriptionKotlinStringLiteral | raw }}
 )
 class {{ typeName }}(
     val entity: {{ aggregateName }}{% if fields.size > 0 %},{% endif %}
