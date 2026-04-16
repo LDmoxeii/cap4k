@@ -82,6 +82,7 @@ Traceability:
 - [design client family migration design](specs/2026-04-14-cap4k-design-client-family-migration-design.md)
 - [design validator family migration design](specs/2026-04-15-cap4k-design-validator-family-migration-design.md)
 - [design api payload migration design](specs/2026-04-15-cap4k-design-api-payload-migration-design.md)
+- [design domain event family migration design](specs/2026-04-15-cap4k-design-domain-event-family-migration-design.md)
 
 ## Current Mainline Contract
 
