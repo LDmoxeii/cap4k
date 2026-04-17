@@ -253,6 +253,7 @@ class PipelinePluginCompileFunctionalTest {
             TaskOutcome.FAILED,
             beforeGenerateCompileResult.task(":demo-domain:compileKotlin")?.outcome
         )
+        assertTrue(beforeGenerateCompileResult.output.contains("VideoPost"))
         assertTrue(beforeGenerateCompileResult.output.contains("Status"))
         assertTrue(beforeGenerateCompileResult.output.contains("VideoPostVisibility"))
 
