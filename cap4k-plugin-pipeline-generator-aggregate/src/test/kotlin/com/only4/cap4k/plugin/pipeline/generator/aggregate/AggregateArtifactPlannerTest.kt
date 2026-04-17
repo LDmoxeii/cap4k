@@ -13,6 +13,7 @@ import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -231,7 +232,7 @@ class AggregateArtifactPlannerTest {
             schemas = listOf(
                 SchemaModel(
                     name = "VideoPostSchema",
-                    packageName = "com.acme.demo.domain.aggregates.video_post",
+                    packageName = "com.acme.demo.domain._share.meta.video_post",
                     entityName = "VideoPost",
                     comment = "video post schema",
                     fields = listOf(
@@ -281,13 +282,84 @@ class AggregateArtifactPlannerTest {
         assertTrue(items.any { it.templateId == "aggregate/enum_translation.kt.peb" && it.outputPath.endsWith("/domain/translation/video_post/VideoPostVisibilityTranslation.kt") })
 
         val entityPlan = items.single { it.templateId == "aggregate/entity.kt.peb" }
+        val schemaPlan = items.single { it.templateId == "aggregate/schema.kt.peb" }
         @Suppress("UNCHECKED_CAST")
         val entityFields = entityPlan.context.getValue("fields") as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val schemaFields = schemaPlan.context.getValue("fields") as List<Map<String, Any?>>
         assertEquals("com.acme.demo.domain.shared.enums.Status", entityFields.single { it["name"] == "status" }["type"])
         assertEquals(
             "com.acme.demo.domain.aggregates.video_post.enums.VideoPostVisibility",
             entityFields.single { it["name"] == "visibility" }["type"]
         )
+        assertEquals("com.acme.demo.domain.shared.enums.Status", schemaFields.single { it["name"] == "status" }["type"])
+        assertEquals(
+            "com.acme.demo.domain.aggregates.video_post.enums.VideoPostVisibility",
+            schemaFields.single { it["name"] == "visibility" }["type"]
+        )
+    }
+
+    @Test
+    fun `local enum translations under different aggregate owners use different translation keys`() {
+        val planner = AggregateArtifactPlanner()
+        val config = aggregateConfig()
+        val model = CanonicalModel(
+            entities = listOf(
+                EntityModel(
+                    name = "VideoPost",
+                    packageName = "com.acme.demo.domain.aggregates.video_post",
+                    tableName = "video_post",
+                    comment = "video post",
+                    fields = listOf(
+                        FieldModel(
+                            name = "visibility",
+                            type = "Int",
+                            typeBinding = "Visibility",
+                            enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden")),
+                        ),
+                    ),
+                    idField = FieldModel(name = "id", type = "Long"),
+                ),
+                EntityModel(
+                    name = "ArticlePost",
+                    packageName = "com.acme.demo.domain.aggregates.article_post",
+                    tableName = "article_post",
+                    comment = "article post",
+                    fields = listOf(
+                        FieldModel(
+                            name = "visibility",
+                            type = "Int",
+                            typeBinding = "Visibility",
+                            enumItems = listOf(EnumItemModel(1, "PUBLIC", "Public")),
+                        ),
+                    ),
+                    idField = FieldModel(name = "id", type = "Long"),
+                ),
+            ),
+        )
+
+        val items = planner.plan(config, model)
+        val videoTranslation = items.single {
+            it.templateId == "aggregate/enum_translation.kt.peb" &&
+                it.outputPath.endsWith("/domain/translation/video_post/VisibilityTranslation.kt")
+        }
+        val articleTranslation = items.single {
+            it.templateId == "aggregate/enum_translation.kt.peb" &&
+                it.outputPath.endsWith("/domain/translation/article_post/VisibilityTranslation.kt")
+        }
+
+        assertNotEquals(
+            videoTranslation.context["translationTypeConst"],
+            articleTranslation.context["translationTypeConst"],
+        )
+        assertNotEquals(
+            videoTranslation.context["translationTypeValue"],
+            articleTranslation.context["translationTypeValue"],
+        )
+        assertEquals("VIDEO_POST_VISIBILITY_CODE_TO_DESC", videoTranslation.context["translationTypeConst"])
+        assertEquals("video_post_visibility_code_to_desc", videoTranslation.context["translationTypeValue"])
+        assertEquals("ARTICLE_POST_VISIBILITY_CODE_TO_DESC", articleTranslation.context["translationTypeConst"])
+        assertEquals("article_post_visibility_code_to_desc", articleTranslation.context["translationTypeValue"])
     }
 
     @Test

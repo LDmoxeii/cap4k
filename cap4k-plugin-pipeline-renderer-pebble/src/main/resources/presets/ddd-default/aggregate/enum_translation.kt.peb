@@ -6,7 +6,7 @@ import com.only.engine.translation.core.TranslationInterface
 import org.springframework.stereotype.Component
 import {{ enumTypeFqn }}
 
-@TranslationType(type = {{ translationTypeConst }})
+@TranslationType(type = "{{ translationTypeValue }}")
 @Component
 class {{ typeName }} : TranslationInterface<String>, BatchTranslationInterface<String> {
 

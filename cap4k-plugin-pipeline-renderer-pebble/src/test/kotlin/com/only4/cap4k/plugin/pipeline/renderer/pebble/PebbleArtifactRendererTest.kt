@@ -1333,7 +1333,8 @@ class PebbleArtifactRendererTest {
         assertTrue(enumContent.contains("DRAFT(0, \"Draft\")"))
         assertTrue(translationContent.contains("class StatusTranslation"))
         assertTrue(translationContent.contains("import com.acme.demo.domain.shared.enums.Status"))
-        assertTrue(translationContent.contains("@TranslationType(type = STATUS_CODE_TO_DESC)"))
+        assertTrue(translationContent.contains("@TranslationType(type = \"status_code_to_desc\")"))
+        assertTrue(translationContent.contains("const val STATUS_CODE_TO_DESC = \"status_code_to_desc\""))
     }
 
     @Test

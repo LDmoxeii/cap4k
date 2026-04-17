@@ -19,6 +19,7 @@ internal class EnumTranslationArtifactPlanner : AggregateArtifactFamilyPlanner {
                     packageName = sharedTranslationPackage(enumPackageName),
                     enumTypeName = enumTypeName,
                     enumTypeFqn = enumTypeFqn,
+                    ownerScope = sharedOwnerScope(enumPackageName),
                 )
             }
 
@@ -38,11 +39,12 @@ internal class EnumTranslationArtifactPlanner : AggregateArtifactFamilyPlanner {
                 packageName = localTranslationPackage(candidate.ownerPackageName),
                 enumTypeName = enumTypeFqn.substringAfterLast('.'),
                 enumTypeFqn = enumTypeFqn,
+                ownerScope = localOwnerScope(candidate.ownerPackageName),
             )
         }
 
         return (sharedTranslations + localTranslations).map { translation ->
-            val typeKey = translationTypeKey(translation.enumTypeName)
+            val typeKey = translationTypeKey(translation.ownerScope, translation.enumTypeName)
             val translationTypeConst = "${typeKey.uppercase()}_CODE_TO_DESC"
             val translationTypeValue = "${typeKey}_code_to_desc"
             val outputDir = if (translation.packageName.isBlank()) {
@@ -73,6 +75,7 @@ private data class EnumTranslationCandidate(
     val packageName: String,
     val enumTypeName: String,
     val enumTypeFqn: String,
+    val ownerScope: String,
 )
 
 private data class LocalTranslationKey(
@@ -85,13 +88,21 @@ private data class LocalTranslationCandidate(
     val field: FieldModel,
 )
 
-private fun translationTypeKey(typeName: String): String {
-    return typeName
+private fun translationTypeKey(ownerScope: String, typeName: String): String {
+    return "${ownerScope}_$typeName"
         .replace(Regex("([a-z0-9])([A-Z])"), "$1_$2")
         .replace(Regex("([A-Z]+)([A-Z][a-z])"), "$1_$2")
         .replace("-", "_")
         .replace(".", "_")
         .lowercase()
+}
+
+private fun sharedOwnerScope(packageName: String): String {
+    if (packageName.contains(".shared.enums")) {
+        return "shared"
+    }
+    return packageName.substringAfterLast('.', missingDelimiterValue = "shared")
+        .ifBlank { "shared" }
 }
 
 private fun sharedTranslationPackage(packageName: String): String {
@@ -104,6 +115,15 @@ private fun sharedTranslationPackage(packageName: String): String {
         return packageName.removeSuffix(".shared.enums") + ".translation.shared"
     }
     return if (packageName.isBlank()) "translation.shared" else "$packageName.translation"
+}
+
+private fun localOwnerScope(ownerPackageName: String): String {
+    val marker = ".domain.aggregates."
+    val markerIndex = ownerPackageName.indexOf(marker)
+    if (markerIndex >= 0) {
+        return ownerPackageName.substring(markerIndex + marker.length).substringBefore('.')
+    }
+    return ownerPackageName.substringAfterLast('.', missingDelimiterValue = ownerPackageName)
 }
 
 private fun localTranslationPackage(ownerPackageName: String): String {

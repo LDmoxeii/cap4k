@@ -11,14 +11,18 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
         val domainRoot = requireRelativeModule(config, "domain")
         val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
         val planning = AggregateEnumPlanning.from(model, config.typeRegistry)
+        val entityOwnerByName = model.entities
+            .groupBy { it.name }
+            .mapValues { (_, entities) -> entities.singleOrNull()?.packageName }
 
         return model.schemas.map { schema ->
             val entityTypeFqn = derivedTypeReferences.entityFqn(schema.entityName) ?: ""
             val qEntityTypeFqn = derivedTypeReferences.qEntityFqn(schema.entityName) ?: ""
+            val ownerPackage = entityOwnerByName[schema.entityName]
             val fields = schema.fields.map { field ->
                 mapOf(
                     "name" to field.name,
-                    "type" to planning.resolveFieldType(schema.packageName, field),
+                    "type" to planning.resolveFieldType(ownerPackage ?: schema.packageName, field),
                     "nullable" to field.nullable,
                     "defaultValue" to field.defaultValue,
                     "typeBinding" to field.typeBinding,
