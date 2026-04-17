@@ -174,32 +174,40 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `factory and specification planners use the current entity when names collide`() {
+    fun `schema is ambiguity-safe and factory plus specification planners use the current entity when names collide`() {
         val config = aggregateConfig()
+        val primaryEntity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.primary_video_post",
+            tableName = "primary_video_post",
+            comment = "Primary video post entity",
+            fields = listOf(FieldModel("id", "Long")),
+            idField = FieldModel("id", "Long"),
+        )
+        val secondaryEntity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.secondary_video_post",
+            tableName = "secondary_video_post",
+            comment = "Secondary video post entity",
+            fields = listOf(FieldModel("id", "Long")),
+            idField = FieldModel("id", "Long"),
+        )
         val model = CanonicalModel(
-            schemas = emptyList(),
-            entities = listOf(
-                EntityModel(
-                    name = "VideoPost",
-                    packageName = "com.acme.demo.domain.aggregates.primary_video_post",
-                    tableName = "primary_video_post",
-                    comment = "Primary video post entity",
+            schemas = listOf(
+                SchemaModel(
+                    name = "SVideoPost",
+                    packageName = "com.acme.demo.domain._share.meta.video_post",
+                    entityName = "VideoPost",
+                    comment = "Video post schema",
                     fields = listOf(FieldModel("id", "Long")),
-                    idField = FieldModel("id", "Long"),
-                ),
-                EntityModel(
-                    name = "VideoPost",
-                    packageName = "com.acme.demo.domain.aggregates.secondary_video_post",
-                    tableName = "secondary_video_post",
-                    comment = "Secondary video post entity",
-                    fields = listOf(FieldModel("id", "Long")),
-                    idField = FieldModel("id", "Long"),
                 )
             ),
+            entities = listOf(primaryEntity, secondaryEntity),
             repositories = emptyList(),
         )
 
         val planItems = AggregateArtifactPlanner().plan(config, model)
+        val schemaContext = planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context
         val primaryFactoryContext = planItems.first {
             it.templateId == "aggregate/factory.kt.peb" &&
                 it.context["packageName"] == "com.acme.demo.domain.aggregates.primary_video_post.factory"
@@ -217,6 +225,8 @@ class AggregateArtifactPlannerTest {
                 it.context["packageName"] == "com.acme.demo.domain.aggregates.secondary_video_post.specification"
         }.context
 
+        assertEquals("", schemaContext["entityTypeFqn"])
+        assertEquals("", schemaContext["qEntityTypeFqn"])
         assertEquals(
             "com.acme.demo.domain.aggregates.primary_video_post.VideoPost",
             primaryFactoryContext["entityTypeFqn"],

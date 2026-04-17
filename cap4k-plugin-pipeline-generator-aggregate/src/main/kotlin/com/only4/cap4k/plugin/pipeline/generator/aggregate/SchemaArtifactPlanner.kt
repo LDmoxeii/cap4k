@@ -12,6 +12,9 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
         val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
 
         return model.schemas.map { schema ->
+            val entityTypeFqn = derivedTypeReferences.entityFqn(schema.entityName) ?: ""
+            val qEntityTypeFqn = derivedTypeReferences.qEntityFqn(schema.entityName) ?: ""
+
             ArtifactPlanItem(
                 generatorId = "aggregate",
                 moduleRole = "domain",
@@ -22,8 +25,8 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "typeName" to schema.name,
                     "comment" to schema.comment,
                     "entityName" to schema.entityName,
-                    "entityTypeFqn" to (derivedTypeReferences.entityFqn(schema.entityName) ?: ""),
-                    "qEntityTypeFqn" to (derivedTypeReferences.qEntityFqn(schema.entityName) ?: ""),
+                    "entityTypeFqn" to entityTypeFqn,
+                    "qEntityTypeFqn" to qEntityTypeFqn,
                     "fields" to schema.fields,
                 ),
                 conflictPolicy = config.templates.conflictPolicy,
