@@ -7,8 +7,19 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val domainRoot = requireRelativeModule(config, "domain")
+        val planning = AggregateEnumPlanning.from(model, config.typeRegistry)
 
         return model.entities.map { entity ->
+            val fields = entity.fields.map { field ->
+                mapOf(
+                    "name" to field.name,
+                    "type" to planning.resolveFieldType(entity.packageName, field),
+                    "nullable" to field.nullable,
+                    "defaultValue" to field.defaultValue,
+                    "typeBinding" to field.typeBinding,
+                    "enumItems" to field.enumItems,
+                )
+            }
             ArtifactPlanItem(
                 generatorId = "aggregate",
                 moduleRole = "domain",
@@ -20,7 +31,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "comment" to entity.comment,
                     "tableName" to entity.tableName,
                     "idField" to entity.idField,
-                    "fields" to entity.fields,
+                    "fields" to fields,
                 ),
                 conflictPolicy = config.templates.conflictPolicy,
             )

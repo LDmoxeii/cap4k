@@ -3,15 +3,18 @@ package com.only4.cap4k.plugin.pipeline.generator.aggregate
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
+import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
+import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
 
@@ -206,6 +209,84 @@ class AggregateArtifactPlannerTest {
         assertEquals(
             "com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry",
             validator.context["queryTypeFqn"],
+        )
+    }
+
+    @Test
+    fun `aggregate planner emits shared enum local enum and translation artifacts with stable ownership`() {
+        val planner = AggregateArtifactPlanner()
+        val config = aggregateConfig()
+        val model = CanonicalModel(
+            sharedEnums = listOf(
+                SharedEnumDefinition(
+                    typeName = "Status",
+                    packageName = "shared",
+                    generateTranslation = true,
+                    items = listOf(
+                        EnumItemModel(0, "DRAFT", "Draft"),
+                        EnumItemModel(1, "PUBLISHED", "Published"),
+                    ),
+                )
+            ),
+            schemas = listOf(
+                SchemaModel(
+                    name = "VideoPostSchema",
+                    packageName = "com.acme.demo.domain.aggregates.video_post",
+                    entityName = "VideoPost",
+                    comment = "video post schema",
+                    fields = listOf(
+                        FieldModel(name = "status", type = "Int", typeBinding = "Status"),
+                        FieldModel(
+                            name = "visibility",
+                            type = "Int",
+                            typeBinding = "VideoPostVisibility",
+                            enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden")),
+                        ),
+                    ),
+                )
+            ),
+            entities = listOf(
+                EntityModel(
+                    name = "VideoPost",
+                    packageName = "com.acme.demo.domain.aggregates.video_post",
+                    tableName = "video_post",
+                    comment = "video post",
+                    fields = listOf(
+                        FieldModel(name = "status", type = "Int", typeBinding = "Status"),
+                        FieldModel(
+                            name = "visibility",
+                            type = "Int",
+                            typeBinding = "VideoPostVisibility",
+                            enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden")),
+                        ),
+                    ),
+                    idField = FieldModel(name = "id", type = "Long"),
+                )
+            ),
+            repositories = listOf(
+                RepositoryModel(
+                    name = "VideoPostRepository",
+                    packageName = "com.acme.demo.domain.aggregates.video_post.repo",
+                    entityName = "VideoPost",
+                    idType = "Long",
+                )
+            )
+        )
+
+        val items = planner.plan(config, model)
+
+        assertTrue(items.any { it.templateId == "aggregate/enum.kt.peb" && it.outputPath.endsWith("/domain/shared/enums/Status.kt") })
+        assertTrue(items.any { it.templateId == "aggregate/enum.kt.peb" && it.outputPath.endsWith("/domain/aggregates/video_post/enums/VideoPostVisibility.kt") })
+        assertTrue(items.any { it.templateId == "aggregate/enum_translation.kt.peb" && it.outputPath.endsWith("/domain/translation/shared/StatusTranslation.kt") })
+        assertTrue(items.any { it.templateId == "aggregate/enum_translation.kt.peb" && it.outputPath.endsWith("/domain/translation/video_post/VideoPostVisibilityTranslation.kt") })
+
+        val entityPlan = items.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val entityFields = entityPlan.context.getValue("fields") as List<Map<String, Any?>>
+        assertEquals("com.acme.demo.domain.shared.enums.Status", entityFields.single { it["name"] == "status" }["type"])
+        assertEquals(
+            "com.acme.demo.domain.aggregates.video_post.enums.VideoPostVisibility",
+            entityFields.single { it["name"] == "visibility" }["type"]
         )
     }
 

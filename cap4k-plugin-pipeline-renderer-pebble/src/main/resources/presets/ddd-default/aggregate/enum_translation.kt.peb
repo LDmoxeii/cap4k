@@ -1,0 +1,28 @@
+package {{ packageName }}
+
+import com.only.engine.translation.annotation.TranslationType
+import com.only.engine.translation.core.BatchTranslationInterface
+import com.only.engine.translation.core.TranslationInterface
+import org.springframework.stereotype.Component
+import {{ enumTypeFqn }}
+
+@TranslationType(type = {{ translationTypeConst }})
+@Component
+class {{ typeName }} : TranslationInterface<String>, BatchTranslationInterface<String> {
+
+    companion object {
+        const val {{ translationTypeConst }} = "{{ translationTypeValue }}"
+    }
+
+    override fun translation(key: Any, other: String): String? {
+        val code = when (key) {
+            is Number -> key.toInt()
+            is String -> key.toIntOrNull()
+            else -> null
+        } ?: return null
+        return {{ enumTypeName }}.valueOfOrNull(code)?.description
+    }
+
+    override fun translationBatch(keys: Collection<Any>, other: String): Map<Any, String?> =
+        keys.associateWith { translation(it, other) }
+}

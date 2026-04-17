@@ -1,0 +1,16 @@
+package {{ packageName }}
+
+enum class {{ typeName }}(
+    val value: Int,
+    val description: String
+) {
+{% for item in items %}
+    {{ item.name }}({{ item.value }}, "{{ item.description }}"){% if not loop.last %},{% else %};{% endif %}
+{% endfor %}
+
+    companion object {
+        private val enumMap: Map<Int, {{ typeName }}> = entries.associateBy { it.value }
+
+        fun valueOfOrNull(value: Int?): {{ typeName }}? = enumMap[value]
+    }
+}

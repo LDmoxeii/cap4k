@@ -10,10 +10,21 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val domainRoot = requireRelativeModule(config, "domain")
         val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
+        val planning = AggregateEnumPlanning.from(model, config.typeRegistry)
 
         return model.schemas.map { schema ->
             val entityTypeFqn = derivedTypeReferences.entityFqn(schema.entityName) ?: ""
             val qEntityTypeFqn = derivedTypeReferences.qEntityFqn(schema.entityName) ?: ""
+            val fields = schema.fields.map { field ->
+                mapOf(
+                    "name" to field.name,
+                    "type" to planning.resolveFieldType(schema.packageName, field),
+                    "nullable" to field.nullable,
+                    "defaultValue" to field.defaultValue,
+                    "typeBinding" to field.typeBinding,
+                    "enumItems" to field.enumItems,
+                )
+            }
 
             ArtifactPlanItem(
                 generatorId = "aggregate",
@@ -27,7 +38,7 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "entityName" to schema.entityName,
                     "entityTypeFqn" to entityTypeFqn,
                     "qEntityTypeFqn" to qEntityTypeFqn,
-                    "fields" to schema.fields,
+                    "fields" to fields,
                 ),
                 conflictPolicy = config.templates.conflictPolicy,
             )

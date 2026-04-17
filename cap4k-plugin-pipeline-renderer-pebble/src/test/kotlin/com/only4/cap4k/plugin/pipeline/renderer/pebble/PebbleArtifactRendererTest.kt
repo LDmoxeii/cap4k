@@ -1264,6 +1264,79 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `falls back to preset aggregate enum and translation templates`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-enum")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/enum.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.shared.enums",
+                        "typeName" to "Status",
+                        "aggregateName" to null,
+                        "items" to listOf(
+                            mapOf("value" to 0, "name" to "DRAFT", "description" to "Draft"),
+                            mapOf("value" to 1, "name" to "PUBLISHED", "description" to "Published"),
+                        ),
+                        "translationTypeName" to "StatusTranslation",
+                        "translationEnabled" to true,
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                ),
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "adapter",
+                    templateId = "aggregate/enum_translation.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/shared/StatusTranslation.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.translation.shared",
+                        "typeName" to "StatusTranslation",
+                        "enumTypeName" to "Status",
+                        "enumTypeFqn" to "com.acme.demo.domain.shared.enums.Status",
+                        "translationTypeConst" to "STATUS_CODE_TO_DESC",
+                        "translationTypeValue" to "status_code_to_desc",
+                        "enumNameField" to "description",
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                ),
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val enumContent = rendered.single { it.outputPath.endsWith("/domain/shared/enums/Status.kt") }.content
+        val translationContent = rendered.single {
+            it.outputPath.endsWith("/domain/translation/shared/StatusTranslation.kt")
+        }.content
+
+        assertTrue(enumContent.contains("enum class Status("))
+        assertTrue(enumContent.contains("DRAFT(0, \"Draft\")"))
+        assertTrue(translationContent.contains("class StatusTranslation"))
+        assertTrue(translationContent.contains("import com.acme.demo.domain.shared.enums.Status"))
+        assertTrue(translationContent.contains("@TranslationType(type = STATUS_CODE_TO_DESC)"))
+    }
+
+    @Test
     fun `falls back to preset flow templates and renders flow artifacts`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-flow")
         val renderer = PebbleArtifactRenderer(
