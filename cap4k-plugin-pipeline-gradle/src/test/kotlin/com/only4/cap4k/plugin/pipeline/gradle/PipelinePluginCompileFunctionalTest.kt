@@ -275,7 +275,6 @@ class PipelinePluginCompileFunctionalTest {
     fun `aggregate unique query handler generation participates in adapter compileKotlin`() {
         val redProjectDir = Files.createTempDirectory("pipeline-functional-aggregate-unique-adapter-compile-red")
         FunctionalFixtureSupport.copyCompileFixture(redProjectDir, "aggregate-compile-sample")
-        ensureAggregateAdapterHasSpringContext(redProjectDir)
         removeAggregateUniqueApplicationCompileSmokeSource(redProjectDir)
 
         val beforeGenerateCompileResult = FunctionalFixtureSupport
@@ -289,7 +288,6 @@ class PipelinePluginCompileFunctionalTest {
 
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-unique-adapter-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
-        ensureAggregateAdapterHasSpringContext(projectDir)
         val (generateResult, compileResult) = FunctionalFixtureSupport.generateThenCompile(
             projectDir,
             ":demo-adapter:compileKotlin"
@@ -413,17 +411,4 @@ class PipelinePluginCompileFunctionalTest {
         Files.deleteIfExists(applicationCompileSmokePath)
     }
 
-    private fun ensureAggregateAdapterHasSpringContext(projectDir: Path) {
-        val adapterBuildFile = projectDir.resolve("demo-adapter/build.gradle.kts")
-        val normalizedContent = adapterBuildFile.readText().replace("\r\n", "\n")
-        if (normalizedContent.contains("org.springframework:spring-context")) {
-            return
-        }
-        val patchedContent = normalizedContent.replace(
-            "dependencies {\n",
-            "dependencies {\n    implementation(\"org.springframework:spring-context\")\n",
-        )
-        adapterBuildFile.writeText(patchedContent)
-        assertTrue(patchedContent.contains("implementation(\"org.springframework:spring-context\")"))
-    }
 }
