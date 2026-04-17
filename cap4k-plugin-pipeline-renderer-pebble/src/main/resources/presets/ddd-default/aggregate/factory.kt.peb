@@ -16,7 +16,7 @@ import {{ entityTypeFqn }}
 class {{ typeName }} : AggregateFactory<{{ typeName }}.{{ payloadTypeName }}, {{ entityName }}> {
 
     override fun create(payload: {{ payloadTypeName }}): {{ entityName }} {
-        return {{ entityName }}()
+        TODO("Implement aggregate construction")
     }
 
     @Aggregate(
