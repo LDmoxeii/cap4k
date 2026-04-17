@@ -7,7 +7,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
 internal class EnumTranslationArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        val planning = AggregateEnumPlanning.from(model, config.typeRegistry)
+        val planning = AggregateEnumPlanning.from(model, config.basePackage, config.typeRegistry)
         val adapterRoot = requireRelativeModule(config, "adapter")
         val sharedTranslations = model.sharedEnums
             .filter { it.generateTranslation }
@@ -19,7 +19,7 @@ internal class EnumTranslationArtifactPlanner : AggregateArtifactFamilyPlanner {
                     packageName = sharedTranslationPackage(enumPackageName),
                     enumTypeName = enumTypeName,
                     enumTypeFqn = enumTypeFqn,
-                    ownerScope = sharedOwnerScope(enumPackageName),
+                    ownerScope = "",
                 )
             }
 
@@ -89,20 +89,13 @@ private data class LocalTranslationCandidate(
 )
 
 private fun translationTypeKey(ownerScope: String, typeName: String): String {
-    return "${ownerScope}_$typeName"
+    val scopedTypeName = if (ownerScope.isBlank()) typeName else "${ownerScope}_$typeName"
+    return scopedTypeName
         .replace(Regex("([a-z0-9])([A-Z])"), "$1_$2")
         .replace(Regex("([A-Z]+)([A-Z][a-z])"), "$1_$2")
         .replace("-", "_")
         .replace(".", "_")
         .lowercase()
-}
-
-private fun sharedOwnerScope(packageName: String): String {
-    if (packageName.contains(".shared.enums")) {
-        return "shared"
-    }
-    return packageName.substringAfterLast('.', missingDelimiterValue = "shared")
-        .ifBlank { "shared" }
 }
 
 private fun sharedTranslationPackage(packageName: String): String {

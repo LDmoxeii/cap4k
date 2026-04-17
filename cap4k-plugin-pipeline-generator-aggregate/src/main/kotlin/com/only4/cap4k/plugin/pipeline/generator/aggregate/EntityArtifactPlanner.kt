@@ -7,7 +7,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val domainRoot = requireRelativeModule(config, "domain")
-        val planning = AggregateEnumPlanning.from(model, config.typeRegistry)
+        val planning = AggregateEnumPlanning.from(model, config.basePackage, config.typeRegistry)
 
         return model.entities.map { entity ->
             val fields = entity.fields.map { field ->

@@ -45,18 +45,19 @@ internal class AggregateEnumPlanning private constructor(
     }
 
     companion object {
-        fun from(model: CanonicalModel, typeRegistry: Map<String, String>): AggregateEnumPlanning {
-            val aggregateBasePackage = model.entities
-                .asSequence()
-                .mapNotNull(::aggregateBasePackage)
-                .firstOrNull()
-            val sharedEnumFqns = buildSharedEnumFqns(model.sharedEnums, aggregateBasePackage)
+        fun from(model: CanonicalModel, basePackage: String, typeRegistry: Map<String, String>): AggregateEnumPlanning {
+            val sharedEnumFqns = buildSharedEnumFqns(model.sharedEnums, sharedEnumBasePackage(basePackage))
             sharedEnumFqns.keys.firstOrNull { it in typeRegistry }?.let { typeName ->
                 throw IllegalArgumentException(
                     "ambiguous type binding for $typeName: matches both shared enum and general type registry"
                 )
             }
             val localEnumFqns = buildLocalEnumFqns(model.entities)
+            localEnumFqns.keys.firstOrNull { key -> key.typeBinding in sharedEnumFqns }?.let { key ->
+                throw IllegalArgumentException(
+                    "ambiguous enum ownership for ${key.typeBinding}: matches both shared enum and local enum in ${key.ownerPackageName}"
+                )
+            }
             return AggregateEnumPlanning(
                 sharedEnumFqns = sharedEnumFqns,
                 localEnumFqns = localEnumFqns,
@@ -66,7 +67,7 @@ internal class AggregateEnumPlanning private constructor(
 
         private fun buildSharedEnumFqns(
             definitions: List<SharedEnumDefinition>,
-            aggregateBasePackage: String?,
+            sharedEnumBasePackage: String?,
         ): Map<String, String> {
             val grouped = definitions.groupBy { it.typeName.trim() }
             grouped.entries.firstOrNull { it.value.size > 1 }?.key?.let { duplicated ->
@@ -74,7 +75,7 @@ internal class AggregateEnumPlanning private constructor(
             }
             return grouped.mapValues { (_, values) ->
                 val definition = values.single()
-                val packageName = resolveSharedEnumPackageName(definition.packageName, aggregateBasePackage)
+                val packageName = resolveSharedEnumPackageName(definition.packageName, sharedEnumBasePackage)
                 if (packageName.isBlank()) {
                     definition.typeName
                 } else {
@@ -83,18 +84,18 @@ internal class AggregateEnumPlanning private constructor(
             }
         }
 
-        private fun resolveSharedEnumPackageName(packageName: String, aggregateBasePackage: String?): String {
+        private fun resolveSharedEnumPackageName(packageName: String, sharedEnumBasePackage: String?): String {
             val trimmed = packageName.trim()
             if (trimmed.isBlank()) {
-                return aggregateBasePackage?.let { "$it.shared.enums" }.orEmpty()
+                return sharedEnumBasePackage?.let { "$it.shared.enums" }.orEmpty()
             }
             if ('.' in trimmed) {
                 return trimmed
             }
-            if (aggregateBasePackage.isNullOrBlank()) {
+            if (sharedEnumBasePackage.isNullOrBlank()) {
                 return "$trimmed.enums"
             }
-            return "$aggregateBasePackage.$trimmed.enums"
+            return "$sharedEnumBasePackage.$trimmed.enums"
         }
 
         private fun buildLocalEnumFqns(entities: List<EntityModel>): Map<LocalEnumOwnerKey, String> {
@@ -131,14 +132,12 @@ internal class AggregateEnumPlanning private constructor(
                 "${entity.packageName}.enums.$typeName"
             }
 
-        private fun aggregateBasePackage(entity: EntityModel): String? {
-            val marker = ".aggregates."
-            val packageName = entity.packageName
-            val markerIndex = packageName.indexOf(marker)
-            if (markerIndex >= 0) {
-                return packageName.substring(0, markerIndex)
+        private fun sharedEnumBasePackage(basePackage: String): String? {
+            val trimmed = basePackage.trim()
+            if (trimmed.isBlank()) {
+                return null
             }
-            return packageName.substringBeforeLast('.', missingDelimiterValue = "").ifBlank { null }
+            return "$trimmed.domain"
         }
     }
 }

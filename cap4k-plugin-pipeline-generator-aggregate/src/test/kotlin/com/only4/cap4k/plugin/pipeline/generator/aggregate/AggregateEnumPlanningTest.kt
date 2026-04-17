@@ -41,6 +41,7 @@ class AggregateEnumPlanningTest {
                 ),
                 entities = listOf(entity)
             ),
+            basePackage = "com.acme.demo",
             typeRegistry = emptyMap(),
         )
 
@@ -70,12 +71,55 @@ class AggregateEnumPlanningTest {
                     ),
                     entities = emptyList(),
                 ),
+                basePackage = "com.acme.demo",
                 typeRegistry = mapOf("Status" to "com.acme.shared.Status"),
             )
         }
 
         assertEquals(
             "ambiguous type binding for Status: matches both shared enum and general type registry",
+            error.message
+        )
+    }
+
+    @Test
+    fun `shared and local enum with the same type binding fails fast`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            AggregateEnumPlanning.from(
+                CanonicalModel(
+                    sharedEnums = listOf(
+                        SharedEnumDefinition(
+                            typeName = "Status",
+                            packageName = "shared",
+                            generateTranslation = true,
+                            items = listOf(EnumItemModel(0, "DRAFT", "Draft"))
+                        )
+                    ),
+                    entities = listOf(
+                        EntityModel(
+                            name = "VideoPost",
+                            packageName = "com.acme.demo.domain.aggregates.video_post",
+                            tableName = "video_post",
+                            comment = "",
+                            fields = listOf(
+                                FieldModel(
+                                    name = "status",
+                                    type = "Int",
+                                    typeBinding = "Status",
+                                    enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden"))
+                                )
+                            ),
+                            idField = FieldModel(name = "id", type = "Long"),
+                        )
+                    ),
+                ),
+                basePackage = "com.acme.demo",
+                typeRegistry = emptyMap(),
+            )
+        }
+
+        assertEquals(
+            "ambiguous enum ownership for Status: matches both shared enum and local enum in com.acme.demo.domain.aggregates.video_post",
             error.message
         )
     }
@@ -115,6 +159,7 @@ class AggregateEnumPlanningTest {
 
         val planning = AggregateEnumPlanning.from(
             CanonicalModel(entities = listOf(videoPost, articlePost)),
+            basePackage = "com.acme.demo",
             typeRegistry = emptyMap(),
         )
 
@@ -165,6 +210,7 @@ class AggregateEnumPlanningTest {
                         )
                     )
                 ),
+                basePackage = "com.acme.demo",
                 typeRegistry = emptyMap(),
             )
         }

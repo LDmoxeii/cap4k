@@ -6,7 +6,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
 internal class SharedEnumArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        val planning = AggregateEnumPlanning.from(model, config.typeRegistry)
+        val planning = AggregateEnumPlanning.from(model, config.basePackage, config.typeRegistry)
         val domainRoot = requireRelativeModule(config, "domain")
         return model.sharedEnums.map { shared ->
             val enumTypeFqn = planning.resolveFieldType(shared.typeName, emptyList())

@@ -10,7 +10,7 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val domainRoot = requireRelativeModule(config, "domain")
         val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
-        val planning = AggregateEnumPlanning.from(model, config.typeRegistry)
+        val planning = AggregateEnumPlanning.from(model, config.basePackage, config.typeRegistry)
         val entityOwnerByName = model.entities
             .groupBy { it.name }
             .mapValues { (_, entities) -> entities.singleOrNull()?.packageName }
