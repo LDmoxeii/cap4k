@@ -9,6 +9,8 @@ data class AggregateUniqueApplicationCompileSmoke(
     val request: UniqueVideoPostSlugQry.Request =
         UniqueVideoPostSlugQry.Request(
             slug = slug,
-            excludeVideoPostId = null,
+            excludeVideoPostId = 1L,
         )
+
+    val response: UniqueVideoPostSlugQry.Response = UniqueVideoPostSlugQry.Response(exists = false)
 }

@@ -1173,8 +1173,32 @@ class PipelinePluginFunctionalTest {
             )
         )
         assertTrue(uniqueQueryContent.contains("object UniqueVideoPostSlugQry"))
+        assertTrue(uniqueQueryContent.contains(") : RequestParam<Response>"))
+        assertTrue(uniqueQueryContent.contains("val excludeVideoPostId: Long?"))
+        assertTrue(uniqueQueryContent.contains("val exists: Boolean"))
         assertTrue(uniqueQueryHandlerContent.contains("class UniqueVideoPostSlugQryHandler"))
+        assertTrue(
+            uniqueQueryHandlerContent.contains(
+                "class UniqueVideoPostSlugQryHandler : Query<UniqueVideoPostSlugQry.Request, UniqueVideoPostSlugQry.Response>"
+            )
+        )
+        assertTrue(
+            uniqueQueryHandlerContent.contains(
+                "override fun exec(request: UniqueVideoPostSlugQry.Request): UniqueVideoPostSlugQry.Response"
+            )
+        )
+        assertTrue(uniqueQueryHandlerContent.contains("return UniqueVideoPostSlugQry.Response("))
         assertTrue(uniqueValidatorContent.contains("annotation class UniqueVideoPostSlug"))
+        assertTrue(
+            uniqueValidatorContent.contains(
+                "@Constraint(validatedBy = [UniqueVideoPostSlug.Validator::class])"
+            )
+        )
+        assertTrue(
+            uniqueValidatorContent.contains(
+                "import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry"
+            )
+        )
     }
 
     @OptIn(ExperimentalPathApi::class)
