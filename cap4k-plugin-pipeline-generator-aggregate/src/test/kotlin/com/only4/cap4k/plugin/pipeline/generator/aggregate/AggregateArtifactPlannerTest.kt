@@ -63,7 +63,7 @@ class AggregateArtifactPlannerTest {
 
         val planItems = AggregateArtifactPlanner().plan(config, model)
 
-        assertEquals(5, planItems.size)
+        assertEquals(6, planItems.size)
         assertEquals(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt",
             planItems.first { it.templateId == "aggregate/schema.kt.peb" }.outputPath,
@@ -110,6 +110,10 @@ class AggregateArtifactPlannerTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt",
             planItems.first { it.templateId == "aggregate/specification.kt.peb" }.outputPath,
         )
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/AggVideoPost.kt",
+            planItems.first { it.templateId == "aggregate/wrapper.kt.peb" }.outputPath,
+        )
         val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
         assertEquals("com.acme.demo.domain.aggregates.video_post.factory", factoryContext["packageName"])
         assertEquals("VideoPostFactory", factoryContext["typeName"])
@@ -123,6 +127,18 @@ class AggregateArtifactPlannerTest {
         assertEquals("VideoPost", specificationContext["entityName"])
         assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", specificationContext["entityTypeFqn"])
         assertEquals("VideoPost", specificationContext["aggregateName"])
+        val wrapperContext = planItems.first { it.templateId == "aggregate/wrapper.kt.peb" }.context
+        assertEquals("com.acme.demo.domain.aggregates.video_post", wrapperContext["packageName"])
+        assertEquals("AggVideoPost", wrapperContext["typeName"])
+        assertEquals("VideoPost", wrapperContext["entityName"])
+        assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", wrapperContext["entityTypeFqn"])
+        assertEquals("VideoPostFactory", wrapperContext["factoryTypeName"])
+        assertEquals(
+            "com.acme.demo.domain.aggregates.video_post.factory.VideoPostFactory",
+            wrapperContext["factoryTypeFqn"],
+        )
+        assertEquals("Long", wrapperContext["idType"])
+        assertEquals("Video post entity", wrapperContext["comment"])
     }
 
     @Test
@@ -224,6 +240,14 @@ class AggregateArtifactPlannerTest {
             it.templateId == "aggregate/specification.kt.peb" &&
                 it.context["packageName"] == "com.acme.demo.domain.aggregates.secondary_video_post.specification"
         }.context
+        val primaryWrapperContext = planItems.first {
+            it.templateId == "aggregate/wrapper.kt.peb" &&
+                it.context["packageName"] == "com.acme.demo.domain.aggregates.primary_video_post"
+        }.context
+        val secondaryWrapperContext = planItems.first {
+            it.templateId == "aggregate/wrapper.kt.peb" &&
+                it.context["packageName"] == "com.acme.demo.domain.aggregates.secondary_video_post"
+        }.context
 
         assertEquals("", schemaContext["entityTypeFqn"])
         assertEquals("", schemaContext["qEntityTypeFqn"])
@@ -242,6 +266,22 @@ class AggregateArtifactPlannerTest {
         assertEquals(
             "com.acme.demo.domain.aggregates.secondary_video_post.VideoPost",
             secondarySpecificationContext["entityTypeFqn"],
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.primary_video_post.VideoPost",
+            primaryWrapperContext["entityTypeFqn"],
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.primary_video_post.factory.VideoPostFactory",
+            primaryWrapperContext["factoryTypeFqn"],
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.secondary_video_post.VideoPost",
+            secondaryWrapperContext["entityTypeFqn"],
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.secondary_video_post.factory.VideoPostFactory",
+            secondaryWrapperContext["factoryTypeFqn"],
         )
     }
 
@@ -267,6 +307,34 @@ class AggregateArtifactPlannerTest {
 
         assertEquals("", schemaContext["entityTypeFqn"])
         assertEquals("", schemaContext["qEntityTypeFqn"])
+    }
+
+    @Test
+    fun `wrapper planner uses simple names when entity package is blank`() {
+        val config = aggregateConfig()
+        val model = CanonicalModel(
+            entities = listOf(
+                EntityModel(
+                    name = "VideoPost",
+                    packageName = "",
+                    tableName = "video_post",
+                    comment = "Video post entity",
+                    fields = listOf(FieldModel("id", "Long")),
+                    idField = FieldModel("id", "Long"),
+                )
+            ),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(config, model)
+        val wrapperItem = planItems.first { it.templateId == "aggregate/wrapper.kt.peb" }
+        val wrapperContext = wrapperItem.context
+
+        assertEquals("demo-domain/src/main/kotlin/AggVideoPost.kt", wrapperItem.outputPath)
+        assertEquals("", wrapperContext["packageName"])
+        assertEquals("AggVideoPost", wrapperContext["typeName"])
+        assertEquals("VideoPost", wrapperContext["entityTypeFqn"])
+        assertEquals("VideoPostFactory", wrapperContext["factoryTypeFqn"])
+        assertEquals("Long", wrapperContext["idType"])
     }
 
     @Test

@@ -13,6 +13,8 @@ internal class AggregateDerivedTypeReferences private constructor(
     fun qEntityFqn(entityName: String): String? =
         entityFqn(entityName)?.let(::buildQEntityFqn)
 
+    fun factoryFqn(entity: EntityModel): String = buildFactoryFqn(entity.packageName, entity.name)
+
     companion object {
         fun from(model: CanonicalModel): AggregateDerivedTypeReferences {
             val entities = model.entities
@@ -39,6 +41,15 @@ internal class AggregateDerivedTypeReferences private constructor(
                 "Q$simpleName"
             } else {
                 "$packageName.Q$simpleName"
+            }
+        }
+
+        private fun buildFactoryFqn(packageName: String, entityName: String): String {
+            val factoryTypeName = "${entityName}Factory"
+            return if (packageName.isBlank()) {
+                factoryTypeName
+            } else {
+                "$packageName.factory.$factoryTypeName"
             }
         }
     }
