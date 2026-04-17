@@ -103,6 +103,21 @@ Traceability:
 - [bootstrap / arch-template migration design](specs/2026-04-16-cap4k-bootstrap-arch-template-migration-design.md)
 - [bootstrap generated-project verification hardening design](specs/2026-04-16-cap4k-bootstrap-generated-project-verification-hardening-design.md)
 
+### Phase D: Cross-Generator Reference Boundary Mainline
+
+Completed:
+
+- cross-generator type-reference parity
+
+Status:
+
+- the cross-generator reference boundary line is complete through the first immutable derived-reference slice
+- framework-facing type-reference work is now explicitly separated from broader aggregate parity and exploratory full-replacement gaps
+
+Traceability:
+
+- [cross-generator type-reference parity design](specs/2026-04-17-cap4k-cross-generator-type-reference-parity-design.md)
+
 ## Current Mainline Contract
 
 These points remain in force:
@@ -119,23 +134,25 @@ These points remain in force:
 
 The original design-generator quality mainline is complete, and the bounded bootstrap capability line is complete through generated-project verification hardening.
 
+The cross-generator reference boundary line is complete through type-reference parity.
+
 The next explicit framework slice is:
 
-- cross-generator type-reference parity
+- aggregate factory / specification parity
 
 Scope:
 
-- audit remaining old-codegen `typeMapping` use sites that still matter for explicit parity work
-- prove which cross-generator references can be derived directly from `CanonicalModel` and stable naming conventions
-- add only the smallest derived type-reference mechanism needed for cases that cannot be handled by direct derivation
-- keep the solution aligned with immutable canonical data, explicit symbol identity, and conservative name resolution
+- consume the new immutable derived aggregate type references where factory / specification generation still needs explicit parity support
+- move representative aggregate-side factory / specification paths onto planner-owned, deterministic type-reference inputs
+- lock the boundary with focused renderer, planner, and functional coverage instead of reopening a shared runtime type map
+- keep the slice bounded to factory / specification parity, not full aggregate-side completion
 
 Non-goals:
 
 - do not restore mutable shared runtime type maps between generators
 - do not reopen relation parity, JPA annotation parity, or user-code-preservation parity in this slice
 - do not broaden bootstrap beyond the current bounded contract
-- do not silently expand into aggregate-side parity completion before the type-reference boundary is settled
+- do not silently expand into full aggregate-side parity beyond factory / specification work
 - do not turn exploratory parity notes into a general rewrite of the current pipeline architecture
 
 ## Bootstrap Decision
