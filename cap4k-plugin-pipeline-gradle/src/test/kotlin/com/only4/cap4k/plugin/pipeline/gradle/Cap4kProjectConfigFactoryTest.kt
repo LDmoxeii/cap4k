@@ -998,6 +998,50 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
+    fun `factory includes enum manifest source when enabled`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+        val manifest = project.file("shared-enums.json")
+        manifest.writeText(
+            """
+            [
+              { "name": "Status", "package": "shared", "items": [ { "value": 0, "name": "DRAFT", "desc": "Draft" } ] }
+            ]
+            """.trimIndent()
+        )
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:test")
+                username.set("sa")
+                password.set("secret")
+            }
+            enumManifest {
+                enabled.set(true)
+                files.from(manifest)
+            }
+        }
+        extension.generators {
+            aggregate { enabled.set(true) }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(setOf("db", "enum-manifest"), config.enabledSourceIds())
+        assertEquals(
+            listOf(manifest.absolutePath),
+            config.sources.getValue("enum-manifest").options["files"]
+        )
+    }
+
+    @Test
     fun `design json prefers manifest file when configured`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)

@@ -59,6 +59,8 @@ open class Cap4kSourcesExtension @Inject constructor(objects: ObjectFactory) {
     val designJson: DesignJsonSourceExtension = objects.newInstance(DesignJsonSourceExtension::class.java)
     val kspMetadata: KspMetadataSourceExtension = objects.newInstance(KspMetadataSourceExtension::class.java)
     val db: DbSourceExtension = objects.newInstance(DbSourceExtension::class.java)
+    val enumManifest: EnumManifestSourceExtension =
+        objects.newInstance(EnumManifestSourceExtension::class.java)
     val irAnalysis: IrAnalysisSourceExtension = objects.newInstance(IrAnalysisSourceExtension::class.java)
 
     fun designJson(block: DesignJsonSourceExtension.() -> Unit) {
@@ -71,6 +73,10 @@ open class Cap4kSourcesExtension @Inject constructor(objects: ObjectFactory) {
 
     fun db(block: DbSourceExtension.() -> Unit) {
         db.block()
+    }
+
+    fun enumManifest(block: EnumManifestSourceExtension.() -> Unit) {
+        enumManifest.block()
     }
 
     fun irAnalysis(block: IrAnalysisSourceExtension.() -> Unit) {
@@ -97,6 +103,11 @@ open class DbSourceExtension @Inject constructor(objects: ObjectFactory) {
     val schema: Property<String> = objects.property(String::class.java)
     val includeTables: ListProperty<String> = objects.listProperty(String::class.java)
     val excludeTables: ListProperty<String> = objects.listProperty(String::class.java)
+}
+
+open class EnumManifestSourceExtension @Inject constructor(objects: ObjectFactory) {
+    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val files: ConfigurableFileCollection = objects.fileCollection()
 }
 
 open class IrAnalysisSourceExtension @Inject constructor(objects: ObjectFactory) {

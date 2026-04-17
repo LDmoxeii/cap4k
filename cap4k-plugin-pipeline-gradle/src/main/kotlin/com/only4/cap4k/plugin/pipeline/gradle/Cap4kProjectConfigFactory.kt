@@ -23,6 +23,7 @@ class Cap4kProjectConfigFactory {
             designJsonEnabled = extension.sources.designJson.enabled.get(),
             kspMetadataEnabled = extension.sources.kspMetadata.enabled.get(),
             dbEnabled = extension.sources.db.enabled.get(),
+            enumManifestEnabled = extension.sources.enumManifest.enabled.get(),
             irAnalysisEnabled = extension.sources.irAnalysis.enabled.get(),
         )
         val generatorStates = GeneratorStates(
@@ -218,6 +219,14 @@ class Cap4kProjectConfigFactory {
             put("db", SourceConfig(enabled = true, options = options))
         }
 
+        if (states.enumManifestEnabled) {
+            val files = extension.sources.enumManifest.files.files.map(File::getAbsolutePath).sorted()
+            if (files.isEmpty()) {
+                throw IllegalArgumentException("sources.enumManifest.files must not be empty when enumManifest is enabled.")
+            }
+            put("enum-manifest", SourceConfig(enabled = true, options = mapOf("files" to files)))
+        }
+
         if (states.irAnalysisEnabled) {
             val inputDirs = extension.sources.irAnalysis.inputDirs.files.map(File::getAbsolutePath).sorted()
             if (inputDirs.isEmpty()) {
@@ -397,6 +406,7 @@ private data class SourceStates(
     val designJsonEnabled: Boolean,
     val kspMetadataEnabled: Boolean,
     val dbEnabled: Boolean,
+    val enumManifestEnabled: Boolean,
     val irAnalysisEnabled: Boolean,
 )
 

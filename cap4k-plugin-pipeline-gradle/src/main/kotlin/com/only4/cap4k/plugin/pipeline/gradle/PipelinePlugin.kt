@@ -28,6 +28,7 @@ import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleBootstrapRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
 import com.only4.cap4k.plugin.pipeline.source.db.DbSchemaSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.designjson.DesignJsonSourceProvider
+import com.only4.cap4k.plugin.pipeline.source.enummanifest.EnumManifestSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ir.IrAnalysisSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ksp.KspMetadataSourceProvider
 import org.gradle.api.Plugin
@@ -88,6 +89,7 @@ private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf
     extension.sources.designJson.enabled,
     extension.sources.kspMetadata.enabled,
     extension.sources.db.enabled,
+    extension.sources.enumManifest.enabled,
     extension.sources.irAnalysis.enabled,
 ).any { it.orNull == true }
 
@@ -165,6 +167,7 @@ internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled:
     return DefaultPipelineRunner(
         sources = listOf(
             DbSchemaSourceProvider(),
+            EnumManifestSourceProvider(),
             DesignJsonSourceProvider(),
             KspMetadataSourceProvider(),
             IrAnalysisSourceProvider(),

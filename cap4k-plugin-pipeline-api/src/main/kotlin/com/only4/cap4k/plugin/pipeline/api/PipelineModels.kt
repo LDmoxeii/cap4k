@@ -76,6 +76,19 @@ data class IrEdgeSnapshot(
     val label: String? = null,
 )
 
+data class EnumItemModel(
+    val value: Int,
+    val name: String,
+    val description: String,
+)
+
+data class SharedEnumDefinition(
+    val typeName: String,
+    val packageName: String,
+    val generateTranslation: Boolean,
+    val items: List<EnumItemModel>,
+)
+
 sealed interface SourceSnapshot {
     val id: String
 }
@@ -104,6 +117,11 @@ data class IrAnalysisSnapshot(
     val nodes: List<IrNodeSnapshot>,
     val edges: List<IrEdgeSnapshot>,
     val designElements: List<DesignElementSnapshot> = emptyList(),
+) : SourceSnapshot
+
+data class EnumManifestSnapshot(
+    override val id: String = "enum-manifest",
+    val definitions: List<SharedEnumDefinition>,
 ) : SourceSnapshot
 
 data class SchemaModel(
