@@ -1121,7 +1121,7 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.application.queries.video_post.unique",
                         "typeName" to "UniqueVideoPostSlugQry",
                         "entityName" to "VideoPost",
-                        "requestProps" to listOf(mapOf("name" to "slug", "type" to "String")),
+                        "requestProps" to listOf(mapOf("name" to "slug", "type" to "String", "nullable" to true)),
                         "idType" to "Long",
                         "excludeIdParamName" to "excludeVideoPostId",
                     ),
@@ -1233,6 +1233,7 @@ class PebbleArtifactRendererTest {
         )
         assertTrue(uniqueQueryContent.contains("object UniqueVideoPostSlugQry"))
         assertTrue(uniqueQueryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(uniqueQueryContent.contains("val slug: String?"))
         assertTrue(uniqueQueryContent.contains("val excludeVideoPostId: Long?"))
         assertTrue(uniqueHandlerContent.contains("class UniqueVideoPostSlugQryHandler"))
         assertTrue(uniqueHandlerContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))

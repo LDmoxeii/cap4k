@@ -13,14 +13,15 @@ internal class UniqueQueryArtifactPlanner : AggregateArtifactFamilyPlanner {
 
         val applicationRoot = requireRelativeModule(config, "application")
         return plannedSelections.flatMap { (entity, selections) ->
+            val tableSegment = aggregateTableSegment(entity.tableName)
             selections.map { selection ->
                 ArtifactPlanItem(
                     generatorId = "aggregate",
                     moduleRole = "application",
                     templateId = "aggregate/unique_query.kt.peb",
-                    outputPath = "$applicationRoot/src/main/kotlin/${config.basePackage.replace(".", "/")}/application/queries/${entity.tableName}/unique/${selection.queryTypeName}.kt",
+                    outputPath = "$applicationRoot/src/main/kotlin/${config.basePackage.replace(".", "/")}/application/queries/$tableSegment/unique/${selection.queryTypeName}.kt",
                     context = mapOf(
-                        "packageName" to "${config.basePackage}.application.queries.${entity.tableName}.unique",
+                        "packageName" to "${config.basePackage}.application.queries.$tableSegment.unique",
                         "typeName" to selection.queryTypeName,
                         "entityName" to entity.name,
                         "requestProps" to selection.requestProps,

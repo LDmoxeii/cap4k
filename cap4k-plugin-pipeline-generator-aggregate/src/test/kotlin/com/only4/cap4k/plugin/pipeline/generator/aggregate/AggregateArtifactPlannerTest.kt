@@ -162,11 +162,11 @@ class AggregateArtifactPlannerTest {
                 EntityModel(
                     name = "VideoPost",
                     packageName = "com.acme.demo.domain.aggregates.video_post",
-                    tableName = "video_post",
+                    tableName = "Video_Post",
                     comment = "Video post entity",
                     fields = listOf(
                         FieldModel("id", "Long"),
-                        FieldModel("slug", "String"),
+                        FieldModel("slug", "String", nullable = true),
                         FieldModel("title", "String"),
                     ),
                     idField = FieldModel("id", "Long"),
@@ -199,6 +199,14 @@ class AggregateArtifactPlannerTest {
         assertEquals("UniqueVideoPostSlug", validator.context["typeName"])
         assertEquals("Long", query.context["idType"])
         assertEquals("excludeVideoPostId", query.context["excludeIdParamName"])
+        assertEquals(
+            "com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry",
+            handler.context["queryTypeFqn"],
+        )
+        assertEquals(
+            "com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry",
+            validator.context["queryTypeFqn"],
+        )
     }
 
     @Test
@@ -215,12 +223,13 @@ class AggregateArtifactPlannerTest {
                     FieldModel("slug", "String"),
                 ),
                 idField = FieldModel("id", "Long"),
-                uniqueConstraints = listOf(listOf("tenantId", "slug")),
+                uniqueConstraints = listOf(listOf("slug", "tenantId")),
             )
         )
 
         val selection = planning.single()
         assertEquals("TenantIdSlug", selection.suffix)
+        assertEquals(listOf("tenantId", "slug"), selection.requestProps.map { it.name })
         assertEquals("UniqueVideoPostTenantIdSlugQry", selection.queryTypeName)
         assertEquals("UniqueVideoPostTenantIdSlugQryHandler", selection.queryHandlerTypeName)
         assertEquals("UniqueVideoPostTenantIdSlug", selection.validatorTypeName)
