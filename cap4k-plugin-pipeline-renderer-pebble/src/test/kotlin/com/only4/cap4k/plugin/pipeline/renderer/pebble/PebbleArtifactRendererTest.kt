@@ -1110,17 +1110,19 @@ class PebbleArtifactRendererTest {
             )
         )
 
-        assertEquals(5, rendered.size)
+        val aggregateArtifacts = rendered.reversed()
 
-        val schemaContent = rendered[0].content
-        val entityContent = rendered[1].content
-        val repositoryContent = rendered[2].content
-        val factoryContent = rendered.first {
-            it.outputPath.endsWith("/factory/OrderFactory.kt")
+        assertEquals(5, aggregateArtifacts.size)
+
+        fun contentFor(pathSuffix: String): String = aggregateArtifacts.single {
+            it.outputPath.endsWith(pathSuffix)
         }.content
-        val specificationContent = rendered.first {
-            it.outputPath.endsWith("/specification/OrderSpecification.kt")
-        }.content
+
+        val schemaContent = contentFor("/aggregates/order/OrderSchema.kt")
+        val entityContent = contentFor("/aggregates/order/Order.kt")
+        val repositoryContent = contentFor("/adapter/domain/repositories/OrderRepository.kt")
+        val factoryContent = contentFor("/factory/OrderFactory.kt")
+        val specificationContent = contentFor("/specification/OrderSpecification.kt")
 
         assertTrue(schemaContent.contains("object OrderSchema"))
         assertTrue(schemaContent.contains("const val id = \"id\""))
@@ -1134,7 +1136,10 @@ class PebbleArtifactRendererTest {
         assertTrue(factoryContent.contains("import org.springframework.stereotype.Service"))
         assertTrue(factoryContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
         assertTrue(factoryContent.contains("class OrderFactory : AggregateFactory<OrderFactory.Payload, Order>"))
+        assertTrue(factoryContent.contains("""aggregate = "Order""""))
+        assertTrue(factoryContent.contains("""name = "OrderFactory""""))
         assertTrue(factoryContent.contains("type = Aggregate.TYPE_FACTORY"))
+        assertTrue(factoryContent.contains("""name = "Payload""""))
         assertTrue(factoryContent.contains("type = Aggregate.TYPE_FACTORY_PAYLOAD"))
         assertTrue(factoryContent.contains("""TODO("Implement aggregate construction")"""))
         assertTrue(factoryContent.contains("data class Payload("))
@@ -1144,6 +1149,8 @@ class PebbleArtifactRendererTest {
         assertTrue(specificationContent.contains("import org.springframework.stereotype.Service"))
         assertTrue(specificationContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
         assertTrue(specificationContent.contains("class OrderSpecification : Specification<Order>"))
+        assertTrue(specificationContent.contains("""aggregate = "Order""""))
+        assertTrue(specificationContent.contains("""name = "OrderSpecification""""))
         assertTrue(specificationContent.contains("type = Aggregate.TYPE_SPECIFICATION"))
         assertTrue(specificationContent.contains("return Result.pass()"))
     }
