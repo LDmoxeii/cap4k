@@ -935,6 +935,7 @@ class Cap4kProjectConfigFactoryTest {
         extension.project {
             basePackage.set("com.acme.demo")
             domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
             adapterModulePath.set("demo-adapter")
         }
         extension.sources {
@@ -958,6 +959,42 @@ class Cap4kProjectConfigFactoryTest {
             "SKIP",
             config.generators.getValue("aggregate").options["unsupportedTablePolicy"]
         )
+    }
+
+    @Test
+    fun `factory includes domain application and adapter modules when aggregate is enabled`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:test")
+                username.set("sa")
+                password.set("secret")
+            }
+        }
+        extension.generators {
+            aggregate { enabled.set(true) }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(
+            mapOf(
+                "domain" to "demo-domain",
+                "application" to "demo-application",
+                "adapter" to "demo-adapter",
+            ),
+            config.modules
+        )
+        assertEquals(setOf("aggregate"), config.enabledGeneratorIds())
     }
 
     @Test
@@ -1054,7 +1091,7 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `aggregate generator requires aggregate modules`() {
+    fun `aggregate generator requires domain application and adapter modules`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
@@ -1078,7 +1115,7 @@ class Cap4kProjectConfigFactoryTest {
         }
 
         assertEquals(
-            "project.domainModulePath and project.adapterModulePath are required when aggregate is enabled.",
+            "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is enabled.",
             error.message
         )
     }
@@ -1190,6 +1227,7 @@ class Cap4kProjectConfigFactoryTest {
         extension.project {
             basePackage.set("com.acme.demo")
             domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
             adapterModulePath.set("demo-adapter")
         }
         extension.generators {

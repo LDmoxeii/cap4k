@@ -8,5 +8,6 @@ kotlin {
 
 dependencies {
     implementation("com.only4:ddd-core:0.4.2-SNAPSHOT")
-    implementation(project(":demo-application"))
+    implementation("jakarta.validation:jakarta.validation-api:3.0.2")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:2.2.20")
 }

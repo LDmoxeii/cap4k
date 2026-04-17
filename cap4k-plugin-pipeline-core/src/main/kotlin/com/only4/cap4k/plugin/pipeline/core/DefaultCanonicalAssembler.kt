@@ -189,6 +189,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     comment = table.comment,
                     fields = fields,
                     idField = idField,
+                    uniqueConstraints = table.uniqueConstraints,
                 ),
                 RepositoryModel(
                     name = repositoryName,

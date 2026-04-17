@@ -114,10 +114,11 @@ class Cap4kProjectConfigFactory {
         }
         if (generators.aggregateEnabled) {
             val missingDomain = extension.project.domainModulePath.optionalValue() == null
+            val missingApplication = extension.project.applicationModulePath.optionalValue() == null
             val missingAdapter = extension.project.adapterModulePath.optionalValue() == null
-            if (missingDomain || missingAdapter) {
+            if (missingDomain || missingApplication || missingAdapter) {
                 throw IllegalArgumentException(
-                    "project.domainModulePath and project.adapterModulePath are required when aggregate is enabled."
+                    "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is enabled."
                 )
             }
         }
@@ -153,6 +154,7 @@ class Cap4kProjectConfigFactory {
         }
         if (generators.aggregateEnabled) {
             put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
+            put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
             put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
         }
     }

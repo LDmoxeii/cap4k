@@ -996,6 +996,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("com.acme.demo.domain._share.meta.video_post", model.schemas.single().packageName)
         assertEquals("VideoPost", model.entities.single().name)
         assertEquals("com.acme.demo.domain.aggregates.video_post", model.entities.single().packageName)
+        assertEquals(listOf(listOf("title")), model.entities.single().uniqueConstraints)
         assertEquals("VideoPostRepository", model.repositories.single().name)
         assertEquals("com.acme.demo.adapter.domain.repositories", model.repositories.single().packageName)
         assertEquals("Long", model.repositories.single().idType)

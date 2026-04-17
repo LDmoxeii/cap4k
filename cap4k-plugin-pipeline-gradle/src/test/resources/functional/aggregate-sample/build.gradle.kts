@@ -9,6 +9,7 @@ cap4k {
     project {
         basePackage.set("com.acme.demo")
         domainModulePath.set("demo-domain")
+        applicationModulePath.set("demo-application")
         adapterModulePath.set("demo-adapter")
     }
     sources {
