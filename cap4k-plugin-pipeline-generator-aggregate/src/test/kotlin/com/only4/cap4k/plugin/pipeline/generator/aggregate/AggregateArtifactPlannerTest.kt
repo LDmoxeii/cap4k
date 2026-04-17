@@ -84,18 +84,24 @@ class AggregateArtifactPlannerTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
             planItems.first { it.templateId == "aggregate/entity.kt.peb" }.outputPath,
         )
+        val entityContext = planItems.first { it.templateId == "aggregate/entity.kt.peb" }.context
+        assertEquals(false, entityContext.containsKey("entityTypeFqn"))
+        assertEquals(false, entityContext.containsKey("qEntityTypeFqn"))
         assertEquals(
             "Video post entity",
-            planItems.first { it.templateId == "aggregate/entity.kt.peb" }.context["comment"],
+            entityContext["comment"],
         )
         assertEquals(
             FieldModel("id", "Long"),
-            planItems.first { it.templateId == "aggregate/entity.kt.peb" }.context["idField"],
+            entityContext["idField"],
         )
         assertEquals(
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt",
             planItems.first { it.templateId == "aggregate/repository.kt.peb" }.outputPath,
         )
+        val repositoryContext = planItems.first { it.templateId == "aggregate/repository.kt.peb" }.context
+        assertEquals(false, repositoryContext.containsKey("entityTypeFqn"))
+        assertEquals(false, repositoryContext.containsKey("qEntityTypeFqn"))
     }
 
     @Test
