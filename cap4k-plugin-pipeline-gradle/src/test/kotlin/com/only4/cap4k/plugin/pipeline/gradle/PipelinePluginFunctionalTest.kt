@@ -1105,6 +1105,15 @@ class PipelinePluginFunctionalTest {
         val wrapperFile = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/AggVideoPost.kt"
         )
+        val uniqueQueryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt"
+        )
+        val uniqueQueryHandlerFile = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt"
+        )
+        val uniqueValidatorFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostSlug.kt"
+        )
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.exists())
@@ -1129,15 +1138,24 @@ class PipelinePluginFunctionalTest {
         assertTrue(factoryFile.toFile().exists())
         assertTrue(specificationFile.toFile().exists())
         assertTrue(wrapperFile.toFile().exists())
+        assertTrue(uniqueQueryFile.toFile().exists())
+        assertTrue(uniqueQueryHandlerFile.toFile().exists())
+        assertTrue(uniqueValidatorFile.toFile().exists())
         val factoryContent = factoryFile.readText()
         val specificationContent = specificationFile.readText()
         val wrapperContent = wrapperFile.readText()
+        val uniqueQueryContent = uniqueQueryFile.readText()
+        val uniqueQueryHandlerContent = uniqueQueryHandlerFile.readText()
+        val uniqueValidatorContent = uniqueValidatorFile.readText()
         assertTrue(planFile.readText().contains("\"items\""))
         assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/entity.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/factory.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/specification.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/wrapper.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/unique_query.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/unique_query_handler.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/unique_validator.kt.peb\""))
         assertTrue(
             factoryContent.contains("class VideoPostFactory : AggregateFactory<VideoPostFactory.Payload, VideoPost>")
         )
@@ -1154,6 +1172,9 @@ class PipelinePluginFunctionalTest {
                 "class Id(key: Long) : com.only4.cap4k.ddd.core.domain.aggregate.Id.Default<AggVideoPost, Long>(key)"
             )
         )
+        assertTrue(uniqueQueryContent.contains("object UniqueVideoPostSlugQry"))
+        assertTrue(uniqueQueryHandlerContent.contains("class UniqueVideoPostSlugQryHandler"))
+        assertTrue(uniqueValidatorContent.contains("annotation class UniqueVideoPostSlug"))
     }
 
     @OptIn(ExperimentalPathApi::class)

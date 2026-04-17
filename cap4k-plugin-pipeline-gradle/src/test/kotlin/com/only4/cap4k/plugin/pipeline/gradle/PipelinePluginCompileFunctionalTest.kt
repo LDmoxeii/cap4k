@@ -242,6 +242,68 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
+    fun `aggregate unique query and validator generation participates in application compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-unique-application-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
+
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-application:compileKotlin")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateCompileResult.task(":demo-application:compileKotlin")?.outcome
+        )
+        assertTrue(beforeGenerateCompileResult.output.contains("UniqueVideoPostSlug"))
+
+        val generateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-application:compileKotlin")
+            .build()
+
+        assertGeneratedFilesExist(
+            projectDir,
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostSlug.kt",
+        )
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
+    fun `aggregate unique query handler generation participates in adapter compileKotlin`() {
+        val redProjectDir = Files.createTempDirectory("pipeline-functional-aggregate-unique-adapter-compile-red")
+        FunctionalFixtureSupport.copyCompileFixture(redProjectDir, "aggregate-compile-sample")
+        ensureAggregateAdapterHasSpringContext(redProjectDir)
+        removeAggregateUniqueApplicationCompileSmokeSource(redProjectDir)
+
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(redProjectDir, ":demo-adapter:compileKotlin")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateCompileResult.task(":demo-adapter:compileKotlin")?.outcome
+        )
+        assertTrue(beforeGenerateCompileResult.output.contains("UniqueVideoPostSlugQryHandler"))
+
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-unique-adapter-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
+        ensureAggregateAdapterHasSpringContext(projectDir)
+        val (generateResult, compileResult) = FunctionalFixtureSupport.generateThenCompile(
+            projectDir,
+            ":demo-adapter:compileKotlin"
+        )
+
+        assertGeneratedFilesExist(
+            projectDir,
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt",
+        )
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
     fun `integrated compile sample keeps migrated design families compile-safe together`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-integrated-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-integrated-compile-sample")
@@ -342,5 +404,26 @@ class PipelinePluginCompileFunctionalTest {
             "demo-application/src/main/kotlin/com/acme/demo/application/smoke/CompileSmoke.kt"
         )
         Files.deleteIfExists(applicationCompileSmokePath)
+    }
+
+    private fun removeAggregateUniqueApplicationCompileSmokeSource(projectDir: Path) {
+        val applicationCompileSmokePath = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/AggregateUniqueApplicationCompileSmoke.kt"
+        )
+        Files.deleteIfExists(applicationCompileSmokePath)
+    }
+
+    private fun ensureAggregateAdapterHasSpringContext(projectDir: Path) {
+        val adapterBuildFile = projectDir.resolve("demo-adapter/build.gradle.kts")
+        val normalizedContent = adapterBuildFile.readText().replace("\r\n", "\n")
+        if (normalizedContent.contains("org.springframework:spring-context")) {
+            return
+        }
+        val patchedContent = normalizedContent.replace(
+            "dependencies {\n",
+            "dependencies {\n    implementation(\"org.springframework:spring-context\")\n",
+        )
+        adapterBuildFile.writeText(patchedContent)
+        assertTrue(patchedContent.contains("implementation(\"org.springframework:spring-context\")"))
     }
 }
