@@ -93,15 +93,37 @@ class DbSchemaSourceProvider : SourceProvider {
             }
         }
         val uniqueConstraints = metadata.getIndexInfo(null, schema, tableName, true, false).use { rows ->
-            linkedMapOf<String, MutableList<String>>().apply {
+            data class IndexedConstraintColumn(
+                val name: String,
+                val ordinalPosition: Int,
+                val metadataSequence: Int,
+            )
+
+            var metadataSequence = 0
+            linkedMapOf<String, MutableList<IndexedConstraintColumn>>().apply {
                 while (rows.next()) {
                     if (rows.getBoolean("NON_UNIQUE")) continue
                     val indexName = rows.getString("INDEX_NAME") ?: continue
                     val columnName = rows.getString("COLUMN_NAME") ?: continue
-                    getOrPut(indexName) { mutableListOf() }.add(columnName)
+                    val ordinalPosition = rows.getInt("ORDINAL_POSITION")
+                    getOrPut(indexName) { mutableListOf() }.add(
+                        IndexedConstraintColumn(
+                            name = columnName,
+                            ordinalPosition = ordinalPosition,
+                            metadataSequence = metadataSequence++,
+                        )
+                    )
                 }
             }.values
-                .map { it.toList() }
+                .map { columns ->
+                    columns
+                        .sortedWith(
+                            compareBy<IndexedConstraintColumn> {
+                                if (it.ordinalPosition > 0) it.ordinalPosition else Int.MAX_VALUE
+                            }.thenBy { it.metadataSequence }
+                        )
+                        .map { it.name }
+                }
                 .filter { it.toSet() != primaryKeySet }
         }
 

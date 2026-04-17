@@ -1203,6 +1203,57 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kPlan and cap4kGenerate preserve aggregate composite unique constraint order end to end`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-composite-unique")
+        copyFixture(projectDir, "aggregate-sample")
+
+        projectDir.resolve("schema.sql").writeText(
+            """
+            create table if not exists video_post (
+                id bigint primary key,
+                slug varchar(128) not null unique,
+                tenantId bigint not null,
+                title varchar(255) not null,
+                published boolean default false,
+                constraint uq_video_post_tenant_slug unique (tenantId, slug)
+            );
+            """.trimIndent()
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan", "cap4kGenerate")
+            .build()
+
+        val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
+        val compositeQueryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostTenantIdSlugQry.kt"
+        )
+        val compositeQueryHandlerFile = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostTenantIdSlugQryHandler.kt"
+        )
+        val compositeValidatorFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostTenantIdSlug.kt"
+        )
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planContent.contains("UniqueVideoPostTenantIdSlugQry"))
+        assertTrue(planContent.contains("UniqueVideoPostTenantIdSlugQryHandler"))
+        assertTrue(planContent.contains("UniqueVideoPostTenantIdSlug"))
+        assertTrue(compositeQueryFile.toFile().exists())
+        assertTrue(compositeQueryHandlerFile.toFile().exists())
+        assertTrue(compositeValidatorFile.toFile().exists())
+        val compositeQueryContent = compositeQueryFile.readText()
+        val tenantParamIndex = compositeQueryContent.indexOf("val tenantId: Long")
+        val slugParamIndex = compositeQueryContent.indexOf("val slug: String")
+        assertTrue(tenantParamIndex >= 0)
+        assertTrue(slugParamIndex >= 0)
+        assertTrue(tenantParamIndex < slugParamIndex)
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan skips unsupported tables when aggregate policy is skip`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-skip")
         copyFixture(projectDir, "aggregate-policy-sample")

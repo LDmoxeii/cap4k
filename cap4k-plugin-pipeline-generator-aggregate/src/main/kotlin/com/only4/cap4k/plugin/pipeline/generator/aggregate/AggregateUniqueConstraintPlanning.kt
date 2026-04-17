@@ -35,16 +35,18 @@ internal object AggregateUniqueConstraintPlanning {
     }
 
     private fun selectConstraintFields(entity: EntityModel, columns: List<String>): List<FieldModel> {
-        val columnSet = columns.map { it.lowercase(Locale.ROOT) }.toSet()
-        val selected = entity.fields.filter { field ->
-            columnSet.contains(field.name.lowercase(Locale.ROOT))
+        val fieldsByName = entity.fields.associateBy { field ->
+            field.name.lowercase(Locale.ROOT)
         }
-        val selectedNameSet = selected.map { it.name.lowercase(Locale.ROOT) }.toSet()
-        val missingColumns = columnSet.filterNot { selectedNameSet.contains(it) }
+        val missingColumns = columns.filter { column ->
+            fieldsByName[column.lowercase(Locale.ROOT)] == null
+        }
         require(missingColumns.isEmpty()) {
             "Unique constraint columns not found in entity ${entity.name}: ${missingColumns.joinToString(", ")}"
         }
-        return selected
+        return columns.map { column ->
+            fieldsByName.getValue(column.lowercase(Locale.ROOT))
+        }
     }
 }
 

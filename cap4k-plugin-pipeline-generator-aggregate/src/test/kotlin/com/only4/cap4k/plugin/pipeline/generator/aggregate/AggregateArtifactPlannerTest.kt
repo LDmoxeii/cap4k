@@ -210,7 +210,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `shared unique planning derives one suffix per constraint and keeps family names aligned`() {
+    fun `shared unique planning preserves incoming composite constraint order and keeps family names aligned`() {
         val planning = AggregateUniqueConstraintPlanning.from(
             entity = EntityModel(
                 name = "VideoPost",
@@ -228,11 +228,11 @@ class AggregateArtifactPlannerTest {
         )
 
         val selection = planning.single()
-        assertEquals("TenantIdSlug", selection.suffix)
-        assertEquals(listOf("tenantId", "slug"), selection.requestProps.map { it.name })
-        assertEquals("UniqueVideoPostTenantIdSlugQry", selection.queryTypeName)
-        assertEquals("UniqueVideoPostTenantIdSlugQryHandler", selection.queryHandlerTypeName)
-        assertEquals("UniqueVideoPostTenantIdSlug", selection.validatorTypeName)
+        assertEquals("SlugTenantId", selection.suffix)
+        assertEquals(listOf("slug", "tenantId"), selection.requestProps.map { it.name })
+        assertEquals("UniqueVideoPostSlugTenantIdQry", selection.queryTypeName)
+        assertEquals("UniqueVideoPostSlugTenantIdQryHandler", selection.queryHandlerTypeName)
+        assertEquals("UniqueVideoPostSlugTenantId", selection.validatorTypeName)
     }
 
     @Test
