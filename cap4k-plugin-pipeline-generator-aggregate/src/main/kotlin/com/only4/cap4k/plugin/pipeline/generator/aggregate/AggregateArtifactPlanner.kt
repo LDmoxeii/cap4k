@@ -12,6 +12,8 @@ class AggregateArtifactPlanner : GeneratorProvider {
         SchemaArtifactPlanner(),
         EntityArtifactPlanner(),
         RepositoryArtifactPlanner(),
+        FactoryArtifactPlanner(),
+        SpecificationArtifactPlanner(),
     )
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> =

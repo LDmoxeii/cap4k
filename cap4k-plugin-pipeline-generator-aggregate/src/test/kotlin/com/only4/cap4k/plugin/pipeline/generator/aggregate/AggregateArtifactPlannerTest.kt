@@ -63,7 +63,7 @@ class AggregateArtifactPlannerTest {
 
         val planItems = AggregateArtifactPlanner().plan(config, model)
 
-        assertEquals(3, planItems.size)
+        assertEquals(5, planItems.size)
         assertEquals(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt",
             planItems.first { it.templateId == "aggregate/schema.kt.peb" }.outputPath,
@@ -102,30 +102,75 @@ class AggregateArtifactPlannerTest {
         val repositoryContext = planItems.first { it.templateId == "aggregate/repository.kt.peb" }.context
         assertEquals(false, repositoryContext.containsKey("entityTypeFqn"))
         assertEquals(false, repositoryContext.containsKey("qEntityTypeFqn"))
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
+            planItems.first { it.templateId == "aggregate/factory.kt.peb" }.outputPath,
+        )
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt",
+            planItems.first { it.templateId == "aggregate/specification.kt.peb" }.outputPath,
+        )
+        val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
+        assertEquals("com.acme.demo.domain.aggregates.video_post.factory", factoryContext["packageName"])
+        assertEquals("VideoPostFactory", factoryContext["typeName"])
+        assertEquals("Payload", factoryContext["payloadTypeName"])
+        assertEquals("VideoPost", factoryContext["entityName"])
+        assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", factoryContext["entityTypeFqn"])
+        assertEquals("VideoPost", factoryContext["aggregateName"])
+        val specificationContext = planItems.first { it.templateId == "aggregate/specification.kt.peb" }.context
+        assertEquals("com.acme.demo.domain.aggregates.video_post.specification", specificationContext["packageName"])
+        assertEquals("VideoPostSpecification", specificationContext["typeName"])
+        assertEquals("VideoPost", specificationContext["entityName"])
+        assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", specificationContext["entityTypeFqn"])
+        assertEquals("VideoPost", specificationContext["aggregateName"])
     }
 
     @Test
-    fun `leaves derived schema type references blank when schema entity is missing`() {
+    fun `derived aggregate references are exposed only to schema factory and specification contexts`() {
         val config = aggregateConfig()
         val model = CanonicalModel(
             schemas = listOf(
                 SchemaModel(
-                    name = "SUnknown",
-                    packageName = "com.acme.demo.domain._share.meta.unknown",
-                    entityName = "Unknown",
-                    comment = "Unknown schema",
+                    name = "SVideoPost",
+                    packageName = "com.acme.demo.domain._share.meta.video_post",
+                    entityName = "VideoPost",
+                    comment = "Video post schema",
                     fields = listOf(FieldModel("id", "Long")),
                 )
             ),
-            entities = emptyList(),
-            repositories = emptyList(),
+            entities = listOf(
+                EntityModel(
+                    name = "VideoPost",
+                    packageName = "com.acme.demo.domain.aggregates.video_post",
+                    tableName = "video_post",
+                    comment = "Video post entity",
+                    fields = listOf(FieldModel("id", "Long")),
+                    idField = FieldModel("id", "Long"),
+                )
+            ),
+            repositories = listOf(
+                RepositoryModel(
+                    name = "VideoPostRepository",
+                    packageName = "com.acme.demo.adapter.domain.repositories",
+                    entityName = "VideoPost",
+                    idType = "Long",
+                )
+            ),
         )
 
         val planItems = AggregateArtifactPlanner().plan(config, model)
         val schemaContext = planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context
+        val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
+        val specificationContext = planItems.first { it.templateId == "aggregate/specification.kt.peb" }.context
+        val entityContext = planItems.first { it.templateId == "aggregate/entity.kt.peb" }.context
+        val repositoryContext = planItems.first { it.templateId == "aggregate/repository.kt.peb" }.context
 
-        assertEquals("", schemaContext["entityTypeFqn"])
-        assertEquals("", schemaContext["qEntityTypeFqn"])
+        assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", schemaContext["entityTypeFqn"])
+        assertEquals("com.acme.demo.domain.aggregates.video_post.QVideoPost", schemaContext["qEntityTypeFqn"])
+        assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", factoryContext["entityTypeFqn"])
+        assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", specificationContext["entityTypeFqn"])
+        assertEquals(false, entityContext.containsKey("entityTypeFqn"))
+        assertEquals(false, repositoryContext.containsKey("entityTypeFqn"))
     }
 
     @Test
