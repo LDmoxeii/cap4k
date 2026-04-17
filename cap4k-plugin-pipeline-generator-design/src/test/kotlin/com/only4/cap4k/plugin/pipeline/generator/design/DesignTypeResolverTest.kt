@@ -152,6 +152,31 @@ class DesignTypeResolverTest {
     }
 
     @Test
+    fun `project registry fallback resolves exact short name only and does not infer q companion`() {
+        val projectRegistry = registryOf(
+            SymbolIdentity("com.acme.demo.domain.types", "VideoPost", source = "project-type-registry"),
+        )
+        val knownPlan = plan(
+            type = "VideoPost",
+            registry = projectRegistry,
+        )
+
+        assertEquals("VideoPost", knownPlan.renderedTypes.single().renderedText)
+        assertEquals(listOf("com.acme.demo.domain.types.VideoPost"), knownPlan.imports)
+        assertFalse(knownPlan.renderedTypes.single().qualifiedFallback)
+
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            plan(
+                type = "QVideoPost",
+                registry = projectRegistry,
+            )
+        }
+
+        assertTrue(ex.message!!.contains("QVideoPost"))
+        assertTrue(ex.message!!.contains("unknown"))
+    }
+
+    @Test
     fun `recursive generics import uniquely resolved registry children`() {
         val resolved = resolve("List<com.foo.Status?>")
         val plan = plan(
