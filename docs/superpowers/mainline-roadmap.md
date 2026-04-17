@@ -110,17 +110,19 @@ Completed:
 - cross-generator type-reference parity
 - aggregate factory / specification parity
 - aggregate wrapper parity
+- aggregate unique-constraint family parity
 
 Status:
 
-- the cross-generator reference boundary line is complete through aggregate wrapper parity
-- framework-facing type-reference work is now explicitly separated from broader aggregate parity and exploratory full-replacement gaps, and the aggregate-side consumer line now has planner, renderer, functional, and compile closure through wrapper output
+- the cross-generator reference boundary line is complete through aggregate unique-constraint family parity
+- framework-facing type-reference work is now explicitly separated from broader aggregate parity and exploratory full-replacement gaps, and the aggregate-side consumer line now has planner, renderer, functional, and compile closure through bounded unique-constraint output
 
 Traceability:
 
 - [cross-generator type-reference parity design](specs/2026-04-17-cap4k-cross-generator-type-reference-parity-design.md)
 - [aggregate factory / specification parity design](specs/2026-04-17-cap4k-aggregate-factory-specification-parity-design.md)
 - [aggregate wrapper parity design](specs/2026-04-17-cap4k-aggregate-wrapper-parity-design.md)
+- [aggregate unique-constraint family parity design](specs/2026-04-17-cap4k-aggregate-unique-constraint-family-parity-design.md)
 
 ## Current Mainline Contract
 
@@ -138,26 +140,26 @@ These points remain in force:
 
 The original design-generator quality mainline is complete, and the bounded bootstrap capability line is complete through generated-project verification hardening.
 
-The cross-generator reference boundary line is complete through aggregate wrapper parity.
+The cross-generator reference boundary line is complete through aggregate unique-constraint family parity.
 
 The next explicit framework slice is:
 
-- aggregate unique-constraint family parity
+- aggregate enum / enum-translation parity
 
 Scope:
 
-- consume the now-stable aggregate wrapper parity and unified derived type-reference boundary in the first aggregate unique-constraint implementation
-- keep unique-constraint generation inside the existing aggregate generator without expanding public DSL
-- cover the bounded old aggregate family consisting of `unique_query`, `unique_query_handler`, and `unique_validator`
-- prove representative unique-constraint output through planner, renderer, and bounded functional or compile verification
-- keep the slice bounded to unique-constraint family parity, not full aggregate-side completion
+- consume the now-stable aggregate unique-family closure and unified derived type-reference boundary in the first aggregate enum implementation
+- keep enum and enum-translation generation inside the existing aggregate generator without expanding public DSL
+- cover the bounded old aggregate pair consisting of `enum` and `enum-translation`
+- prove representative enum and translation output through planner, renderer, and bounded functional or compile verification
+- keep the slice bounded to enum / enum-translation parity, not full aggregate-side completion
 
 Non-goals:
 
 - do not restore mutable shared runtime type maps between generators
 - do not reopen relation parity, JPA annotation parity, or user-code-preservation parity in this slice
 - do not broaden bootstrap beyond the current bounded contract
-- do not silently expand into full aggregate-side parity beyond aggregate unique-constraint work
+- do not silently expand into full aggregate-side parity beyond enum / enum-translation work
 - do not turn exploratory parity notes into a general rewrite of the current pipeline architecture
 
 ## Bootstrap Decision
