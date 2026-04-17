@@ -242,6 +242,68 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
+    fun `aggregate enum generation participates in domain compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-enum-domain-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-enum-compile-sample")
+
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateCompileResult.task(":demo-domain:compileKotlin")?.outcome
+        )
+        assertTrue(beforeGenerateCompileResult.output.contains("Status"))
+        assertTrue(beforeGenerateCompileResult.output.contains("VideoPostVisibility"))
+
+        val generateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .build()
+
+        assertGeneratedFilesExist(
+            projectDir,
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt",
+        )
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
+    fun `aggregate enum translation generation participates in adapter compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-enum-adapter-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-enum-compile-sample")
+
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-adapter:compileKotlin", "-x", ":demo-domain:compileKotlin")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateCompileResult.task(":demo-adapter:compileKotlin")?.outcome
+        )
+        assertTrue(beforeGenerateCompileResult.output.contains("StatusTranslation"))
+        assertTrue(beforeGenerateCompileResult.output.contains("VideoPostVisibilityTranslation"))
+
+        val generateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-adapter:compileKotlin")
+            .build()
+
+        assertGeneratedFilesExist(
+            projectDir,
+            "demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/shared/StatusTranslation.kt",
+            "demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/video_post/VideoPostVisibilityTranslation.kt",
+        )
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
     fun `aggregate unique query and validator generation participates in application compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-unique-application-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")

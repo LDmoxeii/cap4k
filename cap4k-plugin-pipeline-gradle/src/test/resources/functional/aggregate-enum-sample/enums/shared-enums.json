@@ -1,0 +1,11 @@
+[
+  {
+    "name": "Status",
+    "package": "com.acme.demo.domain.shared.enums",
+    "generateTranslation": true,
+    "items": [
+      { "value": 0, "name": "DRAFT", "desc": "Draft" },
+      { "value": 1, "name": "PUBLISHED", "desc": "Published" }
+    ]
+  }
+]

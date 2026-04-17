@@ -1261,6 +1261,56 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kPlan and cap4kGenerate produce shared and local aggregate enum artifacts`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-enum")
+        copyFixture(projectDir, "aggregate-enum-sample")
+
+        val planResult = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .build()
+        val generateResult = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+        val planFile = projectDir.resolve("build/cap4k/plan.json")
+        val generatedEntity = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+        ).readText()
+
+        assertTrue(planResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planFile.toFile().exists())
+        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/enum.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/enum_translation.kt.peb\""))
+        assertTrue(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt"
+            ).toFile().exists()
+        )
+        assertTrue(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"
+            ).toFile().exists()
+        )
+        assertTrue(
+            projectDir.resolve(
+                "demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/shared/StatusTranslation.kt"
+            ).toFile().exists()
+        )
+        assertTrue(
+            projectDir.resolve(
+                "demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/video_post/VideoPostVisibilityTranslation.kt"
+            ).toFile().exists()
+        )
+        assertTrue(generatedEntity.contains("val status: com.acme.demo.domain.shared.enums.Status"))
+        assertFalse(generatedEntity.contains("class Status("))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan skips unsupported tables when aggregate policy is skip`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-skip")
         copyFixture(projectDir, "aggregate-policy-sample")
