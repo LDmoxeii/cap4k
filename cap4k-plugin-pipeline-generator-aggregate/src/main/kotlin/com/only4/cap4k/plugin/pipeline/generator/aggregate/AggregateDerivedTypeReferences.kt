@@ -22,7 +22,11 @@ internal class AggregateDerivedTypeReferences private constructor(
         fun from(model: CanonicalModel): AggregateDerivedTypeReferences {
             val entities = linkedMapOf<String, String>()
             model.entities.forEach { entity ->
-                entities[entity.name] = "${entity.packageName}.${entity.name}"
+                entities[entity.name] = if (entity.packageName.isBlank()) {
+                    entity.name
+                } else {
+                    "${entity.packageName}.${entity.name}"
+                }
             }
             return AggregateDerivedTypeReferences(entities)
         }

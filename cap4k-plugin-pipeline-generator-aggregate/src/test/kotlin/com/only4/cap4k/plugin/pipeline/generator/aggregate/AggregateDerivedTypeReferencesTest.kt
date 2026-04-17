@@ -45,13 +45,13 @@ class AggregateDerivedTypeReferencesTest {
     }
 
     @Test
-    fun `repeated lookups do not require mutation`() {
+    fun `derives entity and q entity fqcn without package prefix when package is blank`() {
         val references = AggregateDerivedTypeReferences.from(
             CanonicalModel(
                 entities = listOf(
                     EntityModel(
                         name = "VideoPost",
-                        packageName = "com.acme.demo.domain.aggregates.video_post",
+                        packageName = "",
                         tableName = "video_post",
                         comment = "Video post entity",
                         fields = listOf(FieldModel("id", "Long")),
@@ -61,7 +61,7 @@ class AggregateDerivedTypeReferencesTest {
             )
         )
 
-        assertEquals(references.entityFqn("VideoPost"), references.entityFqn("VideoPost"))
-        assertEquals(references.qEntityFqn("VideoPost"), references.qEntityFqn("VideoPost"))
+        assertEquals("VideoPost", references.entityFqn("VideoPost"))
+        assertEquals("QVideoPost", references.qEntityFqn("VideoPost"))
     }
 }
