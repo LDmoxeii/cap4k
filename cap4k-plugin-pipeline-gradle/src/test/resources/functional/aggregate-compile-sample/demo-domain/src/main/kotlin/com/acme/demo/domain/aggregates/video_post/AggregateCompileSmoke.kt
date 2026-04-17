@@ -7,5 +7,6 @@ class AggregateCompileSmoke(
     private val factory: VideoPostFactory,
     private val specification: VideoPostSpecification,
 ) {
-    fun wire(): Pair<VideoPostFactory, VideoPostSpecification> = factory to specification
+    fun wire(): Triple<VideoPostFactory, VideoPostSpecification, AggVideoPost.Id> =
+        Triple(factory, specification, AggVideoPost.Id(1L))
 }

@@ -1102,6 +1102,9 @@ class PipelinePluginFunctionalTest {
         val specificationFile = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt"
         )
+        val wrapperFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/AggVideoPost.kt"
+        )
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.exists())
@@ -1125,19 +1128,32 @@ class PipelinePluginFunctionalTest {
         )
         assertTrue(factoryFile.toFile().exists())
         assertTrue(specificationFile.toFile().exists())
+        assertTrue(wrapperFile.toFile().exists())
         val factoryContent = factoryFile.readText()
         val specificationContent = specificationFile.readText()
+        val wrapperContent = wrapperFile.readText()
         assertTrue(planFile.readText().contains("\"items\""))
         assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/entity.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/factory.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/specification.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/wrapper.kt.peb\""))
         assertTrue(
             factoryContent.contains("class VideoPostFactory : AggregateFactory<VideoPostFactory.Payload, VideoPost>")
         )
         assertTrue(factoryContent.contains("import com.acme.demo.domain.aggregates.video_post.VideoPost"))
         assertTrue(specificationContent.contains("class VideoPostSpecification : Specification<VideoPost>"))
         assertTrue(specificationContent.contains("return Result.pass()"))
+        assertTrue(wrapperContent.contains("import com.acme.demo.domain.aggregates.video_post.factory.VideoPostFactory"))
+        assertTrue(wrapperContent.contains("class AggVideoPost("))
+        assertTrue(wrapperContent.contains("payload: VideoPostFactory.Payload? = null"))
+        assertTrue(wrapperContent.contains(") : Aggregate.Default<VideoPost>(payload)"))
+        assertTrue(wrapperContent.contains("val id by lazy { root.id }"))
+        assertTrue(
+            wrapperContent.contains(
+                "class Id(key: Long) : com.only4.cap4k.ddd.core.domain.aggregate.Id.Default<AggVideoPost, Long>(key)"
+            )
+        )
     }
 
     @OptIn(ExperimentalPathApi::class)

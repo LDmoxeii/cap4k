@@ -222,6 +222,7 @@ class PipelinePluginCompileFunctionalTest {
             beforeGenerateCompileResult.task(":demo-domain:compileKotlin")?.outcome
         )
         assertTrue(beforeGenerateCompileResult.output.contains("VideoPostFactory"))
+        assertTrue(beforeGenerateCompileResult.output.contains("AggVideoPost"))
 
         val generateResult = FunctionalFixtureSupport
             .runner(projectDir, "cap4kGenerate")
@@ -234,6 +235,7 @@ class PipelinePluginCompileFunctionalTest {
             projectDir,
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/AggVideoPost.kt",
         )
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
