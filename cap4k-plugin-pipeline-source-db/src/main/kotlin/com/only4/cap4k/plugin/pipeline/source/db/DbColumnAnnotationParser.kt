@@ -7,13 +7,24 @@ internal object DbColumnAnnotationParser {
     private val annotationPattern = Regex("@([A-Za-z]+)(=([^;]*))?;?")
 
     fun parse(comment: String): DbColumnAnnotationMetadata {
-        val annotations = annotationPattern.findAll(comment).associate { match ->
-            val key = match.groupValues[1].uppercase(Locale.ROOT)
-            val value = match.groupValues[3].trim()
-            key to value
-        }
-        val typeBinding = (annotations["TYPE"] ?: annotations["T"]).takeIf { !it.isNullOrBlank() }
-        val enumConfig = annotations["ENUM"] ?: annotations["E"]
+        val annotations = annotationPattern.findAll(comment)
+            .map { match ->
+                ParsedAnnotation(
+                    key = match.groupValues[1].uppercase(Locale.ROOT),
+                    value = match.groupValues[3].trim(),
+                )
+            }
+            .toList()
+        val typeBinding = resolveAnnotationValue(
+            annotations = annotations,
+            aliases = setOf("TYPE", "T"),
+            conflictMessage = "conflicting @T/@TYPE annotations on the same column comment.",
+        )
+        val enumConfig = resolveAnnotationValue(
+            annotations = annotations,
+            aliases = setOf("ENUM", "E"),
+            conflictMessage = "conflicting @E/@ENUM annotations on the same column comment.",
+        )
 
         if (enumConfig != null && typeBinding.isNullOrBlank()) {
             throw IllegalArgumentException("@E requires @T on the same column comment.")
@@ -55,4 +66,25 @@ internal object DbColumnAnnotationParser {
             description = parts[2],
         )
     }
+
+    private fun resolveAnnotationValue(
+        annotations: List<ParsedAnnotation>,
+        aliases: Set<String>,
+        conflictMessage: String,
+    ): String? {
+        val values = annotations
+            .asSequence()
+            .filter { it.key in aliases }
+            .map { it.value }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .toList()
+        require(values.size <= 1) { conflictMessage }
+        return values.singleOrNull()
+    }
 }
+
+private data class ParsedAnnotation(
+    val key: String,
+    val value: String,
+)

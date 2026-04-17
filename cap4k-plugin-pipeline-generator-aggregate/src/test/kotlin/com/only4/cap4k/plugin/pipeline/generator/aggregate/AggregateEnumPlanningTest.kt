@@ -13,6 +13,22 @@ class AggregateEnumPlanningTest {
 
     @Test
     fun `type binding prefers local enum definition over shared enum lookup only when E and T coexist`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "",
+            fields = listOf(
+                FieldModel(name = "status", type = "Int", typeBinding = "Status"),
+                FieldModel(
+                    name = "visibility",
+                    type = "Int",
+                    typeBinding = "VideoPostVisibility",
+                    enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden"))
+                ),
+            ),
+            idField = FieldModel(name = "id", type = "Long"),
+        )
         val planning = AggregateEnumPlanning.from(
             CanonicalModel(
                 sharedEnums = listOf(
@@ -23,24 +39,7 @@ class AggregateEnumPlanningTest {
                         items = listOf(EnumItemModel(0, "DRAFT", "Draft"))
                     )
                 ),
-                entities = listOf(
-                    EntityModel(
-                        name = "VideoPost",
-                        packageName = "com.acme.demo.domain.aggregates.video_post",
-                        tableName = "video_post",
-                        comment = "",
-                        fields = listOf(
-                            FieldModel(name = "status", type = "Int", typeBinding = "Status"),
-                            FieldModel(
-                                name = "visibility",
-                                type = "Int",
-                                typeBinding = "VideoPostVisibility",
-                                enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden"))
-                            ),
-                        ),
-                        idField = FieldModel(name = "id", type = "Long"),
-                    )
-                )
+                entities = listOf(entity)
             ),
             typeRegistry = emptyMap(),
         )
@@ -49,6 +48,7 @@ class AggregateEnumPlanningTest {
         assertEquals(
             "com.acme.demo.domain.aggregates.video_post.enums.VideoPostVisibility",
             planning.resolveFieldType(
+                entity.packageName,
                 "VideoPostVisibility",
                 listOf(EnumItemModel(0, "HIDDEN", "Hidden"))
             )
@@ -76,6 +76,101 @@ class AggregateEnumPlanningTest {
 
         assertEquals(
             "ambiguous type binding for Status: matches both shared enum and general type registry",
+            error.message
+        )
+    }
+
+    @Test
+    fun `same local enum type name is allowed across different aggregate owners`() {
+        val videoPost = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "",
+            fields = listOf(
+                FieldModel(
+                    name = "status",
+                    type = "Int",
+                    typeBinding = "Visibility",
+                    enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden"))
+                )
+            ),
+            idField = FieldModel(name = "id", type = "Long"),
+        )
+        val articlePost = EntityModel(
+            name = "ArticlePost",
+            packageName = "com.acme.demo.domain.aggregates.article_post",
+            tableName = "article_post",
+            comment = "",
+            fields = listOf(
+                FieldModel(
+                    name = "status",
+                    type = "Int",
+                    typeBinding = "Visibility",
+                    enumItems = listOf(EnumItemModel(1, "PUBLIC", "Public"))
+                )
+            ),
+            idField = FieldModel(name = "id", type = "Long"),
+        )
+
+        val planning = AggregateEnumPlanning.from(
+            CanonicalModel(entities = listOf(videoPost, articlePost)),
+            typeRegistry = emptyMap(),
+        )
+
+        assertEquals(
+            "com.acme.demo.domain.aggregates.video_post.enums.Visibility",
+            planning.resolveFieldType(
+                videoPost.packageName,
+                "Visibility",
+                videoPost.fields.single().enumItems,
+            )
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.article_post.enums.Visibility",
+            planning.resolveFieldType(
+                articlePost.packageName,
+                "Visibility",
+                articlePost.fields.single().enumItems,
+            )
+        )
+    }
+
+    @Test
+    fun `conflicting local enum definitions under the same aggregate owner fail fast`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            AggregateEnumPlanning.from(
+                CanonicalModel(
+                    entities = listOf(
+                        EntityModel(
+                            name = "VideoPost",
+                            packageName = "com.acme.demo.domain.aggregates.video_post",
+                            tableName = "video_post",
+                            comment = "",
+                            fields = listOf(
+                                FieldModel(
+                                    name = "visibility",
+                                    type = "Int",
+                                    typeBinding = "Visibility",
+                                    enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden"))
+                                ),
+                                FieldModel(
+                                    name = "secondaryVisibility",
+                                    type = "Int",
+                                    typeBinding = "Visibility",
+                                    enumItems = listOf(EnumItemModel(1, "PUBLIC", "Public"))
+                                ),
+                            ),
+                            idField = FieldModel(name = "id", type = "Long"),
+                        )
+                    )
+                ),
+                typeRegistry = emptyMap(),
+            )
+        }
+
+        assertEquals(
+            "conflicting local enum definition for com.acme.demo.domain.aggregates.video_post.enums.Visibility",
             error.message
         )
     }

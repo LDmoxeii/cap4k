@@ -33,4 +33,22 @@ class DbColumnAnnotationParserTest {
 
         assertEquals("@E requires @T on the same column comment.", error.message)
     }
+
+    @Test
+    fun `conflicting type annotations fail fast`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@T=Status;@TYPE=VideoPostStatus;")
+        }
+
+        assertEquals("conflicting @T/@TYPE annotations on the same column comment.", error.message)
+    }
+
+    @Test
+    fun `conflicting enum annotations fail fast`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@T=Status;@E=0:DRAFT:Draft;@ENUM=1:PUBLISHED:Published;")
+        }
+
+        assertEquals("conflicting @E/@ENUM annotations on the same column comment.", error.message)
+    }
 }

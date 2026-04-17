@@ -8,17 +8,20 @@ import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 
 internal class AggregateEnumPlanning private constructor(
     private val sharedEnumFqns: Map<String, String>,
-    private val localEnumFqns: Map<LocalEnumKey, String>,
+    private val localEnumFqns: Map<LocalEnumOwnerKey, String>,
     private val typeRegistry: Map<String, String>,
 ) {
     fun resolveFieldType(typeName: String, enumItems: List<EnumItemModel>): String {
+        return resolveFieldType(ownerPackageName = null, typeName = typeName, enumItems = enumItems)
+    }
+
+    fun resolveFieldType(ownerPackageName: String?, typeName: String, enumItems: List<EnumItemModel>): String {
         if ('.' in typeName) {
             return typeName
         }
-        if (enumItems.isNotEmpty()) {
-            val localFqn = localEnumFqns[LocalEnumKey(typeBinding = typeName, enumItems = enumItems)]
-            if (localFqn != null) {
-                return localFqn
+        if (ownerPackageName != null) {
+            localEnumFqns[LocalEnumOwnerKey(ownerPackageName = ownerPackageName, typeBinding = typeName)]?.let {
+                return it
             }
         }
         val sharedFqn = sharedEnumFqns[typeName]
@@ -33,8 +36,12 @@ internal class AggregateEnumPlanning private constructor(
     }
 
     fun resolveFieldType(field: FieldModel): String {
+        return resolveFieldType(ownerPackageName = null, field = field)
+    }
+
+    fun resolveFieldType(ownerPackageName: String?, field: FieldModel): String {
         val typeName = field.typeBinding?.takeIf { it.isNotBlank() } ?: field.type
-        return resolveFieldType(typeName, field.enumItems)
+        return resolveFieldType(ownerPackageName, typeName, field.enumItems)
     }
 
     companion object {
@@ -90,7 +97,7 @@ internal class AggregateEnumPlanning private constructor(
             return "$aggregateBasePackage.$trimmed.enums"
         }
 
-        private fun buildLocalEnumFqns(entities: List<EntityModel>): Map<LocalEnumKey, String> {
+        private fun buildLocalEnumFqns(entities: List<EntityModel>): Map<LocalEnumOwnerKey, String> {
             val grouped = entities
                 .flatMap { entity ->
                     entity.fields.mapNotNull { field ->
@@ -98,16 +105,23 @@ internal class AggregateEnumPlanning private constructor(
                         if (field.enumItems.isEmpty()) {
                             return@mapNotNull null
                         }
-                        LocalEnumKey(typeBinding = typeBinding, enumItems = field.enumItems) to
-                            buildLocalEnumFqn(entity, typeBinding)
+                        LocalEnumOwnerKey(
+                            ownerPackageName = entity.packageName,
+                            typeBinding = typeBinding,
+                        ) to LocalEnumDefinition(
+                            fqn = buildLocalEnumFqn(entity, typeBinding),
+                            enumItems = field.enumItems,
+                        )
                     }
                 }
                 .groupBy({ it.first }, { it.second })
 
-            grouped.entries.firstOrNull { it.value.distinct().size > 1 }?.let { entry ->
-                throw IllegalArgumentException("ambiguous local enum binding for ${entry.key.typeBinding}")
+            grouped.entries.firstOrNull { entry ->
+                entry.value.map { it.enumItems }.distinct().size > 1
+            }?.let { entry ->
+                throw IllegalArgumentException("conflicting local enum definition for ${entry.value.first().fqn}")
             }
-            return grouped.mapValues { (_, values) -> values.first() }
+            return grouped.mapValues { (_, values) -> values.first().fqn }
         }
 
         private fun buildLocalEnumFqn(entity: EntityModel, typeName: String): String =
@@ -129,7 +143,12 @@ internal class AggregateEnumPlanning private constructor(
     }
 }
 
-private data class LocalEnumKey(
+private data class LocalEnumOwnerKey(
+    val ownerPackageName: String,
     val typeBinding: String,
+)
+
+private data class LocalEnumDefinition(
+    val fqn: String,
     val enumItems: List<EnumItemModel>,
 )
