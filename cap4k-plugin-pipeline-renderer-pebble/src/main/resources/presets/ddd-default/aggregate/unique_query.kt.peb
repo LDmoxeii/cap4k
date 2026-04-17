@@ -1,0 +1,17 @@
+package {{ packageName }}
+
+import com.only4.cap4k.ddd.core.application.RequestParam
+
+object {{ typeName }} {
+
+    data class Request(
+{%- for prop in requestProps %}
+        val {{ prop.name }}: {{ prop.type }},
+{%- endfor %}
+        val {{ excludeIdParamName }}: {{ idType }}?
+    ) : RequestParam<Response>
+
+    data class Response(
+        val exists: Boolean
+    )
+}

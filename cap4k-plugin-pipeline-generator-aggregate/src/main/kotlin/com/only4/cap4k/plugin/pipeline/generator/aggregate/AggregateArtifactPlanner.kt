@@ -15,6 +15,9 @@ class AggregateArtifactPlanner : GeneratorProvider {
         FactoryArtifactPlanner(),
         SpecificationArtifactPlanner(),
         AggregateWrapperArtifactPlanner(),
+        UniqueQueryArtifactPlanner(),
+        UniqueQueryHandlerArtifactPlanner(),
+        UniqueValidatorArtifactPlanner(),
     )
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> =

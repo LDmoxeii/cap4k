@@ -24,6 +24,7 @@ class AggregateArtifactPlannerTest {
             layout = ProjectLayout.MULTI_MODULE,
             modules = mapOf(
                 "domain" to "demo-domain",
+                "application" to "demo-application",
                 "adapter" to "demo-adapter",
             ),
             sources = emptyMap(),
@@ -139,6 +140,90 @@ class AggregateArtifactPlannerTest {
         )
         assertEquals("Long", wrapperContext["idType"])
         assertEquals("Video post entity", wrapperContext["comment"])
+    }
+
+    @Test
+    fun `plans unique query handler and validator artifacts from entity unique constraints`() {
+        val config = ProjectConfig(
+            basePackage = "com.acme.demo",
+            layout = ProjectLayout.MULTI_MODULE,
+            modules = mapOf(
+                "domain" to "demo-domain",
+                "application" to "demo-application",
+                "adapter" to "demo-adapter",
+            ),
+            sources = emptyMap(),
+            generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+            templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+        )
+
+        val model = CanonicalModel(
+            entities = listOf(
+                EntityModel(
+                    name = "VideoPost",
+                    packageName = "com.acme.demo.domain.aggregates.video_post",
+                    tableName = "video_post",
+                    comment = "Video post entity",
+                    fields = listOf(
+                        FieldModel("id", "Long"),
+                        FieldModel("slug", "String"),
+                        FieldModel("title", "String"),
+                    ),
+                    idField = FieldModel("id", "Long"),
+                    uniqueConstraints = listOf(listOf("slug")),
+                )
+            )
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(config, model)
+
+        val query = planItems.first { it.templateId == "aggregate/unique_query.kt.peb" }
+        val handler = planItems.first { it.templateId == "aggregate/unique_query_handler.kt.peb" }
+        val validator = planItems.first { it.templateId == "aggregate/unique_validator.kt.peb" }
+
+        assertEquals(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt",
+            query.outputPath,
+        )
+        assertEquals(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt",
+            handler.outputPath,
+        )
+        assertEquals(
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostSlug.kt",
+            validator.outputPath,
+        )
+
+        assertEquals("UniqueVideoPostSlugQry", query.context["typeName"])
+        assertEquals("UniqueVideoPostSlugQryHandler", handler.context["typeName"])
+        assertEquals("UniqueVideoPostSlug", validator.context["typeName"])
+        assertEquals("Long", query.context["idType"])
+        assertEquals("excludeVideoPostId", query.context["excludeIdParamName"])
+    }
+
+    @Test
+    fun `shared unique planning derives one suffix per constraint and keeps family names aligned`() {
+        val planning = AggregateUniqueConstraintPlanning.from(
+            entity = EntityModel(
+                name = "VideoPost",
+                packageName = "com.acme.demo.domain.aggregates.video_post",
+                tableName = "video_post",
+                comment = "Video post entity",
+                fields = listOf(
+                    FieldModel("id", "Long"),
+                    FieldModel("tenantId", "Long"),
+                    FieldModel("slug", "String"),
+                ),
+                idField = FieldModel("id", "Long"),
+                uniqueConstraints = listOf(listOf("tenantId", "slug")),
+            )
+        )
+
+        val selection = planning.single()
+        assertEquals("TenantIdSlug", selection.suffix)
+        assertEquals("UniqueVideoPostTenantIdSlugQry", selection.queryTypeName)
+        assertEquals("UniqueVideoPostTenantIdSlugQryHandler", selection.queryHandlerTypeName)
+        assertEquals("UniqueVideoPostTenantIdSlug", selection.validatorTypeName)
     }
 
     @Test
@@ -362,6 +447,7 @@ class AggregateArtifactPlannerTest {
 
     private fun aggregateConfig(
         domainModule: String? = "demo-domain",
+        applicationModule: String? = "demo-application",
         adapterModule: String? = "demo-adapter",
     ): ProjectConfig =
         ProjectConfig(
@@ -369,6 +455,7 @@ class AggregateArtifactPlannerTest {
             layout = ProjectLayout.MULTI_MODULE,
             modules = buildMap {
                 domainModule?.let { put("domain", it) }
+                applicationModule?.let { put("application", it) }
                 adapterModule?.let { put("adapter", it) }
             },
             sources = emptyMap(),

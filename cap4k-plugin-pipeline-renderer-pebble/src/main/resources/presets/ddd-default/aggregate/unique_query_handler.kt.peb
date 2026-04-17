@@ -1,0 +1,14 @@
+package {{ packageName }}
+
+import com.only4.cap4k.ddd.core.application.query.Query
+import org.springframework.stereotype.Service
+import {{ queryTypeFqn }}
+
+@Service
+class {{ typeName }} : Query<{{ queryTypeName }}.Request, {{ queryTypeName }}.Response> {
+    override fun exec(request: {{ queryTypeName }}.Request): {{ queryTypeName }}.Response {
+        return {{ queryTypeName }}.Response(
+            exists = false
+        )
+    }
+}
