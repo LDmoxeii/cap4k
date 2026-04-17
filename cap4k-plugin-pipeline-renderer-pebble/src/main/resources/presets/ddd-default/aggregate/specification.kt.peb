@@ -1,0 +1,21 @@
+package {{ packageName }}
+
+import com.only4.cap4k.ddd.core.domain.aggregate.Specification
+import com.only4.cap4k.ddd.core.domain.aggregate.Specification.Result
+import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+import org.springframework.stereotype.Service
+import {{ entityTypeFqn }}
+
+@Service
+@Aggregate(
+    aggregate = "{{ aggregateName }}",
+    name = "{{ typeName }}",
+    type = Aggregate.TYPE_SPECIFICATION,
+    description = ""
+)
+class {{ typeName }} : Specification<{{ entityName }}> {
+
+    override fun specify(entity: {{ entityName }}): Result {
+        return Result.pass()
+    }
+}

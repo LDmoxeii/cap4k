@@ -1,0 +1,31 @@
+package {{ packageName }}
+
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
+import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+import org.springframework.stereotype.Service
+import {{ entityTypeFqn }}
+
+@Service
+@Aggregate(
+    aggregate = "{{ aggregateName }}",
+    name = "{{ typeName }}",
+    type = Aggregate.TYPE_FACTORY,
+    description = ""
+)
+class {{ typeName }} : AggregateFactory<{{ typeName }}.{{ payloadTypeName }}, {{ entityName }}> {
+
+    override fun create(payload: {{ payloadTypeName }}): {{ entityName }} {
+        return {{ entityName }}()
+    }
+
+    @Aggregate(
+        aggregate = "{{ aggregateName }}",
+        name = "{{ payloadTypeName }}",
+        type = Aggregate.TYPE_FACTORY_PAYLOAD,
+        description = ""
+    )
+    data class {{ payloadTypeName }}(
+        val name: String
+    ) : AggregatePayload<{{ entityName }}>
+}

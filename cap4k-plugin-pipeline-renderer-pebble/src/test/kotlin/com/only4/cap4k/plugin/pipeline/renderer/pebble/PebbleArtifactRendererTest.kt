@@ -1063,6 +1063,37 @@ class PebbleArtifactRendererTest {
                         "idType" to "Long"
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/factory.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/factory/OrderFactory.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.order.factory",
+                        "typeName" to "OrderFactory",
+                        "payloadTypeName" to "Payload",
+                        "entityName" to "Order",
+                        "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
+                        "aggregateName" to "Order",
+                        "comment" to "Order aggregate",
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/specification.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/specification/OrderSpecification.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.order.specification",
+                        "typeName" to "OrderSpecification",
+                        "entityName" to "Order",
+                        "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
+                        "aggregateName" to "Order",
+                        "comment" to "Order aggregate",
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
                 )
             ),
             config = ProjectConfig(
@@ -1082,6 +1113,8 @@ class PebbleArtifactRendererTest {
         val schemaContent = rendered[0].content
         val entityContent = rendered[1].content
         val repositoryContent = rendered[2].content
+        val factoryContent = rendered[3].content
+        val specificationContent = rendered[4].content
 
         assertTrue(schemaContent.contains("object OrderSchema"))
         assertTrue(schemaContent.contains("const val id = \"id\""))
@@ -1089,6 +1122,20 @@ class PebbleArtifactRendererTest {
         assertTrue(entityContent.contains("data class Order("))
         assertTrue(entityContent.contains("val orderNo: String?"))
         assertTrue(repositoryContent.contains("interface OrderRepository"))
+        assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory"))
+        assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload"))
+        assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"))
+        assertTrue(factoryContent.contains("import org.springframework.stereotype.Service"))
+        assertTrue(factoryContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
+        assertTrue(factoryContent.contains("class OrderFactory : AggregateFactory<OrderFactory.Payload, Order>"))
+        assertTrue(factoryContent.contains("data class Payload("))
+        assertTrue(specificationContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.Specification"))
+        assertTrue(specificationContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.Specification.Result"))
+        assertTrue(specificationContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"))
+        assertTrue(specificationContent.contains("import org.springframework.stereotype.Service"))
+        assertTrue(specificationContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
+        assertTrue(specificationContent.contains("class OrderSpecification : Specification<Order>"))
+        assertTrue(specificationContent.contains("return Result.pass()"))
     }
 
     @Test
