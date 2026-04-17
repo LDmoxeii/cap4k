@@ -210,7 +210,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `shared unique planning preserves incoming composite constraint order and keeps family names aligned`() {
+    fun `shared unique planning normalizes raw constraint identifiers while preserving composite order and family names`() {
         val planning = AggregateUniqueConstraintPlanning.from(
             entity = EntityModel(
                 name = "VideoPost",
@@ -219,20 +219,20 @@ class AggregateArtifactPlannerTest {
                 comment = "Video post entity",
                 fields = listOf(
                     FieldModel("id", "Long"),
-                    FieldModel("tenantId", "Long"),
+                    FieldModel("tenant_id", "Long"),
                     FieldModel("slug", "String"),
                 ),
                 idField = FieldModel("id", "Long"),
-                uniqueConstraints = listOf(listOf("slug", "tenantId")),
+                uniqueConstraints = listOf(listOf("tenant_id", "slug")),
             )
         )
 
         val selection = planning.single()
-        assertEquals("SlugTenantId", selection.suffix)
-        assertEquals(listOf("slug", "tenantId"), selection.requestProps.map { it.name })
-        assertEquals("UniqueVideoPostSlugTenantIdQry", selection.queryTypeName)
-        assertEquals("UniqueVideoPostSlugTenantIdQryHandler", selection.queryHandlerTypeName)
-        assertEquals("UniqueVideoPostSlugTenantId", selection.validatorTypeName)
+        assertEquals("TenantIdSlug", selection.suffix)
+        assertEquals(listOf("tenantId", "slug"), selection.requestProps.map { it.name })
+        assertEquals("UniqueVideoPostTenantIdSlugQry", selection.queryTypeName)
+        assertEquals("UniqueVideoPostTenantIdSlugQryHandler", selection.queryHandlerTypeName)
+        assertEquals("UniqueVideoPostTenantIdSlug", selection.validatorTypeName)
     }
 
     @Test

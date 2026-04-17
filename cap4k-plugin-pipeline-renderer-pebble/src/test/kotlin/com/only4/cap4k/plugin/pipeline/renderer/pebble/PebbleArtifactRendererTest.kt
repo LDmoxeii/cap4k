@@ -1116,12 +1116,15 @@ class PebbleArtifactRendererTest {
                     generatorId = "aggregate",
                     moduleRole = "application",
                     templateId = "aggregate/unique_query.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostTenantIdSlugQry.kt",
                     context = mapOf(
                         "packageName" to "com.acme.demo.application.queries.video_post.unique",
-                        "typeName" to "UniqueVideoPostSlugQry",
+                        "typeName" to "UniqueVideoPostTenantIdSlugQry",
                         "entityName" to "VideoPost",
-                        "requestProps" to listOf(mapOf("name" to "slug", "type" to "String", "nullable" to true)),
+                        "requestProps" to listOf(
+                            mapOf("name" to "tenantId", "type" to "Long", "nullable" to false),
+                            mapOf("name" to "slug", "type" to "String", "nullable" to true),
+                        ),
                         "idType" to "Long",
                         "excludeIdParamName" to "excludeVideoPostId",
                     ),
@@ -1131,12 +1134,12 @@ class PebbleArtifactRendererTest {
                     generatorId = "aggregate",
                     moduleRole = "adapter",
                     templateId = "aggregate/unique_query_handler.kt.peb",
-                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostTenantIdSlugQryHandler.kt",
                     context = mapOf(
                         "packageName" to "com.acme.demo.adapter.queries.video_post.unique",
-                        "typeName" to "UniqueVideoPostSlugQryHandler",
-                        "queryTypeName" to "UniqueVideoPostSlugQry",
-                        "queryTypeFqn" to "com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry",
+                        "typeName" to "UniqueVideoPostTenantIdSlugQryHandler",
+                        "queryTypeName" to "UniqueVideoPostTenantIdSlugQry",
+                        "queryTypeFqn" to "com.acme.demo.application.queries.video_post.unique.UniqueVideoPostTenantIdSlugQry",
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
@@ -1144,13 +1147,16 @@ class PebbleArtifactRendererTest {
                     generatorId = "aggregate",
                     moduleRole = "application",
                     templateId = "aggregate/unique_validator.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostSlug.kt",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostTenantIdSlug.kt",
                     context = mapOf(
                         "packageName" to "com.acme.demo.application.validators.video_post.unique",
-                        "typeName" to "UniqueVideoPostSlug",
-                        "queryTypeName" to "UniqueVideoPostSlugQry",
-                        "queryTypeFqn" to "com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry",
-                        "requestProps" to listOf(mapOf("name" to "slug", "type" to "String")),
+                        "typeName" to "UniqueVideoPostTenantIdSlug",
+                        "queryTypeName" to "UniqueVideoPostTenantIdSlugQry",
+                        "queryTypeFqn" to "com.acme.demo.application.queries.video_post.unique.UniqueVideoPostTenantIdSlugQry",
+                        "requestProps" to listOf(
+                            mapOf("name" to "tenantId", "type" to "Long"),
+                            mapOf("name" to "slug", "type" to "String"),
+                        ),
                         "idType" to "Long",
                         "excludeIdParamName" to "excludeVideoPostId",
                         "entityName" to "VideoPost",
@@ -1186,9 +1192,9 @@ class PebbleArtifactRendererTest {
         val factoryContent = contentFor("/factory/OrderFactory.kt")
         val specificationContent = contentFor("/specification/OrderSpecification.kt")
         val wrapperContent = contentFor("/aggregates/order/AggOrder.kt")
-        val uniqueQueryContent = contentFor("/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt")
-        val uniqueHandlerContent = contentFor("/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt")
-        val uniqueValidatorContent = contentFor("/application/validators/video_post/unique/UniqueVideoPostSlug.kt")
+        val uniqueQueryContent = contentFor("/application/queries/video_post/unique/UniqueVideoPostTenantIdSlugQry.kt")
+        val uniqueHandlerContent = contentFor("/adapter/queries/video_post/unique/UniqueVideoPostTenantIdSlugQryHandler.kt")
+        val uniqueValidatorContent = contentFor("/application/validators/video_post/unique/UniqueVideoPostTenantIdSlug.kt")
 
         assertTrue(schemaContent.contains("object OrderSchema"))
         assertTrue(schemaContent.contains("const val id = \"id\""))
@@ -1231,16 +1237,30 @@ class PebbleArtifactRendererTest {
                 "class Id(key: Long) : com.only4.cap4k.ddd.core.domain.aggregate.Id.Default<AggOrder, Long>(key)"
             )
         )
-        assertTrue(uniqueQueryContent.contains("object UniqueVideoPostSlugQry"))
+        assertTrue(uniqueQueryContent.contains("object UniqueVideoPostTenantIdSlugQry"))
         assertTrue(uniqueQueryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(uniqueQueryContent.contains("val tenantId: Long"))
         assertTrue(uniqueQueryContent.contains("val slug: String?"))
         assertTrue(uniqueQueryContent.contains("val excludeVideoPostId: Long?"))
-        assertTrue(uniqueHandlerContent.contains("class UniqueVideoPostSlugQryHandler"))
+        assertTrue(uniqueHandlerContent.contains("class UniqueVideoPostTenantIdSlugQryHandler"))
         assertTrue(uniqueHandlerContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
-        assertTrue(uniqueHandlerContent.contains("import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry"))
-        assertTrue(uniqueValidatorContent.contains("annotation class UniqueVideoPostSlug"))
+        assertTrue(uniqueHandlerContent.contains("import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostTenantIdSlugQry"))
+        assertTrue(uniqueValidatorContent.contains("annotation class UniqueVideoPostTenantIdSlug"))
         assertTrue(uniqueValidatorContent.contains("import jakarta.validation.Constraint"))
-        assertTrue(uniqueValidatorContent.contains("import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry"))
+        assertTrue(uniqueValidatorContent.contains("import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostTenantIdSlugQry"))
+        assertTrue(
+            uniqueValidatorContent.contains(
+                "class Validator : ConstraintValidator<UniqueVideoPostTenantIdSlug, UniqueVideoPostTenantIdSlugQry.Request>"
+            )
+        )
+        assertTrue(
+            uniqueValidatorContent.contains(
+                "override fun isValid(request: UniqueVideoPostTenantIdSlugQry.Request?, context: ConstraintValidatorContext): Boolean"
+            )
+        )
+        assertTrue(uniqueValidatorContent.contains("request.tenantId"))
+        assertTrue(uniqueValidatorContent.contains("request.slug"))
+        assertTrue(uniqueValidatorContent.contains("request.excludeVideoPostId"))
     }
 
     @Test

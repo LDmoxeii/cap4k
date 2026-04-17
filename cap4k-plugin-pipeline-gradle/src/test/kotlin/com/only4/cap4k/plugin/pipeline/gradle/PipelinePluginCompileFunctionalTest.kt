@@ -280,6 +280,13 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(
             validatorContent.contains("import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry")
         )
+        assertTrue(
+            validatorContent.contains(
+                "class Validator : ConstraintValidator<UniqueVideoPostSlug, UniqueVideoPostSlugQry.Request>"
+            )
+        )
+        assertTrue(validatorContent.contains("request.slug"))
+        assertTrue(validatorContent.contains("request.excludeVideoPostId"))
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }

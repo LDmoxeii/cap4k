@@ -15,7 +15,19 @@ annotation class {{ typeName }}(
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = [],
 ) {
-    class Validator : ConstraintValidator<{{ typeName }}, Any> {
-        override fun isValid(value: Any?, context: ConstraintValidatorContext): Boolean = true
+    class Validator : ConstraintValidator<{{ typeName }}, {{ queryTypeName }}.Request> {
+        override fun isValid(request: {{ queryTypeName }}.Request?, context: ConstraintValidatorContext): Boolean {
+            if (request == null) {
+                return true
+            }
+
+            val keyValues = listOf<Any?>(
+{%- for prop in requestProps %}
+                request.{{ prop.name }},
+{%- endfor %}
+            )
+            val excludeId: {{ idType }}? = request.{{ excludeIdParamName }}
+            return keyValues.any { it != null } || excludeId != null || keyValues.isEmpty()
+        }
     }
 }

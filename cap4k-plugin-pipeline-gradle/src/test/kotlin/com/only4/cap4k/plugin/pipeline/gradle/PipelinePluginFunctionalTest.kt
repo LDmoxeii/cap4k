@@ -1196,6 +1196,13 @@ class PipelinePluginFunctionalTest {
         )
         assertTrue(
             uniqueValidatorContent.contains(
+                "class Validator : ConstraintValidator<UniqueVideoPostSlug, UniqueVideoPostSlugQry.Request>"
+            )
+        )
+        assertTrue(uniqueValidatorContent.contains("request.slug"))
+        assertTrue(uniqueValidatorContent.contains("request.excludeVideoPostId"))
+        assertTrue(
+            uniqueValidatorContent.contains(
                 "import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry"
             )
         )
@@ -1212,10 +1219,10 @@ class PipelinePluginFunctionalTest {
             create table if not exists video_post (
                 id bigint primary key,
                 slug varchar(128) not null unique,
-                tenantId bigint not null,
+                tenant_id bigint not null,
                 title varchar(255) not null,
                 published boolean default false,
-                constraint uq_video_post_tenant_slug unique (tenantId, slug)
+                constraint uq_video_post_tenant_slug unique (tenant_id, slug)
             );
             """.trimIndent()
         )
