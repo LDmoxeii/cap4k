@@ -7,9 +7,14 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val domainRoot = requireRelativeModule(config, "domain")
-        val derivedReferences = AggregateDerivedTypeReferences.from(model)
 
         return model.entities.map { entity ->
+            val entityTypeFqn = if (entity.packageName.isBlank()) {
+                entity.name
+            } else {
+                "${entity.packageName}.${entity.name}"
+            }
+
             ArtifactPlanItem(
                 generatorId = "aggregate",
                 moduleRole = "domain",
@@ -20,7 +25,7 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "typeName" to "${entity.name}Factory",
                     "payloadTypeName" to "Payload",
                     "entityName" to entity.name,
-                    "entityTypeFqn" to derivedReferences.entityFqn(entity.name).orEmpty(),
+                    "entityTypeFqn" to entityTypeFqn,
                     "aggregateName" to entity.name,
                     "comment" to entity.comment,
                 ),

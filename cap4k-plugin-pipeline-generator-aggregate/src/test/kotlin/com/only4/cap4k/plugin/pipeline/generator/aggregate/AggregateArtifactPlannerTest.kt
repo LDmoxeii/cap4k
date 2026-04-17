@@ -174,6 +174,92 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `factory and specification planners use the current entity when names collide`() {
+        val config = aggregateConfig()
+        val model = CanonicalModel(
+            schemas = emptyList(),
+            entities = listOf(
+                EntityModel(
+                    name = "VideoPost",
+                    packageName = "com.acme.demo.domain.aggregates.primary_video_post",
+                    tableName = "primary_video_post",
+                    comment = "Primary video post entity",
+                    fields = listOf(FieldModel("id", "Long")),
+                    idField = FieldModel("id", "Long"),
+                ),
+                EntityModel(
+                    name = "VideoPost",
+                    packageName = "com.acme.demo.domain.aggregates.secondary_video_post",
+                    tableName = "secondary_video_post",
+                    comment = "Secondary video post entity",
+                    fields = listOf(FieldModel("id", "Long")),
+                    idField = FieldModel("id", "Long"),
+                )
+            ),
+            repositories = emptyList(),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(config, model)
+        val primaryFactoryContext = planItems.first {
+            it.templateId == "aggregate/factory.kt.peb" &&
+                it.context["packageName"] == "com.acme.demo.domain.aggregates.primary_video_post.factory"
+        }.context
+        val secondaryFactoryContext = planItems.first {
+            it.templateId == "aggregate/factory.kt.peb" &&
+                it.context["packageName"] == "com.acme.demo.domain.aggregates.secondary_video_post.factory"
+        }.context
+        val primarySpecificationContext = planItems.first {
+            it.templateId == "aggregate/specification.kt.peb" &&
+                it.context["packageName"] == "com.acme.demo.domain.aggregates.primary_video_post.specification"
+        }.context
+        val secondarySpecificationContext = planItems.first {
+            it.templateId == "aggregate/specification.kt.peb" &&
+                it.context["packageName"] == "com.acme.demo.domain.aggregates.secondary_video_post.specification"
+        }.context
+
+        assertEquals(
+            "com.acme.demo.domain.aggregates.primary_video_post.VideoPost",
+            primaryFactoryContext["entityTypeFqn"],
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.secondary_video_post.VideoPost",
+            secondaryFactoryContext["entityTypeFqn"],
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.primary_video_post.VideoPost",
+            primarySpecificationContext["entityTypeFqn"],
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.secondary_video_post.VideoPost",
+            secondarySpecificationContext["entityTypeFqn"],
+        )
+    }
+
+    @Test
+    fun `leaves derived schema type references blank when schema entity is missing`() {
+        val config = aggregateConfig()
+        val model = CanonicalModel(
+            schemas = listOf(
+                SchemaModel(
+                    name = "SUnknown",
+                    packageName = "com.acme.demo.domain._share.meta.unknown",
+                    entityName = "Unknown",
+                    comment = "Unknown schema",
+                    fields = listOf(FieldModel("id", "Long")),
+                )
+            ),
+            entities = emptyList(),
+            repositories = emptyList(),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(config, model)
+        val schemaContext = planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context
+
+        assertEquals("", schemaContext["entityTypeFqn"])
+        assertEquals("", schemaContext["qEntityTypeFqn"])
+    }
+
+    @Test
     fun `rejects missing required module`() {
         val config = aggregateConfig(domainModule = null)
 
