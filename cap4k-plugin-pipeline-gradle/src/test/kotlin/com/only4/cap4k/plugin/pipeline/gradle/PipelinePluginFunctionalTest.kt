@@ -1096,6 +1096,12 @@ class PipelinePluginFunctionalTest {
             .build()
 
         val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
+        val factoryFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt"
+        )
+        val specificationFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt"
+        )
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.exists())
@@ -1117,9 +1123,21 @@ class PipelinePluginFunctionalTest {
                 "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt"
             ).exists()
         )
+        assertTrue(factoryFile.toFile().exists())
+        assertTrue(specificationFile.toFile().exists())
+        val factoryContent = factoryFile.readText()
+        val specificationContent = specificationFile.readText()
         assertTrue(planFile.readText().contains("\"items\""))
         assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/entity.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/factory.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/specification.kt.peb\""))
+        assertTrue(
+            factoryContent.contains("class VideoPostFactory : AggregateFactory<VideoPostFactory.Payload, VideoPost>")
+        )
+        assertTrue(factoryContent.contains("import com.acme.demo.domain.aggregates.video_post.VideoPost"))
+        assertTrue(specificationContent.contains("class VideoPostSpecification : Specification<VideoPost>"))
+        assertTrue(specificationContent.contains("return Result.pass()"))
     }
 
     @OptIn(ExperimentalPathApi::class)

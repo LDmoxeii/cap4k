@@ -210,6 +210,36 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
+    fun `aggregate factory and specification generation participates in domain compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
+
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateCompileResult.task(":demo-domain:compileKotlin")?.outcome
+        )
+        assertTrue(beforeGenerateCompileResult.output.contains("VideoPostFactory"))
+
+        val generateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .build()
+
+        assertGeneratedFilesExist(
+            projectDir,
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt",
+        )
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
     fun `integrated compile sample keeps migrated design families compile-safe together`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-integrated-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-integrated-compile-sample")
