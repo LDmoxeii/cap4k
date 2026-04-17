@@ -11,11 +11,7 @@ internal class AggregateWrapperArtifactPlanner : AggregateArtifactFamilyPlanner 
 
         return model.entities.map { entity ->
             val typeName = "Agg${entity.name}"
-            val relativePath = if (entity.packageName.isBlank()) {
-                "$typeName.kt"
-            } else {
-                "${entity.packageName.replace(".", "/")}/$typeName.kt"
-            }
+            val relativePath = "${entity.packageName.replace(".", "/")}/$typeName.kt"
 
             ArtifactPlanItem(
                 generatorId = "aggregate",

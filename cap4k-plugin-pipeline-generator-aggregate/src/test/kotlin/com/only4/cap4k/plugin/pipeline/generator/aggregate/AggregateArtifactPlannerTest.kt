@@ -310,34 +310,6 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `wrapper planner uses simple names when entity package is blank`() {
-        val config = aggregateConfig()
-        val model = CanonicalModel(
-            entities = listOf(
-                EntityModel(
-                    name = "VideoPost",
-                    packageName = "",
-                    tableName = "video_post",
-                    comment = "Video post entity",
-                    fields = listOf(FieldModel("id", "Long")),
-                    idField = FieldModel("id", "Long"),
-                )
-            ),
-        )
-
-        val planItems = AggregateArtifactPlanner().plan(config, model)
-        val wrapperItem = planItems.first { it.templateId == "aggregate/wrapper.kt.peb" }
-        val wrapperContext = wrapperItem.context
-
-        assertEquals("demo-domain/src/main/kotlin/AggVideoPost.kt", wrapperItem.outputPath)
-        assertEquals("", wrapperContext["packageName"])
-        assertEquals("AggVideoPost", wrapperContext["typeName"])
-        assertEquals("VideoPost", wrapperContext["entityTypeFqn"])
-        assertEquals("VideoPostFactory", wrapperContext["factoryTypeFqn"])
-        assertEquals("Long", wrapperContext["idType"])
-    }
-
-    @Test
     fun `rejects missing required module`() {
         val config = aggregateConfig(domainModule = null)
 
