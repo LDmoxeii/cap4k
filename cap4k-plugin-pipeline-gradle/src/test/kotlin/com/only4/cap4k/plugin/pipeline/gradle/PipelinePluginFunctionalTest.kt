@@ -1243,7 +1243,7 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(
             result.output.contains(
-                "project.domainModulePath and project.adapterModulePath are required when aggregate is enabled."
+                "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is enabled."
             )
         )
         assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
