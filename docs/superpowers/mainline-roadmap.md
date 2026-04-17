@@ -109,16 +109,18 @@ Completed:
 
 - cross-generator type-reference parity
 - aggregate factory / specification parity
+- aggregate wrapper parity
 
 Status:
 
-- the cross-generator reference boundary line is complete through aggregate factory / specification parity
-- framework-facing type-reference work is now explicitly separated from broader aggregate parity and exploratory full-replacement gaps, and the first aggregate-side consumer line now has planner, renderer, functional, and compile closure
+- the cross-generator reference boundary line is complete through aggregate wrapper parity
+- framework-facing type-reference work is now explicitly separated from broader aggregate parity and exploratory full-replacement gaps, and the aggregate-side consumer line now has planner, renderer, functional, and compile closure through wrapper output
 
 Traceability:
 
 - [cross-generator type-reference parity design](specs/2026-04-17-cap4k-cross-generator-type-reference-parity-design.md)
 - [aggregate factory / specification parity design](specs/2026-04-17-cap4k-aggregate-factory-specification-parity-design.md)
+- [aggregate wrapper parity design](specs/2026-04-17-cap4k-aggregate-wrapper-parity-design.md)
 
 ## Current Mainline Contract
 
@@ -136,25 +138,26 @@ These points remain in force:
 
 The original design-generator quality mainline is complete, and the bounded bootstrap capability line is complete through generated-project verification hardening.
 
-The cross-generator reference boundary line is complete through aggregate factory / specification parity.
+The cross-generator reference boundary line is complete through aggregate wrapper parity.
 
 The next explicit framework slice is:
 
-- aggregate wrapper parity
+- aggregate unique-constraint family parity
 
 Scope:
 
-- consume the now-stable aggregate factory parity and unified derived type-reference boundary in the first aggregate wrapper implementation
-- keep wrapper generation inside the existing aggregate generator without expanding public DSL
-- prove representative wrapper output through planner, renderer, and bounded functional or compile verification
-- keep the slice bounded to wrapper parity, not full aggregate-side completion
+- consume the now-stable aggregate wrapper parity and unified derived type-reference boundary in the first aggregate unique-constraint implementation
+- keep unique-constraint generation inside the existing aggregate generator without expanding public DSL
+- cover the bounded old aggregate family consisting of `unique_query`, `unique_query_handler`, and `unique_validator`
+- prove representative unique-constraint output through planner, renderer, and bounded functional or compile verification
+- keep the slice bounded to unique-constraint family parity, not full aggregate-side completion
 
 Non-goals:
 
 - do not restore mutable shared runtime type maps between generators
 - do not reopen relation parity, JPA annotation parity, or user-code-preservation parity in this slice
 - do not broaden bootstrap beyond the current bounded contract
-- do not silently expand into full aggregate-side parity beyond aggregate wrapper work
+- do not silently expand into full aggregate-side parity beyond aggregate unique-constraint work
 - do not turn exploratory parity notes into a general rewrite of the current pipeline architecture
 
 ## Bootstrap Decision
