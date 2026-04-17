@@ -1,6 +1,6 @@
 # Cap4k Mainline Roadmap
 
-Date: 2026-04-16
+Date: 2026-04-17
 
 ## Purpose
 
@@ -91,15 +91,17 @@ Traceability:
 Completed:
 
 - bootstrap / arch-template migration
+- bootstrap generated-project verification hardening
 
 Status:
 
-- the first bounded bootstrap capability slice is complete
-- bootstrap now exists as a separate capability with its own DSL, tasks, preset, bounded slots, renderer flow, and functional closure
+- the bounded bootstrap capability line is complete through generated-project verification hardening
+- bootstrap now exists as a separate capability with its own DSL, tasks, preset, bounded slots, renderer flow, functional closure, and generated-project verification gate
 
 Traceability:
 
 - [bootstrap / arch-template migration design](specs/2026-04-16-cap4k-bootstrap-arch-template-migration-design.md)
+- [bootstrap generated-project verification hardening design](specs/2026-04-16-cap4k-bootstrap-generated-project-verification-hardening-design.md)
 
 ## Current Mainline Contract
 
@@ -115,27 +117,26 @@ These points remain in force:
 
 ## Current Next Mainline Slice
 
-The original design-generator quality mainline is complete, and the first bounded bootstrap capability slice is now complete.
+The original design-generator quality mainline is complete, and the bounded bootstrap capability line is complete through generated-project verification hardening.
 
 The next explicit framework slice is:
 
-- bootstrap generated-project verification hardening
+- cross-generator type-reference parity
 
 Scope:
 
-- harden bootstrap by verifying that representative generated project skeletons are not only emitted correctly, but remain usable as real Gradle/Kotlin project outputs
-- extend bootstrap quality gates beyond file-exists assertions into generated-project validation
-- keep verification centered on the existing bounded bootstrap contract: one preset, fixed template ids, and bounded slots
-- catch bootstrap regressions in generated settings/build/module/package scaffold structure without reopening the bootstrap DSL
+- audit remaining old-codegen `typeMapping` use sites that still matter for explicit parity work
+- prove which cross-generator references can be derived directly from `CanonicalModel` and stable naming conventions
+- add only the smallest derived type-reference mechanism needed for cases that cannot be handled by direct derivation
+- keep the solution aligned with immutable canonical data, explicit symbol identity, and conservative name resolution
 
 Non-goals:
 
-- do not reopen generator-core architecture
-- do not reopen the completed bootstrap contract just implemented
-- do not add new presets or broader slot flexibility by default
-- do not restore arbitrary insertion into any architecture-tree node
-- do not revive old `archTemplate` JSON as a runtime DSL
-- do not turn support-track real-project findings into default framework rules without explicit approval
+- do not restore mutable shared runtime type maps between generators
+- do not reopen relation parity, JPA annotation parity, or user-code-preservation parity in this slice
+- do not broaden bootstrap beyond the current bounded contract
+- do not silently expand into aggregate-side parity completion before the type-reference boundary is settled
+- do not turn exploratory parity notes into a general rewrite of the current pipeline architecture
 
 ## Bootstrap Decision
 
