@@ -1,0 +1,18 @@
+package {{ packageName }}
+
+import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
+import {{ entityTypeFqn }}
+import {{ factoryTypeFqn }}
+
+/**
+ * {{ entityName }} aggregate wrapper
+ * {{ comment }}
+ */
+class {{ typeName }}(
+    payload: {{ factoryTypeName }}.Payload? = null,
+) : Aggregate.Default<{{ entityName }}>(payload) {
+
+    val id by lazy { root.id }
+
+    class Id(key: {{ idType }}) : com.only4.cap4k.ddd.core.domain.aggregate.Id.Default<{{ typeName }}, {{ idType }}>(key)
+}

@@ -1094,6 +1094,23 @@ class PebbleArtifactRendererTest {
                         "comment" to "Order aggregate",
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/wrapper.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/AggOrder.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.order",
+                        "typeName" to "AggOrder",
+                        "entityName" to "Order",
+                        "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
+                        "factoryTypeName" to "OrderFactory",
+                        "factoryTypeFqn" to "com.acme.demo.domain.aggregates.order.factory.OrderFactory",
+                        "idType" to "Long",
+                        "comment" to "Order aggregate",
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
                 )
             ),
             config = ProjectConfig(
@@ -1112,7 +1129,7 @@ class PebbleArtifactRendererTest {
 
         val aggregateArtifacts = rendered.reversed()
 
-        assertEquals(5, aggregateArtifacts.size)
+        assertEquals(6, aggregateArtifacts.size)
 
         fun contentFor(pathSuffix: String): String = aggregateArtifacts.single {
             it.outputPath.endsWith(pathSuffix)
@@ -1123,6 +1140,7 @@ class PebbleArtifactRendererTest {
         val repositoryContent = contentFor("/adapter/domain/repositories/OrderRepository.kt")
         val factoryContent = contentFor("/factory/OrderFactory.kt")
         val specificationContent = contentFor("/specification/OrderSpecification.kt")
+        val wrapperContent = contentFor("/aggregates/order/AggOrder.kt")
 
         assertTrue(schemaContent.contains("object OrderSchema"))
         assertTrue(schemaContent.contains("const val id = \"id\""))
@@ -1153,6 +1171,18 @@ class PebbleArtifactRendererTest {
         assertTrue(specificationContent.contains("""name = "OrderSpecification""""))
         assertTrue(specificationContent.contains("type = Aggregate.TYPE_SPECIFICATION"))
         assertTrue(specificationContent.contains("return Result.pass()"))
+        assertTrue(wrapperContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate"))
+        assertTrue(wrapperContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
+        assertTrue(wrapperContent.contains("import com.acme.demo.domain.aggregates.order.factory.OrderFactory"))
+        assertTrue(wrapperContent.contains("class AggOrder("))
+        assertTrue(wrapperContent.contains("payload: OrderFactory.Payload? = null"))
+        assertTrue(wrapperContent.contains(") : Aggregate.Default<Order>(payload)"))
+        assertTrue(wrapperContent.contains("val id by lazy { root.id }"))
+        assertTrue(
+            wrapperContent.contains(
+                "class Id(key: Long) : com.only4.cap4k.ddd.core.domain.aggregate.Id.Default<AggOrder, Long>(key)"
+            )
+        )
     }
 
     @Test
