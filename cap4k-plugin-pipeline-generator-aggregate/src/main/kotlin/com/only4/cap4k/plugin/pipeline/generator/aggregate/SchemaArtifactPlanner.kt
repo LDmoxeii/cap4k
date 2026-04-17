@@ -9,6 +9,7 @@ import java.nio.file.Path
 internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val domainRoot = requireRelativeModule(config, "domain")
+        val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
 
         return model.schemas.map { schema ->
             ArtifactPlanItem(
@@ -21,6 +22,8 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "typeName" to schema.name,
                     "comment" to schema.comment,
                     "entityName" to schema.entityName,
+                    "entityTypeFqn" to (derivedTypeReferences.entityFqn(schema.entityName) ?: ""),
+                    "qEntityTypeFqn" to (derivedTypeReferences.qEntityFqn(schema.entityName) ?: ""),
                     "fields" to schema.fields,
                 ),
                 conflictPolicy = config.templates.conflictPolicy,

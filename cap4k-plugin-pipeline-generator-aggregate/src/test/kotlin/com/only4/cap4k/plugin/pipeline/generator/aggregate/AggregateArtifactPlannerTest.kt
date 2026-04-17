@@ -73,6 +73,14 @@ class AggregateArtifactPlannerTest {
             planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context["comment"],
         )
         assertEquals(
+            "com.acme.demo.domain.aggregates.video_post.VideoPost",
+            planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context["entityTypeFqn"],
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.video_post.QVideoPost",
+            planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context["qEntityTypeFqn"],
+        )
+        assertEquals(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
             planItems.first { it.templateId == "aggregate/entity.kt.peb" }.outputPath,
         )
@@ -88,6 +96,30 @@ class AggregateArtifactPlannerTest {
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt",
             planItems.first { it.templateId == "aggregate/repository.kt.peb" }.outputPath,
         )
+    }
+
+    @Test
+    fun `leaves derived schema type references blank when schema entity is missing`() {
+        val config = aggregateConfig()
+        val model = CanonicalModel(
+            schemas = listOf(
+                SchemaModel(
+                    name = "SUnknown",
+                    packageName = "com.acme.demo.domain._share.meta.unknown",
+                    entityName = "Unknown",
+                    comment = "Unknown schema",
+                    fields = listOf(FieldModel("id", "Long")),
+                )
+            ),
+            entities = emptyList(),
+            repositories = emptyList(),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(config, model)
+        val schemaContext = planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context
+
+        assertEquals("", schemaContext["entityTypeFqn"])
+        assertEquals("", schemaContext["qEntityTypeFqn"])
     }
 
     @Test
