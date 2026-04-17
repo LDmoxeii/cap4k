@@ -17,23 +17,28 @@ It classifies old usage sites into:
 
 ### 1. Already Covered by Current Pipeline Behavior
 
-These are short-name or explicit-FQN cases already handled by:
+These are the currently covered cases handled by explicit FQN precedence and project-registry fallback:
 
 - `ProjectConfig.typeRegistry`
 - `DesignSymbolRegistry`
 - explicit FQN precedence
 
+Coverage note:
+
+- this bucket is limited to the subset already resolved by those mechanisms
+- synthesized PK aliases and guessed same-package IDs are not included here
+
 Representative old references:
 
-- `cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/context/design/builders/TypeMappingBuilder.kt`
+- `cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/context/design/builders/TypeMappingBuilder.kt` (explicit-FQN / registry-fallback subset only)
 - `cap4k-plugin-codegen/src/main/kotlin/com/only4/cap4k/plugin/codegen/imports/TypeResolver.kt`
 
 ### 2. Deterministic Derived-Reference Candidates
 
-These are convention-owned names that can be derived without runtime mutation:
+These are convention-owned names that can be derived from canonical design data plus framework naming rules, without runtime mutation:
 
 - `Q<Entity>`
-- generated peer names whose package and simple-name convention are stable
+- generated peer references whose package and simple name are deterministically derivable from canonical source type metadata
 
 Representative old references:
 
@@ -42,7 +47,13 @@ Representative old references:
 
 ### 3. Deferred Shared-Runtime-State Cases
 
-These are still tied to old execution-order registration and are not part of this first slice.
+These include pure shared-runtime registration cases plus mixed cases that still contain deferred portions for this slice.
+
+Deferred-bucket note:
+
+- `AggregateWrapperGenerator` is the strongest clean example of runtime-registered dependence
+- `FactoryGenerator`, `SpecificationGenerator`, and parts of `UniqueQueryGenerator` are mixed and not deferred as a blanket category in future slicing
+- this first slice still defers their non-deterministic/runtime-coupled portions
 
 Representative old references:
 
