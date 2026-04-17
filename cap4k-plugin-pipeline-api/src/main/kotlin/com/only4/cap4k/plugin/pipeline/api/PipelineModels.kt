@@ -5,6 +5,8 @@ data class FieldModel(
     val type: String,
     val nullable: Boolean = false,
     val defaultValue: String? = null,
+    val typeBinding: String? = null,
+    val enumItems: List<EnumItemModel> = emptyList(),
 )
 
 data class DbColumnSnapshot(
@@ -15,6 +17,8 @@ data class DbColumnSnapshot(
     val defaultValue: String? = null,
     val comment: String = "",
     val isPrimaryKey: Boolean = false,
+    val typeBinding: String? = null,
+    val enumItems: List<EnumItemModel> = emptyList(),
 )
 
 data class DbTableSnapshot(
@@ -256,6 +260,7 @@ data class CanonicalModel(
     val analysisGraph: AnalysisGraphModel? = null,
     val drawingBoard: DrawingBoardModel? = null,
     val apiPayloads: List<ApiPayloadModel> = emptyList(),
+    val sharedEnums: List<SharedEnumDefinition> = emptyList(),
 )
 
 data class UnsupportedAggregateTable(

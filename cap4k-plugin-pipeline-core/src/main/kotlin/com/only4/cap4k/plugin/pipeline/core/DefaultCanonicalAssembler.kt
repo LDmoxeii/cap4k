@@ -17,6 +17,7 @@ import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
+import com.only4.cap4k.plugin.pipeline.api.EnumManifestSnapshot
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
@@ -41,6 +42,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
         val designSnapshot = snapshots.filterIsInstance<DesignSpecSnapshot>().firstOrNull()
         val dbSnapshot = snapshots.filterIsInstance<DbSchemaSnapshot>().firstOrNull()
+        val sharedEnums = snapshots.filterIsInstance<EnumManifestSnapshot>().flatMap { it.definitions }
 
         val aggregateLookup = snapshots
             .filterIsInstance<KspMetadataSnapshot>()
@@ -170,6 +172,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     type = it.kotlinType,
                     nullable = it.nullable,
                     defaultValue = it.defaultValue,
+                    typeBinding = it.typeBinding,
+                    enumItems = it.enumItems,
                 )
             }
             val idField = fields.first { it.name == table.primaryKey.first() }
@@ -258,6 +262,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 repositories = aggregateModels.map { it.third },
                 analysisGraph = analysisGraph,
                 drawingBoard = drawingBoard,
+                sharedEnums = sharedEnums,
             ),
             diagnostics = diagnostics,
         )

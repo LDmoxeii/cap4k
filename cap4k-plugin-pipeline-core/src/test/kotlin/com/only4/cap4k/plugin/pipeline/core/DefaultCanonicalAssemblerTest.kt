@@ -9,6 +9,8 @@ import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignFieldSnapshot
+import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
+import com.only4.cap4k.plugin.pipeline.api.EnumManifestSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrEdgeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrNodeSnapshot
@@ -23,6 +25,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
 import com.only4.cap4k.plugin.pipeline.api.RequestKind
 import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -966,6 +969,71 @@ class DefaultCanonicalAssemblerTest {
         val assembler = DefaultCanonicalAssembler()
         val model = assembler.assemble(config = baseConfig(), snapshots = emptyList()).model
         assertNull(model.analysisGraph)
+    }
+
+    @Test
+    fun `assembly carries shared enum definitions and db field enum metadata`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val result = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                EnumManifestSnapshot(
+                    definitions = listOf(
+                        SharedEnumDefinition(
+                            typeName = "Status",
+                            packageName = "shared",
+                            generateTranslation = true,
+                            items = listOf(
+                                EnumItemModel(0, "DRAFT", "Draft"),
+                                EnumItemModel(1, "PUBLISHED", "Published"),
+                            ),
+                        )
+                    )
+                ),
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot(
+                                    name = "id",
+                                    dbType = "BIGINT",
+                                    kotlinType = "Long",
+                                    nullable = false,
+                                ),
+                                DbColumnSnapshot(
+                                    name = "status",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "Status",
+                                ),
+                                DbColumnSnapshot(
+                                    name = "visibility",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "VideoPostVisibility",
+                                    enumItems = listOf(
+                                        EnumItemModel(0, "HIDDEN", "Hidden"),
+                                        EnumItemModel(1, "PUBLIC", "Public"),
+                                    ),
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                )
+            )
+        ).model
+
+        assertEquals(listOf("Status"), result.sharedEnums.map { it.typeName })
+        val entity = result.entities.single()
+        assertEquals("Status", entity.fields.first { it.name == "status" }.typeBinding)
+        assertEquals("VideoPostVisibility", entity.fields.first { it.name == "visibility" }.typeBinding)
     }
 
     @Test

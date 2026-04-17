@@ -78,6 +78,8 @@ class DbSchemaSourceProvider : SourceProvider {
             buildList {
                 while (rows.next()) {
                     val name = rows.getString("COLUMN_NAME")
+                    val comment = rows.getString("REMARKS") ?: ""
+                    val annotationMetadata = DbColumnAnnotationParser.parse(comment)
                     add(
                         DbColumnSnapshot(
                             name = name,
@@ -85,8 +87,10 @@ class DbSchemaSourceProvider : SourceProvider {
                             kotlinType = JdbcTypeMapper.toKotlinType(rows.getInt("DATA_TYPE")),
                             nullable = rows.getInt("NULLABLE") == DatabaseMetaData.columnNullable,
                             defaultValue = rows.getString("COLUMN_DEF"),
-                            comment = rows.getString("REMARKS") ?: "",
+                            comment = comment,
                             isPrimaryKey = name in primaryKeySet,
+                            typeBinding = annotationMetadata.typeBinding,
+                            enumItems = annotationMetadata.enumItems,
                         )
                     )
                 }

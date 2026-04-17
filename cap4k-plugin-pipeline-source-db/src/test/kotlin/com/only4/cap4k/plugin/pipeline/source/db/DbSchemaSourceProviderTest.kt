@@ -14,6 +14,55 @@ import org.junit.jupiter.api.Test
 class DbSchemaSourceProviderTest {
 
     @Test
+    fun `db source records parsed type binding and enum items from column comments`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-enum-comment;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table video_post (
+                        id bigint primary key comment 'pk',
+                        status int not null comment 'shared status @T=Status;',
+                        visibility int not null comment '@T=VideoPostVisibility;@E=0:HIDDEN:Hidden|1:PUBLIC:Public;'
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val snapshot = DbSchemaSourceProvider().collect(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "url" to url,
+                            "username" to "sa",
+                            "password" to "",
+                            "schema" to "PUBLIC",
+                            "includeTables" to listOf("video_post"),
+                            "excludeTables" to emptyList<String>(),
+                        )
+                    )
+                ),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        ) as DbSchemaSnapshot
+        val table = snapshot.tables.single()
+        val status = table.columns.first { it.name.equals("STATUS", true) }
+        val visibility = table.columns.first { it.name.equals("VISIBILITY", true) }
+
+        assertEquals("Status", status.typeBinding)
+        assertEquals(emptyList<Any>(), status.enumItems)
+        assertEquals("VideoPostVisibility", visibility.typeBinding)
+        assertEquals(listOf("HIDDEN", "PUBLIC"), visibility.enumItems.map { it.name })
+    }
+
+    @Test
     fun `collects normalized table column primary key and unique metadata`() {
         val url = "jdbc:h2:mem:cap4k-db-source;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
