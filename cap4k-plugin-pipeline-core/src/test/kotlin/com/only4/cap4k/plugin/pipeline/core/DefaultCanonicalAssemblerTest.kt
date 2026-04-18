@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
+import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
@@ -1215,6 +1216,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(AggregateRelationType.MANY_TO_ONE, relation.relationType)
         assertEquals("author", relation.fieldName)
         assertEquals("UserProfile", relation.targetEntityName)
+        assertEquals(AggregateFetchType.EAGER, relation.fetchType)
     }
 
     @Test
@@ -1230,11 +1232,12 @@ class DefaultCanonicalAssemblerTest {
                             columns = listOf(
                                 DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
                                 DbColumnSnapshot(
-                                    name = "cover_id",
+                                    name = "cover_Id",
                                     dbType = "BIGINT",
                                     kotlinType = "Long",
                                     nullable = false,
                                     explicitRelationType = "ONE_TO_ONE",
+                                    lazy = true,
                                     referenceTable = "media_asset",
                                 ),
                             ),
@@ -1257,6 +1260,75 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(AggregateRelationType.ONE_TO_ONE, relation.relationType)
         assertEquals("cover", relation.fieldName)
         assertEquals("MediaAsset", relation.targetEntityName)
+        assertEquals(AggregateFetchType.LAZY, relation.fetchType)
+    }
+
+    @Test
+    fun `assembler derives parent child collection names from table token boundaries`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "account",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "accounting_entry",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("account_id", "BIGINT", "Long", false, referenceTable = "account"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "account",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                        DbTableSnapshot(
+                            tableName = "category",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "category_policy",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("category_id", "BIGINT", "Long", false, referenceTable = "category"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "category",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                    )
+                )
+            )
+        )
+
+        assertEquals(
+            listOf(
+                "Account|accountingEntries|AccountingEntry|ONE_TO_MANY",
+                "Category|policies|CategoryPolicy|ONE_TO_MANY",
+            ).sorted(),
+            result.model.aggregateRelations
+                .filter { it.relationType == AggregateRelationType.ONE_TO_MANY }
+                .map { "${it.ownerEntityName}|${it.fieldName}|${it.targetEntityName}|${it.relationType}" }
+                .sorted(),
+        )
     }
 
     @Test

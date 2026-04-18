@@ -16,6 +16,10 @@ internal object AggregateRelationInference {
         val fieldName: String,
     )
 
+    private val relationIdSuffixRegex = Regex("(?i)_id$")
+    private val tableTokenSplitRegex = Regex("_+|(?<=[a-z0-9])(?=[A-Z])")
+    private val vowels = setOf('a', 'e', 'i', 'o', 'u')
+
     fun fromTables(
         basePackage: String,
         tables: List<DbTableSnapshot>,
@@ -73,7 +77,7 @@ internal object AggregateRelationInference {
                 AggregateRelationModel(
                     ownerEntityName = resolvedParent.entityName,
                     ownerEntityPackageName = resolvedParent.packageName,
-                    fieldName = parentChildFieldName(resolvedParent.entityName, target.entityName),
+                    fieldName = parentChildFieldName(parentTable, child.tableName),
                     targetEntityName = target.entityName,
                     targetEntityPackageName = target.packageName,
                     relationType = AggregateRelationType.ONE_TO_MANY,
@@ -147,13 +151,22 @@ internal object AggregateRelationInference {
         }
     }
 
-    private fun parentChildFieldName(parentEntityName: String, childEntityName: String): String {
-        val stem = childEntityName.removePrefix(parentEntityName).ifBlank { childEntityName }
-        return pluralize(stem)
+    private fun parentChildFieldName(parentTableName: String, childTableName: String): String {
+        val parentTokens = tableNameTokens(parentTableName)
+        val childTokens = tableNameTokens(childTableName)
+        val stemTokens = if (
+            childTokens.size > parentTokens.size &&
+            childTokens.take(parentTokens.size) == parentTokens
+        ) {
+            childTokens.drop(parentTokens.size)
+        } else {
+            childTokens
+        }
+        return tokensToLowerCamel(stemTokens.dropLast(1) + pluralizeToken(stemTokens.last()))
     }
 
     private fun relationFieldName(columnName: String, targetEntityName: String): String {
-        val stem = columnName.removeSuffix("_id").removeSuffix("_ID")
+        val stem = columnName.replaceFirst(relationIdSuffixRegex, "")
         return if (stem.isNotBlank()) {
             stem.split("_")
                 .joinToString("") { part ->
@@ -165,5 +178,31 @@ internal object AggregateRelationInference {
         }
     }
 
-    private fun pluralize(typeName: String): String = typeName.replaceFirstChar { it.lowercase() } + "s"
+    private fun tableNameTokens(tableName: String): List<String> =
+        tableName
+            .split(tableTokenSplitRegex)
+            .filter { it.isNotBlank() }
+            .map { it.lowercase() }
+
+    private fun pluralizeToken(token: String): String =
+        if (
+            token.length > 1 &&
+            token.endsWith("y") &&
+            token[token.lastIndex - 1] !in vowels
+        ) {
+            token.dropLast(1) + "ies"
+        } else {
+            token + "s"
+        }
+
+    private fun tokensToLowerCamel(tokens: List<String>): String {
+        return tokens.mapIndexed { index, token ->
+            if (index == 0) {
+                token
+            } else {
+                token.replaceFirstChar { it.titlecase() }
+            }
+        }.joinToString("")
+    }
+
 }
