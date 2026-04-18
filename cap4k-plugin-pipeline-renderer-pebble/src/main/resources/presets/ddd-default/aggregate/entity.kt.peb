@@ -1,10 +1,8 @@
 package {{ packageName }}
 
-import jakarta.persistence.FetchType
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.ManyToOne
-import jakarta.persistence.OneToMany
-import jakarta.persistence.OneToOne
+{% for import in imports(jpaImports) %}
+import {{ import }}
+{% endfor %}
 {% for import in imports(imports) %}
 import {{ import }}
 {% endfor %}
@@ -17,11 +15,11 @@ data class {{ typeName }}(
 {% if relation.relationType == "MANY_TO_ONE" %}
     @ManyToOne(fetch = FetchType.{{ relation.fetchType }})
     @JoinColumn(name = "{{ relation.joinColumn }}")
-    val {{ relation.name }}: {{ relation.targetTypeRef }}{% if not loop.last %},{% endif %}
+    val {{ relation.name }}: {{ relation.targetTypeRef }}{% if relation.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
 {% elseif relation.relationType == "ONE_TO_ONE" %}
     @OneToOne(fetch = FetchType.{{ relation.fetchType }})
     @JoinColumn(name = "{{ relation.joinColumn }}")
-    val {{ relation.name }}: {{ relation.targetTypeRef }}{% if not loop.last %},{% endif %}
+    val {{ relation.name }}: {{ relation.targetTypeRef }}{% if relation.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
 {% elseif relation.relationType == "ONE_TO_MANY" %}
     @OneToMany(fetch = FetchType.{{ relation.fetchType }})
     @JoinColumn(name = "{{ relation.joinColumn }}")

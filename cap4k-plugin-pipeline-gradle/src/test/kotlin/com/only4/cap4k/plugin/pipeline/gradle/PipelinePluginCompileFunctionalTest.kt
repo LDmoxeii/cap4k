@@ -227,6 +227,9 @@ class PipelinePluginCompileFunctionalTest {
         val generateResult = FunctionalFixtureSupport
             .runner(projectDir, "cap4kGenerate")
             .build()
+        val generatedEntity = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+        ).toFile().readText()
         val compileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-domain:compileKotlin")
             .build()
@@ -237,6 +240,7 @@ class PipelinePluginCompileFunctionalTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/AggVideoPost.kt",
         )
+        assertFalse(generatedEntity.contains("import jakarta.persistence"))
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }

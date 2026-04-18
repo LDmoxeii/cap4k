@@ -38,6 +38,7 @@ class AggregateArtifactPlannerTest {
                         fields = listOf(
                             FieldModel("id", "Long"),
                             FieldModel("title", "String"),
+                            FieldModel("author_id", "Long", nullable = true),
                         ),
                         idField = FieldModel("id", "Long"),
                     )
@@ -66,14 +67,25 @@ class AggregateArtifactPlannerTest {
         val relationFields = entityItem.context["relationFields"] as List<Map<String, Any?>>
         @Suppress("UNCHECKED_CAST")
         val imports = entityItem.context["imports"] as List<String>
+        @Suppress("UNCHECKED_CAST")
+        val jpaImports = entityItem.context["jpaImports"] as List<String>
 
-        assertEquals(listOf("id", "title"), scalarFields.map { it["name"] })
-        assertEquals(listOf("id", "title"), fields.map { it["name"] })
+        assertEquals(listOf("id", "title", "author_id"), scalarFields.map { it["name"] })
+        assertEquals(listOf("id", "title", "author_id"), fields.map { it["name"] })
         assertEquals(listOf("author"), relationFields.map { it["name"] })
         assertEquals("MANY_TO_ONE", relationFields.single()["relationType"])
         assertEquals("UserProfile", relationFields.single()["targetType"])
         assertEquals("com.acme.demo.domain.identity.user", relationFields.single()["targetPackageName"])
+        assertEquals(true, relationFields.single()["nullable"])
         assertEquals(listOf("com.acme.demo.domain.identity.user.UserProfile"), imports)
+        assertEquals(
+            listOf(
+                "jakarta.persistence.FetchType",
+                "jakarta.persistence.JoinColumn",
+                "jakarta.persistence.ManyToOne",
+            ),
+            jpaImports,
+        )
     }
 
     @Test

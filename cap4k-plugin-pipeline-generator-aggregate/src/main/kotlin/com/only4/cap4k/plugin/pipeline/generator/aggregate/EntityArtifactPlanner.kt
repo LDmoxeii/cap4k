@@ -32,6 +32,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "comment" to entity.comment,
                     "tableName" to entity.tableName,
                     "idField" to entity.idField,
+                    "jpaImports" to relationPlan.jpaImports,
                     "imports" to relationPlan.imports,
                     "fields" to scalarFields,
                     "scalarFields" to scalarFields,

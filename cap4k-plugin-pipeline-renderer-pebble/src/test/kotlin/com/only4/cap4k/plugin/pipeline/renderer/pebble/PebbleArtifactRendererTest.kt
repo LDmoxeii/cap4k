@@ -1044,6 +1044,7 @@ class PebbleArtifactRendererTest {
                         "typeName" to "Order",
                         "comment" to "Order aggregate",
                         "idField" to FieldModel("id", "Long"),
+                        "jpaImports" to emptyList<String>(),
                         "imports" to emptyList<String>(),
                         "scalarFields" to listOf(
                             mapOf("name" to "id", "type" to "Long", "nullable" to false),
@@ -1207,6 +1208,7 @@ class PebbleArtifactRendererTest {
         assertTrue(schemaContent.contains("const val orderNo = \"orderNo\""))
         assertTrue(entityContent.contains("data class Order("))
         assertTrue(entityContent.contains("val orderNo: String?"))
+        assertFalse(entityContent.contains("jakarta.persistence"))
         assertTrue(repositoryContent.contains("interface OrderRepository"))
         assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory"))
         assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload"))
@@ -1291,6 +1293,12 @@ class PebbleArtifactRendererTest {
                         "typeName" to "VideoPost",
                         "comment" to "video post",
                         "tableName" to "video_post",
+                        "jpaImports" to listOf(
+                            "jakarta.persistence.FetchType",
+                            "jakarta.persistence.JoinColumn",
+                            "jakarta.persistence.ManyToOne",
+                            "jakarta.persistence.OneToMany",
+                        ),
                         "imports" to listOf(
                             "com.acme.demo.domain.identity.user.UserProfile",
                             "com.acme.demo.domain.aggregates.video_post.item.VideoPostItem",
@@ -1310,6 +1318,7 @@ class PebbleArtifactRendererTest {
                                 "relationType" to "MANY_TO_ONE",
                                 "fetchType" to "LAZY",
                                 "joinColumn" to "author_id",
+                                "nullable" to true,
                             ),
                             mapOf(
                                 "name" to "items",
@@ -1340,11 +1349,16 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
+        assertTrue(content.contains("import jakarta.persistence.FetchType"))
+        assertTrue(content.contains("import jakarta.persistence.JoinColumn"))
+        assertTrue(content.contains("import jakarta.persistence.ManyToOne"))
+        assertTrue(content.contains("import jakarta.persistence.OneToMany"))
+        assertFalse(content.contains("import jakarta.persistence.OneToOne"))
         assertTrue(content.contains("import com.acme.demo.domain.identity.user.UserProfile"))
         assertTrue(content.contains("import com.acme.demo.domain.aggregates.video_post.item.VideoPostItem"))
         assertTrue(content.contains("@ManyToOne(fetch = FetchType.LAZY)"))
         assertTrue(content.contains("@JoinColumn(name = \"author_id\")"))
-        assertTrue(content.contains("val author: UserProfile"))
+        assertTrue(content.contains("val author: UserProfile?"))
         assertTrue(content.contains("@OneToMany(fetch = FetchType.LAZY)"))
         assertTrue(content.contains("@JoinColumn(name = \"video_post_id\")"))
         assertFalse(content.contains("mappedBy = \"video_post_id\""))
@@ -1373,6 +1387,7 @@ class PebbleArtifactRendererTest {
                         "typeName" to "VideoPost",
                         "comment" to "video post",
                         "tableName" to "video_post",
+                        "jpaImports" to emptyList<String>(),
                         "imports" to listOf("com.acme.demo.domain.identity.user.UserProfile"),
                         "scalarFields" to listOf(
                             mapOf("name" to "id", "type" to "Long", "nullable" to false)

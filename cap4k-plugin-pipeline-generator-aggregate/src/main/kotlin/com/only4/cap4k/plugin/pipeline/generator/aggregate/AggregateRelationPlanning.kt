@@ -7,6 +7,7 @@ import com.only4.cap4k.plugin.pipeline.api.EntityModel
 internal data class AggregateRelationRenderPlan(
     val relationFields: List<Map<String, Any?>>,
     val imports: List<String>,
+    val jpaImports: List<String>,
 )
 
 internal object AggregateRelationPlanning {
@@ -22,6 +23,7 @@ internal object AggregateRelationPlanning {
         require(entityRelations.all { it.relationType in supportedRelationTypes }) {
             "Unsupported aggregate relation type for ${entity.packageName}.${entity.name}"
         }
+        val fieldNullabilityByName = entity.fields.associate { it.name to it.nullable }
         val targetPackagesByType = entityRelations
             .groupBy { it.targetEntityName }
             .mapValues { (_, matchingRelations) -> matchingRelations.map { it.targetEntityPackageName }.distinct() }
@@ -41,6 +43,12 @@ internal object AggregateRelationPlanning {
                 "relationType" to relation.relationType.name,
                 "fetchType" to relation.fetchType.name,
                 "joinColumn" to relation.joinColumn,
+                "nullable" to when (relation.relationType) {
+                    AggregateRelationType.MANY_TO_ONE, AggregateRelationType.ONE_TO_ONE ->
+                        fieldNullabilityByName[relation.joinColumn] ?: false
+
+                    AggregateRelationType.ONE_TO_MANY -> false
+                },
             )
         }
         val imports = entityRelations
@@ -53,10 +61,27 @@ internal object AggregateRelationPlanning {
                 }
             }
             .distinct()
+        val relationTypes = entityRelations.map { it.relationType }.toSet()
+        val jpaImports = buildList {
+            if (relationTypes.isNotEmpty()) {
+                add("jakarta.persistence.FetchType")
+                add("jakarta.persistence.JoinColumn")
+            }
+            if (AggregateRelationType.MANY_TO_ONE in relationTypes) {
+                add("jakarta.persistence.ManyToOne")
+            }
+            if (AggregateRelationType.ONE_TO_ONE in relationTypes) {
+                add("jakarta.persistence.OneToOne")
+            }
+            if (AggregateRelationType.ONE_TO_MANY in relationTypes) {
+                add("jakarta.persistence.OneToMany")
+            }
+        }
 
         return AggregateRelationRenderPlan(
             relationFields = relationFields,
             imports = imports,
+            jpaImports = jpaImports,
         )
     }
 }
