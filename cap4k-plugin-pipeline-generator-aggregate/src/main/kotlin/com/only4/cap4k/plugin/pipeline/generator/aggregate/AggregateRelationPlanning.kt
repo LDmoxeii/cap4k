@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 
 internal data class AggregateRelationRenderPlan(
@@ -9,9 +10,18 @@ internal data class AggregateRelationRenderPlan(
 )
 
 internal object AggregateRelationPlanning {
+    private val supportedRelationTypes = setOf(
+        AggregateRelationType.MANY_TO_ONE,
+        AggregateRelationType.ONE_TO_ONE,
+        AggregateRelationType.ONE_TO_MANY,
+    )
+
     fun planFor(entity: EntityModel, relations: List<AggregateRelationModel>): AggregateRelationRenderPlan {
         val entityRelations = relations
             .filter { it.ownerEntityName == entity.name && it.ownerEntityPackageName == entity.packageName }
+        require(entityRelations.all { it.relationType in supportedRelationTypes }) {
+            "Unsupported aggregate relation type for ${entity.packageName}.${entity.name}"
+        }
         val targetPackagesByType = entityRelations
             .groupBy { it.targetEntityName }
             .mapValues { (_, matchingRelations) -> matchingRelations.map { it.targetEntityPackageName }.distinct() }

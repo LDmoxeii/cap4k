@@ -17,13 +17,15 @@ data class {{ typeName }}(
 {% if relation.relationType == "MANY_TO_ONE" %}
     @ManyToOne(fetch = FetchType.{{ relation.fetchType }})
     @JoinColumn(name = "{{ relation.joinColumn }}")
+    val {{ relation.name }}: {{ relation.targetTypeRef }}{% if not loop.last %},{% endif %}
 {% elseif relation.relationType == "ONE_TO_ONE" %}
     @OneToOne(fetch = FetchType.{{ relation.fetchType }})
     @JoinColumn(name = "{{ relation.joinColumn }}")
+    val {{ relation.name }}: {{ relation.targetTypeRef }}{% if not loop.last %},{% endif %}
 {% elseif relation.relationType == "ONE_TO_MANY" %}
     @OneToMany(fetch = FetchType.{{ relation.fetchType }})
     @JoinColumn(name = "{{ relation.joinColumn }}")
+    val {{ relation.name }}: List<{{ relation.targetTypeRef }}>{% if not loop.last %},{% endif %}
 {% endif %}
-    val {{ relation.name }}: {% if relation.relationType == "ONE_TO_MANY" %}List<{{ relation.targetTypeRef }}>{% else %}{{ relation.targetTypeRef }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
 )

@@ -1352,6 +1352,69 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `aggregate entity preset does not render unsupported relation types`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-unsupported-relation")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/entity.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                        "typeName" to "VideoPost",
+                        "comment" to "video post",
+                        "tableName" to "video_post",
+                        "imports" to listOf("com.acme.demo.domain.identity.user.UserProfile"),
+                        "scalarFields" to listOf(
+                            mapOf("name" to "id", "type" to "Long", "nullable" to false)
+                        ),
+                        "fields" to listOf(
+                            mapOf("name" to "id", "type" to "Long", "nullable" to false)
+                        ),
+                        "relationFields" to listOf(
+                            mapOf(
+                                "name" to "authors",
+                                "targetType" to "UserProfile",
+                                "targetTypeRef" to "UserProfile",
+                                "targetPackageName" to "com.acme.demo.domain.identity.user",
+                                "relationType" to "MANY_TO_MANY",
+                                "fetchType" to "LAZY",
+                                "joinColumn" to "author_id",
+                            )
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertFalse(content.contains("val authors:"))
+        assertFalse(content.contains("MANY_TO_MANY"))
+    }
+
+    @Test
     fun `falls back to preset aggregate enum and translation templates`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-enum")
         val renderer = PebbleArtifactRenderer(
