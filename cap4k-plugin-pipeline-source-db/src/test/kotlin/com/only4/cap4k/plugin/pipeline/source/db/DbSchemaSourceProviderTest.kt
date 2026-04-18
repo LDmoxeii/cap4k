@@ -10,6 +10,7 @@ import java.sql.DriverManager
 import java.nio.file.Files
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 class DbSchemaSourceProviderTest {
@@ -129,6 +130,50 @@ class DbSchemaSourceProviderTest {
         assertEquals(emptyList<Any>(), status.enumItems)
         assertEquals("VideoPostVisibility", visibility.typeBinding)
         assertEquals(listOf("HIDDEN", "PUBLIC"), visibility.enumItems.map { it.name })
+    }
+
+    @Test
+    fun `db source fails fast on malformed relation column comments`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-invalid-relation;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table video_post (
+                        id bigint primary key comment 'pk',
+                        author_id bigint not null comment '@Lazy=true;'
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbSchemaSourceProvider().collect(
+                ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = mapOf(
+                        "db" to SourceConfig(
+                            enabled = true,
+                            options = mapOf(
+                                "url" to url,
+                                "username" to "sa",
+                                "password" to "",
+                                "schema" to "PUBLIC",
+                                "includeTables" to listOf("video_post"),
+                                "excludeTables" to emptyList<String>(),
+                            )
+                        )
+                    ),
+                    generators = emptyMap(),
+                    templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                )
+            )
+        }
+
+        assertEquals("@Lazy/@L requires @Reference/@Ref on the same column comment.", error.message)
     }
 
     @Test

@@ -25,6 +25,15 @@ class DbRelationAnnotationParserTest {
     }
 
     @Test
+    fun `standalone value object keeps default aggregate root semantics`() {
+        val metadata = DbRelationAnnotationParser().parseTable("@VO;")
+
+        assertEquals(null, metadata.parentTable)
+        assertEquals(true, metadata.aggregateRoot)
+        assertEquals(true, metadata.valueObject)
+    }
+
+    @Test
     fun `parses column reference relation and lazy annotations`() {
         val metadata = DbRelationAnnotationParser().parseColumn(
             "@Reference=user_profile;@Relation=OneToOne;@Lazy=true;@Count=single;"
@@ -128,6 +137,15 @@ class DbRelationAnnotationParserTest {
     }
 
     @Test
+    fun `rejects relation without reference`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@Relation=OneToOne;")
+        }
+
+        assertEquals("@Relation/@Rel requires @Reference/@Ref on the same column comment.", error.message)
+    }
+
+    @Test
     fun `rejects blank relation value`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbRelationAnnotationParser().parseColumn("@Relation=;")
@@ -179,5 +197,23 @@ class DbRelationAnnotationParserTest {
         }
 
         assertEquals("invalid @Lazy/@L boolean value: TRUE", error.message)
+    }
+
+    @Test
+    fun `rejects lazy without reference`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@Lazy=true;")
+        }
+
+        assertEquals("@Lazy/@L requires @Reference/@Ref on the same column comment.", error.message)
+    }
+
+    @Test
+    fun `rejects count without reference`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@Count=one;")
+        }
+
+        assertEquals("@Count/@C requires @Reference/@Ref on the same column comment.", error.message)
     }
 }

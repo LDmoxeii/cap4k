@@ -26,7 +26,7 @@ internal class DbRelationAnnotationParser {
         require(!(parentTable != null && aggregateRootAnnotation.explicit && aggregateRootAnnotation.value == true)) {
             "conflicting table relation annotations: @Parent/@P cannot be combined with @AggregateRoot=true."
         }
-        val aggregateRoot = aggregateRootAnnotation.value ?: (parentTable == null && !valueObject)
+        val aggregateRoot = aggregateRootAnnotation.value ?: (parentTable == null)
         return TableRelationMetadata(
             parentTable = parentTable,
             aggregateRoot = aggregateRoot,
@@ -37,9 +37,12 @@ internal class DbRelationAnnotationParser {
 
     fun parseColumn(comment: String): ColumnRelationMetadata {
         val annotations = parseAnnotations(comment)
+        val hasRelationAnnotation = annotations.any { it.key in RELATION_ALIASES }
+        val hasLazyAnnotation = annotations.any { it.key in LAZY_ALIASES }
+        val hasCountAnnotation = annotations.any { it.key in COUNT_ALIASES }
         val relationValue = resolveAnnotationValue(
             annotations = annotations,
-            aliases = setOf("RELATION", "REL"),
+            aliases = RELATION_ALIASES,
             conflictMessage = "conflicting @Relation/@Rel annotations on the same column comment.",
             blankValueMessage = "blank @Relation/@Rel value is not allowed.",
             missingValueMessage = "missing value for @Relation/@Rel annotation.",
@@ -49,32 +52,46 @@ internal class DbRelationAnnotationParser {
             "unsupported relation type in first slice: $relationValue"
         }
 
+        val referenceTable = resolveAnnotationValue(
+            annotations = annotations,
+            aliases = REFERENCE_ALIASES,
+            conflictMessage = "conflicting @Reference/@Ref annotations on the same column comment.",
+            blankValueMessage = "blank @Reference/@Ref value is not allowed.",
+            missingValueMessage = "missing value for @Reference/@Ref annotation.",
+        )
+        val explicitRelationType = when (relation) {
+            "ONE_TO_ONE", "1:1", "ONETOONE" -> "ONE_TO_ONE"
+            "MANY_TO_ONE", "*:1", "MANYTOONE" -> "MANY_TO_ONE"
+            else -> null
+        }
+        val lazy = resolveBooleanAnnotationValue(
+            annotations = annotations,
+            aliases = LAZY_ALIASES,
+            conflictMessage = "conflicting @Lazy/@L annotations on the same column comment.",
+            invalidMessagePrefix = "invalid @Lazy/@L boolean value: ",
+        ).value
+        val countHint = resolveAnnotationValue(
+            annotations = annotations,
+            aliases = COUNT_ALIASES,
+            conflictMessage = "conflicting @Count/@C annotations on the same column comment.",
+            blankValueMessage = "blank @Count/@C value is not allowed.",
+            missingValueMessage = "missing value for @Count/@C annotation.",
+        )
+        require(!(referenceTable == null && hasRelationAnnotation)) {
+            "@Relation/@Rel requires @Reference/@Ref on the same column comment."
+        }
+        require(!(referenceTable == null && hasLazyAnnotation)) {
+            "@Lazy/@L requires @Reference/@Ref on the same column comment."
+        }
+        require(!(referenceTable == null && hasCountAnnotation)) {
+            "@Count/@C requires @Reference/@Ref on the same column comment."
+        }
+
         return ColumnRelationMetadata(
-            referenceTable = resolveAnnotationValue(
-                annotations = annotations,
-                aliases = setOf("REFERENCE", "REF"),
-                conflictMessage = "conflicting @Reference/@Ref annotations on the same column comment.",
-                blankValueMessage = "blank @Reference/@Ref value is not allowed.",
-                missingValueMessage = "missing value for @Reference/@Ref annotation.",
-            ),
-            explicitRelationType = when (relation) {
-                "ONE_TO_ONE", "1:1", "ONETOONE" -> "ONE_TO_ONE"
-                "MANY_TO_ONE", "*:1", "MANYTOONE" -> "MANY_TO_ONE"
-                else -> null
-            },
-            lazy = resolveBooleanAnnotationValue(
-                annotations = annotations,
-                aliases = setOf("LAZY", "L"),
-                conflictMessage = "conflicting @Lazy/@L annotations on the same column comment.",
-                invalidMessagePrefix = "invalid @Lazy/@L boolean value: ",
-            ).value,
-            countHint = resolveAnnotationValue(
-                annotations = annotations,
-                aliases = setOf("COUNT", "C"),
-                conflictMessage = "conflicting @Count/@C annotations on the same column comment.",
-                blankValueMessage = "blank @Count/@C value is not allowed.",
-                missingValueMessage = "missing value for @Count/@C annotation.",
-            ),
+            referenceTable = referenceTable,
+            explicitRelationType = explicitRelationType,
+            lazy = lazy,
+            countHint = countHint,
             cleanedComment = stripRecognizedAnnotations(comment, COLUMN_RELATION_ALIASES),
         )
     }
@@ -179,8 +196,12 @@ internal class DbRelationAnnotationParser {
         private val SUPPORTED_RELATION_TYPES =
             setOf("MANY_TO_ONE", "ONE_TO_ONE", "1:1", "*:1", "MANYTOONE", "ONETOONE")
         private val VALUE_OBJECT_ALIASES = setOf("VALUEOBJECT", "VO")
+        private val REFERENCE_ALIASES = setOf("REFERENCE", "REF")
+        private val RELATION_ALIASES = setOf("RELATION", "REL")
+        private val LAZY_ALIASES = setOf("LAZY", "L")
+        private val COUNT_ALIASES = setOf("COUNT", "C")
         private val TABLE_RELATION_ALIASES = setOf("PARENT", "P", "AGGREGATEROOT", "ROOT", "R", "VALUEOBJECT", "VO")
-        private val COLUMN_RELATION_ALIASES = setOf("REFERENCE", "REF", "RELATION", "REL", "LAZY", "L", "COUNT", "C")
+        private val COLUMN_RELATION_ALIASES = REFERENCE_ALIASES + RELATION_ALIASES + LAZY_ALIASES + COUNT_ALIASES
         private val MULTI_SPACE_PATTERN = Regex("\\s{2,}")
     }
 }
