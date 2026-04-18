@@ -147,6 +147,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         }
 
         val supportedTableNames = supportedTables.map { it.tableName.lowercase(Locale.ROOT) }.toSet()
+        val outOfScopeTableNames = dbSnapshot?.let { snapshot ->
+            snapshot.discoveredTables.map { it.lowercase(Locale.ROOT) }.toSet() -
+                snapshot.includedTables.map { it.lowercase(Locale.ROOT) }.toSet()
+        }.orEmpty()
 
         if (aggregatePolicy == UnsupportedTablePolicy.FAIL && unsupportedTables.isNotEmpty()) {
             val firstUnsupported = unsupportedTables.first()
@@ -170,6 +174,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             } else {
                 emptySet()
             },
+            outOfScopeTableNames = outOfScopeTableNames,
         )
 
         val aggregateModels = supportedTables.map { table ->
@@ -213,6 +218,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                         parentTable == null -> null
                         aggregatePolicy == UnsupportedTablePolicy.SKIP &&
                             parentTable.lowercase(Locale.ROOT) !in supportedTableNames -> null
+                        parentTable.lowercase(Locale.ROOT) in outOfScopeTableNames -> null
                         else -> AggregateNaming.entityName(parentTable)
                     },
                 ),

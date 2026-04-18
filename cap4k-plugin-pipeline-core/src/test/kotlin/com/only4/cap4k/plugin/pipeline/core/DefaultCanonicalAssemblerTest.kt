@@ -1134,6 +1134,55 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler rejects conflicting explicit relation type on parent reference`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                            DbTableSnapshot(
+                                tableName = "video_post_item",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot(
+                                        name = "video_post_id",
+                                        dbType = "BIGINT",
+                                        kotlinType = "Long",
+                                        nullable = false,
+                                        explicitRelationType = "ONE_TO_ONE",
+                                        referenceTable = "video_post",
+                                    ),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                                parentTable = "video_post",
+                                aggregateRoot = false,
+                                valueObject = true,
+                            ),
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals(
+            "parent reference relation type must be MANY_TO_ONE in first slice: video_post_item.video_post_id -> video_post = ONE_TO_ONE",
+            error.message,
+        )
+    }
+
+    @Test
     fun `assembler defaults reference without explicit relation to many to one`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -1642,6 +1691,72 @@ class DefaultCanonicalAssemblerTest {
         }
 
         assertEquals("aggregate relation field collision: VideoPost.author -> UserProfile [MANY_TO_ONE]", error.message)
+    }
+
+    @Test
+    fun `assembler rejects relation field names that collide with scalar fields`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot("author", "VARCHAR", "String", false),
+                                    DbColumnSnapshot("author_id", "BIGINT", "Long", false, referenceTable = "user_profile"),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                            DbTableSnapshot(
+                                tableName = "user_profile",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals("aggregate relation field collides with scalar field: VideoPost.author -> UserProfile [MANY_TO_ONE]", error.message)
+    }
+
+    @Test
+    fun `filtered out relation targets are skipped instead of failing assembly`() {
+        val assembly = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("author_id", "BIGINT", "Long", false, referenceTable = "user_profile"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                    ),
+                    discoveredTables = listOf("video_post", "user_profile"),
+                    includedTables = listOf("video_post"),
+                    excludedTables = listOf("user_profile"),
+                )
+            )
+        )
+
+        assertEquals(listOf("VideoPost"), assembly.model.entities.map { it.name })
+        assertEquals(emptyList<String>(), assembly.model.aggregateRelations.map { it.fieldName })
     }
 
     private fun baseConfig(): ProjectConfig {

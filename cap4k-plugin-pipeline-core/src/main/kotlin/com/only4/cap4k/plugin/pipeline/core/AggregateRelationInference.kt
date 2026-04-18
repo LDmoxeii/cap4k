@@ -20,7 +20,9 @@ internal object AggregateRelationInference {
         basePackage: String,
         tables: List<DbTableSnapshot>,
         skippedTableNames: Set<String> = emptySet(),
+        outOfScopeTableNames: Set<String> = emptySet(),
     ): List<AggregateRelationModel> {
+        val allowedMissingTableNames = skippedTableNames + outOfScopeTableNames
         val entityLookup = tables.associateBy(
             keySelector = { it.tableName.lowercase() },
             valueTransform = { table ->
@@ -30,13 +32,16 @@ internal object AggregateRelationInference {
                 )
             }
         )
+        val scalarFieldNamesByEntity = tables.associate { table ->
+            AggregateNaming.entityName(table.tableName) to table.columns.map { it.name }.toSet()
+        }
 
         val parentChildRelations = tables
             .filter { it.parentTable != null }
             .mapNotNull { child ->
                 val parentTable = requireNotNull(child.parentTable)
                 val parent = entityLookup[parentTable.lowercase()]
-                if (parent == null && parentTable.lowercase() in skippedTableNames) {
+                if (parent == null && parentTable.lowercase() in allowedMissingTableNames) {
                     return@mapNotNull null
                 }
                 val resolvedParent = requireNotNull(parent) {
@@ -45,8 +50,17 @@ internal object AggregateRelationInference {
                 val target = requireNotNull(entityLookup[child.tableName.lowercase()]) {
                     "unknown child table: ${child.tableName}"
                 }
-                val joinColumns = child.columns
+                val parentAnchorColumns = child.columns
                     .filter { it.referenceTable?.equals(parentTable, ignoreCase = true) == true }
+                    .sortedBy { it.name }
+                parentAnchorColumns
+                    .firstOrNull { it.explicitRelationType != null && it.explicitRelationType != "MANY_TO_ONE" }
+                    ?.let { column ->
+                        throw IllegalArgumentException(
+                            "parent reference relation type must be MANY_TO_ONE in first slice: ${child.tableName}.${column.name} -> $parentTable = ${column.explicitRelationType}"
+                        )
+                    }
+                val joinColumns = parentAnchorColumns
                     .map { it.name }
                     .sorted()
                 val joinColumn = when (joinColumns.size) {
@@ -77,7 +91,7 @@ internal object AggregateRelationInference {
                     val referenceTable = column.referenceTable ?: return@mapNotNull null
                     val relationType = resolveRelationType(column.explicitRelationType)
                     val target = entityLookup[referenceTable.lowercase()]
-                    if (target == null && referenceTable.lowercase() in skippedTableNames) {
+                    if (target == null && referenceTable.lowercase() in allowedMissingTableNames) {
                         return@mapNotNull null
                     }
                     val resolvedTarget = requireNotNull(target) {
@@ -111,6 +125,14 @@ internal object AggregateRelationInference {
                 .joinToString(", ")
             throw IllegalArgumentException(
                 "aggregate relation field collision: ${key.ownerEntityName}.${key.fieldName} -> $targets"
+            )
+        }
+
+        relations.firstOrNull { relation ->
+            relation.fieldName in scalarFieldNamesByEntity.getValue(relation.ownerEntityName)
+        }?.let { relation ->
+            throw IllegalArgumentException(
+                "aggregate relation field collides with scalar field: ${relation.ownerEntityName}.${relation.fieldName} -> ${relation.targetEntityName} [${relation.relationType}]"
             )
         }
 
