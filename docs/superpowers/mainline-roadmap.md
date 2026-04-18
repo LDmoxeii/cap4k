@@ -111,11 +111,12 @@ Completed:
 - aggregate factory / specification parity
 - aggregate wrapper parity
 - aggregate unique-constraint family parity
+- aggregate enum / enum-translation parity
 
 Status:
 
-- the cross-generator reference boundary line is complete through aggregate unique-constraint family parity
-- framework-facing type-reference work is now explicitly separated from broader aggregate parity and exploratory full-replacement gaps, and the aggregate-side consumer line now has planner, renderer, functional, and compile closure through bounded unique-constraint output
+- the cross-generator reference boundary line is complete through aggregate enum / enum-translation parity
+- framework-facing type-reference work remains explicitly separated from broader aggregate parity and exploratory full-replacement gaps, and the aggregate-side consumer line now has planner, renderer, functional, and compile closure through bounded enum ownership and translation output
 
 Traceability:
 
@@ -123,6 +124,7 @@ Traceability:
 - [aggregate factory / specification parity design](specs/2026-04-17-cap4k-aggregate-factory-specification-parity-design.md)
 - [aggregate wrapper parity design](specs/2026-04-17-cap4k-aggregate-wrapper-parity-design.md)
 - [aggregate unique-constraint family parity design](specs/2026-04-17-cap4k-aggregate-unique-constraint-family-parity-design.md)
+- [aggregate enum / enum-translation parity design](specs/2026-04-17-cap4k-aggregate-enum-translation-parity-design.md)
 
 ## Current Mainline Contract
 
@@ -140,26 +142,26 @@ These points remain in force:
 
 The original design-generator quality mainline is complete, and the bounded bootstrap capability line is complete through generated-project verification hardening.
 
-The cross-generator reference boundary line is complete through aggregate unique-constraint family parity.
+The cross-generator reference boundary line is complete through aggregate enum / enum-translation parity.
 
 The next explicit framework slice is:
 
-- aggregate enum / enum-translation parity
+- aggregate relation parity
 
 Scope:
 
-- consume the now-stable aggregate unique-family closure and unified derived type-reference boundary in the first aggregate enum implementation
-- keep enum and enum-translation generation inside the existing aggregate generator without expanding public DSL
-- cover the bounded old aggregate pair consisting of `enum` and `enum-translation`
-- prove representative enum and translation output through planner, renderer, and bounded functional or compile verification
-- keep the slice bounded to enum / enum-translation parity, not full aggregate-side completion
+- consume the now-stable enum ownership, translation, and aggregate-side type-binding boundary in the first relation implementation
+- keep the work inside the existing aggregate generator and current aggregate source/canonical line
+- cover the bounded relation/association semantics needed for aggregate entity output, not the whole old aggregate task surface
+- prove representative relation output through planner, renderer, and bounded functional or compile verification
+- keep the slice bounded to relation parity, not full aggregate-side completion
 
 Non-goals:
 
 - do not restore mutable shared runtime type maps between generators
-- do not reopen relation parity, JPA annotation parity, or user-code-preservation parity in this slice
+- do not widen this slice into JPA annotation parity, user-code-preservation parity, or general source-semantic recovery
 - do not broaden bootstrap beyond the current bounded contract
-- do not silently expand into full aggregate-side parity beyond enum / enum-translation work
+- do not silently expand into full aggregate-side parity beyond bounded relation work
 - do not turn exploratory parity notes into a general rewrite of the current pipeline architecture
 
 ## Bootstrap Decision
