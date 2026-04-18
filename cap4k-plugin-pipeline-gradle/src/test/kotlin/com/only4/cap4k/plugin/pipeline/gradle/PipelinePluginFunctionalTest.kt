@@ -1231,6 +1231,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(rootEntityFile.toFile().exists())
         assertTrue(childEntityFile.toFile().exists())
         assertTrue(rootEntityContent.contains("title: String"))
+        assertTrue(rootEntityContent.contains("class VideoPost("))
+        assertFalse(rootEntityContent.contains("data class VideoPost("))
         assertTrue(rootEntityContent.contains("@OneToMany(fetch = FetchType.LAZY)"))
         assertTrue(rootEntityContent.contains("var items: List<VideoPostItem> = emptyList()"))
         assertTrue(rootEntityContent.contains("@ManyToOne(fetch = FetchType.LAZY)"))

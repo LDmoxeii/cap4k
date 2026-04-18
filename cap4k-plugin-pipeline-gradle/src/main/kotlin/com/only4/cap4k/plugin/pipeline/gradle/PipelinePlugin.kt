@@ -73,6 +73,7 @@ class PipelinePlugin : Plugin<Project> {
                 return@projectsEvaluated
             }
             val config = configFactory.build(project, extension)
+            ensureAggregateDomainJpaDependency(project, config)
             val inferredDependencies = inferDependencies(project, config)
             if (inferredDependencies.isNotEmpty()) {
                 planTask.configure { task -> task.dependsOn(inferredDependencies) }
@@ -84,6 +85,10 @@ class PipelinePlugin : Plugin<Project> {
 
 internal fun shouldInferPipelineDependencies(extension: Cap4kExtension): Boolean =
     hasEnabledRegularSource(extension) || hasEnabledRegularGenerator(extension)
+
+private const val JAKARTA_PERSISTENCE_GROUP = "jakarta.persistence"
+private const val JAKARTA_PERSISTENCE_NAME = "jakarta.persistence-api"
+private const val JAKARTA_PERSISTENCE_COORDINATE = "$JAKARTA_PERSISTENCE_GROUP:$JAKARTA_PERSISTENCE_NAME:3.1.0"
 
 private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf(
     extension.sources.designJson.enabled,
@@ -106,6 +111,21 @@ private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean = lis
     extension.generators.drawingBoard.enabled,
     extension.generators.flow.enabled,
 ).any { it.orNull == true }
+
+internal fun ensureAggregateDomainJpaDependency(project: Project, config: ProjectConfig) {
+    if (!config.enabledGeneratorIds().contains("aggregate")) {
+        return
+    }
+    val domainModulePath = config.modules["domain"] ?: return
+    val domainProject = resolveModuleProject(project.rootProject, domainModulePath) ?: return
+    val implementationConfiguration = domainProject.configurations.findByName("implementation") ?: return
+    val hasDependency = implementationConfiguration.dependencies.any { dependency ->
+        dependency.group == JAKARTA_PERSISTENCE_GROUP && dependency.name == JAKARTA_PERSISTENCE_NAME
+    }
+    if (!hasDependency) {
+        domainProject.dependencies.add("implementation", JAKARTA_PERSISTENCE_COORDINATE)
+    }
+}
 
 internal fun inferDependencies(project: Project, config: ProjectConfig): List<Task> {
     val inferredDependencies = linkedSetOf<Task>()
@@ -150,6 +170,39 @@ private fun relevantTasksForInputDir(allProjects: Iterable<Project>, inputDir: S
             null
         }
     }
+}
+
+private fun resolveModuleProject(rootProject: Project, modulePath: String): Project? {
+    val normalizedModulePath = modulePath.trim()
+    if (normalizedModulePath.isEmpty()) {
+        return null
+    }
+
+    val gradleProjectPath = normalizedModulePath.toGradleProjectPath()
+    rootProject.findProject(gradleProjectPath)?.let { return it }
+
+    val normalizedRelativePath = normalizedModulePath.trimStart(':')
+        .replace(':', '/')
+        .replace('\\', '/')
+    if (normalizedRelativePath.isEmpty()) {
+        return rootProject
+    }
+
+    val expectedProjectDir = rootProject.projectDir.toPath().toAbsolutePath().normalize()
+        .resolve(normalizedRelativePath)
+        .normalize()
+    return rootProject.allprojects.firstOrNull { candidate ->
+        candidate.projectDir.toPath().toAbsolutePath().normalize() == expectedProjectDir
+    }
+}
+
+private fun String.toGradleProjectPath(): String {
+    val normalized = trim()
+    if (normalized.startsWith(":")) {
+        return normalized
+    }
+    val modulePath = normalized.trim('/').replace('\\', '/').replace('/', ':')
+    return if (modulePath.isEmpty()) ":" else ":$modulePath"
 }
 
 private fun Any?.asStringList(): List<String> =

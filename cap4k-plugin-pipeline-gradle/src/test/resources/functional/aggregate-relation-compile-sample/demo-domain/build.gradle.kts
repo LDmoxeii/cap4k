@@ -8,6 +8,5 @@ kotlin {
 
 dependencies {
     implementation("com.only4:ddd-core:0.4.2-SNAPSHOT")
-    implementation("jakarta.persistence:jakarta.persistence-api:3.1.0")
     implementation("org.springframework:spring-context")
 }

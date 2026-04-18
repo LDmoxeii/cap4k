@@ -7,7 +7,7 @@ import {{ import }}
 import {{ import }}
 {% endfor %}
 
-data class {{ typeName }}(
+{% if relationFields|length > 0 %}class{% else %}data class{% endif %} {{ typeName }}(
 {% for field in scalarFields %}
     val {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}

@@ -249,6 +249,10 @@ class PipelinePluginCompileFunctionalTest {
     fun `aggregate relation generation participates in domain compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-relation-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
+        val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts")
+        val domainBuildFileContent = domainBuildFile.readText()
+
+        assertFalse(domainBuildFileContent.contains("jakarta.persistence:jakarta.persistence-api"))
 
         val beforeGenerateCompileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-domain:compileKotlin")

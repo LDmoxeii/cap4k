@@ -288,6 +288,65 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `aggregate generation wires jakarta persistence api into resolved domain module`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-aggregate-domain-dependency-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        domainProject.configurations.create("implementation")
+
+        ensureAggregateDomainJpaDependency(
+            rootProject,
+            projectConfig(
+                modules = mapOf("domain" to "demo-domain"),
+                sources = mapOf("db" to SourceConfig(enabled = true)),
+                generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+            )
+        )
+
+        val implementationDependencies = domainProject.configurations.getByName("implementation").dependencies
+        assertTrue(
+            implementationDependencies.any { dependency ->
+                dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
+            }
+        )
+    }
+
+    @Test
+    fun `aggregate generation does not duplicate jakarta persistence api dependency`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-aggregate-domain-dependency-dedup-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        domainProject.configurations.create("implementation")
+        domainProject.dependencies.add("implementation", "jakarta.persistence:jakarta.persistence-api:3.1.0")
+
+        ensureAggregateDomainJpaDependency(
+            rootProject,
+            projectConfig(
+                modules = mapOf("domain" to "demo-domain"),
+                sources = mapOf("db" to SourceConfig(enabled = true)),
+                generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+            )
+        )
+
+        val dependencyCount = domainProject.configurations.getByName("implementation").dependencies.count { dependency ->
+            dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
+        }
+        assertEquals(1, dependencyCount)
+    }
+
+    @Test
     fun `ir analysis input dir does not match sibling project build dir by string prefix`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-prefix-root")
         val rootProject = ProjectBuilder.builder()
@@ -342,13 +401,14 @@ class PipelinePluginTest {
     }
 
     private fun projectConfig(
+        modules: Map<String, String> = emptyMap(),
         sources: Map<String, SourceConfig>,
         generators: Map<String, GeneratorConfig>,
     ): ProjectConfig =
         ProjectConfig(
             basePackage = "com.acme.demo",
             layout = ProjectLayout.MULTI_MODULE,
-            modules = emptyMap(),
+            modules = modules,
             sources = sources,
             generators = generators,
             templates = TemplateConfig(
