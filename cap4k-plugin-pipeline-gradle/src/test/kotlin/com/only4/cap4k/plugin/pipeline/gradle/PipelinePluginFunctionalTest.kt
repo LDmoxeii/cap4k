@@ -1210,6 +1210,38 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kGenerate emits representative aggregate relation artifacts`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-relation")
+        copyFixture(projectDir, "aggregate-relation-sample")
+
+        val result = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
+
+        val rootEntityFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+        )
+        val childEntityFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post_item/VideoPostItem.kt"
+        )
+        val rootEntityContent = rootEntityFile.readText()
+        val childEntityContent = childEntityFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(rootEntityFile.toFile().exists())
+        assertTrue(childEntityFile.toFile().exists())
+        assertTrue(rootEntityContent.contains("@OneToMany(fetch = FetchType.LAZY)"))
+        assertTrue(rootEntityContent.contains("var items: List<VideoPostItem> = emptyList()"))
+        assertTrue(rootEntityContent.contains("@ManyToOne(fetch = FetchType.LAZY)"))
+        assertTrue(rootEntityContent.contains("lateinit var author: UserProfile"))
+        assertTrue(rootEntityContent.contains("@OneToOne(fetch = FetchType.EAGER)"))
+        assertTrue(rootEntityContent.contains("var coverProfile: UserProfile? = null"))
+        assertTrue(childEntityContent.contains("@ManyToOne(fetch = FetchType.LAZY)"))
+        assertTrue(childEntityContent.contains("lateinit var videoPost: VideoPost"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan and cap4kGenerate preserve aggregate composite unique constraint order end to end`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-composite-unique")
         copyFixture(projectDir, "aggregate-sample")

@@ -246,6 +246,36 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
+    fun `aggregate relation generation participates in domain compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-relation-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
+
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateCompileResult.task(":demo-domain:compileKotlin")?.outcome
+        )
+        assertTrue(beforeGenerateCompileResult.output.contains("VideoPost"))
+        assertTrue(beforeGenerateCompileResult.output.contains("VideoPostItem"))
+
+        val (generateResult, compileResult) = FunctionalFixtureSupport.generateThenCompile(
+            projectDir,
+            ":demo-domain:compileKotlin"
+        )
+
+        assertGeneratedFilesExist(
+            projectDir,
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post_item/VideoPostItem.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_profile/UserProfile.kt",
+        )
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
     fun `aggregate enum generation participates in domain compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-enum-domain-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-enum-compile-sample")
