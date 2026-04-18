@@ -143,6 +143,28 @@ data class SchemaModel(
     val fields: List<FieldModel>,
 )
 
+enum class AggregateRelationType {
+    MANY_TO_ONE,
+    ONE_TO_ONE,
+    ONE_TO_MANY,
+}
+
+enum class AggregateFetchType {
+    LAZY,
+    EAGER,
+}
+
+data class AggregateRelationModel(
+    val ownerEntityName: String,
+    val ownerEntityPackageName: String,
+    val fieldName: String,
+    val targetEntityName: String,
+    val targetEntityPackageName: String,
+    val relationType: AggregateRelationType,
+    val joinColumn: String,
+    val fetchType: AggregateFetchType,
+)
+
 data class EntityModel(
     val name: String,
     val packageName: String,
@@ -151,6 +173,9 @@ data class EntityModel(
     val fields: List<FieldModel>,
     val idField: FieldModel,
     val uniqueConstraints: List<List<String>> = emptyList(),
+    val aggregateRoot: Boolean = true,
+    val valueObject: Boolean = false,
+    val parentEntityName: String? = null,
 )
 
 data class RepositoryModel(
@@ -268,6 +293,7 @@ data class CanonicalModel(
     val drawingBoard: DrawingBoardModel? = null,
     val apiPayloads: List<ApiPayloadModel> = emptyList(),
     val sharedEnums: List<SharedEnumDefinition> = emptyList(),
+    val aggregateRelations: List<AggregateRelationModel> = emptyList(),
 )
 
 data class UnsupportedAggregateTable(

@@ -160,6 +160,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             )
         }
 
+        val aggregateRelations = AggregateRelationInference.fromTables(
+            basePackage = config.basePackage,
+            tables = supportedTables,
+        )
+
         val aggregateModels = supportedTables.map { table ->
 
             val entityName = AggregateNaming.entityName(table.tableName)
@@ -194,6 +199,9 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     fields = fields,
                     idField = idField,
                     uniqueConstraints = table.uniqueConstraints,
+                    aggregateRoot = table.aggregateRoot,
+                    valueObject = table.valueObject,
+                    parentEntityName = table.parentTable?.let(AggregateNaming::entityName),
                 ),
                 RepositoryModel(
                     name = repositoryName,
@@ -263,6 +271,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 analysisGraph = analysisGraph,
                 drawingBoard = drawingBoard,
                 sharedEnums = sharedEnums,
+                aggregateRelations = aggregateRelations,
             ),
             diagnostics = diagnostics,
         )

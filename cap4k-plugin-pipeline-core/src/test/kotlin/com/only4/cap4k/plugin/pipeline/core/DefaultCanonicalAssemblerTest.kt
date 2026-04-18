@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
+import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
@@ -1037,6 +1038,158 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler builds one to many from parent child table metadata`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            aggregateRoot = true,
+                        ),
+                        DbTableSnapshot(
+                            tableName = "video_post_item",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("video_post_id", "BIGINT", "Long", false, referenceTable = "video_post"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "video_post",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                    )
+                )
+            )
+        )
+
+        val relation = result.model.aggregateRelations.single()
+        assertEquals("VideoPost", relation.ownerEntityName)
+        assertEquals("items", relation.fieldName)
+        assertEquals("VideoPostItem", relation.targetEntityName)
+        assertEquals(AggregateRelationType.ONE_TO_MANY, relation.relationType)
+    }
+
+    @Test
+    fun `assembler defaults reference without explicit relation to many to one`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("author_id", "BIGINT", "Long", false, referenceTable = "user_profile"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "user_profile",
+                            comment = "",
+                            columns = listOf(DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true)),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                    )
+                )
+            )
+        )
+
+        val relation = result.model.aggregateRelations.single()
+        assertEquals(AggregateRelationType.MANY_TO_ONE, relation.relationType)
+        assertEquals("author", relation.fieldName)
+        assertEquals("UserProfile", relation.targetEntityName)
+    }
+
+    @Test
+    fun `assembler maps explicit one to one relation metadata`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "cover_id",
+                                    dbType = "BIGINT",
+                                    kotlinType = "Long",
+                                    nullable = false,
+                                    explicitRelationType = "ONE_TO_ONE",
+                                    referenceTable = "media_asset",
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "media_asset",
+                            comment = "",
+                            columns = listOf(DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true)),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                    )
+                )
+            )
+        )
+
+        val relation = result.model.aggregateRelations.single()
+        assertEquals(AggregateRelationType.ONE_TO_ONE, relation.relationType)
+        assertEquals("cover", relation.fieldName)
+        assertEquals("MediaAsset", relation.targetEntityName)
+    }
+
+    @Test
+    fun `assembler rejects unsupported many to many relation metadata`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot(
+                                        name = "tag_id",
+                                        dbType = "BIGINT",
+                                        kotlinType = "Long",
+                                        nullable = false,
+                                        explicitRelationType = "MANY_TO_MANY",
+                                        referenceTable = "tag",
+                                    )
+                                ),
+                                primaryKey = listOf("tag_id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals("unsupported aggregate relation type in first slice: MANY_TO_MANY", error.message)
+    }
+
+    @Test
     fun `maps db schema snapshot into schema entity and repository models`() {
         val assembler = DefaultCanonicalAssembler()
 
@@ -1331,4 +1484,6 @@ class DefaultCanonicalAssemblerTest {
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         )
     }
+
+    private fun aggregateProjectConfig(): ProjectConfig = baseAggregateConfig()
 }
