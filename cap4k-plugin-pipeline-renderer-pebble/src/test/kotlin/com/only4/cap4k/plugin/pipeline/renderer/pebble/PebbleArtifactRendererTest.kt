@@ -1321,6 +1321,16 @@ class PebbleArtifactRendererTest {
                                 "nullable" to true,
                             ),
                             mapOf(
+                                "name" to "editor",
+                                "targetType" to "UserProfile",
+                                "targetTypeRef" to "UserProfile",
+                                "targetPackageName" to "com.acme.demo.domain.identity.user",
+                                "relationType" to "MANY_TO_ONE",
+                                "fetchType" to "LAZY",
+                                "joinColumn" to "editor_id",
+                                "nullable" to false,
+                            ),
+                            mapOf(
                                 "name" to "items",
                                 "targetType" to "VideoPostItem",
                                 "targetTypeRef" to "VideoPostItem",
@@ -1349,6 +1359,8 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
+        val constructorSection = content.substringBefore(") {")
+        val bodySection = content.substringAfter(") {")
         assertTrue(content.contains("import jakarta.persistence.FetchType"))
         assertTrue(content.contains("import jakarta.persistence.JoinColumn"))
         assertTrue(content.contains("import jakarta.persistence.ManyToOne"))
@@ -1356,13 +1368,21 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("import jakarta.persistence.OneToOne"))
         assertTrue(content.contains("import com.acme.demo.domain.identity.user.UserProfile"))
         assertTrue(content.contains("import com.acme.demo.domain.aggregates.video_post.item.VideoPostItem"))
+        assertTrue(content.contains("data class VideoPost("))
+        assertTrue(content.contains(") {"))
+        assertTrue(constructorSection.contains("val id: Long"))
+        assertFalse(constructorSection.contains("author"))
+        assertFalse(constructorSection.contains("editor"))
+        assertFalse(constructorSection.contains("items"))
         assertTrue(content.contains("@ManyToOne(fetch = FetchType.LAZY)"))
         assertTrue(content.contains("@JoinColumn(name = \"author_id\")"))
-        assertTrue(content.contains("val author: UserProfile?"))
+        assertTrue(bodySection.contains("var author: UserProfile? = null"))
+        assertTrue(bodySection.contains("@JoinColumn(name = \"editor_id\")"))
+        assertTrue(bodySection.contains("lateinit var editor: UserProfile"))
         assertTrue(content.contains("@OneToMany(fetch = FetchType.LAZY)"))
         assertTrue(content.contains("@JoinColumn(name = \"video_post_id\")"))
         assertFalse(content.contains("mappedBy = \"video_post_id\""))
-        assertTrue(content.contains("val items: List<VideoPostItem>"))
+        assertTrue(bodySection.contains("var items: List<VideoPostItem> = emptyList()"))
     }
 
     @Test

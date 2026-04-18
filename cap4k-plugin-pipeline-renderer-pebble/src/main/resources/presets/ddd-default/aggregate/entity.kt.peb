@@ -9,21 +9,22 @@ import {{ import }}
 
 data class {{ typeName }}(
 {% for field in scalarFields %}
-    val {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if relationFields|length > 0 or not loop.last %},{% endif %}
+    val {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
+){% if relationFields|length > 0 %} {
 {% for relation in relationFields %}
 {% if relation.relationType == "MANY_TO_ONE" %}
     @ManyToOne(fetch = FetchType.{{ relation.fetchType }})
     @JoinColumn(name = "{{ relation.joinColumn }}")
-    val {{ relation.name }}: {{ relation.targetTypeRef }}{% if relation.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
+    {% if relation.nullable %}var {{ relation.name }}: {{ relation.targetTypeRef }}? = null{% else %}lateinit var {{ relation.name }}: {{ relation.targetTypeRef }}{% endif %}
 {% elseif relation.relationType == "ONE_TO_ONE" %}
     @OneToOne(fetch = FetchType.{{ relation.fetchType }})
     @JoinColumn(name = "{{ relation.joinColumn }}")
-    val {{ relation.name }}: {{ relation.targetTypeRef }}{% if relation.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
+    {% if relation.nullable %}var {{ relation.name }}: {{ relation.targetTypeRef }}? = null{% else %}lateinit var {{ relation.name }}: {{ relation.targetTypeRef }}{% endif %}
 {% elseif relation.relationType == "ONE_TO_MANY" %}
     @OneToMany(fetch = FetchType.{{ relation.fetchType }})
     @JoinColumn(name = "{{ relation.joinColumn }}")
-    val {{ relation.name }}: List<{{ relation.targetTypeRef }}>{% if not loop.last %},{% endif %}
+    var {{ relation.name }}: List<{{ relation.targetTypeRef }}> = emptyList()
 {% endif %}
 {% endfor %}
-)
+}{% endif %}
