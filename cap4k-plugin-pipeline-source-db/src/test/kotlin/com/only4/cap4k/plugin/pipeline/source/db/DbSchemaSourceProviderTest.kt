@@ -9,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import java.sql.DriverManager
 import java.nio.file.Files
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 
 class DbSchemaSourceProviderTest {
@@ -22,7 +23,7 @@ class DbSchemaSourceProviderTest {
                     """
                     create table video_post (
                         id bigint primary key comment 'pk',
-                        author_id bigint not null comment '@Reference=user_profile;@Relation=ManyToOne;@Lazy=true;'
+                        author_id bigint not null comment '@Reference=user_profile;@Relation=ManyToOne;@Lazy=true;@Count=single;'
                     )
                     """.trimIndent()
                 )
@@ -34,8 +35,8 @@ class DbSchemaSourceProviderTest {
                     )
                     """.trimIndent()
                 )
-                statement.execute("comment on table video_post is '@AggregateRoot=true;'")
-                statement.execute("comment on table video_post_item is '@Parent=video_post;@VO;'")
+                statement.execute("comment on table video_post is 'Video post root @AggregateRoot=true;'")
+                statement.execute("comment on table video_post_item is 'Video post item @Parent=video_post;@VO;'")
             }
         }
 
@@ -69,9 +70,14 @@ class DbSchemaSourceProviderTest {
         assertEquals(true, rootTable.aggregateRoot)
         assertEquals("video_post", childTable.parentTable)
         assertEquals(true, childTable.valueObject)
+        assertEquals("Video post root", rootTable.comment)
+        assertEquals("Video post item", childTable.comment)
+        assertFalse(rootTable.comment.contains("@AggregateRoot"))
+        assertFalse(childTable.comment.contains("@Parent"))
         assertEquals("user_profile", authorId.referenceTable)
         assertEquals("MANY_TO_ONE", authorId.explicitRelationType)
         assertEquals(true, authorId.lazy)
+        assertEquals("single", authorId.countHint)
     }
 
     @Test

@@ -143,7 +143,7 @@ class DbSchemaSourceProvider : SourceProvider {
 
         return DbTableSnapshot(
             tableName = tableName,
-            comment = tableComment,
+            comment = tableRelationMetadata.cleanedComment,
             columns = columns,
             primaryKey = primaryKey,
             uniqueConstraints = uniqueConstraints,

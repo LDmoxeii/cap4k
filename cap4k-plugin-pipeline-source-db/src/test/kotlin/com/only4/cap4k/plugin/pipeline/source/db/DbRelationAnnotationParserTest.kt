@@ -16,12 +16,34 @@ class DbRelationAnnotationParserTest {
     }
 
     @Test
+    fun `parses short table aliases and long value object annotation`() {
+        val metadata = DbRelationAnnotationParser().parseTable("@P=video_post;@Root=false;@ValueObject;")
+
+        assertEquals("video_post", metadata.parentTable)
+        assertEquals(false, metadata.aggregateRoot)
+        assertEquals(true, metadata.valueObject)
+    }
+
+    @Test
     fun `parses column reference relation and lazy annotations`() {
-        val metadata = DbRelationAnnotationParser().parseColumn("@Reference=user_profile;@Relation=OneToOne;@Lazy=true;")
+        val metadata = DbRelationAnnotationParser().parseColumn(
+            "@Reference=user_profile;@Relation=OneToOne;@Lazy=true;@Count=single;"
+        )
 
         assertEquals("user_profile", metadata.referenceTable)
         assertEquals("ONE_TO_ONE", metadata.explicitRelationType)
         assertEquals(true, metadata.lazy)
+        assertEquals("single", metadata.countHint)
+    }
+
+    @Test
+    fun `parses short column aliases and count hint`() {
+        val metadata = DbRelationAnnotationParser().parseColumn("@Ref=account;@Rel=*:1;@L=false;@C=many;")
+
+        assertEquals("account", metadata.referenceTable)
+        assertEquals("MANY_TO_ONE", metadata.explicitRelationType)
+        assertEquals(false, metadata.lazy)
+        assertEquals("many", metadata.countHint)
     }
 
     @Test
@@ -31,5 +53,41 @@ class DbRelationAnnotationParserTest {
         }
 
         assertEquals("unsupported relation type in first slice: ManyToMany", error.message)
+    }
+
+    @Test
+    fun `rejects conflicting aggregate root aliases`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseTable("@AggregateRoot=true;@R=false;")
+        }
+
+        assertEquals("conflicting @AggregateRoot/@Root/@R annotations on the same table comment.", error.message)
+    }
+
+    @Test
+    fun `rejects conflicting reference aliases`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@Reference=user;@Ref=account;")
+        }
+
+        assertEquals("conflicting @Reference/@Ref annotations on the same column comment.", error.message)
+    }
+
+    @Test
+    fun `rejects malformed aggregate root boolean`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseTable("@AggregateRoot=maybe;")
+        }
+
+        assertEquals("invalid @AggregateRoot/@Root/@R boolean value: maybe", error.message)
+    }
+
+    @Test
+    fun `rejects malformed lazy boolean`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@Lazy=TRUE;")
+        }
+
+        assertEquals("invalid @Lazy/@L boolean value: TRUE", error.message)
     }
 }
