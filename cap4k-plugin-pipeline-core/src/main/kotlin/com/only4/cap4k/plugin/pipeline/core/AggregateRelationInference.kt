@@ -11,7 +11,11 @@ internal object AggregateRelationInference {
         val packageName: String,
     )
 
-    fun fromTables(basePackage: String, tables: List<DbTableSnapshot>): List<AggregateRelationModel> {
+    fun fromTables(
+        basePackage: String,
+        tables: List<DbTableSnapshot>,
+        skippedTableNames: Set<String> = emptySet(),
+    ): List<AggregateRelationModel> {
         val entityLookup = tables.associateBy(
             keySelector = { it.tableName.lowercase() },
             valueTransform = { table ->
@@ -24,9 +28,13 @@ internal object AggregateRelationInference {
 
         val parentChildRelations = tables
             .filter { it.parentTable != null }
-            .map { child ->
+            .mapNotNull { child ->
                 val parentTable = requireNotNull(child.parentTable)
-                val parent = requireNotNull(entityLookup[parentTable.lowercase()]) {
+                val parent = entityLookup[parentTable.lowercase()]
+                if (parent == null && parentTable.lowercase() in skippedTableNames) {
+                    return@mapNotNull null
+                }
+                val resolvedParent = requireNotNull(parent) {
                     "unknown parent table: ${child.parentTable}"
                 }
                 val target = requireNotNull(entityLookup[child.tableName.lowercase()]) {
@@ -38,9 +46,9 @@ internal object AggregateRelationInference {
                     "missing parent reference column for table: ${child.tableName}"
                 }
                 AggregateRelationModel(
-                    ownerEntityName = parent.entityName,
-                    ownerEntityPackageName = parent.packageName,
-                    fieldName = parentChildFieldName(parent.entityName, target.entityName),
+                    ownerEntityName = resolvedParent.entityName,
+                    ownerEntityPackageName = resolvedParent.packageName,
+                    fieldName = parentChildFieldName(resolvedParent.entityName, target.entityName),
                     targetEntityName = target.entityName,
                     targetEntityPackageName = target.packageName,
                     relationType = AggregateRelationType.ONE_TO_MANY,
@@ -54,25 +62,22 @@ internal object AggregateRelationInference {
                 "unknown owner table: ${table.tableName}"
             }
             table.columns
-                .filter { column ->
-                    val referenceTable = column.referenceTable
-                    if (referenceTable == null) {
-                        return@filter false
-                    }
-                    !(table.parentTable != null && referenceTable.equals(table.parentTable, ignoreCase = true))
-                }
-                .map { column ->
+                .mapNotNull { column ->
+                    val referenceTable = column.referenceTable ?: return@mapNotNull null
                     val relationType = resolveRelationType(column.explicitRelationType)
-                    val referenceTable = requireNotNull(column.referenceTable)
-                    val target = requireNotNull(entityLookup[referenceTable.lowercase()]) {
+                    val target = entityLookup[referenceTable.lowercase()]
+                    if (target == null && referenceTable.lowercase() in skippedTableNames) {
+                        return@mapNotNull null
+                    }
+                    val resolvedTarget = requireNotNull(target) {
                         "unknown reference table: ${column.referenceTable}"
                     }
                     AggregateRelationModel(
                         ownerEntityName = owner.entityName,
                         ownerEntityPackageName = owner.packageName,
-                        fieldName = relationFieldName(column.name, target.entityName),
-                        targetEntityName = target.entityName,
-                        targetEntityPackageName = target.packageName,
+                        fieldName = relationFieldName(column.name, resolvedTarget.entityName),
+                        targetEntityName = resolvedTarget.entityName,
+                        targetEntityPackageName = resolvedTarget.packageName,
                         relationType = relationType,
                         joinColumn = column.name,
                         fetchType = if (column.lazy == true) AggregateFetchType.LAZY else AggregateFetchType.EAGER,

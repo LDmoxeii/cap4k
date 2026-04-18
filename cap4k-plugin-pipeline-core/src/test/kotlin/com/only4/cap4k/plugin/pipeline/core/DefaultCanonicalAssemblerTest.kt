@@ -1038,7 +1038,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembler builds one to many from parent child table metadata`() {
+    fun `assembler preserves both parent and child relations for parent child table metadata`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
             listOf(
@@ -1072,11 +1072,25 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        val relation = result.model.aggregateRelations.single()
-        assertEquals("VideoPost", relation.ownerEntityName)
-        assertEquals("items", relation.fieldName)
-        assertEquals("VideoPostItem", relation.targetEntityName)
-        assertEquals(AggregateRelationType.ONE_TO_MANY, relation.relationType)
+        assertEquals(
+            listOf(
+                "VideoPost|items|VideoPostItem|ONE_TO_MANY",
+                "VideoPostItem|videoPost|VideoPost|MANY_TO_ONE",
+            ).sorted(),
+            result.model.aggregateRelations
+                .map { "${it.ownerEntityName}|${it.fieldName}|${it.targetEntityName}|${it.relationType}" }
+                .sorted(),
+        )
+
+        val root = result.model.entities.first { it.name == "VideoPost" }
+        assertEquals(true, root.aggregateRoot)
+        assertEquals(false, root.valueObject)
+        assertEquals(null, root.parentEntityName)
+
+        val child = result.model.entities.first { it.name == "VideoPostItem" }
+        assertEquals(false, child.aggregateRoot)
+        assertEquals(true, child.valueObject)
+        assertEquals("VideoPost", child.parentEntityName)
     }
 
     @Test
@@ -1457,6 +1471,50 @@ class DefaultCanonicalAssemblerTest {
 
         assertEquals(listOf("VideoPost"), model.entities.map { it.name })
         assertEquals(listOf("video_post"), assembly.diagnostics!!.aggregate!!.supportedTables)
+        assertEquals("audit_log", assembly.diagnostics!!.aggregate!!.unsupportedTables.single().tableName)
+    }
+
+    @Test
+    fun `skip policy drops relations targeting skipped unsupported tables`() {
+        val assembly = DefaultCanonicalAssembler().assemble(
+            config = baseAggregateConfig(
+                generators = mapOf(
+                    "aggregate" to GeneratorConfig(
+                        enabled = true,
+                        options = mapOf("unsupportedTablePolicy" to "SKIP"),
+                    )
+                )
+            ),
+            snapshots = listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "audit_log",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("tenant_id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("event_id", "VARCHAR", "String", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("tenant_id", "event_id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("audit_log_id", "BIGINT", "Long", false, referenceTable = "audit_log"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                    )
+                )
+            ),
+        )
+
+        assertEquals(listOf("VideoPost"), assembly.model.entities.map { it.name })
+        assertEquals(emptyList<String>(), assembly.model.aggregateRelations.map { it.fieldName })
         assertEquals("audit_log", assembly.diagnostics!!.aggregate!!.unsupportedTables.single().tableName)
     }
 

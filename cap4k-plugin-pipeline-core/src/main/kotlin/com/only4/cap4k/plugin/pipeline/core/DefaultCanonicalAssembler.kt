@@ -163,6 +163,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val aggregateRelations = AggregateRelationInference.fromTables(
             basePackage = config.basePackage,
             tables = supportedTables,
+            skippedTableNames = if (aggregatePolicy == UnsupportedTablePolicy.SKIP) {
+                unsupportedTables.map { it.tableName.lowercase(Locale.ROOT) }.toSet()
+            } else {
+                emptySet()
+            },
         )
 
         val aggregateModels = supportedTables.map { table ->
