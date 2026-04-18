@@ -4,6 +4,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
+import java.util.Locale
 
 internal object AggregateRelationInference {
     private data class Endpoint(
@@ -16,9 +17,8 @@ internal object AggregateRelationInference {
         val fieldName: String,
     )
 
-    private val relationIdSuffixRegex = Regex("(?i)_?id$")
+    private val underscoredRelationIdSuffixRegex = Regex("_id$", RegexOption.IGNORE_CASE)
     private val tableTokenSplitRegex = Regex("_+|(?<=[a-z0-9])(?=[A-Z])")
-    private val vowels = setOf('a', 'e', 'i', 'o', 'u')
 
     fun fromTables(
         basePackage: String,
@@ -26,9 +26,9 @@ internal object AggregateRelationInference {
         skippedTableNames: Set<String> = emptySet(),
         outOfScopeTableNames: Set<String> = emptySet(),
     ): List<AggregateRelationModel> {
-        val allowedMissingTableNames = skippedTableNames + outOfScopeTableNames
+        val allowedMissingTableNames = (skippedTableNames + outOfScopeTableNames).map(::tableKey).toSet()
         val entityLookup = tables.associateBy(
-            keySelector = { it.tableName.lowercase() },
+            keySelector = { tableKey(it.tableName) },
             valueTransform = { table ->
                 Endpoint(
                     entityName = AggregateNaming.entityName(table.tableName),
@@ -37,21 +37,25 @@ internal object AggregateRelationInference {
             }
         )
         val scalarFieldNamesByEntity = tables.associate { table ->
-            AggregateNaming.entityName(table.tableName) to table.columns.map { it.name }.toSet()
+            AggregateNaming.entityName(table.tableName) to table.columns
+                .filter { it.referenceTable == null }
+                .map { it.name }
+                .toSet()
         }
 
         val parentChildRelations = tables
             .filter { it.parentTable != null }
             .mapNotNull { child ->
                 val parentTable = requireNotNull(child.parentTable)
-                val parent = entityLookup[parentTable.lowercase()]
-                if (parent == null && parentTable.lowercase() in allowedMissingTableNames) {
+                val parentKey = tableKey(parentTable)
+                val parent = entityLookup[parentKey]
+                if (parent == null && parentKey in allowedMissingTableNames) {
                     return@mapNotNull null
                 }
                 val resolvedParent = requireNotNull(parent) {
                     "unknown parent table: ${child.parentTable}"
                 }
-                val target = requireNotNull(entityLookup[child.tableName.lowercase()]) {
+                val target = requireNotNull(entityLookup[tableKey(child.tableName)]) {
                     "unknown child table: ${child.tableName}"
                 }
                 val parentAnchorColumns = child.columns
@@ -87,15 +91,16 @@ internal object AggregateRelationInference {
             }
 
         val explicitRelations = tables.flatMap { table ->
-            val owner = requireNotNull(entityLookup[table.tableName.lowercase()]) {
+            val owner = requireNotNull(entityLookup[tableKey(table.tableName)]) {
                 "unknown owner table: ${table.tableName}"
             }
             table.columns
                 .mapNotNull { column ->
                     val referenceTable = column.referenceTable ?: return@mapNotNull null
                     val relationType = resolveRelationType(column.explicitRelationType)
-                    val target = entityLookup[referenceTable.lowercase()]
-                    if (target == null && referenceTable.lowercase() in allowedMissingTableNames) {
+                    val referenceKey = tableKey(referenceTable)
+                    val target = entityLookup[referenceKey]
+                    if (target == null && referenceKey in allowedMissingTableNames) {
                         return@mapNotNull null
                     }
                     val resolvedTarget = requireNotNull(target) {
@@ -162,25 +167,25 @@ internal object AggregateRelationInference {
         } else {
             childTokens
         }
-        return tokensToLowerCamel(stemTokens.dropLast(1) + pluralizeToken(stemTokens.last()))
+        return tokensToLowerCamel(stemTokens.dropLast(1) + RelationInflector.pluralizeStable(stemTokens.last()))
     }
 
     private fun relationFieldName(columnName: String, targetEntityName: String): String {
-        val stem = columnName.replaceFirst(relationIdSuffixRegex, "")
+        val stem = stripRelationIdSuffix(columnName)
         return if (stem.isNotBlank()) {
             if (stem.contains('_')) {
                 stem.split("_")
                     .joinToString("") { part ->
-                        part.lowercase().replaceFirstChar { it.titlecase() }
+                        upperFirst(part.lowercase(Locale.ROOT))
                     }
-                    .replaceFirstChar { it.lowercase() }
+                    .let(::lowerFirst)
             } else if (stem.all { !it.isLetter() || it.isUpperCase() }) {
-                stem.lowercase()
+                stem.lowercase(Locale.ROOT)
             } else {
-                stem.replaceFirstChar { it.lowercase() }
+                lowerFirst(stem)
             }
         } else {
-            targetEntityName.replaceFirstChar { it.lowercase() }
+            lowerFirst(targetEntityName)
         }
     }
 
@@ -188,38 +193,113 @@ internal object AggregateRelationInference {
         tableName
             .split(tableTokenSplitRegex)
             .filter { it.isNotBlank() }
-            .map { it.lowercase() }
-
-    private fun pluralizeToken(token: String): String =
-        if (looksPlural(token)) {
-            token
-        } else if (
-            token.length > 1 &&
-            token.endsWith("y") &&
-            token[token.lastIndex - 1] !in vowels
-        ) {
-            token.dropLast(1) + "ies"
-        } else {
-            token + "s"
-        }
-
-    private fun looksPlural(token: String): Boolean =
-        token.endsWith("ies") ||
-            token.endsWith("ses") ||
-            token.endsWith("xes") ||
-            token.endsWith("zes") ||
-            token.endsWith("ches") ||
-            token.endsWith("shes") ||
-            (token.endsWith("s") && !token.endsWith("ss") && !token.endsWith("us"))
+            .map { it.lowercase(Locale.ROOT) }
 
     private fun tokensToLowerCamel(tokens: List<String>): String {
         return tokens.mapIndexed { index, token ->
             if (index == 0) {
                 token
             } else {
-                token.replaceFirstChar { it.titlecase() }
+                upperFirst(token)
             }
         }.joinToString("")
+    }
+
+    private fun stripRelationIdSuffix(columnName: String): String {
+        return when {
+            underscoredRelationIdSuffixRegex.containsMatchIn(columnName) ->
+                columnName.replaceFirst(underscoredRelationIdSuffixRegex, "")
+            columnName.endsWith("Id") || columnName.endsWith("ID") ->
+                columnName.dropLast(2)
+            else -> columnName
+        }
+    }
+
+    private fun tableKey(tableName: String): String = tableName.lowercase(Locale.ROOT)
+
+    private fun lowerFirst(value: String): String =
+        if (value.isEmpty()) value else value.substring(0, 1).lowercase(Locale.ROOT) + value.substring(1)
+
+    private fun upperFirst(value: String): String =
+        if (value.isEmpty()) value else value.substring(0, 1).uppercase(Locale.ROOT) + value.substring(1)
+
+    private object RelationInflector {
+        private data class Rule(
+            val regex: Regex,
+            val replacement: String,
+        )
+
+        private val plurals = listOf(
+            rule("(quiz)$", "$1zes"),
+            rule("(ox)$", "$1es"),
+            rule("([m|l])ouse$", "$1ice"),
+            rule("(matr|vert|ind)ix|ex$", "$1ices"),
+            rule("(x|ch|ss|sh)$", "$1es"),
+            rule("([^aeiouy]|qu)ies$", "$1y"),
+            rule("([^aeiouy]|qu)y$", "$1ies"),
+            rule("(hive)$", "$1s"),
+            rule("(?:([^f])fe|([lr])f)$", "$1$2ves"),
+            rule("sis$", "ses"),
+            rule("([ti])um$", "$1a"),
+            rule("(buffal|tomat)o$", "$1oes"),
+            rule("(bu)s$", "$1es"),
+            rule("(alias|status)$", "$1es"),
+            rule("(octop|vir)us$", "$1i"),
+            rule("(ax|test)is$", "$1es"),
+            rule("s$", "s"),
+            rule("$", "s"),
+        )
+
+        private val uncountables = setOf(
+            "equipment",
+            "information",
+            "rice",
+            "money",
+            "species",
+            "series",
+            "fish",
+            "sheep",
+        )
+
+        fun pluralizeStable(word: String): String {
+            return if (word.lowercase(Locale.ROOT) in uncountables || looksPlural(word)) {
+                word
+            } else {
+                pluralize(word)
+            }
+        }
+
+        private fun pluralize(word: String): String =
+            if (word.lowercase(Locale.ROOT) in uncountables) {
+                word
+            } else {
+                applyFirstRule(word, plurals)
+            }
+
+        private fun applyFirstRule(word: String, rules: List<Rule>): String {
+            for (rule in rules) {
+                if (rule.regex.containsMatchIn(word)) {
+                    return word.replace(rule.regex, rule.replacement)
+                }
+            }
+            return word
+        }
+
+        private fun rule(pattern: String, replacement: String): Rule =
+            Rule(pattern.toRegex(RegexOption.IGNORE_CASE), replacement)
+
+        private fun looksPlural(word: String): Boolean {
+            val normalizedWord = word.lowercase(Locale.ROOT)
+            return normalizedWord.endsWith("ies") ||
+                normalizedWord.endsWith("ses") ||
+                normalizedWord.endsWith("xes") ||
+                normalizedWord.endsWith("zes") ||
+                normalizedWord.endsWith("ches") ||
+                normalizedWord.endsWith("shes") ||
+                (normalizedWord.endsWith("s") &&
+                    !normalizedWord.endsWith("ss") &&
+                    !normalizedWord.endsWith("us"))
+        }
     }
 
 }

@@ -1233,6 +1233,9 @@ class DefaultCanonicalAssemblerTest {
                                 DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
                                 DbColumnSnapshot("authorId", "BIGINT", "Long", false, referenceTable = "author_profile"),
                                 DbColumnSnapshot("userProfileId", "BIGINT", "Long", false, referenceTable = "user_profile"),
+                                DbColumnSnapshot("grid", "BIGINT", "Long", false, referenceTable = "grid_profile"),
+                                DbColumnSnapshot("hybrid", "BIGINT", "Long", false, referenceTable = "hybrid_profile"),
+                                DbColumnSnapshot("solid", "BIGINT", "Long", false, referenceTable = "solid_profile"),
                             ),
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
@@ -1251,6 +1254,27 @@ class DefaultCanonicalAssemblerTest {
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
                         ),
+                        DbTableSnapshot(
+                            tableName = "grid_profile",
+                            comment = "",
+                            columns = listOf(DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true)),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "hybrid_profile",
+                            comment = "",
+                            columns = listOf(DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true)),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "solid_profile",
+                            comment = "",
+                            columns = listOf(DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true)),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
                     )
                 )
             )
@@ -1259,6 +1283,9 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(
             listOf(
                 "author|AuthorProfile",
+                "grid|GridProfile",
+                "hybrid|HybridProfile",
+                "solid|SolidProfile",
                 "userProfile|UserProfile",
             ).sorted(),
             result.model.aggregateRelations
@@ -1439,6 +1466,97 @@ class DefaultCanonicalAssemblerTest {
             listOf(
                 "Category|policies|CategoryPolicies|ONE_TO_MANY",
                 "Order|items|OrderItems|ONE_TO_MANY",
+            ).sorted(),
+            result.model.aggregateRelations
+                .filter { it.relationType == AggregateRelationType.ONE_TO_MANY }
+                .map { "${it.ownerEntityName}|${it.fieldName}|${it.targetEntityName}|${it.relationType}" }
+                .sorted(),
+        )
+    }
+
+    @Test
+    fun `assembler pluralizes bounded common endings for parent child collections`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "tenant",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "tenant_status",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("tenant_id", "BIGINT", "Long", false, referenceTable = "tenant"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "tenant",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                        DbTableSnapshot(
+                            tableName = "warehouse",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "warehouse_box",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("warehouse_id", "BIGINT", "Long", false, referenceTable = "warehouse"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "warehouse",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                        DbTableSnapshot(
+                            tableName = "company",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "company_branch",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("company_id", "BIGINT", "Long", false, referenceTable = "company"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "company",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                    )
+                )
+            )
+        )
+
+        assertEquals(
+            listOf(
+                "Company|branches|CompanyBranch|ONE_TO_MANY",
+                "Tenant|statuses|TenantStatus|ONE_TO_MANY",
+                "Warehouse|boxes|WarehouseBox|ONE_TO_MANY",
             ).sorted(),
             result.model.aggregateRelations
                 .filter { it.relationType == AggregateRelationType.ONE_TO_MANY }
