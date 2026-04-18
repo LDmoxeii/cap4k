@@ -14,6 +14,67 @@ import org.junit.jupiter.api.Test
 class DbSchemaSourceProviderTest {
 
     @Test
+    fun `db source records table and column relation metadata from comments`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-relation;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table video_post (
+                        id bigint primary key comment 'pk',
+                        author_id bigint not null comment '@Reference=user_profile;@Relation=ManyToOne;@Lazy=true;'
+                    )
+                    """.trimIndent()
+                )
+                statement.execute(
+                    """
+                    create table video_post_item (
+                        id bigint primary key comment 'pk',
+                        video_post_id bigint not null comment '@Reference=video_post;'
+                    )
+                    """.trimIndent()
+                )
+                statement.execute("comment on table video_post is '@AggregateRoot=true;'")
+                statement.execute("comment on table video_post_item is '@Parent=video_post;@VO;'")
+            }
+        }
+
+        val snapshot = DbSchemaSourceProvider().collect(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "url" to url,
+                            "username" to "sa",
+                            "password" to "",
+                            "schema" to "PUBLIC",
+                            "includeTables" to listOf("video_post", "video_post_item"),
+                            "excludeTables" to emptyList<String>(),
+                        )
+                    )
+                ),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        ) as DbSchemaSnapshot
+
+        val rootTable = snapshot.tables.first { it.tableName.equals("VIDEO_POST", true) }
+        val childTable = snapshot.tables.first { it.tableName.equals("VIDEO_POST_ITEM", true) }
+        val authorId = rootTable.columns.first { it.name.equals("AUTHOR_ID", true) }
+
+        assertEquals(true, rootTable.aggregateRoot)
+        assertEquals("video_post", childTable.parentTable)
+        assertEquals(true, childTable.valueObject)
+        assertEquals("user_profile", authorId.referenceTable)
+        assertEquals("MANY_TO_ONE", authorId.explicitRelationType)
+        assertEquals(true, authorId.lazy)
+    }
+
+    @Test
     fun `db source records parsed type binding and enum items from column comments`() {
         val url = "jdbc:h2:mem:cap4k-db-source-enum-comment;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->

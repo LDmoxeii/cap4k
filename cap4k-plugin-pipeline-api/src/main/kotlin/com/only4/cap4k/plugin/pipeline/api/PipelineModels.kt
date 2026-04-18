@@ -19,6 +19,10 @@ data class DbColumnSnapshot(
     val isPrimaryKey: Boolean = false,
     val typeBinding: String? = null,
     val enumItems: List<EnumItemModel> = emptyList(),
+    val referenceTable: String? = null,
+    val explicitRelationType: String? = null,
+    val lazy: Boolean? = null,
+    val countHint: String? = null,
 )
 
 data class DbTableSnapshot(
@@ -27,6 +31,9 @@ data class DbTableSnapshot(
     val columns: List<DbColumnSnapshot>,
     val primaryKey: List<String>,
     val uniqueConstraints: List<List<String>>,
+    val parentTable: String? = null,
+    val aggregateRoot: Boolean = true,
+    val valueObject: Boolean = false,
 )
 
 data class DesignSpecEntry(

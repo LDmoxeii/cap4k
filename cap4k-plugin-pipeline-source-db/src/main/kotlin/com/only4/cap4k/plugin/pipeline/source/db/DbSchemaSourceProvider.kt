@@ -12,6 +12,7 @@ import java.util.Locale
 
 class DbSchemaSourceProvider : SourceProvider {
     override val id: String = "db"
+    private val relationAnnotationParser = DbRelationAnnotationParser()
 
     override fun collect(config: ProjectConfig): DbSchemaSnapshot {
         val source = requireNotNull(config.sources[id]) { "Missing db source config" }
@@ -66,6 +67,10 @@ class DbSchemaSourceProvider : SourceProvider {
         schema: String?,
         tableName: String,
     ): DbTableSnapshot {
+        val tableComment = metadata.getTables(null, schema, tableName, arrayOf("TABLE")).use { rows ->
+            if (rows.next()) rows.getString("REMARKS") ?: "" else ""
+        }
+        val tableRelationMetadata = relationAnnotationParser.parseTable(tableComment)
         val primaryKey = metadata.getPrimaryKeys(null, schema, tableName).use { rows ->
             buildList {
                 while (rows.next()) {
@@ -80,6 +85,7 @@ class DbSchemaSourceProvider : SourceProvider {
                     val name = rows.getString("COLUMN_NAME")
                     val comment = rows.getString("REMARKS") ?: ""
                     val annotationMetadata = DbColumnAnnotationParser.parse(comment)
+                    val relationMetadata = relationAnnotationParser.parseColumn(comment)
                     add(
                         DbColumnSnapshot(
                             name = name,
@@ -91,6 +97,10 @@ class DbSchemaSourceProvider : SourceProvider {
                             isPrimaryKey = name in primaryKeySet,
                             typeBinding = annotationMetadata.typeBinding,
                             enumItems = annotationMetadata.enumItems,
+                            referenceTable = relationMetadata.referenceTable,
+                            explicitRelationType = relationMetadata.explicitRelationType,
+                            lazy = relationMetadata.lazy,
+                            countHint = relationMetadata.countHint,
                         )
                     )
                 }
@@ -133,10 +143,13 @@ class DbSchemaSourceProvider : SourceProvider {
 
         return DbTableSnapshot(
             tableName = tableName,
-            comment = "",
+            comment = tableComment,
             columns = columns,
             primaryKey = primaryKey,
             uniqueConstraints = uniqueConstraints,
+            parentTable = tableRelationMetadata.parentTable,
+            aggregateRoot = tableRelationMetadata.aggregateRoot,
+            valueObject = tableRelationMetadata.valueObject,
         )
     }
 
