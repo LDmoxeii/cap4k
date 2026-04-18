@@ -1044,7 +1044,12 @@ class PebbleArtifactRendererTest {
                         "typeName" to "Order",
                         "comment" to "Order aggregate",
                         "idField" to FieldModel("id", "Long"),
+                        "imports" to emptyList<String>(),
                         "scalarFields" to listOf(
+                            mapOf("name" to "id", "type" to "Long", "nullable" to false),
+                            mapOf("name" to "orderNo", "type" to "String", "nullable" to true)
+                        ),
+                        "fields" to listOf(
                             mapOf("name" to "id", "type" to "Long", "nullable" to false),
                             mapOf("name" to "orderNo", "type" to "String", "nullable" to true)
                         ),
@@ -1286,16 +1291,34 @@ class PebbleArtifactRendererTest {
                         "typeName" to "VideoPost",
                         "comment" to "video post",
                         "tableName" to "video_post",
+                        "imports" to listOf(
+                            "com.acme.demo.domain.identity.user.UserProfile",
+                            "com.acme.demo.domain.aggregates.video_post.item.VideoPostItem",
+                        ),
                         "scalarFields" to listOf(
+                            mapOf("name" to "id", "type" to "Long", "nullable" to false)
+                        ),
+                        "fields" to listOf(
                             mapOf("name" to "id", "type" to "Long", "nullable" to false)
                         ),
                         "relationFields" to listOf(
                             mapOf(
                                 "name" to "author",
                                 "targetType" to "UserProfile",
+                                "targetTypeRef" to "UserProfile",
+                                "targetPackageName" to "com.acme.demo.domain.identity.user",
                                 "relationType" to "MANY_TO_ONE",
                                 "fetchType" to "LAZY",
                                 "joinColumn" to "author_id",
+                            ),
+                            mapOf(
+                                "name" to "items",
+                                "targetType" to "VideoPostItem",
+                                "targetTypeRef" to "VideoPostItem",
+                                "targetPackageName" to "com.acme.demo.domain.aggregates.video_post.item",
+                                "relationType" to "ONE_TO_MANY",
+                                "fetchType" to "LAZY",
+                                "joinColumn" to "video_post_id",
                             )
                         ),
                     ),
@@ -1317,9 +1340,15 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
+        assertTrue(content.contains("import com.acme.demo.domain.identity.user.UserProfile"))
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.video_post.item.VideoPostItem"))
         assertTrue(content.contains("@ManyToOne(fetch = FetchType.LAZY)"))
         assertTrue(content.contains("@JoinColumn(name = \"author_id\")"))
         assertTrue(content.contains("val author: UserProfile"))
+        assertTrue(content.contains("@OneToMany(fetch = FetchType.LAZY)"))
+        assertTrue(content.contains("@JoinColumn(name = \"video_post_id\")"))
+        assertFalse(content.contains("mappedBy = \"video_post_id\""))
+        assertTrue(content.contains("val items: List<VideoPostItem>"))
     }
 
     @Test

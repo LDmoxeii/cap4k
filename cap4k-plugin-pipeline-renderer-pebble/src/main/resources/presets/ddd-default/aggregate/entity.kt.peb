@@ -5,6 +5,9 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.OneToMany
 import jakarta.persistence.OneToOne
+{% for import in imports(imports) %}
+import {{ import }}
+{% endfor %}
 
 data class {{ typeName }}(
 {% for field in scalarFields %}
@@ -18,8 +21,9 @@ data class {{ typeName }}(
     @OneToOne(fetch = FetchType.{{ relation.fetchType }})
     @JoinColumn(name = "{{ relation.joinColumn }}")
 {% elseif relation.relationType == "ONE_TO_MANY" %}
-    @OneToMany(mappedBy = "{{ relation.joinColumn }}", fetch = FetchType.{{ relation.fetchType }})
+    @OneToMany(fetch = FetchType.{{ relation.fetchType }})
+    @JoinColumn(name = "{{ relation.joinColumn }}")
 {% endif %}
-    val {{ relation.name }}: {% if relation.relationType == "ONE_TO_MANY" %}List<{{ relation.targetType }}>{% else %}{{ relation.targetType }}{% endif %}{% if not loop.last %},{% endif %}
+    val {{ relation.name }}: {% if relation.relationType == "ONE_TO_MANY" %}List<{{ relation.targetTypeRef }}>{% else %}{{ relation.targetTypeRef }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
 )

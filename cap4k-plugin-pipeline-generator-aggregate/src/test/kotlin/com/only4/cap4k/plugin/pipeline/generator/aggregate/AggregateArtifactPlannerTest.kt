@@ -25,7 +25,7 @@ import java.nio.file.Path
 class AggregateArtifactPlannerTest {
 
     @Test
-    fun `entity planner surfaces relation fields separately from scalar fields`() {
+    fun `entity planner surfaces relation fields separately from scalar fields and preserves fields alias`() {
         val plan = AggregateArtifactPlanner().plan(
             aggregateConfig(),
             CanonicalModel(
@@ -46,11 +46,11 @@ class AggregateArtifactPlannerTest {
                     AggregateRelationModel(
                         ownerEntityName = "VideoPost",
                         ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
-                        fieldName = "items",
-                        targetEntityName = "VideoPostItem",
-                        targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
-                        relationType = AggregateRelationType.ONE_TO_MANY,
-                        joinColumn = "video_post_id",
+                        fieldName = "author",
+                        targetEntityName = "UserProfile",
+                        targetEntityPackageName = "com.acme.demo.domain.identity.user",
+                        relationType = AggregateRelationType.MANY_TO_ONE,
+                        joinColumn = "author_id",
                         fetchType = AggregateFetchType.LAZY,
                     )
                 )
@@ -61,12 +61,19 @@ class AggregateArtifactPlannerTest {
         @Suppress("UNCHECKED_CAST")
         val scalarFields = entityItem.context["scalarFields"] as List<Map<String, Any?>>
         @Suppress("UNCHECKED_CAST")
+        val fields = entityItem.context["fields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
         val relationFields = entityItem.context["relationFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val imports = entityItem.context["imports"] as List<String>
 
         assertEquals(listOf("id", "title"), scalarFields.map { it["name"] })
-        assertEquals(listOf("items"), relationFields.map { it["name"] })
-        assertEquals("ONE_TO_MANY", relationFields.single()["relationType"])
-        assertEquals("VideoPostItem", relationFields.single()["targetType"])
+        assertEquals(listOf("id", "title"), fields.map { it["name"] })
+        assertEquals(listOf("author"), relationFields.map { it["name"] })
+        assertEquals("MANY_TO_ONE", relationFields.single()["relationType"])
+        assertEquals("UserProfile", relationFields.single()["targetType"])
+        assertEquals("com.acme.demo.domain.identity.user", relationFields.single()["targetPackageName"])
+        assertEquals(listOf("com.acme.demo.domain.identity.user.UserProfile"), imports)
     }
 
     @Test

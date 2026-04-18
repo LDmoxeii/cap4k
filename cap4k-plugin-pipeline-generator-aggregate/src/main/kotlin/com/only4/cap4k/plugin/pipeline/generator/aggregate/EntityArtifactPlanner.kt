@@ -20,7 +20,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "enumItems" to field.enumItems,
                 )
             }
-            val relationFields = AggregateRelationPlanning.relationFieldsFor(entity, model.aggregateRelations)
+            val relationPlan = AggregateRelationPlanning.planFor(entity, model.aggregateRelations)
             ArtifactPlanItem(
                 generatorId = "aggregate",
                 moduleRole = "domain",
@@ -32,8 +32,10 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "comment" to entity.comment,
                     "tableName" to entity.tableName,
                     "idField" to entity.idField,
+                    "imports" to relationPlan.imports,
+                    "fields" to scalarFields,
                     "scalarFields" to scalarFields,
-                    "relationFields" to relationFields,
+                    "relationFields" to relationPlan.relationFields,
                 ),
                 conflictPolicy = config.templates.conflictPolicy,
             )
