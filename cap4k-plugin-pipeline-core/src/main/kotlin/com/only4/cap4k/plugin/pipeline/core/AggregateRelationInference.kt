@@ -16,7 +16,7 @@ internal object AggregateRelationInference {
         val fieldName: String,
     )
 
-    private val relationIdSuffixRegex = Regex("(?i)_id$")
+    private val relationIdSuffixRegex = Regex("(?i)_?id$")
     private val tableTokenSplitRegex = Regex("_+|(?<=[a-z0-9])(?=[A-Z])")
     private val vowels = setOf('a', 'e', 'i', 'o', 'u')
 
@@ -168,11 +168,17 @@ internal object AggregateRelationInference {
     private fun relationFieldName(columnName: String, targetEntityName: String): String {
         val stem = columnName.replaceFirst(relationIdSuffixRegex, "")
         return if (stem.isNotBlank()) {
-            stem.split("_")
-                .joinToString("") { part ->
-                    part.lowercase().replaceFirstChar { it.titlecase() }
-                }
-                .replaceFirstChar { it.lowercase() }
+            if (stem.contains('_')) {
+                stem.split("_")
+                    .joinToString("") { part ->
+                        part.lowercase().replaceFirstChar { it.titlecase() }
+                    }
+                    .replaceFirstChar { it.lowercase() }
+            } else if (stem.all { !it.isLetter() || it.isUpperCase() }) {
+                stem.lowercase()
+            } else {
+                stem.replaceFirstChar { it.lowercase() }
+            }
         } else {
             targetEntityName.replaceFirstChar { it.lowercase() }
         }
@@ -185,7 +191,9 @@ internal object AggregateRelationInference {
             .map { it.lowercase() }
 
     private fun pluralizeToken(token: String): String =
-        if (
+        if (looksPlural(token)) {
+            token
+        } else if (
             token.length > 1 &&
             token.endsWith("y") &&
             token[token.lastIndex - 1] !in vowels
@@ -194,6 +202,15 @@ internal object AggregateRelationInference {
         } else {
             token + "s"
         }
+
+    private fun looksPlural(token: String): Boolean =
+        token.endsWith("ies") ||
+            token.endsWith("ses") ||
+            token.endsWith("xes") ||
+            token.endsWith("zes") ||
+            token.endsWith("ches") ||
+            token.endsWith("shes") ||
+            (token.endsWith("s") && !token.endsWith("ss") && !token.endsWith("us"))
 
     private fun tokensToLowerCamel(tokens: List<String>): String {
         return tokens.mapIndexed { index, token ->

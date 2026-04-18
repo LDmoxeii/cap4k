@@ -1220,6 +1220,54 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler strips camel case id suffixes without losing shape`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("authorId", "BIGINT", "Long", false, referenceTable = "author_profile"),
+                                DbColumnSnapshot("userProfileId", "BIGINT", "Long", false, referenceTable = "user_profile"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "author_profile",
+                            comment = "",
+                            columns = listOf(DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true)),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "user_profile",
+                            comment = "",
+                            columns = listOf(DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true)),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                    )
+                )
+            )
+        )
+
+        assertEquals(
+            listOf(
+                "author|AuthorProfile",
+                "userProfile|UserProfile",
+            ).sorted(),
+            result.model.aggregateRelations
+                .map { "${it.fieldName}|${it.targetEntityName}" }
+                .sorted(),
+        )
+    }
+
+    @Test
     fun `assembler maps explicit one to one relation metadata`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -1323,6 +1371,74 @@ class DefaultCanonicalAssemblerTest {
             listOf(
                 "Account|accountingEntries|AccountingEntry|ONE_TO_MANY",
                 "Category|policies|CategoryPolicy|ONE_TO_MANY",
+            ).sorted(),
+            result.model.aggregateRelations
+                .filter { it.relationType == AggregateRelationType.ONE_TO_MANY }
+                .map { "${it.ownerEntityName}|${it.fieldName}|${it.targetEntityName}|${it.relationType}" }
+                .sorted(),
+        )
+    }
+
+    @Test
+    fun `assembler keeps already plural child tokens unchanged`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "order",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "order_items",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("order_id", "BIGINT", "Long", false, referenceTable = "order"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "order",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                        DbTableSnapshot(
+                            tableName = "category",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "category_policies",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("category_id", "BIGINT", "Long", false, referenceTable = "category"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "category",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                    )
+                )
+            )
+        )
+
+        assertEquals(
+            listOf(
+                "Category|policies|CategoryPolicies|ONE_TO_MANY",
+                "Order|items|OrderItems|ONE_TO_MANY",
             ).sorted(),
             result.model.aggregateRelations
                 .filter { it.relationType == AggregateRelationType.ONE_TO_MANY }
