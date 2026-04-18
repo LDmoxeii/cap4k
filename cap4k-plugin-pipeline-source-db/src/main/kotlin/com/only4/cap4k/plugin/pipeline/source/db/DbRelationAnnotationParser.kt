@@ -10,6 +10,7 @@ internal class DbRelationAnnotationParser {
             aliases = setOf("PARENT", "P"),
             conflictMessage = "conflicting @Parent/@P annotations on the same table comment.",
             blankValueMessage = "blank @Parent/@P value is not allowed.",
+            missingValueMessage = "missing value for @Parent/@P annotation.",
         )
         val valueObject = resolvePresenceAnnotation(
             annotations = annotations,
@@ -41,6 +42,7 @@ internal class DbRelationAnnotationParser {
             aliases = setOf("RELATION", "REL"),
             conflictMessage = "conflicting @Relation/@Rel annotations on the same column comment.",
             blankValueMessage = "blank @Relation/@Rel value is not allowed.",
+            missingValueMessage = "missing value for @Relation/@Rel annotation.",
         )
         val relation = relationValue?.uppercase(Locale.ROOT)
         require(relation == null || relation in SUPPORTED_RELATION_TYPES) {
@@ -53,6 +55,7 @@ internal class DbRelationAnnotationParser {
                 aliases = setOf("REFERENCE", "REF"),
                 conflictMessage = "conflicting @Reference/@Ref annotations on the same column comment.",
                 blankValueMessage = "blank @Reference/@Ref value is not allowed.",
+                missingValueMessage = "missing value for @Reference/@Ref annotation.",
             ),
             explicitRelationType = when (relation) {
                 "ONE_TO_ONE", "1:1", "ONETOONE" -> "ONE_TO_ONE"
@@ -70,7 +73,9 @@ internal class DbRelationAnnotationParser {
                 aliases = setOf("COUNT", "C"),
                 conflictMessage = "conflicting @Count/@C annotations on the same column comment.",
                 blankValueMessage = "blank @Count/@C value is not allowed.",
+                missingValueMessage = "missing value for @Count/@C annotation.",
             ),
+            cleanedComment = stripRecognizedAnnotations(comment, COLUMN_RELATION_ALIASES),
         )
     }
 
@@ -92,11 +97,13 @@ internal class DbRelationAnnotationParser {
         aliases: Set<String>,
         conflictMessage: String,
         blankValueMessage: String,
+        missingValueMessage: String,
     ): String? {
         val matchingAnnotations = annotations
             .asSequence()
             .filter { it.key in aliases }
             .toList()
+        require(matchingAnnotations.none { !it.hasExplicitValue }) { missingValueMessage }
         require(matchingAnnotations.none { it.hasExplicitValue && it.value.isBlank() }) { blankValueMessage }
 
         val values = matchingAnnotations
@@ -173,6 +180,7 @@ internal class DbRelationAnnotationParser {
             setOf("MANY_TO_ONE", "ONE_TO_ONE", "1:1", "*:1", "MANYTOONE", "ONETOONE")
         private val VALUE_OBJECT_ALIASES = setOf("VALUEOBJECT", "VO")
         private val TABLE_RELATION_ALIASES = setOf("PARENT", "P", "AGGREGATEROOT", "ROOT", "R", "VALUEOBJECT", "VO")
+        private val COLUMN_RELATION_ALIASES = setOf("REFERENCE", "REF", "RELATION", "REL", "LAZY", "L", "COUNT", "C")
         private val MULTI_SPACE_PATTERN = Regex("\\s{2,}")
     }
 }
@@ -189,6 +197,7 @@ internal data class ColumnRelationMetadata(
     val explicitRelationType: String? = null,
     val lazy: Boolean? = null,
     val countHint: String? = null,
+    val cleanedComment: String = "",
 )
 
 private data class RelationParsedAnnotation(

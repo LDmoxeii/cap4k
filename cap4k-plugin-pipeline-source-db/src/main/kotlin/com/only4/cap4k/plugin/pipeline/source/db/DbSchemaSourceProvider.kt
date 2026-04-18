@@ -93,7 +93,7 @@ class DbSchemaSourceProvider : SourceProvider {
                             kotlinType = JdbcTypeMapper.toKotlinType(rows.getInt("DATA_TYPE")),
                             nullable = rows.getInt("NULLABLE") == DatabaseMetaData.columnNullable,
                             defaultValue = rows.getString("COLUMN_DEF"),
-                            comment = comment,
+                            comment = relationMetadata.cleanedComment,
                             isPrimaryKey = name in primaryKeySet,
                             typeBinding = annotationMetadata.typeBinding,
                             enumItems = annotationMetadata.enumItems,

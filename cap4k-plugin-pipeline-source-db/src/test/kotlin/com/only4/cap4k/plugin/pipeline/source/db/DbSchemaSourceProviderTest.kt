@@ -23,7 +23,7 @@ class DbSchemaSourceProviderTest {
                     """
                     create table video_post (
                         id bigint primary key comment 'pk',
-                        author_id bigint not null comment '@Reference=user_profile;@Relation=ManyToOne;@Lazy=true;@Count=single;'
+                        author_id bigint not null comment 'Author ref @Reference=user_profile;@Relation=ManyToOne;@Lazy=true;@Count=single;'
                     )
                     """.trimIndent()
                 )
@@ -78,6 +78,8 @@ class DbSchemaSourceProviderTest {
         assertEquals("MANY_TO_ONE", authorId.explicitRelationType)
         assertEquals(true, authorId.lazy)
         assertEquals("single", authorId.countHint)
+        assertEquals("Author ref", authorId.comment)
+        assertFalse(authorId.comment.contains("@Reference"))
     }
 
     @Test

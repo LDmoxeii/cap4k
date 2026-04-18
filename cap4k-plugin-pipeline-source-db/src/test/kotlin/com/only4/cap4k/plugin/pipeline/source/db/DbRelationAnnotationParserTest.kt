@@ -74,6 +74,15 @@ class DbRelationAnnotationParserTest {
     }
 
     @Test
+    fun `rejects valueless parent annotation`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseTable("@Parent;")
+        }
+
+        assertEquals("missing value for @Parent/@P annotation.", error.message)
+    }
+
+    @Test
     fun `rejects valued value object annotation`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbRelationAnnotationParser().parseTable("@VO=false;")
@@ -110,6 +119,15 @@ class DbRelationAnnotationParserTest {
     }
 
     @Test
+    fun `rejects valueless reference annotation`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@Reference;")
+        }
+
+        assertEquals("missing value for @Reference/@Ref annotation.", error.message)
+    }
+
+    @Test
     fun `rejects blank relation value`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbRelationAnnotationParser().parseColumn("@Relation=;")
@@ -119,12 +137,30 @@ class DbRelationAnnotationParserTest {
     }
 
     @Test
+    fun `rejects valueless relation annotation`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@Relation;")
+        }
+
+        assertEquals("missing value for @Relation/@Rel annotation.", error.message)
+    }
+
+    @Test
     fun `rejects blank count value`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbRelationAnnotationParser().parseColumn("@Count=;")
         }
 
         assertEquals("blank @Count/@C value is not allowed.", error.message)
+    }
+
+    @Test
+    fun `rejects valueless count annotation`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@Count;")
+        }
+
+        assertEquals("missing value for @Count/@C annotation.", error.message)
     }
 
     @Test
