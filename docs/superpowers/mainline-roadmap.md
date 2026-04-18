@@ -126,6 +126,21 @@ Traceability:
 - [aggregate unique-constraint family parity design](specs/2026-04-17-cap4k-aggregate-unique-constraint-family-parity-design.md)
 - [aggregate enum / enum-translation parity design](specs/2026-04-17-cap4k-aggregate-enum-translation-parity-design.md)
 
+### Phase E: Aggregate Relation Semantics Mainline
+
+Completed:
+
+- aggregate relation parity
+
+Status:
+
+- the bounded aggregate relation line is complete through first-slice relation parity
+- aggregate-side relation work now has bounded source carriage, canonical inference, planner and renderer consumption, functional generation coverage, compile verification, and explicit scope guards against unsupported relation forms
+
+Traceability:
+
+- [aggregate relation parity design](specs/2026-04-18-cap4k-aggregate-relation-parity-design.md)
+
 ## Current Mainline Contract
 
 These points remain in force:
@@ -144,24 +159,26 @@ The original design-generator quality mainline is complete, and the bounded boot
 
 The cross-generator reference boundary line is complete through aggregate enum / enum-translation parity.
 
+The bounded aggregate relation line is complete through first-slice relation parity.
+
 The next explicit framework slice is:
 
-- aggregate relation parity
+- aggregate JPA annotation fine-grained control parity
 
 Scope:
 
-- consume the now-stable enum ownership, translation, and aggregate-side type-binding boundary in the first relation implementation
-- keep the work inside the existing aggregate generator and current aggregate source/canonical line
-- cover the bounded relation/association semantics needed for aggregate entity output, not the whole old aggregate task surface
-- prove representative relation output through planner, renderer, and bounded functional or compile verification
-- keep the slice bounded to relation parity, not full aggregate-side completion
+- build on the now-stable bounded relation semantics rather than reopening relation inference itself
+- keep the work inside the existing aggregate generator and aggregate-side rendering contract
+- focus on explicit JPA annotation controls that materially affect generated aggregate output
+- prove the control surface through planner, renderer, and bounded functional or compile verification
+- keep the slice bounded to JPA annotation control parity, not full aggregate-side completion
 
 Non-goals:
 
 - do not restore mutable shared runtime type maps between generators
-- do not widen this slice into JPA annotation parity, user-code-preservation parity, or general source-semantic recovery
+- do not widen this slice into relation re-architecture, user-code-preservation parity, or general source-semantic recovery
 - do not broaden bootstrap beyond the current bounded contract
-- do not silently expand into full aggregate-side parity beyond bounded relation work
+- do not silently expand into full aggregate-side parity beyond bounded JPA control work
 - do not turn exploratory parity notes into a general rewrite of the current pipeline architecture
 
 ## Bootstrap Decision
