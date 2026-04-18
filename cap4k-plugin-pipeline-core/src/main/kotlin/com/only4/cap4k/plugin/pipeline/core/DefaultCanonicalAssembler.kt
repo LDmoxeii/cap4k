@@ -146,6 +146,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             }
         }
 
+        val supportedTableNames = supportedTables.map { it.tableName.lowercase(Locale.ROOT) }.toSet()
+
         if (aggregatePolicy == UnsupportedTablePolicy.FAIL && unsupportedTables.isNotEmpty()) {
             val firstUnsupported = unsupportedTables.first()
             throw PipelineDiagnosticsException(
@@ -176,6 +178,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             val schemaName = AggregateNaming.schemaName(table.tableName)
             val repositoryName = AggregateNaming.repositoryName(table.tableName)
             val segment = AggregateNaming.tableSegment(table.tableName)
+            val parentTable = table.parentTable
             val fields = table.columns.map {
                 FieldModel(
                     name = it.name,
@@ -206,7 +209,12 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     uniqueConstraints = table.uniqueConstraints,
                     aggregateRoot = table.aggregateRoot,
                     valueObject = table.valueObject,
-                    parentEntityName = table.parentTable?.let(AggregateNaming::entityName),
+                    parentEntityName = when {
+                        parentTable == null -> null
+                        aggregatePolicy == UnsupportedTablePolicy.SKIP &&
+                            parentTable.lowercase(Locale.ROOT) !in supportedTableNames -> null
+                        else -> AggregateNaming.entityName(parentTable)
+                    },
                 ),
                 RepositoryModel(
                     name = repositoryName,

@@ -1094,6 +1094,46 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler rejects ambiguous parent child join columns`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                            DbTableSnapshot(
+                                tableName = "video_post_item",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot("video_post_id", "BIGINT", "Long", false, referenceTable = "video_post"),
+                                    DbColumnSnapshot("source_video_post_id", "BIGINT", "Long", false, referenceTable = "video_post"),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                                parentTable = "video_post",
+                                aggregateRoot = false,
+                                valueObject = true,
+                            ),
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals("ambiguous parent reference columns for table video_post_item -> video_post: source_video_post_id, video_post_id", error.message)
+    }
+
+    @Test
     fun `assembler defaults reference without explicit relation to many to one`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -1516,6 +1556,92 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(listOf("VideoPost"), assembly.model.entities.map { it.name })
         assertEquals(emptyList<String>(), assembly.model.aggregateRelations.map { it.fieldName })
         assertEquals("audit_log", assembly.diagnostics!!.aggregate!!.unsupportedTables.single().tableName)
+    }
+
+    @Test
+    fun `skip policy clears parent entity name when parent table is skipped`() {
+        val assembly = DefaultCanonicalAssembler().assemble(
+            config = baseAggregateConfig(
+                generators = mapOf(
+                    "aggregate" to GeneratorConfig(
+                        enabled = true,
+                        options = mapOf("unsupportedTablePolicy" to "SKIP"),
+                    )
+                )
+            ),
+            snapshots = listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("tenant_id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("tenant_id", "id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "video_post_item",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("video_post_id", "BIGINT", "Long", false, referenceTable = "video_post"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "video_post",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                    )
+                )
+            ),
+        )
+
+        val child = assembly.model.entities.single()
+        assertEquals("VideoPostItem", child.name)
+        assertEquals(null, child.parentEntityName)
+        assertEquals(emptyList<String>(), assembly.model.aggregateRelations.map { it.fieldName })
+        assertEquals("video_post", assembly.diagnostics!!.aggregate!!.unsupportedTables.single().tableName)
+    }
+
+    @Test
+    fun `assembler rejects relation field name collisions`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot("author_id", "BIGINT", "Long", false, referenceTable = "user_profile"),
+                                    DbColumnSnapshot("author_ID", "BIGINT", "Long", false, referenceTable = "user_profile"),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                            DbTableSnapshot(
+                                tableName = "user_profile",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals("aggregate relation field collision: VideoPost.author -> UserProfile [MANY_TO_ONE]", error.message)
     }
 
     private fun baseConfig(): ProjectConfig {

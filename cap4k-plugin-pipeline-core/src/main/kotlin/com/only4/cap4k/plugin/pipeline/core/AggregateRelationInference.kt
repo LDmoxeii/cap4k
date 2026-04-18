@@ -11,6 +11,11 @@ internal object AggregateRelationInference {
         val packageName: String,
     )
 
+    private data class RelationCollisionKey(
+        val ownerEntityName: String,
+        val fieldName: String,
+    )
+
     fun fromTables(
         basePackage: String,
         tables: List<DbTableSnapshot>,
@@ -40,10 +45,16 @@ internal object AggregateRelationInference {
                 val target = requireNotNull(entityLookup[child.tableName.lowercase()]) {
                     "unknown child table: ${child.tableName}"
                 }
-                val joinColumn = requireNotNull(
-                    child.columns.firstOrNull { it.referenceTable?.equals(parentTable, ignoreCase = true) == true }?.name
-                ) {
-                    "missing parent reference column for table: ${child.tableName}"
+                val joinColumns = child.columns
+                    .filter { it.referenceTable?.equals(parentTable, ignoreCase = true) == true }
+                    .map { it.name }
+                    .sorted()
+                val joinColumn = when (joinColumns.size) {
+                    0 -> throw IllegalArgumentException("missing parent reference column for table: ${child.tableName}")
+                    1 -> joinColumns.single()
+                    else -> throw IllegalArgumentException(
+                        "ambiguous parent reference columns for table ${child.tableName} -> $parentTable: ${joinColumns.joinToString(", ")}"
+                    )
                 }
                 AggregateRelationModel(
                     ownerEntityName = resolvedParent.entityName,
@@ -85,8 +96,25 @@ internal object AggregateRelationInference {
                 }
         }
 
-        return (parentChildRelations + explicitRelations)
-            .distinctBy { listOf(it.ownerEntityName, it.fieldName, it.targetEntityName, it.relationType) }
+        val relations = parentChildRelations + explicitRelations
+        val collision = relations
+            .groupBy { RelationCollisionKey(it.ownerEntityName, it.fieldName) }
+            .entries
+            .firstOrNull { (_, candidates) -> candidates.size > 1 }
+
+        if (collision != null) {
+            val (key, candidates) = collision
+            val targets = candidates
+                .map { "${it.targetEntityName} [${it.relationType}]" }
+                .distinct()
+                .sorted()
+                .joinToString(", ")
+            throw IllegalArgumentException(
+                "aggregate relation field collision: ${key.ownerEntityName}.${key.fieldName} -> $targets"
+            )
+        }
+
+        return relations
     }
 
     private fun resolveRelationType(explicitRelationType: String?): AggregateRelationType {
