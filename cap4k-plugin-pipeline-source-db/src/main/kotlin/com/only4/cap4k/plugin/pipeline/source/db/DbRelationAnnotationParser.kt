@@ -9,15 +9,23 @@ internal class DbRelationAnnotationParser {
             annotations = annotations,
             aliases = setOf("PARENT", "P"),
             conflictMessage = "conflicting @Parent/@P annotations on the same table comment.",
+            blankValueMessage = "blank @Parent/@P value is not allowed.",
         )
-        val valueObject = annotations.any { it.key in VALUE_OBJECT_ALIASES }
-        val aggregateRoot = resolveBooleanAnnotationValue(
+        val valueObject = resolvePresenceAnnotation(
+            annotations = annotations,
+            aliases = VALUE_OBJECT_ALIASES,
+            invalidValueMessage = "invalid @ValueObject/@VO annotation: explicit values are not supported.",
+        )
+        val aggregateRootAnnotation = resolveBooleanAnnotationValue(
             annotations = annotations,
             aliases = setOf("AGGREGATEROOT", "ROOT", "R"),
             conflictMessage = "conflicting @AggregateRoot/@Root/@R annotations on the same table comment.",
             invalidMessagePrefix = "invalid @AggregateRoot/@Root/@R boolean value: ",
         )
-            ?: (parentTable == null && !valueObject)
+        require(!(parentTable != null && aggregateRootAnnotation.explicit && aggregateRootAnnotation.value == true)) {
+            "conflicting table relation annotations: @Parent/@P cannot be combined with @AggregateRoot=true."
+        }
+        val aggregateRoot = aggregateRootAnnotation.value ?: (parentTable == null && !valueObject)
         return TableRelationMetadata(
             parentTable = parentTable,
             aggregateRoot = aggregateRoot,
@@ -32,6 +40,7 @@ internal class DbRelationAnnotationParser {
             annotations = annotations,
             aliases = setOf("RELATION", "REL"),
             conflictMessage = "conflicting @Relation/@Rel annotations on the same column comment.",
+            blankValueMessage = "blank @Relation/@Rel value is not allowed.",
         )
         val relation = relationValue?.uppercase(Locale.ROOT)
         require(relation == null || relation in SUPPORTED_RELATION_TYPES) {
@@ -43,6 +52,7 @@ internal class DbRelationAnnotationParser {
                 annotations = annotations,
                 aliases = setOf("REFERENCE", "REF"),
                 conflictMessage = "conflicting @Reference/@Ref annotations on the same column comment.",
+                blankValueMessage = "blank @Reference/@Ref value is not allowed.",
             ),
             explicitRelationType = when (relation) {
                 "ONE_TO_ONE", "1:1", "ONETOONE" -> "ONE_TO_ONE"
@@ -54,11 +64,12 @@ internal class DbRelationAnnotationParser {
                 aliases = setOf("LAZY", "L"),
                 conflictMessage = "conflicting @Lazy/@L annotations on the same column comment.",
                 invalidMessagePrefix = "invalid @Lazy/@L boolean value: ",
-            ),
+            ).value,
             countHint = resolveAnnotationValue(
                 annotations = annotations,
                 aliases = setOf("COUNT", "C"),
                 conflictMessage = "conflicting @Count/@C annotations on the same column comment.",
+                blankValueMessage = "blank @Count/@C value is not allowed.",
             ),
         )
     }
@@ -70,6 +81,7 @@ internal class DbRelationAnnotationParser {
                     key = match.groupValues[1].uppercase(Locale.ROOT),
                     value = match.groupValues.getOrElse(3) { "" }.trim(),
                     range = match.range,
+                    hasExplicitValue = match.groups[2] != null,
                 )
             }
             .toList()
@@ -79,10 +91,16 @@ internal class DbRelationAnnotationParser {
         annotations: List<RelationParsedAnnotation>,
         aliases: Set<String>,
         conflictMessage: String,
+        blankValueMessage: String,
     ): String? {
-        val values = annotations
+        val matchingAnnotations = annotations
             .asSequence()
             .filter { it.key in aliases }
+            .toList()
+        require(matchingAnnotations.none { it.hasExplicitValue && it.value.isBlank() }) { blankValueMessage }
+
+        val values = matchingAnnotations
+            .asSequence()
             .map { it.value }
             .filter { it.isNotBlank() }
             .distinct()
@@ -91,12 +109,22 @@ internal class DbRelationAnnotationParser {
         return values.singleOrNull()
     }
 
+    private fun resolvePresenceAnnotation(
+        annotations: List<RelationParsedAnnotation>,
+        aliases: Set<String>,
+        invalidValueMessage: String,
+    ): Boolean {
+        val matchingAnnotations = annotations.filter { it.key in aliases }
+        require(matchingAnnotations.none { it.hasExplicitValue }) { invalidValueMessage }
+        return matchingAnnotations.isNotEmpty()
+    }
+
     private fun resolveBooleanAnnotationValue(
         annotations: List<RelationParsedAnnotation>,
         aliases: Set<String>,
         conflictMessage: String,
         invalidMessagePrefix: String,
-    ): Boolean? {
+    ): ResolvedBooleanAnnotation {
         val values = annotations
             .asSequence()
             .filter { it.key in aliases }
@@ -104,7 +132,7 @@ internal class DbRelationAnnotationParser {
             .distinct()
             .toList()
         if (values.isEmpty()) {
-            return null
+            return ResolvedBooleanAnnotation()
         }
 
         val invalidValue = values.firstOrNull { it.toBooleanStrictOrNull() == null }
@@ -114,7 +142,10 @@ internal class DbRelationAnnotationParser {
             .map { it.toBooleanStrict() }
             .distinct()
         require(booleans.size <= 1) { conflictMessage }
-        return booleans.single()
+        return ResolvedBooleanAnnotation(
+            value = booleans.single(),
+            explicit = true,
+        )
     }
 
     private fun stripRecognizedAnnotations(comment: String, aliases: Set<String>): String {
@@ -164,4 +195,10 @@ private data class RelationParsedAnnotation(
     val key: String,
     val value: String,
     val range: IntRange,
+    val hasExplicitValue: Boolean,
+)
+
+private data class ResolvedBooleanAnnotation(
+    val value: Boolean? = null,
+    val explicit: Boolean = false,
 )

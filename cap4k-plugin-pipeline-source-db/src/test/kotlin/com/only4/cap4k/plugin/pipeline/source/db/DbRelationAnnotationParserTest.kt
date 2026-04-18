@@ -65,12 +65,66 @@ class DbRelationAnnotationParserTest {
     }
 
     @Test
+    fun `rejects blank parent value`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseTable("@Parent=;")
+        }
+
+        assertEquals("blank @Parent/@P value is not allowed.", error.message)
+    }
+
+    @Test
+    fun `rejects valued value object annotation`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseTable("@VO=false;")
+        }
+
+        assertEquals("invalid @ValueObject/@VO annotation: explicit values are not supported.", error.message)
+    }
+
+    @Test
+    fun `rejects parent combined with explicit aggregate root true`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseTable("@Parent=video_post;@AggregateRoot=true;")
+        }
+
+        assertEquals("conflicting table relation annotations: @Parent/@P cannot be combined with @AggregateRoot=true.", error.message)
+    }
+
+    @Test
     fun `rejects conflicting reference aliases`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbRelationAnnotationParser().parseColumn("@Reference=user;@Ref=account;")
         }
 
         assertEquals("conflicting @Reference/@Ref annotations on the same column comment.", error.message)
+    }
+
+    @Test
+    fun `rejects blank reference value`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@Reference=;")
+        }
+
+        assertEquals("blank @Reference/@Ref value is not allowed.", error.message)
+    }
+
+    @Test
+    fun `rejects blank relation value`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@Relation=;")
+        }
+
+        assertEquals("blank @Relation/@Rel value is not allowed.", error.message)
+    }
+
+    @Test
+    fun `rejects blank count value`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@Count=;")
+        }
+
+        assertEquals("blank @Count/@C value is not allowed.", error.message)
     }
 
     @Test
