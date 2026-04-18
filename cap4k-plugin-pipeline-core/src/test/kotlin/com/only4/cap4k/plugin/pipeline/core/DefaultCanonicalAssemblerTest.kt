@@ -1217,6 +1217,39 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("author", relation.fieldName)
         assertEquals("UserProfile", relation.targetEntityName)
         assertEquals(AggregateFetchType.EAGER, relation.fetchType)
+        assertEquals(false, relation.nullable)
+    }
+
+    @Test
+    fun `assembler preserves fk nullability on many to one relation`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("author_id", "BIGINT", "Long", true, referenceTable = "user_profile"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "user_profile",
+                            comment = "",
+                            columns = listOf(DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true)),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                    )
+                )
+            )
+        )
+
+        assertEquals(true, result.model.aggregateRelations.single().nullable)
     }
 
     @Test
@@ -1345,6 +1378,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("cover", relation.fieldName)
         assertEquals("MediaAsset", relation.targetEntityName)
         assertEquals(AggregateFetchType.LAZY, relation.fetchType)
+        assertEquals(false, relation.nullable)
     }
 
     @Test
@@ -1411,6 +1445,13 @@ class DefaultCanonicalAssemblerTest {
             result.model.aggregateRelations
                 .filter { it.relationType == AggregateRelationType.ONE_TO_MANY }
                 .map { "${it.ownerEntityName}|${it.fieldName}|${it.targetEntityName}|${it.relationType}" }
+                .sorted(),
+        )
+        assertEquals(
+            listOf(false, false),
+            result.model.aggregateRelations
+                .filter { it.relationType == AggregateRelationType.ONE_TO_MANY }
+                .map { it.nullable }
                 .sorted(),
         )
     }

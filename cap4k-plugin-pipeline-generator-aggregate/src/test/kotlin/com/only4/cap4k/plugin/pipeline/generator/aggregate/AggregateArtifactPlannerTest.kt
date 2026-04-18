@@ -53,6 +53,7 @@ class AggregateArtifactPlannerTest {
                         relationType = AggregateRelationType.MANY_TO_ONE,
                         joinColumn = "author_id",
                         fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
                     )
                 )
             )
@@ -76,7 +77,7 @@ class AggregateArtifactPlannerTest {
         assertEquals("MANY_TO_ONE", relationFields.single()["relationType"])
         assertEquals("UserProfile", relationFields.single()["targetType"])
         assertEquals("com.acme.demo.domain.identity.user", relationFields.single()["targetPackageName"])
-        assertEquals(true, relationFields.single()["nullable"])
+        assertEquals(false, relationFields.single()["nullable"])
         assertEquals(listOf("com.acme.demo.domain.identity.user.UserProfile"), imports)
         assertEquals(
             listOf(
@@ -86,6 +87,47 @@ class AggregateArtifactPlannerTest {
             ),
             jpaImports,
         )
+    }
+
+    @Test
+    fun `entity planner relation nullability is sourced from canonical relation model`() {
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(
+                    EntityModel(
+                        name = "VideoPost",
+                        packageName = "com.acme.demo.domain.aggregates.video_post",
+                        tableName = "video_post",
+                        comment = "video post",
+                        fields = listOf(
+                            FieldModel("id", "Long"),
+                            FieldModel("author_id", "Long", nullable = false),
+                        ),
+                        idField = FieldModel("id", "Long"),
+                    )
+                ),
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "author",
+                        targetEntityName = "UserProfile",
+                        targetEntityPackageName = "com.acme.demo.domain.identity.user",
+                        relationType = AggregateRelationType.MANY_TO_ONE,
+                        joinColumn = "author_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = true,
+                    )
+                )
+            )
+        )
+
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val relationFields = entityItem.context["relationFields"] as List<Map<String, Any?>>
+
+        assertEquals(true, relationFields.single()["nullable"])
     }
 
     @Test

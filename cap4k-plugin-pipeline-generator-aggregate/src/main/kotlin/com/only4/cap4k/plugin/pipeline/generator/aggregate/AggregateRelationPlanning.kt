@@ -23,7 +23,6 @@ internal object AggregateRelationPlanning {
         require(entityRelations.all { it.relationType in supportedRelationTypes }) {
             "Unsupported aggregate relation type for ${entity.packageName}.${entity.name}"
         }
-        val fieldNullabilityByName = entity.fields.associate { it.name to it.nullable }
         val targetPackagesByType = entityRelations
             .groupBy { it.targetEntityName }
             .mapValues { (_, matchingRelations) -> matchingRelations.map { it.targetEntityPackageName }.distinct() }
@@ -43,12 +42,7 @@ internal object AggregateRelationPlanning {
                 "relationType" to relation.relationType.name,
                 "fetchType" to relation.fetchType.name,
                 "joinColumn" to relation.joinColumn,
-                "nullable" to when (relation.relationType) {
-                    AggregateRelationType.MANY_TO_ONE, AggregateRelationType.ONE_TO_ONE ->
-                        fieldNullabilityByName[relation.joinColumn] ?: false
-
-                    AggregateRelationType.ONE_TO_MANY -> false
-                },
+                "nullable" to relation.nullable,
             )
         }
         val imports = entityRelations
