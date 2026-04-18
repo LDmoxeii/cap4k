@@ -36,9 +36,8 @@ internal object AggregateRelationInference {
                 )
             }
         )
-        val scalarFieldNamesByEntity = tables.associate { table ->
+        val entityFieldNamesByEntity = tables.associate { table ->
             AggregateNaming.entityName(table.tableName) to table.columns
-                .filter { it.referenceTable == null }
                 .map { it.name }
                 .toSet()
         }
@@ -138,10 +137,10 @@ internal object AggregateRelationInference {
         }
 
         relations.firstOrNull { relation ->
-            relation.fieldName in scalarFieldNamesByEntity.getValue(relation.ownerEntityName)
+            relation.fieldName in entityFieldNamesByEntity.getValue(relation.ownerEntityName)
         }?.let { relation ->
             throw IllegalArgumentException(
-                "aggregate relation field collides with scalar field: ${relation.ownerEntityName}.${relation.fieldName} -> ${relation.targetEntityName} [${relation.relationType}]"
+                "aggregate relation field collides with entity field: ${relation.ownerEntityName}.${relation.fieldName} -> ${relation.targetEntityName} [${relation.relationType}]"
             )
         }
 

@@ -1233,9 +1233,6 @@ class DefaultCanonicalAssemblerTest {
                                 DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
                                 DbColumnSnapshot("authorId", "BIGINT", "Long", false, referenceTable = "author_profile"),
                                 DbColumnSnapshot("userProfileId", "BIGINT", "Long", false, referenceTable = "user_profile"),
-                                DbColumnSnapshot("grid", "BIGINT", "Long", false, referenceTable = "grid_profile"),
-                                DbColumnSnapshot("hybrid", "BIGINT", "Long", false, referenceTable = "hybrid_profile"),
-                                DbColumnSnapshot("solid", "BIGINT", "Long", false, referenceTable = "solid_profile"),
                             ),
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
@@ -1254,27 +1251,6 @@ class DefaultCanonicalAssemblerTest {
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
                         ),
-                        DbTableSnapshot(
-                            tableName = "grid_profile",
-                            comment = "",
-                            columns = listOf(DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true)),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                        ),
-                        DbTableSnapshot(
-                            tableName = "hybrid_profile",
-                            comment = "",
-                            columns = listOf(DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true)),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                        ),
-                        DbTableSnapshot(
-                            tableName = "solid_profile",
-                            comment = "",
-                            columns = listOf(DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true)),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                        ),
                     )
                 )
             )
@@ -1283,15 +1259,48 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(
             listOf(
                 "author|AuthorProfile",
-                "grid|GridProfile",
-                "hybrid|HybridProfile",
-                "solid|SolidProfile",
                 "userProfile|UserProfile",
             ).sorted(),
             result.model.aggregateRelations
                 .map { "${it.fieldName}|${it.targetEntityName}" }
                 .sorted(),
         )
+    }
+
+    @Test
+    fun `assembler rejects relation field names that collide with reference columns`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot("author", "BIGINT", "Long", false, referenceTable = "user_profile"),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                            DbTableSnapshot(
+                                tableName = "user_profile",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals("aggregate relation field collides with entity field: VideoPost.author -> UserProfile [MANY_TO_ONE]", error.message)
     }
 
     @Test
@@ -2000,7 +2009,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembler rejects relation field names that collide with scalar fields`() {
+    fun `assembler rejects relation field names that collide with entity fields`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
                 aggregateProjectConfig(),
@@ -2033,7 +2042,7 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals("aggregate relation field collides with scalar field: VideoPost.author -> UserProfile [MANY_TO_ONE]", error.message)
+        assertEquals("aggregate relation field collides with entity field: VideoPost.author -> UserProfile [MANY_TO_ONE]", error.message)
     }
 
     @Test
