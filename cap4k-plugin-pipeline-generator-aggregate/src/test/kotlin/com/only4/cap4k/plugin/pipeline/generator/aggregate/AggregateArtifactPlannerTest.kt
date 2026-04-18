@@ -1,5 +1,8 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
+import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
+import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
@@ -20,6 +23,51 @@ import org.junit.jupiter.api.Test
 import java.nio.file.Path
 
 class AggregateArtifactPlannerTest {
+
+    @Test
+    fun `entity planner surfaces relation fields separately from scalar fields`() {
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(
+                    EntityModel(
+                        name = "VideoPost",
+                        packageName = "com.acme.demo.domain.aggregates.video_post",
+                        tableName = "video_post",
+                        comment = "video post",
+                        fields = listOf(
+                            FieldModel("id", "Long"),
+                            FieldModel("title", "String"),
+                        ),
+                        idField = FieldModel("id", "Long"),
+                    )
+                ),
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "items",
+                        targetEntityName = "VideoPostItem",
+                        targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        relationType = AggregateRelationType.ONE_TO_MANY,
+                        joinColumn = "video_post_id",
+                        fetchType = AggregateFetchType.LAZY,
+                    )
+                )
+            )
+        )
+
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityItem.context["scalarFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val relationFields = entityItem.context["relationFields"] as List<Map<String, Any?>>
+
+        assertEquals(listOf("id", "title"), scalarFields.map { it["name"] })
+        assertEquals(listOf("items"), relationFields.map { it["name"] })
+        assertEquals("ONE_TO_MANY", relationFields.single()["relationType"])
+        assertEquals("VideoPostItem", relationFields.single()["targetType"])
+    }
 
     @Test
     fun `plans schema entity and repository artifacts into domain and adapter modules`() {
@@ -292,7 +340,7 @@ class AggregateArtifactPlannerTest {
         val entityPlan = items.single { it.templateId == "aggregate/entity.kt.peb" }
         val schemaPlan = items.single { it.templateId == "aggregate/schema.kt.peb" }
         @Suppress("UNCHECKED_CAST")
-        val entityFields = entityPlan.context.getValue("fields") as List<Map<String, Any?>>
+        val entityFields = entityPlan.context.getValue("scalarFields") as List<Map<String, Any?>>
         @Suppress("UNCHECKED_CAST")
         val schemaFields = schemaPlan.context.getValue("fields") as List<Map<String, Any?>>
         assertEquals("com.acme.demo.domain.shared.enums.Status", entityFields.single { it["name"] == "status" }["type"])

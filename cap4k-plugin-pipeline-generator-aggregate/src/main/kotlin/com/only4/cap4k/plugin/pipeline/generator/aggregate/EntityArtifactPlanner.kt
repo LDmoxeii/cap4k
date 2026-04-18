@@ -10,7 +10,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
         val planning = AggregateEnumPlanning.from(model, config.basePackage, config.typeRegistry)
 
         return model.entities.map { entity ->
-            val fields = entity.fields.map { field ->
+            val scalarFields = entity.fields.map { field ->
                 mapOf(
                     "name" to field.name,
                     "type" to planning.resolveFieldType(entity.packageName, field),
@@ -20,6 +20,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "enumItems" to field.enumItems,
                 )
             }
+            val relationFields = AggregateRelationPlanning.relationFieldsFor(entity, model.aggregateRelations)
             ArtifactPlanItem(
                 generatorId = "aggregate",
                 moduleRole = "domain",
@@ -31,7 +32,8 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "comment" to entity.comment,
                     "tableName" to entity.tableName,
                     "idField" to entity.idField,
-                    "fields" to fields,
+                    "scalarFields" to scalarFields,
+                    "relationFields" to relationFields,
                 ),
                 conflictPolicy = config.templates.conflictPolicy,
             )

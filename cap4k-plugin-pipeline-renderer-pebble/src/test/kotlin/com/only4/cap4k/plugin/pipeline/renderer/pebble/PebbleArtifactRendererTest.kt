@@ -1044,10 +1044,11 @@ class PebbleArtifactRendererTest {
                         "typeName" to "Order",
                         "comment" to "Order aggregate",
                         "idField" to FieldModel("id", "Long"),
-                        "fields" to listOf(
-                            FieldModel("id", "Long"),
-                            FieldModel("orderNo", "String", nullable = true)
-                        )
+                        "scalarFields" to listOf(
+                            mapOf("name" to "id", "type" to "Long", "nullable" to false),
+                            mapOf("name" to "orderNo", "type" to "String", "nullable" to true)
+                        ),
+                        "relationFields" to emptyList<Map<String, Any?>>()
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
@@ -1261,6 +1262,64 @@ class PebbleArtifactRendererTest {
         assertTrue(uniqueValidatorContent.contains("request.tenantId"))
         assertTrue(uniqueValidatorContent.contains("request.slug"))
         assertTrue(uniqueValidatorContent.contains("request.excludeVideoPostId"))
+    }
+
+    @Test
+    fun `aggregate entity preset renders bounded relation fields`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-relation")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/entity.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                        "typeName" to "VideoPost",
+                        "comment" to "video post",
+                        "tableName" to "video_post",
+                        "scalarFields" to listOf(
+                            mapOf("name" to "id", "type" to "Long", "nullable" to false)
+                        ),
+                        "relationFields" to listOf(
+                            mapOf(
+                                "name" to "author",
+                                "targetType" to "UserProfile",
+                                "relationType" to "MANY_TO_ONE",
+                                "fetchType" to "LAZY",
+                                "joinColumn" to "author_id",
+                            )
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("@ManyToOne(fetch = FetchType.LAZY)"))
+        assertTrue(content.contains("@JoinColumn(name = \"author_id\")"))
+        assertTrue(content.contains("val author: UserProfile"))
     }
 
     @Test

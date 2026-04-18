@@ -1,7 +1,25 @@
 package {{ packageName }}
 
+import jakarta.persistence.FetchType
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
+import jakarta.persistence.OneToMany
+import jakarta.persistence.OneToOne
+
 data class {{ typeName }}(
-{% for field in fields %}
-    val {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
+{% for field in scalarFields %}
+    val {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if relationFields|length > 0 or not loop.last %},{% endif %}
+{% endfor %}
+{% for relation in relationFields %}
+{% if relation.relationType == "MANY_TO_ONE" %}
+    @ManyToOne(fetch = FetchType.{{ relation.fetchType }})
+    @JoinColumn(name = "{{ relation.joinColumn }}")
+{% elseif relation.relationType == "ONE_TO_ONE" %}
+    @OneToOne(fetch = FetchType.{{ relation.fetchType }})
+    @JoinColumn(name = "{{ relation.joinColumn }}")
+{% elseif relation.relationType == "ONE_TO_MANY" %}
+    @OneToMany(mappedBy = "{{ relation.joinColumn }}", fetch = FetchType.{{ relation.fetchType }})
+{% endif %}
+    val {{ relation.name }}: {% if relation.relationType == "ONE_TO_MANY" %}List<{{ relation.targetType }}>{% else %}{{ relation.targetType }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
 )
