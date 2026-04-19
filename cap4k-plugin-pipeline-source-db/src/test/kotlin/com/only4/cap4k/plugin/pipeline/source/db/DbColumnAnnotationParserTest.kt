@@ -51,4 +51,25 @@ class DbColumnAnnotationParserTest {
 
         assertEquals("conflicting @E/@ENUM annotations on the same column comment.", error.message)
     }
+
+    @Test
+    fun `parser extracts generated value version and write controls from comment`() {
+        val metadata = DbColumnAnnotationParser.parse(
+            "audit field @GeneratedValue=IDENTITY;@Version=true;@Insertable=false;@Updatable=false;"
+        )
+
+        assertEquals("IDENTITY", metadata.generatedValueStrategy)
+        assertEquals(true, metadata.version)
+        assertEquals(false, metadata.insertable)
+        assertEquals(false, metadata.updatable)
+    }
+
+    @Test
+    fun `parser rejects unsupported generated value strategy`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@GeneratedValue=SEQUENCE;")
+        }
+
+        assertEquals("unsupported @GeneratedValue strategy in this slice: SEQUENCE", error.message)
+    }
 }

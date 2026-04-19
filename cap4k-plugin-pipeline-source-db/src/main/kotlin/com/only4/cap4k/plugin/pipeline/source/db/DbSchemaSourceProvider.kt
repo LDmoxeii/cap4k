@@ -101,6 +101,10 @@ class DbSchemaSourceProvider : SourceProvider {
                             explicitRelationType = relationMetadata.explicitRelationType,
                             lazy = relationMetadata.lazy,
                             countHint = relationMetadata.countHint,
+                            generatedValueStrategy = annotationMetadata.generatedValueStrategy,
+                            version = annotationMetadata.version,
+                            insertable = annotationMetadata.insertable,
+                            updatable = annotationMetadata.updatable,
                         )
                     )
                 }

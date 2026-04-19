@@ -6,7 +6,7 @@ import java.util.Locale
 internal object DbColumnAnnotationParser {
     private val annotationPattern = Regex("@([A-Za-z]+)(=([^;]*))?;?")
 
-    fun parse(comment: String): DbColumnAnnotationMetadata {
+    fun parse(comment: String): DbColumnAnnotationParseResult {
         val annotations = annotationPattern.findAll(comment)
             .map { match ->
                 ParsedAnnotation(
@@ -30,9 +30,34 @@ internal object DbColumnAnnotationParser {
             throw IllegalArgumentException("@E requires @T on the same column comment.")
         }
 
-        return DbColumnAnnotationMetadata(
+        var generatedValueStrategy: String? = null
+        var version = false
+        var insertable: Boolean? = null
+        var updatable: Boolean? = null
+
+        annotations.forEach { annotation ->
+            val value = annotation.value
+            when (annotation.key) {
+                "GENERATEDVALUE" -> {
+                    val strategy = value.uppercase(Locale.ROOT)
+                    require(strategy == "IDENTITY") {
+                        "unsupported @GeneratedValue strategy in this slice: $strategy"
+                    }
+                    generatedValueStrategy = strategy
+                }
+                "VERSION" -> version = value.equals("true", ignoreCase = true)
+                "INSERTABLE" -> insertable = value.equals("true", ignoreCase = true)
+                "UPDATABLE" -> updatable = value.equals("true", ignoreCase = true)
+            }
+        }
+
+        return DbColumnAnnotationParseResult(
             typeBinding = typeBinding,
             enumItems = parseEnumItems(enumConfig),
+            generatedValueStrategy = generatedValueStrategy,
+            version = version,
+            insertable = insertable,
+            updatable = updatable,
         )
     }
 
@@ -87,4 +112,13 @@ internal object DbColumnAnnotationParser {
 private data class ParsedAnnotation(
     val key: String,
     val value: String,
+)
+
+internal data class DbColumnAnnotationParseResult(
+    val typeBinding: String? = null,
+    val enumItems: List<EnumItemModel> = emptyList(),
+    val generatedValueStrategy: String? = null,
+    val version: Boolean = false,
+    val insertable: Boolean? = null,
+    val updatable: Boolean? = null,
 )

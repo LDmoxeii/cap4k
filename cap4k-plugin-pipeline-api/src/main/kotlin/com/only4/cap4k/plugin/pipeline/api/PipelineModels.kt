@@ -23,6 +23,10 @@ data class DbColumnSnapshot(
     val explicitRelationType: String? = null,
     val lazy: Boolean? = null,
     val countHint: String? = null,
+    val generatedValueStrategy: String? = null,
+    val version: Boolean = false,
+    val insertable: Boolean? = null,
+    val updatable: Boolean? = null,
 )
 
 data class DbTableSnapshot(

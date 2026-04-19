@@ -133,6 +133,57 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
+    fun `provider carries explicit persistence field behavior into db snapshot`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-persistence-field-behavior;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table video_post (
+                        id bigint primary key comment '@GeneratedValue=IDENTITY;',
+                        version bigint not null comment '@Version=true;',
+                        created_by varchar(64) comment '@Insertable=false;',
+                        updated_by varchar(64) comment '@Updatable=false;',
+                        title varchar(128) not null
+                    );
+                    """.trimIndent()
+                )
+                statement.execute("comment on table video_post is '@AggregateRoot=true;'")
+            }
+        }
+
+        val snapshot = DbSchemaSourceProvider().collect(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "url" to url,
+                            "username" to "sa",
+                            "password" to "",
+                            "schema" to "PUBLIC",
+                            "includeTables" to listOf("video_post"),
+                            "excludeTables" to emptyList<String>(),
+                        )
+                    )
+                ),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        ) as DbSchemaSnapshot
+
+        val table = snapshot.tables.single { it.tableName.equals("VIDEO_POST", true) }
+
+        assertEquals("IDENTITY", table.columns.single { it.name.equals("ID", true) }.generatedValueStrategy)
+        assertEquals(true, table.columns.single { it.name.equals("VERSION", true) }.version)
+        assertEquals(false, table.columns.single { it.name.equals("CREATED_BY", true) }.insertable)
+        assertEquals(false, table.columns.single { it.name.equals("UPDATED_BY", true) }.updatable)
+    }
+
+    @Test
     fun `db source fails fast on malformed relation column comments`() {
         val url = "jdbc:h2:mem:cap4k-db-source-invalid-relation;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
