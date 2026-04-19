@@ -17,11 +17,11 @@ enum class {{ typeName }}(
     }
 
     class Converter : AttributeConverter<{{ typeName }}, Int> {
-        override fun convertToDatabaseColumn(attribute: {{ typeName }}): Int {
-            return attribute.value
+        override fun convertToDatabaseColumn(attribute: {{ typeName }}?): Int? {
+            return attribute?.value
         }
 
-        override fun convertToEntityAttribute(dbData: Int): {{ typeName }}? {
+        override fun convertToEntityAttribute(dbData: Int?): {{ typeName }}? {
             return valueOfOrNull(dbData)
         }
     }
