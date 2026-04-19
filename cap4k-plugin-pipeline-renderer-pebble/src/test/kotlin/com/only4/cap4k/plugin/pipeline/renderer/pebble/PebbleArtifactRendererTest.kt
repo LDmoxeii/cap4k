@@ -1451,6 +1451,84 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `aggregate entity preset renders bounded Jakarta baseline annotations`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-jakarta-baseline")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/entity.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                        "typeName" to "VideoPost",
+                        "comment" to "video post",
+                        "entityJpa" to mapOf(
+                            "entityEnabled" to true,
+                            "tableName" to "video_post",
+                        ),
+                        "scalarFields" to listOf(
+                            mapOf(
+                                "name" to "id",
+                                "type" to "Long",
+                                "nullable" to false,
+                                "columnName" to "id",
+                                "isId" to true,
+                                "converterTypeRef" to null,
+                            ),
+                            mapOf(
+                                "name" to "status",
+                                "type" to "Status",
+                                "nullable" to false,
+                                "columnName" to "status",
+                                "isId" to false,
+                                "converterTypeRef" to "com.acme.demo.domain.shared.enums.Status",
+                            ),
+                        ),
+                        "relationFields" to emptyList<Map<String, Any?>>(),
+                        "imports" to listOf("com.acme.demo.domain.shared.enums.Status"),
+                        "jpaImports" to emptyList<String>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+
+        assertTrue(content.contains("@Entity"))
+        assertTrue(content.contains("@Table(name = \"video_post\")"))
+        assertTrue(content.contains("@Id"))
+        assertTrue(content.contains("@Column(name = \"id\")"))
+        assertTrue(content.contains("@Column(name = \"status\")"))
+        assertTrue(content.contains("@Convert(converter = Status.Converter::class)"))
+        assertFalse(content.contains("@GeneratedValue"))
+        assertFalse(content.contains("@Version"))
+        assertFalse(content.contains("@DynamicInsert"))
+        assertFalse(content.contains("@SQLDelete"))
+    }
+
+    @Test
     fun `falls back to preset aggregate enum and translation templates`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-enum")
         val renderer = PebbleArtifactRenderer(

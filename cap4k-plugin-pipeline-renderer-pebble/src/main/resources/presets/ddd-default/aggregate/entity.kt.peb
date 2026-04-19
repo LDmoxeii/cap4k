@@ -1,5 +1,14 @@
 package {{ packageName }}
 
+{% if entityJpa.entityEnabled %}
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.Id
+import jakarta.persistence.Table
+{% endif %}
+{% if hasConverterFields %}
+import jakarta.persistence.Convert
+{% endif %}
 {% for import in imports(jpaImports) %}
 import {{ import }}
 {% endfor %}
@@ -7,8 +16,13 @@ import {{ import }}
 import {{ import }}
 {% endfor %}
 
+{% if entityJpa.entityEnabled %}@Entity
+@Table(name = "{{ entityJpa.tableName }}")
+{% endif %}
 {% if relationFields|length > 0 %}class{% else %}data class{% endif %} {{ typeName }}(
 {% for field in scalarFields %}
+    {% if field.isId %}@Id {% endif %}@Column(name = "{{ field.columnName }}")
+    {% if field.converterTypeRef %}@Convert(converter = {{ field.type }}.Converter::class) {% endif %}
     val {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
 ){% if relationFields|length > 0 %} {
