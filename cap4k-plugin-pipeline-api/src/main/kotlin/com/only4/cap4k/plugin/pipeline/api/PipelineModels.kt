@@ -179,6 +179,21 @@ data class EntityModel(
     val parentEntityName: String? = null,
 )
 
+data class AggregateColumnJpaModel(
+    val fieldName: String,
+    val columnName: String,
+    val isId: Boolean,
+    val converterTypeFqn: String? = null,
+)
+
+data class AggregateEntityJpaModel(
+    val entityName: String,
+    val entityPackageName: String,
+    val entityEnabled: Boolean,
+    val tableName: String,
+    val columns: List<AggregateColumnJpaModel>,
+)
+
 data class RepositoryModel(
     val name: String,
     val packageName: String,
@@ -295,6 +310,7 @@ data class CanonicalModel(
     val apiPayloads: List<ApiPayloadModel> = emptyList(),
     val sharedEnums: List<SharedEnumDefinition> = emptyList(),
     val aggregateRelations: List<AggregateRelationModel> = emptyList(),
+    val aggregateEntityJpa: List<AggregateEntityJpaModel> = emptyList(),
 )
 
 data class UnsupportedAggregateTable(

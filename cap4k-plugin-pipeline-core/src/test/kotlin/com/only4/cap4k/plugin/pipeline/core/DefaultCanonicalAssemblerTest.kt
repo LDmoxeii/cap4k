@@ -31,6 +31,7 @@ import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class DefaultCanonicalAssemblerTest {
@@ -1036,6 +1037,97 @@ class DefaultCanonicalAssemblerTest {
         val entity = result.entities.single()
         assertEquals("Status", entity.fields.first { it.name == "status" }.typeBinding)
         assertEquals("VideoPostVisibility", entity.fields.first { it.name == "visibility" }.typeBinding)
+    }
+
+    @Test
+    fun `assembler records entity table and scalar column jpa metadata`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("title", "VARCHAR", "String", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                )
+            )
+        )
+
+        val entity = result.model.entities.single()
+        val jpa = result.model.aggregateEntityJpa.single { it.entityName == "VideoPost" }
+
+        assertEquals("video_post", entity.tableName)
+        assertEquals(true, jpa.entityEnabled)
+        assertEquals("video_post", jpa.tableName)
+        assertEquals("id", jpa.columns.single { it.fieldName == "id" }.columnName)
+        assertEquals(true, jpa.columns.single { it.fieldName == "id" }.isId)
+        assertEquals("title", jpa.columns.single { it.fieldName == "title" }.columnName)
+        assertEquals(false, jpa.columns.single { it.fieldName == "title" }.isId)
+    }
+
+    @Test
+    fun `assembler only assigns converter metadata to stable enum-backed fields`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "status",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "Status",
+                                ),
+                                DbColumnSnapshot(
+                                    name = "payload",
+                                    dbType = "JSON",
+                                    kotlinType = "String",
+                                    nullable = false,
+                                    typeBinding = "SubmitPayload",
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                ),
+                EnumManifestSnapshot(
+                    definitions = listOf(
+                        SharedEnumDefinition(
+                            typeName = "Status",
+                            packageName = "shared",
+                            generateTranslation = true,
+                            items = listOf(EnumItemModel(0, "DRAFT", "Draft")),
+                        )
+                    )
+                )
+            )
+        )
+
+        val entityJpa = result.model.aggregateEntityJpa.single { it.entityName == "VideoPost" }
+
+        assertTrue(
+            entityJpa.columns.single { it.fieldName == "status" }.converterTypeFqn
+                ?.endsWith(".Status") == true
+        )
+        assertEquals(
+            null,
+            entityJpa.columns.single { it.fieldName == "payload" }.converterTypeFqn
+        )
     }
 
     @Test

@@ -230,6 +230,12 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 ),
             )
         }
+        val entities = aggregateModels.map { it.second }
+        val aggregateEntityJpa = AggregateJpaControlInference.fromModel(
+            entities = entities,
+            schema = dbSnapshot,
+            sharedEnums = sharedEnums,
+        )
 
         val diagnostics = buildDiagnostics(
             snapshot = dbSnapshot,
@@ -285,12 +291,13 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 apiPayloads = apiPayloads,
                 domainEvents = domainEvents,
                 schemas = aggregateModels.map { it.first },
-                entities = aggregateModels.map { it.second },
+                entities = entities,
                 repositories = aggregateModels.map { it.third },
                 analysisGraph = analysisGraph,
                 drawingBoard = drawingBoard,
                 sharedEnums = sharedEnums,
                 aggregateRelations = aggregateRelations,
+                aggregateEntityJpa = aggregateEntityJpa,
             ),
             diagnostics = diagnostics,
         )
