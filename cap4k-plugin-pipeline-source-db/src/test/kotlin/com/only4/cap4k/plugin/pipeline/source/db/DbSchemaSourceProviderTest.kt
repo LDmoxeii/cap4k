@@ -184,6 +184,94 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
+    fun `provider preserves explicit false for version annotation`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-persistence-field-version-false;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table video_post (
+                        id bigint primary key,
+                        version bigint not null comment '@Version=false;'
+                    );
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val snapshot = DbSchemaSourceProvider().collect(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "url" to url,
+                            "username" to "sa",
+                            "password" to "",
+                            "schema" to "PUBLIC",
+                            "includeTables" to listOf("video_post"),
+                            "excludeTables" to emptyList<String>(),
+                        )
+                    )
+                ),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        ) as DbSchemaSnapshot
+
+        val version = snapshot.tables.single().columns.single { it.name.equals("VERSION", true) }
+
+        assertEquals(false, version.version)
+    }
+
+    @Test
+    fun `provider keeps version null when source is silent`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-persistence-field-version-null;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table video_post (
+                        id bigint primary key,
+                        version bigint not null comment 'plain version comment'
+                    );
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val snapshot = DbSchemaSourceProvider().collect(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "url" to url,
+                            "username" to "sa",
+                            "password" to "",
+                            "schema" to "PUBLIC",
+                            "includeTables" to listOf("video_post"),
+                            "excludeTables" to emptyList<String>(),
+                        )
+                    )
+                ),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        ) as DbSchemaSnapshot
+
+        val version = snapshot.tables.single().columns.single { it.name.equals("VERSION", true) }
+
+        assertEquals(null, version.version)
+    }
+
+    @Test
     fun `db source fails fast on malformed relation column comments`() {
         val url = "jdbc:h2:mem:cap4k-db-source-invalid-relation;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->

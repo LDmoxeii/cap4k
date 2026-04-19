@@ -24,7 +24,7 @@ data class DbColumnSnapshot(
     val lazy: Boolean? = null,
     val countHint: String? = null,
     val generatedValueStrategy: String? = null,
-    val version: Boolean = false,
+    val version: Boolean? = null,
     val insertable: Boolean? = null,
     val updatable: Boolean? = null,
 )

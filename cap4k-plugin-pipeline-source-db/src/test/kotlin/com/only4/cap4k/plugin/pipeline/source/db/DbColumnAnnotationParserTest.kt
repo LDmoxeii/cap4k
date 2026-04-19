@@ -72,4 +72,27 @@ class DbColumnAnnotationParserTest {
 
         assertEquals("unsupported @GeneratedValue strategy in this slice: SEQUENCE", error.message)
     }
+
+    @Test
+    fun `parser preserves explicit false for version annotation`() {
+        val metadata = DbColumnAnnotationParser.parse("@Version=false;")
+
+        assertEquals(false, metadata.version)
+    }
+
+    @Test
+    fun `parser keeps version null when source is silent`() {
+        val metadata = DbColumnAnnotationParser.parse("plain comment")
+
+        assertEquals(null, metadata.version)
+    }
+
+    @Test
+    fun `parser rejects invalid boolean annotation values`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Insertable=maybe;")
+        }
+
+        assertEquals("invalid @Insertable boolean value in this slice: maybe", error.message)
+    }
 }

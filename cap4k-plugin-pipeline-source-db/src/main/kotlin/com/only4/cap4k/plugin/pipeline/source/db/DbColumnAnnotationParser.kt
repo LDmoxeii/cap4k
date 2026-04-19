@@ -31,7 +31,7 @@ internal object DbColumnAnnotationParser {
         }
 
         var generatedValueStrategy: String? = null
-        var version = false
+        var version: Boolean? = null
         var insertable: Boolean? = null
         var updatable: Boolean? = null
 
@@ -45,9 +45,9 @@ internal object DbColumnAnnotationParser {
                     }
                     generatedValueStrategy = strategy
                 }
-                "VERSION" -> version = value.equals("true", ignoreCase = true)
-                "INSERTABLE" -> insertable = value.equals("true", ignoreCase = true)
-                "UPDATABLE" -> updatable = value.equals("true", ignoreCase = true)
+                "VERSION" -> version = parseBooleanAnnotationValue("Version", value)
+                "INSERTABLE" -> insertable = parseBooleanAnnotationValue("Insertable", value)
+                "UPDATABLE" -> updatable = parseBooleanAnnotationValue("Updatable", value)
             }
         }
 
@@ -107,6 +107,14 @@ internal object DbColumnAnnotationParser {
         require(values.size <= 1) { conflictMessage }
         return values.singleOrNull()
     }
+
+    private fun parseBooleanAnnotationValue(annotationName: String, value: String): Boolean {
+        return when {
+            value.equals("true", ignoreCase = true) -> true
+            value.equals("false", ignoreCase = true) -> false
+            else -> throw IllegalArgumentException("invalid @$annotationName boolean value in this slice: $value")
+        }
+    }
 }
 
 private data class ParsedAnnotation(
@@ -118,7 +126,7 @@ internal data class DbColumnAnnotationParseResult(
     val typeBinding: String? = null,
     val enumItems: List<EnumItemModel> = emptyList(),
     val generatedValueStrategy: String? = null,
-    val version: Boolean = false,
+    val version: Boolean? = null,
     val insertable: Boolean? = null,
     val updatable: Boolean? = null,
 )
