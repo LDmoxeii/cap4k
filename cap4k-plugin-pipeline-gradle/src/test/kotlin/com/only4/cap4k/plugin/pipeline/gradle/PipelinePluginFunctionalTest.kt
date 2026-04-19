@@ -1252,6 +1252,9 @@ class PipelinePluginFunctionalTest {
     fun `aggregate persistence field behavior generation renders explicit field controls`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-persistence-generate")
         copyFixture(projectDir, "aggregate-persistence-sample")
+        val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts").readText().trim()
+        val applicationBuildFile = projectDir.resolve("demo-application/build.gradle.kts").readText().trim()
+        val adapterBuildFile = projectDir.resolve("demo-adapter/build.gradle.kts").readText().trim()
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -1263,6 +1266,9 @@ class PipelinePluginFunctionalTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
         ).readText()
 
+        assertTrue(domainBuildFile == "// Functional fixture module.")
+        assertTrue(applicationBuildFile == "// Functional fixture module.")
+        assertTrue(adapterBuildFile == "// Functional fixture module.")
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(generatedEntity.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedEntity.contains("@Version"))

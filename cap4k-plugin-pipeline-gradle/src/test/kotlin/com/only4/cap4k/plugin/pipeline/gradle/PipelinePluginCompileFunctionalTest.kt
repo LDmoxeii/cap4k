@@ -293,7 +293,13 @@ class PipelinePluginCompileFunctionalTest {
     fun `aggregate persistence field behavior generation participates in domain compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-persistence-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-persistence-compile-sample")
+        val applicationBuildFile = projectDir.resolve("demo-application/build.gradle.kts").readText().trim()
+        val adapterBuildFile = projectDir.resolve("demo-adapter/build.gradle.kts").readText().trim()
+        val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts").readText()
 
+        assertTrue(applicationBuildFile == "// Functional fixture module.")
+        assertTrue(adapterBuildFile == "// Functional fixture module.")
+        assertTrue(domainBuildFile.contains("org.springframework:spring-context"))
         val beforeGenerateCompileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-domain:compileKotlin")
             .buildAndFail()
