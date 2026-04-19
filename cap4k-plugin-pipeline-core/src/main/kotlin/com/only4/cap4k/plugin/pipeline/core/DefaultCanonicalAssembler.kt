@@ -235,6 +235,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             entities = entities,
             schema = dbSnapshot,
             sharedEnums = sharedEnums,
+            basePackage = config.basePackage,
         )
 
         val diagnostics = buildDiagnostics(

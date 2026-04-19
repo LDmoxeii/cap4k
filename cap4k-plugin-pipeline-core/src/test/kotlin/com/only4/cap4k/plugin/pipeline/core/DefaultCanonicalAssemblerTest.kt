@@ -31,7 +31,6 @@ import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class DefaultCanonicalAssemblerTest {
@@ -1099,6 +1098,14 @@ class DefaultCanonicalAssemblerTest {
                                     nullable = false,
                                     typeBinding = "SubmitPayload",
                                 ),
+                                DbColumnSnapshot(
+                                    name = "visibility",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "Visibility",
+                                    enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden")),
+                                ),
                             ),
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
@@ -1120,13 +1127,64 @@ class DefaultCanonicalAssemblerTest {
 
         val entityJpa = result.model.aggregateEntityJpa.single { it.entityName == "VideoPost" }
 
-        assertTrue(
+        assertEquals(
+            "com.acme.demo.domain.shared.enums.Status",
             entityJpa.columns.single { it.fieldName == "status" }.converterTypeFqn
-                ?.endsWith(".Status") == true
         )
         assertEquals(
             null,
             entityJpa.columns.single { it.fieldName == "payload" }.converterTypeFqn
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.video_post.enums.Visibility",
+            entityJpa.columns.single { it.fieldName == "visibility" }.converterTypeFqn
+        )
+    }
+
+    @Test
+    fun `assembler fails fast when enum converter ownership is ambiguous between shared and local`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot(
+                                        name = "status",
+                                        dbType = "INT",
+                                        kotlinType = "Int",
+                                        nullable = false,
+                                        typeBinding = "Status",
+                                        enumItems = listOf(EnumItemModel(0, "DRAFT", "Draft")),
+                                    ),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            )
+                        )
+                    ),
+                    EnumManifestSnapshot(
+                        definitions = listOf(
+                            SharedEnumDefinition(
+                                typeName = "Status",
+                                packageName = "shared",
+                                generateTranslation = true,
+                                items = listOf(EnumItemModel(0, "DRAFT", "Draft")),
+                            )
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals(
+            "ambiguous enum ownership for Status: matches both shared enum and local enum in com.acme.demo.domain.aggregates.video_post",
+            error.message
         )
     }
 
