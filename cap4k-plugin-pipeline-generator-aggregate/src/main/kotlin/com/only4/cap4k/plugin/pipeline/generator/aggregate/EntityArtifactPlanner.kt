@@ -33,12 +33,22 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 }
                 .mapNotNull { it["joinColumn"] as? String }
                 .toSet()
+            val idColumnName = providerControl?.let { control ->
+                requireNotNull(scalarJpaByField[control.idFieldName]) {
+                    "missing aggregate JPA metadata for ${entity.packageName}.${entity.name}.${control.idFieldName}"
+                }.columnName
+            }
+            val versionColumnName = providerControl?.versionFieldName?.let { versionFieldName ->
+                requireNotNull(scalarJpaByField[versionFieldName]) {
+                    "missing aggregate JPA metadata for ${entity.packageName}.${entity.name}.${versionFieldName}"
+                }.columnName
+            }
             val softDeleteSql = providerControl?.softDeleteColumn?.let { column ->
                 buildSoftDeleteSql(
                     tableName = providerControl.tableName,
                     softDeleteColumn = column,
-                    idFieldName = providerControl.idFieldName,
-                    versionFieldName = providerControl.versionFieldName,
+                    idColumnName = requireNotNull(idColumnName),
+                    versionColumnName = versionColumnName,
                 )
             }
             val softDeleteWhereClause = providerControl?.softDeleteColumn?.let { column ->
@@ -119,12 +129,12 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
     private fun buildSoftDeleteSql(
         tableName: String,
         softDeleteColumn: String,
-        idFieldName: String,
-        versionFieldName: String?,
+        idColumnName: String,
+        versionColumnName: String?,
     ): String =
-        if (versionFieldName != null) {
-            "update \"$tableName\" set \"$softDeleteColumn\" = 1 where \"$idFieldName\" = ? and \"$versionFieldName\" = ?"
+        if (versionColumnName != null) {
+            "update \"$tableName\" set \"$softDeleteColumn\" = 1 where \"$idColumnName\" = ? and \"$versionColumnName\" = ?"
         } else {
-            "update \"$tableName\" set \"$softDeleteColumn\" = 1 where \"$idFieldName\" = ?"
+            "update \"$tableName\" set \"$softDeleteColumn\" = 1 where \"$idColumnName\" = ?"
         }
 }

@@ -395,6 +395,105 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner composes soft delete sql with physical id and version column names`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("lockVersion", "Long"),
+                FieldModel("deleted", "Int"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val artifact = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        entityEnabled = true,
+                        tableName = entity.tableName,
+                        columns = listOf(
+                            AggregateColumnJpaModel("id", "video_post_id", true, null),
+                            AggregateColumnJpaModel("lockVersion", "lock_version", false, null),
+                            AggregateColumnJpaModel("deleted", "deleted", false, null),
+                        ),
+                    )
+                ),
+                aggregatePersistenceProviderControls = listOf(
+                    com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl(
+                        entityName = "VideoPost",
+                        entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        tableName = "video_post",
+                        softDeleteColumn = "deleted",
+                        idFieldName = "id",
+                        versionFieldName = "lockVersion",
+                    )
+                ),
+            )
+        ).single { it.templateId == "aggregate/entity.kt.peb" }
+
+        assertEquals(
+            "update \"video_post\" set \"deleted\" = 1 where \"video_post_id\" = ? and \"lock_version\" = ?",
+            artifact.context["softDeleteSql"],
+        )
+    }
+
+    @Test
+    fun `entity planner composes versionless soft delete sql with physical id column only`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("aggregateId", "Long"),
+                FieldModel("deleted", "Int"),
+            ),
+            idField = FieldModel("aggregateId", "Long"),
+        )
+        val artifact = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        entityEnabled = true,
+                        tableName = entity.tableName,
+                        columns = listOf(
+                            AggregateColumnJpaModel("aggregateId", "video_post_id", true, null),
+                            AggregateColumnJpaModel("deleted", "deleted", false, null),
+                        ),
+                    )
+                ),
+                aggregatePersistenceProviderControls = listOf(
+                    com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl(
+                        entityName = "VideoPost",
+                        entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        tableName = "video_post",
+                        softDeleteColumn = "deleted",
+                        idFieldName = "aggregateId",
+                        versionFieldName = null,
+                    )
+                ),
+            )
+        ).single { it.templateId == "aggregate/entity.kt.peb" }
+
+        assertEquals(
+            "update \"video_post\" set \"deleted\" = 1 where \"video_post_id\" = ?",
+            artifact.context["softDeleteSql"],
+        )
+        assertEquals("\"deleted\" = 0", artifact.context["softDeleteWhereClause"])
+    }
+
+    @Test
     fun `entity planner keeps scalar fields when one to many join column matches owner column name`() {
         val entity = EntityModel(
             name = "VideoPost",
