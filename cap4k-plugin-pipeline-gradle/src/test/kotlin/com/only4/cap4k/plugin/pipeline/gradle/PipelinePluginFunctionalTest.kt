@@ -1236,7 +1236,10 @@ class PipelinePluginFunctionalTest {
         assertTrue(rootEntityContent.contains("@OneToMany(fetch = FetchType.LAZY)"))
         assertTrue(rootEntityContent.contains("var items: List<VideoPostItem> = emptyList()"))
         assertTrue(rootEntityContent.contains("@ManyToOne(fetch = FetchType.LAZY)"))
+        assertTrue(rootEntityContent.contains("@JoinColumn(name = \"author_id\")"))
         assertTrue(rootEntityContent.contains("lateinit var author: UserProfile"))
+        assertFalse(rootEntityContent.contains("@Column(name = \"author_id\")"))
+        assertFalse(rootEntityContent.contains("val author_id:"))
         assertTrue(rootEntityContent.contains("@OneToOne(fetch = FetchType.EAGER)"))
         assertTrue(rootEntityContent.contains("var coverProfile: UserProfile? = null"))
         assertFalse(rootEntityContent.contains("ManyToMany"))
@@ -1350,6 +1353,16 @@ class PipelinePluginFunctionalTest {
             generatedEntity.contains(
                 "@Convert(converter = com.acme.demo.domain.shared.enums.Status.Converter::class)"
             )
+        )
+        assertTrue(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt"
+            ).readText().contains("@Converter(autoApply = false)")
+        )
+        assertTrue(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"
+            ).readText().contains("@Converter(autoApply = false)")
         )
         assertFalse(generatedEntity.contains("@GeneratedValue"))
         assertFalse(generatedEntity.contains("@Version"))

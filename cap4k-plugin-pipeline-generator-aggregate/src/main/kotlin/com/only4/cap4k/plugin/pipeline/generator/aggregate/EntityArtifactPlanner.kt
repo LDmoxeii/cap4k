@@ -14,7 +14,13 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
             val scalarJpaByField = entityJpa?.columns.orEmpty().associateBy { it.fieldName }
-            val scalarFields = entity.fields.map { field ->
+            val relationPlan = AggregateRelationPlanning.planFor(entity, model.aggregateRelations)
+            val relationJoinColumns = relationPlan.relationFields
+                .mapNotNull { it["joinColumn"] as? String }
+                .toSet()
+            val scalarFields = entity.fields
+                .filterNot { it.name in relationJoinColumns }
+                .map { field ->
                 val jpa = requireNotNull(scalarJpaByField[field.name]) {
                     "missing aggregate JPA metadata for ${entity.packageName}.${entity.name}.${field.name}"
                 }
@@ -30,7 +36,6 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "converterTypeRef" to jpa.converterTypeFqn,
                 )
             }
-            val relationPlan = AggregateRelationPlanning.planFor(entity, model.aggregateRelations)
             ArtifactPlanItem(
                 generatorId = "aggregate",
                 moduleRole = "domain",

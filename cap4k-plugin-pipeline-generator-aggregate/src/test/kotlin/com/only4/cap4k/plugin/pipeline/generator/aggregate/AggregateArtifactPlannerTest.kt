@@ -124,7 +124,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner surfaces relation fields separately from scalar fields and preserves fields alias`() {
+    fun `entity planner excludes relation backed join columns from scalar JPA fields while preserving fields alias`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -172,10 +172,11 @@ class AggregateArtifactPlannerTest {
         @Suppress("UNCHECKED_CAST")
         val jpaImports = entityItem.context["jpaImports"] as List<String>
 
-        assertEquals(listOf("id", "title", "author_id"), scalarFields.map { it["name"] })
-        assertEquals(listOf("id", "title", "author_id"), fields.map { it["name"] })
+        assertEquals(listOf("id", "title"), scalarFields.map { it["name"] })
+        assertEquals(listOf("id", "title"), fields.map { it["name"] })
         assertEquals(listOf("author"), relationFields.map { it["name"] })
         assertEquals("MANY_TO_ONE", relationFields.single()["relationType"])
+        assertEquals("author_id", relationFields.single()["joinColumn"])
         assertEquals("UserProfile", relationFields.single()["targetType"])
         assertEquals("com.acme.demo.domain.identity.user", relationFields.single()["targetPackageName"])
         assertEquals(false, relationFields.single()["nullable"])
