@@ -290,6 +290,31 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
+    fun `aggregate persistence field behavior generation participates in domain compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-persistence-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-persistence-compile-sample")
+
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .buildAndFail()
+        assertEquals(TaskOutcome.FAILED, beforeGenerateCompileResult.task(":demo-domain:compileKotlin")?.outcome)
+
+        val (generateResult, compileResult) = FunctionalFixtureSupport.generateThenCompile(
+            projectDir,
+            ":demo-domain:compileKotlin"
+        )
+
+        val generatedEntity = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+        ).readText()
+
+        assertTrue(generatedEntity.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
+        assertTrue(generatedEntity.contains("@Version"))
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
     fun `aggregate enum generation participates in domain compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-enum-domain-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-enum-compile-sample")

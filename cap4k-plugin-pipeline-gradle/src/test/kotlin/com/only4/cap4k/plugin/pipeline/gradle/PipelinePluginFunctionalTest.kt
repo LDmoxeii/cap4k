@@ -1249,6 +1249,29 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `aggregate persistence field behavior generation renders explicit field controls`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-persistence-generate")
+        copyFixture(projectDir, "aggregate-persistence-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val generatedEntity = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+        ).readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedEntity.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
+        assertTrue(generatedEntity.contains("@Version"))
+        assertTrue(generatedEntity.contains("@Column(name = \"created_by\", insertable = false, updatable = true)"))
+        assertTrue(generatedEntity.contains("@Column(name = \"updated_by\", insertable = true, updatable = false)"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan and cap4kGenerate preserve aggregate composite unique constraint order end to end`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-composite-unique")
         copyFixture(projectDir, "aggregate-sample")
