@@ -1189,6 +1189,55 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler assigns local enum converter to reused type binding within the same aggregate`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "visibility",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "Visibility",
+                                    enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden")),
+                                ),
+                                DbColumnSnapshot(
+                                    name = "default_visibility",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "Visibility",
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                )
+            )
+        )
+
+        val entityJpa = result.model.aggregateEntityJpa.single { it.entityName == "VideoPost" }
+        val expectedConverter = "com.acme.demo.domain.aggregates.video_post.enums.Visibility"
+
+        assertEquals(
+            expectedConverter,
+            entityJpa.columns.single { it.fieldName == "visibility" }.converterTypeFqn
+        )
+        assertEquals(
+            expectedConverter,
+            entityJpa.columns.single { it.fieldName == "default_visibility" }.converterTypeFqn
+        )
+    }
+
+    @Test
     fun `assembler preserves both parent and child relations for parent child table metadata`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),

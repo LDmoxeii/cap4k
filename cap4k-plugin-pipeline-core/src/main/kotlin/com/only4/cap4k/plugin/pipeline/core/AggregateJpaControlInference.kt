@@ -18,6 +18,7 @@ internal object AggregateJpaControlInference {
             definitions = sharedEnums,
             basePackage = basePackage,
         )
+        val localEnumOwnership = buildLocalEnumOwnership(entities)
         val tableByName = schema?.tables?.associateBy { it.tableName.lowercase(Locale.ROOT) }.orEmpty()
 
         return entities.map { entity ->
@@ -42,7 +43,10 @@ internal object AggregateJpaControlInference {
                         converterTypeFqn = resolveConverterTypeFqn(
                             typeBinding = column.typeBinding,
                             ownerPackageName = entity.packageName,
-                            hasLocalEnumItems = field.enumItems.isNotEmpty(),
+                            hasLocalEnumOwner = LocalEnumOwnerKey(
+                                ownerPackageName = entity.packageName,
+                                typeBinding = column.typeBinding.orEmpty(),
+                            ) in localEnumOwnership,
                             sharedEnumsByType = sharedEnumsByType,
                         ),
                     )
@@ -54,21 +58,44 @@ internal object AggregateJpaControlInference {
     private fun resolveConverterTypeFqn(
         typeBinding: String?,
         ownerPackageName: String,
-        hasLocalEnumItems: Boolean,
+        hasLocalEnumOwner: Boolean,
         sharedEnumsByType: Map<String, String>,
     ): String? {
         val normalizedTypeBinding = typeBinding?.takeIf { it.isNotBlank() } ?: return null
         val sharedEnumFqn = sharedEnumsByType[normalizedTypeBinding]
 
         return when {
-            sharedEnumFqn != null && hasLocalEnumItems -> throw IllegalArgumentException(
+            sharedEnumFqn != null && hasLocalEnumOwner -> throw IllegalArgumentException(
                 "ambiguous enum ownership for $normalizedTypeBinding: " +
                     "matches both shared enum and local enum in $ownerPackageName"
             )
             sharedEnumFqn != null -> sharedEnumFqn
-            hasLocalEnumItems -> buildLocalEnumFqn(ownerPackageName, normalizedTypeBinding)
+            hasLocalEnumOwner -> buildLocalEnumFqn(ownerPackageName, normalizedTypeBinding)
             else -> null
         }
+    }
+
+    private fun buildLocalEnumOwnership(entities: List<EntityModel>): Set<LocalEnumOwnerKey> {
+        val owners = linkedMapOf<LocalEnumOwnerKey, List<com.only4.cap4k.plugin.pipeline.api.EnumItemModel>>()
+
+        entities.forEach { entity ->
+            entity.fields.forEach { field ->
+                val typeBinding = field.typeBinding?.takeIf { it.isNotBlank() } ?: return@forEach
+                if (field.enumItems.isEmpty()) return@forEach
+
+                val key = LocalEnumOwnerKey(
+                    ownerPackageName = entity.packageName,
+                    typeBinding = typeBinding,
+                )
+                val previous = owners[key]
+                if (previous != null && previous != field.enumItems) {
+                    throw IllegalArgumentException("conflicting local enum definition for ${buildLocalEnumFqn(entity.packageName, typeBinding)}")
+                }
+                owners.putIfAbsent(key, field.enumItems)
+            }
+        }
+
+        return owners.keys
     }
 
     private fun buildSharedEnumFqns(
@@ -119,3 +146,8 @@ internal object AggregateJpaControlInference {
         return "$trimmed.domain"
     }
 }
+
+private data class LocalEnumOwnerKey(
+    val ownerPackageName: String,
+    val typeBinding: String,
+)
