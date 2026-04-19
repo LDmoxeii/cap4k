@@ -198,6 +198,16 @@ data class AggregateEntityJpaModel(
     val columns: List<AggregateColumnJpaModel>,
 )
 
+data class AggregatePersistenceFieldControl(
+    val entityName: String,
+    val fieldName: String,
+    val columnName: String,
+    val generatedValueStrategy: String? = null,
+    val version: Boolean? = null,
+    val insertable: Boolean? = null,
+    val updatable: Boolean? = null,
+)
+
 data class RepositoryModel(
     val name: String,
     val packageName: String,
@@ -315,6 +325,7 @@ data class CanonicalModel(
     val sharedEnums: List<SharedEnumDefinition> = emptyList(),
     val aggregateRelations: List<AggregateRelationModel> = emptyList(),
     val aggregateEntityJpa: List<AggregateEntityJpaModel> = emptyList(),
+    val aggregatePersistenceFieldControls: List<AggregatePersistenceFieldControl> = emptyList(),
 )
 
 data class UnsupportedAggregateTable(

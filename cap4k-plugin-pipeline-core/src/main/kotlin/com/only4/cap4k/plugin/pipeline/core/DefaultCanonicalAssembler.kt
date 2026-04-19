@@ -237,6 +237,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             sharedEnums = sharedEnums,
             basePackage = config.basePackage,
         )
+        val aggregatePersistenceFieldControls = AggregatePersistenceFieldBehaviorInference.infer(
+            entities = entities,
+            schema = dbSnapshot,
+        )
 
         val diagnostics = buildDiagnostics(
             snapshot = dbSnapshot,
@@ -299,6 +303,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 sharedEnums = sharedEnums,
                 aggregateRelations = aggregateRelations,
                 aggregateEntityJpa = aggregateEntityJpa,
+                aggregatePersistenceFieldControls = aggregatePersistenceFieldControls,
             ),
             diagnostics = diagnostics,
         )

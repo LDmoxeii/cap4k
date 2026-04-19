@@ -1238,6 +1238,99 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler records explicit aggregate persistence field controls`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "@AggregateRoot=true;",
+                            columns = listOf(
+                                DbColumnSnapshot(
+                                    "id",
+                                    "BIGINT",
+                                    "Long",
+                                    false,
+                                    isPrimaryKey = true,
+                                    generatedValueStrategy = "IDENTITY"
+                                ),
+                                DbColumnSnapshot("version", "BIGINT", "Long", false, version = true),
+                                DbColumnSnapshot("created_by", "VARCHAR", "String", false, insertable = false),
+                                DbColumnSnapshot("updated_by", "VARCHAR", "String", false, updatable = false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                )
+            )
+        )
+
+        val controls = result.model.aggregatePersistenceFieldControls
+
+        assertEquals("IDENTITY", controls.single { it.fieldName == "id" }.generatedValueStrategy)
+        assertEquals(true, controls.single { it.fieldName == "version" }.version)
+        assertEquals(false, controls.single { it.fieldName == "createdBy" }.insertable)
+        assertEquals(false, controls.single { it.fieldName == "updatedBy" }.updatable)
+    }
+
+    @Test
+    fun `assembler does not infer persistence field controls when source is silent`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "@AggregateRoot=true;",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("version", "BIGINT", "Long", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                )
+            )
+        )
+
+        assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl>(), result.model.aggregatePersistenceFieldControls)
+    }
+
+    @Test
+    fun `assembler preserves explicit false version persistence control`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "@AggregateRoot=true;",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("version", "BIGINT", "Long", false, version = false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                )
+            )
+        )
+
+        val controls = result.model.aggregatePersistenceFieldControls
+
+        assertEquals(1, controls.size)
+        assertEquals(false, controls.single().version)
+        assertEquals("version", controls.single().fieldName)
+    }
+
+    @Test
     fun `assembler preserves both parent and child relations for parent child table metadata`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
