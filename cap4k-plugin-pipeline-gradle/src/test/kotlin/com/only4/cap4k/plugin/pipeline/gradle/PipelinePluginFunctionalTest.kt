@@ -1341,6 +1341,19 @@ class PipelinePluginFunctionalTest {
                 "demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/video_post/VideoPostVisibilityTranslation.kt"
             ).toFile().exists()
         )
+        assertTrue(generatedEntity.contains("@Entity"))
+        assertTrue(generatedEntity.contains("@Table(name = \"video_post\")"))
+        assertTrue(generatedEntity.contains("@Id"))
+        assertTrue(generatedEntity.contains("@Column(name = \"id\")"))
+        assertTrue(generatedEntity.contains("@Column(name = \"status\")"))
+        assertTrue(
+            generatedEntity.contains(
+                "@Convert(converter = com.acme.demo.domain.shared.enums.Status.Converter::class)"
+            )
+        )
+        assertFalse(generatedEntity.contains("@GeneratedValue"))
+        assertFalse(generatedEntity.contains("@Version"))
+        assertFalse(generatedEntity.contains("@DynamicInsert"))
         assertTrue(generatedEntity.contains("val status: com.acme.demo.domain.shared.enums.Status"))
         assertFalse(generatedEntity.contains("class Status("))
     }
