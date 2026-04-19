@@ -1,6 +1,8 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
+import com.only4.cap4k.plugin.pipeline.api.AggregateColumnJpaModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateEntityJpaModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
@@ -25,7 +27,7 @@ import java.nio.file.Path
 class AggregateArtifactPlannerTest {
 
     @Test
-    fun `entity planner surfaces relation fields separately from scalar fields and preserves fields alias`() {
+    fun `entity planner surfaces bounded aggregate JPA metadata`() {
         val plan = AggregateArtifactPlanner().plan(
             aggregateConfig(),
             CanonicalModel(
@@ -38,10 +40,68 @@ class AggregateArtifactPlannerTest {
                         fields = listOf(
                             FieldModel("id", "Long"),
                             FieldModel("title", "String"),
-                            FieldModel("author_id", "Long", nullable = true),
+                            FieldModel("status", "Status"),
                         ),
                         idField = FieldModel("id", "Long"),
                     )
+                ),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = "VideoPost",
+                        entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        entityEnabled = true,
+                        tableName = "video_post",
+                        columns = listOf(
+                            AggregateColumnJpaModel("id", "id", true, null),
+                            AggregateColumnJpaModel("title", "title", false, null),
+                            AggregateColumnJpaModel(
+                                "status",
+                                "status",
+                                false,
+                                "com.acme.demo.domain.shared.enums.Status",
+                            ),
+                        ),
+                    )
+                )
+            )
+        )
+
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val entityJpa = entityItem.context["entityJpa"] as Map<String, Any?>
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityItem.context["scalarFields"] as List<Map<String, Any?>>
+
+        assertEquals(true, entityJpa["entityEnabled"])
+        assertEquals("video_post", entityJpa["tableName"])
+        assertEquals(true, scalarFields.single { it["name"] == "id" }["isId"])
+        assertEquals("id", scalarFields.single { it["name"] == "id" }["columnName"])
+        assertEquals(
+            "com.acme.demo.domain.shared.enums.Status",
+            scalarFields.single { it["name"] == "status" }["converterTypeRef"]
+        )
+    }
+
+    @Test
+    fun `entity planner surfaces relation fields separately from scalar fields and preserves fields alias`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("title", "String"),
+                FieldModel("author_id", "Long", nullable = true),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    defaultAggregateEntityJpa(entity)
                 ),
                 aggregateRelations = listOf(
                     AggregateRelationModel(
@@ -91,21 +151,23 @@ class AggregateArtifactPlannerTest {
 
     @Test
     fun `entity planner relation nullability is sourced from canonical relation model`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("author_id", "Long", nullable = false),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
         val plan = AggregateArtifactPlanner().plan(
             aggregateConfig(),
             CanonicalModel(
-                entities = listOf(
-                    EntityModel(
-                        name = "VideoPost",
-                        packageName = "com.acme.demo.domain.aggregates.video_post",
-                        tableName = "video_post",
-                        comment = "video post",
-                        fields = listOf(
-                            FieldModel("id", "Long"),
-                            FieldModel("author_id", "Long", nullable = false),
-                        ),
-                        idField = FieldModel("id", "Long"),
-                    )
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    defaultAggregateEntityJpa(entity)
                 ),
                 aggregateRelations = listOf(
                     AggregateRelationModel(
@@ -163,6 +225,17 @@ class AggregateArtifactPlannerTest {
                     comment = "Video post entity",
                     fields = listOf(FieldModel("id", "Long")),
                     idField = FieldModel("id", "Long"),
+                )
+            ),
+            aggregateEntityJpa = listOf(
+                AggregateEntityJpaModel(
+                    entityName = "VideoPost",
+                    entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                    entityEnabled = true,
+                    tableName = "video_post",
+                    columns = listOf(
+                        AggregateColumnJpaModel("id", "id", true, null),
+                    ),
                 )
             ),
             repositories = listOf(
@@ -285,6 +358,19 @@ class AggregateArtifactPlannerTest {
                     idField = FieldModel("id", "Long"),
                     uniqueConstraints = listOf(listOf("slug")),
                 )
+            ),
+            aggregateEntityJpa = listOf(
+                AggregateEntityJpaModel(
+                    entityName = "VideoPost",
+                    entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                    entityEnabled = true,
+                    tableName = "Video_Post",
+                    columns = listOf(
+                        AggregateColumnJpaModel("id", "id", true, null),
+                        AggregateColumnJpaModel("slug", "slug", false, null),
+                        AggregateColumnJpaModel("title", "title", false, null),
+                    ),
+                )
             )
         )
 
@@ -373,6 +459,18 @@ class AggregateArtifactPlannerTest {
                     idField = FieldModel(name = "id", type = "Long"),
                 )
             ),
+            aggregateEntityJpa = listOf(
+                AggregateEntityJpaModel(
+                    entityName = "VideoPost",
+                    entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                    entityEnabled = true,
+                    tableName = "video_post",
+                    columns = listOf(
+                        AggregateColumnJpaModel("status", "status", false, null),
+                        AggregateColumnJpaModel("visibility", "visibility", false, null),
+                    ),
+                )
+            ),
             repositories = listOf(
                 RepositoryModel(
                     name = "VideoPostRepository",
@@ -455,6 +553,26 @@ class AggregateArtifactPlannerTest {
                         ),
                     ),
                     idField = FieldModel(name = "id", type = "Long"),
+                ),
+            ),
+            aggregateEntityJpa = listOf(
+                AggregateEntityJpaModel(
+                    entityName = "VideoPost",
+                    entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                    entityEnabled = true,
+                    tableName = "video_post",
+                    columns = listOf(
+                        AggregateColumnJpaModel("visibility", "visibility", false, null),
+                    ),
+                ),
+                AggregateEntityJpaModel(
+                    entityName = "ArticlePost",
+                    entityPackageName = "com.acme.demo.domain.aggregates.article_post",
+                    entityEnabled = true,
+                    tableName = "article_post",
+                    columns = listOf(
+                        AggregateColumnJpaModel("visibility", "visibility", false, null),
+                    ),
                 ),
             ),
         )
@@ -568,6 +686,17 @@ class AggregateArtifactPlannerTest {
                     idField = FieldModel("id", "Long"),
                 )
             ),
+            aggregateEntityJpa = listOf(
+                AggregateEntityJpaModel(
+                    entityName = "VideoPost",
+                    entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                    entityEnabled = true,
+                    tableName = "video_post",
+                    columns = listOf(
+                        AggregateColumnJpaModel("id", "id", true, null),
+                    ),
+                )
+            ),
             repositories = listOf(
                 RepositoryModel(
                     name = "VideoPostRepository",
@@ -623,6 +752,10 @@ class AggregateArtifactPlannerTest {
                 )
             ),
             entities = listOf(primaryEntity, secondaryEntity),
+            aggregateEntityJpa = listOf(
+                defaultAggregateEntityJpa(primaryEntity),
+                defaultAggregateEntityJpa(secondaryEntity),
+            ),
             repositories = emptyList(),
         )
 
@@ -780,5 +913,21 @@ class AggregateArtifactPlannerTest {
             sources = emptyMap(),
             generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+        )
+
+    private fun defaultAggregateEntityJpa(entity: EntityModel): AggregateEntityJpaModel =
+        AggregateEntityJpaModel(
+            entityName = entity.name,
+            entityPackageName = entity.packageName,
+            entityEnabled = true,
+            tableName = entity.tableName,
+            columns = entity.fields.map { field ->
+                AggregateColumnJpaModel(
+                    fieldName = field.name,
+                    columnName = field.name,
+                    isId = field.name == entity.idField.name,
+                    converterTypeFqn = null,
+                )
+            },
         )
 }

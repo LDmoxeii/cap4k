@@ -10,7 +10,14 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
         val planning = AggregateEnumPlanning.from(model, config.basePackage, config.typeRegistry)
 
         return model.entities.map { entity ->
+            val entityJpa = model.aggregateEntityJpa.singleOrNull {
+                it.entityName == entity.name && it.entityPackageName == entity.packageName
+            }
+            val scalarJpaByField = entityJpa?.columns.orEmpty().associateBy { it.fieldName }
             val scalarFields = entity.fields.map { field ->
+                val jpa = requireNotNull(scalarJpaByField[field.name]) {
+                    "missing aggregate JPA metadata for ${entity.packageName}.${entity.name}.${field.name}"
+                }
                 mapOf(
                     "name" to field.name,
                     "type" to planning.resolveFieldType(entity.packageName, field),
@@ -18,6 +25,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "defaultValue" to field.defaultValue,
                     "typeBinding" to field.typeBinding,
                     "enumItems" to field.enumItems,
+                    "columnName" to jpa.columnName,
+                    "isId" to jpa.isId,
+                    "converterTypeRef" to jpa.converterTypeFqn,
                 )
             }
             val relationPlan = AggregateRelationPlanning.planFor(entity, model.aggregateRelations)
@@ -31,7 +41,12 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "typeName" to entity.name,
                     "comment" to entity.comment,
                     "tableName" to entity.tableName,
+                    "entityJpa" to mapOf(
+                        "entityEnabled" to (entityJpa?.entityEnabled ?: true),
+                        "tableName" to (entityJpa?.tableName ?: entity.tableName),
+                    ),
                     "idField" to entity.idField,
+                    "hasConverterFields" to scalarFields.any { it["converterTypeRef"] != null },
                     "jpaImports" to relationPlan.jpaImports,
                     "imports" to relationPlan.imports,
                     "fields" to scalarFields,
