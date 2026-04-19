@@ -255,6 +255,65 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner keeps scalar fields when one to many join column matches owner column name`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("videoPostId", "Long"),
+                FieldModel("title", "String"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        entityEnabled = true,
+                        tableName = entity.tableName,
+                        columns = listOf(
+                            AggregateColumnJpaModel("id", "id", true, null),
+                            AggregateColumnJpaModel("videoPostId", "video_post_id", false, null),
+                            AggregateColumnJpaModel("title", "title", false, null),
+                        ),
+                    )
+                ),
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "items",
+                        targetEntityName = "VideoPostItem",
+                        targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post_item",
+                        relationType = AggregateRelationType.ONE_TO_MANY,
+                        joinColumn = "video_post_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                    )
+                )
+            )
+        )
+
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityItem.context["scalarFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val relationFields = entityItem.context["relationFields"] as List<Map<String, Any?>>
+
+        assertEquals(listOf("id", "videoPostId", "title"), scalarFields.map { it["name"] })
+        assertEquals(listOf("id", "video_post_id", "title"), scalarFields.map { it["columnName"] })
+        assertEquals("ONE_TO_MANY", relationFields.single()["relationType"])
+        assertEquals("video_post_id", relationFields.single()["joinColumn"])
+    }
+
+    @Test
     fun `entity planner relation nullability is sourced from canonical relation model`() {
         val entity = EntityModel(
             name = "VideoPost",

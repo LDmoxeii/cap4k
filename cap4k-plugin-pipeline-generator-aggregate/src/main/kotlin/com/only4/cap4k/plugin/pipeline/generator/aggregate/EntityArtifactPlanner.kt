@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
+import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
@@ -16,6 +17,14 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             val scalarJpaByField = entityJpa?.columns.orEmpty().associateBy { it.fieldName }
             val relationPlan = AggregateRelationPlanning.planFor(entity, model.aggregateRelations)
             val relationJoinColumns = relationPlan.relationFields
+                .filter {
+                    when (it["relationType"]) {
+                        AggregateRelationType.MANY_TO_ONE.name,
+                        AggregateRelationType.ONE_TO_ONE.name,
+                        -> true
+                        else -> false
+                    }
+                }
                 .mapNotNull { it["joinColumn"] as? String }
                 .toSet()
             val scalarFields = entity.fields
