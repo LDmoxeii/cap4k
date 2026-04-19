@@ -1278,6 +1278,52 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `aggregate provider specific persistence generation renders bounded controls`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-provider-persistence-generate")
+        copyFixture(projectDir, "aggregate-provider-persistence-sample")
+        val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts").readText().trim()
+        val applicationBuildFile = projectDir.resolve("demo-application/build.gradle.kts").readText().trim()
+        val adapterBuildFile = projectDir.resolve("demo-adapter/build.gradle.kts").readText().trim()
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        val generatedVideoPost = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+        ).readText()
+        val generatedAuditLog = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/audit_log/AuditLog.kt"
+        ).readText()
+
+        assertTrue(domainBuildFile == "// Functional fixture module.")
+        assertTrue(applicationBuildFile == "// Functional fixture module.")
+        assertTrue(adapterBuildFile == "// Functional fixture module.")
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedVideoPost.contains("@DynamicInsert"))
+        assertTrue(generatedVideoPost.contains("@DynamicUpdate"))
+        assertTrue(
+            generatedVideoPost.contains(
+                "@SQLDelete(sql = \"update \\\"video_post\\\" set \\\"deleted\\\" = 1 where \\\"id\\\" = ? and \\\"version\\\" = ?\")"
+            )
+        )
+        assertTrue(generatedVideoPost.contains("@Where(clause = \"\\\"deleted\\\" = 0\")"))
+        assertFalse(generatedVideoPost.contains("@GenericGenerator"))
+        assertTrue(
+            generatedAuditLog.contains(
+                "@SQLDelete(sql = \"update \\\"audit_log\\\" set \\\"deleted\\\" = 1 where \\\"id\\\" = ?\")"
+            )
+        )
+        assertTrue(generatedAuditLog.contains("@Where(clause = \"\\\"deleted\\\" = 0\")"))
+        assertFalse(generatedAuditLog.contains("@DynamicInsert"))
+        assertFalse(generatedAuditLog.contains("@DynamicUpdate"))
+        assertFalse(generatedAuditLog.contains("@GenericGenerator"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan and cap4kGenerate preserve aggregate composite unique constraint order end to end`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-composite-unique")
         copyFixture(projectDir, "aggregate-sample")

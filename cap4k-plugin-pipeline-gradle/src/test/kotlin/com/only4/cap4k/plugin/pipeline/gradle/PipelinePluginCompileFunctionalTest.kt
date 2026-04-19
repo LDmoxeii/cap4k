@@ -321,6 +321,46 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
+    fun `aggregate provider specific persistence generation participates in domain compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-provider-persistence-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-provider-persistence-compile-sample")
+        val applicationBuildFile = projectDir.resolve("demo-application/build.gradle.kts").readText().trim()
+        val adapterBuildFile = projectDir.resolve("demo-adapter/build.gradle.kts").readText().trim()
+        val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts").readText()
+
+        assertTrue(applicationBuildFile == "// Functional fixture module.")
+        assertTrue(adapterBuildFile == "// Functional fixture module.")
+        assertTrue(domainBuildFile.contains("org.hibernate.orm:hibernate-core"))
+        assertTrue(domainBuildFile.contains("jakarta.persistence:jakarta.persistence-api"))
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .buildAndFail()
+        assertEquals(TaskOutcome.FAILED, beforeGenerateCompileResult.task(":demo-domain:compileKotlin")?.outcome)
+
+        val (generateResult, compileResult) = FunctionalFixtureSupport.generateThenCompile(
+            projectDir,
+            ":demo-domain:compileKotlin"
+        )
+
+        val generatedVideoPost = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+        ).readText()
+        val generatedAuditLog = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/audit_log/AuditLog.kt"
+        ).readText()
+
+        assertTrue(generatedVideoPost.contains("@DynamicInsert"))
+        assertTrue(generatedVideoPost.contains("@DynamicUpdate"))
+        assertTrue(generatedVideoPost.contains("@SQLDelete"))
+        assertTrue(generatedVideoPost.contains("@Where"))
+        assertFalse(generatedVideoPost.contains("@GenericGenerator"))
+        assertTrue(generatedAuditLog.contains("@SQLDelete"))
+        assertTrue(generatedAuditLog.contains("@Where"))
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
     fun `aggregate enum generation participates in domain compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-enum-domain-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-enum-compile-sample")
