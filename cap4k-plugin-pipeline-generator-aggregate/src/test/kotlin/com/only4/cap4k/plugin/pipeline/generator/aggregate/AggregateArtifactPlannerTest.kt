@@ -49,8 +49,8 @@ class AggregateArtifactPlannerTest {
                     AggregateEntityJpaModel(
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
-                        entityEnabled = true,
-                        tableName = "video_post",
+                        entityEnabled = false,
+                        tableName = "video_post_override",
                         columns = listOf(
                             AggregateColumnJpaModel("id", "id", true, null),
                             AggregateColumnJpaModel("title", "title", false, null),
@@ -72,8 +72,8 @@ class AggregateArtifactPlannerTest {
         @Suppress("UNCHECKED_CAST")
         val scalarFields = entityItem.context["scalarFields"] as List<Map<String, Any?>>
 
-        assertEquals(true, entityJpa["entityEnabled"])
-        assertEquals("video_post", entityJpa["tableName"])
+        assertEquals(false, entityJpa["entityEnabled"])
+        assertEquals("video_post_override", entityJpa["tableName"])
         assertEquals(true, entityItem.context["hasConverterFields"])
         assertEquals(true, scalarFields.single { it["name"] == "id" }["isId"])
         assertEquals("id", scalarFields.single { it["name"] == "id" }["columnName"])
@@ -188,6 +188,7 @@ class AggregateArtifactPlannerTest {
             ),
             jpaImports,
         )
+        assertEquals(false, entityItem.context["hasConverterFields"])
     }
 
     @Test
