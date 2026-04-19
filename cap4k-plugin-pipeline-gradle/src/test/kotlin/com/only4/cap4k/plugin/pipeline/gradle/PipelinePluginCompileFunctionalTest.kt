@@ -290,7 +290,7 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate enum generation emits bounded entity source`() {
+    fun `aggregate enum generation participates in domain compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-enum-domain-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-enum-compile-sample")
 
@@ -311,6 +311,15 @@ class PipelinePluginCompileFunctionalTest {
         val generatedEntity = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
         ).readText()
+        val generatedSharedEnum = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt"
+        ).readText()
+        val generatedLocalEnum = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"
+        ).readText()
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .build()
 
         assertGeneratedFilesExist(
             projectDir,
@@ -328,14 +337,17 @@ class PipelinePluginCompileFunctionalTest {
                 "@Convert(converter = com.acme.demo.domain.shared.enums.Status.Converter::class)"
             )
         )
+        assertTrue(generatedSharedEnum.contains("class Converter : AttributeConverter<Status, Int>"))
+        assertTrue(generatedLocalEnum.contains("class Converter : AttributeConverter<VideoPostVisibility, Int>"))
         assertFalse(generatedEntity.contains("@GeneratedValue"))
         assertFalse(generatedEntity.contains("@Version"))
         assertFalse(generatedEntity.contains("@DynamicInsert"))
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
 
     @Test
-    fun `aggregate enum translation generation emits adapter sources`() {
+    fun `aggregate enum translation generation participates in adapter compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-enum-adapter-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-enum-compile-sample")
 
@@ -352,6 +364,9 @@ class PipelinePluginCompileFunctionalTest {
         val generateResult = FunctionalFixtureSupport
             .runner(projectDir, "cap4kGenerate")
             .build()
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-adapter:compileKotlin")
+            .build()
 
         assertGeneratedFilesExist(
             projectDir,
@@ -359,6 +374,7 @@ class PipelinePluginCompileFunctionalTest {
             "demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/video_post/VideoPostVisibilityTranslation.kt",
         )
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
 
     @Test

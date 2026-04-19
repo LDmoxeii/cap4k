@@ -1612,6 +1612,12 @@ class PebbleArtifactRendererTest {
 
         assertTrue(enumContent.contains("enum class Status("))
         assertTrue(enumContent.contains("DRAFT(0, \"Draft\")"))
+        assertTrue(enumContent.contains("import jakarta.persistence.AttributeConverter"))
+        assertTrue(enumContent.contains("class Converter : AttributeConverter<Status, Int>"))
+        assertTrue(enumContent.contains("override fun convertToDatabaseColumn(attribute: Status): Int"))
+        assertTrue(enumContent.contains("return attribute.value"))
+        assertTrue(enumContent.contains("override fun convertToEntityAttribute(dbData: Int): Status?"))
+        assertTrue(enumContent.contains("return valueOfOrNull(dbData)"))
         assertTrue(translationContent.contains("class StatusTranslation"))
         assertTrue(translationContent.contains("import com.acme.demo.domain.shared.enums.Status"))
         assertTrue(translationContent.contains("@TranslationType(type = \"status_code_to_desc\")"))
