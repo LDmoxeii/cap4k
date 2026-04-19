@@ -26,4 +26,44 @@ class DbTableAnnotationParserTest {
 
         assertEquals("invalid @DynamicInsert value: maybe", error.message)
     }
+
+    @Test
+    fun `parser rejects non strict provider boolean casing`() {
+        val insertError = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@DynamicInsert=TRUE;")
+        }
+        val updateError = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@DynamicUpdate=FALSE;")
+        }
+
+        assertEquals("invalid @DynamicInsert value: TRUE", insertError.message)
+        assertEquals("invalid @DynamicUpdate value: FALSE", updateError.message)
+    }
+
+    @Test
+    fun `parser rejects conflicting duplicate dynamic insert annotations`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@DynamicInsert=true;@DynamicInsert=false;")
+        }
+
+        assertEquals("conflicting @DynamicInsert annotations on the same table comment.", error.message)
+    }
+
+    @Test
+    fun `parser rejects conflicting duplicate dynamic update annotations`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@DynamicUpdate=true;@DynamicUpdate=false;")
+        }
+
+        assertEquals("conflicting @DynamicUpdate annotations on the same table comment.", error.message)
+    }
+
+    @Test
+    fun `parser rejects conflicting duplicate soft delete column annotations`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@SoftDeleteColumn=deleted;@SoftDeleteColumn=is_deleted;")
+        }
+
+        assertEquals("conflicting @SoftDeleteColumn annotations on the same table comment.", error.message)
+    }
 }

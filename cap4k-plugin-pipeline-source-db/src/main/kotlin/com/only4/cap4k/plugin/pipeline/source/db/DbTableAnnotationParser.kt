@@ -41,20 +41,23 @@ internal object DbTableAnnotationParser {
         require(!(parentTable != null && aggregateRootAnnotation.explicit && aggregateRootAnnotation.value == true)) {
             "conflicting table relation annotations: @Parent/@P cannot be combined with @AggregateRoot=true."
         }
-
-        var dynamicInsert: Boolean? = null
-        var dynamicUpdate: Boolean? = null
-        var softDeleteColumn: String? = null
-        annotations.forEach { annotation ->
-            when (annotation.key) {
-                "DYNAMICINSERT" -> dynamicInsert = parseBooleanAnnotation("DynamicInsert", annotation.value)
-                "DYNAMICUPDATE" -> dynamicUpdate = parseBooleanAnnotation("DynamicUpdate", annotation.value)
-                "SOFTDELETECOLUMN" -> {
-                    require(annotation.value.isNotBlank()) { "invalid @SoftDeleteColumn value: ${annotation.value}" }
-                    softDeleteColumn = annotation.value.trim()
-                }
-            }
-        }
+        val dynamicInsert = resolveProviderBooleanAnnotation(
+            annotations = annotations,
+            key = "DYNAMICINSERT",
+            annotationName = "DynamicInsert",
+        )
+        val dynamicUpdate = resolveProviderBooleanAnnotation(
+            annotations = annotations,
+            key = "DYNAMICUPDATE",
+            annotationName = "DynamicUpdate",
+        )
+        val softDeleteColumn = resolveAnnotationValue(
+            annotations = annotations,
+            aliases = setOf("SOFTDELETECOLUMN"),
+            conflictMessage = "conflicting @SoftDeleteColumn annotations on the same table comment.",
+            blankValueMessage = "invalid @SoftDeleteColumn value: ",
+            missingValueMessage = "invalid @SoftDeleteColumn value: ",
+        )?.trim()
 
         return DbTableAnnotationParseResult(
             parentTable = parentTable,
@@ -96,6 +99,27 @@ internal object DbTableAnnotationParser {
         return matchingAnnotations.isNotEmpty()
     }
 
+    private fun resolveProviderBooleanAnnotation(
+        annotations: List<ParsedTableAnnotation>,
+        key: String,
+        annotationName: String,
+    ): Boolean? {
+        val values = annotations
+            .filter { it.key == key }
+            .map { it.value }
+            .distinct()
+        if (values.isEmpty()) {
+            return null
+        }
+
+        val invalidValue = values.firstOrNull { it.toBooleanStrictOrNull() == null }
+        require(invalidValue == null) { "invalid @$annotationName value: $invalidValue" }
+
+        val booleans = values.map { it.toBooleanStrict() }.distinct()
+        require(booleans.size <= 1) { "conflicting @$annotationName annotations on the same table comment." }
+        return booleans.single()
+    }
+
     private fun resolveBooleanAnnotationValue(
         annotations: List<ParsedTableAnnotation>,
         aliases: Set<String>,
@@ -122,11 +146,8 @@ internal object DbTableAnnotationParser {
     }
 
     private fun parseBooleanAnnotation(name: String, value: String): Boolean {
-        return when {
-            value.equals("true", ignoreCase = true) -> true
-            value.equals("false", ignoreCase = true) -> false
-            else -> throw IllegalArgumentException("invalid @$name value: $value")
-        }
+        return value.toBooleanStrictOrNull()
+            ?: throw IllegalArgumentException("invalid @$name value: $value")
     }
 
     private fun stripRecognizedAnnotations(comment: String, aliases: Set<String>): String {
