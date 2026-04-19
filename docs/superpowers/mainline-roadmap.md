@@ -146,15 +146,17 @@ Traceability:
 Completed:
 
 - aggregate JPA annotation fine-grained control parity
+- aggregate persistence field-behavior parity
 
 Status:
 
-- the bounded aggregate persistence-control line is complete through first-slice Jakarta baseline JPA parity
-- aggregate-side persistence control now has bounded source carriage, canonical enrichment, planner and renderer consumption, functional generation coverage, and compile verification for entity/table/column baseline JPA output without reopening relation-side ownership or provider-specific behavior
+- the bounded aggregate persistence-control line is complete through explicit persistence field-behavior parity
+- aggregate-side persistence control now has bounded source carriage, canonical enrichment, planner and renderer consumption, functional generation coverage, and compile verification for entity/table/column baseline JPA output plus explicit field-behavior control without reopening relation-side ownership or full provider-specific behavior
 
 Traceability:
 
 - [aggregate JPA annotation fine-grained control parity design](specs/2026-04-19-cap4k-aggregate-jpa-annotation-fine-grained-control-parity-design.md)
+- [aggregate persistence field-behavior parity design](specs/2026-04-19-cap4k-aggregate-persistence-field-behavior-parity-design.md)
 
 ## Current Mainline Contract
 
@@ -176,27 +178,27 @@ The cross-generator reference boundary line is complete through aggregate enum /
 
 The bounded aggregate relation line is complete through first-slice relation parity.
 
-The bounded aggregate persistence-control line is complete through first-slice Jakarta baseline JPA parity.
+The bounded aggregate persistence-control line is complete through explicit persistence field-behavior parity.
 
 The next explicit framework slice is:
 
-- aggregate persistence field-behavior parity
+- aggregate provider-specific persistence parity
 
 Scope:
 
-- build on the now-stable aggregate relation and first-slice JPA baseline rather than reopening relation inference itself
+- build on the now-stable aggregate relation, first-slice JPA baseline, and explicit persistence field-behavior parity rather than reopening relation inference itself
 - keep the work inside the existing aggregate generator and aggregate-side rendering contract
-- focus on bounded persistence field-behavior controls that materially affect generated aggregate output
-- recover `@GeneratedValue`, `@Version`, and scalar `@Column(insertable/updatable)` control without widening into provider-specific behavior
+- focus on bounded provider-specific persistence behaviors that materially affect generated aggregate entity output
+- recover a first explicit slice of Hibernate or provider-specific behavior such as `@DynamicInsert`, `@DynamicUpdate`, `@SQLDelete`, `@Where`, and any bounded generator-side coordination they require
 - prove the control surface through planner, renderer, and bounded functional or compile verification
-- keep the slice bounded to persistence field-behavior parity, not full aggregate-side completion
+- keep the slice bounded to provider-specific persistence parity, not full aggregate-side completion
 
 Non-goals:
 
 - do not restore mutable shared runtime type maps between generators
 - do not widen this slice into relation re-architecture, user-code-preservation parity, or general source-semantic recovery
 - do not broaden bootstrap beyond the current bounded contract
-- do not silently expand into relation-side JPA control, Hibernate-specific control, or full aggregate-side parity beyond bounded persistence field-behavior work
+- do not silently expand into relation-side JPA control, many-to-many support, or full aggregate-side parity beyond bounded provider-specific persistence work
 - do not turn exploratory parity notes into a general rewrite of the current pipeline architecture
 
 ## Bootstrap Decision
