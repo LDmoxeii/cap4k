@@ -1292,7 +1292,10 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
-                        "tableName" to "video_post",
+                        "entityJpa" to mapOf(
+                            "entityEnabled" to true,
+                            "tableName" to "video_post",
+                        ),
                         "jpaImports" to listOf(
                             "jakarta.persistence.FetchType",
                             "jakarta.persistence.JoinColumn",
@@ -1304,7 +1307,14 @@ class PebbleArtifactRendererTest {
                             "com.acme.demo.domain.aggregates.video_post.item.VideoPostItem",
                         ),
                         "scalarFields" to listOf(
-                            mapOf("name" to "id", "type" to "Long", "nullable" to false)
+                            mapOf(
+                                "name" to "id",
+                                "type" to "Long",
+                                "nullable" to false,
+                                "columnName" to "id",
+                                "isId" to true,
+                                "converterTypeRef" to null,
+                            )
                         ),
                         "fields" to listOf(
                             mapOf("name" to "id", "type" to "Long", "nullable" to false)
@@ -1366,6 +1376,8 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("import jakarta.persistence.ManyToOne"))
         assertTrue(content.contains("import jakarta.persistence.OneToMany"))
         assertFalse(content.contains("import jakarta.persistence.OneToOne"))
+        assertTrue(content.contains("@Entity"))
+        assertTrue(content.contains("@Table(name = \"video_post\")"))
         assertTrue(content.contains("import com.acme.demo.domain.identity.user.UserProfile"))
         assertTrue(content.contains("import com.acme.demo.domain.aggregates.video_post.item.VideoPostItem"))
         assertTrue(content.contains("class VideoPost("))
@@ -1523,7 +1535,9 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@Column(name = \"id\")"))
         assertTrue(content.contains("@Column(name = \"status\")"))
         assertTrue(content.contains("import jakarta.persistence.Convert"))
-        assertTrue(content.contains("@Convert(converter = Status.Converter::class)"))
+        assertTrue(content.contains("@Convert(converter = com.acme.demo.domain.shared.enums.Status.Converter::class)"))
+        assertTrue(content.contains("data class VideoPost("))
+        assertFalse(content.contains("\nclass VideoPost("))
         assertFalse(content.contains("@GeneratedValue"))
         assertFalse(content.contains("@Version"))
         assertFalse(content.contains("@DynamicInsert"))
