@@ -1491,7 +1491,7 @@ class PebbleArtifactRendererTest {
                                 "nullable" to false,
                                 "columnName" to "status",
                                 "isId" to false,
-                                "converterTypeRef" to "Status",
+                                "converterTypeRef" to "com.acme.demo.domain.shared.enums.Status",
                             ),
                         ),
                         "relationFields" to emptyList<Map<String, Any?>>(),
