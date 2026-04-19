@@ -18,15 +18,25 @@ internal object AggregatePersistenceProviderInference {
                 return@mapNotNull null
             }
 
+            val columnNames = table.columns.map { it.name.lowercase(Locale.ROOT) }.toSet()
+            val softDeleteColumn = table.softDeleteColumn
+            if (softDeleteColumn != null) {
+                require(softDeleteColumn.lowercase(Locale.ROOT) in columnNames) {
+                    "softDeleteColumn $softDeleteColumn does not exist on table ${table.tableName}"
+                }
+            }
+
             val fieldNameByColumnName = entity.fields.associateBy(
                 keySelector = { it.name.lowercase(Locale.ROOT) },
                 valueTransform = { it.name },
             )
-            val versionFieldName = table.columns
-                .firstOrNull { it.version == true }
-                ?.let { versionColumn ->
-                    fieldNameByColumnName[versionColumn.name.lowercase(Locale.ROOT)]
-                }
+            val versionColumns = table.columns.filter { it.version == true }
+            require(versionColumns.size <= 1) {
+                "multiple explicit version columns found for table ${table.tableName}"
+            }
+            val versionFieldName = versionColumns
+                .singleOrNull()
+                ?.let { versionColumn -> fieldNameByColumnName[versionColumn.name.lowercase(Locale.ROOT)] }
 
             AggregatePersistenceProviderControl(
                 entityName = entity.name,
@@ -34,7 +44,7 @@ internal object AggregatePersistenceProviderInference {
                 tableName = entity.tableName,
                 dynamicInsert = table.dynamicInsert,
                 dynamicUpdate = table.dynamicUpdate,
-                softDeleteColumn = table.softDeleteColumn,
+                softDeleteColumn = softDeleteColumn,
                 idFieldName = entity.idField.name,
                 versionFieldName = versionFieldName,
             )

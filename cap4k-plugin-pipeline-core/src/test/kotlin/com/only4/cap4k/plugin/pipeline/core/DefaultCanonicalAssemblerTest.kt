@@ -1406,6 +1406,63 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler fails fast when soft delete column does not exist on the table`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "@AggregateRoot=true;",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot("title", "VARCHAR", "String", false),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                                softDeleteColumn = "deletd",
+                            )
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals("softDeleteColumn deletd does not exist on table video_post", error.message)
+    }
+
+    @Test
+    fun `assembler fails fast when multiple version columns are marked explicitly`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "@AggregateRoot=true;",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot("version", "BIGINT", "Long", false, version = true),
+                                    DbColumnSnapshot("lock_version", "BIGINT", "Long", false, version = true),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                                dynamicUpdate = true,
+                            )
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals("multiple explicit version columns found for table video_post", error.message)
+    }
+
+    @Test
     fun `assembler preserves both parent and child relations for parent child table metadata`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
