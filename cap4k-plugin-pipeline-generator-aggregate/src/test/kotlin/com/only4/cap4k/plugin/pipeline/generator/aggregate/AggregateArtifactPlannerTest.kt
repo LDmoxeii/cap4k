@@ -352,6 +352,49 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner exposes provider specific persistence contract`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("version", "Long"),
+                FieldModel("deleted", "Int"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val artifact = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregatePersistenceProviderControls = listOf(
+                    com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl(
+                        entityName = "VideoPost",
+                        entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        tableName = "video_post",
+                        dynamicInsert = true,
+                        dynamicUpdate = true,
+                        softDeleteColumn = "deleted",
+                        idFieldName = "id",
+                        versionFieldName = "version",
+                    )
+                ),
+            )
+        ).single { it.templateId == "aggregate/entity.kt.peb" }
+
+        assertEquals(true, artifact.context["dynamicInsert"])
+        assertEquals(true, artifact.context["dynamicUpdate"])
+        assertEquals(
+            "update \"video_post\" set \"deleted\" = 1 where \"id\" = ? and \"version\" = ?",
+            artifact.context["softDeleteSql"],
+        )
+        assertEquals("\"deleted\" = 0", artifact.context["softDeleteWhereClause"])
+    }
+
+    @Test
     fun `entity planner keeps scalar fields when one to many join column matches owner column name`() {
         val entity = EntityModel(
             name = "VideoPost",

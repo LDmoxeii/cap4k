@@ -16,6 +16,18 @@ import jakarta.persistence.Version
 {% if hasConverterFields %}
 import jakarta.persistence.Convert
 {% endif %}
+{% if dynamicInsert %}
+import org.hibernate.annotations.DynamicInsert
+{% endif %}
+{% if dynamicUpdate %}
+import org.hibernate.annotations.DynamicUpdate
+{% endif %}
+{% if softDeleteSql %}
+import org.hibernate.annotations.SQLDelete
+{% endif %}
+{% if softDeleteWhereClause %}
+import org.hibernate.annotations.Where
+{% endif %}
 {% for import in imports(jpaImports) %}
 import {{ import }}
 {% endfor %}
@@ -25,6 +37,14 @@ import {{ import }}
 
 {% if entityJpa.entityEnabled %}@Entity
 @Table(name = "{{ entityJpa.tableName }}")
+{% if dynamicInsert %}@DynamicInsert
+{% endif %}
+{% if dynamicUpdate %}@DynamicUpdate
+{% endif %}
+{% if softDeleteSql %}@SQLDelete(sql = "{{ softDeleteSql | replace({'"': '\"'}) | raw }}")
+{% endif %}
+{% if softDeleteWhereClause %}@Where(clause = "{{ softDeleteWhereClause | replace({'"': '\"'}) | raw }}")
+{% endif %}
 {% endif %}
 {% if relationFields|length > 0 %}class{% else %}data class{% endif %} {{ typeName }}(
 {% for field in scalarFields %}

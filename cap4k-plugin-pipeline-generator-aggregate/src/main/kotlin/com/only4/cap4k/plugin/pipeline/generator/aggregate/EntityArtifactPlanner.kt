@@ -18,6 +18,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             val controlsByField = model.aggregatePersistenceFieldControls
                 .filter { it.entityName == entity.name && it.entityPackageName == entity.packageName }
                 .associateBy { it.fieldName }
+            val providerControl = model.aggregatePersistenceProviderControls.firstOrNull {
+                it.entityName == entity.name && it.entityPackageName == entity.packageName
+            }
             val relationPlan = AggregateRelationPlanning.planFor(entity, model.aggregateRelations)
             val relationJoinColumns = relationPlan.relationFields
                 .filter {
@@ -30,6 +33,17 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 }
                 .mapNotNull { it["joinColumn"] as? String }
                 .toSet()
+            val softDeleteSql = providerControl?.softDeleteColumn?.let { column ->
+                buildSoftDeleteSql(
+                    tableName = providerControl.tableName,
+                    softDeleteColumn = column,
+                    idFieldName = providerControl.idFieldName,
+                    versionFieldName = providerControl.versionFieldName,
+                )
+            }
+            val softDeleteWhereClause = providerControl?.softDeleteColumn?.let { column ->
+                "\"$column\" = 0"
+            }
             val scalarFields = entity.fields
                 .mapNotNull { field ->
                     val jpa = requireNotNull(scalarJpaByField[field.name]) {
@@ -87,6 +101,10 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         it["isId"] == true && it["generatedValueStrategy"] == "IDENTITY"
                     },
                     "hasVersionFields" to scalarFields.any { it["isVersion"] == true },
+                    "dynamicInsert" to (providerControl?.dynamicInsert == true),
+                    "dynamicUpdate" to (providerControl?.dynamicUpdate == true),
+                    "softDeleteSql" to softDeleteSql,
+                    "softDeleteWhereClause" to softDeleteWhereClause,
                     "jpaImports" to relationPlan.jpaImports,
                     "imports" to relationPlan.imports,
                     "fields" to scalarFields,
@@ -97,4 +115,16 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             )
         }
     }
+
+    private fun buildSoftDeleteSql(
+        tableName: String,
+        softDeleteColumn: String,
+        idFieldName: String,
+        versionFieldName: String?,
+    ): String =
+        if (versionFieldName != null) {
+            "update \"$tableName\" set \"$softDeleteColumn\" = 1 where \"$idFieldName\" = ? and \"$versionFieldName\" = ?"
+        } else {
+            "update \"$tableName\" set \"$softDeleteColumn\" = 1 where \"$idFieldName\" = ?"
+        }
 }

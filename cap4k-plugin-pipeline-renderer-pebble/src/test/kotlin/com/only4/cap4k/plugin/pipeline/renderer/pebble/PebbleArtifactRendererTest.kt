@@ -1921,9 +1921,80 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("import jakarta.persistence.GeneratedValue"))
         assertFalse(content.contains("import jakarta.persistence.GenerationType"))
         assertFalse(content.contains("import jakarta.persistence.Version"))
+        assertFalse(content.contains("import org.hibernate.annotations.DynamicInsert"))
+        assertFalse(content.contains("import org.hibernate.annotations.DynamicUpdate"))
+        assertFalse(content.contains("import org.hibernate.annotations.SQLDelete"))
+        assertFalse(content.contains("import org.hibernate.annotations.Where"))
         assertFalse(content.contains("@GeneratedValue"))
         assertFalse(content.contains("@Version"))
         assertTrue(content.contains("@Column(name = \"title\")"))
+    }
+
+    @Test
+    fun `aggregate entity template renders provider specific persistence controls`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-provider-persistence")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/entity.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                        "typeName" to "VideoPost",
+                        "comment" to "video post",
+                        "entityJpa" to mapOf(
+                            "entityEnabled" to true,
+                            "tableName" to "video_post",
+                        ),
+                        "hasConverterFields" to false,
+                        "hasGeneratedValueFields" to false,
+                        "hasVersionFields" to false,
+                        "dynamicInsert" to true,
+                        "dynamicUpdate" to true,
+                        "softDeleteSql" to "update \"video_post\" set \"deleted\" = 1 where \"id\" = ? and \"version\" = ?",
+                        "softDeleteWhereClause" to "\"deleted\" = 0",
+                        "scalarFields" to emptyList<Map<String, Any?>>(),
+                        "fields" to emptyList<Map<String, Any?>>(),
+                        "relationFields" to emptyList<Map<String, Any?>>(),
+                        "imports" to emptyList<String>(),
+                        "jpaImports" to emptyList<String>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+
+        assertTrue(content.contains("import org.hibernate.annotations.DynamicInsert"))
+        assertTrue(content.contains("import org.hibernate.annotations.DynamicUpdate"))
+        assertTrue(content.contains("import org.hibernate.annotations.SQLDelete"))
+        assertTrue(content.contains("import org.hibernate.annotations.Where"))
+        assertTrue(content.contains("@DynamicInsert"))
+        assertTrue(content.contains("@DynamicUpdate"))
+        assertTrue(content.contains("@SQLDelete(sql = \"update \\\"video_post\\\" set \\\"deleted\\\" = 1 where \\\"id\\\" = ? and \\\"version\\\" = ?\")"))
+        assertTrue(content.contains("@Where(clause = \"\\\"deleted\\\" = 0\")"))
     }
 
     @Test
