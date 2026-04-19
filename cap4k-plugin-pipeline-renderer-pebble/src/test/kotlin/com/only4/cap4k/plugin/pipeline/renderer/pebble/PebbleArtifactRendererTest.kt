@@ -1778,6 +1778,14 @@ class PebbleArtifactRendererTest {
                                 "isVersion" to true,
                             ),
                             mapOf(
+                                "fieldName" to "title",
+                                "fieldType" to "String",
+                                "name" to "title",
+                                "type" to "String",
+                                "columnName" to "title",
+                                "generatedValueStrategy" to "IDENTITY",
+                            ),
+                            mapOf(
                                 "fieldName" to "created_by",
                                 "fieldType" to "String",
                                 "name" to "created_by",
@@ -1799,6 +1807,7 @@ class PebbleArtifactRendererTest {
                         "fields" to listOf(
                             mapOf("fieldName" to "id", "fieldType" to "Long"),
                             mapOf("fieldName" to "version", "fieldType" to "Long"),
+                            mapOf("fieldName" to "title", "fieldType" to "String"),
                             mapOf("fieldName" to "created_by", "fieldType" to "String"),
                             mapOf("fieldName" to "updated_by", "fieldType" to "String"),
                         ),
@@ -1825,10 +1834,96 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
 
+        assertTrue(content.contains("import jakarta.persistence.GeneratedValue"))
+        assertTrue(content.contains("import jakarta.persistence.GenerationType"))
+        assertTrue(content.contains("import jakarta.persistence.Version"))
         assertTrue(content.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(content.contains("@Version"))
+        assertTrue(content.contains("@Column(name = \"version\")"))
+        assertTrue(content.contains("@Column(name = \"title\")"))
         assertTrue(content.contains("@Column(name = \"created_by\", insertable = false, updatable = true)"))
         assertTrue(content.contains("@Column(name = \"updated_by\", insertable = true, updatable = false)"))
+        assertFalse(content.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)\n    @Column(name = \"title\")"))
+    }
+
+    @Test
+    fun `aggregate entity template keeps bounded imports and plain column when persistence controls are absent`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-persistence-import-gating")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/entity.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                        "typeName" to "VideoPost",
+                        "comment" to "video post",
+                        "entityJpa" to mapOf(
+                            "entityEnabled" to true,
+                            "tableName" to "video_post",
+                        ),
+                        "hasConverterFields" to false,
+                        "hasGeneratedValueFields" to false,
+                        "hasVersionFields" to false,
+                        "scalarFields" to listOf(
+                            mapOf(
+                                "fieldName" to "id",
+                                "fieldType" to "Long",
+                                "name" to "id",
+                                "type" to "Long",
+                                "columnName" to "id",
+                                "isId" to true,
+                            ),
+                            mapOf(
+                                "fieldName" to "title",
+                                "fieldType" to "String",
+                                "name" to "title",
+                                "type" to "String",
+                                "columnName" to "title",
+                            ),
+                        ),
+                        "fields" to listOf(
+                            mapOf("fieldName" to "id", "fieldType" to "Long"),
+                            mapOf("fieldName" to "title", "fieldType" to "String"),
+                        ),
+                        "relationFields" to emptyList<Map<String, Any?>>(),
+                        "imports" to emptyList<String>(),
+                        "jpaImports" to emptyList<String>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+
+        assertFalse(content.contains("import jakarta.persistence.GeneratedValue"))
+        assertFalse(content.contains("import jakarta.persistence.GenerationType"))
+        assertFalse(content.contains("import jakarta.persistence.Version"))
+        assertFalse(content.contains("@GeneratedValue"))
+        assertFalse(content.contains("@Version"))
+        assertTrue(content.contains("@Column(name = \"title\")"))
     }
 
     @Test
