@@ -1732,6 +1732,106 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `aggregate entity template renders explicit persistence field behavior`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-persistence-field-behavior")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/entity.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                        "typeName" to "VideoPost",
+                        "comment" to "video post",
+                        "entityJpa" to mapOf(
+                            "entityEnabled" to true,
+                            "tableName" to "video_post",
+                        ),
+                        "hasConverterFields" to false,
+                        "hasGeneratedValueFields" to true,
+                        "hasVersionFields" to true,
+                        "scalarFields" to listOf(
+                            mapOf(
+                                "fieldName" to "id",
+                                "fieldType" to "Long",
+                                "name" to "id",
+                                "type" to "Long",
+                                "columnName" to "id",
+                                "isId" to true,
+                                "generatedValueStrategy" to "IDENTITY",
+                            ),
+                            mapOf(
+                                "fieldName" to "version",
+                                "fieldType" to "Long",
+                                "name" to "version",
+                                "type" to "Long",
+                                "columnName" to "version",
+                                "isVersion" to true,
+                            ),
+                            mapOf(
+                                "fieldName" to "created_by",
+                                "fieldType" to "String",
+                                "name" to "created_by",
+                                "type" to "String",
+                                "columnName" to "created_by",
+                                "insertable" to false,
+                                "updatable" to true,
+                            ),
+                            mapOf(
+                                "fieldName" to "updated_by",
+                                "fieldType" to "String",
+                                "name" to "updated_by",
+                                "type" to "String",
+                                "columnName" to "updated_by",
+                                "insertable" to true,
+                                "updatable" to false,
+                            ),
+                        ),
+                        "fields" to listOf(
+                            mapOf("fieldName" to "id", "fieldType" to "Long"),
+                            mapOf("fieldName" to "version", "fieldType" to "Long"),
+                            mapOf("fieldName" to "created_by", "fieldType" to "String"),
+                            mapOf("fieldName" to "updated_by", "fieldType" to "String"),
+                        ),
+                        "relationFields" to emptyList<Map<String, Any?>>(),
+                        "imports" to emptyList<String>(),
+                        "jpaImports" to emptyList<String>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+
+        assertTrue(content.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
+        assertTrue(content.contains("@Version"))
+        assertTrue(content.contains("@Column(name = \"created_by\", insertable = false, updatable = true)"))
+        assertTrue(content.contains("@Column(name = \"updated_by\", insertable = true, updatable = false)"))
+    }
+
+    @Test
     fun `falls back to preset aggregate enum and translation templates`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-enum")
         val renderer = PebbleArtifactRenderer(

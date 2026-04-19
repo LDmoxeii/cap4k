@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.generator.aggregate
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateColumnJpaModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateEntityJpaModel
+import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
@@ -121,6 +122,73 @@ class AggregateArtifactPlannerTest {
             "missing aggregate JPA metadata for com.acme.demo.domain.aggregates.video_post.VideoPost.title",
             ex.message,
         )
+    }
+
+    @Test
+    fun `entity planner exposes explicit persistence field behavior in render model`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("version", "Long"),
+                FieldModel("created_by", "String"),
+                FieldModel("updated_by", "String"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    defaultAggregateEntityJpa(entity)
+                ),
+                aggregatePersistenceFieldControls = listOf(
+                    AggregatePersistenceFieldControl(
+                        "VideoPost",
+                        "com.acme.demo.domain.aggregates.video_post",
+                        "id",
+                        "id",
+                        generatedValueStrategy = "IDENTITY",
+                    ),
+                    AggregatePersistenceFieldControl(
+                        "VideoPost",
+                        "com.acme.demo.domain.aggregates.video_post",
+                        "version",
+                        "version",
+                        version = true,
+                    ),
+                    AggregatePersistenceFieldControl(
+                        "VideoPost",
+                        "com.acme.demo.domain.aggregates.video_post",
+                        "created_by",
+                        "created_by",
+                        insertable = false,
+                    ),
+                    AggregatePersistenceFieldControl(
+                        "VideoPost",
+                        "com.acme.demo.domain.aggregates.video_post",
+                        "updated_by",
+                        "updated_by",
+                        updatable = false,
+                    ),
+                ),
+            )
+        )
+
+        val entityArtifact = plan.single { it.outputPath.endsWith("/VideoPost.kt") }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityArtifact.context["fields"] as List<Map<String, Any?>>
+
+        assertEquals("IDENTITY", scalarFields.single { it["fieldName"] == "id" }["generatedValueStrategy"])
+        assertEquals(true, scalarFields.single { it["fieldName"] == "version" }["isVersion"])
+        assertEquals(false, scalarFields.single { it["fieldName"] == "created_by" }["insertable"])
+        assertEquals(true, scalarFields.single { it["fieldName"] == "created_by" }["updatable"])
+        assertEquals(true, scalarFields.single { it["fieldName"] == "updated_by" }["insertable"])
+        assertEquals(false, scalarFields.single { it["fieldName"] == "updated_by" }["updatable"])
     }
 
     @Test

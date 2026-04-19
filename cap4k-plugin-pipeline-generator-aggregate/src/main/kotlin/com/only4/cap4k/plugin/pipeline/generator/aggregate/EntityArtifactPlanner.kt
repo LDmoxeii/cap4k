@@ -15,6 +15,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
             val scalarJpaByField = entityJpa?.columns.orEmpty().associateBy { it.fieldName }
+            val controlsByField = model.aggregatePersistenceFieldControls
+                .filter { it.entityName == entity.name && it.entityPackageName == entity.packageName }
+                .associateBy { it.fieldName }
             val relationPlan = AggregateRelationPlanning.planFor(entity, model.aggregateRelations)
             val relationJoinColumns = relationPlan.relationFields
                 .filter {
@@ -35,9 +38,13 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     if (jpa.columnName in relationJoinColumns) {
                         null
                     } else {
+                        val control = controlsByField[field.name]
+                        val fieldType = planning.resolveFieldType(entity.packageName, field)
                         mapOf(
+                            "fieldName" to field.name,
+                            "fieldType" to fieldType,
                             "name" to field.name,
-                            "type" to planning.resolveFieldType(entity.packageName, field),
+                            "type" to fieldType,
                             "nullable" to field.nullable,
                             "defaultValue" to field.defaultValue,
                             "typeBinding" to field.typeBinding,
@@ -45,6 +52,18 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "columnName" to jpa.columnName,
                             "isId" to jpa.isId,
                             "converterTypeRef" to jpa.converterTypeFqn,
+                            "generatedValueStrategy" to control?.generatedValueStrategy,
+                            "isVersion" to (control?.version == true),
+                            "insertable" to when {
+                                control?.insertable != null -> control.insertable
+                                control?.updatable != null -> true
+                                else -> null
+                            },
+                            "updatable" to when {
+                                control?.updatable != null -> control.updatable
+                                control?.insertable != null -> true
+                                else -> null
+                            },
                         )
                     }
                 }
@@ -64,6 +83,10 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     ),
                     "idField" to entity.idField,
                     "hasConverterFields" to scalarFields.any { it["converterTypeRef"] != null },
+                    "hasGeneratedValueFields" to scalarFields.any {
+                        it["isId"] == true && it["generatedValueStrategy"] == "IDENTITY"
+                    },
+                    "hasVersionFields" to scalarFields.any { it["isVersion"] == true },
                     "jpaImports" to relationPlan.jpaImports,
                     "imports" to relationPlan.imports,
                     "fields" to scalarFields,
