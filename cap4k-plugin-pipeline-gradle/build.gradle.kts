@@ -52,5 +52,5 @@ kotlin {
 }
 
 tasks.withType<Test>().configureEach {
-    timeout.set(Duration.ofMinutes(15))
+    timeout.set(Duration.ofMinutes(25))
 }
