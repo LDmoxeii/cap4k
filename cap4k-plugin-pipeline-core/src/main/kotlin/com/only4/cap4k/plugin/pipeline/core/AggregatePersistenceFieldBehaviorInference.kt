@@ -15,6 +15,10 @@ internal object AggregatePersistenceFieldBehaviorInference {
 
         return entities.flatMap { entity ->
             val table = tableByName[entity.tableName.lowercase(Locale.ROOT)] ?: return@flatMap emptyList()
+            val fieldNameByColumnName = entity.fields.associateBy(
+                keySelector = { it.name.lowercase(Locale.ROOT) },
+                valueTransform = { it.name },
+            )
             table.columns.mapNotNull { column ->
                 val hasExplicitControl =
                     column.generatedValueStrategy != null ||
@@ -27,7 +31,10 @@ internal object AggregatePersistenceFieldBehaviorInference {
 
                 AggregatePersistenceFieldControl(
                     entityName = entity.name,
-                    fieldName = toLowerCamelCase(column.name),
+                    entityPackageName = entity.packageName,
+                    fieldName = requireNotNull(fieldNameByColumnName[column.name.lowercase(Locale.ROOT)]) {
+                        "missing canonical entity field identity for ${entity.name}.${column.name}"
+                    },
                     columnName = column.name,
                     generatedValueStrategy = column.generatedValueStrategy,
                     version = column.version,
@@ -36,30 +43,5 @@ internal object AggregatePersistenceFieldBehaviorInference {
                 )
             }
         }
-    }
-
-    private fun toLowerCamelCase(value: String): String {
-        val trimmed = value.trim()
-        if (trimmed.isEmpty()) {
-            return value
-        }
-        if ('_' in trimmed) {
-            return trimmed
-                .split('_')
-                .filter { it.isNotBlank() }
-                .mapIndexed { index, part ->
-                    val normalized = part.lowercase(Locale.ROOT)
-                    if (index == 0) {
-                        normalized
-                    } else {
-                        normalized.replaceFirstChar { it.titlecase(Locale.ROOT) }
-                    }
-                }
-                .joinToString("")
-        }
-        if (trimmed.all { !it.isLetter() || it.isUpperCase() }) {
-            return trimmed.lowercase(Locale.ROOT)
-        }
-        return trimmed.replaceFirstChar { it.lowercase(Locale.ROOT) }
     }
 }

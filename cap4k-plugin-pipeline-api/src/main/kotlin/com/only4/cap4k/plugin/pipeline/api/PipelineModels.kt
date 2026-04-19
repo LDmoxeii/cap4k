@@ -200,6 +200,7 @@ data class AggregateEntityJpaModel(
 
 data class AggregatePersistenceFieldControl(
     val entityName: String,
+    val entityPackageName: String,
     val fieldName: String,
     val columnName: String,
     val generatedValueStrategy: String? = null,

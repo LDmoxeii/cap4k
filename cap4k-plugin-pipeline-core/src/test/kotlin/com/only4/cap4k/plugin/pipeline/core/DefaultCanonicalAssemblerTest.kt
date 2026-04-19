@@ -1268,12 +1268,18 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
+        val entity = result.model.entities.single()
         val controls = result.model.aggregatePersistenceFieldControls
 
+        assertEquals(entity.packageName, controls.single { it.fieldName == "id" }.entityPackageName)
+        assertEquals(entity.fields.single { it.name == "id" }.name, controls.single { it.columnName == "id" }.fieldName)
+        assertEquals(entity.fields.single { it.name == "version" }.name, controls.single { it.columnName == "version" }.fieldName)
+        assertEquals(entity.fields.single { it.name == "created_by" }.name, controls.single { it.columnName == "created_by" }.fieldName)
+        assertEquals(entity.fields.single { it.name == "updated_by" }.name, controls.single { it.columnName == "updated_by" }.fieldName)
         assertEquals("IDENTITY", controls.single { it.fieldName == "id" }.generatedValueStrategy)
         assertEquals(true, controls.single { it.fieldName == "version" }.version)
-        assertEquals(false, controls.single { it.fieldName == "createdBy" }.insertable)
-        assertEquals(false, controls.single { it.fieldName == "updatedBy" }.updatable)
+        assertEquals(false, controls.single { it.fieldName == "created_by" }.insertable)
+        assertEquals(false, controls.single { it.fieldName == "updated_by" }.updatable)
     }
 
     @Test
@@ -1326,6 +1332,7 @@ class DefaultCanonicalAssemblerTest {
         val controls = result.model.aggregatePersistenceFieldControls
 
         assertEquals(1, controls.size)
+        assertEquals(result.model.entities.single().packageName, controls.single().entityPackageName)
         assertEquals(false, controls.single().version)
         assertEquals("version", controls.single().fieldName)
     }
