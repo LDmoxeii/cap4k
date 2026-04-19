@@ -141,6 +141,21 @@ Traceability:
 
 - [aggregate relation parity design](specs/2026-04-18-cap4k-aggregate-relation-parity-design.md)
 
+### Phase F: Aggregate Persistence Control Mainline
+
+Completed:
+
+- aggregate JPA annotation fine-grained control parity
+
+Status:
+
+- the bounded aggregate persistence-control line is complete through first-slice Jakarta baseline JPA parity
+- aggregate-side persistence control now has bounded source carriage, canonical enrichment, planner and renderer consumption, functional generation coverage, and compile verification for entity/table/column baseline JPA output without reopening relation-side ownership or provider-specific behavior
+
+Traceability:
+
+- [aggregate JPA annotation fine-grained control parity design](specs/2026-04-19-cap4k-aggregate-jpa-annotation-fine-grained-control-parity-design.md)
+
 ## Current Mainline Contract
 
 These points remain in force:
@@ -161,24 +176,27 @@ The cross-generator reference boundary line is complete through aggregate enum /
 
 The bounded aggregate relation line is complete through first-slice relation parity.
 
+The bounded aggregate persistence-control line is complete through first-slice Jakarta baseline JPA parity.
+
 The next explicit framework slice is:
 
-- aggregate JPA annotation fine-grained control parity
+- aggregate persistence field-behavior parity
 
 Scope:
 
-- build on the now-stable bounded relation semantics rather than reopening relation inference itself
+- build on the now-stable aggregate relation and first-slice JPA baseline rather than reopening relation inference itself
 - keep the work inside the existing aggregate generator and aggregate-side rendering contract
-- focus on explicit JPA annotation controls that materially affect generated aggregate output
+- focus on bounded persistence field-behavior controls that materially affect generated aggregate output
+- recover `@GeneratedValue`, `@Version`, and scalar `@Column(insertable/updatable)` control without widening into provider-specific behavior
 - prove the control surface through planner, renderer, and bounded functional or compile verification
-- keep the slice bounded to JPA annotation control parity, not full aggregate-side completion
+- keep the slice bounded to persistence field-behavior parity, not full aggregate-side completion
 
 Non-goals:
 
 - do not restore mutable shared runtime type maps between generators
 - do not widen this slice into relation re-architecture, user-code-preservation parity, or general source-semantic recovery
 - do not broaden bootstrap beyond the current bounded contract
-- do not silently expand into full aggregate-side parity beyond bounded JPA control work
+- do not silently expand into relation-side JPA control, Hibernate-specific control, or full aggregate-side parity beyond bounded persistence field-behavior work
 - do not turn exploratory parity notes into a general rewrite of the current pipeline architecture
 
 ## Bootstrap Decision
