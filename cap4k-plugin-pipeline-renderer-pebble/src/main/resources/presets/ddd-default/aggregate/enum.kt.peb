@@ -1,7 +1,6 @@
 package {{ packageName }}
 
 import jakarta.persistence.AttributeConverter
-import jakarta.persistence.Converter
 
 enum class {{ typeName }}(
     val value: Int,
@@ -17,7 +16,7 @@ enum class {{ typeName }}(
         fun valueOfOrNull(value: Int?): {{ typeName }}? = enumMap[value]
     }
 
-    @Converter(autoApply = false)
+    @jakarta.persistence.Converter(autoApply = false)
     class Converter : AttributeConverter<{{ typeName }}, Int> {
         override fun convertToDatabaseColumn(attribute: {{ typeName }}?): Int? {
             return attribute?.value

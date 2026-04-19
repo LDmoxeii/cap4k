@@ -1357,12 +1357,12 @@ class PipelinePluginFunctionalTest {
         assertTrue(
             projectDir.resolve(
                 "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt"
-            ).readText().contains("@Converter(autoApply = false)")
+            ).readText().contains("@jakarta.persistence.Converter(autoApply = false)")
         )
         assertTrue(
             projectDir.resolve(
                 "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"
-            ).readText().contains("@Converter(autoApply = false)")
+            ).readText().contains("@jakarta.persistence.Converter(autoApply = false)")
         )
         assertFalse(generatedEntity.contains("@GeneratedValue"))
         assertFalse(generatedEntity.contains("@Version"))
