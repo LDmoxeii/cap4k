@@ -22,7 +22,7 @@ import {{ import }}
 {% if relationFields|length > 0 %}class{% else %}data class{% endif %} {{ typeName }}(
 {% for field in scalarFields %}
     {% if field.isId %}@Id {% endif %}@Column(name = "{{ field.columnName }}")
-    {% if field.converterTypeRef %}@Convert(converter = {{ field.type }}.Converter::class) {% endif %}
+    {% if field.converterTypeRef %}@Convert(converter = {{ field.converterTypeRef }}.Converter::class) {% endif %}
     val {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
 ){% if relationFields|length > 0 %} {

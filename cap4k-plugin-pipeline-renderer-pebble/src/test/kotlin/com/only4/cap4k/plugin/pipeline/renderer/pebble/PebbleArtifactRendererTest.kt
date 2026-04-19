@@ -1475,6 +1475,7 @@ class PebbleArtifactRendererTest {
                             "entityEnabled" to true,
                             "tableName" to "video_post",
                         ),
+                        "hasConverterFields" to true,
                         "scalarFields" to listOf(
                             mapOf(
                                 "name" to "id",
@@ -1486,15 +1487,15 @@ class PebbleArtifactRendererTest {
                             ),
                             mapOf(
                                 "name" to "status",
-                                "type" to "Status",
+                                "type" to "com.acme.demo.domain.shared.enums.Status",
                                 "nullable" to false,
                                 "columnName" to "status",
                                 "isId" to false,
-                                "converterTypeRef" to "com.acme.demo.domain.shared.enums.Status",
+                                "converterTypeRef" to "Status",
                             ),
                         ),
                         "relationFields" to emptyList<Map<String, Any?>>(),
-                        "imports" to listOf("com.acme.demo.domain.shared.enums.Status"),
+                        "imports" to emptyList<String>(),
                         "jpaImports" to emptyList<String>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP,
@@ -1521,6 +1522,7 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@Id"))
         assertTrue(content.contains("@Column(name = \"id\")"))
         assertTrue(content.contains("@Column(name = \"status\")"))
+        assertTrue(content.contains("import jakarta.persistence.Convert"))
         assertTrue(content.contains("@Convert(converter = Status.Converter::class)"))
         assertFalse(content.contains("@GeneratedValue"))
         assertFalse(content.contains("@Version"))
