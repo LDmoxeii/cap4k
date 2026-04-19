@@ -74,11 +74,52 @@ class AggregateArtifactPlannerTest {
 
         assertEquals(true, entityJpa["entityEnabled"])
         assertEquals("video_post", entityJpa["tableName"])
+        assertEquals(true, entityItem.context["hasConverterFields"])
         assertEquals(true, scalarFields.single { it["name"] == "id" }["isId"])
         assertEquals("id", scalarFields.single { it["name"] == "id" }["columnName"])
         assertEquals(
             "com.acme.demo.domain.shared.enums.Status",
             scalarFields.single { it["name"] == "status" }["converterTypeRef"]
+        )
+    }
+
+    @Test
+    fun `entity planner fails fast when scalar aggregate JPA metadata is missing`() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            AggregateArtifactPlanner().plan(
+                aggregateConfig(),
+                CanonicalModel(
+                    entities = listOf(
+                        EntityModel(
+                            name = "VideoPost",
+                            packageName = "com.acme.demo.domain.aggregates.video_post",
+                            tableName = "video_post",
+                            comment = "video post",
+                            fields = listOf(
+                                FieldModel("id", "Long"),
+                                FieldModel("title", "String"),
+                            ),
+                            idField = FieldModel("id", "Long"),
+                        )
+                    ),
+                    aggregateEntityJpa = listOf(
+                        AggregateEntityJpaModel(
+                            entityName = "VideoPost",
+                            entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                            entityEnabled = true,
+                            tableName = "video_post",
+                            columns = listOf(
+                                AggregateColumnJpaModel("id", "id", true, null),
+                            ),
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals(
+            "missing aggregate JPA metadata for com.acme.demo.domain.aggregates.video_post.VideoPost.title",
+            ex.message,
         )
     }
 
