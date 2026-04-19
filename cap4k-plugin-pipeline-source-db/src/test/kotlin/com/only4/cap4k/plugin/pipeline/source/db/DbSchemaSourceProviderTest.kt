@@ -184,6 +184,57 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
+    fun `provider carries explicit provider specific table metadata into db snapshot`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-provider-persistence-table;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table video_post (
+                        id bigint primary key comment '@GeneratedValue=IDENTITY;',
+                        version bigint not null comment '@Version=true;',
+                        deleted int not null,
+                        title varchar(128) not null
+                    );
+                    """.trimIndent()
+                )
+                statement.execute(
+                    "comment on table video_post is '@AggregateRoot=true;@DynamicInsert=true;@DynamicUpdate=true;@SoftDeleteColumn=deleted;'"
+                )
+            }
+        }
+
+        val snapshot = DbSchemaSourceProvider().collect(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "url" to url,
+                            "username" to "sa",
+                            "password" to "",
+                            "schema" to "PUBLIC",
+                            "includeTables" to listOf("video_post"),
+                            "excludeTables" to emptyList<String>(),
+                        )
+                    )
+                ),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        ) as DbSchemaSnapshot
+
+        val table = snapshot.tables.single { it.tableName.equals("VIDEO_POST", true) }
+
+        assertEquals(true, table.dynamicInsert)
+        assertEquals(true, table.dynamicUpdate)
+        assertEquals("deleted", table.softDeleteColumn)
+    }
+
+    @Test
     fun `provider preserves explicit false for version annotation`() {
         val url = "jdbc:h2:mem:cap4k-db-source-persistence-field-version-false;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->

@@ -13,6 +13,7 @@ import java.util.Locale
 class DbSchemaSourceProvider : SourceProvider {
     override val id: String = "db"
     private val relationAnnotationParser = DbRelationAnnotationParser()
+    private val tableAnnotationParser = DbTableAnnotationParser
 
     override fun collect(config: ProjectConfig): DbSchemaSnapshot {
         val source = requireNotNull(config.sources[id]) { "Missing db source config" }
@@ -70,7 +71,7 @@ class DbSchemaSourceProvider : SourceProvider {
         val tableComment = metadata.getTables(null, schema, tableName, arrayOf("TABLE")).use { rows ->
             if (rows.next()) rows.getString("REMARKS") ?: "" else ""
         }
-        val tableRelationMetadata = relationAnnotationParser.parseTable(tableComment)
+        val tableMetadata = tableAnnotationParser.parse(tableComment)
         val primaryKey = metadata.getPrimaryKeys(null, schema, tableName).use { rows ->
             buildList {
                 while (rows.next()) {
@@ -147,13 +148,16 @@ class DbSchemaSourceProvider : SourceProvider {
 
         return DbTableSnapshot(
             tableName = tableName,
-            comment = tableRelationMetadata.cleanedComment,
+            comment = tableMetadata.cleanedComment,
             columns = columns,
             primaryKey = primaryKey,
             uniqueConstraints = uniqueConstraints,
-            parentTable = tableRelationMetadata.parentTable,
-            aggregateRoot = tableRelationMetadata.aggregateRoot,
-            valueObject = tableRelationMetadata.valueObject,
+            parentTable = tableMetadata.parentTable,
+            aggregateRoot = tableMetadata.aggregateRoot,
+            valueObject = tableMetadata.valueObject,
+            dynamicInsert = tableMetadata.dynamicInsert,
+            dynamicUpdate = tableMetadata.dynamicUpdate,
+            softDeleteColumn = tableMetadata.softDeleteColumn,
         )
     }
 

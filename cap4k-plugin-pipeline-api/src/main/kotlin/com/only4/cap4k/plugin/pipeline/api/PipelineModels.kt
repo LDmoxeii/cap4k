@@ -38,6 +38,9 @@ data class DbTableSnapshot(
     val parentTable: String? = null,
     val aggregateRoot: Boolean = true,
     val valueObject: Boolean = false,
+    val dynamicInsert: Boolean? = null,
+    val dynamicUpdate: Boolean? = null,
+    val softDeleteColumn: String? = null,
 )
 
 data class DesignSpecEntry(
