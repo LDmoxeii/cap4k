@@ -1541,7 +1541,9 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("@GeneratedValue"))
         assertFalse(content.contains("@Version"))
         assertFalse(content.contains("@DynamicInsert"))
+        assertFalse(content.contains("@DynamicUpdate"))
         assertFalse(content.contains("@SQLDelete"))
+        assertFalse(content.contains("@Where"))
     }
 
     @Test
