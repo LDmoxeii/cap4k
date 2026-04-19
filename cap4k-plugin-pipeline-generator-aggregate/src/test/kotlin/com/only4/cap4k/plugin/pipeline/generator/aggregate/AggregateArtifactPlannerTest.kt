@@ -193,6 +193,68 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner excludes relation backed scalar fields when field name differs from JPA column name`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("title", "String"),
+                FieldModel("authorId", "Long", nullable = true),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        entityEnabled = true,
+                        tableName = entity.tableName,
+                        columns = listOf(
+                            AggregateColumnJpaModel("id", "id", true, null),
+                            AggregateColumnJpaModel("title", "title", false, null),
+                            AggregateColumnJpaModel("authorId", "author_id", false, null),
+                        ),
+                    )
+                ),
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "author",
+                        targetEntityName = "UserProfile",
+                        targetEntityPackageName = "com.acme.demo.domain.identity.user",
+                        relationType = AggregateRelationType.MANY_TO_ONE,
+                        joinColumn = "author_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                    )
+                )
+            )
+        )
+
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityItem.context["scalarFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val fields = entityItem.context["fields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val relationFields = entityItem.context["relationFields"] as List<Map<String, Any?>>
+
+        assertEquals(listOf("id", "title"), scalarFields.map { it["name"] })
+        assertEquals(listOf("id", "title"), fields.map { it["name"] })
+        assertEquals(listOf("id", "title"), scalarFields.map { it["columnName"] })
+        assertEquals("author_id", relationFields.single()["joinColumn"])
+        assertEquals("author", relationFields.single()["name"])
+    }
+
+    @Test
     fun `entity planner relation nullability is sourced from canonical relation model`() {
         val entity = EntityModel(
             name = "VideoPost",

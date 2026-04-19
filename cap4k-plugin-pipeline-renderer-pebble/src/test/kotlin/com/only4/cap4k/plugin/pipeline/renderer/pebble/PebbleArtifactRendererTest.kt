@@ -1491,6 +1491,98 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `aggregate entity preset does not double map join column when scalar field name differs from column name`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-relation-column-boundary")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/entity.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                        "typeName" to "VideoPost",
+                        "comment" to "video post",
+                        "entityJpa" to mapOf(
+                            "entityEnabled" to true,
+                            "tableName" to "video_post",
+                        ),
+                        "hasConverterFields" to false,
+                        "jpaImports" to listOf(
+                            "jakarta.persistence.FetchType",
+                            "jakarta.persistence.JoinColumn",
+                            "jakarta.persistence.ManyToOne",
+                        ),
+                        "imports" to listOf("com.acme.demo.domain.identity.user.UserProfile"),
+                        "scalarFields" to listOf(
+                            mapOf(
+                                "name" to "id",
+                                "type" to "Long",
+                                "nullable" to false,
+                                "columnName" to "id",
+                                "isId" to true,
+                                "converterTypeRef" to null,
+                            ),
+                            mapOf(
+                                "name" to "title",
+                                "type" to "String",
+                                "nullable" to false,
+                                "columnName" to "title",
+                                "isId" to false,
+                                "converterTypeRef" to null,
+                            ),
+                        ),
+                        "fields" to listOf(
+                            mapOf("name" to "id", "type" to "Long", "nullable" to false),
+                            mapOf("name" to "title", "type" to "String", "nullable" to false),
+                        ),
+                        "relationFields" to listOf(
+                            mapOf(
+                                "name" to "author",
+                                "targetType" to "UserProfile",
+                                "targetTypeRef" to "UserProfile",
+                                "targetPackageName" to "com.acme.demo.domain.identity.user",
+                                "relationType" to "MANY_TO_ONE",
+                                "fetchType" to "LAZY",
+                                "joinColumn" to "author_id",
+                                "nullable" to false,
+                            ),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+
+        assertTrue(content.contains("@JoinColumn(name = \"author_id\")"))
+        assertTrue(content.contains("lateinit var author: UserProfile"))
+        assertFalse(content.contains("@Column(name = \"author_id\")"))
+        assertFalse(content.contains("val authorId:"))
+    }
+
+    @Test
     fun `aggregate entity preset does not render unsupported relation types`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-unsupported-relation")
         val renderer = PebbleArtifactRenderer(

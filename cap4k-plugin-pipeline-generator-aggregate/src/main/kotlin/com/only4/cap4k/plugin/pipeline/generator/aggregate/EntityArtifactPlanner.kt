@@ -19,23 +19,26 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 .mapNotNull { it["joinColumn"] as? String }
                 .toSet()
             val scalarFields = entity.fields
-                .filterNot { it.name in relationJoinColumns }
-                .map { field ->
-                val jpa = requireNotNull(scalarJpaByField[field.name]) {
-                    "missing aggregate JPA metadata for ${entity.packageName}.${entity.name}.${field.name}"
+                .mapNotNull { field ->
+                    val jpa = requireNotNull(scalarJpaByField[field.name]) {
+                        "missing aggregate JPA metadata for ${entity.packageName}.${entity.name}.${field.name}"
+                    }
+                    if (jpa.columnName in relationJoinColumns) {
+                        null
+                    } else {
+                        mapOf(
+                            "name" to field.name,
+                            "type" to planning.resolveFieldType(entity.packageName, field),
+                            "nullable" to field.nullable,
+                            "defaultValue" to field.defaultValue,
+                            "typeBinding" to field.typeBinding,
+                            "enumItems" to field.enumItems,
+                            "columnName" to jpa.columnName,
+                            "isId" to jpa.isId,
+                            "converterTypeRef" to jpa.converterTypeFqn,
+                        )
+                    }
                 }
-                mapOf(
-                    "name" to field.name,
-                    "type" to planning.resolveFieldType(entity.packageName, field),
-                    "nullable" to field.nullable,
-                    "defaultValue" to field.defaultValue,
-                    "typeBinding" to field.typeBinding,
-                    "enumItems" to field.enumItems,
-                    "columnName" to jpa.columnName,
-                    "isId" to jpa.isId,
-                    "converterTypeRef" to jpa.converterTypeFqn,
-                )
-            }
             ArtifactPlanItem(
                 generatorId = "aggregate",
                 moduleRole = "domain",
