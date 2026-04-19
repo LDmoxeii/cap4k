@@ -241,6 +241,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             entities = entities,
             schema = dbSnapshot,
         )
+        val aggregatePersistenceProviderControls = AggregatePersistenceProviderInference.infer(
+            entities = entities,
+            tables = supportedTables,
+        )
 
         val diagnostics = buildDiagnostics(
             snapshot = dbSnapshot,
@@ -304,6 +308,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 aggregateRelations = aggregateRelations,
                 aggregateEntityJpa = aggregateEntityJpa,
                 aggregatePersistenceFieldControls = aggregatePersistenceFieldControls,
+                aggregatePersistenceProviderControls = aggregatePersistenceProviderControls,
             ),
             diagnostics = diagnostics,
         )

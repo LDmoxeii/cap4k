@@ -212,6 +212,17 @@ data class AggregatePersistenceFieldControl(
     val updatable: Boolean? = null,
 )
 
+data class AggregatePersistenceProviderControl(
+    val entityName: String,
+    val entityPackageName: String,
+    val tableName: String,
+    val dynamicInsert: Boolean? = null,
+    val dynamicUpdate: Boolean? = null,
+    val softDeleteColumn: String? = null,
+    val idFieldName: String,
+    val versionFieldName: String? = null,
+)
+
 data class RepositoryModel(
     val name: String,
     val packageName: String,
@@ -330,6 +341,7 @@ data class CanonicalModel(
     val aggregateRelations: List<AggregateRelationModel> = emptyList(),
     val aggregateEntityJpa: List<AggregateEntityJpaModel> = emptyList(),
     val aggregatePersistenceFieldControls: List<AggregatePersistenceFieldControl> = emptyList(),
+    val aggregatePersistenceProviderControls: List<AggregatePersistenceProviderControl> = emptyList(),
 )
 
 data class UnsupportedAggregateTable(

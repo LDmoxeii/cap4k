@@ -1338,6 +1338,74 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler records explicit aggregate provider persistence controls`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "@AggregateRoot=true;",
+                            columns = listOf(
+                                DbColumnSnapshot(
+                                    "id",
+                                    "BIGINT",
+                                    "Long",
+                                    false,
+                                    isPrimaryKey = true,
+                                    generatedValueStrategy = "IDENTITY"
+                                ),
+                                DbColumnSnapshot("version", "BIGINT", "Long", false, version = true),
+                                DbColumnSnapshot("deleted", "INT", "Int", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            dynamicInsert = true,
+                            dynamicUpdate = true,
+                            softDeleteColumn = "deleted",
+                        )
+                    )
+                )
+            )
+        )
+
+        val control = result.model.aggregatePersistenceProviderControls.single()
+
+        assertEquals("VideoPost", control.entityName)
+        assertEquals(true, control.dynamicInsert)
+        assertEquals(true, control.dynamicUpdate)
+        assertEquals("deleted", control.softDeleteColumn)
+        assertEquals("id", control.idFieldName)
+        assertEquals("version", control.versionFieldName)
+    }
+
+    @Test
+    fun `assembler does not infer provider controls when source is silent`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "@AggregateRoot=true;",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("title", "VARCHAR", "String", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                )
+            )
+        )
+
+        assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl>(), result.model.aggregatePersistenceProviderControls)
+    }
+
+    @Test
     fun `assembler preserves both parent and child relations for parent child table metadata`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
