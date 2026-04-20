@@ -131,15 +131,17 @@ Traceability:
 Completed:
 
 - aggregate relation parity
+- aggregate relation-side JPA control parity
 
 Status:
 
-- the bounded aggregate relation line is complete through first-slice relation parity
-- aggregate-side relation work now has bounded source carriage, canonical inference, planner and renderer consumption, functional generation coverage, compile verification, and explicit scope guards against unsupported relation forms
+- the bounded aggregate relation line is complete through relation-side JPA control parity
+- aggregate-side relation work now has bounded source carriage, canonical inference, planner and renderer consumption, functional generation coverage, compile verification, and first-slice relation-side JPA control for `ONE_TO_MANY`, `MANY_TO_ONE`, and `ONE_TO_ONE`, while advanced relation forms remain explicitly separated
 
 Traceability:
 
 - [aggregate relation parity design](specs/2026-04-18-cap4k-aggregate-relation-parity-design.md)
+- [aggregate relation-side JPA control parity design](specs/2026-04-20-cap4k-aggregate-relation-side-jpa-control-parity-design.md)
 
 ### Phase F: Aggregate Persistence Control Mainline
 
@@ -178,29 +180,29 @@ The original design-generator quality mainline is complete, and the bounded boot
 
 The cross-generator reference boundary line is complete through aggregate enum / enum-translation parity.
 
-The bounded aggregate relation line is complete through first-slice relation parity.
+The bounded aggregate relation line is complete through relation-side JPA control parity.
 
 The bounded aggregate persistence-control line is complete through first-slice provider-specific persistence parity.
 
 The next explicit framework slice is:
 
-- aggregate relation-side JPA control parity
+- aggregate advanced relation forms parity
 
 Scope:
 
-- build on the now-stable aggregate relation semantics and persistence-control line rather than reopening relation inference itself
+- build on the now-stable aggregate relation semantics and relation-side JPA control line rather than reopening relation inference from scratch
 - keep the work inside the existing aggregate generator and aggregate-side rendering contract
-- focus on bounded relation-side JPA control that materially affects generated aggregate relation output
-- recover explicit relation-side controls such as `cascade`, `orphanRemoval`, `mappedBy`, relation-side `insertable/updatable = false`, and other bounded ownership-aware relation annotations where the current aggregate relation model can support them
-- prove the control surface through planner, renderer, and bounded functional or compile verification
-- keep the slice bounded to relation-side JPA control parity, not full aggregate-side completion
+- focus on the advanced relation forms that were intentionally excluded from the bounded relation and relation-side JPA slices
+- recover bounded ownership-aware advanced relation behavior such as `mappedBy`, `@JoinTable`, `ManyToMany`, inverse or read-only join-column control like `insertable/updatable = false`, and closely related relation-form metadata only where the aggregate relation model can support it cleanly
+- prove the advanced relation forms through planner, renderer, and bounded functional or compile verification
+- keep the slice bounded to advanced relation forms parity, not full aggregate-side completion or relation re-architecture
 
 Non-goals:
 
 - do not restore mutable shared runtime type maps between generators
 - do not widen this slice into relation re-architecture, user-code-preservation parity, or general source-semantic recovery
 - do not broaden bootstrap beyond the current bounded contract
-- do not silently expand into many-to-many support, full provider-specific recovery, or full aggregate-side parity beyond bounded relation-side JPA control work
+- do not silently expand into full provider-specific recovery, broader persistence recovery, or full aggregate-side parity beyond bounded advanced relation forms work
 - do not turn exploratory parity notes into a general rewrite of the current pipeline architecture
 
 ## Bootstrap Decision
