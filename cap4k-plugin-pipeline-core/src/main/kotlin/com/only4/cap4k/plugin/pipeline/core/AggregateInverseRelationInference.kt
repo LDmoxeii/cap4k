@@ -17,7 +17,7 @@ internal object AggregateInverseRelationInference {
     private data class RelationKey(
         val owner: EntityKey,
         val target: EntityKey,
-        val joinColumn: String,
+        val joinColumnKey: String,
         val relationType: AggregateRelationType,
     )
 
@@ -53,14 +53,14 @@ internal object AggregateInverseRelationInference {
                         RelationKey(
                             owner = childKey,
                             target = parentKey,
-                            joinColumn = relation.joinColumn,
+                            joinColumnKey = normalizedJoinColumnKey(relation.joinColumn),
                             relationType = AggregateRelationType.MANY_TO_ONE,
                         )
                     ) || explicitOwnerRelations.contains(
                         RelationKey(
                             owner = childKey,
                             target = parentKey,
-                            joinColumn = relation.joinColumn,
+                            joinColumnKey = normalizedJoinColumnKey(relation.joinColumn),
                             relationType = AggregateRelationType.ONE_TO_ONE,
                         )
                     )
@@ -107,7 +107,7 @@ internal object AggregateInverseRelationInference {
                 RelationKey(
                     owner = EntityKey(ownerEntity.packageName, ownerEntity.name),
                     target = EntityKey(targetEntity.packageName, targetEntity.name),
-                    joinColumn = column.name,
+                    joinColumnKey = normalizedJoinColumnKey(column.name),
                     relationType = relationType,
                 )
             }
@@ -123,6 +123,8 @@ internal object AggregateInverseRelationInference {
     }
 
     private fun tableKey(tableName: String): String = tableName.lowercase(Locale.ROOT)
+
+    private fun normalizedJoinColumnKey(joinColumn: String): String = joinColumn.lowercase(Locale.ROOT)
 
     private fun lowerFirst(value: String): String =
         if (value.isEmpty()) value else value.substring(0, 1).lowercase(Locale.ROOT) + value.substring(1)
