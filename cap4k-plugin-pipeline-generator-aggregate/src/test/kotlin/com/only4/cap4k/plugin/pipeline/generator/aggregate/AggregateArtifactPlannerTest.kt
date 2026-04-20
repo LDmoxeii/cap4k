@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.generator.aggregate
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateColumnJpaModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateEntityJpaModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateInverseRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
@@ -322,6 +323,146 @@ class AggregateArtifactPlannerTest {
         assertEquals(listOf("id", "title"), scalarFields.map { it["columnName"] })
         assertEquals("author_id", relationFields.single()["joinColumn"])
         assertEquals("author", relationFields.single()["name"])
+    }
+
+    @Test
+    fun `entity planner keeps scalar foreign key and adds inverse read only relation`() {
+        val entity = EntityModel(
+            name = "VideoPostItem",
+            packageName = "com.acme.demo.domain.aggregates.video_post_item",
+            tableName = "video_post_item",
+            comment = "video post item",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("label", "String"),
+                FieldModel("videoPostId", "Long"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        entityEnabled = true,
+                        tableName = entity.tableName,
+                        columns = listOf(
+                            AggregateColumnJpaModel("id", "id", true, null),
+                            AggregateColumnJpaModel("label", "label", false, null),
+                            AggregateColumnJpaModel("videoPostId", "video_post_id", false, null),
+                        ),
+                    )
+                ),
+                aggregateInverseRelations = listOf(
+                    AggregateInverseRelationModel(
+                        ownerEntityName = "VideoPostItem",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post_item",
+                        fieldName = "videoPost",
+                        targetEntityName = "VideoPost",
+                        targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        relationType = AggregateRelationType.MANY_TO_ONE,
+                        joinColumn = "video_post_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        insertable = false,
+                        updatable = false,
+                    )
+                ),
+            )
+        )
+
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityItem.context["scalarFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val relationFields = entityItem.context["relationFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val imports = entityItem.context["imports"] as List<String>
+        @Suppress("UNCHECKED_CAST")
+        val jpaImports = entityItem.context["jpaImports"] as List<String>
+
+        val relation = relationFields.single()
+        assertEquals(listOf("id", "label", "videoPostId"), scalarFields.map { it["name"] })
+        assertEquals(listOf("id", "label", "video_post_id"), scalarFields.map { it["columnName"] })
+        assertEquals(listOf("videoPost"), relationFields.map { it["name"] })
+        assertEquals("MANY_TO_ONE", relation["relationType"])
+        assertEquals("video_post_id", relation["joinColumn"])
+        assertEquals("LAZY", relation["fetchType"])
+        assertEquals(false, relation["nullable"])
+        assertEquals(true, relation["readOnly"])
+        assertEquals(false, relation["insertable"])
+        assertEquals(false, relation["updatable"])
+        assertEquals(listOf("com.acme.demo.domain.aggregates.video_post.VideoPost"), imports)
+        assertEquals(
+            listOf(
+                "jakarta.persistence.FetchType",
+                "jakarta.persistence.JoinColumn",
+                "jakarta.persistence.ManyToOne",
+            ),
+            jpaImports,
+        )
+    }
+
+    @Test
+    fun `entity planner still drops scalar field for owner side relation join columns`() {
+        val entity = EntityModel(
+            name = "VideoPostItem",
+            packageName = "com.acme.demo.domain.aggregates.video_post_item",
+            tableName = "video_post_item",
+            comment = "video post item",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("label", "String"),
+                FieldModel("videoPostId", "Long"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        entityEnabled = true,
+                        tableName = entity.tableName,
+                        columns = listOf(
+                            AggregateColumnJpaModel("id", "id", true, null),
+                            AggregateColumnJpaModel("label", "label", false, null),
+                            AggregateColumnJpaModel("videoPostId", "video_post_id", false, null),
+                        ),
+                    )
+                ),
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPostItem",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post_item",
+                        fieldName = "videoPost",
+                        targetEntityName = "VideoPost",
+                        targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        relationType = AggregateRelationType.MANY_TO_ONE,
+                        joinColumn = "video_post_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                    )
+                ),
+            )
+        )
+
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityItem.context["scalarFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val relationFields = entityItem.context["relationFields"] as List<Map<String, Any?>>
+
+        assertEquals(listOf("id", "label"), scalarFields.map { it["name"] })
+        assertEquals(listOf("id", "label"), scalarFields.map { it["columnName"] })
+        assertEquals(listOf("videoPost"), relationFields.map { it["name"] })
+        assertEquals("video_post_id", relationFields.single()["joinColumn"])
     }
 
     @Test

@@ -21,13 +21,17 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             val providerControl = model.aggregatePersistenceProviderControls.firstOrNull {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
-            val relationPlan = AggregateRelationPlanning.planFor(entity, model.aggregateRelations)
+            val relationPlan = AggregateRelationPlanning.planFor(
+                entity = entity,
+                relations = model.aggregateRelations,
+                inverseRelations = model.aggregateInverseRelations,
+            )
             val relationJoinColumns = relationPlan.relationFields
                 .filter {
                     when (it["relationType"]) {
                         AggregateRelationType.MANY_TO_ONE.name,
                         AggregateRelationType.ONE_TO_ONE.name,
-                        -> true
+                        -> it["readOnly"] != true
                         else -> false
                     }
                 }
