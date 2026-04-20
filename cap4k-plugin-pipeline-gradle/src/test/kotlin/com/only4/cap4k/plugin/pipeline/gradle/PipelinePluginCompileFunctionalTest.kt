@@ -278,6 +278,12 @@ class PipelinePluginCompileFunctionalTest {
             projectDir,
             ":demo-domain:compileKotlin"
         )
+        val generatedRootEntity = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+        ).readText()
+        val generatedChildEntity = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post_item/VideoPostItem.kt"
+        ).readText()
 
         assertGeneratedFilesExist(
             projectDir,
@@ -285,6 +291,21 @@ class PipelinePluginCompileFunctionalTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post_item/VideoPostItem.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_profile/UserProfile.kt",
         )
+        assertTrue(generatedRootEntity.contains("import jakarta.persistence.CascadeType"))
+        assertTrue(generatedRootEntity.contains("@ManyToOne(fetch = FetchType.LAZY)"))
+        assertTrue(generatedRootEntity.contains("@JoinColumn(name = \"author_id\", nullable = false)"))
+        assertTrue(generatedRootEntity.contains("@OneToOne(fetch = FetchType.EAGER)"))
+        assertTrue(generatedRootEntity.contains("@JoinColumn(name = \"cover_profile_id\", nullable = true)"))
+        assertTrue(
+            generatedRootEntity.contains(
+                "@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)"
+            )
+        )
+        assertTrue(generatedRootEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
+        assertFalse(generatedRootEntity.contains("mappedBy ="))
+        assertTrue(generatedChildEntity.contains("@ManyToOne(fetch = FetchType.LAZY)"))
+        assertTrue(generatedChildEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
+        assertFalse(generatedChildEntity.contains("mappedBy ="))
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
