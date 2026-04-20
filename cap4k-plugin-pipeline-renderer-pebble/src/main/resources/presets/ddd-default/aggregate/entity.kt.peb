@@ -70,8 +70,8 @@ import {{ import }}
     @JoinColumn(name = "{{ relation.joinColumn }}", nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %})
     {% if relation.nullable %}var {{ relation.name }}: {{ relation.targetTypeRef }}? = null{% else %}lateinit var {{ relation.name }}: {{ relation.targetTypeRef }}{% endif %}
 {% elseif relation.relationType == "ONE_TO_MANY" %}
-    @OneToMany(fetch = FetchType.{{ relation.fetchType }}, cascade = [CascadeType.ALL], orphanRemoval = true)
-    @JoinColumn(name = "{{ relation.joinColumn }}", nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %})
+    @OneToMany(fetch = FetchType.{{ relation.fetchType }}{% if relation.cascadeAll %}, cascade = [CascadeType.ALL]{% endif %}, orphanRemoval = {{ relation.orphanRemoval }})
+    @JoinColumn(name = "{{ relation.joinColumn }}", nullable = {{ relation.joinColumnNullable }})
     var {{ relation.name }}: List<{{ relation.targetTypeRef }}> = emptyList()
 {% endif %}
 {% endfor %}

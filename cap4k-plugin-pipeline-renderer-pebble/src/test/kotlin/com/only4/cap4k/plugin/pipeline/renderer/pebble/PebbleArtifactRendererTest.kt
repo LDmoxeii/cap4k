@@ -1353,6 +1353,8 @@ class PebbleArtifactRendererTest {
                                 "relationType" to "ONE_TO_MANY",
                                 "fetchType" to "LAZY",
                                 "joinColumn" to "video_post_id",
+                                "cascadeAll" to true,
+                                "orphanRemoval" to true,
                                 "joinColumnNullable" to false,
                             )
                         ),
@@ -1505,6 +1507,92 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@JoinColumn(name = \"author_id\", nullable = false)"))
         assertTrue(content.contains("@JoinColumn(name = \"cover_profile_id\", nullable = true)"))
         assertFalse(content.contains("@OneToMany("))
+    }
+
+    @Test
+    fun `aggregate entity preset renders one-to-many controls from planner flags`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-collection-controls")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/entity.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                        "typeName" to "VideoPost",
+                        "comment" to "video post",
+                        "entityJpa" to mapOf(
+                            "entityEnabled" to true,
+                            "tableName" to "video_post",
+                        ),
+                        "jpaImports" to listOf(
+                            "jakarta.persistence.FetchType",
+                            "jakarta.persistence.JoinColumn",
+                            "jakarta.persistence.OneToMany",
+                        ),
+                        "imports" to listOf(
+                            "com.acme.demo.domain.aggregates.video_post.item.VideoPostItem",
+                        ),
+                        "scalarFields" to listOf(
+                            mapOf(
+                                "name" to "id",
+                                "type" to "Long",
+                                "nullable" to false,
+                                "columnName" to "id",
+                                "isId" to true,
+                                "converterTypeRef" to null,
+                            )
+                        ),
+                        "fields" to listOf(
+                            mapOf("name" to "id", "type" to "Long", "nullable" to false)
+                        ),
+                        "relationFields" to listOf(
+                            mapOf(
+                                "name" to "items",
+                                "targetType" to "VideoPostItem",
+                                "targetTypeRef" to "VideoPostItem",
+                                "targetPackageName" to "com.acme.demo.domain.aggregates.video_post.item",
+                                "relationType" to "ONE_TO_MANY",
+                                "fetchType" to "LAZY",
+                                "joinColumn" to "video_post_id",
+                                "cascadeAll" to false,
+                                "orphanRemoval" to false,
+                                "joinColumnNullable" to false,
+                            )
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+
+        assertFalse(content.contains("import jakarta.persistence.CascadeType"))
+        assertTrue(content.contains("@OneToMany(fetch = FetchType.LAZY, orphanRemoval = false)"))
+        assertFalse(content.contains("cascade = [CascadeType.ALL]"))
+        assertTrue(content.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
     }
 
     @Test
