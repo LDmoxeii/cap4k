@@ -176,6 +176,20 @@ data class AggregateRelationModel(
     val joinColumnNullable: Boolean? = null,
 )
 
+data class AggregateInverseRelationModel(
+    val ownerEntityName: String,
+    val ownerEntityPackageName: String,
+    val fieldName: String,
+    val targetEntityName: String,
+    val targetEntityPackageName: String,
+    val relationType: AggregateRelationType,
+    val joinColumn: String,
+    val fetchType: AggregateFetchType,
+    val nullable: Boolean = false,
+    val insertable: Boolean = false,
+    val updatable: Boolean = false,
+)
+
 data class EntityModel(
     val name: String,
     val packageName: String,
@@ -342,6 +356,7 @@ data class CanonicalModel(
     val apiPayloads: List<ApiPayloadModel> = emptyList(),
     val sharedEnums: List<SharedEnumDefinition> = emptyList(),
     val aggregateRelations: List<AggregateRelationModel> = emptyList(),
+    val aggregateInverseRelations: List<AggregateInverseRelationModel> = emptyList(),
     val aggregateEntityJpa: List<AggregateEntityJpaModel> = emptyList(),
     val aggregatePersistenceFieldControls: List<AggregatePersistenceFieldControl> = emptyList(),
     val aggregatePersistenceProviderControls: List<AggregatePersistenceProviderControl> = emptyList(),

@@ -31,6 +31,7 @@ import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class DefaultCanonicalAssemblerTest {
@@ -1557,6 +1558,110 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(true, oneToMany.cascadeAll)
         assertEquals(true, oneToMany.orphanRemoval)
         assertEquals(false, oneToMany.joinColumnNullable)
+    }
+
+    @Test
+    fun `assembler derives inverse read only parent relation from parent child truth`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("title", "VARCHAR", "String", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "video_post_item",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("video_post_id", "BIGINT", "Long", false, referenceTable = "video_post"),
+                                DbColumnSnapshot("label", "VARCHAR", "String", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "video_post",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                    )
+                )
+            )
+        )
+
+        val inverse = result.model.aggregateInverseRelations.single()
+
+        assertEquals("VideoPostItem", inverse.ownerEntityName)
+        assertEquals("videoPost", inverse.fieldName)
+        assertEquals("VideoPost", inverse.targetEntityName)
+        assertEquals(AggregateRelationType.MANY_TO_ONE, inverse.relationType)
+        assertEquals("video_post_id", inverse.joinColumn)
+        assertEquals(AggregateFetchType.LAZY, inverse.fetchType)
+        assertEquals(false, inverse.nullable)
+        assertEquals(false, inverse.insertable)
+        assertEquals(false, inverse.updatable)
+    }
+
+    @Test
+    fun `assembler suppresses inverse read only relation when explicit owner side relation already exists`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("title", "VARCHAR", "String", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "video_post_item",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "video_post_id",
+                                    dbType = "BIGINT",
+                                    kotlinType = "Long",
+                                    nullable = false,
+                                    referenceTable = "video_post",
+                                    explicitRelationType = "MANY_TO_ONE",
+                                    lazy = true,
+                                ),
+                                DbColumnSnapshot("label", "VARCHAR", "String", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "video_post",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                    )
+                )
+            )
+        )
+
+        assertTrue(result.model.aggregateInverseRelations.isEmpty())
+        assertEquals(
+            1,
+            result.model.aggregateRelations.count {
+                it.ownerEntityName == "VideoPostItem" &&
+                    it.targetEntityName == "VideoPost" &&
+                    it.relationType == AggregateRelationType.MANY_TO_ONE
+            },
+        )
     }
 
     @Test

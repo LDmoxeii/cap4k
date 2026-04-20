@@ -231,6 +231,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             )
         }
         val entities = aggregateModels.map { it.second }
+        val aggregateInverseRelations = AggregateInverseRelationInference.infer(
+            entities = entities,
+            relations = aggregateRelations,
+            tables = supportedTables,
+        )
         val aggregateEntityJpa = AggregateJpaControlInference.fromModel(
             entities = entities,
             schema = dbSnapshot,
@@ -306,6 +311,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 drawingBoard = drawingBoard,
                 sharedEnums = sharedEnums,
                 aggregateRelations = aggregateRelations,
+                aggregateInverseRelations = aggregateInverseRelations,
                 aggregateEntityJpa = aggregateEntityJpa,
                 aggregatePersistenceFieldControls = aggregatePersistenceFieldControls,
                 aggregatePersistenceProviderControls = aggregatePersistenceProviderControls,
