@@ -669,7 +669,11 @@ class AggregateArtifactPlannerTest {
         val coverProfile = relationFields.single { it["name"] == "coverProfile" }
         val items = relationFields.single { it["name"] == "items" }
 
+        assertEquals(false, author["cascadeAll"])
+        assertEquals(false, author["orphanRemoval"])
         assertEquals(false, author["joinColumnNullable"])
+        assertEquals(false, coverProfile["cascadeAll"])
+        assertEquals(false, coverProfile["orphanRemoval"])
         assertEquals(true, coverProfile["joinColumnNullable"])
         assertEquals(true, items["cascadeAll"])
         assertEquals(true, items["orphanRemoval"])
@@ -729,8 +733,25 @@ class AggregateArtifactPlannerTest {
 
         val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
         @Suppress("UNCHECKED_CAST")
+        val relationFields = entityItem.context["relationFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
         val jpaImports = entityItem.context["jpaImports"] as List<String>
 
+        val author = relationFields.single { it["name"] == "author" }
+        val coverProfile = relationFields.single { it["name"] == "coverProfile" }
+
+        assertTrue(author.containsKey("joinColumnNullable"))
+        assertTrue(author.containsKey("cascadeAll"))
+        assertTrue(author.containsKey("orphanRemoval"))
+        assertEquals(false, author["joinColumnNullable"])
+        assertEquals(false, author["cascadeAll"])
+        assertEquals(false, author["orphanRemoval"])
+        assertTrue(coverProfile.containsKey("joinColumnNullable"))
+        assertTrue(coverProfile.containsKey("cascadeAll"))
+        assertTrue(coverProfile.containsKey("orphanRemoval"))
+        assertEquals(true, coverProfile["joinColumnNullable"])
+        assertEquals(false, coverProfile["cascadeAll"])
+        assertEquals(false, coverProfile["orphanRemoval"])
         assertEquals(false, jpaImports.contains("jakarta.persistence.CascadeType"))
     }
 
