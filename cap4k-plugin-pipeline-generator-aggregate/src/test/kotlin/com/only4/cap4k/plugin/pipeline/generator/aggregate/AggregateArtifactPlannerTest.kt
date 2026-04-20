@@ -596,6 +596,145 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner exposes bounded relation side controls across supported relation types`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("author_id", "Long"),
+                FieldModel("cover_profile_id", "Long"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    defaultAggregateEntityJpa(entity)
+                ),
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "author",
+                        targetEntityName = "Author",
+                        targetEntityPackageName = "com.acme.demo.domain.identity.author",
+                        relationType = AggregateRelationType.MANY_TO_ONE,
+                        joinColumn = "author_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        joinColumnNullable = false,
+                    ),
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "coverProfile",
+                        targetEntityName = "CoverProfile",
+                        targetEntityPackageName = "com.acme.demo.domain.media.cover",
+                        relationType = AggregateRelationType.ONE_TO_ONE,
+                        joinColumn = "cover_profile_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        joinColumnNullable = true,
+                    ),
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "items",
+                        targetEntityName = "VideoPostItem",
+                        targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post_item",
+                        relationType = AggregateRelationType.ONE_TO_MANY,
+                        joinColumn = "video_post_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        cascadeAll = true,
+                        orphanRemoval = true,
+                        joinColumnNullable = false,
+                    ),
+                )
+            )
+        )
+
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val relationFields = entityItem.context["relationFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val jpaImports = entityItem.context["jpaImports"] as List<String>
+
+        val author = relationFields.single { it["name"] == "author" }
+        val coverProfile = relationFields.single { it["name"] == "coverProfile" }
+        val items = relationFields.single { it["name"] == "items" }
+
+        assertEquals(false, author["joinColumnNullable"])
+        assertEquals(true, coverProfile["joinColumnNullable"])
+        assertEquals(true, items["cascadeAll"])
+        assertEquals(true, items["orphanRemoval"])
+        assertEquals(false, items["joinColumnNullable"])
+        assertTrue(jpaImports.contains("jakarta.persistence.CascadeType"))
+    }
+
+    @Test
+    fun `entity planner skips cascade type import when only direct relations are planned`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("author_id", "Long"),
+                FieldModel("cover_profile_id", "Long"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    defaultAggregateEntityJpa(entity)
+                ),
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "author",
+                        targetEntityName = "Author",
+                        targetEntityPackageName = "com.acme.demo.domain.identity.author",
+                        relationType = AggregateRelationType.MANY_TO_ONE,
+                        joinColumn = "author_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        joinColumnNullable = false,
+                    ),
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "coverProfile",
+                        targetEntityName = "CoverProfile",
+                        targetEntityPackageName = "com.acme.demo.domain.media.cover",
+                        relationType = AggregateRelationType.ONE_TO_ONE,
+                        joinColumn = "cover_profile_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        joinColumnNullable = true,
+                    ),
+                )
+            )
+        )
+
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val jpaImports = entityItem.context["jpaImports"] as List<String>
+
+        assertEquals(false, jpaImports.contains("jakarta.persistence.CascadeType"))
+    }
+
+    @Test
     fun `plans schema entity and repository artifacts into domain and adapter modules`() {
         val config = ProjectConfig(
             basePackage = "com.acme.demo",
