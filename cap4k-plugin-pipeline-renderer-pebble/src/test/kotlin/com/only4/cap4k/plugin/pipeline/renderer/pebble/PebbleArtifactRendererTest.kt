@@ -1272,8 +1272,144 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `aggregate entity preset renders bounded relation fields`() {
+    fun `aggregate entity preset renders bounded relation-side jpa controls`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-relation")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/entity.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                        "typeName" to "VideoPost",
+                        "comment" to "video post",
+                        "entityJpa" to mapOf(
+                            "entityEnabled" to true,
+                            "tableName" to "video_post",
+                        ),
+                        "jpaImports" to listOf(
+                            "jakarta.persistence.CascadeType",
+                            "jakarta.persistence.FetchType",
+                            "jakarta.persistence.JoinColumn",
+                            "jakarta.persistence.ManyToOne",
+                            "jakarta.persistence.OneToMany",
+                            "jakarta.persistence.OneToOne",
+                        ),
+                        "imports" to listOf(
+                            "com.acme.demo.domain.identity.user.UserProfile",
+                            "com.acme.demo.domain.identity.user.CoverProfile",
+                            "com.acme.demo.domain.aggregates.video_post.item.VideoPostItem",
+                        ),
+                        "scalarFields" to listOf(
+                            mapOf(
+                                "name" to "id",
+                                "type" to "Long",
+                                "nullable" to false,
+                                "columnName" to "id",
+                                "isId" to true,
+                                "converterTypeRef" to null,
+                            )
+                        ),
+                        "fields" to listOf(
+                            mapOf("name" to "id", "type" to "Long", "nullable" to false)
+                        ),
+                        "relationFields" to listOf(
+                            mapOf(
+                                "name" to "author",
+                                "targetType" to "UserProfile",
+                                "targetTypeRef" to "UserProfile",
+                                "targetPackageName" to "com.acme.demo.domain.identity.user",
+                                "relationType" to "MANY_TO_ONE",
+                                "fetchType" to "LAZY",
+                                "joinColumn" to "author_id",
+                                "nullable" to true,
+                                "joinColumnNullable" to false,
+                            ),
+                            mapOf(
+                                "name" to "coverProfile",
+                                "targetType" to "CoverProfile",
+                                "targetTypeRef" to "CoverProfile",
+                                "targetPackageName" to "com.acme.demo.domain.identity.user",
+                                "relationType" to "ONE_TO_ONE",
+                                "fetchType" to "LAZY",
+                                "joinColumn" to "cover_profile_id",
+                                "nullable" to true,
+                                "joinColumnNullable" to true,
+                            ),
+                            mapOf(
+                                "name" to "items",
+                                "targetType" to "VideoPostItem",
+                                "targetTypeRef" to "VideoPostItem",
+                                "targetPackageName" to "com.acme.demo.domain.aggregates.video_post.item",
+                                "relationType" to "ONE_TO_MANY",
+                                "fetchType" to "LAZY",
+                                "joinColumn" to "video_post_id",
+                                "joinColumnNullable" to false,
+                            )
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        val constructorSection = content.substringBefore(") {")
+        val bodySection = content.substringAfter(") {")
+        assertTrue(content.contains("import jakarta.persistence.CascadeType"))
+        assertTrue(content.contains("import jakarta.persistence.FetchType"))
+        assertTrue(content.contains("import jakarta.persistence.JoinColumn"))
+        assertTrue(content.contains("import jakarta.persistence.ManyToOne"))
+        assertTrue(content.contains("import jakarta.persistence.OneToMany"))
+        assertTrue(content.contains("import jakarta.persistence.OneToOne"))
+        assertTrue(content.contains("@Entity"))
+        assertTrue(content.contains("@Table(name = \"video_post\")"))
+        assertTrue(content.contains("import com.acme.demo.domain.identity.user.UserProfile"))
+        assertTrue(content.contains("import com.acme.demo.domain.identity.user.CoverProfile"))
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.video_post.item.VideoPostItem"))
+        assertTrue(content.contains("class VideoPost("))
+        assertFalse(content.contains("data class VideoPost("))
+        assertTrue(content.contains(") {"))
+        assertTrue(constructorSection.contains("val id: Long"))
+        assertFalse(constructorSection.contains("author"))
+        assertFalse(constructorSection.contains("coverProfile"))
+        assertFalse(constructorSection.contains("items"))
+        assertTrue(content.contains("@ManyToOne(fetch = FetchType.LAZY)"))
+        assertTrue(content.contains("@JoinColumn(name = \"author_id\", nullable = false)"))
+        assertTrue(bodySection.contains("var author: UserProfile? = null"))
+        assertTrue(content.contains("@OneToOne(fetch = FetchType.LAZY)"))
+        assertTrue(bodySection.contains("@JoinColumn(name = \"cover_profile_id\", nullable = true)"))
+        assertTrue(bodySection.contains("var coverProfile: CoverProfile? = null"))
+        assertTrue(content.contains("@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)"))
+        assertTrue(content.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
+        assertFalse(content.contains("mappedBy ="))
+        assertTrue(bodySection.contains("var items: List<VideoPostItem> = emptyList()"))
+    }
+
+    @Test
+    fun `aggregate entity preset does not render cascade type import for direct-only relation controls`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-direct-relation")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -1300,11 +1436,11 @@ class PebbleArtifactRendererTest {
                             "jakarta.persistence.FetchType",
                             "jakarta.persistence.JoinColumn",
                             "jakarta.persistence.ManyToOne",
-                            "jakarta.persistence.OneToMany",
+                            "jakarta.persistence.OneToOne",
                         ),
                         "imports" to listOf(
                             "com.acme.demo.domain.identity.user.UserProfile",
-                            "com.acme.demo.domain.aggregates.video_post.item.VideoPostItem",
+                            "com.acme.demo.domain.identity.user.CoverProfile",
                         ),
                         "scalarFields" to listOf(
                             mapOf(
@@ -1328,26 +1464,19 @@ class PebbleArtifactRendererTest {
                                 "relationType" to "MANY_TO_ONE",
                                 "fetchType" to "LAZY",
                                 "joinColumn" to "author_id",
-                                "nullable" to true,
-                            ),
-                            mapOf(
-                                "name" to "editor",
-                                "targetType" to "UserProfile",
-                                "targetTypeRef" to "UserProfile",
-                                "targetPackageName" to "com.acme.demo.domain.identity.user",
-                                "relationType" to "MANY_TO_ONE",
-                                "fetchType" to "LAZY",
-                                "joinColumn" to "editor_id",
                                 "nullable" to false,
+                                "joinColumnNullable" to false,
                             ),
                             mapOf(
-                                "name" to "items",
-                                "targetType" to "VideoPostItem",
-                                "targetTypeRef" to "VideoPostItem",
-                                "targetPackageName" to "com.acme.demo.domain.aggregates.video_post.item",
-                                "relationType" to "ONE_TO_MANY",
+                                "name" to "coverProfile",
+                                "targetType" to "CoverProfile",
+                                "targetTypeRef" to "CoverProfile",
+                                "targetPackageName" to "com.acme.demo.domain.identity.user",
+                                "relationType" to "ONE_TO_ONE",
                                 "fetchType" to "LAZY",
-                                "joinColumn" to "video_post_id",
+                                "joinColumn" to "cover_profile_id",
+                                "nullable" to true,
+                                "joinColumnNullable" to true,
                             )
                         ),
                     ),
@@ -1369,33 +1498,13 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
-        val constructorSection = content.substringBefore(") {")
-        val bodySection = content.substringAfter(") {")
-        assertTrue(content.contains("import jakarta.persistence.FetchType"))
-        assertTrue(content.contains("import jakarta.persistence.JoinColumn"))
+
         assertTrue(content.contains("import jakarta.persistence.ManyToOne"))
-        assertTrue(content.contains("import jakarta.persistence.OneToMany"))
-        assertFalse(content.contains("import jakarta.persistence.OneToOne"))
-        assertTrue(content.contains("@Entity"))
-        assertTrue(content.contains("@Table(name = \"video_post\")"))
-        assertTrue(content.contains("import com.acme.demo.domain.identity.user.UserProfile"))
-        assertTrue(content.contains("import com.acme.demo.domain.aggregates.video_post.item.VideoPostItem"))
-        assertTrue(content.contains("class VideoPost("))
-        assertFalse(content.contains("data class VideoPost("))
-        assertTrue(content.contains(") {"))
-        assertTrue(constructorSection.contains("val id: Long"))
-        assertFalse(constructorSection.contains("author"))
-        assertFalse(constructorSection.contains("editor"))
-        assertFalse(constructorSection.contains("items"))
-        assertTrue(content.contains("@ManyToOne(fetch = FetchType.LAZY)"))
-        assertTrue(content.contains("@JoinColumn(name = \"author_id\")"))
-        assertTrue(bodySection.contains("var author: UserProfile? = null"))
-        assertTrue(bodySection.contains("@JoinColumn(name = \"editor_id\")"))
-        assertTrue(bodySection.contains("lateinit var editor: UserProfile"))
-        assertTrue(content.contains("@OneToMany(fetch = FetchType.LAZY)"))
-        assertTrue(content.contains("@JoinColumn(name = \"video_post_id\")"))
-        assertFalse(content.contains("mappedBy = \"video_post_id\""))
-        assertTrue(bodySection.contains("var items: List<VideoPostItem> = emptyList()"))
+        assertTrue(content.contains("import jakarta.persistence.OneToOne"))
+        assertFalse(content.contains("import jakarta.persistence.CascadeType"))
+        assertTrue(content.contains("@JoinColumn(name = \"author_id\", nullable = false)"))
+        assertTrue(content.contains("@JoinColumn(name = \"cover_profile_id\", nullable = true)"))
+        assertFalse(content.contains("@OneToMany("))
     }
 
     @Test
@@ -1462,6 +1571,7 @@ class PebbleArtifactRendererTest {
                                 "fetchType" to "LAZY",
                                 "joinColumn" to "author_id",
                                 "nullable" to false,
+                                "joinColumnNullable" to false,
                             ),
                         ),
                     ),
@@ -1484,7 +1594,7 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
 
-        assertTrue(content.contains("@JoinColumn(name = \"author_id\")"))
+        assertTrue(content.contains("@JoinColumn(name = \"author_id\", nullable = false)"))
         assertTrue(content.contains("lateinit var author: UserProfile"))
         assertFalse(content.contains("@Column(name = \"author_id\")"))
         assertFalse(content.contains("val author_id:"))
@@ -1554,6 +1664,7 @@ class PebbleArtifactRendererTest {
                                 "fetchType" to "LAZY",
                                 "joinColumn" to "author_id",
                                 "nullable" to false,
+                                "joinColumnNullable" to false,
                             ),
                         ),
                     ),
@@ -1576,7 +1687,7 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
 
-        assertTrue(content.contains("@JoinColumn(name = \"author_id\")"))
+        assertTrue(content.contains("@JoinColumn(name = \"author_id\", nullable = false)"))
         assertTrue(content.contains("lateinit var author: UserProfile"))
         assertFalse(content.contains("@Column(name = \"author_id\")"))
         assertFalse(content.contains("val authorId:"))
