@@ -1554,9 +1554,9 @@ class DefaultCanonicalAssemblerTest {
         )
 
         val oneToMany = result.model.aggregateRelations.first { it.relationType == AggregateRelationType.ONE_TO_MANY }
-        assertEquals(true, relationBooleanProperty(oneToMany, "cascadeAll"))
-        assertEquals(true, relationBooleanProperty(oneToMany, "orphanRemoval"))
-        assertEquals(false, relationNullableBooleanProperty(oneToMany, "joinColumnNullable"))
+        assertEquals(true, oneToMany.cascadeAll)
+        assertEquals(true, oneToMany.orphanRemoval)
+        assertEquals(false, oneToMany.joinColumnNullable)
     }
 
     @Test
@@ -1858,7 +1858,14 @@ class DefaultCanonicalAssemblerTest {
                             comment = "",
                             columns = listOf(
                                 DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                DbColumnSnapshot("author_id", "BIGINT", "Long", false, referenceTable = "user_profile"),
+                                DbColumnSnapshot(
+                                    name = "author_id",
+                                    dbType = "BIGINT",
+                                    kotlinType = "Long",
+                                    nullable = false,
+                                    explicitRelationType = "MANY_TO_ONE",
+                                    referenceTable = "user_profile",
+                                ),
                                 DbColumnSnapshot(
                                     name = "cover_id",
                                     dbType = "BIGINT",
@@ -1891,14 +1898,14 @@ class DefaultCanonicalAssemblerTest {
         )
 
         val manyToOne = result.model.aggregateRelations.first { it.relationType == AggregateRelationType.MANY_TO_ONE }
-        assertEquals(false, relationBooleanProperty(manyToOne, "cascadeAll"))
-        assertEquals(false, relationBooleanProperty(manyToOne, "orphanRemoval"))
-        assertEquals(false, relationNullableBooleanProperty(manyToOne, "joinColumnNullable"))
+        assertEquals(false, manyToOne.cascadeAll)
+        assertEquals(false, manyToOne.orphanRemoval)
+        assertEquals(false, manyToOne.joinColumnNullable)
 
         val oneToOne = result.model.aggregateRelations.first { it.relationType == AggregateRelationType.ONE_TO_ONE }
-        assertEquals(false, relationBooleanProperty(oneToOne, "cascadeAll"))
-        assertEquals(false, relationBooleanProperty(oneToOne, "orphanRemoval"))
-        assertEquals(true, relationNullableBooleanProperty(oneToOne, "joinColumnNullable"))
+        assertEquals(false, oneToOne.cascadeAll)
+        assertEquals(false, oneToOne.orphanRemoval)
+        assertEquals(true, oneToOne.joinColumnNullable)
     }
 
     @Test
@@ -2661,26 +2668,4 @@ class DefaultCanonicalAssemblerTest {
     }
 
     private fun aggregateProjectConfig(): ProjectConfig = baseAggregateConfig()
-
-    private fun relationBooleanProperty(relation: Any, propertyName: String): Boolean {
-        val value = relationPropertyValue(relation, propertyName)
-        return value as? Boolean
-            ?: throw AssertionError("aggregate relation property is not Boolean: $propertyName")
-    }
-
-    private fun relationNullableBooleanProperty(relation: Any, propertyName: String): Boolean? {
-        val value = relationPropertyValue(relation, propertyName)
-        if (value == null) {
-            return null
-        }
-        return value as? Boolean
-            ?: throw AssertionError("aggregate relation property is not Boolean?: $propertyName")
-    }
-
-    private fun relationPropertyValue(relation: Any, propertyName: String): Any? {
-        val getterName = "get${propertyName.replaceFirstChar { it.uppercase() }}"
-        val getter = relation.javaClass.methods.firstOrNull { it.name == getterName && it.parameterCount == 0 }
-            ?: throw AssertionError("aggregate relation property is missing: $propertyName")
-        return getter.invoke(relation)
-    }
 }
