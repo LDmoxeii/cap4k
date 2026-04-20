@@ -87,6 +87,9 @@ internal object AggregateRelationInference {
                     joinColumn = joinColumn,
                     fetchType = AggregateFetchType.LAZY,
                     nullable = false,
+                    cascadeAll = true,
+                    orphanRemoval = true,
+                    joinColumnNullable = false,
                 )
             }
 
@@ -116,6 +119,9 @@ internal object AggregateRelationInference {
                         joinColumn = column.name,
                         fetchType = if (column.lazy == true) AggregateFetchType.LAZY else AggregateFetchType.EAGER,
                         nullable = column.nullable,
+                        cascadeAll = false,
+                        orphanRemoval = false,
+                        joinColumnNullable = column.nullable,
                     )
                 }
         }

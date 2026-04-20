@@ -1519,6 +1519,47 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler enriches parent child one to many with bounded relation controls`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            aggregateRoot = true,
+                        ),
+                        DbTableSnapshot(
+                            tableName = "video_post_item",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("video_post_id", "BIGINT", "Long", false, referenceTable = "video_post"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "video_post",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                    )
+                )
+            )
+        )
+
+        val oneToMany = result.model.aggregateRelations.first { it.relationType == AggregateRelationType.ONE_TO_MANY }
+        assertEquals(true, relationBooleanProperty(oneToMany, "cascadeAll"))
+        assertEquals(true, relationBooleanProperty(oneToMany, "orphanRemoval"))
+        assertEquals(false, relationNullableBooleanProperty(oneToMany, "joinColumnNullable"))
+    }
+
+    @Test
     fun `assembler rejects ambiguous parent child join columns`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
@@ -1803,6 +1844,61 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("MediaAsset", relation.targetEntityName)
         assertEquals(AggregateFetchType.LAZY, relation.fetchType)
         assertEquals(false, relation.nullable)
+    }
+
+    @Test
+    fun `assembler preserves bounded join column nullability for explicit many to one and one to one`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("author_id", "BIGINT", "Long", false, referenceTable = "user_profile"),
+                                DbColumnSnapshot(
+                                    name = "cover_id",
+                                    dbType = "BIGINT",
+                                    kotlinType = "Long",
+                                    nullable = true,
+                                    explicitRelationType = "ONE_TO_ONE",
+                                    referenceTable = "media_asset",
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "user_profile",
+                            comment = "",
+                            columns = listOf(DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true)),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "media_asset",
+                            comment = "",
+                            columns = listOf(DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true)),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                    )
+                )
+            )
+        )
+
+        val manyToOne = result.model.aggregateRelations.first { it.relationType == AggregateRelationType.MANY_TO_ONE }
+        assertEquals(false, relationBooleanProperty(manyToOne, "cascadeAll"))
+        assertEquals(false, relationBooleanProperty(manyToOne, "orphanRemoval"))
+        assertEquals(false, relationNullableBooleanProperty(manyToOne, "joinColumnNullable"))
+
+        val oneToOne = result.model.aggregateRelations.first { it.relationType == AggregateRelationType.ONE_TO_ONE }
+        assertEquals(false, relationBooleanProperty(oneToOne, "cascadeAll"))
+        assertEquals(false, relationBooleanProperty(oneToOne, "orphanRemoval"))
+        assertEquals(true, relationNullableBooleanProperty(oneToOne, "joinColumnNullable"))
     }
 
     @Test
@@ -2565,4 +2661,26 @@ class DefaultCanonicalAssemblerTest {
     }
 
     private fun aggregateProjectConfig(): ProjectConfig = baseAggregateConfig()
+
+    private fun relationBooleanProperty(relation: Any, propertyName: String): Boolean {
+        val value = relationPropertyValue(relation, propertyName)
+        return value as? Boolean
+            ?: throw AssertionError("aggregate relation property is not Boolean: $propertyName")
+    }
+
+    private fun relationNullableBooleanProperty(relation: Any, propertyName: String): Boolean? {
+        val value = relationPropertyValue(relation, propertyName)
+        if (value == null) {
+            return null
+        }
+        return value as? Boolean
+            ?: throw AssertionError("aggregate relation property is not Boolean?: $propertyName")
+    }
+
+    private fun relationPropertyValue(relation: Any, propertyName: String): Any? {
+        val getterName = "get${propertyName.replaceFirstChar { it.uppercase() }}"
+        val getter = relation.javaClass.methods.firstOrNull { it.name == getterName && it.parameterCount == 0 }
+            ?: throw AssertionError("aggregate relation property is missing: $propertyName")
+        return getter.invoke(relation)
+    }
 }

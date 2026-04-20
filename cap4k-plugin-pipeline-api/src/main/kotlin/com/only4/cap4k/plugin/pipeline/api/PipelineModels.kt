@@ -171,6 +171,9 @@ data class AggregateRelationModel(
     val joinColumn: String,
     val fetchType: AggregateFetchType,
     val nullable: Boolean,
+    val cascadeAll: Boolean = false,
+    val orphanRemoval: Boolean = false,
+    val joinColumnNullable: Boolean? = null,
 )
 
 data class EntityModel(
