@@ -66,4 +66,30 @@ class DbTableAnnotationParserTest {
 
         assertEquals("conflicting @SoftDeleteColumn annotations on the same table comment.", error.message)
     }
+
+    @Test
+    fun `parser extracts bounded entity id generator from table comment`() {
+        val metadata = DbTableAnnotationParser.parse("@AggregateRoot=true;@IdGenerator=snowflakeIdGenerator;")
+
+        assertEquals(true, metadata.aggregateRoot)
+        assertEquals("snowflakeIdGenerator", metadata.entityIdGenerator)
+    }
+
+    @Test
+    fun `parser rejects blank entity id generator value`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@IdGenerator=   ;")
+        }
+
+        assertEquals("invalid @IdGenerator value: ", error.message)
+    }
+
+    @Test
+    fun `parser rejects conflicting duplicate entity id generator annotations`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@IdGenerator=snowflakeIdGenerator;@IdGenerator=uuidGenerator;")
+        }
+
+        assertEquals("conflicting @IdGenerator annotations on the same table comment.", error.message)
+    }
 }
