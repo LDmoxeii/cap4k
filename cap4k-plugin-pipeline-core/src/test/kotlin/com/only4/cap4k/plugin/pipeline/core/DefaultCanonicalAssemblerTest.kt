@@ -1584,7 +1584,7 @@ class DefaultCanonicalAssemblerTest {
                             comment = "",
                             columns = listOf(
                                 DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                DbColumnSnapshot("video_post_id", "BIGINT", "Long", false, referenceTable = "video_post"),
+                                DbColumnSnapshot("video_post_id", "BIGINT", "Long", false),
                                 DbColumnSnapshot("label", "VARCHAR", "String", false),
                             ),
                             primaryKey = listOf("id"),

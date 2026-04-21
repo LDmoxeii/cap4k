@@ -57,16 +57,28 @@ internal object AggregateRelationInference {
                 val target = requireNotNull(entityLookup[tableKey(child.tableName)]) {
                     "unknown child table: ${child.tableName}"
                 }
-                val parentAnchorColumns = child.columns
+                val annotatedParentAnchorColumns = child.columns
                     .filter { it.referenceTable?.equals(parentTable, ignoreCase = true) == true }
                     .sortedBy { it.name }
-                parentAnchorColumns
+                annotatedParentAnchorColumns
                     .firstOrNull { it.explicitRelationType != null && it.explicitRelationType != "MANY_TO_ONE" }
                     ?.let { column ->
                         throw IllegalArgumentException(
                             "parent reference relation type must be MANY_TO_ONE in first slice: ${child.tableName}.${column.name} -> $parentTable = ${column.explicitRelationType}"
                         )
                     }
+                val fallbackParentAnchorColumns = if (annotatedParentAnchorColumns.isEmpty()) {
+                    child.columns
+                        .filter { it.name.equals("${parentTable}_id", ignoreCase = true) }
+                        .sortedBy { it.name }
+                } else {
+                    emptyList()
+                }
+                val parentAnchorColumns = if (annotatedParentAnchorColumns.isNotEmpty()) {
+                    annotatedParentAnchorColumns
+                } else {
+                    fallbackParentAnchorColumns
+                }
                 val joinColumns = parentAnchorColumns
                     .map { it.name }
                     .sorted()

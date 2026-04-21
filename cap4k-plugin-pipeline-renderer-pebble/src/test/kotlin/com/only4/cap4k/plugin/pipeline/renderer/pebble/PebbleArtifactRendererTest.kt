@@ -1410,6 +1410,109 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `aggregate entity preset renders inverse read only many to one relation controls`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-inverse-relation")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/entity.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post_item/VideoPostItem.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.video_post_item",
+                        "typeName" to "VideoPostItem",
+                        "comment" to "video post item",
+                        "entityJpa" to mapOf(
+                            "entityEnabled" to true,
+                            "tableName" to "video_post_item",
+                        ),
+                        "jpaImports" to listOf(
+                            "jakarta.persistence.FetchType",
+                            "jakarta.persistence.JoinColumn",
+                            "jakarta.persistence.ManyToOne",
+                        ),
+                        "imports" to listOf("com.acme.demo.domain.aggregates.video_post.VideoPost"),
+                        "scalarFields" to listOf(
+                            mapOf(
+                                "name" to "id",
+                                "type" to "Long",
+                                "nullable" to false,
+                                "columnName" to "id",
+                                "isId" to true,
+                                "converterTypeRef" to null,
+                            ),
+                            mapOf(
+                                "name" to "videoPostId",
+                                "type" to "Long",
+                                "nullable" to false,
+                                "columnName" to "video_post_id",
+                                "isId" to false,
+                                "converterTypeRef" to null,
+                            ),
+                        ),
+                        "fields" to listOf(
+                            mapOf("name" to "id", "type" to "Long", "nullable" to false),
+                            mapOf("name" to "videoPostId", "type" to "Long", "nullable" to false),
+                        ),
+                        "relationFields" to listOf(
+                            mapOf(
+                                "name" to "videoPost",
+                                "targetType" to "VideoPost",
+                                "targetTypeRef" to "VideoPost",
+                                "targetPackageName" to "com.acme.demo.domain.aggregates.video_post",
+                                "relationType" to "MANY_TO_ONE",
+                                "fetchType" to "LAZY",
+                                "joinColumn" to "video_post_id",
+                                "nullable" to false,
+                                "joinColumnNullable" to false,
+                                "readOnly" to true,
+                                "insertable" to false,
+                                "updatable" to false,
+                            )
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+
+        assertTrue(content.contains("@Column(name = \"video_post_id\")"))
+        assertTrue(content.contains("val videoPostId: Long"))
+        assertTrue(content.contains("@ManyToOne(fetch = FetchType.LAZY)"))
+        assertTrue(
+            content.contains(
+                "@JoinColumn(name = \"video_post_id\", nullable = false, insertable = false, updatable = false)"
+            )
+        )
+        assertTrue(content.contains("lateinit var videoPost: VideoPost"))
+        assertFalse(content.contains("mappedBy ="))
+        assertFalse(content.contains("JoinTable"))
+        assertFalse(content.contains("ManyToMany"))
+    }
+
+    @Test
     fun `aggregate entity preset does not render cascade type import for direct-only relation controls`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-direct-relation")
         val renderer = PebbleArtifactRenderer(

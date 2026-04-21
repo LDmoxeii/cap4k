@@ -261,6 +261,13 @@ class PipelinePluginCompileFunctionalTest {
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
         val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts")
         val domainBuildFileContent = domainBuildFile.readText()
+        val schemaFile = projectDir.resolve("schema.sql")
+        schemaFile.writeText(
+            schemaFile.readText().replace(
+                "@Reference=video_post;@Lazy=true;",
+                "@Reference=video_post;@Relation=ManyToOne;@Lazy=true;",
+            )
+        )
 
         assertFalse(domainBuildFileContent.contains("jakarta.persistence:jakarta.persistence-api"))
 
@@ -305,7 +312,71 @@ class PipelinePluginCompileFunctionalTest {
         assertFalse(generatedRootEntity.contains("mappedBy ="))
         assertTrue(generatedChildEntity.contains("@ManyToOne(fetch = FetchType.LAZY)"))
         assertTrue(generatedChildEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
+        assertFalse(
+            generatedChildEntity.contains(
+                "@JoinColumn(name = \"video_post_id\", nullable = false, insertable = false, updatable = false)"
+            )
+        )
+        assertFalse(generatedChildEntity.contains("insertable = false"))
+        assertFalse(generatedChildEntity.contains("updatable = false"))
         assertFalse(generatedChildEntity.contains("mappedBy ="))
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
+    fun `aggregate inverse read only relation generation participates in domain compileKotlin with scalar fk preserved`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-inverse-relation-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
+        val schemaFile = projectDir.resolve("schema.sql")
+        schemaFile.writeText(
+            schemaFile.readText().replace(
+                "video_post_id bigint not null comment '@Reference=video_post;@Lazy=true;',",
+                "video_post_id bigint not null,",
+            )
+        )
+
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateCompileResult.task(":demo-domain:compileKotlin")?.outcome
+        )
+        assertTrue(beforeGenerateCompileResult.output.contains("VideoPost"))
+        assertTrue(beforeGenerateCompileResult.output.contains("VideoPostItem"))
+
+        val (generateResult, compileResult) = FunctionalFixtureSupport.generateThenCompile(
+            projectDir,
+            ":demo-domain:compileKotlin"
+        )
+        val generatedRootEntity = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+        ).readText()
+        val generatedChildEntity = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post_item/VideoPostItem.kt"
+        ).readText()
+
+        assertGeneratedFilesExist(
+            projectDir,
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post_item/VideoPostItem.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_profile/UserProfile.kt",
+        )
+        assertTrue(generatedRootEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
+        assertTrue(generatedRootEntity.contains("var items: List<VideoPostItem> = emptyList()"))
+        assertTrue(generatedChildEntity.contains("@Column(name = \"video_post_id\")"))
+        assertTrue(generatedChildEntity.contains("val video_post_id: Long"))
+        assertTrue(generatedChildEntity.contains("@ManyToOne(fetch = FetchType.LAZY)"))
+        assertTrue(
+            generatedChildEntity.contains(
+                "@JoinColumn(name = \"video_post_id\", nullable = false, insertable = false, updatable = false)"
+            )
+        )
+        assertTrue(generatedChildEntity.contains("lateinit var videoPost: VideoPost"))
+        assertFalse(generatedChildEntity.contains("mappedBy ="))
+        assertFalse(generatedChildEntity.contains("JoinTable"))
+        assertFalse(generatedChildEntity.contains("ManyToMany"))
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
