@@ -1,87 +1,84 @@
 package {{ packageName }}
 
-{% if entityJpa.entityEnabled %}
+{% if entityJpa.entityEnabled -%}
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-{% if hasGeneratedValueFields or hasGenericGeneratorFields %}
+{% if hasGeneratedValueFields or hasGenericGeneratorFields -%}
 import jakarta.persistence.GeneratedValue
-{% endif %}
-{% if hasGeneratedValueFields %}
+{% endif -%}
+{% if hasGeneratedValueFields -%}
 import jakarta.persistence.GenerationType
-{% endif %}
+{% endif -%}
 import jakarta.persistence.Id
 import jakarta.persistence.Table
-{% if hasVersionFields %}
+{% if hasVersionFields -%}
 import jakarta.persistence.Version
-{% endif %}
-{% endif %}
-{% if hasConverterFields %}
+{% endif -%}
+{% endif -%}
+{% if hasConverterFields -%}
 import jakarta.persistence.Convert
-{% endif %}
-{% if dynamicInsert %}
+{% endif -%}
+{% if dynamicInsert -%}
 import org.hibernate.annotations.DynamicInsert
-{% endif %}
-{% if dynamicUpdate %}
+{% endif -%}
+{% if dynamicUpdate -%}
 import org.hibernate.annotations.DynamicUpdate
-{% endif %}
-{% if softDeleteSql %}
+{% endif -%}
+{% if softDeleteSql -%}
 import org.hibernate.annotations.SQLDelete
-{% endif %}
-{% if softDeleteWhereClause %}
+{% endif -%}
+{% if softDeleteWhereClause -%}
 import org.hibernate.annotations.Where
-{% endif %}
-{% if hasGenericGeneratorFields %}
+{% endif -%}
+{% if hasGenericGeneratorFields -%}
 import org.hibernate.annotations.GenericGenerator
-{% endif %}
-{% for import in imports(jpaImports) %}
+{% endif -%}
+{% for import in imports(jpaImports) -%}
 import {{ import }}
-{% endfor %}
-{% for import in imports(imports) %}
+{% endfor -%}
+{% for import in imports(imports) -%}
 import {{ import }}
-{% endfor %}
+{% endfor -%}
 
 {% if entityJpa.entityEnabled %}@Entity
 @Table(name = "{{ entityJpa.tableName }}")
 {% if dynamicInsert %}@DynamicInsert
-{% endif %}
+{% endif -%}
 {% if dynamicUpdate %}@DynamicUpdate
-{% endif %}
+{% endif -%}
 {% if softDeleteSql %}@SQLDelete(sql = "{{ softDeleteSql | replace({'"': '\"'}) | raw }}")
-{% endif %}
+{% endif -%}
 {% if softDeleteWhereClause %}@Where(clause = "{{ softDeleteWhereClause | replace({'"': '\"'}) | raw }}")
-{% endif %}
-{% endif %}
+{% endif -%}
+{% endif -%}
 {% if relationFields|length > 0 %}class{% else %}data class{% endif %} {{ typeName }}(
-{% for field in scalarFields %}
-    {% if field.isId %}@Id {% endif %}
-    {% if field.isId and field.generatedValueGenerator is not null %}@GeneratedValue(generator = "{{ field.generatedValueGenerator }}")
+{% for field in scalarFields -%}
+{% if field.isId %}    @Id
+{% endif %}{% if field.isId and field.generatedValueGenerator is not null %}    @GeneratedValue(generator = "{{ field.generatedValueGenerator }}")
     @GenericGenerator(name = "{{ field.genericGeneratorName }}", strategy = "{{ field.genericGeneratorStrategy }}")
-    {% elseif field.isId and field.generatedValueStrategy == "IDENTITY" %}@GeneratedValue(strategy = GenerationType.IDENTITY)
-    {% endif %}
-    {% if field.isVersion %}@Version
-    {% endif %}
-    {% if field.insertable is not null or field.updatable is not null %}@Column(name = "{{ field.columnName }}", insertable = {{ field.insertable }}, updatable = {{ field.updatable }})
-    {% else %}@Column(name = "{{ field.columnName }}")
-    {% endif %}
-    {% if field.converterTypeRef %}@Convert(converter = {{ field.converterTypeRef }}.Converter::class) {% endif %}
-    val {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
-{% endfor %}
+{% elseif field.isId and field.generatedValueStrategy == "IDENTITY" %}    @GeneratedValue(strategy = GenerationType.IDENTITY)
+{% endif %}{% if field.isVersion %}    @Version
+{% endif %}{% if field.insertable is not null or field.updatable is not null %}    @Column(name = "{{ field.columnName }}", insertable = {{ field.insertable }}, updatable = {{ field.updatable }})
+{% else %}    @Column(name = "{{ field.columnName }}")
+{% endif %}{% if field.converterTypeRef %}    @Convert(converter = {{ field.converterTypeRef }}.Converter::class)
+{% endif %}    val {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
+{% endfor -%}
 ){% if relationFields|length > 0 %} {
-{% for relation in relationFields %}
-{% if relation.relationType == "MANY_TO_ONE" %}
-    @ManyToOne(fetch = FetchType.{{ relation.fetchType }})
-    {% if relation.insertable is not null or relation.updatable is not null %}@JoinColumn(name = "{{ relation.joinColumn }}", nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %}, insertable = {{ relation.insertable }}, updatable = {{ relation.updatable }})
-    {% else %}@JoinColumn(name = "{{ relation.joinColumn }}", nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %})
-    {% endif %}
-    {% if relation.nullable %}var {{ relation.name }}: {{ relation.targetTypeRef }}? = null{% else %}lateinit var {{ relation.name }}: {{ relation.targetTypeRef }}{% endif %}
-{% elseif relation.relationType == "ONE_TO_ONE" %}
-    @OneToOne(fetch = FetchType.{{ relation.fetchType }})
+{% for relation in relationFields -%}
+{% if relation.relationType == "MANY_TO_ONE" %}    @ManyToOne(fetch = FetchType.{{ relation.fetchType }})
+{% if relation.insertable is not null or relation.updatable is not null %}    @JoinColumn(name = "{{ relation.joinColumn }}", nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %}, insertable = {{ relation.insertable }}, updatable = {{ relation.updatable }})
+{% else %}    @JoinColumn(name = "{{ relation.joinColumn }}", nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %})
+{% endif %}{% if relation.nullable %}    var {{ relation.name }}: {{ relation.targetTypeRef }}? = null
+{% else %}    lateinit var {{ relation.name }}: {{ relation.targetTypeRef }}
+{% endif %}
+{% elseif relation.relationType == "ONE_TO_ONE" %}    @OneToOne(fetch = FetchType.{{ relation.fetchType }})
     @JoinColumn(name = "{{ relation.joinColumn }}", nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %})
-    {% if relation.nullable %}var {{ relation.name }}: {{ relation.targetTypeRef }}? = null{% else %}lateinit var {{ relation.name }}: {{ relation.targetTypeRef }}{% endif %}
-{% elseif relation.relationType == "ONE_TO_MANY" %}
-    @OneToMany(fetch = FetchType.{{ relation.fetchType }}{% if relation.cascadeAll %}, cascade = [CascadeType.ALL]{% endif %}, orphanRemoval = {{ relation.orphanRemoval }})
+{% if relation.nullable %}    var {{ relation.name }}: {{ relation.targetTypeRef }}? = null
+{% else %}    lateinit var {{ relation.name }}: {{ relation.targetTypeRef }}
+{% endif %}
+{% elseif relation.relationType == "ONE_TO_MANY" %}    @OneToMany(fetch = FetchType.{{ relation.fetchType }}{% if relation.cascadeAll %}, cascade = [CascadeType.ALL]{% endif %}, orphanRemoval = {{ relation.orphanRemoval }})
     @JoinColumn(name = "{{ relation.joinColumn }}", nullable = {{ relation.joinColumnNullable }})
     var {{ relation.name }}: List<{{ relation.targetTypeRef }}> = emptyList()
-{% endif %}
-{% endfor %}
+{% endif -%}
+{% endfor -%}
 }{% endif %}

@@ -2136,6 +2136,9 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
 
+        assertFalse(content.contains("\n\n\n"), content)
+        assertFalse(Regex("(?m)^\\s+$").containsMatchIn(content), content)
+        assertTrue(content.startsWith("package com.acme.demo.domain.aggregates.video_post\n\nimport "))
         assertTrue(content.contains("import jakarta.persistence.GeneratedValue"))
         assertTrue(content.contains("import jakarta.persistence.GenerationType"))
         assertFalse(content.contains("import org.hibernate.annotations.GenericGenerator"))
