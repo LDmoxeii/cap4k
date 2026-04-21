@@ -38,8 +38,7 @@ import {{ import }}
 {% endfor -%}
 {% for import in imports(imports) -%}
 import {{ import }}
-{% endfor -%}
-
+{% endfor %}
 {% if entityJpa.entityEnabled %}@Entity
 @Table(name = "{{ entityJpa.tableName }}")
 {% if dynamicInsert %}@DynamicInsert
