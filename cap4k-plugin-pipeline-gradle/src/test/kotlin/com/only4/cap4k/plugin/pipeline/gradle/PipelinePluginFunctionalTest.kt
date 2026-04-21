@@ -1391,11 +1391,15 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-provider-persistence-mixed-id-generate")
         copyFixture(projectDir, "aggregate-provider-persistence-sample")
         val schemaFile = projectDir.resolve("schema.sql")
-        schemaFile.writeText(
-            schemaFile.readText().replace(
-                "@AggregateRoot=true;@DynamicInsert=true;@DynamicUpdate=true;@SoftDeleteColumn=deleted;",
-                "@AggregateRoot=true;@IdGenerator=snowflakeIdGenerator;@DynamicInsert=true;@DynamicUpdate=true;@SoftDeleteColumn=deleted;",
-            )
+        val patchedSchema = schemaFile.readText().replace(
+            "@AggregateRoot=true;@DynamicInsert=true;@DynamicUpdate=true;@SoftDeleteColumn=deleted;",
+            "@AggregateRoot=true;@IdGenerator=snowflakeIdGenerator;@DynamicInsert=true;@DynamicUpdate=true;@SoftDeleteColumn=deleted;",
+        )
+        schemaFile.writeText(patchedSchema)
+        val persistedPatchedSchema = schemaFile.readText()
+        assertTrue(
+            persistedPatchedSchema.contains("@IdGenerator=snowflakeIdGenerator;"),
+            "Expected patched schema to contain @IdGenerator=snowflakeIdGenerator; but was:\n$persistedPatchedSchema"
         )
 
         val result = GradleRunner.create()
@@ -1419,7 +1423,7 @@ class PipelinePluginFunctionalTest {
         )
         assertFalse(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedAuditLog.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
-        assertFalse(generatedAuditLog.contains("@GenericGenerator"))
+        assertFalse(generatedAuditLog.contains("GenericGenerator"))
     }
 
     @OptIn(ExperimentalPathApi::class)
