@@ -132,16 +132,18 @@ Completed:
 
 - aggregate relation parity
 - aggregate relation-side JPA control parity
+- aggregate inverse relation read-only parity
 
 Status:
 
-- the bounded aggregate relation line is complete through relation-side JPA control parity
-- aggregate-side relation work now has bounded source carriage, canonical inference, planner and renderer consumption, functional generation coverage, compile verification, and first-slice relation-side JPA control for `ONE_TO_MANY`, `MANY_TO_ONE`, and `ONE_TO_ONE`, while advanced relation forms remain explicitly separated
+- the bounded aggregate relation line is complete through inverse relation read-only parity
+- aggregate-side relation work now has bounded source carriage, canonical inference, planner and renderer consumption, functional generation coverage, compile verification, first-slice relation-side JPA control for `ONE_TO_MANY`, `MANY_TO_ONE`, and `ONE_TO_ONE`, and bounded inverse/read-only `*ManyToOne` parity, while join-table and many-to-many forms remain explicitly deferred
 
 Traceability:
 
 - [aggregate relation parity design](specs/2026-04-18-cap4k-aggregate-relation-parity-design.md)
 - [aggregate relation-side JPA control parity design](specs/2026-04-20-cap4k-aggregate-relation-side-jpa-control-parity-design.md)
+- [aggregate inverse relation read-only parity design](specs/2026-04-20-cap4k-aggregate-inverse-relation-read-only-parity-design.md)
 
 ### Phase F: Aggregate Persistence Control Mainline
 
@@ -180,29 +182,30 @@ The original design-generator quality mainline is complete, and the bounded boot
 
 The cross-generator reference boundary line is complete through aggregate enum / enum-translation parity.
 
-The bounded aggregate relation line is complete through relation-side JPA control parity.
+The bounded aggregate relation line is complete through inverse relation read-only parity.
 
 The bounded aggregate persistence-control line is complete through first-slice provider-specific persistence parity.
 
 The next explicit framework slice is:
 
-- aggregate advanced relation forms parity
+- aggregate generic-generator parity
 
 Scope:
 
-- build on the now-stable aggregate relation semantics and relation-side JPA control line rather than reopening relation inference from scratch
+- build on the now-stable aggregate persistence field-behavior and first-slice provider-specific persistence line rather than reopening full id-generation semantics
 - keep the work inside the existing aggregate generator and aggregate-side rendering contract
-- focus on the advanced relation forms that were intentionally excluded from the bounded relation and relation-side JPA slices
-- recover bounded ownership-aware advanced relation behavior such as `mappedBy`, `@JoinTable`, `ManyToMany`, inverse or read-only join-column control like `insertable/updatable = false`, and closely related relation-form metadata only where the aggregate relation model can support it cleanly
-- prove the advanced relation forms through planner, renderer, and bounded functional or compile verification
-- keep the slice bounded to advanced relation forms parity, not full aggregate-side completion or relation re-architecture
+- focus on the still-missing old entity id-generator provider behavior around `@GeneratedValue(generator = ...)` and `@GenericGenerator(name = ..., strategy = ...)`
+- recover a bounded custom generator path for aggregate ids through explicit source truth, canonical carriage, planner ownership, and mechanical template output
+- prove the bounded custom generator path through planner, renderer, and bounded functional or compile verification
+- keep the slice bounded to provider-side custom generator parity, not full id-generation redesign or broader provider recovery
 
 Non-goals:
 
 - do not restore mutable shared runtime type maps between generators
 - do not widen this slice into relation re-architecture, user-code-preservation parity, or general source-semantic recovery
 - do not broaden bootstrap beyond the current bounded contract
-- do not silently expand into full provider-specific recovery, broader persistence recovery, or full aggregate-side parity beyond bounded advanced relation forms work
+- do not silently expand into sequence/table strategy recovery, generator registry redesign, or full provider-specific recovery
+- do not silently reactivate `mappedBy`, `@JoinTable`, or `ManyToMany`; those remain explicitly later-priority work
 - do not turn exploratory parity notes into a general rewrite of the current pipeline architecture
 
 ## Bootstrap Decision
