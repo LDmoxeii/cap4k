@@ -1387,6 +1387,43 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `aggregate provider persistence generation supports mixed custom and identity id generators`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-provider-persistence-mixed-id-generate")
+        copyFixture(projectDir, "aggregate-provider-persistence-sample")
+        val schemaFile = projectDir.resolve("schema.sql")
+        schemaFile.writeText(
+            schemaFile.readText().replace(
+                "@AggregateRoot=true;@DynamicInsert=true;@DynamicUpdate=true;@SoftDeleteColumn=deleted;",
+                "@AggregateRoot=true;@IdGenerator=snowflakeIdGenerator;@DynamicInsert=true;@DynamicUpdate=true;@SoftDeleteColumn=deleted;",
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+        val generatedVideoPost = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+        ).readText()
+        val generatedAuditLog = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/audit_log/AuditLog.kt"
+        ).readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedVideoPost.contains("@GeneratedValue(generator = \"snowflakeIdGenerator\")"))
+        assertTrue(
+            generatedVideoPost.contains(
+                "@GenericGenerator(name = \"snowflakeIdGenerator\", strategy = \"snowflakeIdGenerator\")"
+            )
+        )
+        assertFalse(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
+        assertTrue(generatedAuditLog.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
+        assertFalse(generatedAuditLog.contains("@GenericGenerator"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan and cap4kGenerate preserve aggregate composite unique constraint order end to end`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-composite-unique")
         copyFixture(projectDir, "aggregate-sample")
