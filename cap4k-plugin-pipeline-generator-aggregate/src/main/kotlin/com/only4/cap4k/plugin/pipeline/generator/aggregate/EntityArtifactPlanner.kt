@@ -18,6 +18,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             val controlsByField = model.aggregatePersistenceFieldControls
                 .filter { it.entityName == entity.name && it.entityPackageName == entity.packageName }
                 .associateBy { it.fieldName }
+            val idGeneratorControl = model.aggregateIdGeneratorControls.firstOrNull {
+                it.entityName == entity.name && it.entityPackageName == entity.packageName
+            }
             val providerControl = model.aggregatePersistenceProviderControls.firstOrNull {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
@@ -68,6 +71,28 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     } else {
                         val control = controlsByField[field.name]
                         val fieldType = planning.resolveFieldType(entity.packageName, field)
+                        val isCustomGeneratorIdField =
+                            jpa.isId && idGeneratorControl?.idFieldName == field.name
+                        val generatedValueStrategy = if (isCustomGeneratorIdField) {
+                            null
+                        } else {
+                            control?.generatedValueStrategy
+                        }
+                        val generatedValueGenerator = if (isCustomGeneratorIdField) {
+                            idGeneratorControl.entityIdGenerator
+                        } else {
+                            null
+                        }
+                        val genericGeneratorName = if (isCustomGeneratorIdField) {
+                            idGeneratorControl.entityIdGenerator
+                        } else {
+                            null
+                        }
+                        val genericGeneratorStrategy = if (isCustomGeneratorIdField) {
+                            idGeneratorControl.entityIdGenerator
+                        } else {
+                            null
+                        }
                         mapOf(
                             "fieldName" to field.name,
                             "fieldType" to fieldType,
@@ -80,7 +105,10 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "columnName" to jpa.columnName,
                             "isId" to jpa.isId,
                             "converterTypeRef" to jpa.converterTypeFqn,
-                            "generatedValueStrategy" to control?.generatedValueStrategy,
+                            "generatedValueStrategy" to generatedValueStrategy,
+                            "generatedValueGenerator" to generatedValueGenerator,
+                            "genericGeneratorName" to genericGeneratorName,
+                            "genericGeneratorStrategy" to genericGeneratorStrategy,
                             "isVersion" to (control?.version == true),
                             "insertable" to when {
                                 control?.insertable != null -> control.insertable
@@ -114,6 +142,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "hasGeneratedValueFields" to scalarFields.any {
                         it["isId"] == true && it["generatedValueStrategy"] == "IDENTITY"
                     },
+                    "hasGenericGeneratorFields" to scalarFields.any { it["genericGeneratorName"] != null },
                     "hasVersionFields" to scalarFields.any { it["isVersion"] == true },
                     "dynamicInsert" to (providerControl?.dynamicInsert == true),
                     "dynamicUpdate" to (providerControl?.dynamicUpdate == true),

@@ -241,6 +241,14 @@ data class AggregatePersistenceProviderControl(
     val versionFieldName: String? = null,
 )
 
+data class AggregateIdGeneratorControl(
+    val entityName: String,
+    val entityPackageName: String,
+    val tableName: String,
+    val idFieldName: String,
+    val entityIdGenerator: String,
+)
+
 data class RepositoryModel(
     val name: String,
     val packageName: String,
@@ -361,6 +369,7 @@ data class CanonicalModel(
     val aggregateEntityJpa: List<AggregateEntityJpaModel> = emptyList(),
     val aggregatePersistenceFieldControls: List<AggregatePersistenceFieldControl> = emptyList(),
     val aggregatePersistenceProviderControls: List<AggregatePersistenceProviderControl> = emptyList(),
+    val aggregateIdGeneratorControls: List<AggregateIdGeneratorControl> = emptyList(),
 )
 
 data class UnsupportedAggregateTable(

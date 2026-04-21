@@ -250,6 +250,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             entities = entities,
             tables = supportedTables,
         )
+        val aggregateIdGeneratorControls = AggregateIdGeneratorInference.infer(
+            entities = entities,
+            tables = supportedTables,
+        )
 
         val diagnostics = buildDiagnostics(
             snapshot = dbSnapshot,
@@ -315,6 +319,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 aggregateEntityJpa = aggregateEntityJpa,
                 aggregatePersistenceFieldControls = aggregatePersistenceFieldControls,
                 aggregatePersistenceProviderControls = aggregatePersistenceProviderControls,
+                aggregateIdGeneratorControls = aggregateIdGeneratorControls,
             ),
             diagnostics = diagnostics,
         )

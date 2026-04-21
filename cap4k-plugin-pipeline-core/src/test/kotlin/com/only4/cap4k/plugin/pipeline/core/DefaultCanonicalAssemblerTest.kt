@@ -1409,6 +1409,64 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler derives aggregate id generator control for eligible entity`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "@AggregateRoot=true;",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            entityIdGenerator = "snowflakeIdGenerator",
+                        )
+                    )
+                )
+            )
+        )
+
+        val control = result.model.aggregateIdGeneratorControls.single()
+
+        assertEquals("VideoPost", control.entityName)
+        assertEquals("com.acme.demo.domain.aggregates.video_post", control.entityPackageName)
+        assertEquals("video_post", control.tableName)
+        assertEquals("id", control.idFieldName)
+        assertEquals("snowflakeIdGenerator", control.entityIdGenerator)
+    }
+
+    @Test
+    fun `assembler does not derive aggregate id generator control for value object`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "@AggregateRoot=false;",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            aggregateRoot = false,
+                            valueObject = true,
+                            entityIdGenerator = "snowflakeIdGenerator",
+                        )
+                    )
+                )
+            )
+        )
+
+        assertTrue(result.model.aggregateIdGeneratorControls.isEmpty())
+    }
+
+    @Test
     fun `assembler fails fast when soft delete column does not exist on the table`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(

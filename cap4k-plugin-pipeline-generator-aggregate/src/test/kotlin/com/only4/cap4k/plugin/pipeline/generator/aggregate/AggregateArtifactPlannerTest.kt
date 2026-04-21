@@ -4,6 +4,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateColumnJpaModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateEntityJpaModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateInverseRelationModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateIdGeneratorControl
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
@@ -192,6 +193,50 @@ class AggregateArtifactPlannerTest {
         assertEquals(true, scalarFields.single { it["fieldName"] == "created_by" }["updatable"])
         assertEquals(true, scalarFields.single { it["fieldName"] == "updated_by" }["insertable"])
         assertEquals(false, scalarFields.single { it["fieldName"] == "updated_by" }["updatable"])
+    }
+
+    @Test
+    fun `entity planner exposes custom generator render keys on id field`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("title", "String"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    defaultAggregateEntityJpa(entity)
+                ),
+                aggregateIdGeneratorControls = listOf(
+                    AggregateIdGeneratorControl(
+                        entityName = "VideoPost",
+                        entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        tableName = "video_post",
+                        idFieldName = "id",
+                        entityIdGenerator = "snowflakeIdGenerator",
+                    )
+                ),
+            )
+        )
+
+        val entityArtifact = plan.single { it.outputPath.endsWith("/VideoPost.kt") }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityArtifact.context["fields"] as List<Map<String, Any?>>
+        val idField = scalarFields.single { it["fieldName"] == "id" }
+
+        assertEquals("snowflakeIdGenerator", idField["generatedValueGenerator"])
+        assertEquals("snowflakeIdGenerator", idField["genericGeneratorName"])
+        assertEquals("snowflakeIdGenerator", idField["genericGeneratorStrategy"])
+        assertEquals(false, entityArtifact.context["hasGeneratedValueFields"])
+        assertEquals(true, entityArtifact.context["hasGenericGeneratorFields"])
     }
 
     @Test
