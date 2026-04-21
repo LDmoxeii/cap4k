@@ -152,17 +152,19 @@ Completed:
 - aggregate JPA annotation fine-grained control parity
 - aggregate persistence field-behavior parity
 - aggregate provider-specific persistence parity
+- aggregate generic-generator parity
 
 Status:
 
-- the bounded aggregate persistence-control line is complete through first-slice provider-specific persistence parity
-- aggregate-side persistence control now has bounded source carriage, canonical enrichment, planner and renderer consumption, functional generation coverage, and compile verification for entity/table/column baseline JPA output, explicit field-behavior control, and first-slice provider-specific entity behavior without reopening relation-side ownership or full provider-specific recovery
+- the bounded aggregate persistence-control line is complete through bounded generic-generator parity
+- aggregate-side persistence control now has bounded source carriage, canonical enrichment, planner and renderer consumption, functional generation coverage, and compile verification for entity/table/column baseline JPA output, explicit field-behavior control, first-slice provider-specific entity behavior, and explicit custom id-generator output without reopening relation-side ownership or full provider-specific recovery
 
 Traceability:
 
 - [aggregate JPA annotation fine-grained control parity design](specs/2026-04-19-cap4k-aggregate-jpa-annotation-fine-grained-control-parity-design.md)
 - [aggregate persistence field-behavior parity design](specs/2026-04-19-cap4k-aggregate-persistence-field-behavior-parity-design.md)
 - [aggregate provider-specific persistence parity design](specs/2026-04-19-cap4k-aggregate-provider-specific-persistence-parity-design.md)
+- [aggregate generic-generator parity design](specs/2026-04-21-cap4k-aggregate-generic-generator-parity-design.md)
 
 ## Current Mainline Contract
 
@@ -184,20 +186,19 @@ The cross-generator reference boundary line is complete through aggregate enum /
 
 The bounded aggregate relation line is complete through inverse relation read-only parity.
 
-The bounded aggregate persistence-control line is complete through first-slice provider-specific persistence parity.
+The bounded aggregate persistence-control line is complete through generic-generator parity.
 
 The next explicit framework slice is:
 
-- aggregate generic-generator parity
+- aggregate persistence runtime verification hardening
 
 Scope:
 
-- build on the now-stable aggregate persistence field-behavior and first-slice provider-specific persistence line rather than reopening full id-generation semantics
-- keep the work inside the existing aggregate generator and aggregate-side rendering contract
-- focus on the still-missing old entity id-generator provider behavior around `@GeneratedValue(generator = ...)` and `@GenericGenerator(name = ..., strategy = ...)`
-- recover a bounded custom generator path for aggregate ids through explicit source truth, canonical carriage, planner ownership, and mechanical template output
-- prove the bounded custom generator path through planner, renderer, and bounded functional or compile verification
-- keep the slice bounded to provider-side custom generator parity, not full id-generation redesign or broader provider recovery
+- build on the now-stable bounded persistence line rather than reopening source semantics or adding new persistence features
+- keep the work inside representative aggregate runtime fixtures and verification harnesses
+- focus on proving that the current bounded persistence output boots and behaves coherently at runtime, especially around custom id generators, identity ids, version fields, and bounded provider-specific entity behavior
+- extend verification beyond Kotlin compilation into bounded runtime persistence smoke checks
+- keep the slice bounded to runtime verification hardening for already-accepted persistence behavior, not new persistence semantics
 
 Non-goals:
 
@@ -205,6 +206,7 @@ Non-goals:
 - do not widen this slice into relation re-architecture, user-code-preservation parity, or general source-semantic recovery
 - do not broaden bootstrap beyond the current bounded contract
 - do not silently expand into sequence/table strategy recovery, generator registry redesign, or full provider-specific recovery
+- do not turn runtime verification hardening into general real-project integration support
 - do not silently reactivate `mappedBy`, `@JoinTable`, or `ManyToMany`; those remain explicitly later-priority work
 - do not turn exploratory parity notes into a general rewrite of the current pipeline architecture
 
