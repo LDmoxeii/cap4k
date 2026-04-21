@@ -101,8 +101,8 @@ internal object AggregateInverseRelationInference {
         return tables.flatMap { ownerTable ->
             val ownerEntity = entityByTableName[tableKey(ownerTable.tableName)] ?: return@flatMap emptyList()
             ownerTable.columns.mapNotNull { column ->
-                val relationType = resolveExplicitOwnerRelationType(column.explicitRelationType) ?: return@mapNotNull null
                 val referenceTable = column.referenceTable ?: return@mapNotNull null
+                val relationType = resolveExplicitOwnerRelationType(column.explicitRelationType) ?: AggregateRelationType.MANY_TO_ONE
                 val targetEntity = entityByTableName[tableKey(referenceTable)] ?: return@mapNotNull null
                 RelationKey(
                     owner = EntityKey(ownerEntity.packageName, ownerEntity.name),

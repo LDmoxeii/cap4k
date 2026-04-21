@@ -1252,6 +1252,11 @@ class PipelinePluginFunctionalTest {
         assertFalse(rootEntityContent.contains("mappedBy ="))
         assertFalse(rootEntityContent.contains("ManyToMany"))
         assertTrue(childEntityContent.contains("@ManyToOne(fetch = FetchType.LAZY)"))
+        assertFalse(
+            childEntityContent.contains(
+                "@JoinColumn(name = \"video_post_id\", nullable = false, insertable = false, updatable = false)"
+            )
+        )
         assertTrue(childEntityContent.contains("lateinit var videoPost: VideoPost"))
     }
 

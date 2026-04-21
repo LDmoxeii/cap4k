@@ -1667,6 +1667,60 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler suppresses inverse read only relation when default owner side reference already exists`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("title", "VARCHAR", "String", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "video_post_item",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "video_post_id",
+                                    dbType = "BIGINT",
+                                    kotlinType = "Long",
+                                    nullable = false,
+                                    referenceTable = "video_post",
+                                    lazy = true,
+                                ),
+                                DbColumnSnapshot("label", "VARCHAR", "String", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "video_post",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                    )
+                )
+            )
+        )
+
+        assertTrue(result.model.aggregateInverseRelations.isEmpty())
+        assertEquals(
+            1,
+            result.model.aggregateRelations.count {
+                it.ownerEntityName == "VideoPostItem" &&
+                    it.targetEntityName == "VideoPost" &&
+                    it.relationType == AggregateRelationType.MANY_TO_ONE
+            },
+        )
+    }
+
+    @Test
     fun `inverse inference suppresses owner side relation with case insensitive join column matching`() {
         val parentId = FieldModel(name = "id", type = "Long")
         val childId = FieldModel(name = "id", type = "Long")
@@ -1771,7 +1825,7 @@ class DefaultCanonicalAssemblerTest {
                                 columns = listOf(
                                     DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
                                     DbColumnSnapshot("videoPost", "VARCHAR", "String", false),
-                                    DbColumnSnapshot("parent_ref", "BIGINT", "Long", false, referenceTable = "video_post"),
+                                    DbColumnSnapshot("video_post_id", "BIGINT", "Long", false),
                                 ),
                                 primaryKey = listOf("id"),
                                 uniqueConstraints = emptyList(),
