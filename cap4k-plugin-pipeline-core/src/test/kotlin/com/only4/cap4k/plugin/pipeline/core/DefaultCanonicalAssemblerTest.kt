@@ -1846,6 +1846,58 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler fails fast when derived inverse field collides with owner relation field`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                            DbTableSnapshot(
+                                tableName = "video_post_archive",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                            DbTableSnapshot(
+                                tableName = "video_post_item",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot("video_post_id", "BIGINT", "Long", false),
+                                    DbColumnSnapshot("video_post", "BIGINT", "Long", false, referenceTable = "video_post_archive"),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                                parentTable = "video_post",
+                                aggregateRoot = false,
+                                valueObject = true,
+                            ),
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals(
+            "aggregate inverse relation field collides with owner relation field: com.acme.demo.domain.aggregates.video_post_item.VideoPostItem.videoPost",
+            error.message,
+        )
+    }
+
+    @Test
     fun `inverse inference fails fast on duplicate derived field names for the same child entity`() {
         val childId = FieldModel(name = "id", type = "Long")
 

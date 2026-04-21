@@ -35,6 +35,9 @@ internal object AggregateInverseRelationInference {
         val scalarFieldsByEntity = entities.associate { entity ->
             EntityKey(entity.packageName, entity.name) to entity.fields.map { it.name }.toSet()
         }
+        val ownerRelationFieldNamesByEntity = relations
+            .groupBy { EntityKey(it.ownerEntityPackageName, it.ownerEntityName) }
+            .mapValues { (_, entityRelations) -> entityRelations.map { it.fieldName }.toSet() }
         val explicitOwnerRelations = explicitOwnerRelationKeys(
             entities = entities,
             tables = tables,
@@ -69,6 +72,9 @@ internal object AggregateInverseRelationInference {
                 }
 
                 val fieldName = lowerFirst(relation.ownerEntityName)
+                require(fieldName !in ownerRelationFieldNamesByEntity[childKey].orEmpty()) {
+                    "aggregate inverse relation field collides with owner relation field: ${childEntity.packageName}.${childEntity.name}.$fieldName"
+                }
                 require(fieldName !in scalarFieldsByEntity.getValue(childKey)) {
                     "aggregate inverse relation field collides with scalar field: ${childEntity.packageName}.${childEntity.name}.$fieldName"
                 }
