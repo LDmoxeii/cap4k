@@ -69,16 +69,29 @@ class DbTableAnnotationParserTest {
 
     @Test
     fun `parser extracts bounded entity id generator from table comment`() {
-        val metadata = DbTableAnnotationParser.parse("@AggregateRoot=true;@IdGenerator=snowflakeIdGenerator;")
+        val metadata = DbTableAnnotationParser.parse(
+            "Video post root @AggregateRoot=true;@IdGenerator=snowflakeIdGenerator;"
+        )
 
         assertEquals(true, metadata.aggregateRoot)
         assertEquals("snowflakeIdGenerator", metadata.entityIdGenerator)
+        assertEquals("Video post root", metadata.cleanedComment)
+        assertEquals(false, metadata.cleanedComment.contains("@IdGenerator"))
     }
 
     @Test
     fun `parser rejects blank entity id generator value`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbTableAnnotationParser.parse("@IdGenerator=   ;")
+        }
+
+        assertEquals("invalid @IdGenerator value: ", error.message)
+    }
+
+    @Test
+    fun `parser rejects missing entity id generator value`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@IdGenerator;")
         }
 
         assertEquals("invalid @IdGenerator value: ", error.message)

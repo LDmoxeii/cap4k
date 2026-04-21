@@ -247,7 +247,9 @@ class DbSchemaSourceProviderTest {
                     );
                     """.trimIndent()
                 )
-                statement.execute("comment on table video_post is '@AggregateRoot=true;@IdGenerator=snowflakeIdGenerator;'")
+                statement.execute(
+                    "comment on table video_post is 'Video post root @AggregateRoot=true;@IdGenerator=snowflakeIdGenerator;'"
+                )
             }
         }
 
@@ -277,6 +279,8 @@ class DbSchemaSourceProviderTest {
         val table = snapshot.tables.single { it.tableName.equals("VIDEO_POST", true) }
 
         assertEquals("snowflakeIdGenerator", table.entityIdGenerator)
+        assertEquals("Video post root", table.comment)
+        assertFalse(table.comment.contains("@IdGenerator"))
     }
 
     @Test
