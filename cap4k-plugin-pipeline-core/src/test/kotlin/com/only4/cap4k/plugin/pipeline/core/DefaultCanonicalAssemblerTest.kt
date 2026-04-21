@@ -1440,6 +1440,57 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler trims aggregate id generator control value for eligible entity`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "@AggregateRoot=true;",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            entityIdGenerator = "  snowflakeIdGenerator  ",
+                        )
+                    )
+                )
+            )
+        )
+
+        val control = result.model.aggregateIdGeneratorControls.single()
+        assertEquals("snowflakeIdGenerator", control.entityIdGenerator)
+    }
+
+    @Test
+    fun `assembler skips aggregate id generator control for blank generator value`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "@AggregateRoot=true;",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            entityIdGenerator = "   ",
+                        )
+                    )
+                )
+            )
+        )
+
+        assertTrue(result.model.aggregateIdGeneratorControls.isEmpty())
+    }
+
+    @Test
     fun `assembler does not derive aggregate id generator control for value object`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
