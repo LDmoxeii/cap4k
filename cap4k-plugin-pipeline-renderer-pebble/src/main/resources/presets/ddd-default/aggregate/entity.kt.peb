@@ -3,8 +3,10 @@ package {{ packageName }}
 {% if entityJpa.entityEnabled %}
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-{% if hasGeneratedValueFields %}
+{% if hasGeneratedValueFields or hasGenericGeneratorFields %}
 import jakarta.persistence.GeneratedValue
+{% endif %}
+{% if hasGeneratedValueFields %}
 import jakarta.persistence.GenerationType
 {% endif %}
 import jakarta.persistence.Id
@@ -28,6 +30,9 @@ import org.hibernate.annotations.SQLDelete
 {% if softDeleteWhereClause %}
 import org.hibernate.annotations.Where
 {% endif %}
+{% if hasGenericGeneratorFields %}
+import org.hibernate.annotations.GenericGenerator
+{% endif %}
 {% for import in imports(jpaImports) %}
 import {{ import }}
 {% endfor %}
@@ -49,7 +54,9 @@ import {{ import }}
 {% if relationFields|length > 0 %}class{% else %}data class{% endif %} {{ typeName }}(
 {% for field in scalarFields %}
     {% if field.isId %}@Id {% endif %}
-    {% if field.isId and field.generatedValueStrategy == "IDENTITY" %}@GeneratedValue(strategy = GenerationType.IDENTITY)
+    {% if field.isId and field.generatedValueGenerator is not null %}@GeneratedValue(generator = "{{ field.generatedValueGenerator }}")
+    @GenericGenerator(name = "{{ field.genericGeneratorName }}", strategy = "{{ field.genericGeneratorStrategy }}")
+    {% elseif field.isId and field.generatedValueStrategy == "IDENTITY" %}@GeneratedValue(strategy = GenerationType.IDENTITY)
     {% endif %}
     {% if field.isVersion %}@Version
     {% endif %}

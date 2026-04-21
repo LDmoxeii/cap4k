@@ -2138,14 +2138,102 @@ class PebbleArtifactRendererTest {
 
         assertTrue(content.contains("import jakarta.persistence.GeneratedValue"))
         assertTrue(content.contains("import jakarta.persistence.GenerationType"))
+        assertFalse(content.contains("import org.hibernate.annotations.GenericGenerator"))
         assertTrue(content.contains("import jakarta.persistence.Version"))
         assertTrue(content.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
+        assertFalse(content.contains("@GeneratedValue(generator ="))
+        assertFalse(content.contains("@GenericGenerator("))
         assertTrue(content.contains("@Version"))
         assertTrue(content.contains("@Column(name = \"version\")"))
         assertTrue(content.contains("@Column(name = \"title\")"))
         assertTrue(content.contains("@Column(name = \"created_by\", insertable = false, updatable = true)"))
         assertTrue(content.contains("@Column(name = \"updated_by\", insertable = true, updatable = false)"))
         assertFalse(content.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)\n    @Column(name = \"title\")"))
+    }
+
+    @Test
+    fun `aggregate entity template renders bounded custom generator annotations`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-custom-generator")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/entity.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                        "typeName" to "VideoPost",
+                        "comment" to "video post",
+                        "entityJpa" to mapOf(
+                            "entityEnabled" to true,
+                            "tableName" to "video_post",
+                        ),
+                        "hasConverterFields" to false,
+                        "hasGeneratedValueFields" to false,
+                        "hasGenericGeneratorFields" to true,
+                        "hasVersionFields" to false,
+                        "scalarFields" to listOf(
+                            mapOf(
+                                "fieldName" to "id",
+                                "fieldType" to "Long",
+                                "name" to "id",
+                                "type" to "Long",
+                                "columnName" to "id",
+                                "isId" to true,
+                                "generatedValueStrategy" to "IDENTITY",
+                                "generatedValueGenerator" to "snowflakeIdGenerator",
+                                "genericGeneratorName" to "snowflakeIdGenerator",
+                                "genericGeneratorStrategy" to "snowflakeIdGenerator",
+                            ),
+                            mapOf(
+                                "fieldName" to "title",
+                                "fieldType" to "String",
+                                "name" to "title",
+                                "type" to "String",
+                                "columnName" to "title",
+                            ),
+                        ),
+                        "fields" to listOf(
+                            mapOf("fieldName" to "id", "fieldType" to "Long"),
+                            mapOf("fieldName" to "title", "fieldType" to "String"),
+                        ),
+                        "relationFields" to emptyList<Map<String, Any?>>(),
+                        "imports" to emptyList<String>(),
+                        "jpaImports" to emptyList<String>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+
+        assertTrue(content.contains("import jakarta.persistence.GeneratedValue"))
+        assertTrue(content.contains("import org.hibernate.annotations.GenericGenerator"))
+        assertFalse(content.contains("import jakarta.persistence.GenerationType"))
+        assertTrue(content.contains("@GeneratedValue(generator = \"snowflakeIdGenerator\")"))
+        assertTrue(content.contains("@GenericGenerator(name = \"snowflakeIdGenerator\", strategy = \"snowflakeIdGenerator\")"))
+        assertFalse(content.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
     }
 
     @Test
