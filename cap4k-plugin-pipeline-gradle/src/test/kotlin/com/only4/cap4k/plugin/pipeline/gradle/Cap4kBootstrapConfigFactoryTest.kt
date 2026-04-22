@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -39,8 +40,113 @@ class Cap4kBootstrapConfigFactoryTest {
         assertEquals("only-danmuku", config.projectName)
         assertEquals("edu.only4.danmuku", config.basePackage)
         assertEquals(ConflictPolicy.FAIL, config.conflictPolicy)
+        assertEquals(BootstrapMode.IN_PLACE, config.mode)
+        assertEquals(null, config.previewDir)
         assertEquals("only-danmuku-domain", config.modules.domainModuleName)
         assertEquals(listOf("root", "module-package:domain"), config.slots.map { it.slotId })
+    }
+
+    @Test
+    fun `build requires preview dir when mode is preview subtree`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            mode.set(BootstrapMode.PREVIEW_SUBTREE)
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kBootstrapConfigFactory().build(project, extension)
+        }
+
+        assertTrue(error.message!!.contains("bootstrap.previewDir is required"))
+    }
+
+    @Test
+    fun `build rejects preview dir when mode is not preview subtree`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            mode.set(BootstrapMode.IN_PLACE)
+            previewDir.set("preview/demo")
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kBootstrapConfigFactory().build(project, extension)
+        }
+
+        assertTrue(error.message!!.contains("bootstrap.previewDir is only supported when bootstrap.mode=PREVIEW_SUBTREE"))
+    }
+
+    @Test
+    fun `build rejects unsafe preview dir`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            mode.set(BootstrapMode.PREVIEW_SUBTREE)
+            previewDir.set("../preview")
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kBootstrapConfigFactory().build(project, extension)
+        }
+
+        assertTrue(error.message!!.contains("bootstrap.previewDir must be a safe relative path"))
+    }
+
+    @Test
+    fun `build rejects preview dir containing slash escape`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            mode.set(BootstrapMode.PREVIEW_SUBTREE)
+            previewDir.set("preview\\demo")
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kBootstrapConfigFactory().build(project, extension)
+        }
+
+        assertTrue(error.message!!.contains("bootstrap.previewDir must be a safe relative path"))
     }
 
     @Test

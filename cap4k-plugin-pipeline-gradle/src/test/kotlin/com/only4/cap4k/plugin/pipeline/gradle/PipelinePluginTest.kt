@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.BootstrapConfig
+import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
 import com.only4.cap4k.plugin.pipeline.api.BootstrapModulesConfig
 import com.only4.cap4k.plugin.pipeline.api.BootstrapTemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
@@ -104,6 +105,8 @@ class PipelinePluginTest {
             ),
             slots = emptyList(),
             conflictPolicy = ConflictPolicy.FAIL,
+            mode = BootstrapMode.IN_PLACE,
+            previewDir = null,
         )
 
         val runner = buildBootstrapRunner(project, config, exportEnabled = false)
