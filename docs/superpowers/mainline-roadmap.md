@@ -183,12 +183,14 @@ These points remain in force:
 The framework now keeps a separate capability-verification track in addition to the explicit framework mainline slices.
 
 Rules for that track:
+
 - current capability truth lives in [capability-matrix.md](capability-matrix.md)
 - `only-danmaku-next` is a capability verification project, not the official beginner tutorial line
 - stage branches in `only-danmaku-next` verify selected capability rows from the matrix
 - gaps exposed by the verification project must be fed back into `cap4k` capability contracts before they are treated as supported behavior
 
 Traceability:
+
 - [only-danmaku-next capability verification project design](specs/2026-04-22-cap4k-only-danmaku-next-capability-verification-project-design.md)
 
 ## Current Next Mainline Slice

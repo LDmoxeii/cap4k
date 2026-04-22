@@ -5,12 +5,14 @@
 This document is the current human-readable truth source for Cap4k capability support.
 
 It records:
+
 - what the framework currently claims to support
 - which verification layers prove that support
 - whether a capability must also appear in `only-danmaku-next`
 - which gaps remain explicitly open
 
 This document is not:
+
 - a roadmap
 - a future-wishlist
 - a restatement of chat history
@@ -45,6 +47,7 @@ This document is not:
 ## Usage Rules
 
 When a new framework slice lands:
+
 1. update or add the relevant matrix row
 2. point to the concrete verification targets
 3. decide whether the capability is required in `only-danmaku-next`
