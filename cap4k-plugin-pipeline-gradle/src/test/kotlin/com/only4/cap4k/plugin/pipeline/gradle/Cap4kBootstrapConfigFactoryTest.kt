@@ -44,6 +44,13 @@ class Cap4kBootstrapConfigFactoryTest {
         assertEquals(null, config.previewDir)
         assertEquals("only-danmuku-domain", config.modules.domainModuleName)
         assertEquals(listOf("root", "module-package:domain"), config.slots.map { it.slotId })
+        assertEquals(
+            listOf(
+                "codegen/bootstrap-slots/root",
+                "codegen/bootstrap-slots/domain-package",
+            ),
+            config.slots.map { it.sourceDir },
+        )
     }
 
     @Test

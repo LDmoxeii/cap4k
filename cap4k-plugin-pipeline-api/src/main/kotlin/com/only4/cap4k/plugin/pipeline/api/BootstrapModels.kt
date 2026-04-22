@@ -9,6 +9,7 @@ data class BootstrapConfig(
     val preset: String,
     val projectName: String,
     val basePackage: String,
+    val projectDir: String = ".",
     val modules: BootstrapModulesConfig,
     val templates: BootstrapTemplateConfig,
     val slots: List<BootstrapSlotBinding>,

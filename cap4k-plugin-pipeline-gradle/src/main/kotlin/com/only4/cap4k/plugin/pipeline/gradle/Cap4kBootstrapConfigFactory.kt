@@ -55,6 +55,7 @@ class Cap4kBootstrapConfigFactory {
             preset = preset,
             projectName = extension.bootstrap.projectName.required("bootstrap.projectName"),
             basePackage = extension.bootstrap.basePackage.required("bootstrap.basePackage"),
+            projectDir = project.projectDir.toPath().toAbsolutePath().normalize().toString(),
             modules = BootstrapModulesConfig(
                 domainModuleName = extension.bootstrap.modules.domainModuleName.required("bootstrap.modules.domainModuleName"),
                 applicationModuleName = extension.bootstrap.modules.applicationModuleName.required("bootstrap.modules.applicationModuleName"),

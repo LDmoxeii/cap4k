@@ -9,6 +9,7 @@ import org.gradle.api.Project
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import javax.inject.Inject
+import kotlin.io.path.invariantSeparatorsPathString
 
 open class Cap4kExtension @Inject constructor(objects: ObjectFactory) {
     val project: Cap4kProjectExtension = objects.newInstance(Cap4kProjectExtension::class.java)
@@ -297,7 +298,18 @@ open class Cap4kBootstrapSlotsExtension @Inject constructor(private val objects:
         role: String?,
         sourceDirs: ConfigurableFileCollection,
     ) {
-        sourceDirs.files.map { project.file(it).absolutePath }.sorted().forEach { sourceDir ->
+        val projectRoot = project.projectDir.toPath().toAbsolutePath().normalize()
+        sourceDirs.files
+            .map { project.file(it).toPath().toAbsolutePath().normalize() }
+            .map { sourcePath ->
+                if (sourcePath.startsWith(projectRoot)) {
+                    projectRoot.relativize(sourcePath).invariantSeparatorsPathString
+                } else {
+                    sourcePath.invariantSeparatorsPathString
+                }
+            }
+            .sorted()
+            .forEach { sourceDir ->
             add(
                 BootstrapSlotBinding(
                     kind = kind,
@@ -305,7 +317,7 @@ open class Cap4kBootstrapSlotsExtension @Inject constructor(private val objects:
                     sourceDir = sourceDir,
                 )
             )
-        }
+            }
     }
 }
 
