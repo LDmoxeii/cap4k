@@ -58,6 +58,9 @@ internal fun bootstrapContext(config: BootstrapConfig): Map<String, Any?> =
         "domainModuleName" to config.modules.domainModuleName,
         "applicationModuleName" to config.modules.applicationModuleName,
         "adapterModuleName" to config.modules.adapterModuleName,
+        "conflictPolicy" to config.conflictPolicy.name,
+        "mode" to config.mode.name,
+        "previewDir" to config.previewDir,
     )
 
 internal fun fixed(

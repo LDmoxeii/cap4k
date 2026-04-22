@@ -10,6 +10,7 @@ import com.only4.cap4k.plugin.pipeline.core.DefaultCanonicalAssembler
 import com.only4.cap4k.plugin.pipeline.core.DefaultBootstrapRunner
 import com.only4.cap4k.plugin.pipeline.core.DefaultPipelineRunner
 import com.only4.cap4k.plugin.pipeline.core.BootstrapFilesystemArtifactExporter
+import com.only4.cap4k.plugin.pipeline.core.BootstrapRootStateGuard
 import com.only4.cap4k.plugin.pipeline.core.FilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.NoopArtifactExporter
 import com.only4.cap4k.plugin.pipeline.bootstrap.DddMultiModuleBootstrapPresetProvider
@@ -255,6 +256,7 @@ internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled:
 }
 
 internal fun buildBootstrapRunner(project: Project, config: BootstrapConfig, exportEnabled: Boolean): BootstrapRunner {
+    val rootStateGuard = BootstrapRootStateGuard(project.projectDir.toPath())
     return DefaultBootstrapRunner(
         providers = listOf(DddMultiModuleBootstrapPresetProvider()),
         renderer = PebbleBootstrapRenderer(
@@ -268,5 +270,6 @@ internal fun buildBootstrapRunner(project: Project, config: BootstrapConfig, exp
         } else {
             NoopArtifactExporter()
         },
+        preRunValidation = rootStateGuard::validate,
     )
 }
