@@ -16,6 +16,7 @@ cap4k {
             domainModuleName.set("only-danmuku-domain")
             applicationModuleName.set("only-danmuku-application")
             adapterModuleName.set("only-danmuku-adapter")
+            startModuleName.set("only-danmuku-start")
         }
         templates {
             overrideDirs.from("codegen/bootstrap-templates")

@@ -148,6 +148,7 @@ class PipelinePluginTest {
             .build()
         project.pluginManager.apply(PipelinePlugin::class.java)
         configureValidBootstrap(project.extensions.getByType(Cap4kExtension::class.java))
+        writeManagedRootHostFiles(project.projectDir)
         val planTask = project.tasks.named("cap4kBootstrapPlan", Cap4kBootstrapPlanTask::class.java).get()
 
         planTask.runPlan()
@@ -164,12 +165,14 @@ class PipelinePluginTest {
             .build()
         project.pluginManager.apply(PipelinePlugin::class.java)
         configureValidBootstrap(project.extensions.getByType(Cap4kExtension::class.java))
+        writeManagedRootHostFiles(project.projectDir)
         val generateTask = project.tasks.named("cap4kBootstrap", Cap4kBootstrapTask::class.java).get()
 
         generateTask.generate()
 
-        assertTrue(project.projectDir.resolve("only-danmuku/settings.gradle.kts").exists())
-        assertTrue(project.projectDir.resolve("only-danmuku/build.gradle.kts").exists())
+        assertTrue(project.projectDir.resolve("settings.gradle.kts").exists())
+        assertTrue(project.projectDir.resolve("build.gradle.kts").exists())
+        assertTrue(project.projectDir.resolve("only-danmuku-domain/build.gradle.kts").exists())
     }
 
     @Test
@@ -453,11 +456,37 @@ class PipelinePluginTest {
                 domainModuleName.set("only-danmuku-domain")
                 applicationModuleName.set("only-danmuku-application")
                 adapterModuleName.set("only-danmuku-adapter")
+                startModuleName.set("only-danmuku-start")
             }
             templates {
                 preset.set("ddd-default-bootstrap")
             }
         }
+    }
+
+    private fun writeManagedRootHostFiles(projectDir: File) {
+        projectDir.resolve("build.gradle.kts").writeText(
+            """
+                plugins {
+                    id("com.only4.cap4k.plugin.pipeline")
+                }
+
+                // [cap4k-bootstrap:managed-begin:root-host]
+                cap4k {
+                    bootstrap {
+                        enabled.set(true)
+                    }
+                }
+                // [cap4k-bootstrap:managed-end:root-host]
+            """.trimIndent()
+        )
+        projectDir.resolve("settings.gradle.kts").writeText(
+            """
+                // [cap4k-bootstrap:managed-begin:root-host]
+                rootProject.name = "demo"
+                // [cap4k-bootstrap:managed-end:root-host]
+            """.trimIndent()
+        )
     }
 
     private fun tempProjectDir(prefix: String): File =
