@@ -47,6 +47,31 @@ class Cap4kBootstrapConfigFactoryTest {
     }
 
     @Test
+    fun `build maps explicit preview subtree mode and preview dir`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            mode.set(BootstrapMode.PREVIEW_SUBTREE)
+            previewDir.set("preview/demo")
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+            }
+        }
+
+        val config = Cap4kBootstrapConfigFactory().build(project, extension)
+
+        assertEquals(BootstrapMode.PREVIEW_SUBTREE, config.mode)
+        assertEquals("preview/demo", config.previewDir)
+    }
+
+    @Test
     fun `build requires preview dir when mode is preview subtree`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)

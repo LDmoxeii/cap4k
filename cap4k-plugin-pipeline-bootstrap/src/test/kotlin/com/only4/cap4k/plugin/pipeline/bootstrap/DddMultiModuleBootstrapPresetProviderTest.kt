@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.pipeline.bootstrap
 
 import com.only4.cap4k.plugin.pipeline.api.BootstrapConfig
 import com.only4.cap4k.plugin.pipeline.api.BootstrapModulesConfig
+import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
 import com.only4.cap4k.plugin.pipeline.api.BootstrapSlotBinding
 import com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind
 import com.only4.cap4k.plugin.pipeline.api.BootstrapTemplateConfig
@@ -32,6 +33,8 @@ class DddMultiModuleBootstrapPresetProviderTest {
             ),
         ),
         conflictPolicy = ConflictPolicy.FAIL,
+        mode = BootstrapMode.IN_PLACE,
+        previewDir = null,
     )
 
     @Test

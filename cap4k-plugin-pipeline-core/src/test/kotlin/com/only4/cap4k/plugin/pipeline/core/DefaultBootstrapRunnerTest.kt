@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.BootstrapConfig
 import com.only4.cap4k.plugin.pipeline.api.BootstrapModulesConfig
+import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
 import com.only4.cap4k.plugin.pipeline.api.BootstrapPlanItem
 import com.only4.cap4k.plugin.pipeline.api.BootstrapTemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
@@ -23,6 +24,8 @@ class DefaultBootstrapRunnerTest {
             templates = BootstrapTemplateConfig("ddd-default-bootstrap", emptyList()),
             slots = emptyList(),
             conflictPolicy = ConflictPolicy.FAIL,
+            mode = BootstrapMode.IN_PLACE,
+            previewDir = null,
         )
 
         val runner = DefaultBootstrapRunner(
