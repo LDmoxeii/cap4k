@@ -10,6 +10,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.core.BootstrapFilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleBootstrapRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
 import org.gradle.testfixtures.ProjectBuilder
@@ -117,6 +118,27 @@ class PipelinePluginTest {
         assertInstanceOf(PresetTemplateResolver::class.java, resolver)
         assertEquals("custom-bootstrap-preset", readInternalProperty(resolver!!, "preset"))
         assertEquals(listOf("/tmp/bootstrap-templates"), readInternalProperty(resolver, "overrideDirs"))
+    }
+
+    @Test
+    fun `build bootstrap runner uses bootstrap filesystem exporter when export is enabled`() {
+        val project = ProjectBuilder.builder().build()
+        val config = BootstrapConfig(
+            preset = "ddd-multi-module",
+            projectName = "demo",
+            basePackage = "com.acme.demo",
+            modules = BootstrapModulesConfig("demo-domain", "demo-application", "demo-adapter"),
+            templates = BootstrapTemplateConfig("ddd-default-bootstrap", emptyList()),
+            slots = emptyList(),
+            conflictPolicy = ConflictPolicy.FAIL,
+            mode = BootstrapMode.IN_PLACE,
+            previewDir = null,
+        )
+
+        val runner = buildBootstrapRunner(project, config, exportEnabled = true)
+        val exporter = readInternalProperty(runner, "exporter")
+
+        assertInstanceOf(BootstrapFilesystemArtifactExporter::class.java, exporter)
     }
 
     @Test
