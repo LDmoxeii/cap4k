@@ -72,6 +72,35 @@ class BootstrapRootStateGuardTest {
     }
 
     @Test
+    fun `validate fails in place when extra managed section is present`() {
+        val root = Files.createTempDirectory("bootstrap-root-guard-extra-section")
+        Files.writeString(
+            root.resolve("build.gradle.kts"),
+            """
+                // [cap4k-bootstrap:managed-begin:root-host]
+                cap4k {
+                    bootstrap {
+                        enabled.set(true)
+                    }
+                }
+                // [cap4k-bootstrap:managed-end:root-host]
+
+                // [cap4k-bootstrap:managed-begin:root-extra]
+                println("unexpected")
+                // [cap4k-bootstrap:managed-end:root-extra]
+            """.trimIndent()
+        )
+        Files.writeString(root.resolve("settings.gradle.kts"), managedSettings())
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            BootstrapRootStateGuard(root).validate(baseConfig())
+        }
+
+        assertTrue(error.message!!.contains("exactly"))
+        assertTrue(error.message!!.contains("root-host"))
+    }
+
+    @Test
     fun `validate fails when module path collides with existing file`() {
         val root = Files.createTempDirectory("bootstrap-root-guard-module-collision")
         Files.writeString(root.resolve("build.gradle.kts"), managedBuild())

@@ -39,8 +39,8 @@ class BootstrapRootStateGuard(
             }
             throw error
         }
-        require(sectionIds.contains(ROOT_HOST_SECTION)) {
-            "Existing $relativePath must contain recognized managed markers for section root-host."
+        require(sectionIds == setOf(ROOT_HOST_SECTION)) {
+            "Existing $relativePath must contain exactly the managed section set { root-host }."
         }
     }
 

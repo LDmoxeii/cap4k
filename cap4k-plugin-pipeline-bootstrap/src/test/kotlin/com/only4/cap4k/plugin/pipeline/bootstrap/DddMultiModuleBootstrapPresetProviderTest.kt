@@ -115,6 +115,8 @@ class DddMultiModuleBootstrapPresetProviderTest {
     fun `bootstrap context escapes kotlin dsl path literals for dollar and quote characters`() {
         val context = bootstrapContext(
             config.copy(
+                mode = BootstrapMode.PREVIEW_SUBTREE,
+                previewDir = "preview\\\$slot\"dir",
                 templates = BootstrapTemplateConfig(
                     preset = "custom-bootstrap-preset",
                     overrideDirs = listOf("C:\\cap4k\\\$tmp", "D:\\cap4k\\quote\"dir"),
@@ -131,6 +133,7 @@ class DddMultiModuleBootstrapPresetProviderTest {
         )
 
         assertEquals(listOf("C:/cap4k/\\\$tmp", "D:/cap4k/quote\\\"dir"), context["templateOverrideDirs"])
+        assertEquals("preview/\\\$slot\\\"dir", context["previewDir"])
         assertTrue(context["slotBindings"].toString().contains("E:/cap4k/\\\$slot-root"))
         assertTrue(context["slotBindings"].toString().contains("F:/cap4k/quote\\\"slot"))
     }

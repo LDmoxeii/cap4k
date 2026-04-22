@@ -63,7 +63,7 @@ internal fun bootstrapContext(config: BootstrapConfig): Map<String, Any?> =
         "slotBindings" to config.slots.map(::toRenderModel),
         "conflictPolicy" to config.conflictPolicy.name,
         "mode" to config.mode.name,
-        "previewDir" to config.previewDir,
+        "previewDir" to config.previewDir?.let(::normalizeDslPathLiteral),
     )
 
 internal fun fixed(
