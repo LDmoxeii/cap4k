@@ -58,6 +58,7 @@ internal fun bootstrapContext(config: BootstrapConfig): Map<String, Any?> =
         "domainModuleName" to config.modules.domainModuleName,
         "applicationModuleName" to config.modules.applicationModuleName,
         "adapterModuleName" to config.modules.adapterModuleName,
+        "startModuleName" to config.modules.startModuleName,
         "templatePreset" to config.templates.preset,
         "templateOverrideDirs" to config.templates.overrideDirs.map(::normalizeDslPathLiteral),
         "slotBindings" to config.slots.map(::toRenderModel),

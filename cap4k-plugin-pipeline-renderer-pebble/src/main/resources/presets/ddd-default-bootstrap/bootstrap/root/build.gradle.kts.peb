@@ -20,6 +20,7 @@ cap4k {
             domainModuleName.set("{{ domainModuleName }}")
             applicationModuleName.set("{{ applicationModuleName }}")
             adapterModuleName.set("{{ adapterModuleName }}")
+            startModuleName.set("{{ startModuleName }}")
         }
         templates {
             preset.set("{{ templatePreset }}")
