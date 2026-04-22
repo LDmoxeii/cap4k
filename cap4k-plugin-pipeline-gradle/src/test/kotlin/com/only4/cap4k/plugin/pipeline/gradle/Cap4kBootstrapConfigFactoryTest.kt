@@ -24,6 +24,7 @@ class Cap4kBootstrapConfigFactoryTest {
                 domainModuleName.set("only-danmuku-domain")
                 applicationModuleName.set("only-danmuku-application")
                 adapterModuleName.set("only-danmuku-adapter")
+                startModuleName.set("only-danmuku-start")
             }
             templates {
                 preset.set("ddd-default-bootstrap")
@@ -31,6 +32,7 @@ class Cap4kBootstrapConfigFactoryTest {
             slots {
                 root.from("codegen/bootstrap-slots/root")
                 modulePackage("domain").from("codegen/bootstrap-slots/domain-package")
+                moduleResources("domain").from("codegen/bootstrap-slots/domain-resources")
             }
         }
 
@@ -43,11 +45,16 @@ class Cap4kBootstrapConfigFactoryTest {
         assertEquals(BootstrapMode.IN_PLACE, config.mode)
         assertEquals(null, config.previewDir)
         assertEquals("only-danmuku-domain", config.modules.domainModuleName)
-        assertEquals(listOf("root", "module-package:domain"), config.slots.map { it.slotId })
+        assertEquals("only-danmuku-start", config.modules.startModuleName)
+        assertEquals(
+            listOf("root", "module-package:domain", "module-resources:domain"),
+            config.slots.map { it.slotId }
+        )
         assertEquals(
             listOf(
                 "codegen/bootstrap-slots/root",
                 "codegen/bootstrap-slots/domain-package",
+                "codegen/bootstrap-slots/domain-resources",
             ),
             config.slots.map { it.sourceDir },
         )
@@ -69,6 +76,7 @@ class Cap4kBootstrapConfigFactoryTest {
                 domainModuleName.set("only-danmuku-domain")
                 applicationModuleName.set("only-danmuku-application")
                 adapterModuleName.set("only-danmuku-adapter")
+                startModuleName.set("only-danmuku-start")
             }
         }
 
@@ -93,6 +101,7 @@ class Cap4kBootstrapConfigFactoryTest {
                 domainModuleName.set("only-danmuku-domain")
                 applicationModuleName.set("only-danmuku-application")
                 adapterModuleName.set("only-danmuku-adapter")
+                startModuleName.set("only-danmuku-start")
             }
         }
 
@@ -119,6 +128,7 @@ class Cap4kBootstrapConfigFactoryTest {
                 domainModuleName.set("only-danmuku-domain")
                 applicationModuleName.set("only-danmuku-application")
                 adapterModuleName.set("only-danmuku-adapter")
+                startModuleName.set("only-danmuku-start")
             }
         }
 
@@ -145,6 +155,7 @@ class Cap4kBootstrapConfigFactoryTest {
                 domainModuleName.set("only-danmuku-domain")
                 applicationModuleName.set("only-danmuku-application")
                 adapterModuleName.set("only-danmuku-adapter")
+                startModuleName.set("only-danmuku-start")
             }
         }
 
@@ -171,6 +182,7 @@ class Cap4kBootstrapConfigFactoryTest {
                 domainModuleName.set("only-danmuku-domain")
                 applicationModuleName.set("only-danmuku-application")
                 adapterModuleName.set("only-danmuku-adapter")
+                startModuleName.set("only-danmuku-start")
             }
         }
 
@@ -211,9 +223,10 @@ class Cap4kBootstrapConfigFactoryTest {
                 domainModuleName.set("only-danmuku-domain")
                 applicationModuleName.set("only-danmuku-application")
                 adapterModuleName.set("only-danmuku-adapter")
+                startModuleName.set("only-danmuku-start")
             }
             slots {
-                moduleRoot("start").from("codegen/bootstrap-slots/start-root")
+                moduleRoot("infra").from("codegen/bootstrap-slots/infra-root")
             }
         }
 
@@ -222,6 +235,36 @@ class Cap4kBootstrapConfigFactoryTest {
         }
 
         assertTrue(error.message!!.contains("unsupported bootstrap slot role"))
+    }
+
+    @Test
+    fun `build accepts start role for module slot bindings`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+                startModuleName.set("only-danmuku-start")
+            }
+            slots {
+                moduleRoot("start").from("codegen/bootstrap-slots/start-root")
+                moduleResources("start").from("codegen/bootstrap-slots/start-resources")
+            }
+        }
+
+        val config = Cap4kBootstrapConfigFactory().build(project, extension)
+
+        assertEquals(
+            listOf("module-root:start", "module-resources:start"),
+            config.slots.map { it.slotId },
+        )
     }
 
     @Test
@@ -266,6 +309,7 @@ class Cap4kBootstrapConfigFactoryTest {
                 domainModuleName.set("only-danmuku-domain")
                 applicationModuleName.set("only-danmuku-application")
                 adapterModuleName.set("only-danmuku-adapter")
+                startModuleName.set("only-danmuku-start")
             }
         }
 
@@ -289,6 +333,7 @@ class Cap4kBootstrapConfigFactoryTest {
             modules {
                 domainModuleName.set("only-danmuku-domain")
                 applicationModuleName.set("only-danmuku-application")
+                startModuleName.set("only-danmuku-start")
             }
         }
 
@@ -297,6 +342,30 @@ class Cap4kBootstrapConfigFactoryTest {
         }
 
         assertTrue(error.message!!.contains("bootstrap.modules.adapterModuleName is required"))
+    }
+
+    @Test
+    fun `build fails when start bootstrap module name is missing`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kBootstrapConfigFactory().build(project, extension)
+        }
+
+        assertTrue(error.message!!.contains("bootstrap.modules.startModuleName is required"))
     }
 
     @Test
@@ -313,6 +382,7 @@ class Cap4kBootstrapConfigFactoryTest {
                 domainModuleName.set("only-danmuku-domain")
                 applicationModuleName.set("only-danmuku-application")
                 adapterModuleName.set("only-danmuku-adapter")
+                startModuleName.set("only-danmuku-start")
             }
             templates {
                 preset.set("   ")
@@ -338,6 +408,7 @@ class Cap4kBootstrapConfigFactoryTest {
                 domainModuleName.set("only-danmuku-domain")
                 applicationModuleName.set("only-danmuku-application")
                 adapterModuleName.set("only-danmuku-adapter")
+                startModuleName.set("only-danmuku-start")
             }
             conflictPolicy.set(" ")
         }

@@ -261,6 +261,7 @@ open class Cap4kBootstrapModulesExtension @Inject constructor(objects: ObjectFac
     val domainModuleName: Property<String> = objects.property(String::class.java)
     val applicationModuleName: Property<String> = objects.property(String::class.java)
     val adapterModuleName: Property<String> = objects.property(String::class.java)
+    val startModuleName: Property<String> = objects.property(String::class.java)
 }
 
 open class Cap4kBootstrapTemplatesExtension @Inject constructor(objects: ObjectFactory) {
@@ -274,12 +275,16 @@ open class Cap4kBootstrapSlotsExtension @Inject constructor(private val objects:
 
     private val moduleRoot: MutableMap<String, ConfigurableFileCollection> = linkedMapOf()
     private val modulePackage: MutableMap<String, ConfigurableFileCollection> = linkedMapOf()
+    private val moduleResources: MutableMap<String, ConfigurableFileCollection> = linkedMapOf()
 
     fun moduleRoot(role: String): ConfigurableFileCollection =
         moduleRoot.getOrPut(role) { objects.fileCollection() }
 
     fun modulePackage(role: String): ConfigurableFileCollection =
         modulePackage.getOrPut(role) { objects.fileCollection() }
+
+    fun moduleResources(role: String): ConfigurableFileCollection =
+        moduleResources.getOrPut(role) { objects.fileCollection() }
 
     fun bindings(project: Project): List<BootstrapSlotBinding> = buildList {
         addBindings(project, BootstrapSlotKind.ROOT, null, root)
@@ -289,6 +294,9 @@ open class Cap4kBootstrapSlotsExtension @Inject constructor(private val objects:
         }
         modulePackage.forEach { (role, sourceDirs) ->
             addBindings(project, BootstrapSlotKind.MODULE_PACKAGE, role, sourceDirs)
+        }
+        moduleResources.forEach { (role, sourceDirs) ->
+            addBindings(project, BootstrapSlotKind.MODULE_RESOURCES, role, sourceDirs)
         }
     }
 

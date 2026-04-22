@@ -22,6 +22,7 @@ data class BootstrapModulesConfig(
     val domainModuleName: String,
     val applicationModuleName: String,
     val adapterModuleName: String,
+    val startModuleName: String,
 )
 
 data class BootstrapTemplateConfig(
@@ -34,6 +35,7 @@ enum class BootstrapSlotKind {
     BUILD_LOGIC,
     MODULE_ROOT,
     MODULE_PACKAGE,
+    MODULE_RESOURCES,
 }
 
 data class BootstrapSlotBinding(
@@ -47,6 +49,7 @@ data class BootstrapSlotBinding(
             BootstrapSlotKind.BUILD_LOGIC -> "build-logic"
             BootstrapSlotKind.MODULE_ROOT -> "module-root:${requireNotNull(role)}"
             BootstrapSlotKind.MODULE_PACKAGE -> "module-package:${requireNotNull(role)}"
+            BootstrapSlotKind.MODULE_RESOURCES -> "module-resources:${requireNotNull(role)}"
         }
 }
 

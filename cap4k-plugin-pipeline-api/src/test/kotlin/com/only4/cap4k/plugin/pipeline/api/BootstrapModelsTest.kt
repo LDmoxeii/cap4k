@@ -17,6 +17,7 @@ class BootstrapModelsTest {
                 domainModuleName = "demo-domain",
                 applicationModuleName = "demo-application",
                 adapterModuleName = "demo-adapter",
+                startModuleName = "demo-start",
             ),
             templates = BootstrapTemplateConfig(
                 preset = "ddd-default-bootstrap",
@@ -97,5 +98,16 @@ class BootstrapModelsTest {
         )
 
         assertEquals("module-root:application", binding.slotId)
+    }
+
+    @Test
+    fun `bootstrap slot id maps module resources kind`() {
+        val binding = BootstrapSlotBinding(
+            kind = BootstrapSlotKind.MODULE_RESOURCES,
+            role = "adapter",
+            sourceDir = "codegen/bootstrap-slots/adapter-resources"
+        )
+
+        assertEquals("module-resources:adapter", binding.slotId)
     }
 }

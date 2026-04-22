@@ -141,6 +141,9 @@ internal fun resolveSlotOutputPath(
                 "${requireNotNull(moduleName)}/src/main/kotlin/${resolveModulePackageRelativePath(boundedRelative, config)}",
                 config,
             )
+
+        com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.MODULE_RESOURCES ->
+            error("bootstrap slot kind MODULE_RESOURCES is not supported in preset rendering yet.")
     }
 }
 

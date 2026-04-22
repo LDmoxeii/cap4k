@@ -24,7 +24,7 @@ class Cap4kBootstrapConfigFactory {
         val slots = extension.bootstrap.slots.bindings(project)
         slots.forEach { binding ->
             if (binding.role != null) {
-                require(binding.role in setOf("domain", "application", "adapter")) {
+                require(binding.role in setOf("domain", "application", "adapter", "start")) {
                     "unsupported bootstrap slot role: ${binding.role}"
                 }
             }
@@ -60,6 +60,7 @@ class Cap4kBootstrapConfigFactory {
                 domainModuleName = extension.bootstrap.modules.domainModuleName.required("bootstrap.modules.domainModuleName"),
                 applicationModuleName = extension.bootstrap.modules.applicationModuleName.required("bootstrap.modules.applicationModuleName"),
                 adapterModuleName = extension.bootstrap.modules.adapterModuleName.required("bootstrap.modules.adapterModuleName"),
+                startModuleName = extension.bootstrap.modules.startModuleName.required("bootstrap.modules.startModuleName"),
             ),
             templates = BootstrapTemplateConfig(
                 preset = extension.bootstrap.templates.preset.orNull?.trim().orEmpty().ifEmpty { "ddd-default-bootstrap" },
