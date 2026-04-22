@@ -21,6 +21,27 @@ cap4k {
             applicationModuleName.set("{{ applicationModuleName }}")
             adapterModuleName.set("{{ adapterModuleName }}")
         }
+        templates {
+            preset.set("{{ templatePreset }}")
+{% for overrideDir in templateOverrideDirs %}
+            overrideDirs.from("{{ overrideDir }}")
+{% endfor %}
+        }
+{% if slotBindings|length > 0 %}
+        slots {
+{% for slot in slotBindings %}
+{% if slot.kind == "ROOT" %}
+            root.from("{{ slot.sourceDir }}")
+{% elseif slot.kind == "BUILD_LOGIC" %}
+            buildLogic.from("{{ slot.sourceDir }}")
+{% elseif slot.kind == "MODULE_ROOT" %}
+            moduleRoot("{{ slot.role }}").from("{{ slot.sourceDir }}")
+{% elseif slot.kind == "MODULE_PACKAGE" %}
+            modulePackage("{{ slot.role }}").from("{{ slot.sourceDir }}")
+{% endif %}
+{% endfor %}
+        }
+{% endif %}
     }
 }
 // [cap4k-bootstrap:managed-end:root-host]

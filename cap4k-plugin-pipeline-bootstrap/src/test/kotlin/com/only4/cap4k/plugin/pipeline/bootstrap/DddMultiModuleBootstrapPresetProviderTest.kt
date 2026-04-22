@@ -86,6 +86,32 @@ class DddMultiModuleBootstrapPresetProviderTest {
     }
 
     @Test
+    fun `bootstrap context preserves template and slot config with windows safe paths`() {
+        val context = bootstrapContext(
+            config.copy(
+                templates = BootstrapTemplateConfig(
+                    preset = "custom-bootstrap-preset",
+                    overrideDirs = listOf("C:\\cap4k\\overrides", "D:\\cap4k\\more-overrides"),
+                ),
+                slots = listOf(
+                    BootstrapSlotBinding(BootstrapSlotKind.ROOT, sourceDir = "C:\\cap4k\\slots\\root"),
+                    BootstrapSlotBinding(
+                        BootstrapSlotKind.MODULE_PACKAGE,
+                        role = "domain",
+                        sourceDir = "D:\\cap4k\\slots\\domain-package",
+                    ),
+                ),
+            )
+        )
+
+        assertEquals("custom-bootstrap-preset", context["templatePreset"])
+        assertEquals(listOf("C:/cap4k/overrides", "D:/cap4k/more-overrides"), context["templateOverrideDirs"])
+        assertTrue(context["slotBindings"].toString().contains("C:/cap4k/slots/root"))
+        assertTrue(context["slotBindings"].toString().contains("D:/cap4k/slots/domain-package"))
+        assertTrue(context["slotBindings"].toString().contains("MODULE_PACKAGE"))
+    }
+
+    @Test
     fun `module package output path prepends base package path when slot path is not package-rooted`() {
         val outputPath = resolveSlotOutputPath(
             binding = BootstrapSlotBinding(

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.deleteExisting
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
@@ -20,12 +21,27 @@ class PipelinePluginBootstrapInPlaceFunctionalTest {
         val result = FunctionalFixtureSupport.runner(projectDir, "cap4kBootstrap").build()
         val buildFile = projectDir.resolve("build.gradle.kts").readText()
         val settingsFile = projectDir.resolve("settings.gradle.kts").readText()
+        val expectedRootSlotPath = projectDir.resolve("codegen/bootstrap-slots/root").toAbsolutePath().normalize()
+            .toString()
+            .replace("\\", "/")
+        val expectedDomainSlotPath = projectDir.resolve("codegen/bootstrap-slots/domain-package").toAbsolutePath().normalize()
+            .toString()
+            .replace("\\", "/")
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(projectDir.resolve("only-danmuku-domain/build.gradle.kts").toFile().exists())
         assertTrue(projectDir.resolve("README.md").toFile().exists())
         assertTrue(buildFile.contains("// [cap4k-bootstrap:managed-begin:root-host]"))
         assertTrue(buildFile.contains("mode.set(BootstrapMode.IN_PLACE)"))
+        assertTrue(buildFile.contains("templates {"))
+        assertTrue(buildFile.contains("preset.set(\"ddd-default-bootstrap\")"))
+        assertTrue(buildFile.contains("slots {"))
+        assertTrue(buildFile.contains("root.from(\""))
+        assertTrue(buildFile.contains("codegen/bootstrap-slots/root"))
+        assertTrue(!buildFile.contains(expectedRootSlotPath.replace("/", "\\")))
+        assertTrue(buildFile.contains("modulePackage(\"domain\").from(\""))
+        assertTrue(buildFile.contains("codegen/bootstrap-slots/domain-package"))
+        assertTrue(!buildFile.contains(expectedDomainSlotPath.replace("/", "\\")))
         assertTrue(settingsFile.contains("rootProject.name = \"only-danmuku\""))
         assertTrue(settingsFile.contains("include(\":only-danmuku-domain\")"))
         assertTrue(buildFile.contains("val bootstrapHostBanner = \"host-owned-build-logic\""))
@@ -40,6 +56,7 @@ class PipelinePluginBootstrapInPlaceFunctionalTest {
         val firstRun = FunctionalFixtureSupport.runner(projectDir, "cap4kBootstrap").build()
         val buildFile = projectDir.resolve("build.gradle.kts")
         val settingsFile = projectDir.resolve("settings.gradle.kts")
+        val generatedReadme = projectDir.resolve("README.md")
         buildFile.writeText(
             buildFile.readText().replace(
                 "val bootstrapHostBanner = \"host-owned-build-logic\"",
@@ -52,6 +69,7 @@ class PipelinePluginBootstrapInPlaceFunctionalTest {
                 "// host-owned-settings-comment\ndependencyResolutionManagement {"
             )
         )
+        generatedReadme.deleteExisting()
 
         val secondRun = FunctionalFixtureSupport.runner(projectDir, "cap4kBootstrap").build()
         val rerunBuild = buildFile.readText()
@@ -59,6 +77,7 @@ class PipelinePluginBootstrapInPlaceFunctionalTest {
 
         assertTrue(firstRun.output.contains("BUILD SUCCESSFUL"))
         assertTrue(secondRun.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedReadme.toFile().exists())
         assertTrue(rerunBuild.contains("val rerunHostValue = \"kept-on-rerun\""))
         assertTrue(rerunSettings.contains("// host-owned-settings-comment"))
         assertTrue(rerunBuild.contains("// [cap4k-bootstrap:managed-begin:root-host]"))

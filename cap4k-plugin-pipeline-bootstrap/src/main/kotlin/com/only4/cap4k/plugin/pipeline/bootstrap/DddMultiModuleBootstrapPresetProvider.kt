@@ -58,6 +58,9 @@ internal fun bootstrapContext(config: BootstrapConfig): Map<String, Any?> =
         "domainModuleName" to config.modules.domainModuleName,
         "applicationModuleName" to config.modules.applicationModuleName,
         "adapterModuleName" to config.modules.adapterModuleName,
+        "templatePreset" to config.templates.preset,
+        "templateOverrideDirs" to config.templates.overrideDirs.map(::normalizeDslPathLiteral),
+        "slotBindings" to config.slots.map(::toRenderModel),
         "conflictPolicy" to config.conflictPolicy.name,
         "mode" to config.mode.name,
         "previewDir" to config.previewDir,
@@ -149,9 +152,18 @@ internal fun resolveModuleName(role: String, config: BootstrapConfig): String =
         else -> throw IllegalArgumentException("unsupported bootstrap slot role: $role")
     }
 
+private fun toRenderModel(binding: com.only4.cap4k.plugin.pipeline.api.BootstrapSlotBinding): BootstrapSlotBindingRenderModel =
+    BootstrapSlotBindingRenderModel(
+        kind = binding.kind.name,
+        role = binding.role,
+        sourceDir = normalizeDslPathLiteral(binding.sourceDir),
+    )
+
 private fun BootstrapConfig.basePackagePath(): String = basePackage.replace('.', '/')
 
 private fun trimPebExtension(path: String): String = path.removeSuffix(".peb")
+
+private fun normalizeDslPathLiteral(path: String): String = path.replace('\\', '/')
 
 internal fun rebaseOutputPath(relativePath: String, config: BootstrapConfig): String {
     val normalizedRelativePath = normalizeRelativePath(relativePath)
@@ -259,3 +271,9 @@ internal object LegacyArchTemplateMapper {
         )
     }
 }
+
+internal data class BootstrapSlotBindingRenderModel(
+    val kind: String,
+    val role: String?,
+    val sourceDir: String,
+)
