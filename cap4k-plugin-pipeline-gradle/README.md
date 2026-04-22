@@ -940,7 +940,7 @@ cap4k {
 
 ## 12. Bootstrap 脚手架
 
-Bootstrap 与常规 pipeline 相互独立，只产生初始目录/脚本（不写业务代码）。
+Bootstrap 与常规 pipeline 相互独立，负责产出受限的工程骨架与启动基线文件：固定 root/module 构件（含 `StartApplication.kt`）以及由 slots 渲染到约定根路径的用户模板内容；不覆盖常规 design/aggregate 业务代码生成职责。
 
 当前唯一实现的 preset 是 `ddd-multi-module`（`DddMultiModuleBootstrapPresetProvider`），对应模板包 `ddd-default-bootstrap`。
 
