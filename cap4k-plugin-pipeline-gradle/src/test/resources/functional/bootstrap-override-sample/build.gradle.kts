@@ -1,3 +1,5 @@
+import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
+
 plugins {
     id("com.only4.cap4k.plugin.pipeline")
 }
@@ -6,6 +8,8 @@ cap4k {
     bootstrap {
         enabled.set(true)
         preset.set("ddd-multi-module")
+        mode.set(BootstrapMode.PREVIEW_SUBTREE)
+        previewDir.set("bootstrap-preview")
         projectName.set("only-danmuku")
         basePackage.set("edu.only4.danmuku")
         modules {
