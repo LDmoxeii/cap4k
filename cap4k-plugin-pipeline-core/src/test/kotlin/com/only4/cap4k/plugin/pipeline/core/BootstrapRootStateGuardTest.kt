@@ -115,6 +115,20 @@ class BootstrapRootStateGuardTest {
     }
 
     @Test
+    fun `validate fails when start module path collides with existing file`() {
+        val root = Files.createTempDirectory("bootstrap-root-guard-start-module-collision")
+        Files.writeString(root.resolve("build.gradle.kts"), managedBuild())
+        Files.writeString(root.resolve("settings.gradle.kts"), managedSettings())
+        Files.writeString(root.resolve("demo-start"), "not a directory")
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            BootstrapRootStateGuard(root).validate(baseConfig())
+        }
+
+        assertTrue(error.message!!.contains("demo-start"))
+    }
+
+    @Test
     fun `validate accepts managed in place host root`() {
         val root = Files.createTempDirectory("bootstrap-root-guard-managed")
         Files.writeString(root.resolve("build.gradle.kts"), managedBuild())
@@ -158,6 +172,7 @@ class BootstrapRootStateGuardTest {
                         domainModuleName.set("demo-domain")
                         applicationModuleName.set("demo-application")
                         adapterModuleName.set("demo-adapter")
+                        startModuleName.set("demo-start")
                     }
                 }
             }
@@ -172,6 +187,7 @@ class BootstrapRootStateGuardTest {
             include(":demo-domain")
             include(":demo-application")
             include(":demo-adapter")
+            include(":demo-start")
             // [cap4k-bootstrap:managed-end:root-host]
         """.trimIndent()
 }

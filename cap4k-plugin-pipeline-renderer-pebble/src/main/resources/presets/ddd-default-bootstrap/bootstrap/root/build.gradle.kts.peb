@@ -39,6 +39,8 @@ cap4k {
             moduleRoot("{{ slot.role }}").from("{{ slot.sourceDir }}")
 {% elseif slot.kind == "MODULE_PACKAGE" %}
             modulePackage("{{ slot.role }}").from("{{ slot.sourceDir }}")
+{% elseif slot.kind == "MODULE_RESOURCES" %}
+            moduleResources("{{ slot.role }}").from("{{ slot.sourceDir }}")
 {% endif %}
 {% endfor %}
         }

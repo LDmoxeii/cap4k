@@ -150,7 +150,12 @@ class BootstrapFilesystemArtifactExporterTest {
             preset = "ddd-multi-module",
             projectName = "demo",
             basePackage = "com.acme.demo",
-            modules = BootstrapModulesConfig("demo-domain", "demo-application", "demo-adapter", "demo-start"),
+            modules = BootstrapModulesConfig(
+                "demo-domain",
+                "demo-application",
+                "demo-adapter",
+                "demo-start",
+            ),
             templates = BootstrapTemplateConfig("ddd-default-bootstrap", emptyList()),
             slots = emptyList(),
             conflictPolicy = ConflictPolicy.FAIL,

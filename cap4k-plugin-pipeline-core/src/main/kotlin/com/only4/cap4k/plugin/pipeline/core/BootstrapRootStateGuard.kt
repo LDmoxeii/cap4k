@@ -48,6 +48,7 @@ class BootstrapRootStateGuard(
         moduleRoot(config, config.modules.domainModuleName)
         moduleRoot(config, config.modules.applicationModuleName)
         moduleRoot(config, config.modules.adapterModuleName)
+        moduleRoot(config, config.modules.startModuleName)
     }
 
     private fun moduleRoot(config: BootstrapConfig, moduleName: String) {
