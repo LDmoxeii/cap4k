@@ -22,6 +22,30 @@ Important execution constraint:
 - this plan does **not** introduce an external launcher for truly empty directories
 - preview-mode generated-root task verification in tests may use `withPluginClasspath()`; solving plugin publication/distribution ergonomics is a separate concern
 
+## Managed Section Ownership Boundary
+
+This slice intentionally keeps bootstrap-managed ownership narrow for `IN_PLACE` reruns.
+
+Bootstrap-managed sections own only:
+
+- `settings.gradle.kts`: `rootProject.name` and bootstrap-owned fixed-module `include(...)` lines
+- `build.gradle.kts`: the bootstrap-owned `cap4k { bootstrap { ... } }` block
+
+The following remain outside bootstrap-managed ownership:
+
+- `plugins { id("com.only4.cap4k.plugin.pipeline") }`
+- plugin version and plugin-resolution wiring
+- repository declarations, wrapper scaffolding, and other host prerequisites
+- `group` / `version`
+- `subprojects { ... }` and other organization-wide conventions
+- arbitrary user tasks, dependencies, and organization-specific logic
+
+This is not accidental.
+Those concerns are either execution-host prerequisites or organization policy, and taking them over would turn this slice into generic Gradle-root migration instead of bounded bootstrap contract correction.
+
+`PREVIEW_SUBTREE` may still render complete root files because bootstrap owns that generated subtree end-to-end.
+The narrow ownership rule applies specifically to `IN_PLACE` rewrites of an already existing host root.
+
 ## File Structure
 
 ### Existing files to modify
@@ -31,18 +55,24 @@ Important execution constraint:
 - Modify: `cap4k-plugin-pipeline-bootstrap/src/main/kotlin/com/only4/cap4k/plugin/pipeline/bootstrap/DddMultiModuleBootstrapPresetProvider.kt`
 - Modify: `cap4k-plugin-pipeline-bootstrap/src/test/kotlin/com/only4/cap4k/plugin/pipeline/bootstrap/DddMultiModuleBootstrapPresetProviderTest.kt`
 - Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultBootstrapRunner.kt`
+- Modify: `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultBootstrapRunnerTest.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kExtension.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kBootstrapConfigFactory.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePlugin.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kBootstrapConfigFactoryTest.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/FunctionalFixtureSupport.kt`
+- Modify: `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginTest.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginBootstrapFunctionalTest.kt`
+- Modify: `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginBootstrapGeneratedProjectFunctionalTest.kt`
 - Modify: `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default-bootstrap/bootstrap/root/build.gradle.kts.peb`
 - Modify: `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default-bootstrap/bootstrap/root/settings.gradle.kts.peb`
+- Modify: `cap4k-plugin-pipeline-gradle/README.md`
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-sample/build.gradle.kts`
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-sample/settings.gradle.kts`
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-override-sample/build.gradle.kts`
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-override-sample/settings.gradle.kts`
+- Modify: `cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-generated-project-smoke-sample/build.gradle.kts`
+- Modify: `cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-generated-project-override-sample/build.gradle.kts`
 
 ### New source files
 
@@ -75,6 +105,7 @@ Important execution constraint:
 - Modify: `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kExtension.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kBootstrapConfigFactory.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kBootstrapConfigFactoryTest.kt`
+- Modify: `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginTest.kt`
 
 - [ ] **Step 1: Extend the failing model and config tests**
 
@@ -225,13 +256,14 @@ fun `build rejects unsafe preview dir`() {
 Run:
 
 ```powershell
-./gradlew :cap4k-plugin-pipeline-api:test :cap4k-plugin-pipeline-gradle:test --tests "*BootstrapModelsTest" --tests "*Cap4kBootstrapConfigFactoryTest"
+./gradlew :cap4k-plugin-pipeline-api:test :cap4k-plugin-pipeline-gradle:test --tests "*BootstrapModelsTest" --tests "*Cap4kBootstrapConfigFactoryTest" --tests "*PipelinePluginTest"
 ```
 
 Expected:
 
 - `BootstrapModelsTest` fails because `BootstrapMode`, `mode`, and `previewDir` do not exist
 - `Cap4kBootstrapConfigFactoryTest` fails because the extension/config factory do not expose mode-aware bootstrap config yet
+- `PipelinePluginTest` fails because bootstrap runner/config helper code still constructs the old `BootstrapConfig` shape
 
 - [ ] **Step 3: Implement mode-aware bootstrap config**
 
@@ -808,6 +840,7 @@ git commit -m "feat: add bootstrap managed root merge support"
 - Create: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/BootstrapRootStateGuard.kt`
 - Create: `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/BootstrapRootStateGuardTest.kt`
 - Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultBootstrapRunner.kt`
+- Modify: `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultBootstrapRunnerTest.kt`
 - Modify: `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default-bootstrap/bootstrap/root/build.gradle.kts.peb`
 - Modify: `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default-bootstrap/bootstrap/root/settings.gradle.kts.peb`
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-sample/build.gradle.kts`
@@ -953,7 +986,7 @@ class PipelinePluginBootstrapInPlaceFunctionalTest {
 Run:
 
 ```powershell
-./gradlew :cap4k-plugin-pipeline-core:test :cap4k-plugin-pipeline-gradle:test --tests "*BootstrapRootStateGuardTest" --tests "*PipelinePluginBootstrapInPlaceFunctionalTest"
+./gradlew :cap4k-plugin-pipeline-core:test :cap4k-plugin-pipeline-gradle:test --tests "*BootstrapRootStateGuardTest" --tests "*DefaultBootstrapRunnerTest" --tests "*PipelinePluginBootstrapInPlaceFunctionalTest"
 ```
 
 Expected:
@@ -1162,6 +1195,7 @@ Expected:
 - in-place bootstrap succeeds against the minimal host sample
 - rerun preserves user content outside markers
 - unmanaged existing root is rejected
+- the default bootstrap runner still fails cleanly when no provider is registered after the config shape change
 
 - [ ] **Step 5: Commit**
 
@@ -1184,8 +1218,11 @@ git commit -m "feat: guard and upgrade in-place bootstrap roots"
 **Files:**
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/FunctionalFixtureSupport.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginBootstrapFunctionalTest.kt`
+- Modify: `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginBootstrapGeneratedProjectFunctionalTest.kt`
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-override-sample/build.gradle.kts`
 - Modify: `cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-override-sample/settings.gradle.kts`
+- Modify: `cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-generated-project-smoke-sample/build.gradle.kts`
+- Modify: `cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-generated-project-override-sample/build.gradle.kts`
 - Create: `cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-preview-sample/build.gradle.kts`
 - Create: `cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-preview-sample/settings.gradle.kts`
 - Create: `cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-preview-sample/codegen/bootstrap-slots/root/README.md.peb`
@@ -1246,6 +1283,7 @@ Expected:
 - tests fail because no explicit preview fixture exists
 - generated project runner still assumes `projectName` equals generated directory name
 - generated project runner does not inject plugin classpath for rerun verification
+- legacy generated-project smoke tests still assume subtree output is the default contract
 
 - [ ] **Step 3: Add explicit preview fixtures and generated preview runner support**
 
@@ -1375,12 +1413,15 @@ fun `cap4kBootstrap supports fixed template override dirs`() {
 }
 ```
 
+Also migrate the legacy generated-project smoke fixtures/tests so they opt into `PREVIEW_SUBTREE` explicitly instead of relying on the old implicit `<projectName>/` subtree default.
+Keep the coverage, but make the mode explicit.
+
 - [ ] **Step 4: Run the preview tests plus bootstrap override test and verify they pass**
 
 Run:
 
 ```powershell
-./gradlew :cap4k-plugin-pipeline-gradle:test --tests "*PipelinePluginBootstrapPreviewFunctionalTest" --tests "*PipelinePluginBootstrapFunctionalTest"
+./gradlew :cap4k-plugin-pipeline-gradle:test --tests "*PipelinePluginBootstrapPreviewFunctionalTest" --tests "*PipelinePluginBootstrapFunctionalTest" --tests "*PipelinePluginBootstrapGeneratedProjectFunctionalTest"
 ```
 
 Expected:
@@ -1389,14 +1430,18 @@ Expected:
 - preview output goes to `bootstrap-preview/`
 - generated preview root can rerun `cap4kBootstrapPlan`
 - template override sample still passes under explicit preview mode
+- legacy generated-project smoke coverage now uses explicit preview-mode fixtures rather than an implicit subtree default
 
 - [ ] **Step 5: Commit**
 
 ```powershell
 git add cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/FunctionalFixtureSupport.kt `
         cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginBootstrapFunctionalTest.kt `
+        cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginBootstrapGeneratedProjectFunctionalTest.kt `
         cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-override-sample/build.gradle.kts `
         cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-override-sample/settings.gradle.kts `
+        cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-generated-project-smoke-sample/build.gradle.kts `
+        cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-generated-project-override-sample/build.gradle.kts `
         cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-preview-sample `
         cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginBootstrapPreviewFunctionalTest.kt
 git commit -m "test: keep bootstrap preview mode explicit"
@@ -1405,9 +1450,20 @@ git commit -m "test: keep bootstrap preview mode explicit"
 ## Task 6: Run the Full Bootstrap Contract Verification Sweep
 
 **Files:**
-- No source changes expected
+- Modify: `cap4k-plugin-pipeline-gradle/README.md`
 
-- [ ] **Step 1: Run the focused bootstrap verification sweep**
+- [ ] **Step 1: Update README to match the new public bootstrap contract**
+
+Update the bootstrap DSL and output examples so the public docs no longer claim that `projectName` implies the default output subtree.
+
+Required doc changes:
+
+- show `mode = IN_PLACE` as the official default
+- show `PREVIEW_SUBTREE` + `previewDir` as the explicit tutorial/demo mode
+- change the bootstrap output tree example from `{projectName}/...` to an in-place root layout
+- explain that `projectName` controls generated project identity, not filesystem prefixing
+
+- [ ] **Step 2: Run the focused bootstrap verification sweep**
 
 Run:
 
@@ -1417,21 +1473,25 @@ Run:
           :cap4k-plugin-pipeline-core:test `
           :cap4k-plugin-pipeline-gradle:test `
           --tests "*BootstrapModelsTest" `
+          --tests "*PipelinePluginTest" `
           --tests "*DddMultiModuleBootstrapPresetProviderTest" `
+          --tests "*DefaultBootstrapRunnerTest" `
           --tests "*BootstrapManagedSectionMergerTest" `
           --tests "*BootstrapFilesystemArtifactExporterTest" `
           --tests "*BootstrapRootStateGuardTest" `
           --tests "*PipelinePluginBootstrapFunctionalTest" `
           --tests "*PipelinePluginBootstrapInPlaceFunctionalTest" `
-          --tests "*PipelinePluginBootstrapPreviewFunctionalTest"
+          --tests "*PipelinePluginBootstrapPreviewFunctionalTest" `
+          --tests "*PipelinePluginBootstrapGeneratedProjectFunctionalTest"
 ```
 
 Expected:
 
 - all bootstrap-specific unit and functional tests pass
 - no assertions remain that treat `projectName` as the default output prefix
+- README examples and DSL reference match the implemented contract
 
-- [ ] **Step 2: Run a second sweep through the public Gradle entry points**
+- [ ] **Step 3: Run a second sweep through the public Gradle entry points**
 
 Run:
 
@@ -1444,7 +1504,7 @@ Expected:
 - all bootstrap plan/generate entry-point tests pass
 - in-place and preview mode both remain covered through the public plugin tasks
 
-- [ ] **Step 3: Confirm the worktree is clean except for intended changes**
+- [ ] **Step 4: Confirm the worktree is clean except for intended changes**
 
 Run:
 
@@ -1457,7 +1517,7 @@ Expected:
 - no unexpected modified files
 - only files listed in this plan were touched during the slice
 
-- [ ] **Step 4: Final commit if verification required fixes**
+- [ ] **Step 5: Final commit if verification required fixes**
 
 ```powershell
 git add -A

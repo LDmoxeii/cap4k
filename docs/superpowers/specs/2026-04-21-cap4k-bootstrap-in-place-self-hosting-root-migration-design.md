@@ -34,6 +34,7 @@ The current subtree output model is retained only as an explicit preview/tutoria
 - Do not turn bootstrap into a generic Gradle-project merger.
 - Do not revive old `archTemplate` JSON as a public runtime DSL.
 - Do not implement a framework-wide generic file merge engine.
+- Do not introduce an external bootstrap launcher for truly empty directories in this slice.
 - Do not broaden bootstrap to auto-take over arbitrary existing Gradle roots.
 - Do not mix aggregate parity gaps, schema parity, or unrelated generator fixes into this slice.
 - Do not remove preview/subtree output entirely; it remains a supported explicit mode.
@@ -224,10 +225,10 @@ Framework-managed content should include only the minimal required bootstrap-own
 
 - `rootProject.name`
 - bootstrap-generated fixed-module `include(...)` entries
-- minimal plugin-management and dependency-resolution wiring required for the generated project to remain a Cap4k host
 
 User-managed content may include:
 
+- plugin-management and dependency-resolution wiring required to resolve the plugin in that host
 - additional `include(...)` entries
 - extra repositories
 - organization-specific settings logic
@@ -236,17 +237,38 @@ User-managed content may include:
 
 Framework-managed content should include only the minimal required bootstrap-owned root build content:
 
-- Cap4k host plugin application
-- minimal shared build conventions required by the preset
 - baseline `cap4k { ... }` skeleton needed for continued bootstrap and generation usage
 
 User-managed content may include:
 
+- `plugins { ... }` including Cap4k host plugin application
 - extra plugins
 - organization-specific repositories
 - custom dependencies
 - custom tasks
+- `group` / `version`
+- `subprojects { ... }` or other organization-wide conventions
 - additional build logic outside managed sections
+
+### Host Prerequisites Outside Managed Sections
+
+For this slice, managed sections intentionally own only bootstrap-declared project identity and fixed module wiring.
+They do **not** own the execution-host prerequisites that make the current root able to run bootstrap in the first place.
+
+That means the following stay outside bootstrap-managed ownership for `IN_PLACE` reruns:
+
+- `plugins { id("com.only4.cap4k.plugin.pipeline") }`
+- plugin version and plugin-resolution wiring
+- repository declarations and wrapper/bootstrap-launch scaffolding
+- `group` / `version`
+- `subprojects { ... }` or other organization-wide build conventions
+- arbitrary user tasks, dependencies, and organization-specific build logic
+
+This boundary is intentional.
+Rewriting those concerns would expand this slice from "bootstrap contract correction" into "generic Gradle-root takeover", which is exactly what this design is trying to avoid.
+
+`PREVIEW_SUBTREE` may still render complete root files because bootstrap owns that generated subtree end-to-end.
+The narrow managed-section ownership rule applies specifically to `IN_PLACE` rewrites of an already existing host root.
 
 ### Rewrite Behavior
 
@@ -285,14 +307,19 @@ Semantics:
 
 `IN_PLACE` must behave deterministically based on the current root state.
 
-### 1. Empty Or Missing Root Files
+### Unsupported Entry State In This Slice: Truly Empty Directory Or Missing Root Files
 
-If the current root does not yet contain `build.gradle.kts` and `settings.gradle.kts`:
+A directory that does not yet contain a runnable Gradle host root is **not** a supported entry state for this slice.
 
-- bootstrap should create them directly
-- the created root must be self-hosting from the first successful run
+Reason:
 
-### 2. Minimal Bootstrap Host Root
+- bootstrap is still invoked as a Gradle task
+- without an existing host root, there is nowhere to declare, resolve, and execute the plugin
+
+Supporting a truly empty directory would require an external launcher or equivalent pre-host bootstrap mechanism.
+That is intentionally outside this slice.
+
+### 1. Minimal Bootstrap Host Root
 
 The framework should define a supported minimal host root shape for first-run bootstrap.
 
@@ -302,7 +329,7 @@ Bootstrap should upgrade that temporary root into the final self-hosting root if
 This recognition must be marker-based or otherwise explicit.
 It must not depend on heuristic inspection of arbitrary user files.
 
-### 3. Already Managed Root
+### 2. Already Managed Root
 
 If the current root already contains valid managed bootstrap sections:
 
@@ -310,7 +337,7 @@ If the current root already contains valid managed bootstrap sections:
 - managed sections should be updated as needed
 - user-managed content outside the sections must be preserved
 
-### 4. Unmanaged Existing Root
+### 3. Unmanaged Existing Root
 
 If the current root already contains a normal Gradle project without recognized bootstrap markers:
 
@@ -453,7 +480,6 @@ Validate:
 
 Validate:
 
-- bootstrap can initialize an empty root into a self-hosting project
 - bootstrap can upgrade a recognized minimal host root into the final managed self-hosting root
 - bootstrap reruns succeed against an already managed root
 - bootstrap fails against an unmanaged existing root in `IN_PLACE`
@@ -487,5 +513,6 @@ If this slice lands successfully, the next work should be limited to:
 - implementation plan for this contract
 - tutorial project adjustments to use explicit preview mode where needed
 - optional later evaluation of whether fixed module build files also need managed-section treatment
+- optional later evaluation of an external launcher or equivalent contract for truly empty-directory bootstrap
 
 It should not automatically trigger broader bootstrap parity expansion.
