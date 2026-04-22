@@ -163,7 +163,10 @@ private fun BootstrapConfig.basePackagePath(): String = basePackage.replace('.',
 
 private fun trimPebExtension(path: String): String = path.removeSuffix(".peb")
 
-private fun normalizeDslPathLiteral(path: String): String = path.replace('\\', '/')
+private fun normalizeDslPathLiteral(path: String): String = path
+    .replace('\\', '/')
+    .replace("$", "\\$")
+    .replace("\"", "\\\"")
 
 internal fun rebaseOutputPath(relativePath: String, config: BootstrapConfig): String {
     val normalizedRelativePath = normalizeRelativePath(relativePath)

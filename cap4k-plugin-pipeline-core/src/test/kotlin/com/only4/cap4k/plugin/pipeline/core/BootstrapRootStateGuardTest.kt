@@ -48,6 +48,30 @@ class BootstrapRootStateGuardTest {
     }
 
     @Test
+    fun `validate fails in place when root host markers are malformed`() {
+        val root = Files.createTempDirectory("bootstrap-root-guard-malformed-markers")
+        Files.writeString(
+            root.resolve("build.gradle.kts"),
+            """
+                // [cap4k-bootstrap:managed-begin:root-host]
+                cap4k {
+                    bootstrap {
+                        enabled.set(true)
+                    }
+                }
+                // [cap4k-bootstrap:managed-end:other-section]
+            """.trimIndent()
+        )
+        Files.writeString(root.resolve("settings.gradle.kts"), managedSettings())
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            BootstrapRootStateGuard(root).validate(baseConfig())
+        }
+
+        assertTrue(error.message!!.contains("mismatched managed end marker"))
+    }
+
+    @Test
     fun `validate fails when module path collides with existing file`() {
         val root = Files.createTempDirectory("bootstrap-root-guard-module-collision")
         Files.writeString(root.resolve("build.gradle.kts"), managedBuild())

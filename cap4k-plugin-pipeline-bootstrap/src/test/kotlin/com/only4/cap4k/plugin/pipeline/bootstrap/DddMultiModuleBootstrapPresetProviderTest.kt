@@ -112,6 +112,30 @@ class DddMultiModuleBootstrapPresetProviderTest {
     }
 
     @Test
+    fun `bootstrap context escapes kotlin dsl path literals for dollar and quote characters`() {
+        val context = bootstrapContext(
+            config.copy(
+                templates = BootstrapTemplateConfig(
+                    preset = "custom-bootstrap-preset",
+                    overrideDirs = listOf("C:\\cap4k\\\$tmp", "D:\\cap4k\\quote\"dir"),
+                ),
+                slots = listOf(
+                    BootstrapSlotBinding(BootstrapSlotKind.ROOT, sourceDir = "E:\\cap4k\\\$slot-root"),
+                    BootstrapSlotBinding(
+                        BootstrapSlotKind.MODULE_PACKAGE,
+                        role = "domain",
+                        sourceDir = "F:\\cap4k\\quote\"slot",
+                    ),
+                ),
+            )
+        )
+
+        assertEquals(listOf("C:/cap4k/\\\$tmp", "D:/cap4k/quote\\\"dir"), context["templateOverrideDirs"])
+        assertTrue(context["slotBindings"].toString().contains("E:/cap4k/\\\$slot-root"))
+        assertTrue(context["slotBindings"].toString().contains("F:/cap4k/quote\\\"slot"))
+    }
+
+    @Test
     fun `module package output path prepends base package path when slot path is not package-rooted`() {
         val outputPath = resolveSlotOutputPath(
             binding = BootstrapSlotBinding(

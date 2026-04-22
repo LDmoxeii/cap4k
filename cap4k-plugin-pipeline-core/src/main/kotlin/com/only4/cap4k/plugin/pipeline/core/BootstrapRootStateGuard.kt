@@ -7,6 +7,7 @@ import java.nio.file.Path
 
 class BootstrapRootStateGuard(
     root: Path,
+    private val merger: BootstrapManagedSectionMerger = BootstrapManagedSectionMerger(),
 ) {
     private val normalizedRoot = root.toAbsolutePath().normalize()
 
@@ -27,7 +28,18 @@ class BootstrapRootStateGuard(
         }
 
         val content = Files.readString(file)
-        require(hasManagedRootHostMarkers(content)) {
+        val sectionIds = try {
+            merger.validateDocumentStructure(content, "Existing $relativePath")
+        } catch (error: IllegalArgumentException) {
+            if (error.message?.contains("must contain at least one managed section.") == true) {
+                throw IllegalArgumentException(
+                    "Existing $relativePath must contain recognized managed markers for section root-host.",
+                    error,
+                )
+            }
+            throw error
+        }
+        require(sectionIds.contains(ROOT_HOST_SECTION)) {
             "Existing $relativePath must contain recognized managed markers for section root-host."
         }
     }
@@ -52,19 +64,7 @@ class BootstrapRootStateGuard(
         }
     }
 
-    private fun hasManagedRootHostMarkers(content: String): Boolean {
-        val markers = content.lineSequence()
-            .map { it.removeSuffix("\r").trim() }
-            .mapNotNull { line -> MANAGED_MARKER_REGEX.matchEntire(line) }
-            .map { match -> match.groupValues[1] to match.groupValues[2] }
-            .filter { (_, sectionId) -> sectionId == ROOT_HOST_SECTION }
-            .toList()
-
-        return markers.contains("begin" to ROOT_HOST_SECTION) && markers.contains("end" to ROOT_HOST_SECTION)
-    }
-
     private companion object {
         private const val ROOT_HOST_SECTION = "root-host"
-        private val MANAGED_MARKER_REGEX = Regex("""^// \[cap4k-bootstrap:managed-(begin|end):([^\]]+)]$""")
     }
 }

@@ -37,6 +37,9 @@ class BootstrapManagedSectionMerger {
         return mergedLines.joinToString("\n")
     }
 
+    internal fun validateDocumentStructure(content: String, sourceLabel: String): Set<String> =
+        parseDocument(content, sourceLabel).sections.map { it.id }.toSet()
+
     private fun parseDocument(content: String, sourceLabel: String): ParsedDocument {
         val lines = content.split("\n")
         val sections = mutableListOf<ParsedSection>()
