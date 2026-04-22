@@ -10,7 +10,7 @@ class PipelinePluginBootstrapFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kBootstrapPlan writes bootstrap plan json with fixed files and slots`() {
+    fun `cap4kBootstrapPlan writes in place output paths by default`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-bootstrap-plan")
         FunctionalFixtureSupport.copyFixture(projectDir, "bootstrap-sample")
 
@@ -22,35 +22,10 @@ class PipelinePluginBootstrapFunctionalTest {
         assertTrue(planContent.contains("\"templateId\": \"bootstrap/root/settings.gradle.kts.peb\""))
         assertTrue(planContent.contains("\"slotId\": \"root\""))
         assertTrue(planContent.contains("\"slotId\": \"module-package:domain\""))
-        assertTrue(planContent.contains("\"outputPath\": \"only-danmuku/settings.gradle.kts\""))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kBootstrap generates representative multi-module skeleton under project name subtree`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-bootstrap-generate")
-        FunctionalFixtureSupport.copyFixture(projectDir, "bootstrap-sample")
-
-        val result = FunctionalFixtureSupport.runner(projectDir, "cap4kBootstrap").build()
-
-        val generatedSettings = projectDir.resolve("only-danmuku/settings.gradle.kts")
-        val generatedRootBuild = projectDir.resolve("only-danmuku/build.gradle.kts")
-        val generatedDomainBuild = projectDir.resolve("only-danmuku/only-danmuku-domain/build.gradle.kts")
-        val generatedSlotReadme = projectDir.resolve("only-danmuku/README.md")
-        val generatedFixedPackageMarker = projectDir.resolve(
-            "only-danmuku/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/domain/DomainBootstrapMarker.kt"
-        )
-        val generatedSlotPackageMarker = projectDir.resolve(
-            "only-danmuku/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/SlotDomainMarker.kt"
-        )
-
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(generatedSettings.toFile().exists())
-        assertTrue(generatedRootBuild.toFile().exists())
-        assertTrue(generatedDomainBuild.toFile().exists())
-        assertTrue(generatedSlotReadme.toFile().exists())
-        assertTrue(generatedFixedPackageMarker.toFile().exists())
-        assertTrue(generatedSlotPackageMarker.toFile().exists())
+        assertTrue(planContent.contains("\"outputPath\": \"settings.gradle.kts\""))
+        assertTrue(planContent.contains("\"outputPath\": \"only-danmuku-domain/build.gradle.kts\""))
+        assertTrue(planContent.contains("\"outputPath\": \"README.md\""))
+        assertTrue(!planContent.contains("\"outputPath\": \"only-danmuku/settings.gradle.kts\""))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -60,7 +35,7 @@ class PipelinePluginBootstrapFunctionalTest {
         FunctionalFixtureSupport.copyFixture(projectDir, "bootstrap-override-sample")
 
         val result = FunctionalFixtureSupport.runner(projectDir, "cap4kBootstrap").build()
-        val generatedRootBuild = projectDir.resolve("only-danmuku/build.gradle.kts").readText()
+        val generatedRootBuild = projectDir.resolve("bootstrap-preview/build.gradle.kts").readText()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(generatedRootBuild.contains("// override: bootstrap root build template"))

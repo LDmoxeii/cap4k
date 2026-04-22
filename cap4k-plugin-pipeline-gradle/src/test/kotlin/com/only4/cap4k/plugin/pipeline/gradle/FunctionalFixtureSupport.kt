@@ -50,27 +50,29 @@ object FunctionalFixtureSupport {
     fun bootstrapThenRunGeneratedProject(
         fixtureDir: Path,
         projectName: String,
+        generatedDirName: String = projectName,
         vararg arguments: String,
     ): Pair<BuildResult, BuildResult> {
         require(arguments.isNotEmpty()) {
             "generated project arguments must not be empty"
         }
         val bootstrapResult = runner(fixtureDir, "cap4kBootstrap").build()
-        val generatedResult = generatedProjectRunner(fixtureDir, projectName, *arguments).build()
+        val generatedResult = generatedProjectRunner(fixtureDir, projectName, generatedDirName, *arguments).build()
         return bootstrapResult to generatedResult
     }
 
     fun generatedProjectRunner(
         fixtureDir: Path,
         projectName: String,
+        generatedDirName: String = projectName,
         vararg arguments: String,
     ): GradleRunner {
-        val generatedDir = generatedProjectDir(fixtureDir, projectName)
+        val generatedDir = generatedProjectDir(fixtureDir, projectName, generatedDirName)
         return generatedProjectBuildRunner(generatedDir, *arguments)
     }
 
-    fun generatedProjectDir(fixtureDir: Path, projectName: String): Path {
-        val generated = fixtureDir.resolve(projectName)
+    fun generatedProjectDir(fixtureDir: Path, projectName: String, generatedDirName: String = projectName): Path {
+        val generated = fixtureDir.resolve(generatedDirName)
         require(Files.isDirectory(generated)) {
             "Generated project directory not found: $generated"
         }
@@ -79,6 +81,7 @@ object FunctionalFixtureSupport {
 
     private fun generatedProjectBuildRunner(projectDir: Path, vararg arguments: String): GradleRunner = GradleRunner.create()
         .withProjectDir(projectDir.toFile())
+        .withPluginClasspath()
         .withArguments(*arguments)
 
     private fun discoverRepositoryRoot(): Path {

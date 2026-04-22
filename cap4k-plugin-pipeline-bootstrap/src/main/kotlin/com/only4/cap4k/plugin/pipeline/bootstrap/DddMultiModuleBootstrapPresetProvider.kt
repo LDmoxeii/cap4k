@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.bootstrap
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.api.BootstrapConfig
+import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
 import com.only4.cap4k.plugin.pipeline.api.BootstrapPlanItem
 import com.only4.cap4k.plugin.pipeline.api.BootstrapPresetProvider
 import java.io.File
@@ -15,12 +16,12 @@ class DddMultiModuleBootstrapPresetProvider : BootstrapPresetProvider {
         validateBootstrapPathSegments(config)
         val context = bootstrapContext(config)
         return buildList {
-            add(fixed("bootstrap/root/settings.gradle.kts.peb", "${config.projectName}/settings.gradle.kts", config, context))
-            add(fixed("bootstrap/root/build.gradle.kts.peb", "${config.projectName}/build.gradle.kts", config, context))
+            add(fixed("bootstrap/root/settings.gradle.kts.peb", rebaseOutputPath("settings.gradle.kts", config), config, context))
+            add(fixed("bootstrap/root/build.gradle.kts.peb", rebaseOutputPath("build.gradle.kts", config), config, context))
             add(
                 fixed(
                     templateId = "bootstrap/module/domain-build.gradle.kts.peb",
-                    outputPath = "${config.projectName}/${config.modules.domainModuleName}/build.gradle.kts",
+                    outputPath = rebaseOutputPath("${config.modules.domainModuleName}/build.gradle.kts", config),
                     config = config,
                     context = context + mapOf("moduleRole" to "domain"),
                 )
@@ -28,7 +29,7 @@ class DddMultiModuleBootstrapPresetProvider : BootstrapPresetProvider {
             add(
                 fixed(
                     templateId = "bootstrap/module/application-build.gradle.kts.peb",
-                    outputPath = "${config.projectName}/${config.modules.applicationModuleName}/build.gradle.kts",
+                    outputPath = rebaseOutputPath("${config.modules.applicationModuleName}/build.gradle.kts", config),
                     config = config,
                     context = context + mapOf("moduleRole" to "application"),
                 )
@@ -36,7 +37,7 @@ class DddMultiModuleBootstrapPresetProvider : BootstrapPresetProvider {
             add(
                 fixed(
                     templateId = "bootstrap/module/adapter-build.gradle.kts.peb",
-                    outputPath = "${config.projectName}/${config.modules.adapterModuleName}/build.gradle.kts",
+                    outputPath = rebaseOutputPath("${config.modules.adapterModuleName}/build.gradle.kts", config),
                     config = config,
                     context = context + mapOf("moduleRole" to "adapter"),
                 )
@@ -57,6 +58,12 @@ internal fun bootstrapContext(config: BootstrapConfig): Map<String, Any?> =
         "domainModuleName" to config.modules.domainModuleName,
         "applicationModuleName" to config.modules.applicationModuleName,
         "adapterModuleName" to config.modules.adapterModuleName,
+        "templatePreset" to config.templates.preset,
+        "templateOverrideDirs" to config.templates.overrideDirs.map(::normalizeDslPathLiteral),
+        "slotBindings" to config.slots.map(::toRenderModel),
+        "conflictPolicy" to config.conflictPolicy.name,
+        "mode" to config.mode.name,
+        "previewDir" to config.previewDir?.let(::normalizeDslPathLiteral),
     )
 
 internal fun fixed(
@@ -85,7 +92,7 @@ internal fun packageMarkers(
 
         fixed(
             templateId = "bootstrap/module/package-marker.kt.peb",
-            outputPath = "${config.projectName}/$moduleName/src/main/kotlin/$packagePath/$role/$markerName.kt",
+            outputPath = rebaseOutputPath("$moduleName/src/main/kotlin/$packagePath/$role/$markerName.kt", config),
             config = config,
             context = context + mapOf(
                 "moduleRole" to role,
@@ -121,16 +128,19 @@ internal fun resolveSlotOutputPath(
     val moduleName = binding.role?.let { resolveModuleName(it, config) }
     return when (binding.kind) {
         com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.ROOT ->
-            "${config.projectName}/$boundedRelative"
+            rebaseOutputPath(boundedRelative, config)
 
         com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.BUILD_LOGIC ->
-            "${config.projectName}/build-logic/$boundedRelative"
+            rebaseOutputPath("build-logic/$boundedRelative", config)
 
         com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.MODULE_ROOT ->
-            "${config.projectName}/${requireNotNull(moduleName)}/$boundedRelative"
+            rebaseOutputPath("${requireNotNull(moduleName)}/$boundedRelative", config)
 
         com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.MODULE_PACKAGE ->
-            "${config.projectName}/${requireNotNull(moduleName)}/src/main/kotlin/${resolveModulePackageRelativePath(boundedRelative, config)}"
+            rebaseOutputPath(
+                "${requireNotNull(moduleName)}/src/main/kotlin/${resolveModulePackageRelativePath(boundedRelative, config)}",
+                config,
+            )
     }
 }
 
@@ -142,9 +152,29 @@ internal fun resolveModuleName(role: String, config: BootstrapConfig): String =
         else -> throw IllegalArgumentException("unsupported bootstrap slot role: $role")
     }
 
+private fun toRenderModel(binding: com.only4.cap4k.plugin.pipeline.api.BootstrapSlotBinding): BootstrapSlotBindingRenderModel =
+    BootstrapSlotBindingRenderModel(
+        kind = binding.kind.name,
+        role = binding.role,
+        sourceDir = normalizeDslPathLiteral(binding.sourceDir),
+    )
+
 private fun BootstrapConfig.basePackagePath(): String = basePackage.replace('.', '/')
 
 private fun trimPebExtension(path: String): String = path.removeSuffix(".peb")
+
+private fun normalizeDslPathLiteral(path: String): String = path
+    .replace('\\', '/')
+    .replace("$", "\\$")
+    .replace("\"", "\\\"")
+
+internal fun rebaseOutputPath(relativePath: String, config: BootstrapConfig): String {
+    val normalizedRelativePath = normalizeRelativePath(relativePath)
+    return when (config.mode) {
+        BootstrapMode.IN_PLACE -> normalizedRelativePath
+        BootstrapMode.PREVIEW_SUBTREE -> "${requireNotNull(config.previewDir)}/$normalizedRelativePath"
+    }
+}
 
 private fun resolveModulePackageRelativePath(
     boundedRelativePath: String,
@@ -244,3 +274,9 @@ internal object LegacyArchTemplateMapper {
         )
     }
 }
+
+internal data class BootstrapSlotBindingRenderModel(
+    val kind: String,
+    val role: String?,
+    val sourceDir: String,
+)

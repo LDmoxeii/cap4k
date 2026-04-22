@@ -466,34 +466,68 @@ cap4k {
 
 ### 6.6 `bootstrap { }`
 
-用于**首次**生成项目骨架（多模块 Gradle + buildSrc + 各模块源目录）：
+用于生成 Bootstrap 骨架（多模块 Gradle 根 + 各模块源目录，外加可选 slot 扩展）。
+
+Kotlin DSL 中这些属性当前是 Gradle `Property` / `ListProperty` 风格，示例请按 `.set(...)` / `.from(...)` 使用。
+
+**官方默认模式**是 `IN_PLACE`：写向当前受管宿主根，不再隐式创建 `{projectName}/...` 子树。
 
 ```kotlin
+import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
 cap4k {
     bootstrap {
-        enabled = true
-        preset = "ddd-multi-module"
-        projectName = "demo"
-        basePackage = "com.example.demo"
+        enabled.set(true)
+        preset.set("ddd-multi-module")
+        mode.set(BootstrapMode.IN_PLACE) // 默认值；不写也会落到 IN_PLACE
+        projectName.set("demo")
+        basePackage.set("com.example.demo")
         modules {
-            domainModuleName = "demo-domain"
-            applicationModuleName = "demo-application"
-            adapterModuleName = "demo-adapter"
+            domainModuleName.set("demo-domain")
+            applicationModuleName.set("demo-application")
+            adapterModuleName.set("demo-adapter")
         }
         templates {
-            preset = "ddd-default-bootstrap"
+            preset.set("ddd-default-bootstrap")
             overrideDirs.from("bootstrap-templates")
         }
         slots {
-            root.from("bootstrap/slots/root")                   // 扩展根目录
-            buildLogic.from("bootstrap/slots/build-logic")      // 扩展 buildSrc
+            root.from("bootstrap/slots/root")                   // 扩展宿主根
+            buildLogic.from("bootstrap/slots/build-logic")      // 扩展 build-logic/
             moduleRoot("domain").from("bootstrap/slots/domain-root")
             modulePackage("application").from("bootstrap/slots/application-package")
         }
-        conflictPolicy = "FAIL"
+        conflictPolicy.set("FAIL")
     }
 }
 ```
+
+如果你需要一个显式的教学 / 演示输出子树，请切到 `PREVIEW_SUBTREE` 并提供 `previewDir`：
+
+```kotlin
+import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
+
+cap4k {
+    bootstrap {
+        enabled.set(true)
+        preset.set("ddd-multi-module")
+        mode.set(BootstrapMode.PREVIEW_SUBTREE)
+        previewDir.set("bootstrap-preview")
+        projectName.set("demo")
+        basePackage.set("com.example.demo")
+        modules {
+            domainModuleName.set("demo-domain")
+            applicationModuleName.set("demo-application")
+            adapterModuleName.set("demo-adapter")
+        }
+    }
+}
+```
+
+- `mode`：默认 `IN_PLACE`；`PREVIEW_SUBTREE` 是显式预览模式
+- `previewDir`：仅在 `mode = PREVIEW_SUBTREE` 时允许，且必须是安全的相对路径
+- `projectName`：控制生成的项目标识（如 `rootProject.name` 与模块命名上下文），**不再**隐式决定输出根前缀
+- `conflictPolicy`：对非根目录输出仍按常规规则生效，默认仍是 `FAIL`；`IN_PLACE` 下的 `build.gradle.kts` / `settings.gradle.kts` 通过 bootstrap-managed section merge 可重复执行，不等于整文件接管
+- `IN_PLACE`：当前只支持作用于**已识别的、带 marker 的宿主根**；如果只是想看产物布局或做教程演示，请使用 `PREVIEW_SUBTREE`
 
 详见第 12 节。
 
@@ -508,7 +542,7 @@ cap4k {
 | `cap4kPlan` | 规划生成计划 | `build/cap4k/plan.json`（含 `items` 与 `diagnostics`） | 否 |
 | `cap4kGenerate` | 执行完整流水线 | 生成到 `outputPath` 指向的位置 | 是 |
 | `cap4kBootstrapPlan` | 规划 Bootstrap 骨架 | `build/cap4k/bootstrap-plan.json` | 否 |
-| `cap4kBootstrap` | 生成 Bootstrap 骨架 | 按 `slots` 写入 | 是 |
+| `cap4kBootstrap` | 生成 Bootstrap 骨架 | 按 `bootstrap.mode` 写入：`IN_PLACE` 写向当前受管宿主根；`PREVIEW_SUBTREE` 写到 `previewDir/` | 是 |
 
 **自动任务依赖推断**（`inferDependencies`）：
 
@@ -906,41 +940,103 @@ cap4k {
 
 Bootstrap 与常规 pipeline 相互独立，只产生初始目录/脚本（不写业务代码）。
 
-### 12.1 Preset 与 Slot
+当前唯一实现的 preset 是 `ddd-multi-module`（`DddMultiModuleBootstrapPresetProvider`），对应模板包 `ddd-default-bootstrap`。
 
-目前唯一实现：`ddd-multi-module`（`DddMultiModuleBootstrapPresetProvider`），对应模板包 `ddd-default-bootstrap`。
+### 12.1 `IN_PLACE`：官方默认模式
 
-产出：
+默认 `bootstrap.mode = IN_PLACE`。这时产物直接落到**当前受管宿主根**，不会再隐式创建 `{projectName}/...` 前缀目录。
+
+`projectName` 在这里仍然有意义，但它只负责项目标识，例如：
+
+- `settings.gradle.kts` 的 `rootProject.name`
+- bootstrap 生成的固定模块命名与模板上下文
+
+示意布局：
 
 ```
-{projectName}/
-├── build.gradle.kts          ← bootstrap/root/build.gradle.kts.peb
-├── settings.gradle.kts       ← bootstrap/root/settings.gradle.kts.peb
-├── buildSrc/                 ← 用户自己的 slot 注入
+<recognized marker-carrying host root>/
+├── build.gradle.kts          ← 仅 bootstrap-owned `cap4k { bootstrap { ... } }` section 受管并可重复 merge
+├── settings.gradle.kts       ← 仅 `rootProject.name` + bootstrap-owned fixed-module `include(...)` sections 受管并可重复 merge
 ├── {domainModuleName}/
 │   ├── build.gradle.kts      ← bootstrap/module/domain-build.gradle.kts.peb
-│   └── src/main/kotlin/{basePackage}/domain/.keep.kt
-├── {applicationModuleName}/… 同上
-└── {adapterModuleName}/… 同上
+│   └── src/main/kotlin/{basePackage}/domain/DomainBootstrapMarker.kt
+├── {applicationModuleName}/
+│   └── src/main/kotlin/{basePackage}/application/ApplicationBootstrapMarker.kt
+└── {adapterModuleName}/
+    └── src/main/kotlin/{basePackage}/adapter/AdapterBootstrapMarker.kt
 ```
 
-### 12.2 Slot 扩展
+边界要点：
+
+- `IN_PLACE` 当前**只**支持已识别的、带 marker 的宿主根；不会把任意已有 Gradle 根自动接管成 bootstrap 根
+- 根文件的可重跑性来自 managed-section merge，不是整文件重写
+- `build-logic/` 不是 preset 默认固定产物；只有配置了 `slots.buildLogic.from(...)` 才会出现
+- 当前 bootstrap-managed ownership 很窄：
+  - `build.gradle.kts`：bootstrap-owned `cap4k { bootstrap { ... } }` block
+  - `settings.gradle.kts`：`rootProject.name` 与 bootstrap-owned fixed-module `include(...)`
+- 宿主根里其他内容仍归用户所有，rerun 时应保持不动
+
+### 12.2 `PREVIEW_SUBTREE`：显式预览 / 教学模式
+
+如果你需要一个独立子树来查看结构、写教程或做演示，请显式设置：
+
+```kotlin
+import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
+
+cap4k {
+    bootstrap {
+        mode.set(BootstrapMode.PREVIEW_SUBTREE)
+        previewDir.set("bootstrap-preview")
+    }
+}
+```
+
+示意布局：
+
+```
+bootstrap-preview/
+├── build.gradle.kts
+├── settings.gradle.kts
+├── {domainModuleName}/
+│   ├── build.gradle.kts
+│   └── src/main/kotlin/{basePackage}/domain/DomainBootstrapMarker.kt
+├── {applicationModuleName}/
+│   └── src/main/kotlin/{basePackage}/application/ApplicationBootstrapMarker.kt
+└── {adapterModuleName}/
+    └── src/main/kotlin/{basePackage}/adapter/AdapterBootstrapMarker.kt
+```
+
+说明：
+
+- `PREVIEW_SUBTREE` 仍然是当前 slice 的教学 / demo escape hatch
+- 这个模式下 bootstrap 拥有整个生成子树，因此 root 文件可以直接完整生成
+- `build-logic/` 同样只会在配置了 `slots.buildLogic.from(...)` 时出现
+- 仓库中的验证重点是通过 TestKit + plugin classpath 校验这些预览根可被生成和执行；更广义的“已发布插件独立分发体验”不在本 slice 覆盖范围内
+
+### 12.3 Slot 扩展
 
 Slot 是预留的"由用户提供，直接拷贝到产物"的目录绑定：
 
 | Slot 种类 | DSL | 落点 |
 |----------|-----|------|
 | ROOT | `slots.root.from(...)` | 根目录 |
-| BUILD_LOGIC | `slots.buildLogic.from(...)` | `buildSrc/` |
+| BUILD_LOGIC | `slots.buildLogic.from(...)` | `build-logic/` |
 | MODULE_ROOT | `slots.moduleRoot("domain").from(...)` | `{moduleName}/` 根 |
 | MODULE_PACKAGE | `slots.modulePackage("domain").from(...)` | `{moduleName}/src/main/kotlin/{basePackage}/...` |
 
 Slot 内容在 Bootstrap 阶段以 **文件拷贝**（`sourcePath`）而非模板渲染；`BootstrapPlanItem` 要求 `templateId` 或 `sourcePath` 至少其一非空。
 
-### 12.3 任务
+Slot 落点会随模式重定位：
+
+- `IN_PLACE`：相对当前受管宿主根落盘
+- `PREVIEW_SUBTREE`：相对 `previewDir/` 落盘
+
+### 12.4 任务
 
 - `cap4kBootstrapPlan`：规划并写到 `build/cap4k/bootstrap-plan.json`（不写盘）
-- `cap4kBootstrap`：按 `conflictPolicy`（默认 `FAIL`）落盘
+- `cap4kBootstrap`：按 `bootstrap.mode` 落盘
+  - `IN_PLACE`：写向当前受管宿主根；根 `build.gradle.kts` / `settings.gradle.kts` 通过 managed-section merge 处理，非根产物仍遵循 `conflictPolicy`（默认 `FAIL`）
+  - `PREVIEW_SUBTREE`：写到 `previewDir/`；该子树下的根 `build.gradle.kts` / `settings.gradle.kts` 同样通过 managed-section merge 处理，其余产物仍遵循普通导出语义与 `conflictPolicy`
 
 ---
 

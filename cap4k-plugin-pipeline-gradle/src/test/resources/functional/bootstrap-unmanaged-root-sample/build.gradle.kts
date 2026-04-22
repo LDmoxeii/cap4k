@@ -8,17 +8,13 @@ cap4k {
     bootstrap {
         enabled.set(true)
         preset.set("ddd-multi-module")
-        mode.set(BootstrapMode.PREVIEW_SUBTREE)
-        previewDir.set("bootstrap-preview")
+        mode.set(BootstrapMode.IN_PLACE)
         projectName.set("only-danmuku")
         basePackage.set("edu.only4.danmuku")
         modules {
             domainModuleName.set("only-danmuku-domain")
             applicationModuleName.set("only-danmuku-application")
             adapterModuleName.set("only-danmuku-adapter")
-        }
-        templates {
-            overrideDirs.from("codegen/bootstrap-templates")
         }
     }
 }

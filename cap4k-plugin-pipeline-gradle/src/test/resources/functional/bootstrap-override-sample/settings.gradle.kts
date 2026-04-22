@@ -1,1 +1,1 @@
-rootProject.name = "bootstrap-override-sample"
+rootProject.name = "bootstrap-override-host"

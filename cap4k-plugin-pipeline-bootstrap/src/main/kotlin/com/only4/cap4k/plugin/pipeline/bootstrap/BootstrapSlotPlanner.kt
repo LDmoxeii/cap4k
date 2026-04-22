@@ -11,7 +11,12 @@ internal object BootstrapSlotPlanner {
 
     fun plan(config: BootstrapConfig): List<BootstrapPlanItem> =
         config.slots.flatMap { binding ->
-            val root = Path.of(binding.sourceDir)
+            val configuredRoot = Path.of(binding.sourceDir)
+            val root = if (configuredRoot.isAbsolute) {
+                configuredRoot
+            } else {
+                Path.of(config.projectDir).resolve(configuredRoot).normalize()
+            }
             require(Files.exists(root)) {
                 "bootstrap slot sourceDir does not exist for ${binding.slotId}: ${binding.sourceDir}"
             }

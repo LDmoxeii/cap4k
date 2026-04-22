@@ -1,5 +1,7 @@
+// [cap4k-bootstrap:managed-begin:root-host]
 rootProject.name = "{{ projectName }}"
 
 include(":{{ domainModuleName }}")
 include(":{{ applicationModuleName }}")
 include(":{{ adapterModuleName }}")
+// [cap4k-bootstrap:managed-end:root-host]

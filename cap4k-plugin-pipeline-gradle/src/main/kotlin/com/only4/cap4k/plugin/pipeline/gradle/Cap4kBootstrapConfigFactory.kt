@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.only4.cap4k.plugin.pipeline.api.BootstrapConfig
+import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
 import com.only4.cap4k.plugin.pipeline.api.BootstrapModulesConfig
 import com.only4.cap4k.plugin.pipeline.api.BootstrapTemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
@@ -29,10 +30,32 @@ class Cap4kBootstrapConfigFactory {
             }
         }
 
+        val mode = extension.bootstrap.mode.orNull ?: BootstrapMode.IN_PLACE
+        val rawPreviewDir = extension.bootstrap.previewDir.orNull?.trim()
+        val previewDir = when (mode) {
+            BootstrapMode.PREVIEW_SUBTREE -> {
+                require(!rawPreviewDir.isNullOrEmpty()) {
+                    "bootstrap.previewDir is required when bootstrap.mode=PREVIEW_SUBTREE."
+                }
+                require(isSafeRelativePreviewDir(rawPreviewDir)) {
+                    "bootstrap.previewDir must be a safe relative path."
+                }
+                rawPreviewDir
+            }
+
+            BootstrapMode.IN_PLACE -> {
+                require(rawPreviewDir.isNullOrEmpty()) {
+                    "bootstrap.previewDir is only supported when bootstrap.mode=PREVIEW_SUBTREE."
+                }
+                null
+            }
+        }
+
         return BootstrapConfig(
             preset = preset,
             projectName = extension.bootstrap.projectName.required("bootstrap.projectName"),
             basePackage = extension.bootstrap.basePackage.required("bootstrap.basePackage"),
+            projectDir = project.projectDir.toPath().toAbsolutePath().normalize().toString(),
             modules = BootstrapModulesConfig(
                 domainModuleName = extension.bootstrap.modules.domainModuleName.required("bootstrap.modules.domainModuleName"),
                 applicationModuleName = extension.bootstrap.modules.applicationModuleName.required("bootstrap.modules.applicationModuleName"),
@@ -46,9 +69,21 @@ class Cap4kBootstrapConfigFactory {
             conflictPolicy = ConflictPolicy.valueOf(
                 extension.bootstrap.conflictPolicy.orNull?.trim().orEmpty().ifEmpty { "FAIL" }
             ),
+            mode = mode,
+            previewDir = previewDir,
         )
     }
 }
 
 private fun Property<String>.required(path: String): String =
     orNull?.trim()?.takeIf { it.isNotEmpty() } ?: throw IllegalArgumentException("$path is required.")
+
+private fun isSafeRelativePreviewDir(path: String): Boolean {
+    if (path.isBlank()) return false
+    if (path.startsWith("/") || path.startsWith("\\")) return false
+    if (path.contains("\\")) return false
+    if (path.contains(":")) return false
+    val segments = path.split('/')
+    if (segments.any { it.isBlank() || it == "." || it == ".." }) return false
+    return true
+}

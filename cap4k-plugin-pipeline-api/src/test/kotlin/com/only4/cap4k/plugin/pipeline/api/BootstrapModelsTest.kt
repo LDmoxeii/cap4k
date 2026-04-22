@@ -8,6 +8,31 @@ import org.junit.jupiter.api.Test
 class BootstrapModelsTest {
 
     @Test
+    fun `bootstrap config includes mode and optional preview directory`() {
+        val config = BootstrapConfig(
+            preset = "ddd-multi-module",
+            projectName = "demo",
+            basePackage = "com.acme.demo",
+            modules = BootstrapModulesConfig(
+                domainModuleName = "demo-domain",
+                applicationModuleName = "demo-application",
+                adapterModuleName = "demo-adapter",
+            ),
+            templates = BootstrapTemplateConfig(
+                preset = "ddd-default-bootstrap",
+                overrideDirs = emptyList(),
+            ),
+            slots = emptyList(),
+            conflictPolicy = ConflictPolicy.FAIL,
+            mode = BootstrapMode.PREVIEW_SUBTREE,
+            previewDir = "preview/demo",
+        )
+
+        assertEquals(BootstrapMode.PREVIEW_SUBTREE, config.mode)
+        assertEquals("preview/demo", config.previewDir)
+    }
+
+    @Test
     fun `bootstrap slot id exposes bounded role-aware naming`() {
         val binding = BootstrapSlotBinding(
             kind = BootstrapSlotKind.MODULE_PACKAGE,

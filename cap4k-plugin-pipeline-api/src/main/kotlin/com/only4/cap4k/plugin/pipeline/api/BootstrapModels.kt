@@ -1,13 +1,21 @@
 package com.only4.cap4k.plugin.pipeline.api
 
+enum class BootstrapMode {
+    IN_PLACE,
+    PREVIEW_SUBTREE,
+}
+
 data class BootstrapConfig(
     val preset: String,
     val projectName: String,
     val basePackage: String,
+    val projectDir: String = ".",
     val modules: BootstrapModulesConfig,
     val templates: BootstrapTemplateConfig,
     val slots: List<BootstrapSlotBinding>,
     val conflictPolicy: ConflictPolicy,
+    val mode: BootstrapMode,
+    val previewDir: String?,
 )
 
 data class BootstrapModulesConfig(

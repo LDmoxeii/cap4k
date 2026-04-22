@@ -10,8 +10,10 @@ class DefaultBootstrapRunner(
     private val providers: List<BootstrapPresetProvider>,
     private val renderer: BootstrapRenderer,
     private val exporter: ArtifactExporter,
+    private val preRunValidation: (BootstrapConfig) -> Unit = {},
 ) : BootstrapRunner {
     override fun run(config: BootstrapConfig): BootstrapResult {
+        preRunValidation(config)
         val provider = providers.find { it.presetId == config.preset }
             ?: throw IllegalArgumentException("bootstrap preset has no registered bootstrap provider: ${config.preset}")
 

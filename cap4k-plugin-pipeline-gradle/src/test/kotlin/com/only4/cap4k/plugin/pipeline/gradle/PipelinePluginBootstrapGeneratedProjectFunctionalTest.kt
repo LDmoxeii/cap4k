@@ -11,23 +11,24 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `generated bootstrap project accepts help and tasks commands and keeps slot files in generated subtree`() {
+    fun `generated bootstrap preview project accepts help and tasks commands and keeps slot files in preview subtree`() {
         val fixtureDir = Files.createTempDirectory("bootstrap-generated-project-smoke")
         FunctionalFixtureSupport.copyFixture(fixtureDir, "bootstrap-generated-project-smoke-sample")
 
         val (bootstrapResult, generatedBuildResult) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProject(
             fixtureDir,
             projectName = "only-danmuku",
+            generatedDirName = "bootstrap-preview",
             "help",
             "tasks",
         )
-        val generatedReadme = fixtureDir.resolve("only-danmuku/README.md")
+        val generatedReadme = fixtureDir.resolve("bootstrap-preview/README.md")
         val generatedMarker = fixtureDir.resolve(
-            "only-danmuku/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/SmokeDomainMarker.kt"
+            "bootstrap-preview/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/SmokeDomainMarker.kt"
         )
         val rootReadme = fixtureDir.resolve("README.md")
         val generatedFlatMarker = fixtureDir.resolve(
-            "only-danmuku/only-danmuku-domain/src/main/kotlin/SmokeDomainMarker.kt"
+            "bootstrap-preview/only-danmuku-domain/src/main/kotlin/SmokeDomainMarker.kt"
         )
 
         assertTrue(bootstrapResult.output.contains("BUILD SUCCESSFUL"))
@@ -42,13 +43,14 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `generated bootstrap project domain application and adapter modules compile`() {
+    fun `generated bootstrap preview project domain application and adapter modules compile`() {
         val fixtureDir = Files.createTempDirectory("bootstrap-generated-project-compile")
         FunctionalFixtureSupport.copyFixture(fixtureDir, "bootstrap-generated-project-smoke-sample")
 
         val (bootstrapResult, compileResult) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProject(
             fixtureDir,
             projectName = "only-danmuku",
+            generatedDirName = "bootstrap-preview",
             ":only-danmuku-domain:compileKotlin",
             ":only-danmuku-application:compileKotlin",
             ":only-danmuku-adapter:compileKotlin",
@@ -60,20 +62,21 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `generated bootstrap project remains usable with fixed template override and slots`() {
+    fun `generated bootstrap preview project remains usable with fixed template override and slots`() {
         val fixtureDir = Files.createTempDirectory("bootstrap-generated-project-override")
         FunctionalFixtureSupport.copyFixture(fixtureDir, "bootstrap-generated-project-override-sample")
 
         val (bootstrapResult, generatedBuildResult) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProject(
             fixtureDir,
             projectName = "only-danmuku",
+            generatedDirName = "bootstrap-preview",
             "help",
             ":only-danmuku-domain:compileKotlin",
         )
-        val generatedRootBuild = fixtureDir.resolve("only-danmuku/build.gradle.kts").readText()
-        val generatedReadme = fixtureDir.resolve("only-danmuku/README.md").readText()
+        val generatedRootBuild = fixtureDir.resolve("bootstrap-preview/build.gradle.kts").readText()
+        val generatedReadme = fixtureDir.resolve("bootstrap-preview/README.md").readText()
         val generatedDomainMarkerPath = fixtureDir.resolve(
-            "only-danmuku/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/OverrideDomainMarker.kt"
+            "bootstrap-preview/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/OverrideDomainMarker.kt"
         )
         val generatedDomainMarker = generatedDomainMarkerPath.readText()
 
