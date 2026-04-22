@@ -21,6 +21,8 @@ cap4k {
         slots {
             root.from("codegen/bootstrap-slots/root")
             modulePackage("domain").from("codegen/bootstrap-slots/domain-package")
+            modulePackage("start").from("codegen/bootstrap-slots/start-package")
+            moduleResources("start").from("codegen/bootstrap-slots/start-resources")
         }
     }
 }

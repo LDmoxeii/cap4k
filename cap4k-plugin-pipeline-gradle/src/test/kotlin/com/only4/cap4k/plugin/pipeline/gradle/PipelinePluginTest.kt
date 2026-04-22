@@ -173,6 +173,10 @@ class PipelinePluginTest {
         assertTrue(project.projectDir.resolve("settings.gradle.kts").exists())
         assertTrue(project.projectDir.resolve("build.gradle.kts").exists())
         assertTrue(project.projectDir.resolve("only-danmuku-domain/build.gradle.kts").exists())
+        assertTrue(project.projectDir.resolve("only-danmuku-start/build.gradle.kts").exists())
+        assertTrue(
+            project.projectDir.resolve("only-danmuku-start/src/main/kotlin/edu/only4/danmuku/StartApplication.kt").exists()
+        )
     }
 
     @Test

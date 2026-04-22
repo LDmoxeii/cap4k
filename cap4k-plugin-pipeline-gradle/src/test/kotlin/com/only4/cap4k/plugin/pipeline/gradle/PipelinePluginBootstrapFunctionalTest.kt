@@ -22,8 +22,11 @@ class PipelinePluginBootstrapFunctionalTest {
         assertTrue(planContent.contains("\"templateId\": \"bootstrap/root/settings.gradle.kts.peb\""))
         assertTrue(planContent.contains("\"slotId\": \"root\""))
         assertTrue(planContent.contains("\"slotId\": \"module-package:domain\""))
+        assertTrue(planContent.contains("\"slotId\": \"module-resources:start\""))
         assertTrue(planContent.contains("\"outputPath\": \"settings.gradle.kts\""))
         assertTrue(planContent.contains("\"outputPath\": \"only-danmuku-domain/build.gradle.kts\""))
+        assertTrue(planContent.contains("\"outputPath\": \"only-danmuku-start/build.gradle.kts\""))
+        assertTrue(planContent.contains("\"outputPath\": \"only-danmuku-start/src/main/resources/application.yml\""))
         assertTrue(planContent.contains("\"outputPath\": \"README.md\""))
         assertTrue(!planContent.contains("\"outputPath\": \"only-danmuku/settings.gradle.kts\""))
     }

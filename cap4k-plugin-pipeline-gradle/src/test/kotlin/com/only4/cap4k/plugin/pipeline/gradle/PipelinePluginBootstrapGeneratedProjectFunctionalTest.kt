@@ -24,7 +24,10 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         )
         val generatedReadme = fixtureDir.resolve("bootstrap-preview/README.md")
         val generatedMarker = fixtureDir.resolve(
-            "bootstrap-preview/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/SmokeDomainMarker.kt"
+            "bootstrap-preview/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/domain/SmokeDomainMarker.kt"
+        )
+        val generatedStartApplication = fixtureDir.resolve(
+            "bootstrap-preview/only-danmuku-start/src/main/kotlin/edu/only4/danmuku/StartApplication.kt"
         )
         val rootReadme = fixtureDir.resolve("README.md")
         val generatedFlatMarker = fixtureDir.resolve(
@@ -37,6 +40,7 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         assertTrue(generatedBuildResult.output.contains("Tasks runnable from root project"))
         assertTrue(generatedReadme.toFile().exists())
         assertTrue(generatedMarker.toFile().exists())
+        assertTrue(generatedStartApplication.toFile().exists())
         assertFalse(rootReadme.toFile().exists())
         assertFalse(generatedFlatMarker.toFile().exists())
     }
@@ -72,21 +76,27 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
             generatedDirName = "bootstrap-preview",
             "help",
             ":only-danmuku-domain:compileKotlin",
+            ":only-danmuku-start:compileKotlin",
         )
         val generatedRootBuild = fixtureDir.resolve("bootstrap-preview/build.gradle.kts").readText()
         val generatedReadme = fixtureDir.resolve("bootstrap-preview/README.md").readText()
         val generatedDomainMarkerPath = fixtureDir.resolve(
-            "bootstrap-preview/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/OverrideDomainMarker.kt"
+            "bootstrap-preview/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/domain/OverrideDomainMarker.kt"
         )
         val generatedDomainMarker = generatedDomainMarkerPath.readText()
+        val generatedStartApplicationPath = fixtureDir.resolve(
+            "bootstrap-preview/only-danmuku-start/src/main/kotlin/edu/only4/danmuku/StartApplication.kt"
+        )
 
         assertTrue(bootstrapResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(generatedBuildResult.output.contains("Welcome to Gradle"))
         assertTrue(generatedBuildResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedBuildResult.output.contains(":only-danmuku-start:compileKotlin"))
         assertTrue(generatedRootBuild.contains("// override: bootstrap generated-project hardening"))
         assertTrue(generatedReadme.contains("# only-danmuku"))
         assertTrue(generatedDomainMarkerPath.toFile().exists())
         assertTrue(generatedDomainMarker.contains("package edu.only4.danmuku.domain"))
+        assertTrue(generatedStartApplicationPath.toFile().exists())
     }
 
     @OptIn(ExperimentalPathApi::class)
