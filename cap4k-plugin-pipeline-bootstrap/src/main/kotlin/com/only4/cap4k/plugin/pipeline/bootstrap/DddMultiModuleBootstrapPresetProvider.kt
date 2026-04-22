@@ -42,13 +42,29 @@ class DddMultiModuleBootstrapPresetProvider : BootstrapPresetProvider {
                     context = context + mapOf("moduleRole" to "adapter"),
                 )
             )
-            addAll(packageMarkers(config, context))
+            add(
+                fixed(
+                    templateId = "bootstrap/module/start-build.gradle.kts.peb",
+                    outputPath = rebaseOutputPath("${config.modules.startModuleName}/build.gradle.kts", config),
+                    config = config,
+                    context = context + mapOf("moduleRole" to "start"),
+                )
+            )
+            add(
+                fixed(
+                    templateId = "bootstrap/module/start-application.kt.peb",
+                    outputPath = rebaseOutputPath(
+                        "${config.modules.startModuleName}/src/main/kotlin/${config.basePackagePath()}/StartApplication.kt",
+                        config
+                    ),
+                    config = config,
+                    context = context + mapOf("moduleRole" to "start"),
+                )
+            )
             addAll(BootstrapSlotPlanner.plan(config))
         }
     }
 }
-
-private val moduleRoles: Set<String> = setOf("domain", "application", "adapter")
 
 internal fun bootstrapContext(config: BootstrapConfig): Map<String, Any?> =
     mapOf(
@@ -80,30 +96,6 @@ internal fun fixed(
         conflictPolicy = config.conflictPolicy,
         context = context,
     )
-
-internal fun packageMarkers(
-    config: BootstrapConfig,
-    context: Map<String, Any?>,
-): List<BootstrapPlanItem> {
-    val packagePath = config.basePackagePath()
-    return moduleRoles.map { role ->
-        val markerName = role.replaceFirstChar { it.titlecase() } + "BootstrapMarker"
-        val packageName = "${config.basePackage}.$role"
-        val moduleName = resolveModuleName(role, config)
-
-        fixed(
-            templateId = "bootstrap/module/package-marker.kt.peb",
-            outputPath = rebaseOutputPath("$moduleName/src/main/kotlin/$packagePath/$role/$markerName.kt", config),
-            config = config,
-            context = context + mapOf(
-                "moduleRole" to role,
-                "moduleName" to moduleName,
-                "packageName" to packageName,
-                "markerName" to markerName,
-            ),
-        )
-    }
-}
 
 internal fun renderRelativePath(relativePath: String, config: BootstrapConfig): String {
     val replacements = mapOf(
@@ -137,14 +129,19 @@ internal fun resolveSlotOutputPath(
         com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.MODULE_ROOT ->
             rebaseOutputPath("${requireNotNull(moduleName)}/$boundedRelative", config)
 
-        com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.MODULE_PACKAGE ->
-            rebaseOutputPath(
-                "${requireNotNull(moduleName)}/src/main/kotlin/${resolveModulePackageRelativePath(boundedRelative, config)}",
-                config,
-            )
-
         com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.MODULE_RESOURCES ->
-            error("bootstrap slot kind MODULE_RESOURCES is not supported in preset rendering yet.")
+            rebaseOutputPath("${requireNotNull(moduleName)}/src/main/resources/$boundedRelative", config)
+
+        com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.MODULE_PACKAGE -> {
+            val role = requireNotNull(binding.role)
+            val packageRoot = resolveRolePackageRoot(role, config)
+            val packageRelative = resolveModulePackageRelativePath(role, boundedRelative, config)
+            val packageOutputPath = when {
+                packageRelative.isEmpty() -> packageRoot
+                else -> "$packageRoot/$packageRelative"
+            }
+            rebaseOutputPath("${requireNotNull(moduleName)}/src/main/kotlin/$packageOutputPath", config)
+        }
     }
 }
 
@@ -153,6 +150,7 @@ internal fun resolveModuleName(role: String, config: BootstrapConfig): String =
         "domain" -> config.modules.domainModuleName
         "application" -> config.modules.applicationModuleName
         "adapter" -> config.modules.adapterModuleName
+        "start" -> config.modules.startModuleName
         else -> throw IllegalArgumentException("unsupported bootstrap slot role: $role")
     }
 
@@ -181,22 +179,36 @@ internal fun rebaseOutputPath(relativePath: String, config: BootstrapConfig): St
 }
 
 private fun resolveModulePackageRelativePath(
+    role: String,
     boundedRelativePath: String,
     config: BootstrapConfig,
 ): String {
     val basePackagePath = config.basePackagePath()
+    val rolePackageRoot = resolveRolePackageRoot(role, config)
     return when {
-        boundedRelativePath == basePackagePath -> boundedRelativePath
-        boundedRelativePath.startsWith("$basePackagePath/") -> boundedRelativePath
-        else -> "$basePackagePath/$boundedRelativePath"
+        boundedRelativePath == rolePackageRoot -> ""
+        boundedRelativePath.startsWith("$rolePackageRoot/") -> boundedRelativePath.removePrefix("$rolePackageRoot/")
+        boundedRelativePath == basePackagePath -> ""
+        boundedRelativePath.startsWith("$basePackagePath/") -> boundedRelativePath.removePrefix("$basePackagePath/")
+        else -> boundedRelativePath
     }
 }
+
+internal fun resolveRolePackageRoot(role: String, config: BootstrapConfig): String =
+    when (role) {
+        "domain" -> "${config.basePackagePath()}/domain"
+        "application" -> "${config.basePackagePath()}/application"
+        "adapter" -> "${config.basePackagePath()}/adapter"
+        "start" -> config.basePackagePath()
+        else -> throw IllegalArgumentException("unsupported bootstrap slot role: $role")
+    }
 
 internal fun validateBootstrapPathSegments(config: BootstrapConfig) {
     requireSafePathSegment("bootstrap.projectName", config.projectName)
     requireSafePathSegment("bootstrap.modules.domainModuleName", config.modules.domainModuleName)
     requireSafePathSegment("bootstrap.modules.applicationModuleName", config.modules.applicationModuleName)
     requireSafePathSegment("bootstrap.modules.adapterModuleName", config.modules.adapterModuleName)
+    requireSafePathSegment("bootstrap.modules.startModuleName", config.modules.startModuleName)
 }
 
 private fun requireSafePathSegment(fieldName: String, value: String) {
