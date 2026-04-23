@@ -1,40 +1,43 @@
 package {{ packageName }}
 
 {% if entityJpa.entityEnabled -%}
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
+{{ use("jakarta.persistence.Column") -}}
+{{ use("jakarta.persistence.Entity") -}}
 {% if hasGeneratedValueFields or hasGenericGeneratorFields -%}
-import jakarta.persistence.GeneratedValue
+{{ use("jakarta.persistence.GeneratedValue") -}}
 {% endif -%}
 {% if hasGeneratedValueFields -%}
-import jakarta.persistence.GenerationType
+{{ use("jakarta.persistence.GenerationType") -}}
 {% endif -%}
-import jakarta.persistence.Id
-import jakarta.persistence.Table
+{{ use("jakarta.persistence.Id") -}}
+{{ use("jakarta.persistence.Table") -}}
 {% if hasVersionFields -%}
-import jakarta.persistence.Version
+{{ use("jakarta.persistence.Version") -}}
 {% endif -%}
 {% endif -%}
 {% if hasConverterFields -%}
-import jakarta.persistence.Convert
+{{ use("jakarta.persistence.Convert") -}}
 {% endif -%}
 {% if dynamicInsert -%}
-import org.hibernate.annotations.DynamicInsert
+{{ use("org.hibernate.annotations.DynamicInsert") -}}
 {% endif -%}
 {% if dynamicUpdate -%}
-import org.hibernate.annotations.DynamicUpdate
+{{ use("org.hibernate.annotations.DynamicUpdate") -}}
 {% endif -%}
 {% if softDeleteSql -%}
-import org.hibernate.annotations.SQLDelete
+{{ use("org.hibernate.annotations.SQLDelete") -}}
 {% endif -%}
 {% if softDeleteWhereClause -%}
-import org.hibernate.annotations.Where
+{{ use("org.hibernate.annotations.Where") -}}
 {% endif -%}
 {% if hasGenericGeneratorFields -%}
-import org.hibernate.annotations.GenericGenerator
+{{ use("org.hibernate.annotations.GenericGenerator") -}}
 {% endif -%}
 {% for import in imports(jpaImports) -%}
-import {{ import }}
+{{ use(import) -}}
+{% endfor -%}
+{% for import in imports(imports) -%}
+{{ use(import) -}}
 {% endfor -%}
 {% for import in imports(imports) -%}
 import {{ import }}
