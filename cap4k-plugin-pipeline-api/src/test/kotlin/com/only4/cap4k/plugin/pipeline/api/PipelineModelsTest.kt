@@ -8,6 +8,54 @@ import org.junit.jupiter.api.Test
 class PipelineModelsTest {
 
     @Test
+    fun `canonical model stores commands queries and clients separately`() {
+        val model = CanonicalModel(
+            commands = listOf(
+                CommandModel(
+                    packageName = "orders",
+                    typeName = "CreateOrderCmd",
+                    description = "create order",
+                    aggregateRef = AggregateRef(
+                        name = "Order",
+                        packageName = "com.acme.demo.domain.aggregates.order",
+                    ),
+                    requestFields = listOf(FieldModel(name = "id", type = "Long")),
+                    responseFields = emptyList(),
+                    variant = CommandVariant.DEFAULT,
+                )
+            ),
+            queries = listOf(
+                QueryModel(
+                    packageName = "orders",
+                    typeName = "ListOrderQry",
+                    description = "list order",
+                    aggregateRef = AggregateRef(
+                        name = "Order",
+                        packageName = "com.acme.demo.domain.aggregates.order",
+                    ),
+                    requestFields = emptyList(),
+                    responseFields = emptyList(),
+                    variant = QueryVariant.LIST,
+                )
+            ),
+            clients = listOf(
+                ClientModel(
+                    packageName = "remote",
+                    typeName = "SyncStockCli",
+                    description = "sync stock",
+                    aggregateRef = null,
+                    requestFields = emptyList(),
+                    responseFields = emptyList(),
+                )
+            ),
+        )
+
+        assertEquals(1, model.commands.size)
+        assertEquals(1, model.queries.size)
+        assertEquals(1, model.clients.size)
+    }
+
+    @Test
     fun `ir analysis snapshot preserves input dirs nodes edges and design elements`() {
         val snapshot = IrAnalysisSnapshot(
             inputDirs = listOf("app/build/cap4k-code-analysis"),

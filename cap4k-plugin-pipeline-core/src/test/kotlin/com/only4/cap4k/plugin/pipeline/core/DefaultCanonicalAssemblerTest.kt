@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
+import com.only4.cap4k.plugin.pipeline.api.CommandVariant
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
@@ -26,6 +27,7 @@ import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
+import com.only4.cap4k.plugin.pipeline.api.QueryVariant
 import com.only4.cap4k.plugin.pipeline.api.RequestKind
 import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
@@ -37,6 +39,101 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class DefaultCanonicalAssemblerTest {
+
+    @Test
+    fun `assembler splits cmd qry cli into typed canonical collections`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "cmd",
+                            packageName = "order",
+                            name = "CreateOrder",
+                            description = "create order",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "qry",
+                            packageName = "order",
+                            name = "ListOrder",
+                            description = "list order",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "cli",
+                            packageName = "remote",
+                            name = "SyncStock",
+                            description = "sync stock",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    )
+                ),
+            ),
+        ).model
+
+        assertEquals(listOf("CreateOrderCmd"), model.commands.map { it.typeName })
+        assertEquals(listOf("ListOrderQry"), model.queries.map { it.typeName })
+        assertEquals(listOf("SyncStockCli"), model.clients.map { it.typeName })
+        assertEquals(QueryVariant.LIST, model.queries.single().variant)
+        assertEquals(CommandVariant.DEFAULT, model.commands.single().variant)
+    }
+
+    @Test
+    fun `assembler resolves page list and default query variants canonically`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "qry",
+                            packageName = "order",
+                            name = "FindOrder",
+                            description = "find order",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "qry",
+                            packageName = "order",
+                            name = "ListOrder",
+                            description = "list order",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "qry",
+                            packageName = "order",
+                            name = "PageOrder",
+                            description = "page order",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    )
+                ),
+            ),
+        ).model
+
+        assertEquals(
+            listOf(QueryVariant.DEFAULT, QueryVariant.LIST, QueryVariant.PAGE),
+            model.queries.map { it.variant },
+        )
+    }
 
     @Test
     fun `client design tags map into CLIENT request kind`() {
