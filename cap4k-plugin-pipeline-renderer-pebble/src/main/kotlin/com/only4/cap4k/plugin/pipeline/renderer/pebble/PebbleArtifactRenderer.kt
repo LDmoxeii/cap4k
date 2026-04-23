@@ -42,7 +42,7 @@ class PebbleArtifactRenderer(
             )
             return RenderedArtifact(
                 outputPath = item.outputPath,
-                content = writer.toString(),
+                content = normalizeLineEndings(writer.toString()),
                 conflictPolicy = item.conflictPolicy
             )
         } finally {
@@ -94,6 +94,10 @@ class PebbleArtifactRenderer(
             "imports() requires a List<String> or a map exposing imports."
         )
     }
+
+    private fun normalizeLineEndings(content: String): String = content
+        .replace("\r\n", "\n")
+        .replace('\r', '\n')
 }
 
 internal class PebbleRenderSession(
