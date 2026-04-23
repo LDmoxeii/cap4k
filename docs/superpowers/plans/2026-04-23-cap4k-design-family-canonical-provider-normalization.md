@@ -8,6 +8,8 @@
 
 **Tech Stack:** Kotlin, Gradle plugin code, Pebble renderer presets, JUnit 5
 
+**Post-Task-1 drift guards:** This plan now executes on top of the already-landed source/analysis split. `flow` / `drawing-board` and `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` are explicitly out of scope here. When touching `PipelinePlugin.kt`, only rename and rewire the design request-family source generators; do not collapse the source vs analysis task-family boundary introduced by `generate-entrypoint-source-analysis-separation`. When touching `Cap4kProjectConfigFactory.kt`, preserve the current `designDomainEvent` aggregate-first + `kspMetadata` fallback contract; this normalization slice does not reopen domain-event source dependency semantics.
+
 ---
 
 ## File Map
