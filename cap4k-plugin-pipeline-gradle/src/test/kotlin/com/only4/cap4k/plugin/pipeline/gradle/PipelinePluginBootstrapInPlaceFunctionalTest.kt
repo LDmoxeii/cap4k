@@ -98,6 +98,7 @@ class PipelinePluginBootstrapInPlaceFunctionalTest {
         val secondRun = FunctionalFixtureSupport.runner(projectDir, "cap4kBootstrap").build()
         val rerunBuild = buildFile.readText()
         val rerunSettings = settingsFile.readText()
+        val normalizedRerunBuild = rerunBuild.normalizeLineSeparators()
         val expectedOverrideDirPath = projectDir.resolve("codegen/bootstrap-templates").toAbsolutePath()
             .normalize()
             .toString()
@@ -116,6 +117,28 @@ class PipelinePluginBootstrapInPlaceFunctionalTest {
         assertTrue(rerunBuild.contains("root.from(\"codegen/bootstrap-slots/root\")"))
         assertTrue(rerunBuild.contains("modulePackage(\"domain\").from(\"codegen/bootstrap-slots/domain-package\")"))
         assertTrue(rerunBuild.contains("moduleResources(\"start\").from(\"codegen/bootstrap-slots/start-resources\")"))
+        assertTrue(
+            normalizedRerunBuild.contains(
+                "        conflictPolicy.set(\"OVERWRITE\")\n" +
+                    "        mode.set(BootstrapMode.IN_PLACE)\n" +
+                    "        projectName.set(\"only-danmuku\")"
+            )
+        )
+        assertTrue(
+            normalizedRerunBuild.contains(
+                "        templates {\n" +
+                    "            preset.set(\"ddd-default-bootstrap\")\n" +
+                    "            overrideDirs.from(\"codegen/bootstrap-templates\")\n" +
+                    "        }\n" +
+                    "        slots {\n" +
+                    "            root.from(\"codegen/bootstrap-slots/root\")\n" +
+                    "            modulePackage(\"domain\").from(\"codegen/bootstrap-slots/domain-package\")\n" +
+                    "            modulePackage(\"start\").from(\"codegen/bootstrap-slots/start-package\")\n" +
+                    "            moduleResources(\"start\").from(\"codegen/bootstrap-slots/start-resources\")\n" +
+                    "        }\n" +
+                    "    }"
+            )
+        )
         assertEquals(1, Regex("include\\(\":only-danmuku-domain\"\\)").findAll(rerunSettings).count())
         assertEquals(1, Regex("include\\(\":only-danmuku-start\"\\)").findAll(rerunSettings).count())
     }
@@ -131,4 +154,6 @@ class PipelinePluginBootstrapInPlaceFunctionalTest {
         assertFalse(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(result.output.contains("root-host"))
     }
+
+    private fun String.normalizeLineSeparators(): String = replace("\r\n", "\n")
 }

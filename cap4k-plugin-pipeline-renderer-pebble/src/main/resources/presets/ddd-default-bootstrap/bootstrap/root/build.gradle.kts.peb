@@ -11,10 +11,8 @@ cap4k {
         preset.set("ddd-multi-module")
         conflictPolicy.set("{{ conflictPolicy }}")
         mode.set(BootstrapMode.{{ mode }})
-{% if previewDir is not null %}
-        previewDir.set("{{ previewDir }}")
-{% endif %}
-        projectName.set("{{ projectName }}")
+{% if previewDir is not null %}        previewDir.set("{{ previewDir }}")
+{% endif %}        projectName.set("{{ projectName }}")
         basePackage.set("{{ basePackage }}")
         modules {
             domainModuleName.set("{{ domainModuleName }}")
@@ -24,28 +22,12 @@ cap4k {
         }
         templates {
             preset.set("{{ templatePreset }}")
-{% for overrideDir in templateOverrideDirs %}
-            overrideDirs.from("{{ overrideDir }}")
-{% endfor %}
-        }
-{% if slotBindings|length > 0 %}
-        slots {
-{% for slot in slotBindings %}
-{% if slot.kind == "ROOT" %}
-            root.from("{{ slot.sourceDir }}")
-{% elseif slot.kind == "BUILD_LOGIC" %}
-            buildLogic.from("{{ slot.sourceDir }}")
-{% elseif slot.kind == "MODULE_ROOT" %}
-            moduleRoot("{{ slot.role }}").from("{{ slot.sourceDir }}")
-{% elseif slot.kind == "MODULE_PACKAGE" %}
-            modulePackage("{{ slot.role }}").from("{{ slot.sourceDir }}")
-{% elseif slot.kind == "MODULE_RESOURCES" %}
-            moduleResources("{{ slot.role }}").from("{{ slot.sourceDir }}")
-{% endif %}
-{% endfor %}
-        }
-{% endif %}
-    }
+{% for overrideDir in templateOverrideDirs %}            overrideDirs.from("{{ overrideDir }}")
+{% endfor %}        }
+{% if slotStatements|length > 0 %}        slots {
+{% for slotStatement in slotStatements %}            {{ slotStatement | raw }}
+{% endfor %}        }
+{% endif %}    }
 }
 // [cap4k-bootstrap:managed-end:root-host]
 

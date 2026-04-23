@@ -65,7 +65,6 @@ class DddMultiModuleBootstrapPresetProvider : BootstrapPresetProvider {
         }
     }
 }
-
 internal fun bootstrapContext(config: BootstrapConfig): Map<String, Any?> =
     mapOf(
         "projectName" to config.projectName,
@@ -77,7 +76,7 @@ internal fun bootstrapContext(config: BootstrapConfig): Map<String, Any?> =
         "startModuleName" to config.modules.startModuleName,
         "templatePreset" to config.templates.preset,
         "templateOverrideDirs" to config.templates.overrideDirs.map(::normalizeDslPathLiteral),
-        "slotBindings" to config.slots.map(::toRenderModel),
+        "slotStatements" to config.slots.map(::toDslStatement),
         "conflictPolicy" to config.conflictPolicy.name,
         "mode" to config.mode.name,
         "previewDir" to config.previewDir?.let(::normalizeDslPathLiteral),
@@ -144,7 +143,6 @@ internal fun resolveSlotOutputPath(
         }
     }
 }
-
 internal fun resolveModuleName(role: String, config: BootstrapConfig): String =
     when (role) {
         "domain" -> config.modules.domainModuleName
@@ -154,12 +152,25 @@ internal fun resolveModuleName(role: String, config: BootstrapConfig): String =
         else -> throw IllegalArgumentException("unsupported bootstrap slot role: $role")
     }
 
-private fun toRenderModel(binding: com.only4.cap4k.plugin.pipeline.api.BootstrapSlotBinding): BootstrapSlotBindingRenderModel =
-    BootstrapSlotBindingRenderModel(
-        kind = binding.kind.name,
-        role = binding.role,
-        sourceDir = normalizeDslPathLiteral(binding.sourceDir),
-    )
+private fun toDslStatement(binding: com.only4.cap4k.plugin.pipeline.api.BootstrapSlotBinding): String {
+    val sourceDir = normalizeDslPathLiteral(binding.sourceDir)
+    return when (binding.kind) {
+        com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.ROOT ->
+            "root.from(\"$sourceDir\")"
+
+        com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.BUILD_LOGIC ->
+            "buildLogic.from(\"$sourceDir\")"
+
+        com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.MODULE_ROOT ->
+            "moduleRoot(\"${requireNotNull(binding.role)}\").from(\"$sourceDir\")"
+
+        com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.MODULE_PACKAGE ->
+            "modulePackage(\"${requireNotNull(binding.role)}\").from(\"$sourceDir\")"
+
+        com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind.MODULE_RESOURCES ->
+            "moduleResources(\"${requireNotNull(binding.role)}\").from(\"$sourceDir\")"
+    }
+}
 
 private fun BootstrapConfig.basePackagePath(): String = basePackage.replace('.', '/')
 
@@ -290,9 +301,3 @@ internal object LegacyArchTemplateMapper {
         )
     }
 }
-
-internal data class BootstrapSlotBindingRenderModel(
-    val kind: String,
-    val role: String?,
-    val sourceDir: String,
-)
