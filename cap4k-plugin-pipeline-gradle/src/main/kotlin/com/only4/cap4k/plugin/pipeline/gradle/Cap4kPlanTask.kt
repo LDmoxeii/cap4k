@@ -16,11 +16,11 @@ abstract class Cap4kPlanTask : DefaultTask() {
 
     @TaskAction
     fun runPlan() {
-        val config = configFactory.build(project, extension)
+        val config = sourceTaskConfig(configFactory.build(project, extension))
         val outputFile = project.layout.buildDirectory.file("cap4k/plan.json").get().asFile
         outputFile.parentFile.mkdirs()
         try {
-            val result = buildRunner(project, config, exportEnabled = false).run(config)
+            val result = buildSourceRunner(project, config, exportEnabled = false).run(config)
             writePlanReport(
                 outputFile = outputFile,
                 report = PlanReport(

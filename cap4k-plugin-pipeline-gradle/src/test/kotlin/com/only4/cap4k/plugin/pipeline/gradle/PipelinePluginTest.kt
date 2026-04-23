@@ -294,6 +294,40 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `analysis tasks with ir analysis depend on relevant compile task only`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-analysis-flow-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val analysisProject = ProjectBuilder.builder()
+            .withName("analysis")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("analysis"))
+            .build()
+        analysisProject.tasks.register("compileKotlin")
+        rootProject.tasks.register("compileKotlin")
+
+        val dependencies = inferAnalysisDependencies(
+            rootProject,
+            projectConfig(
+                sources = mapOf(
+                    "ir-analysis" to SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "inputDirs" to listOf(
+                                analysisProject.layout.buildDirectory.dir("cap4k-code-analysis").get().asFile.absolutePath
+                            )
+                        ),
+                    )
+                ),
+                generators = mapOf("flow" to GeneratorConfig(enabled = true)),
+            )
+        )
+
+        assertEquals(listOf(":analysis:compileKotlin"), dependencies.map { it.path })
+    }
+
+    @Test
     fun `drawing board with ir analysis depends on relevant compile task only`() {
         val projectDir = tempProjectDir("pipeline-plugin-drawing-board")
         val project = ProjectBuilder.builder()

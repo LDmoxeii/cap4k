@@ -69,13 +69,13 @@ class PipelinePlugin : Plugin<Project> {
             task.extension = extension
             task.configFactory = configFactory
         }
-        project.tasks.register("cap4kAnalysisPlan", Cap4kAnalysisPlanTask::class.java) { task ->
+        val analysisPlanTask = project.tasks.register("cap4kAnalysisPlan", Cap4kAnalysisPlanTask::class.java) { task ->
             task.group = "cap4k"
             task.description = "Plans Cap4k analysis export artifacts."
             task.extension = extension
             task.configFactory = configFactory
         }
-        project.tasks.register("cap4kAnalysisGenerate", Cap4kAnalysisGenerateTask::class.java) { task ->
+        val analysisGenerateTask = project.tasks.register("cap4kAnalysisGenerate", Cap4kAnalysisGenerateTask::class.java) { task ->
             task.group = "cap4k"
             task.description = "Generates artifacts from analysis snapshots."
             task.extension = extension
@@ -88,10 +88,15 @@ class PipelinePlugin : Plugin<Project> {
             }
             val config = configFactory.build(project, extension)
             ensureAggregateDomainJpaDependency(project, config)
-            val inferredDependencies = inferDependencies(project, config)
-            if (inferredDependencies.isNotEmpty()) {
-                planTask.configure { task -> task.dependsOn(inferredDependencies) }
-                generateTask.configure { task -> task.dependsOn(inferredDependencies) }
+            val inferredSourceDependencies = inferSourceDependencies(project, config)
+            if (inferredSourceDependencies.isNotEmpty()) {
+                planTask.configure { task -> task.dependsOn(inferredSourceDependencies) }
+                generateTask.configure { task -> task.dependsOn(inferredSourceDependencies) }
+            }
+            val inferredAnalysisDependencies = inferAnalysisDependencies(project, config)
+            if (inferredAnalysisDependencies.isNotEmpty()) {
+                analysisPlanTask.configure { task -> task.dependsOn(inferredAnalysisDependencies) }
+                analysisGenerateTask.configure { task -> task.dependsOn(inferredAnalysisDependencies) }
             }
         }
     }
@@ -103,6 +108,20 @@ internal fun shouldInferPipelineDependencies(extension: Cap4kExtension): Boolean
 private const val JAKARTA_PERSISTENCE_GROUP = "jakarta.persistence"
 private const val JAKARTA_PERSISTENCE_NAME = "jakarta.persistence-api"
 private const val JAKARTA_PERSISTENCE_COORDINATE = "$JAKARTA_PERSISTENCE_GROUP:$JAKARTA_PERSISTENCE_NAME:3.1.0"
+private val SOURCE_TASK_SOURCE_IDS = setOf("db", "enum-manifest", "design-json", "ksp-metadata")
+private val SOURCE_TASK_GENERATOR_IDS = setOf(
+    "design",
+    "design-query-handler",
+    "design-client",
+    "design-client-handler",
+    "design-validator",
+    "design-api-payload",
+    "design-domain-event",
+    "design-domain-event-handler",
+    "aggregate",
+)
+private val ANALYSIS_TASK_SOURCE_IDS = setOf("ir-analysis")
+private val ANALYSIS_TASK_GENERATOR_IDS = setOf("flow", "drawing-board")
 
 private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf(
     extension.sources.designJson.enabled,
@@ -126,6 +145,18 @@ private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean = lis
     extension.generators.flow.enabled,
 ).any { it.orNull == true }
 
+internal fun sourceTaskConfig(config: ProjectConfig): ProjectConfig =
+    config.copy(
+        sources = config.sources.filterKeys { it in SOURCE_TASK_SOURCE_IDS },
+        generators = config.generators.filterKeys { it in SOURCE_TASK_GENERATOR_IDS },
+    )
+
+internal fun analysisTaskConfig(config: ProjectConfig): ProjectConfig =
+    config.copy(
+        sources = config.sources.filterKeys { it in ANALYSIS_TASK_SOURCE_IDS },
+        generators = config.generators.filterKeys { it in ANALYSIS_TASK_GENERATOR_IDS },
+    )
+
 internal fun ensureAggregateDomainJpaDependency(project: Project, config: ProjectConfig) {
     if (!config.enabledGeneratorIds().contains("aggregate")) {
         return
@@ -142,6 +173,13 @@ internal fun ensureAggregateDomainJpaDependency(project: Project, config: Projec
 }
 
 internal fun inferDependencies(project: Project, config: ProjectConfig): List<Task> {
+    val mergedDependencies = linkedSetOf<Task>()
+    mergedDependencies += inferSourceDependencies(project, config)
+    mergedDependencies += inferAnalysisDependencies(project, config)
+    return mergedDependencies.toList()
+}
+
+internal fun inferSourceDependencies(project: Project, config: ProjectConfig): List<Task> {
     val inferredDependencies = linkedSetOf<Task>()
     val allProjects = project.rootProject.allprojects
 
@@ -158,6 +196,12 @@ internal fun inferDependencies(project: Project, config: ProjectConfig): List<Ta
         }
     }
 
+    return inferredDependencies.toList()
+}
+
+internal fun inferAnalysisDependencies(project: Project, config: ProjectConfig): List<Task> {
+    val inferredDependencies = linkedSetOf<Task>()
+    val allProjects = project.rootProject.allprojects
     val shouldDependOnCompileKotlin = config.enabledSourceIds().contains("ir-analysis") &&
         config.enabledGeneratorIds().any { it == "flow" || it == "drawing-board" }
     if (shouldDependOnCompileKotlin) {
@@ -230,14 +274,13 @@ private fun Any?.asStringList(): List<String> =
 private fun String.toNormalizedPath(): Path =
     Path.of(this).toAbsolutePath().normalize()
 
-internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner {
+internal fun buildSourceRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner {
     return DefaultPipelineRunner(
         sources = listOf(
             DbSchemaSourceProvider(),
             EnumManifestSourceProvider(),
             DesignJsonSourceProvider(),
             KspMetadataSourceProvider(),
-            IrAnalysisSourceProvider(),
         ),
         generators = listOf(
             DesignArtifactPlanner(),
@@ -249,6 +292,28 @@ internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled:
             DesignDomainEventArtifactPlanner(),
             DesignDomainEventHandlerArtifactPlanner(),
             AggregateArtifactPlanner(),
+        ),
+        assembler = DefaultCanonicalAssembler(),
+        renderer = PebbleArtifactRenderer(
+            PresetTemplateResolver(
+                preset = config.templates.preset,
+                overrideDirs = config.templates.overrideDirs,
+            )
+        ),
+        exporter = if (exportEnabled) {
+            FilesystemArtifactExporter(project.projectDir.toPath())
+        } else {
+            NoopArtifactExporter()
+        },
+    )
+}
+
+internal fun buildAnalysisRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner {
+    return DefaultPipelineRunner(
+        sources = listOf(
+            IrAnalysisSourceProvider(),
+        ),
+        generators = listOf(
             DrawingBoardArtifactPlanner(),
             FlowArtifactPlanner(),
         ),
@@ -266,6 +331,9 @@ internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled:
         },
     )
 }
+
+internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner =
+    buildSourceRunner(project, config, exportEnabled)
 
 internal fun buildBootstrapRunner(project: Project, config: BootstrapConfig, exportEnabled: Boolean): BootstrapRunner {
     val rootStateGuard = BootstrapRootStateGuard(project.projectDir.toPath())

@@ -13,7 +13,7 @@ abstract class Cap4kAnalysisGenerateTask : DefaultTask() {
 
     @TaskAction
     fun generate() {
-        val config = configFactory.build(project, extension)
-        buildRunner(project, config, exportEnabled = true).run(config)
+        val config = analysisTaskConfig(configFactory.build(project, extension))
+        buildAnalysisRunner(project, config, exportEnabled = true).run(config)
     }
 }

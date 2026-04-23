@@ -13,7 +13,7 @@ abstract class Cap4kGenerateTask : DefaultTask() {
 
     @TaskAction
     fun generate() {
-        val config = configFactory.build(project, extension)
-        buildRunner(project, config, exportEnabled = true).run(config)
+        val config = sourceTaskConfig(configFactory.build(project, extension))
+        buildSourceRunner(project, config, exportEnabled = true).run(config)
     }
 }
