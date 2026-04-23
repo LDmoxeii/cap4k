@@ -4,10 +4,14 @@ import com.only4.cap4k.plugin.pipeline.api.AnalysisEdgeModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
+import com.only4.cap4k.plugin.pipeline.api.AggregateRef
 import com.only4.cap4k.plugin.pipeline.api.AggregateDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.ClientModel
+import com.only4.cap4k.plugin.pipeline.api.CommandModel
+import com.only4.cap4k.plugin.pipeline.api.CommandVariant
 import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
@@ -24,6 +28,8 @@ import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnostics
+import com.only4.cap4k.plugin.pipeline.api.QueryModel
+import com.only4.cap4k.plugin.pipeline.api.QueryVariant
 import com.only4.cap4k.plugin.pipeline.api.RequestKind
 import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
@@ -50,6 +56,54 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             .associateBy { it.aggregateName }
 
         val analysisSnapshot = snapshots.filterIsInstance<IrAnalysisSnapshot>().firstOrNull()
+
+        val commands = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag.lowercase(Locale.ROOT) in setOf("cmd", "command") }
+            .map { entry ->
+                CommandModel(
+                    packageName = entry.packageName,
+                    typeName = "${entry.name}Cmd",
+                    description = entry.description,
+                    aggregateRef = entry.requestAggregateRef(aggregateLookup),
+                    requestFields = entry.requestFields,
+                    responseFields = entry.responseFields,
+                    variant = CommandVariant.DEFAULT,
+                )
+            }
+            .toList()
+
+        val queries = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag.lowercase(Locale.ROOT) in setOf("qry", "query") }
+            .map { entry ->
+                val typeName = "${entry.name}Qry"
+                QueryModel(
+                    packageName = entry.packageName,
+                    typeName = typeName,
+                    description = entry.description,
+                    aggregateRef = entry.requestAggregateRef(aggregateLookup),
+                    requestFields = entry.requestFields,
+                    responseFields = entry.responseFields,
+                    variant = resolveQueryVariant(typeName),
+                )
+            }
+            .toList()
+
+        val clients = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag.lowercase(Locale.ROOT) in setOf("cli", "client", "clients") }
+            .map { entry ->
+                ClientModel(
+                    packageName = entry.packageName,
+                    typeName = "${entry.name}Cli",
+                    description = entry.description,
+                    aggregateRef = entry.requestAggregateRef(aggregateLookup),
+                    requestFields = entry.requestFields,
+                    responseFields = entry.responseFields,
+                )
+            }
+            .toList()
 
         val requests = designSnapshot?.entries.orEmpty().mapNotNull { entry ->
             val kind = when (entry.tag.lowercase(Locale.ROOT)) {
@@ -321,6 +375,9 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
         return CanonicalAssemblyResult(
             model = CanonicalModel(
+                commands = commands,
+                queries = queries,
+                clients = clients,
                 requests = requests,
                 validators = validators,
                 apiPayloads = apiPayloads,
@@ -340,6 +397,23 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             ),
             diagnostics = diagnostics,
         )
+    }
+
+    private fun DesignSpecEntry.requestAggregateRef(
+        aggregateLookup: Map<String, AggregateMetadataRecord>,
+    ): AggregateRef? {
+        val aggregateName = aggregates.firstOrNull() ?: return null
+        val aggregate = aggregateLookup[aggregateName] ?: return null
+        return AggregateRef(
+            name = aggregateName,
+            packageName = aggregate.rootPackageName,
+        )
+    }
+
+    private fun resolveQueryVariant(typeName: String): QueryVariant = when {
+        typeName.endsWith("PageQry") -> QueryVariant.PAGE
+        typeName.endsWith("ListQry") -> QueryVariant.LIST
+        else -> QueryVariant.DEFAULT
     }
 
     private fun DesignElementSnapshot.toDrawingBoardElementOrNull(): DrawingBoardElementModel? {

@@ -306,6 +306,60 @@ data class AnalysisGraphModel(
     val edges: List<AnalysisEdgeModel>,
 )
 
+data class AggregateRef(
+    val name: String,
+    val packageName: String,
+)
+
+sealed interface DesignInteractionModel {
+    val packageName: String
+    val typeName: String
+    val description: String
+    val aggregateRef: AggregateRef?
+    val requestFields: List<FieldModel>
+    val responseFields: List<FieldModel>
+}
+
+enum class CommandVariant {
+    DEFAULT,
+    VOID,
+}
+
+enum class QueryVariant {
+    DEFAULT,
+    LIST,
+    PAGE,
+}
+
+data class CommandModel(
+    override val packageName: String,
+    override val typeName: String,
+    override val description: String,
+    override val aggregateRef: AggregateRef? = null,
+    override val requestFields: List<FieldModel> = emptyList(),
+    override val responseFields: List<FieldModel> = emptyList(),
+    val variant: CommandVariant,
+) : DesignInteractionModel
+
+data class QueryModel(
+    override val packageName: String,
+    override val typeName: String,
+    override val description: String,
+    override val aggregateRef: AggregateRef? = null,
+    override val requestFields: List<FieldModel> = emptyList(),
+    override val responseFields: List<FieldModel> = emptyList(),
+    val variant: QueryVariant,
+) : DesignInteractionModel
+
+data class ClientModel(
+    override val packageName: String,
+    override val typeName: String,
+    override val description: String,
+    override val aggregateRef: AggregateRef? = null,
+    override val requestFields: List<FieldModel> = emptyList(),
+    override val responseFields: List<FieldModel> = emptyList(),
+) : DesignInteractionModel
+
 enum class RequestKind {
     COMMAND,
     QUERY,
@@ -354,6 +408,9 @@ data class DomainEventModel(
 )
 
 data class CanonicalModel(
+    val commands: List<CommandModel> = emptyList(),
+    val queries: List<QueryModel> = emptyList(),
+    val clients: List<ClientModel> = emptyList(),
     val requests: List<RequestModel> = emptyList(),
     val validators: List<ValidatorModel> = emptyList(),
     val domainEvents: List<DomainEventModel> = emptyList(),

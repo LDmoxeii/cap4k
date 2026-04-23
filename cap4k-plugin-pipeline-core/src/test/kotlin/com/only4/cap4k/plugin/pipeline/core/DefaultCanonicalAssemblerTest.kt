@@ -61,7 +61,7 @@ class DefaultCanonicalAssemblerTest {
                         DesignSpecEntry(
                             tag = "qry",
                             packageName = "order",
-                            name = "ListOrder",
+                            name = "FindOrderList",
                             description = "list order",
                             aggregates = emptyList(),
                             requestFields = emptyList(),
@@ -82,7 +82,7 @@ class DefaultCanonicalAssemblerTest {
         ).model
 
         assertEquals(listOf("CreateOrderCmd"), model.commands.map { it.typeName })
-        assertEquals(listOf("ListOrderQry"), model.queries.map { it.typeName })
+        assertEquals(listOf("FindOrderListQry"), model.queries.map { it.typeName })
         assertEquals(listOf("SyncStockCli"), model.clients.map { it.typeName })
         assertEquals(QueryVariant.LIST, model.queries.single().variant)
         assertEquals(CommandVariant.DEFAULT, model.commands.single().variant)
@@ -109,7 +109,7 @@ class DefaultCanonicalAssemblerTest {
                         DesignSpecEntry(
                             tag = "qry",
                             packageName = "order",
-                            name = "ListOrder",
+                            name = "FindOrderList",
                             description = "list order",
                             aggregates = emptyList(),
                             requestFields = emptyList(),
@@ -118,7 +118,7 @@ class DefaultCanonicalAssemblerTest {
                         DesignSpecEntry(
                             tag = "qry",
                             packageName = "order",
-                            name = "PageOrder",
+                            name = "FindOrderPage",
                             description = "page order",
                             aggregates = emptyList(),
                             requestFields = emptyList(),
