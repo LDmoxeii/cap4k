@@ -3128,6 +3128,114 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `regular aggregate ignores non-list imports payload when helper contract is unused`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-aggregate-compat-plain")
+        val overrideAggregateDir = Files.createDirectories(overrideDir.resolve("aggregate"))
+        overrideAggregateDir.resolve("schema.kt.peb")
+            .writeText(
+                """
+                package {{ packageName }}
+                class {{ typeName }}
+                """.trimIndent()
+            )
+
+        val rendered = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        ).render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/schema.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/OrderSchema.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.order",
+                        "typeName" to "OrderSchema",
+                        "entityName" to "Order",
+                        "imports" to "not-a-list"
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("package com.acme.demo.domain.aggregates.order"))
+        assertTrue(content.contains("class OrderSchema"))
+    }
+
+    @Test
+    fun `regular aggregate map carrier preserves extra payload while merging collected imports`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-aggregate-map-shape")
+        val overrideAggregateDir = Files.createDirectories(overrideDir.resolve("aggregate"))
+        overrideAggregateDir.resolve("schema.kt.peb")
+            .writeText(
+                """
+                {{ use("java.time.LocalDateTime") -}}
+                extra={{ imports.extra }}
+                merged={{ imports(imports) | json | raw }}
+                """.trimIndent()
+            )
+
+        val rendered = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        ).render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/schema.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/OrderSchema.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.order",
+                        "typeName" to "OrderSchema",
+                        "entityName" to "Order",
+                        "imports" to mapOf(
+                            "imports" to listOf("java.util.UUID"),
+                            "extra" to "expected-extra"
+                        )
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("extra=expected-extra"))
+        assertTrue(content.contains("""merged=["java.time.LocalDateTime","java.util.UUID"]"""))
+    }
+
+    @Test
     fun `use helper deduplicates repeated explicit imports`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-dedupe")
         val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))

@@ -34,11 +34,11 @@ class PebbleArtifactRenderer(
             template.evaluate(StringWriter(), item.context)
 
             session.phase = RenderPhase.RENDERING
-            val mergedImports = session.explicitImportCollector.mergedWith(readImports(item.context))
+            val renderContext = mergeContextWithCollectedImports(item.context, session.explicitImportCollector)
             val writer = StringWriter()
             template.evaluate(
                 writer,
-                item.context + mapOf("imports" to mergedImports)
+                renderContext
             )
             return RenderedArtifact(
                 outputPath = item.outputPath,
@@ -56,7 +56,30 @@ class PebbleArtifactRenderer(
         .newLineTrimming(false)
         .build()
 
-    private fun readImports(context: Map<String, Any?>): List<String> = when (val value = context["imports"]) {
+    private fun mergeContextWithCollectedImports(
+        context: Map<String, Any?>,
+        collector: ExplicitImportCollector,
+    ): Map<String, Any?> {
+        if (collector.explicitImports().isEmpty()) {
+            return context
+        }
+
+        val importsValue = context["imports"]
+        val mergedImports = collector.mergedWith(readImportsValue(importsValue))
+        val mergedImportsCarrier: Any = when (importsValue) {
+            null, is List<*> -> mergedImports
+            is Map<*, *> -> LinkedHashMap(importsValue).apply {
+                this["imports"] = mergedImports
+            }
+            else -> throw IllegalArgumentException(
+                "imports() requires a List<String> or a map exposing imports."
+            )
+        }
+
+        return context + mapOf("imports" to mergedImportsCarrier)
+    }
+
+    private fun readImportsValue(value: Any?): List<String> = when (value) {
         null -> emptyList()
         is List<*> -> value.map { entry ->
             entry as? String ?: throw IllegalArgumentException(
@@ -65,7 +88,7 @@ class PebbleArtifactRenderer(
         }
         is Map<*, *> -> {
             val imports = value["imports"] ?: return emptyList()
-            readImports(mapOf("imports" to imports))
+            readImportsValue(imports)
         }
         else -> throw IllegalArgumentException(
             "imports() requires a List<String> or a map exposing imports."
