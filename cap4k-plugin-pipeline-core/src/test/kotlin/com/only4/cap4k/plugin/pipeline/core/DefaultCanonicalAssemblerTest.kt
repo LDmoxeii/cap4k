@@ -546,6 +546,106 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `domain event resolves aggregate package from canonical aggregate entities before ksp metadata`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "domain_event",
+                            packageName = "order",
+                            name = "OrderCreated",
+                            description = "order created event",
+                            aggregates = listOf("Order"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    )
+                ),
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "order",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                    )
+                ),
+                KspMetadataSnapshot(
+                    aggregates = listOf(
+                        AggregateMetadataRecord(
+                            aggregateName = "Order",
+                            rootQualifiedName = "com.acme.legacy.order.Order",
+                            rootPackageName = "com.acme.legacy.order",
+                            rootClassName = "Order",
+                        )
+                    )
+                ),
+            ),
+        ).model
+
+        assertEquals("Order", model.domainEvents.single().aggregateName)
+        assertEquals("com.acme.demo.domain.aggregates.order", model.domainEvents.single().aggregatePackageName)
+    }
+
+    @Test
+    fun `domain event falls back to ksp metadata when canonical aggregate data is absent`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "domain_event",
+                            packageName = "order",
+                            name = "OrderCreated",
+                            description = "order created event",
+                            aggregates = listOf("Order"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    )
+                ),
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                    )
+                ),
+                KspMetadataSnapshot(
+                    aggregates = listOf(
+                        AggregateMetadataRecord(
+                            aggregateName = "Order",
+                            rootQualifiedName = "com.acme.legacy.order.Order",
+                            rootPackageName = "com.acme.legacy.order",
+                            rootClassName = "Order",
+                        )
+                    )
+                ),
+            ),
+        ).model
+
+        assertEquals("Order", model.domainEvents.single().aggregateName)
+        assertEquals("com.acme.legacy.order", model.domainEvents.single().aggregatePackageName)
+    }
+
+    @Test
     fun `domain event assembly fails when aggregates is empty`() {
         val assembler = DefaultCanonicalAssembler()
 
@@ -656,7 +756,7 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals("domain_event UnknownAggregate references missing aggregate metadata: Unknown.", error.message)
+        assertEquals("domain_event UnknownAggregate references missing aggregate metadata: Unknown", error.message)
     }
 
     @Test

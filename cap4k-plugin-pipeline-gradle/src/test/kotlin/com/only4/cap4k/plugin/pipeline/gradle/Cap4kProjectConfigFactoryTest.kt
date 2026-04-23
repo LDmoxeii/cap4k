@@ -319,32 +319,6 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `design domain event generator requires enabled ksp metadata source`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            domainModulePath.set("demo-domain")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designDomainEvent { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("designDomainEvent generator requires enabled kspMetadata source.", error.message)
-    }
-
-    @Test
     fun `design domain event generator does not require enabled ksp metadata source`() {
         val project = ProjectBuilder.builder().build()
         project.pluginManager.apply("com.only4.cap4k.plugin.pipeline")

@@ -104,24 +104,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             }
             .toList()
 
-        val domainEvents = designSnapshot?.entries.orEmpty()
-            .asSequence()
-            .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "domain_event" }
-            .map { entry ->
-                val aggregateName = resolveDomainEventAggregateName(entry)
-                val aggregate = resolveDomainEventAggregateMetadata(entry, aggregateName, aggregateLookup)
-                DomainEventModel(
-                    packageName = entry.packageName,
-                    typeName = entry.name.toDomainEventTypeName(),
-                    description = entry.description,
-                    aggregateName = aggregateName,
-                    aggregatePackageName = aggregate.rootPackageName,
-                    persist = entry.persist ?: false,
-                    fields = entry.requestFields,
-                )
-            }
-            .toList()
-
         val aggregatePolicy = config.generators["aggregate"]
             ?.options
             ?.get("unsupportedTablePolicy")
@@ -231,6 +213,41 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             )
         }
         val entities = aggregateModels.map { it.second }
+        val aggregateEntityMetadata = entities
+            .filter { it.aggregateRoot }
+            .associateBy(
+                keySelector = { it.name },
+                valueTransform = { entity ->
+                    AggregateMetadataRecord(
+                        aggregateName = entity.name,
+                        rootQualifiedName = "${entity.packageName}.${entity.name}",
+                        rootPackageName = entity.packageName,
+                        rootClassName = entity.name,
+                    )
+                }
+            )
+        val domainEvents = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "domain_event" }
+            .map { entry ->
+                val aggregateName = resolveDomainEventAggregateName(entry)
+                val aggregate = resolveDomainEventAggregateMetadata(
+                    entry = entry,
+                    aggregateName = aggregateName,
+                    aggregateEntityMetadata = aggregateEntityMetadata,
+                    aggregateLookup = aggregateLookup,
+                )
+                DomainEventModel(
+                    packageName = entry.packageName,
+                    typeName = entry.name.toDomainEventTypeName(),
+                    description = entry.description,
+                    aggregateName = aggregateName,
+                    aggregatePackageName = aggregate.rootPackageName,
+                    persist = entry.persist ?: false,
+                    fields = entry.requestFields,
+                )
+            }
+            .toList()
         val aggregateInverseRelations = AggregateInverseRelationInference.infer(
             entities = entities,
             relations = aggregateRelations,
@@ -400,11 +417,12 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     private fun resolveDomainEventAggregateMetadata(
         entry: DesignSpecEntry,
         aggregateName: String,
+        aggregateEntityMetadata: Map<String, AggregateMetadataRecord>,
         aggregateLookup: Map<String, AggregateMetadataRecord>,
     ): AggregateMetadataRecord {
-        return requireNotNull(aggregateLookup[aggregateName]) {
-            "domain_event ${entry.name} references missing aggregate metadata: $aggregateName."
-        }
+        return aggregateEntityMetadata[aggregateName]
+            ?: aggregateLookup[aggregateName]
+            ?: throw IllegalArgumentException("domain_event ${entry.name} references missing aggregate metadata: $aggregateName")
     }
 
     private fun buildDiagnostics(

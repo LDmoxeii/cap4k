@@ -2438,8 +2438,72 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kPlan domain event flow fails when ksp metadata source is disabled`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-no-ksp-metadata")
+    fun `cap4kPlan domain event flow succeeds without ksp metadata when aggregate source data exists`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-aggregate-fallback")
+        copyFixture(projectDir, "design-domain-event-sample")
+        val designFile = projectDir.resolve("design/design.json")
+        designFile.writeText(designFile.readText().replace("\"Order\"", "\"VideoPost\""))
+        projectDir.resolve("schema.sql").writeText(
+            """
+            create table if not exists video_post (
+                id bigint primary key,
+                title varchar(255) not null
+            );
+            """.trimIndent()
+        )
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        val buildFileWithDbVars = buildFileContent.replace(
+            "cap4k {",
+            """
+            val schemaScriptPath = layout.projectDirectory.file("schema.sql").asFile.absolutePath.replace("\\", "/")
+            val dbFilePath = layout.buildDirectory.file("h2/demo").get().asFile.absolutePath.replace("\\", "/")
+
+            cap4k {
+            """.trimIndent()
+        )
+        buildFile.writeText(
+            buildFileWithDbVars.replace(
+                """
+                |        kspMetadata {
+                |            enabled.set(true)
+                |            inputDir.set("design/metadata")
+                |        }
+                """.trimMargin(),
+                """
+                |        kspMetadata {
+                |            enabled.set(false)
+                |            inputDir.set("design/metadata")
+                |        }
+                |        db {
+                |            enabled.set(true)
+                |            url.set("jdbc:h2:file:${'$'}dbFilePath;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false;INIT=RUNSCRIPT FROM '${'$'}schemaScriptPath'")
+                |            username.set("sa")
+                |            password.set("secret")
+                |            schema.set("PUBLIC")
+                |            includeTables.set(listOf("video_post"))
+                |            excludeTables.set(emptyList())
+                |        }
+                """.trimMargin(),
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
+        assertTrue(projectDir.resolve("build/cap4k/plan.json").readText().contains("\"templateId\": \"design/domain_event.kt.peb\""))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan domain event flow still fails clearly when neither aggregate data nor ksp metadata can resolve aggregate`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-missing-aggregate-metadata")
         copyFixture(projectDir, "design-domain-event-sample")
 
         val buildFile = projectDir.resolve("build.gradle.kts")
@@ -2467,7 +2531,7 @@ class PipelinePluginFunctionalTest {
             .withArguments("cap4kPlan")
             .buildAndFail()
 
-        assertTrue(result.output.contains("designDomainEvent generator requires enabled kspMetadata source."))
+        assertTrue(result.output.contains("domain_event OrderCreated references missing aggregate metadata: Order"))
     }
 
 }
