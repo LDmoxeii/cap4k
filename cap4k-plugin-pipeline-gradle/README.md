@@ -849,7 +849,7 @@ presets/
 - **非 bootstrap 产物渲染**：`PebbleArtifactRenderer` 统一走两阶段 import 收集模型（design / aggregate / flow / drawing-board）
 - **bootstrap 渲染**：`PebbleBootstrapRenderer` 独立处理 bootstrap 产物，不暴露 artifact 模板的 import-helper 合约
 
-所有引擎共用这些扩展（`PipelinePebbleExtension`）：
+在**非 bootstrap artifact 渲染路径**中，`PebbleArtifactRenderer` 使用这些扩展（`PipelinePebbleExtension`）：
 
 | 名称 | 类型 | 作用 |
 |------|------|------|

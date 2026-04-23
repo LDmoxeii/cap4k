@@ -33,10 +33,10 @@ package {{ packageName }}
 {% if hasGenericGeneratorFields -%}
 {{ use("org.hibernate.annotations.GenericGenerator") -}}
 {% endif -%}
-{% for import in imports(jpaImports) -%}
+{% for import in jpaImports -%}
 {{ use(import) -}}
 {% endfor -%}
-{% for import in imports(imports) -%}
+{% for import in imports -%}
 {{ use(import) -}}
 {% endfor -%}
 {% for import in imports(imports) -%}
