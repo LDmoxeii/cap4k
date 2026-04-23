@@ -99,7 +99,7 @@
                     ▼ ArtifactPlanItem[]   ← cap4kPlan 在这里写 plan.json 后停止
 ┌──────────────────────────────────────────────────────────────────────┐
 │                  ArtifactRenderer (PebbleArtifactRenderer)           │
-│    TemplateResolver → 模板文本 → 两阶段渲染（design 模板）           │
+│    TemplateResolver → 模板文本 → 两阶段渲染（非 bootstrap artifact） │
 └──────────────────────────────────────────────────────────────────────┘
                     │
                     ▼ RenderedArtifact[]
@@ -844,10 +844,10 @@ presets/
 
 ### 11.3 Pebble 引擎
 
-有两个 `PebbleEngine` 实例：
+渲染器按能力边界分为两条路径：
 
-- **designEngine**：`design/` 前缀的 templateId 走此引擎，启用 `use()` 助手
-- **regularEngine**：用于 aggregate/flow/drawing-board/bootstrap
+- **非 bootstrap 产物渲染**：`PebbleArtifactRenderer` 统一走两阶段 import 收集模型（design / aggregate / flow / drawing-board）
+- **bootstrap 渲染**：`PebbleBootstrapRenderer` 独立处理 bootstrap 产物，不暴露 artifact 模板的 import-helper 合约
 
 所有引擎共用这些扩展（`PipelinePebbleExtension`）：
 
@@ -855,10 +855,10 @@ presets/
 |------|------|------|
 | `json` | filter | 将对象 `toJson` |
 | `type(field)` | function | 取 `field.renderedType`（`String` 或 POJO 的 getter） |
-| `imports(list)` | function | 返回规范化 + 去重的 import 列表，design 模板下还会合并 `use()` 注册 |
-| `use(fqn)` | function | **仅 design 模板可用**。两阶段中仅在 COLLECTING 阶段写入收集器，RENDERING 阶段返回空串 |
+| `imports(value)` | function | 返回 import 列表；在非 bootstrap 两阶段渲染下会合并 `use()` 注册并输出规范化、去重、稳定排序结果 |
+| `use(fqn)` | function | 非 bootstrap artifact 模板可用。在 COLLECTING 阶段注册 FQN，RENDERING 阶段返回空串 |
 
-### 11.4 两阶段渲染（仅 design 模板）
+### 11.4 两阶段渲染（非 bootstrap artifact 模板）
 
 ```
 COLLECTING 阶段
@@ -869,11 +869,15 @@ RENDERING 阶段
     再次评估模板；此时 imports() 返回合并后的完整列表
 ```
 
+合并结果由渲染器统一处理：**规范化、去重、稳定排序**。模板层不需要再做排序技巧。
+
+推荐模板写法：顶部声明 `use(...)`，并通过**一个最终的** `imports(imports)` 循环输出 import 行。
+
 冲突检测：同一简单名对应不同 FQN → 直接抛 `use() import conflict: {simpleName} is already bound to {A}, cannot also import {B}`。
 
 ### 11.5 典型模板片段
 
-**Design 模板（`domain_event.kt.peb`）**：
+**非 bootstrap artifact 模板示例（`domain_event.kt.peb`）**：
 
 ```peb
 package {{ packageName }}
@@ -899,7 +903,7 @@ class {{ typeName }}(
 )
 ```
 
-**非 design 模板**：只能用 `imports(imports)` 和 `type(...)`，不能用 `use()`。
+`design` 与 `aggregate` 等非 bootstrap 模板都可以使用 `use()`；bootstrap 模板不使用这一合约。
 
 ### 11.6 Override 实战
 
@@ -1377,7 +1381,7 @@ assertTrue(result.output.contains("BUILD SUCCESSFUL"))
 - 兄弟 design 条目之间的类型互引不支持
 - 短名自动解析保持保守
 - FQN + 符号身份是导入的真理源
-- `use()` 仅限 design 模板，且只做显式 import
+- `use()` / `imports()` import-helper 合约适用于非 bootstrap artifact 模板；bootstrap 保持独立渲染边界
 - Bootstrap / arch-template 必须作为独立能力，不得回灌到 design 模板助手层
 
 ### 16.2 三条工作轨道（不要混）
