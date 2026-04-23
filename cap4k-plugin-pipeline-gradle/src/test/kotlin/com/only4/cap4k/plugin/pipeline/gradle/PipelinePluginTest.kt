@@ -93,6 +93,17 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `plugin registers source and analysis task families`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply("com.only4.cap4k.plugin.pipeline")
+
+        assertNotNull(project.tasks.findByName("cap4kPlan"))
+        assertNotNull(project.tasks.findByName("cap4kGenerate"))
+        assertNotNull(project.tasks.findByName("cap4kAnalysisPlan"))
+        assertNotNull(project.tasks.findByName("cap4kAnalysisGenerate"))
+    }
+
+    @Test
     fun `build bootstrap runner uses template preset and override dirs from config`() {
         val project = ProjectBuilder.builder().build()
         val config = BootstrapConfig(

@@ -4,6 +4,7 @@ import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
@@ -341,6 +342,24 @@ class Cap4kProjectConfigFactoryTest {
         }
 
         assertEquals("designDomainEvent generator requires enabled kspMetadata source.", error.message)
+    }
+
+    @Test
+    fun `design domain event generator does not require enabled ksp metadata source`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply("com.only4.cap4k.plugin.pipeline")
+        val extension = project.extensions.getByType(Cap4kExtension::class.java)
+
+        extension.project.basePackage.set("com.acme.demo")
+        extension.project.domainModulePath.set("demo-domain")
+        extension.sources.designJson.enabled.set(true)
+        extension.sources.designJson.files.from(project.file("design/design.json"))
+        extension.generators.designDomainEvent.enabled.set(true)
+        extension.sources.kspMetadata.enabled.set(false)
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+        assertTrue(config.generators.containsKey("design-domain-event"))
+        assertFalse(config.sources.containsKey("ksp-metadata"))
     }
 
     @Test

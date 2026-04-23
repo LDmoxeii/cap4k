@@ -1727,6 +1727,62 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kAnalysisPlan and cap4kAnalysisGenerate produce flow artifacts from ir analysis fixture`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-analysis-flow")
+        copyFixture(projectDir, "flow-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kAnalysisPlan", "cap4kAnalysisGenerate")
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(projectDir.resolve("build/cap4k/analysis-plan.json").toFile().exists())
+        assertTrue(projectDir.resolve("flows/index.json").toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kPlan and cap4kGenerate ignore flow and drawing board generators`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-main-ignores-analysis")
+        copyFixture(projectDir, "flow-sample")
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace("\r\n", "\n").replace(
+                """
+                flow {
+                    enabled.set(true)
+                    outputDir.set("flows")
+                }
+                """.trimIndent(),
+                """
+                flow {
+                    enabled.set(true)
+                    outputDir.set("flows")
+                }
+                drawingBoard {
+                    enabled.set(true)
+                    outputDir.set("design")
+                }
+                """.trimIndent()
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan", "cap4kGenerate")
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertFalse(projectDir.resolve("flows/index.json").toFile().exists())
+        assertFalse(projectDir.resolve("design/drawing_board_cli.json").toFile().exists())
+        assertFalse(projectDir.resolve("build/cap4k/analysis-plan.json").toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan and cap4kGenerate produce flow artifacts from ir analysis fixture`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-flow")
         copyFixture(projectDir, "flow-sample")
