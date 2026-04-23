@@ -1,0 +1,25 @@
+// bootstrap-sample override marker
+plugins {
+    kotlin("jvm") version "2.2.20"
+    kotlin("plugin.spring") version "2.2.20"
+    id("org.springframework.boot") version "3.5.6"
+}
+
+group = "{{ basePackage }}"
+version = "0.1.0-SNAPSHOT"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("org.springframework.boot:spring-boot-starter")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation(project(":{{ adapterModuleName }}"))
+    implementation(project(":{{ applicationModuleName }}"))
+    implementation(project(":{{ domainModuleName }}"))
+}
+
+kotlin {
+    jvmToolchain(17)
+}

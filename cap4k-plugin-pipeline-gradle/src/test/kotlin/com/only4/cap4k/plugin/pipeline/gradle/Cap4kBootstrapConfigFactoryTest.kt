@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.nio.file.Files
+import kotlin.io.path.invariantSeparatorsPathString
 
 class Cap4kBootstrapConfigFactoryTest {
 
@@ -392,6 +394,59 @@ class Cap4kBootstrapConfigFactoryTest {
         val config = Cap4kBootstrapConfigFactory().build(project, extension)
 
         assertEquals("ddd-default-bootstrap", config.templates.preset)
+    }
+
+    @Test
+    fun `build keeps bootstrap override dirs relative when they stay under project root`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+                startModuleName.set("only-danmuku-start")
+            }
+            templates {
+                overrideDirs.from("codegen/bootstrap-templates")
+            }
+        }
+
+        val config = Cap4kBootstrapConfigFactory().build(project, extension)
+
+        assertEquals(listOf("codegen/bootstrap-templates"), config.templates.overrideDirs)
+    }
+
+    @Test
+    fun `build keeps bootstrap override dirs absolute when they resolve outside project root`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+        val externalDir = Files.createTempDirectory("cap4k-bootstrap-override-outside")
+
+        extension.bootstrap {
+            enabled.set(true)
+            preset.set("ddd-multi-module")
+            projectName.set("only-danmuku")
+            basePackage.set("edu.only4.danmuku")
+            modules {
+                domainModuleName.set("only-danmuku-domain")
+                applicationModuleName.set("only-danmuku-application")
+                adapterModuleName.set("only-danmuku-adapter")
+                startModuleName.set("only-danmuku-start")
+            }
+            templates {
+                overrideDirs.from(externalDir.toFile())
+            }
+        }
+
+        val config = Cap4kBootstrapConfigFactory().build(project, extension)
+
+        assertEquals(listOf(externalDir.toAbsolutePath().normalize().invariantSeparatorsPathString), config.templates.overrideDirs)
     }
 
     @Test

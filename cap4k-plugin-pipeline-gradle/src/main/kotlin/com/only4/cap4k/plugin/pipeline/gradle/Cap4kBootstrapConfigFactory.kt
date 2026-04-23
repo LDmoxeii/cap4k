@@ -8,6 +8,7 @@ import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import org.gradle.api.Project
 import org.gradle.api.provider.Property
 import java.io.File
+import kotlin.io.path.invariantSeparatorsPathString
 
 class Cap4kBootstrapConfigFactory {
 
@@ -64,7 +65,9 @@ class Cap4kBootstrapConfigFactory {
             ),
             templates = BootstrapTemplateConfig(
                 preset = extension.bootstrap.templates.preset.orNull?.trim().orEmpty().ifEmpty { "ddd-default-bootstrap" },
-                overrideDirs = extension.bootstrap.templates.overrideDirs.files.map(File::getAbsolutePath).sorted(),
+                overrideDirs = extension.bootstrap.templates.overrideDirs.files
+                    .map { file -> relativizeIfUnderProject(project, file) }
+                    .sorted(),
             ),
             slots = slots,
             conflictPolicy = ConflictPolicy.valueOf(
@@ -87,4 +90,14 @@ private fun isSafeRelativePreviewDir(path: String): Boolean {
     val segments = path.split('/')
     if (segments.any { it.isBlank() || it == "." || it == ".." }) return false
     return true
+}
+
+private fun relativizeIfUnderProject(project: Project, file: File): String {
+    val projectRoot = project.projectDir.toPath().toAbsolutePath().normalize()
+    val candidate = file.toPath().toAbsolutePath().normalize()
+    return if (candidate.startsWith(projectRoot)) {
+        projectRoot.relativize(candidate).invariantSeparatorsPathString
+    } else {
+        candidate.invariantSeparatorsPathString
+    }
 }
