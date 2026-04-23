@@ -1,10 +1,13 @@
 package {{ packageName }}
 
-import com.only4.cap4k.ddd.core.domain.aggregate.Specification
-import com.only4.cap4k.ddd.core.domain.aggregate.Specification.Result
-import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
-import org.springframework.stereotype.Service
-import {{ entityTypeFqn }}
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.Specification") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.Specification.Result") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
+{{ use("org.springframework.stereotype.Service") -}}
+{{ use(entityTypeFqn) -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
 
 @Service
 @Aggregate(

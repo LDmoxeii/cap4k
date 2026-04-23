@@ -1,6 +1,9 @@
 package {{ packageName }}
 
-import com.only4.cap4k.ddd.core.application.RequestParam
+{{ use("com.only4.cap4k.ddd.core.application.RequestParam") -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
 
 object {{ typeName }} {
 

@@ -1,11 +1,14 @@
 package {{ packageName }}
 
-import jakarta.validation.Constraint
-import jakarta.validation.ConstraintValidator
-import jakarta.validation.ConstraintValidatorContext
-import jakarta.validation.Payload
-import kotlin.reflect.KClass
-import {{ queryTypeFqn }}
+{{ use("jakarta.validation.Constraint") -}}
+{{ use("jakarta.validation.ConstraintValidator") -}}
+{{ use("jakarta.validation.ConstraintValidatorContext") -}}
+{{ use("jakarta.validation.Payload") -}}
+{{ use("kotlin.reflect.KClass") -}}
+{{ use(queryTypeFqn) -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
 
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)

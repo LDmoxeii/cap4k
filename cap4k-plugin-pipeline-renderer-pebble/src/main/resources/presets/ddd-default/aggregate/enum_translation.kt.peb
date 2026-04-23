@@ -1,10 +1,13 @@
 package {{ packageName }}
 
-import com.only.engine.translation.annotation.TranslationType
-import com.only.engine.translation.core.BatchTranslationInterface
-import com.only.engine.translation.core.TranslationInterface
-import org.springframework.stereotype.Component
-import {{ enumTypeFqn }}
+{{ use("com.only.engine.translation.annotation.TranslationType") -}}
+{{ use("com.only.engine.translation.core.BatchTranslationInterface") -}}
+{{ use("com.only.engine.translation.core.TranslationInterface") -}}
+{{ use("org.springframework.stereotype.Component") -}}
+{{ use(enumTypeFqn) -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
 
 @TranslationType(type = "{{ translationTypeValue }}")
 @Component

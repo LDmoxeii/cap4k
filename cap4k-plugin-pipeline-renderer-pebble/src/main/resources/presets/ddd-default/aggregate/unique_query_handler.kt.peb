@@ -1,8 +1,11 @@
 package {{ packageName }}
 
-import com.only4.cap4k.ddd.core.application.query.Query
-import org.springframework.stereotype.Service
-import {{ queryTypeFqn }}
+{{ use("com.only4.cap4k.ddd.core.application.query.Query") -}}
+{{ use("org.springframework.stereotype.Service") -}}
+{{ use(queryTypeFqn) -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
 
 @Service
 class {{ typeName }} : Query<{{ queryTypeName }}.Request, {{ queryTypeName }}.Response> {

@@ -1,8 +1,11 @@
 package {{ packageName }}
 
-import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
-import {{ entityTypeFqn }}
-import {{ factoryTypeFqn }}
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.Aggregate") -}}
+{{ use(entityTypeFqn) -}}
+{{ use(factoryTypeFqn) -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
 
 /**
  * {{ entityName }} aggregate wrapper

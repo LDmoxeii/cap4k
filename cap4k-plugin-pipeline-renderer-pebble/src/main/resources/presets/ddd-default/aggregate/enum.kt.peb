@@ -1,6 +1,9 @@
 package {{ packageName }}
 
-import jakarta.persistence.AttributeConverter
+{{ use("jakarta.persistence.AttributeConverter") -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
 
 enum class {{ typeName }}(
     val value: Int,
