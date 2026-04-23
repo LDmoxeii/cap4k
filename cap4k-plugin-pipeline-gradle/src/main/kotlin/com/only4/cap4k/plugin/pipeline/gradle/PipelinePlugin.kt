@@ -36,6 +36,7 @@ import com.only4.cap4k.plugin.pipeline.source.ksp.KspMetadataSourceProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
+import java.io.File
 import java.nio.file.Path
 
 class PipelinePlugin : Plugin<Project> {
@@ -337,12 +338,19 @@ internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled:
 
 internal fun buildBootstrapRunner(project: Project, config: BootstrapConfig, exportEnabled: Boolean): BootstrapRunner {
     val rootStateGuard = BootstrapRootStateGuard(project.projectDir.toPath())
+    val rebasedOverrideDirs = config.templates.overrideDirs.map { overrideDir ->
+        if (File(overrideDir).isAbsolute) {
+            overrideDir
+        } else {
+            project.projectDir.toPath().resolve(overrideDir).normalize().toString()
+        }
+    }
     return DefaultBootstrapRunner(
         providers = listOf(DddMultiModuleBootstrapPresetProvider()),
         renderer = PebbleBootstrapRenderer(
             PresetTemplateResolver(
                 preset = config.templates.preset,
-                overrideDirs = config.templates.overrideDirs,
+                overrideDirs = rebasedOverrideDirs,
             )
         ),
         exporter = if (exportEnabled) {

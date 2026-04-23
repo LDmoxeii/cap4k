@@ -115,6 +115,7 @@ class PipelinePluginTest {
     @Test
     fun `build bootstrap runner uses template preset and override dirs from config`() {
         val project = ProjectBuilder.builder().build()
+        val absoluteOverrideDir = project.projectDir.resolve("bootstrap-templates").absolutePath
         val config = BootstrapConfig(
             preset = "ddd-multi-module",
             projectName = "demo",
@@ -122,7 +123,7 @@ class PipelinePluginTest {
             modules = BootstrapModulesConfig("demo-domain", "demo-application", "demo-adapter", "demo-start"),
             templates = BootstrapTemplateConfig(
                 preset = "custom-bootstrap-preset",
-                overrideDirs = listOf("/tmp/bootstrap-templates"),
+                overrideDirs = listOf(absoluteOverrideDir),
             ),
             slots = emptyList(),
             conflictPolicy = ConflictPolicy.FAIL,
@@ -137,7 +138,42 @@ class PipelinePluginTest {
         assertInstanceOf(PebbleBootstrapRenderer::class.java, renderer)
         assertInstanceOf(PresetTemplateResolver::class.java, resolver)
         assertEquals("custom-bootstrap-preset", readInternalProperty(resolver!!, "preset"))
-        assertEquals(listOf("/tmp/bootstrap-templates"), readInternalProperty(resolver, "overrideDirs"))
+        assertEquals(listOf(absoluteOverrideDir), readInternalProperty(resolver, "overrideDirs"))
+    }
+
+    @Test
+    fun `build bootstrap runner rebases relative override dirs against bootstrap project dir`() {
+        val projectDir = tempProjectDir("pipeline-bootstrap-relative-override")
+        val project = ProjectBuilder.builder()
+            .withProjectDir(projectDir)
+            .build()
+        val config = BootstrapConfig(
+            preset = "ddd-multi-module",
+            projectName = "demo",
+            basePackage = "com.acme.demo",
+            modules = BootstrapModulesConfig("demo-domain", "demo-application", "demo-adapter", "demo-start"),
+            templates = BootstrapTemplateConfig(
+                preset = "custom-bootstrap-preset",
+                overrideDirs = listOf("templates/bootstrap", "codegen/overrides"),
+            ),
+            slots = emptyList(),
+            conflictPolicy = ConflictPolicy.FAIL,
+            mode = BootstrapMode.IN_PLACE,
+            previewDir = null,
+        )
+
+        val runner = buildBootstrapRunner(project, config, exportEnabled = false)
+        val renderer = readInternalProperty(runner, "renderer")
+        val resolver = readInternalProperty(renderer!!, "templateResolver")
+        val overrideDirs = readInternalProperty(resolver!!, "overrideDirs") as List<String>
+
+        assertEquals(
+            listOf(
+                projectDir.toPath().resolve("templates/bootstrap").normalize().toFile().canonicalPath,
+                projectDir.toPath().resolve("codegen/overrides").normalize().toFile().canonicalPath,
+            ),
+            overrideDirs.map { File(it).canonicalPath }
+        )
     }
 
     @Test
