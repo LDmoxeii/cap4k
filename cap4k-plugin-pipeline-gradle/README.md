@@ -442,11 +442,11 @@ cap4k {
 | `designClientHandler` | `designClient` generator |
 | `designValidator` | `designJson` source |
 | `designApiPayload` | `designJson` source |
-| `designDomainEvent` | `designJson` + `kspMetadata` sources |
+| `designDomainEvent` | `designJson` source；聚合元数据优先来自当前运行的 aggregate canonical 数据，不足时回退到 `kspMetadata` |
 | `designDomainEventHandler` | `designDomainEvent` generator |
 | `aggregate` | `db` source |
-| `flow` | `irAnalysis` source |
-| `drawingBoard` | `irAnalysis` source |
+| `flow` | `irAnalysis` source（由 `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 执行） |
+| `drawingBoard` | `irAnalysis` source（由 `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 执行） |
 
 ### 6.5 `templates { }`
 
@@ -541,15 +541,19 @@ cap4k {
 
 | 任务名 | 作用 | 产物 | 是否写盘 |
 |--------|------|------|---------|
-| `cap4kPlan` | 规划生成计划 | `build/cap4k/plan.json`（含 `items` 与 `diagnostics`） | 否 |
-| `cap4kGenerate` | 执行完整流水线 | 生成到 `outputPath` 指向的位置 | 是 |
+| `cap4kPlan` | 规划**源码生成**计划（design / aggregate 家族） | `build/cap4k/plan.json`（含 `items` 与 `diagnostics`） | 否 |
+| `cap4kGenerate` | 执行**源码生成**流水线（design / aggregate 家族） | 生成到 `outputPath` 指向的位置 | 是 |
+| `cap4kAnalysisPlan` | 规划**分析导出**计划（flow / drawing-board 家族） | `build/cap4k/analysis-plan.json`（含 `items` 与 `diagnostics`） | 否 |
+| `cap4kAnalysisGenerate` | 执行**分析导出**流水线（flow / drawing-board 家族） | 生成到 `flow.outputDir` / `drawingBoard.outputDir` 指向的位置 | 是 |
 | `cap4kBootstrapPlan` | 规划 Bootstrap 骨架 | `build/cap4k/bootstrap-plan.json` | 否 |
 | `cap4kBootstrap` | 生成 Bootstrap 骨架 | 按 `bootstrap.mode` 写入：`IN_PLACE` 写向当前受管宿主根；`PREVIEW_SUBTREE` 写到 `previewDir/` | 是 |
 
-**自动任务依赖推断**（`inferDependencies`）：
+**自动任务依赖推断**（`inferSourceDependencies` + `inferAnalysisDependencies`）：
 
-- 如果启用了 `design` 或 `design-domain-event` 生成器，并且 `ksp-metadata` 源的 `inputDir` 落在某个子工程的 `build/` 下 → 自动 `dependsOn(":{proj}:kspKotlin")`
-- 如果启用了 `flow` 或 `drawing-board`，且 `ir-analysis.inputDirs` 落在某个子工程的 `build/` 下 → 自动 `dependsOn(":{proj}:compileKotlin")`
+- `cap4kPlan` / `cap4kGenerate`（源码任务族）：
+  当启用了 `design` 或 `design-domain-event` 且启用 `ksp-metadata`，并且 `ksp-metadata.inputDir` 落在某个子工程的 `build/` 下 → 自动 `dependsOn(":{proj}:kspKotlin")`
+- `cap4kAnalysisPlan` / `cap4kAnalysisGenerate`（分析任务族）：
+  当启用了 `flow` 或 `drawing-board` 且启用 `ir-analysis`，并且 `ir-analysis.inputDirs` 落在某个子工程的 `build/` 下 → 自动 `dependsOn(":{proj}:compileKotlin")`
 
 此外，启用 `aggregate` 时，会在域模块自动添加 `jakarta.persistence-api:3.1.0` 依赖（`ensureAggregateDomainJpaDependency`）。
 
@@ -602,7 +606,7 @@ type FieldModel = {
 }
 ```
 
-- 用途：`domain_event` 需要查找 `aggregates[0]` 对应的聚合包名；`design` 的 CMD/QRY 亦会尝试用之标注 `aggregatePackageName`
+- 用途：作为 `domain_event` 聚合元数据的兼容回退来源。`designDomainEvent` 会优先使用当前运行中由 aggregate canonical 产出的聚合信息，只有缺失时才回退到 `kspMetadata`；`design` 的 CMD/QRY 亦会尝试用之标注 `aggregatePackageName`
 
 ### 8.3 `db` — JDBC Schema
 
@@ -724,7 +728,7 @@ Generator 统一约束：
 - 输出路径：`{domain}/src/main/kotlin/{basePackage}/domain/{entry.package}/events/{TypeName}.kt`
 - 模板：`design/domain_event.kt.peb`
 - 类名：若未以 `Evt`/`Event` 结尾则自动追加 `DomainEvent`
-- Canonical 约束：`aggregates` 必须恰好 1 个；且该聚合必须在 `kspMetadata` 中找得到
+- Canonical 约束：`aggregates` 必须恰好 1 个；聚合元数据优先来自当前运行 aggregate canonical，找不到时回退 `kspMetadata`，两者都缺失则失败
 
 ### 9.7 `design-domain-event-handler`
 
@@ -1304,7 +1308,7 @@ interface ArtifactExporter {
 | `design manifest entry escapes projectDir: ../secret.json` | manifest 路径逃逸 | 路径必须在工程目录内 |
 | `ksp-metadata inputDir does not exist: ...` | 上游 `kspKotlin` 没跑 | 先 `./gradlew :domain:kspKotlin` 或依赖自动推断应当生效 |
 | `domain_event X must declare exactly one aggregate` | design-json 条目 `aggregates` 字段不是单元素数组 | 每个 domain_event 只能绑一个聚合 |
-| `domain_event X references missing aggregate metadata: Y` | KSP 元数据里找不到 `Y` | 确认 `aggregate-Y.json` 文件在 `kspMetadata.inputDir` 下 |
+| `domain_event X references missing aggregate metadata: Y` | 当前运行的 aggregate canonical 与 `kspMetadata` 都无法解析 `Y` | 优先确认有可用 aggregate 源数据（如启用 `db` / `aggregate`）；若走兼容回退，再确认 `aggregate-Y.json` 位于 `kspMetadata.inputDir` |
 | `db table X is unsupported for aggregate generation: missing_primary_key / composite_primary_key` | 聚合要求单列主键 | 改表结构，或把 `aggregate.unsupportedTablePolicy = "SKIP"` 跳过 |
 | `use() import conflict: X is already bound to A, cannot also import B` | 同一 SimpleName 导入歧义 | 检查 type-registry / 字段类型，避免同名不同 FQN |
 | `Template not found: presets/ddd-default/design/X.peb` | preset 缺失或 override 未命中 | 确认 `templateId`、`overrideDirs` 顺序、文件存在 |
@@ -1352,7 +1356,7 @@ override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPl
 | `aggregate-sample` | 基本聚合（单表） |
 | `aggregate-policy-sample` | `unsupportedTablePolicy` 行为 |
 | `flow-sample` | IR 分析图 → flow |
-| `flow-compile-sample` | `cap4kPlan` 对 `compileKotlin` 的依赖推断 |
+| `flow-compile-sample` | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 对 `compileKotlin` 的依赖推断 |
 | `drawing-board-sample` | drawing-board 输出 |
 
 参考写法：
