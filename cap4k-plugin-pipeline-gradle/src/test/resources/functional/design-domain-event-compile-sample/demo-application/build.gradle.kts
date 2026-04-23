@@ -8,6 +8,7 @@ kotlin {
 
 dependencies {
     implementation(project(":demo-domain"))
-    implementation("com.only4:ddd-core:0.4.2-SNAPSHOT")
+    implementation("com.only4:ddd-core:0.5.0-SNAPSHOT")
     implementation("org.springframework:spring-context")
 }
+

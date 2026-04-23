@@ -2,7 +2,7 @@
 
 plugins {
     kotlin("jvm")
-    id("com.only4.cap4k.plugin.codegen") version "0.4.2-SNAPSHOT"
+    id("com.only4.cap4k.plugin.codegen") version "0.5.0-SNAPSHOT"
 }
 
 dependencies {
@@ -56,3 +56,4 @@ cap4kCodegen {
         aggregateNameTemplate.set("Agg\${Entity}")
     }
 }
+
