@@ -1778,6 +1778,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertFalse(projectDir.resolve("flows/index.json").toFile().exists())
         assertFalse(projectDir.resolve("design/drawing_board_cli.json").toFile().exists())
+        assertFalse(projectDir.resolve("design/drawing_board_cmd.json").toFile().exists())
         assertFalse(projectDir.resolve("build/cap4k/analysis-plan.json").toFile().exists())
     }
 
