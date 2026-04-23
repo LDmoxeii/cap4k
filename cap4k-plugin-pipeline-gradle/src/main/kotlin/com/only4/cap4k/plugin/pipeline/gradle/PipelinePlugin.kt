@@ -69,6 +69,18 @@ class PipelinePlugin : Plugin<Project> {
             task.extension = extension
             task.configFactory = configFactory
         }
+        project.tasks.register("cap4kAnalysisPlan", Cap4kAnalysisPlanTask::class.java) { task ->
+            task.group = "cap4k"
+            task.description = "Plans Cap4k analysis export artifacts."
+            task.extension = extension
+            task.configFactory = configFactory
+        }
+        project.tasks.register("cap4kAnalysisGenerate", Cap4kAnalysisGenerateTask::class.java) { task ->
+            task.group = "cap4k"
+            task.description = "Generates artifacts from analysis snapshots."
+            task.extension = extension
+            task.configFactory = configFactory
+        }
 
         project.gradle.projectsEvaluated {
             if (!shouldInferPipelineDependencies(extension)) {

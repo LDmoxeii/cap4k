@@ -104,6 +104,15 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `analysis tasks use dedicated task classes`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply("com.only4.cap4k.plugin.pipeline")
+
+        assertTrue(project.tasks.named("cap4kAnalysisPlan").get() is Cap4kAnalysisPlanTask)
+        assertTrue(project.tasks.named("cap4kAnalysisGenerate").get() is Cap4kAnalysisGenerateTask)
+    }
+
+    @Test
     fun `build bootstrap runner uses template preset and override dirs from config`() {
         val project = ProjectBuilder.builder().build()
         val config = BootstrapConfig(
