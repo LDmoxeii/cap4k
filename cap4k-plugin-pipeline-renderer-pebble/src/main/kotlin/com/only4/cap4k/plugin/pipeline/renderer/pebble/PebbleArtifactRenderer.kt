@@ -13,28 +13,15 @@ class PebbleArtifactRenderer(
     private val templateResolver: TemplateResolver,
 ) : ArtifactRenderer {
     private val sessionState = ThreadLocal<PebbleRenderSession?>()
-    private val designEngine = newEngine(enableUseHelper = true)
-    private val regularEngine = newEngine(enableUseHelper = false)
+    private val renderEngine = newEngine()
 
     override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> =
         planItems.map { item ->
             val templateText = templateResolver.resolve(item.templateId)
-
-            if (isDesignTemplate(item.templateId)) {
-                return@map renderDesignArtifact(item, templateText)
-            }
-
-            val template = regularEngine.getLiteralTemplate(templateText)
-            val writer = StringWriter()
-            template.evaluate(writer, item.context)
-            RenderedArtifact(
-                outputPath = item.outputPath,
-                content = writer.toString(),
-                conflictPolicy = item.conflictPolicy
-            )
+            renderArtifact(item, templateText)
         }
 
-    private fun renderDesignArtifact(
+    private fun renderArtifact(
         item: ArtifactPlanItem,
         templateText: String,
     ): RenderedArtifact {
@@ -42,7 +29,7 @@ class PebbleArtifactRenderer(
         sessionState.set(session)
 
         try {
-            val template = designEngine.getLiteralTemplate(templateText)
+            val template = renderEngine.getLiteralTemplate(templateText)
 
             template.evaluate(StringWriter(), item.context)
 
@@ -63,13 +50,11 @@ class PebbleArtifactRenderer(
         }
     }
 
-    private fun newEngine(enableUseHelper: Boolean): PebbleEngine = PebbleEngine.Builder()
+    private fun newEngine(): PebbleEngine = PebbleEngine.Builder()
         .loader(StringLoader())
-        .extension(PipelinePebbleExtension({ sessionState.get() }, enableUseHelper))
+        .extension(PipelinePebbleExtension({ sessionState.get() }, true))
         .newLineTrimming(false)
         .build()
-
-    private fun isDesignTemplate(templateId: String): Boolean = templateId.startsWith("design/")
 
     private fun readImports(context: Map<String, Any?>): List<String> = when (val value = context["imports"]) {
         null -> emptyList()

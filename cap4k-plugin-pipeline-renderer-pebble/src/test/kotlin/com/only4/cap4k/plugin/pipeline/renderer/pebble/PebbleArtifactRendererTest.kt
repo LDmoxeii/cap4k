@@ -2830,7 +2830,7 @@ class PebbleArtifactRendererTest {
             )
         )
 
-        assertEquals("""["java.util.UUID","java.time.LocalDateTime"]""", rendered.single().content.trim())
+        assertEquals("""["java.time.LocalDateTime","java.util.UUID"]""", rendered.single().content.trim())
     }
 
     @Test
@@ -2881,7 +2881,7 @@ class PebbleArtifactRendererTest {
             )
         )
 
-        assertEquals("""["java.util.UUID","java.time.LocalDateTime"]""", rendered.single().content.trim())
+        assertEquals("""["java.time.LocalDateTime","java.util.UUID"]""", rendered.single().content.trim())
     }
 
     @Test
@@ -2947,11 +2947,140 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `use helper is unavailable in aggregate templates`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-non-design")
+    fun `regular aggregate override templates can use helper`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-aggregate")
         val overrideAggregateDir = Files.createDirectories(overrideDir.resolve("aggregate"))
         overrideAggregateDir.resolve("schema.kt.peb")
-            .writeText("""{{ use("java.time.LocalDateTime") }}""")
+            .writeText(
+                """
+                {{ use("java.time.LocalDateTime") -}}
+                {% for importValue in imports %}
+                import {{ importValue }}
+                {% endfor %}
+                class {{ typeName }}
+                """.trimIndent()
+            )
+
+        val rendered = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        ).render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/schema.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/OrderSchema.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.order",
+                        "typeName" to "OrderSchema",
+                        "entityName" to "Order",
+                        "imports" to listOf("java.util.UUID")
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("import java.time.LocalDateTime"))
+        assertTrue(content.contains("import java.util.UUID"))
+        assertTrue(content.contains("class OrderSchema"))
+    }
+
+    @Test
+    fun `regular aggregate use helper renders deterministically sorted imports`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-aggregate-sorted")
+        val overrideAggregateDir = Files.createDirectories(overrideDir.resolve("aggregate"))
+        overrideAggregateDir.resolve("schema.kt.peb")
+            .writeText(
+                """
+                {{ use("java.time.ZonedDateTime") -}}
+                {{ use("java.time.LocalDateTime") -}}
+                {% for importValue in imports %}
+                {{ importValue }}
+                {% endfor %}
+                """.trimIndent()
+            )
+
+        val rendered = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        ).render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/schema.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/OrderSchema.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.order",
+                        "typeName" to "OrderSchema",
+                        "entityName" to "Order",
+                        "imports" to listOf(
+                            "java.util.UUID",
+                            " java.time.Instant ",
+                            "java.time.LocalDateTime",
+                            "java.util.UUID",
+                            ""
+                        )
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val imports = rendered.single().content
+            .lineSequence()
+            .map { line -> line.trim() }
+            .filter { line -> line.isNotEmpty() }
+            .toList()
+
+        assertEquals(
+            listOf(
+                "java.time.Instant",
+                "java.time.LocalDateTime",
+                "java.time.ZonedDateTime",
+                "java.util.UUID"
+            ),
+            imports
+        )
+    }
+
+    @Test
+    fun `regular aggregate use helper fails fast on import conflicts`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-aggregate-conflict")
+        val overrideAggregateDir = Files.createDirectories(overrideDir.resolve("aggregate"))
+        overrideAggregateDir.resolve("schema.kt.peb")
+            .writeText("""{{ use("com.bar.Status") -}}{{ imports(imports) | json | raw }}""")
 
         val exception = assertThrows<Exception> {
             PebbleArtifactRenderer(
@@ -2969,7 +3098,8 @@ class PebbleArtifactRendererTest {
                         context = mapOf(
                             "packageName" to "com.acme.demo.domain.aggregates.order",
                             "typeName" to "OrderSchema",
-                            "entityName" to "Order"
+                            "entityName" to "Order",
+                            "imports" to listOf("com.foo.Status")
                         ),
                         conflictPolicy = ConflictPolicy.SKIP
                     )
@@ -2993,8 +3123,8 @@ class PebbleArtifactRendererTest {
             .filterIsInstance<IllegalArgumentException>()
             .firstOrNull()
 
-        assertTrue(illegalArgument == null)
-        assertTrue(exception.message?.contains("use") == true)
+        assertTrue(illegalArgument != null)
+        assertTrue(illegalArgument!!.message!!.contains("use() import conflict"))
     }
 
     @Test

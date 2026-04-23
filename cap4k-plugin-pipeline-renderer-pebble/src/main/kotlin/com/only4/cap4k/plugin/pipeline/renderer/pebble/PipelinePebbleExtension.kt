@@ -66,7 +66,7 @@ internal class ExplicitImportCollector {
             mergedImports.add(explicitImport)
         }
 
-        return mergedImports.toList()
+        return mergedImports.toList().sorted()
     }
 
     fun explicitImports(): List<String> = explicitImports.toList()
