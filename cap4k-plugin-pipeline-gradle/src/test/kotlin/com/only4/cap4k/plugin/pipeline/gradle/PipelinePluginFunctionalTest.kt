@@ -2613,7 +2613,13 @@ class PipelinePluginFunctionalTest {
 
         val schemaBaseContent = schemaBaseFile.readText()
         assertTrue(schemaBaseContent.contains("fun interface SchemaSpecification<E, S>"))
+        assertTrue(schemaBaseContent.contains("fun interface PredicateBuilder<S>"))
+        assertTrue(schemaBaseContent.contains("fun interface OrderBuilder<S>"))
+        assertTrue(schemaBaseContent.contains("fun interface ExpressionBuilder<S, T>"))
+        assertTrue(schemaBaseContent.contains("fun interface SubqueryConfigure<E, S>"))
         assertTrue(schemaBaseContent.contains("class Field<T>"))
+        assertTrue(schemaBaseContent.contains("fun and("))
+        assertTrue(schemaBaseContent.contains("fun or("))
 
         val schemaContent = schemaFile.readText()
         assertTrue(schemaContent.contains("class SUserMessage("))
@@ -2647,10 +2653,18 @@ class PipelinePluginFunctionalTest {
         assertTrue(clientContent.contains(") : RequestParam<Response>"))
 
         val payloadContent = payloadFile.readText()
-        assertTrue(payloadContent.contains("data class Body("))
-        assertTrue(payloadContent.contains("data class Receipt("))
-        assertTrue(payloadContent.contains("data class Request("))
-        assertTrue(payloadContent.contains("data class Response("))
+        val requestIndex = payloadContent.indexOf("data class Request(")
+        val responseIndex = payloadContent.indexOf("data class Response(")
+        assertTrue(requestIndex >= 0, "Request class must be rendered.")
+        assertTrue(responseIndex >= 0, "Response class must be rendered.")
+        val requestSection = payloadContent.substring(requestIndex, responseIndex)
+        val responseSection = payloadContent.substring(responseIndex)
+        assertTrue(requestSection.contains("        data class Body("))
+        assertTrue(requestSection.contains("val content: String"))
+        assertFalse(requestSection.contains("data class Receipt("))
+        assertTrue(responseSection.contains("        data class Receipt("))
+        assertTrue(responseSection.contains("val messageKey: String"))
+        assertFalse(responseSection.contains("data class Body("))
     }
 
     private fun Path.generatedFile(relativePath: String): Path {
