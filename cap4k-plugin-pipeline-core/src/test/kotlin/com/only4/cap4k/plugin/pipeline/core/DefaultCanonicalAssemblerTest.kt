@@ -2475,39 +2475,39 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembler rejects relation field names that collide with reference columns`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DefaultCanonicalAssembler().assemble(
-                aggregateProjectConfig(),
-                listOf(
-                    DbSchemaSnapshot(
-                        tables = listOf(
-                            DbTableSnapshot(
-                                tableName = "video_post",
-                                comment = "",
-                                columns = listOf(
-                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                    DbColumnSnapshot("author", "BIGINT", "Long", false, referenceTable = "user_profile"),
-                                ),
-                                primaryKey = listOf("id"),
-                                uniqueConstraints = emptyList(),
+    fun `assembler does not treat reference columns as scalar field collisions`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("author", "BIGINT", "Long", false, referenceTable = "user_profile"),
                             ),
-                            DbTableSnapshot(
-                                tableName = "user_profile",
-                                comment = "",
-                                columns = listOf(
-                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                ),
-                                primaryKey = listOf("id"),
-                                uniqueConstraints = emptyList(),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "user_profile",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
                             ),
-                        )
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
                     )
                 )
             )
-        }
+        )
 
-        assertEquals("aggregate relation field collides with entity field: VideoPost.author -> UserProfile [MANY_TO_ONE]", error.message)
+        val relation = result.model.aggregateRelations.single()
+        assertEquals("author", relation.fieldName)
+        assertEquals("UserProfile", relation.targetEntityName)
     }
 
     @Test
@@ -3364,6 +3364,28 @@ class DefaultCanonicalAssemblerTest {
 
     @Test
     fun `assembler rejects relation field names that collide with db camelized entity fields`() {
+        val scalarOnlyAssembly = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("cover_profile", "VARCHAR", "String", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                    )
+                )
+            )
+        )
+        val coverProfile = scalarOnlyAssembly.model.entities.single().fields.single { it.columnName == "cover_profile" }
+        assertEquals("coverProfile", coverProfile.name)
+
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
                 aggregateProjectConfig(),

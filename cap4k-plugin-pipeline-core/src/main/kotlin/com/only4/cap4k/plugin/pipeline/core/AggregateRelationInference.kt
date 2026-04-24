@@ -45,12 +45,9 @@ internal object AggregateRelationInference {
         val scalarFieldsByEntity = tables.associate { table ->
             AggregateNaming.entityName(table.tableName) to ScalarFields(
                 tableName = table.tableName,
-                columnNamesByFieldName = (
-                    table.columns
-                        .filter { it.referenceTable == null }
-                        .map { column -> lowerCamelIdentifier(column.name) to column.name } +
-                        table.columns.map { column -> column.name to column.name }
-                    ).toMap(),
+                columnNamesByFieldName = table.columns
+                    .filter { it.referenceTable == null }
+                    .associate { column -> lowerCamelIdentifier(column.name) to column.name },
             )
         }
 
