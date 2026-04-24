@@ -12,6 +12,11 @@ import org.junit.jupiter.api.assertThrows
 
 class PebbleArtifactRendererTest {
 
+    private fun assertReadableKotlin(content: String) {
+        assertFalse(Regex("""(?m)[ \t]+$""").containsMatchIn(content), "Generated Kotlin must not contain trailing whitespace.")
+        assertFalse(Regex("""\n{3,}""").containsMatchIn(content), "Generated Kotlin must not contain three or more consecutive newlines.")
+    }
+
     @Test
     fun `aggregate wrapper template does not emit trailing whitespace when comment is blank`() {
         val renderer = PebbleArtifactRenderer(
@@ -712,6 +717,135 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("val item: Item??"))
         assertTrue(content.contains("val responseStatus: com.bar.Status"))
         assertTrue(content.contains("data class Item("))
+    }
+
+    @Test
+    fun `design templates render readable request response classes`() {
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver("ddd-default", emptyList())
+        )
+        val commonRequestFields = listOf(
+            mapOf("name" to "messageKey", "renderedType" to "String", "nullable" to false),
+        )
+        val commonResponseFields = listOf(
+            mapOf("name" to "content", "renderedType" to "String", "nullable" to false),
+        )
+        val commonFields = mapOf(
+            "imports" to emptyList<String>(),
+            "requestFields" to commonRequestFields,
+            "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+            "responseFields" to commonResponseFields,
+            "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-query",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/edu/only4/danmaku/application/queries/message/read/FindUserMessageQry.kt",
+                    context = commonFields + mapOf(
+                        "packageName" to "edu.only4.danmaku.application.queries.message.read",
+                        "typeName" to "FindUserMessageQry",
+                    ),
+                    conflictPolicy = ConflictPolicy.OVERWRITE
+                ),
+                ArtifactPlanItem(
+                    generatorId = "design-command",
+                    moduleRole = "application",
+                    templateId = "design/command.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/edu/only4/danmaku/application/commands/message/create/CreateUserMessageCmd.kt",
+                    context = commonFields + mapOf(
+                        "packageName" to "edu.only4.danmaku.application.commands.message.create",
+                        "typeName" to "CreateUserMessageCmd",
+                    ),
+                    conflictPolicy = ConflictPolicy.OVERWRITE
+                ),
+                ArtifactPlanItem(
+                    generatorId = "design-client",
+                    moduleRole = "application",
+                    templateId = "design/client.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/edu/only4/danmaku/application/distributed/clients/message/delivery/PublishUserMessageCli.kt",
+                    context = commonFields + mapOf(
+                        "packageName" to "edu.only4.danmaku.application.distributed.clients.message.delivery",
+                        "typeName" to "PublishUserMessageCli",
+                    ),
+                    conflictPolicy = ConflictPolicy.OVERWRITE
+                ),
+                ArtifactPlanItem(
+                    generatorId = "design-api-payload",
+                    moduleRole = "adapter",
+                    templateId = "design/api_payload.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/edu/only4/danmaku/adapter/portal/api/payload/message/CreateUserMessagePayload.kt",
+                    context = mapOf(
+                        "packageName" to "edu.only4.danmaku.adapter.portal.api.payload.message",
+                        "typeName" to "CreateUserMessagePayload",
+                        "imports" to emptyList<String>(),
+                        "requestFields" to listOf(
+                            mapOf("name" to "messageKey", "renderedType" to "String", "nullable" to false),
+                            mapOf("name" to "body", "renderedType" to "Body?", "nullable" to true),
+                        ),
+                        "requestNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Body",
+                                "fields" to listOf(
+                                    mapOf("name" to "content", "renderedType" to "String", "nullable" to false),
+                                ),
+                            ),
+                        ),
+                        "responseFields" to listOf(
+                            mapOf("name" to "receipt", "renderedType" to "Receipt?", "nullable" to true),
+                        ),
+                        "responseNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Receipt",
+                                "fields" to listOf(
+                                    mapOf("name" to "messageKey", "renderedType" to "String", "nullable" to false),
+                                ),
+                            ),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.OVERWRITE
+                ),
+            ),
+            config = ProjectConfig(
+                basePackage = "edu.only4.danmaku",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.OVERWRITE),
+            )
+        )
+
+        rendered.forEach { assertReadableKotlin(it.content) }
+
+        val renderedByFile = rendered.associateBy { it.outputPath.substringAfterLast("/") }
+        val queryContent = renderedByFile.getValue("FindUserMessageQry.kt").content
+        val commandContent = renderedByFile.getValue("CreateUserMessageCmd.kt").content
+        val clientContent = renderedByFile.getValue("PublishUserMessageCli.kt").content
+        val apiPayloadContent = renderedByFile.getValue("CreateUserMessagePayload.kt").content
+
+        listOf(queryContent, commandContent, clientContent).forEach { content ->
+            assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+            assertTrue(content.contains(") : RequestParam<Response>"))
+            assertFalse(content.contains("\n\n\n"))
+        }
+
+        val requestIndex = apiPayloadContent.indexOf("data class Request(")
+        val responseIndex = apiPayloadContent.indexOf("data class Response(")
+        assertTrue(requestIndex >= 0, "Request class must be rendered.")
+        assertTrue(responseIndex >= 0, "Response class must be rendered.")
+        val requestSection = apiPayloadContent.substring(requestIndex, responseIndex)
+        val responseSection = apiPayloadContent.substring(responseIndex)
+        assertTrue(requestSection.contains("        data class Body("))
+        assertTrue(requestSection.contains("val content: String"))
+        assertFalse(requestSection.contains("data class Receipt("))
+        assertTrue(responseSection.contains("        data class Receipt("))
+        assertTrue(responseSection.contains("val messageKey: String"))
+        assertFalse(Regex("^ {4}data class Body\\(", RegexOption.MULTILINE).containsMatchIn(apiPayloadContent))
+        assertFalse(Regex("^ {4}data class Receipt\\(", RegexOption.MULTILINE).containsMatchIn(apiPayloadContent))
     }
 
     @Test
@@ -4510,6 +4644,7 @@ class PebbleArtifactRendererTest {
             importLines
         )
         assertTrue(content.contains("object BatchSaveAccountList"))
+        assertTrue(responseIndex >= 0)
         assertTrue(content.contains("val address: Address?"))
         assertFalse(content.contains("val address: Address??"))
         assertTrue(content.contains("val note: String = \"demo\""))
