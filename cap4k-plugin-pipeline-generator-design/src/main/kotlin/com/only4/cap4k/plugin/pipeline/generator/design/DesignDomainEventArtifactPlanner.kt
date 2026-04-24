@@ -14,7 +14,7 @@ class DesignDomainEventArtifactPlanner : GeneratorProvider {
 
         return model.domainEvents.map { event ->
             val packagePath = event.packageName.replace(".", "/")
-            val renderModel = DesignRenderModelFactory.createForDomainEvent(
+            val renderModel = DesignPayloadRenderModelFactory.createForDomainEvent(
                 packageName = "${config.basePackage}.domain.${event.packageName}.events",
                 event = event,
                 typeRegistry = config.typeRegistry,

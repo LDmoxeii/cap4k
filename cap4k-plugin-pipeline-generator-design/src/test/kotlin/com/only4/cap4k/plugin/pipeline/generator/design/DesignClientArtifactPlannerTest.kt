@@ -1,12 +1,11 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.ClientModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
-import com.only4.cap4k.plugin.pipeline.api.RequestKind
-import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -26,9 +25,8 @@ class DesignClientArtifactPlannerTest {
                 )
             ),
             model = CanonicalModel(
-                requests = listOf(
-                    RequestModel(
-                        kind = RequestKind.CLIENT,
+                clients = listOf(
+                    ClientModel(
                         packageName = "authorize",
                         typeName = "IssueTokenCli",
                         description = "issue token",

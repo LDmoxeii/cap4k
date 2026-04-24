@@ -6,8 +6,8 @@ import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
-import com.only4.cap4k.plugin.pipeline.api.RequestKind
-import com.only4.cap4k.plugin.pipeline.api.RequestModel
+import com.only4.cap4k.plugin.pipeline.api.QueryModel
+import com.only4.cap4k.plugin.pipeline.api.QueryVariant
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -28,32 +28,32 @@ class DesignQueryHandlerArtifactPlannerTest {
                 )
             ),
             model = CanonicalModel(
-                requests = listOf(
-                    RequestModel(
-                        kind = RequestKind.QUERY,
+                queries = listOf(
+                    QueryModel(
                         packageName = "order.read",
                         typeName = "FindOrderQry",
                         description = "find order",
+                        variant = QueryVariant.DEFAULT,
                         responseFields = listOf(
                             FieldModel("responseStatus", "com.bar.Status"),
                             FieldModel("snapshot", "Snapshot", nullable = true),
                             FieldModel("snapshot.updatedAt", "java.time.LocalDateTime"),
                         ),
                     ),
-                    RequestModel(
-                        kind = RequestKind.QUERY,
+                    QueryModel(
                         packageName = "order.read",
                         typeName = "FindOrderListQry",
                         description = "find order list",
+                        variant = QueryVariant.LIST,
                         responseFields = listOf(
                             FieldModel("responseStatus", "com.bar.Status"),
                         ),
                     ),
-                    RequestModel(
-                        kind = RequestKind.QUERY,
+                    QueryModel(
                         packageName = "order.read",
                         typeName = "FindOrderPageQry",
                         description = "find order page",
+                        variant = QueryVariant.PAGE,
                         responseFields = listOf(
                             FieldModel("responseStatus", "com.bar.Status"),
                         ),
@@ -113,18 +113,18 @@ class DesignQueryHandlerArtifactPlannerTest {
                 )
             ),
             model = CanonicalModel(
-                requests = listOf(
-                    RequestModel(
-                        kind = RequestKind.QUERY,
+                queries = listOf(
+                    QueryModel(
                         packageName = "order.read",
                         typeName = "FindOrderPageableQry",
                         description = "pageable",
+                        variant = QueryVariant.DEFAULT,
                     ),
-                    RequestModel(
-                        kind = RequestKind.QUERY,
+                    QueryModel(
                         packageName = "order.read",
                         typeName = "FindOrderListingQry",
                         description = "listing",
+                        variant = QueryVariant.DEFAULT,
                     ),
                 ),
             ),
@@ -141,12 +141,12 @@ class DesignQueryHandlerArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = mapOf("application" to "demo-application")),
                 model = CanonicalModel(
-                    requests = listOf(
-                        RequestModel(
-                            kind = RequestKind.QUERY,
+                    queries = listOf(
+                        QueryModel(
                             packageName = "order.read",
                             typeName = "FindOrderQry",
                             description = "find order",
+                            variant = QueryVariant.DEFAULT,
                         ),
                     ),
                 ),

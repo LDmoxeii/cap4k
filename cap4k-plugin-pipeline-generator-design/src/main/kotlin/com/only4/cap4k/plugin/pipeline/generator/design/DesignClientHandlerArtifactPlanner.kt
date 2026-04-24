@@ -4,7 +4,6 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
-import com.only4.cap4k.plugin.pipeline.api.RequestKind
 
 class DesignClientHandlerArtifactPlanner : GeneratorProvider {
     override val id: String = "design-client-handler"
@@ -13,22 +12,21 @@ class DesignClientHandlerArtifactPlanner : GeneratorProvider {
         val adapterRoot = requireRelativeModuleRoot(config, "adapter")
         val basePath = config.basePackage.replace(".", "/")
 
-        return model.requests
+        return model.clients
             .asSequence()
-            .filter { it.kind == RequestKind.CLIENT }
-            .map { request ->
-                val packagePath = request.packageName.replace(".", "/")
+            .map { client ->
+                val packagePath = client.packageName.replace(".", "/")
 
                 ArtifactPlanItem(
                     generatorId = id,
                     moduleRole = "adapter",
                     templateId = "design/client_handler.kt.peb",
-                    outputPath = "$adapterRoot/src/main/kotlin/$basePath/adapter/application/distributed/clients/$packagePath/${request.typeName}Handler.kt",
+                    outputPath = "$adapterRoot/src/main/kotlin/$basePath/adapter/application/distributed/clients/$packagePath/${client.typeName}Handler.kt",
                     context = DesignClientHandlerRenderModelFactory.create(
                         basePackage = config.basePackage,
-                        request = request,
+                        client = client,
                     ).toContextMap() + mapOf(
-                        "responseFields" to request.responseFields
+                        "responseFields" to client.responseFields
                             .asSequence()
                             .filterNot { it.name.contains('.') }
                             .map { field -> mapOf("name" to field.name) }

@@ -1,16 +1,16 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
+import com.only4.cap4k.plugin.pipeline.api.DesignInteractionModel
 import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
-import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver.UnknownShortTypeFailure
 import com.only4.cap4k.plugin.pipeline.generator.design.types.SymbolIdentity
 import java.util.ArrayDeque
 
-internal object DesignRenderModelFactory {
+internal object DesignPayloadRenderModelFactory {
     private val collectionWrapperTypes = setOf(
         "Collection",
         "Iterable",
@@ -23,22 +23,22 @@ internal object DesignRenderModelFactory {
 
     fun create(
         packageName: String,
-        request: RequestModel,
+        interaction: DesignInteractionModel,
         typeRegistry: Map<String, String> = emptyMap(),
-        siblingRequestTypeNames: Set<String> = emptySet(),
+        siblingTypeNames: Set<String> = emptySet(),
     ): DesignRenderModel {
-        val requestNamespace = buildNamespace(request.requestFields, "request")
-        val responseNamespace = buildNamespace(request.responseFields, "response")
+        val requestNamespace = buildNamespace(interaction.requestFields, "request")
+        val responseNamespace = buildNamespace(interaction.responseFields, "response")
         return createRenderModel(
             packageName = packageName,
-            typeName = request.typeName,
-            description = request.description,
-            aggregateName = request.aggregateName,
-            aggregatePackageName = request.aggregatePackageName,
+            typeName = interaction.typeName,
+            description = interaction.description,
+            aggregateName = interaction.aggregateRef?.name,
+            aggregatePackageName = interaction.aggregateRef?.packageName,
             requestNamespace = requestNamespace,
             responseNamespace = responseNamespace,
             typeRegistry = typeRegistry,
-            siblingRequestTypeNames = siblingRequestTypeNames,
+            siblingRequestTypeNames = siblingTypeNames,
         )
     }
 

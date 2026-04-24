@@ -1,6 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
-import com.only4.cap4k.plugin.pipeline.api.RequestModel
+import com.only4.cap4k.plugin.pipeline.api.QueryModel
 
 internal data class DesignQueryHandlerResponseFieldModel(
     val name: String,
@@ -25,14 +25,14 @@ internal data class DesignQueryHandlerRenderModel(
 }
 
 internal object DesignQueryHandlerRenderModelFactory {
-    fun create(basePackage: String, request: RequestModel): DesignQueryHandlerRenderModel {
+    fun create(basePackage: String, query: QueryModel): DesignQueryHandlerRenderModel {
         return DesignQueryHandlerRenderModel(
-            packageName = "$basePackage.adapter.queries.${request.packageName}",
-            typeName = "${request.typeName}Handler",
-            description = request.description,
-            queryTypeName = request.typeName,
-            imports = listOf("$basePackage.application.queries.${request.packageName}.${request.typeName}"),
-            responseFields = request.responseFields
+            packageName = "$basePackage.adapter.queries.${query.packageName}",
+            typeName = "${query.typeName}Handler",
+            description = query.description,
+            queryTypeName = query.typeName,
+            imports = listOf("$basePackage.application.queries.${query.packageName}.${query.typeName}"),
+            responseFields = query.responseFields
                 .asSequence()
                 .filterNot { it.name.contains('.') }
                 .map { DesignQueryHandlerResponseFieldModel(it.name) }

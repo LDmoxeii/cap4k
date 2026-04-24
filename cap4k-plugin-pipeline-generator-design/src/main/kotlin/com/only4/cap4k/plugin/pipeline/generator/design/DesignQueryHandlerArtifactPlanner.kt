@@ -4,7 +4,6 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
-import com.only4.cap4k.plugin.pipeline.api.RequestKind
 
 class DesignQueryHandlerArtifactPlanner : GeneratorProvider {
     override val id: String = "design-query-handler"
@@ -13,21 +12,19 @@ class DesignQueryHandlerArtifactPlanner : GeneratorProvider {
         val adapterRoot = requireRelativeModuleRoot(config, "adapter")
         val basePath = config.basePackage.replace(".", "/")
 
-        return model.requests
+        return model.queries
             .asSequence()
-            .filter { it.kind == RequestKind.QUERY }
-            .map { request ->
-                val variant = requireNotNull(DesignQueryVariantResolver.resolve(request))
-                val packagePath = request.packageName.replace(".", "/")
+            .map { query ->
+                val packagePath = query.packageName.replace(".", "/")
 
                 ArtifactPlanItem(
                     generatorId = id,
                     moduleRole = "adapter",
-                    templateId = variant.handlerTemplateId,
-                    outputPath = "$adapterRoot/src/main/kotlin/$basePath/adapter/queries/$packagePath/${request.typeName}Handler.kt",
+                    templateId = query.variant.handlerTemplateId,
+                    outputPath = "$adapterRoot/src/main/kotlin/$basePath/adapter/queries/$packagePath/${query.typeName}Handler.kt",
                     context = DesignQueryHandlerRenderModelFactory.create(
                         basePackage = config.basePackage,
-                        request = request,
+                        query = query,
                     ).toContextMap(),
                     conflictPolicy = config.templates.conflictPolicy,
                 )

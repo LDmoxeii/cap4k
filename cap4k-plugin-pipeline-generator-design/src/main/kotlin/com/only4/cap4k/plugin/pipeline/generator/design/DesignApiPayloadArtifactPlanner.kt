@@ -19,7 +19,7 @@ class DesignApiPayloadArtifactPlanner : GeneratorProvider {
                 moduleRole = "adapter",
                 templateId = "design/api_payload.kt.peb",
                 outputPath = "$adapterRoot/src/main/kotlin/$basePath/adapter/portal/api/payload/$packagePath/${payload.typeName}.kt",
-                context = DesignRenderModelFactory.createForApiPayload(
+                context = DesignPayloadRenderModelFactory.createForApiPayload(
                     packageName = "${config.basePackage}.adapter.portal.api.payload.${payload.packageName}",
                     payload = payload,
                     typeRegistry = config.typeRegistry,
