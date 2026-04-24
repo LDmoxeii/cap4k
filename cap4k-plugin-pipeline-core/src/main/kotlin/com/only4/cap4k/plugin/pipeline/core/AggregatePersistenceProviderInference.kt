@@ -27,7 +27,7 @@ internal object AggregatePersistenceProviderInference {
             }
 
             val fieldNameByColumnName = entity.fields.associateBy(
-                keySelector = { it.name.lowercase(Locale.ROOT) },
+                keySelector = { (it.columnName ?: it.name).lowercase(Locale.ROOT) },
                 valueTransform = { it.name },
             )
             val versionColumns = table.columns.filter { it.version == true }

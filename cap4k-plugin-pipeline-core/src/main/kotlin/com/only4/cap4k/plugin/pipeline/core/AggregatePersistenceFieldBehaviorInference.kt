@@ -16,7 +16,7 @@ internal object AggregatePersistenceFieldBehaviorInference {
         return entities.flatMap { entity ->
             val table = tableByName[entity.tableName.lowercase(Locale.ROOT)] ?: return@flatMap emptyList()
             val fieldNameByColumnName = entity.fields.associateBy(
-                keySelector = { it.name.lowercase(Locale.ROOT) },
+                keySelector = { (it.columnName ?: it.name).lowercase(Locale.ROOT) },
                 valueTransform = { it.name },
             )
             table.columns.mapNotNull { column ->

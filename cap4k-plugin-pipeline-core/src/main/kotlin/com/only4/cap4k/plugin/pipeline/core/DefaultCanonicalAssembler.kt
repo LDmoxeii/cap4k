@@ -194,15 +194,17 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             val parentTable = table.parentTable
             val fields = table.columns.map {
                 FieldModel(
-                    name = it.name,
+                    name = lowerCamelIdentifier(it.name),
                     type = it.kotlinType,
                     nullable = it.nullable,
                     defaultValue = it.defaultValue,
                     typeBinding = it.typeBinding,
                     enumItems = it.enumItems,
+                    columnName = it.name,
                 )
             }
-            val idField = fields.first { it.name == table.primaryKey.first() }
+            val primaryKeyColumn = table.primaryKey.first()
+            val idField = fields.first { (it.columnName ?: it.name).equals(primaryKeyColumn, ignoreCase = true) }
 
             Triple(
                 SchemaModel(
@@ -493,5 +495,18 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     private companion object {
         val SupportedDrawingBoardTags = setOf("cli", "cmd", "qry", "payload", "de")
         val UpperCamelSplitRegex = Regex("(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+")
+
+        fun lowerCamelIdentifier(value: String): String {
+            val parts = value.trim()
+                .split(UpperCamelSplitRegex)
+                .filter { it.isNotEmpty() }
+            if (parts.isEmpty()) return value
+
+            val head = parts.first().lowercase(Locale.ROOT)
+            val tail = parts.drop(1).joinToString("") { token ->
+                token.lowercase(Locale.ROOT).replaceFirstChar { it.titlecase(Locale.ROOT) }
+            }
+            return head + tail
+        }
     }
 }

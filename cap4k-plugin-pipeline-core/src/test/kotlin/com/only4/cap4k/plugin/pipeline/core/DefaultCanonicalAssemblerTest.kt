@@ -1437,7 +1437,7 @@ class DefaultCanonicalAssemblerTest {
         )
         assertEquals(
             expectedConverter,
-            entityJpa.columns.single { it.fieldName == "default_visibility" }.converterTypeFqn
+            entityJpa.columns.single { it.fieldName == "defaultVisibility" }.converterTypeFqn
         )
     }
 
@@ -1478,12 +1478,12 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(entity.packageName, controls.single { it.fieldName == "id" }.entityPackageName)
         assertEquals(entity.fields.single { it.name == "id" }.name, controls.single { it.columnName == "id" }.fieldName)
         assertEquals(entity.fields.single { it.name == "version" }.name, controls.single { it.columnName == "version" }.fieldName)
-        assertEquals(entity.fields.single { it.name == "created_by" }.name, controls.single { it.columnName == "created_by" }.fieldName)
-        assertEquals(entity.fields.single { it.name == "updated_by" }.name, controls.single { it.columnName == "updated_by" }.fieldName)
+        assertEquals(entity.fields.single { it.name == "createdBy" }.name, controls.single { it.columnName == "created_by" }.fieldName)
+        assertEquals(entity.fields.single { it.name == "updatedBy" }.name, controls.single { it.columnName == "updated_by" }.fieldName)
         assertEquals("IDENTITY", controls.single { it.fieldName == "id" }.generatedValueStrategy)
         assertEquals(true, controls.single { it.fieldName == "version" }.version)
-        assertEquals(false, controls.single { it.fieldName == "created_by" }.insertable)
-        assertEquals(false, controls.single { it.fieldName == "updated_by" }.updatable)
+        assertEquals(false, controls.single { it.fieldName == "createdBy" }.insertable)
+        assertEquals(false, controls.single { it.fieldName == "updatedBy" }.updatable)
     }
 
     @Test
@@ -2916,6 +2916,46 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("VideoPostRepository", model.repositories.single().name)
         assertEquals("com.acme.demo.adapter.domain.repositories", model.repositories.single().packageName)
         assertEquals("Long", model.repositories.single().idType)
+    }
+
+    @Test
+    fun `db columns become lower camel kotlin fields while JPA metadata keeps original column names`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "user_message",
+                            comment = "user message",
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = listOf(listOf("message_key")),
+                            columns = listOf(
+                                DbColumnSnapshot("id", "bigint", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("message_key", "varchar", "String", false),
+                                DbColumnSnapshot("room_id", "varchar", "String", false),
+                                DbColumnSnapshot("published", "boolean", "Boolean", true),
+                            ),
+                        )
+                    )
+                )
+            ),
+        ).model
+
+        val entity = model.entities.single()
+        assertEquals(listOf("id", "messageKey", "roomId", "published"), entity.fields.map { it.name })
+        assertEquals("messageKey", entity.fields.single { it.columnName == "message_key" }.name)
+        assertEquals("roomId", entity.fields.single { it.columnName == "room_id" }.name)
+        assertEquals("id", entity.idField.name)
+        assertEquals("id", entity.idField.columnName)
+
+        val jpa = model.aggregateEntityJpa.single()
+        assertEquals(
+            listOf("id" to "id", "messageKey" to "message_key", "roomId" to "room_id", "published" to "published"),
+            jpa.columns.map { it.fieldName to it.columnName },
+        )
     }
 
     @Test

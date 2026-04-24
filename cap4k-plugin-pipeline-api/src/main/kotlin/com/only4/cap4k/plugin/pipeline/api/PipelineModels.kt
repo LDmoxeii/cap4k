@@ -7,6 +7,7 @@ data class FieldModel(
     val defaultValue: String? = null,
     val typeBinding: String? = null,
     val enumItems: List<EnumItemModel> = emptyList(),
+    val columnName: String? = null,
 )
 
 data class DbColumnSnapshot(

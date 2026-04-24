@@ -26,6 +26,7 @@ internal object AggregateJpaControlInference {
                 "missing db table snapshot for entity ${entity.name}"
             }
             val columnByName = table.columns.associateBy { it.name.lowercase(Locale.ROOT) }
+            val primaryKeyColumnNames = table.primaryKey.map { it.lowercase(Locale.ROOT) }.toSet()
 
             AggregateEntityJpaModel(
                 entityName = entity.name,
@@ -33,13 +34,14 @@ internal object AggregateJpaControlInference {
                 entityEnabled = true,
                 tableName = entity.tableName,
                 columns = entity.fields.map { field ->
-                    val column = requireNotNull(columnByName[field.name.lowercase(Locale.ROOT)]) {
+                    val fieldColumnName = field.columnName ?: field.name
+                    val column = requireNotNull(columnByName[fieldColumnName.lowercase(Locale.ROOT)]) {
                         "missing db column snapshot for field ${entity.name}.${field.name}"
                     }
                     AggregateColumnJpaModel(
                         fieldName = field.name,
                         columnName = column.name,
-                        isId = column.name in table.primaryKey,
+                        isId = column.name.lowercase(Locale.ROOT) in primaryKeyColumnNames,
                         converterTypeFqn = resolveConverterTypeFqn(
                             typeBinding = column.typeBinding,
                             ownerPackageName = entity.packageName,
