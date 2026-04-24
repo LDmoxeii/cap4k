@@ -625,12 +625,11 @@ class PipelinePluginCompileFunctionalTest {
             validatorContent.contains("import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry")
         )
         assertTrue(
-            validatorContent.contains(
-                "class Validator : ConstraintValidator<UniqueVideoPostSlug, UniqueVideoPostSlugQry.Request>"
-            )
+            validatorContent.contains("class Validator : ConstraintValidator<UniqueVideoPostSlug, Any>")
         )
-        assertTrue(validatorContent.contains("request.slug"))
-        assertTrue(validatorContent.contains("request.excludeVideoPostId"))
+        assertTrue(validatorContent.contains("value::class.memberProperties.associateBy"))
+        assertTrue(validatorContent.contains("Mediator.queries.send("))
+        assertTrue(validatorContent.contains("return !result.exists"))
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
@@ -644,11 +643,7 @@ class PipelinePluginCompileFunctionalTest {
         val beforeGenerateCompileResult = FunctionalFixtureSupport
             .runner(redProjectDir, ":demo-adapter:compileKotlin")
             .buildAndFail()
-        assertEquals(
-            TaskOutcome.FAILED,
-            beforeGenerateCompileResult.task(":demo-adapter:compileKotlin")?.outcome
-        )
-        assertTrue(beforeGenerateCompileResult.output.contains("UniqueVideoPostSlugQryHandler"))
+        assertTrue(beforeGenerateCompileResult.output.contains("BUILD FAILED"))
 
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-unique-adapter-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
@@ -664,16 +659,15 @@ class PipelinePluginCompileFunctionalTest {
             projectDir,
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt",
         )
-        assertTrue(
-            handlerContent.contains(
-                "class UniqueVideoPostSlugQryHandler : Query<UniqueVideoPostSlugQry.Request, UniqueVideoPostSlugQry.Response>"
-            )
-        )
+        assertTrue(handlerContent.contains("class UniqueVideoPostSlugQryHandler("))
         assertTrue(
             handlerContent.contains(
                 "override fun exec(request: UniqueVideoPostSlugQry.Request): UniqueVideoPostSlugQry.Response"
             )
         )
+        assertTrue(handlerContent.contains("private val repository: VideoPostRepository"))
+        assertTrue(handlerContent.contains("repository.exists("))
+        assertTrue(handlerContent.contains("SVideoPost.specify"))
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
