@@ -6,14 +6,26 @@ internal fun CanonicalModel.designInteractionSiblingTypeNames(
     packageName: String,
     currentTypeName: String,
 ): Set<String> {
-    return sequence {
-        commands.forEach { command -> yield(command.packageName to command.typeName) }
-        queries.forEach { query -> yield(query.packageName to query.typeName) }
-        clients.forEach { client -> yield(client.packageName to client.typeName) }
-    }
-        .filter { (candidatePackageName, typeName) ->
-            candidatePackageName == packageName && typeName != currentTypeName
+    return buildSet {
+        commands.forEach { command ->
+            addSiblingTypeName(command.packageName, command.typeName, packageName, currentTypeName)
         }
-        .map { (_, typeName) -> typeName }
-        .toSet()
+        queries.forEach { query ->
+            addSiblingTypeName(query.packageName, query.typeName, packageName, currentTypeName)
+        }
+        clients.forEach { client ->
+            addSiblingTypeName(client.packageName, client.typeName, packageName, currentTypeName)
+        }
+    }
+}
+
+private fun MutableSet<String>.addSiblingTypeName(
+    candidatePackageName: String,
+    candidateTypeName: String,
+    packageName: String,
+    currentTypeName: String,
+) {
+    if (candidatePackageName == packageName && candidateTypeName != currentTypeName) {
+        add(candidateTypeName)
+    }
 }
