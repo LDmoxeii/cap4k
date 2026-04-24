@@ -19,7 +19,7 @@ class ProjectConfigTest {
                 "ksp-metadata" to SourceConfig(enabled = false),
             ),
             generators = mapOf(
-                "design" to GeneratorConfig(enabled = true),
+                "design-command" to GeneratorConfig(enabled = true),
                 "pebble" to GeneratorConfig(enabled = false),
             ),
             templates = TemplateConfig(
@@ -30,7 +30,7 @@ class ProjectConfigTest {
         )
 
         assertEquals(setOf("design-json"), config.enabledSourceIds())
-        assertEquals(setOf("design"), config.enabledGeneratorIds())
+        assertEquals(setOf("design-command"), config.enabledGeneratorIds())
         assertEquals("sample-api", config.modules["api"])
         assertEquals(ConflictPolicy.SKIP, config.templates.conflictPolicy)
     }

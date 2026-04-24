@@ -28,8 +28,6 @@ import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
 import com.only4.cap4k.plugin.pipeline.api.QueryVariant
-import com.only4.cap4k.plugin.pipeline.api.RequestKind
-import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -136,7 +134,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `client design tags map into CLIENT request kind`() {
+    fun `client design tags map into canonical clients`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -177,10 +175,13 @@ class DefaultCanonicalAssemblerTest {
         ).model
 
         assertEquals(
-            listOf(RequestKind.CLIENT, RequestKind.CLIENT, RequestKind.CLIENT),
-            model.requests.map { it.kind },
+            listOf("IssueTokenCli", "RefreshTokenCli", "RevokeTokenCli"),
+            model.clients.map { it.typeName },
         )
-        assertEquals("IssueTokenCli", model.requests.first().typeName)
+        assertEquals(
+            listOf("auth.client", "auth.client", "auth.client"),
+            model.clients.map { it.packageName },
+        )
     }
 
     @Test
@@ -234,25 +235,23 @@ class DefaultCanonicalAssemblerTest {
             ),
         ).model
 
+        assertEquals(listOf("SubmitOrderCmd"), model.commands.map { it.typeName })
+        assertEquals(listOf("IssueTokenCli"), model.clients.map { it.typeName })
+        assertEquals(listOf("FindOrderQry"), model.queries.map { it.typeName })
+        assertEquals("Order", model.commands.single().aggregateRef?.name)
+        assertEquals("Order", model.clients.single().aggregateRef?.name)
+        assertEquals("Order", model.queries.single().aggregateRef?.name)
         assertEquals(
-            listOf(RequestKind.COMMAND, RequestKind.CLIENT, RequestKind.QUERY),
-            model.requests.map { it.kind },
+            "com.acme.demo.domain.aggregates.order",
+            model.commands.single().aggregateRef?.packageName,
         )
         assertEquals(
-            listOf("SubmitOrderCmd", "IssueTokenCli", "FindOrderQry"),
-            model.requests.map { it.typeName },
+            "com.acme.demo.domain.aggregates.order",
+            model.clients.single().aggregateRef?.packageName,
         )
         assertEquals(
-            listOf("Order", "Order", "Order"),
-            model.requests.map { it.aggregateName },
-        )
-        assertEquals(
-            listOf(
-                "com.acme.demo.domain.aggregates.order",
-                "com.acme.demo.domain.aggregates.order",
-                "com.acme.demo.domain.aggregates.order",
-            ),
-            model.requests.map { it.aggregatePackageName },
+            "com.acme.demo.domain.aggregates.order",
+            model.queries.single().aggregateRef?.packageName,
         )
     }
 
@@ -331,11 +330,13 @@ class DefaultCanonicalAssemblerTest {
         )
         assertEquals(listOf("auth.validator", "auth.validator", "auth.validator"), model.validators.map { it.packageName })
         assertEquals(listOf("Long", "Long", "Long"), model.validators.map { it.valueType })
-        assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.RequestModel>(), model.requests)
+        assertEquals(emptyList<String>(), model.commands.map { it.typeName })
+        assertEquals(emptyList<String>(), model.queries.map { it.typeName })
+        assertEquals(emptyList<String>(), model.clients.map { it.typeName })
     }
 
     @Test
-    fun `validator entries keep request assembly unchanged`() {
+    fun `validator entries keep command assembly unchanged`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -366,14 +367,13 @@ class DefaultCanonicalAssemblerTest {
             ),
         ).model
 
-        assertEquals(1, model.requests.size)
-        assertEquals(RequestKind.COMMAND, model.requests.single().kind)
-        assertEquals("SubmitOrderCmd", model.requests.single().typeName)
+        assertEquals(1, model.commands.size)
+        assertEquals("SubmitOrderCmd", model.commands.single().typeName)
         assertEquals(1, model.validators.size)
     }
 
     @Test
-    fun `api payload entries assemble into dedicated api payload slice and keep request assembly unchanged`() {
+    fun `api payload entries assemble into dedicated api payload slice and keep command assembly unchanged`() {
         val assembler = DefaultCanonicalAssembler()
 
         val requestFields = listOf(FieldModel(name = "accountIds", type = "List<Long>"))
@@ -415,20 +415,14 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(requestFields, payload.requestFields)
         assertEquals(responseFields, payload.responseFields)
 
-        assertEquals(1, model.requests.size)
-        assertEquals(
-            RequestModel(
-                kind = RequestKind.COMMAND,
-                packageName = "order.submit",
-                typeName = "SubmitOrderCmd",
-                description = "submit order",
-                aggregateName = "Order",
-                aggregatePackageName = null,
-                requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
-                responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
-            ),
-            model.requests.single(),
-        )
+        assertEquals(1, model.commands.size)
+        val command = model.commands.single()
+        assertEquals("order.submit", command.packageName)
+        assertEquals("SubmitOrderCmd", command.typeName)
+        assertEquals("submit order", command.description)
+        assertNull(command.aggregateRef)
+        assertEquals(listOf(FieldModel(name = "orderId", type = "Long")), command.requestFields)
+        assertEquals(listOf(FieldModel(name = "accepted", type = "Boolean")), command.responseFields)
     }
 
     @Test
@@ -857,7 +851,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `maps design entries and ksp aggregates into canonical requests`() {
+    fun `maps design entries and ksp aggregates into typed canonical interactions`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -905,17 +899,24 @@ class DefaultCanonicalAssemblerTest {
             ),
         ).model
 
-        assertEquals(2, model.requests.size)
-        val firstRequest = model.requests.first()
-        assertEquals(RequestKind.COMMAND, firstRequest.kind)
-        assertEquals("SubmitOrderCmd", firstRequest.typeName)
-        assertEquals("order.submit", firstRequest.packageName)
-        assertEquals("submit order", firstRequest.description)
-        assertEquals("Order", firstRequest.aggregateName)
-        assertEquals("com.acme.demo.domain.aggregates.order", firstRequest.aggregatePackageName)
-        assertEquals(listOf(FieldModel(name = "orderId", type = "Long")), firstRequest.requestFields)
-        assertEquals(listOf(FieldModel(name = "accepted", type = "Boolean")), firstRequest.responseFields)
-        assertEquals(RequestKind.QUERY, model.requests.last().kind)
+        assertEquals(1, model.commands.size)
+        val command = model.commands.single()
+        assertEquals("SubmitOrderCmd", command.typeName)
+        assertEquals("order.submit", command.packageName)
+        assertEquals("submit order", command.description)
+        assertEquals("Order", command.aggregateRef?.name)
+        assertEquals("com.acme.demo.domain.aggregates.order", command.aggregateRef?.packageName)
+        assertEquals(listOf(FieldModel(name = "orderId", type = "Long")), command.requestFields)
+        assertEquals(listOf(FieldModel(name = "accepted", type = "Boolean")), command.responseFields)
+
+        assertEquals(1, model.queries.size)
+        val query = model.queries.single()
+        assertEquals("FindOrderQry", query.typeName)
+        assertEquals("order.read", query.packageName)
+        assertEquals("find order", query.description)
+        assertEquals("Order", query.aggregateRef?.name)
+        assertEquals("com.acme.demo.domain.aggregates.order", query.aggregateRef?.packageName)
+        assertEquals(QueryVariant.DEFAULT, query.variant)
     }
 
     @Test
@@ -950,8 +951,10 @@ class DefaultCanonicalAssemblerTest {
             ),
         ).model
 
-        assertEquals(1, model.requests.size)
-        assertEquals(RequestKind.COMMAND, model.requests.first().kind)
+        assertEquals(1, model.commands.size)
+        assertEquals("SubmitOrderCmd", model.commands.first().typeName)
+        assertEquals(emptyList<String>(), model.queries.map { it.typeName })
+        assertEquals(emptyList<String>(), model.clients.map { it.typeName })
     }
 
     @Test
@@ -974,11 +977,13 @@ class DefaultCanonicalAssemblerTest {
             ),
         ).model
 
-        assertEquals(0, model.requests.size)
+        assertEquals(0, model.commands.size)
+        assertEquals(0, model.queries.size)
+        assertEquals(0, model.clients.size)
     }
 
     @Test
-    fun `preserves aggregate name without ksp match and leaves aggregate package null`() {
+    fun `leaves request aggregate ref null when ksp metadata has no match`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -1010,9 +1015,8 @@ class DefaultCanonicalAssemblerTest {
             ),
         ).model
 
-        assertEquals(1, model.requests.size)
-        assertEquals("Order", model.requests.first().aggregateName)
-        assertNull(model.requests.first().aggregatePackageName)
+        assertEquals(1, model.queries.size)
+        assertNull(model.queries.first().aggregateRef)
     }
 
     @Test

@@ -125,18 +125,19 @@ class PipelineModelsTest {
         )
 
         val model = CanonicalModel(
-            requests = listOf(
-                RequestModel(
-                    kind = RequestKind.COMMAND,
+            commands = listOf(
+                CommandModel(
                     packageName = "order.submit",
                     typeName = "SubmitOrderCmd",
                     description = "submit order",
+                    aggregateRef = null,
+                    variant = CommandVariant.DEFAULT,
                 )
             ),
             analysisGraph = graph,
         )
 
-        assertEquals("SubmitOrderCmd", model.requests.single().typeName)
+        assertEquals("SubmitOrderCmd", model.commands.single().typeName)
         assertEquals("OrderController::submit", model.analysisGraph!!.nodes.single().id)
         assertEquals("ControllerMethodToCommand", model.analysisGraph!!.edges.single().type)
     }
@@ -167,18 +168,19 @@ class PipelineModelsTest {
         val board = DrawingBoardModel(elements = listOf(element))
 
         val model = CanonicalModel(
-            requests = listOf(
-                RequestModel(
-                    kind = RequestKind.COMMAND,
+            commands = listOf(
+                CommandModel(
                     packageName = "order.submit",
                     typeName = "SubmitOrderCmd",
                     description = "submit order",
+                    aggregateRef = null,
+                    variant = CommandVariant.DEFAULT,
                 )
             ),
             drawingBoard = board,
         )
 
-        assertEquals("SubmitOrderCmd", model.requests.single().typeName)
+        assertEquals("SubmitOrderCmd", model.commands.single().typeName)
         assertEquals("cmd", model.drawingBoard!!.elements.single().tag)
         assertEquals("SubmitOrderCmd", model.drawingBoard!!.elementsByTag["cmd"]!!.single().name)
     }
@@ -244,12 +246,13 @@ class PipelineModelsTest {
     }
 
     @Test
-    fun `canonical model keeps dedicated validators slice alongside requests`() {
-        val request = RequestModel(
-            kind = RequestKind.COMMAND,
+    fun `canonical model keeps dedicated validators slice alongside commands`() {
+        val command = CommandModel(
             packageName = "order.submit",
             typeName = "SubmitOrderCmd",
             description = "submit order",
+            aggregateRef = null,
+            variant = CommandVariant.DEFAULT,
         )
         val validator = ValidatorModel(
             packageName = "auth.validator",
@@ -259,16 +262,16 @@ class PipelineModelsTest {
         )
 
         val model = CanonicalModel(
-            requests = listOf(request),
+            commands = listOf(command),
             validators = listOf(validator),
         )
 
-        assertEquals(listOf(request), model.requests)
+        assertEquals(listOf(command), model.commands)
         assertEquals(listOf(validator), model.validators)
     }
 
     @Test
-    fun `canonical model keeps dedicated api payload slice alongside requests validators and aggregate slices`() {
+    fun `canonical model keeps dedicated api payload slice alongside commands validators and aggregate slices`() {
         val payload = ApiPayloadModel(
             packageName = "auth.payload",
             typeName = "BatchSaveAccountList",
@@ -276,11 +279,12 @@ class PipelineModelsTest {
             requestFields = listOf(FieldModel(name = "accountIds", type = "List<Long>")),
             responseFields = listOf(FieldModel(name = "saved", type = "Int")),
         )
-        val request = RequestModel(
-            kind = RequestKind.COMMAND,
+        val command = CommandModel(
             packageName = "order.submit",
             typeName = "SubmitOrderCmd",
             description = "submit order",
+            aggregateRef = null,
+            variant = CommandVariant.DEFAULT,
         )
         val validator = ValidatorModel(
             packageName = "auth.validator",
@@ -311,7 +315,7 @@ class PipelineModelsTest {
         )
 
         val model = CanonicalModel(
-            requests = listOf(request),
+            commands = listOf(command),
             validators = listOf(validator),
             apiPayloads = listOf(payload),
             schemas = listOf(schema),
@@ -319,7 +323,7 @@ class PipelineModelsTest {
             repositories = listOf(repository),
         )
 
-        assertEquals(listOf(request), model.requests)
+        assertEquals(listOf(command), model.commands)
         assertEquals(listOf(validator), model.validators)
         assertEquals(listOf(payload), model.apiPayloads)
         assertEquals(listOf(schema), model.schemas)

@@ -360,27 +360,10 @@ data class ClientModel(
     override val responseFields: List<FieldModel> = emptyList(),
 ) : DesignInteractionModel
 
-enum class RequestKind {
-    COMMAND,
-    QUERY,
-    CLIENT,
-}
-
 enum class UnsupportedTablePolicy {
     FAIL,
     SKIP,
 }
-
-data class RequestModel(
-    val kind: RequestKind,
-    val packageName: String,
-    val typeName: String,
-    val description: String,
-    val aggregateName: String? = null,
-    val aggregatePackageName: String? = null,
-    val requestFields: List<FieldModel> = emptyList(),
-    val responseFields: List<FieldModel> = emptyList(),
-)
 
 data class ValidatorModel(
     val packageName: String,
@@ -411,7 +394,6 @@ data class CanonicalModel(
     val commands: List<CommandModel> = emptyList(),
     val queries: List<QueryModel> = emptyList(),
     val clients: List<ClientModel> = emptyList(),
-    val requests: List<RequestModel> = emptyList(),
     val validators: List<ValidatorModel> = emptyList(),
     val domainEvents: List<DomainEventModel> = emptyList(),
     val schemas: List<SchemaModel> = emptyList(),

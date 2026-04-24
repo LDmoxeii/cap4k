@@ -30,8 +30,6 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.QueryModel
 import com.only4.cap4k.plugin.pipeline.api.QueryVariant
-import com.only4.cap4k.plugin.pipeline.api.RequestKind
-import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SourceSnapshot
@@ -104,32 +102,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 )
             }
             .toList()
-
-        val requests = designSnapshot?.entries.orEmpty().mapNotNull { entry ->
-            val kind = when (entry.tag.lowercase(Locale.ROOT)) {
-                "cmd", "command" -> RequestKind.COMMAND
-                "qry", "query" -> RequestKind.QUERY
-                "cli", "client", "clients" -> RequestKind.CLIENT
-                else -> return@mapNotNull null
-            }
-            val aggregateName = entry.aggregates.firstOrNull()
-            val aggregate = aggregateName?.let { aggregateLookup[it] }
-
-            RequestModel(
-                kind = kind,
-                packageName = entry.packageName,
-                typeName = when (kind) {
-                    RequestKind.COMMAND -> "${entry.name}Cmd"
-                    RequestKind.QUERY -> "${entry.name}Qry"
-                    RequestKind.CLIENT -> "${entry.name}Cli"
-                },
-                description = entry.description,
-                aggregateName = aggregateName,
-                aggregatePackageName = aggregate?.rootPackageName,
-                requestFields = entry.requestFields,
-                responseFields = entry.responseFields,
-            )
-        }
 
         val validators = designSnapshot?.entries.orEmpty()
             .asSequence()
@@ -378,7 +350,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 commands = commands,
                 queries = queries,
                 clients = clients,
-                requests = requests,
                 validators = validators,
                 apiPayloads = apiPayloads,
                 domainEvents = domainEvents,
