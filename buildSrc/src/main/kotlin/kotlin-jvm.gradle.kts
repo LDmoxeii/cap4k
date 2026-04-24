@@ -14,22 +14,11 @@ plugins {
 group = "com.only4"
 version = "0.5.0-SNAPSHOT"
 
-// 添加源码 jar 任务
-val sourcesJar by tasks.registering(Jar::class) {
-    archiveClassifier.set("sources")
-    from(sourceSets.main.get().allSource)
+java {
+    withSourcesJar()
 }
 
 publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-            artifact(sourcesJar)
-            groupId = project.group.toString()
-            artifactId = project.name
-            version = project.version.toString()
-        }
-    }
     repositories {
         maven {
             name = "AliYunMaven"
@@ -37,6 +26,21 @@ publishing {
             credentials {
                 username = providers.gradleProperty("aliyun.maven.username").orNull ?: "defaultUsername"
                 password = providers.gradleProperty("aliyun.maven.password").orNull ?: "defaultPassword"
+            }
+        }
+    }
+}
+
+afterEvaluate {
+    if (!pluginManager.hasPlugin("java-gradle-plugin")) {
+        publishing {
+            publications {
+                create<MavenPublication>("maven") {
+                    from(components["java"])
+                    groupId = project.group.toString()
+                    artifactId = project.name
+                    version = project.version.toString()
+                }
             }
         }
     }
