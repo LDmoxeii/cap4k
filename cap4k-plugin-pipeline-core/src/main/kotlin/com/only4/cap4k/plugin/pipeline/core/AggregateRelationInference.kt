@@ -17,8 +17,14 @@ internal object AggregateRelationInference {
         val fieldName: String,
     )
 
+    private data class ScalarFields(
+        val tableName: String,
+        val columnNamesByFieldName: Map<String, String>,
+    )
+
     private val underscoredRelationIdSuffixRegex = Regex("_id$", RegexOption.IGNORE_CASE)
     private val tableTokenSplitRegex = Regex("_+|(?<=[a-z0-9])(?=[A-Z])")
+    private val fieldTokenSplitRegex = Regex("(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+")
 
     fun fromTables(
         basePackage: String,
@@ -36,10 +42,16 @@ internal object AggregateRelationInference {
                 )
             }
         )
-        val entityFieldNamesByEntity = tables.associate { table ->
-            AggregateNaming.entityName(table.tableName) to table.columns
-                .map { it.name }
-                .toSet()
+        val scalarFieldsByEntity = tables.associate { table ->
+            AggregateNaming.entityName(table.tableName) to ScalarFields(
+                tableName = table.tableName,
+                columnNamesByFieldName = (
+                    table.columns
+                        .filter { it.referenceTable == null }
+                        .map { column -> lowerCamelIdentifier(column.name) to column.name } +
+                        table.columns.map { column -> column.name to column.name }
+                    ).toMap(),
+            )
         }
 
         val parentChildRelations = tables
@@ -156,11 +168,19 @@ internal object AggregateRelationInference {
             )
         }
 
-        relations.firstOrNull { relation ->
-            relation.fieldName in entityFieldNamesByEntity.getValue(relation.ownerEntityName)
-        }?.let { relation ->
+        relations.firstNotNullOfOrNull { relation ->
+            val scalarFields = scalarFieldsByEntity.getValue(relation.ownerEntityName)
+            val columnName = scalarFields.columnNamesByFieldName[relation.fieldName] ?: return@firstNotNullOfOrNull null
+            relation to (scalarFields to columnName)
+        }?.let { (relation, collision) ->
+            val (scalarFields, columnName) = collision
+            if (columnName == relation.fieldName) {
+                throw IllegalArgumentException(
+                    "aggregate relation field collides with entity field: ${relation.ownerEntityName}.${relation.fieldName} -> ${relation.targetEntityName} [${relation.relationType}]"
+                )
+            }
             throw IllegalArgumentException(
-                "aggregate relation field collides with entity field: ${relation.ownerEntityName}.${relation.fieldName} -> ${relation.targetEntityName} [${relation.relationType}]"
+                "aggregate relation field name ${relation.fieldName} conflicts with scalar field on table ${scalarFields.tableName}: ${relation.ownerEntityName}.${relation.fieldName} -> ${relation.targetEntityName} [${relation.relationType}]"
             )
         }
 
@@ -235,6 +255,19 @@ internal object AggregateRelationInference {
     }
 
     private fun tableKey(tableName: String): String = tableName.lowercase(Locale.ROOT)
+
+    private fun lowerCamelIdentifier(value: String): String {
+        val parts = value.trim()
+            .split(fieldTokenSplitRegex)
+            .filter { it.isNotEmpty() }
+        if (parts.isEmpty()) return value
+
+        val head = parts.first().lowercase(Locale.ROOT)
+        val tail = parts.drop(1).joinToString("") { token ->
+            token.lowercase(Locale.ROOT).replaceFirstChar { it.titlecase(Locale.ROOT) }
+        }
+        return head + tail
+    }
 
     private fun lowerFirst(value: String): String =
         if (value.isEmpty()) value else value.substring(0, 1).lowercase(Locale.ROOT) + value.substring(1)

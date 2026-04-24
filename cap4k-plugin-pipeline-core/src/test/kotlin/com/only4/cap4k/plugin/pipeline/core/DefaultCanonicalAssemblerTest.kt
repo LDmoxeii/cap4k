@@ -3363,6 +3363,45 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler rejects relation field names that collide with db camelized entity fields`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot("cover_profile", "VARCHAR", "String", false),
+                                    DbColumnSnapshot("cover_profile_id", "BIGINT", "Long", false, referenceTable = "user_profile"),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                            DbTableSnapshot(
+                                tableName = "user_profile",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            ),
+                        )
+                    )
+                )
+            )
+        }
+
+        assertTrue(
+            error.message!!.contains("relation field name coverProfile conflicts with scalar field on table video_post")
+        )
+    }
+
+    @Test
     fun `filtered out relation targets are skipped instead of failing assembly`() {
         val assembly = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
