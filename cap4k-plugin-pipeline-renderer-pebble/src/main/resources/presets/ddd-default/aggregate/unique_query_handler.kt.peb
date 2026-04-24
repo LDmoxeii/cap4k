@@ -3,15 +3,30 @@ package {{ packageName }}
 {{ use("com.only4.cap4k.ddd.core.application.query.Query") -}}
 {{ use("org.springframework.stereotype.Service") -}}
 {{ use(queryTypeFqn) -}}
+{{ use(repositoryTypeFqn) -}}
+{{ use(schemaTypeFqn) -}}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
 
 @Service
-class {{ typeName }} : Query<{{ queryTypeName }}.Request, {{ queryTypeName }}.Response> {
+class {{ typeName }}(
+    private val repository: {{ repositoryTypeName }},
+) : Query<{{ queryTypeName }}.Request, {{ queryTypeName }}.Response> {
     override fun exec(request: {{ queryTypeName }}.Request): {{ queryTypeName }}.Response {
+        val exists = repository.exists(
+            {{ schemaTypeName }}.specify { schema ->
+                schema.all(
+{%- for prop in whereProps %}
+                    schema.{{ prop }} eq request.{{ prop }},
+{%- endfor %}
+                    schema.{{ idPropName }} `neq?` request.{{ excludeIdParamName }} ?: schema.{{ idPropName }}.isNotNull(),
+                )
+            }
+        )
+
         return {{ queryTypeName }}.Response(
-            exists = false
+            exists = exists
         )
     }
 }

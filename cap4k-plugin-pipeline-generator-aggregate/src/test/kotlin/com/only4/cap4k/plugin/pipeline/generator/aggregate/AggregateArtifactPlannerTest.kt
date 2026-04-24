@@ -1306,20 +1306,36 @@ class AggregateArtifactPlannerTest {
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         )
 
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "Video_Post",
+            comment = "Video post entity",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("slug", "String", nullable = true),
+                FieldModel("title", "String"),
+            ),
+            idField = FieldModel("id", "Long"),
+            uniqueConstraints = listOf(listOf("slug")),
+        )
         val model = CanonicalModel(
-            entities = listOf(
-                EntityModel(
-                    name = "VideoPost",
-                    packageName = "com.acme.demo.domain.aggregates.video_post",
-                    tableName = "Video_Post",
-                    comment = "Video post entity",
-                    fields = listOf(
-                        FieldModel("id", "Long"),
-                        FieldModel("slug", "String", nullable = true),
-                        FieldModel("title", "String"),
-                    ),
-                    idField = FieldModel("id", "Long"),
-                    uniqueConstraints = listOf(listOf("slug")),
+            entities = listOf(entity),
+            schemas = listOf(
+                SchemaModel(
+                    name = "SVideoPost",
+                    packageName = "com.acme.demo.domain._share.meta.video_post",
+                    entityName = "VideoPost",
+                    comment = "Video post schema",
+                    fields = entity.fields,
+                )
+            ),
+            repositories = listOf(
+                RepositoryModel(
+                    name = "VideoPostRepository",
+                    packageName = "com.acme.demo.adapter.domain.repositories",
+                    entityName = "VideoPost",
+                    idType = "Long",
                 )
             ),
             aggregateEntityJpa = listOf(
@@ -1369,6 +1385,76 @@ class AggregateArtifactPlannerTest {
             "com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry",
             validator.context["queryTypeFqn"],
         )
+    }
+
+    @Test
+    fun `unique planners expose business validator and repository backed handler context`() {
+        val entity = EntityModel(
+            name = "UserMessage",
+            packageName = "com.acme.demo.domain.aggregates.user_message",
+            tableName = "user_message",
+            comment = "user message",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("messageKey", "String", columnName = "message_key"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            uniqueConstraints = listOf(listOf("message_key")),
+        )
+        val model = CanonicalModel(
+            entities = listOf(entity),
+            schemas = listOf(
+                SchemaModel(
+                    name = "SUserMessage",
+                    packageName = "com.acme.demo.domain._share.meta.user_message",
+                    entityName = "UserMessage",
+                    comment = "user message",
+                    fields = entity.fields,
+                )
+            ),
+            repositories = listOf(
+                RepositoryModel(
+                    name = "UserMessageRepository",
+                    packageName = "com.acme.demo.adapter.domain.repositories",
+                    entityName = "UserMessage",
+                    idType = "Long",
+                )
+            ),
+            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(aggregateConfig(), model)
+        val validator = planItems.single { it.templateId == "aggregate/unique_validator.kt.peb" }
+        val handler = planItems.single { it.templateId == "aggregate/unique_query_handler.kt.peb" }
+
+        assertEquals("UniqueUserMessageMessageKey", validator.context["typeName"])
+        assertEquals("UniqueUserMessageMessageKeyQry", validator.context["queryTypeName"])
+        @Suppress("UNCHECKED_CAST")
+        val validatorRequestProps = validator.context["requestProps"] as List<Map<String, Any?>>
+        val validatorRequestProp = validatorRequestProps.single()
+        assertEquals("messageKey", validatorRequestProp["name"])
+        assertEquals("String", validatorRequestProp["type"])
+        assertEquals(true, validatorRequestProp["isString"])
+        assertEquals("messageKeyField", validatorRequestProp["param"])
+        assertEquals("messageKeyProperty", validatorRequestProp["varName"])
+        @Suppress("UNCHECKED_CAST")
+        val fieldParams = validator.context["fieldParams"] as List<Map<String, Any?>>
+        assertEquals(mapOf("param" to "messageKeyField", "default" to "messageKey"), fieldParams.single())
+        assertEquals("userMessageIdField", validator.context["entityIdParam"])
+        assertEquals("userMessageId", validator.context["entityIdDefault"])
+        assertEquals("userMessageIdProperty", validator.context["entityIdVar"])
+
+        assertEquals("UserMessageRepository", handler.context["repositoryTypeName"])
+        assertEquals(
+            "com.acme.demo.adapter.domain.repositories.UserMessageRepository",
+            handler.context["repositoryTypeFqn"],
+        )
+        assertEquals("SUserMessage", handler.context["schemaTypeName"])
+        assertEquals(
+            "com.acme.demo.domain._share.meta.user_message.SUserMessage",
+            handler.context["schemaTypeFqn"],
+        )
+        assertEquals("id", handler.context["idPropName"])
     }
 
     @Test
@@ -1610,7 +1696,7 @@ class AggregateArtifactPlannerTest {
                 comment = "Video post entity",
                 fields = listOf(
                     FieldModel("id", "Long"),
-                    FieldModel("tenant_id", "Long"),
+                    FieldModel("tenantId", "Long", columnName = "tenant_id"),
                     FieldModel("slug", "String"),
                 ),
                 idField = FieldModel("id", "Long"),

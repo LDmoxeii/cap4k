@@ -2,6 +2,8 @@ package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
+import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
 internal class UniqueQueryHandlerArtifactPlanner : AggregateArtifactFamilyPlanner {
@@ -14,6 +16,16 @@ internal class UniqueQueryHandlerArtifactPlanner : AggregateArtifactFamilyPlanne
         val adapterRoot = requireRelativeModule(config, "adapter")
         return plannedSelections.flatMap { (entity, selections) ->
             val tableSegment = aggregateTableSegment(entity.tableName)
+            val repository = requireUniqueRepository(
+                handlerTypeName = "unique query handler",
+                entityName = entity.name,
+                repositories = model.repositories.filter { it.entityName == entity.name },
+            )
+            val schema = requireUniqueSchema(
+                handlerTypeName = "unique query handler",
+                entityName = entity.name,
+                schemas = model.schemas.filter { it.entityName == entity.name },
+            )
             selections.map { selection ->
                 ArtifactPlanItem(
                     generatorId = "aggregate",
@@ -25,10 +37,41 @@ internal class UniqueQueryHandlerArtifactPlanner : AggregateArtifactFamilyPlanne
                         "typeName" to selection.queryHandlerTypeName,
                         "queryTypeName" to selection.queryTypeName,
                         "queryTypeFqn" to "${config.basePackage}.application.queries.$tableSegment.unique.${selection.queryTypeName}",
+                        "repositoryTypeName" to repository.name,
+                        "repositoryTypeFqn" to "${repository.packageName}.${repository.name}",
+                        "schemaTypeName" to schema.name,
+                        "schemaTypeFqn" to "${schema.packageName}.${schema.name}",
+                        "entityTypeName" to entity.name,
+                        "entityTypeFqn" to "${entity.packageName}.${entity.name}",
+                        "whereProps" to selection.requestProps.map { it.name },
+                        "idPropName" to entity.idField.name,
+                        "excludeIdParamName" to selection.excludeIdParamName,
                     ),
                     conflictPolicy = config.templates.conflictPolicy,
                 )
             }
         }
+    }
+
+    private fun requireUniqueRepository(
+        handlerTypeName: String,
+        entityName: String,
+        repositories: List<RepositoryModel>,
+    ): RepositoryModel {
+        if (repositories.size != 1) {
+            error("$handlerTypeName for entity $entityName requires exactly one repository, but found ${repositories.size}")
+        }
+        return repositories.single()
+    }
+
+    private fun requireUniqueSchema(
+        handlerTypeName: String,
+        entityName: String,
+        schemas: List<SchemaModel>,
+    ): SchemaModel {
+        if (schemas.size != 1) {
+            error("$handlerTypeName for entity $entityName requires exactly one schema, but found ${schemas.size}")
+        }
+        return schemas.single()
     }
 }

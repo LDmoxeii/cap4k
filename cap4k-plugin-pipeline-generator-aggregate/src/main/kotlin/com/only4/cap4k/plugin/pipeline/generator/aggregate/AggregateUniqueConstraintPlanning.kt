@@ -43,18 +43,23 @@ internal object AggregateUniqueConstraintPlanning {
         val fieldsByNormalizedName = entity.fields.associateBy { field ->
             uniqueLowerCamel(field.name).lowercase(Locale.ROOT)
         }
+        val fieldsByColumnName = entity.fields
+            .filter { field -> field.columnName != null }
+            .associateBy { field -> requireNotNull(field.columnName).lowercase(Locale.ROOT) }
         val resolvedColumns = columns.map { column ->
+            val columnKey = column.lowercase(Locale.ROOT)
             column to (
-                fieldsByName[column.lowercase(Locale.ROOT)]
+                fieldsByName[columnKey]
                     ?: fieldsByNormalizedName[uniqueLowerCamel(column).lowercase(Locale.ROOT)]
+                    ?: fieldsByColumnName[columnKey]
                 )
         }
         val missingColumns = resolvedColumns.filter { (_, field) -> field == null }.map { (column, _) -> column }
         require(missingColumns.isEmpty()) {
             "Unique constraint columns not found in entity ${entity.name}: ${missingColumns.joinToString(", ")}"
         }
-        return resolvedColumns.map { (column, field) ->
-            requireNotNull(field).copy(name = uniqueLowerCamel(column))
+        return resolvedColumns.map { (_, field) ->
+            requireNotNull(field)
         }
     }
 }

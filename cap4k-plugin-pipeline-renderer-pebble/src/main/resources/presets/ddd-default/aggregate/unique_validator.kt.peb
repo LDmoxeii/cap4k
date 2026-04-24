@@ -5,6 +5,8 @@ package {{ packageName }}
 {{ use("jakarta.validation.ConstraintValidatorContext") -}}
 {{ use("jakarta.validation.Payload") -}}
 {{ use("kotlin.reflect.KClass") -}}
+{{ use("com.only4.cap4k.ddd.core.Mediator") -}}
+{{ use("kotlin.reflect.full.memberProperties") -}}
 {{ use(queryTypeFqn) -}}
 {% for import in imports(imports) -%}
 import {{ import }}
@@ -17,20 +19,65 @@ annotation class {{ typeName }}(
     val message: String = "唯一性校验未通过",
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = [],
+{%- for fieldParam in fieldParams %}
+    val {{ fieldParam.param }}: String = "{{ fieldParam.default }}",
+{%- endfor %}
+    val {{ entityIdParam }}: String = "{{ entityIdDefault }}",
 ) {
-    class Validator : ConstraintValidator<{{ typeName }}, {{ queryTypeName }}.Request> {
-        override fun isValid(request: {{ queryTypeName }}.Request?, context: ConstraintValidatorContext): Boolean {
-            if (request == null) {
+    class Validator : ConstraintValidator<{{ typeName }}, Any> {
+{%- for prop in requestProps %}
+        private lateinit var {{ prop.varName }}: String
+{%- endfor %}
+        private lateinit var {{ entityIdVar }}: String
+
+        override fun initialize(constraintAnnotation: {{ typeName }}) {
+{%- for prop in requestProps %}
+            {{ prop.varName }} = constraintAnnotation.{{ prop.param }}
+{%- endfor %}
+            {{ entityIdVar }} = constraintAnnotation.{{ entityIdParam }}
+        }
+
+        override fun isValid(value: Any?, context: ConstraintValidatorContext): Boolean {
+            if (value == null) {
                 return true
             }
 
-            val keyValues = listOf<Any?>(
+            val result = runCatching {
+                val props = value::class.memberProperties.associateBy { it.name }
 {%- for prop in requestProps %}
-                request.{{ prop.name }},
+                val {{ prop.varName }}Ref = props[{{ prop.varName }}] ?: return false
+                val {{ prop.name }} = {{ prop.varName }}Ref.getter.call(value) as? {{ type(prop.type) | raw }}
+{%- if prop.isString %}
+                val {{ prop.name }}Trimmed = {{ prop.name }}?.trim()
+{%- endif %}
 {%- endfor %}
-            )
-            val excludeId: {{ idType }}? = request.{{ excludeIdParamName }}
-            return keyValues.any { it != null } || excludeId != null || keyValues.isEmpty()
+                val excludeId = props[{{ entityIdVar }}]?.getter?.call(value) as? {{ type(idType) | raw }}
+
+                val allPresent =
+{%- for prop in requestProps %}
+{%- if prop.isString %}
+                    ({{ prop.name }}Trimmed != null && {{ prop.name }}Trimmed.isNotBlank())
+{%- else %}
+                    ({{ prop.name }} != null)
+{%- endif %}
+{%- if not loop.last %} &&
+{%- endif %}
+{%- endfor %}
+                if (!allPresent) {
+                    return true
+                }
+
+                Mediator.queries.send(
+                    {{ queryTypeName }}.Request(
+{%- for prop in requestProps %}
+                        {{ prop.name }} = {% if prop.isString %}{{ prop.name }}Trimmed!!{% else %}{{ prop.name }}!!{% endif %},
+{%- endfor %}
+                        {{ excludeIdParamName }} = excludeId,
+                    )
+                )
+            }.getOrNull() ?: return false
+
+            return !result.exists
         }
     }
 }

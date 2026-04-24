@@ -1332,6 +1332,15 @@ class PebbleArtifactRendererTest {
                         "typeName" to "UniqueVideoPostTenantIdSlugQryHandler",
                         "queryTypeName" to "UniqueVideoPostTenantIdSlugQry",
                         "queryTypeFqn" to "com.acme.demo.application.queries.video_post.unique.UniqueVideoPostTenantIdSlugQry",
+                        "repositoryTypeName" to "VideoPostRepository",
+                        "repositoryTypeFqn" to "com.acme.demo.adapter.domain.repositories.VideoPostRepository",
+                        "schemaTypeName" to "SVideoPost",
+                        "schemaTypeFqn" to "com.acme.demo.domain._share.meta.video_post.SVideoPost",
+                        "entityTypeName" to "VideoPost",
+                        "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
+                        "whereProps" to listOf("tenantId", "slug"),
+                        "idPropName" to "id",
+                        "excludeIdParamName" to "excludeVideoPostId",
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
@@ -1346,11 +1355,30 @@ class PebbleArtifactRendererTest {
                         "queryTypeName" to "UniqueVideoPostTenantIdSlugQry",
                         "queryTypeFqn" to "com.acme.demo.application.queries.video_post.unique.UniqueVideoPostTenantIdSlugQry",
                         "requestProps" to listOf(
-                            mapOf("name" to "tenantId", "type" to "Long"),
-                            mapOf("name" to "slug", "type" to "String"),
+                            mapOf(
+                                "name" to "tenantId",
+                                "type" to "Long",
+                                "isString" to false,
+                                "param" to "tenantIdField",
+                                "varName" to "tenantIdProperty",
+                            ),
+                            mapOf(
+                                "name" to "slug",
+                                "type" to "String",
+                                "isString" to true,
+                                "param" to "slugField",
+                                "varName" to "slugProperty",
+                            ),
+                        ),
+                        "fieldParams" to listOf(
+                            mapOf("param" to "tenantIdField", "default" to "tenantId"),
+                            mapOf("param" to "slugField", "default" to "slug"),
                         ),
                         "idType" to "Long",
                         "excludeIdParamName" to "excludeVideoPostId",
+                        "entityIdParam" to "videoPostIdField",
+                        "entityIdDefault" to "videoPostId",
+                        "entityIdVar" to "videoPostIdProperty",
                         "entityName" to "VideoPost",
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
@@ -1441,22 +1469,36 @@ class PebbleArtifactRendererTest {
         assertTrue(uniqueHandlerContent.contains("class UniqueVideoPostTenantIdSlugQryHandler"))
         assertTrue(uniqueHandlerContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
         assertTrue(uniqueHandlerContent.contains("import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostTenantIdSlugQry"))
+        assertTrue(uniqueHandlerContent.contains("import com.acme.demo.adapter.domain.repositories.VideoPostRepository"))
+        assertTrue(uniqueHandlerContent.contains("import com.acme.demo.domain._share.meta.video_post.SVideoPost"))
+        assertTrue(uniqueHandlerContent.contains("private val repository: VideoPostRepository"))
+        assertTrue(uniqueHandlerContent.contains("val exists = repository.exists("))
+        assertTrue(uniqueHandlerContent.contains("SVideoPost.specify"))
+        assertTrue(uniqueHandlerContent.contains("schema.tenantId eq request.tenantId"))
+        assertTrue(uniqueHandlerContent.contains("schema.slug eq request.slug"))
+        assertFalse(uniqueHandlerContent.contains("exists = false"))
         assertTrue(uniqueValidatorContent.contains("annotation class UniqueVideoPostTenantIdSlug"))
         assertTrue(uniqueValidatorContent.contains("import jakarta.validation.Constraint"))
         assertTrue(uniqueValidatorContent.contains("import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostTenantIdSlugQry"))
+        assertTrue(uniqueValidatorContent.contains("import com.only4.cap4k.ddd.core.Mediator"))
         assertTrue(
             uniqueValidatorContent.contains(
-                "class Validator : ConstraintValidator<UniqueVideoPostTenantIdSlug, UniqueVideoPostTenantIdSlugQry.Request>"
+                "class Validator : ConstraintValidator<UniqueVideoPostTenantIdSlug, Any>"
             )
         )
         assertTrue(
             uniqueValidatorContent.contains(
-                "override fun isValid(request: UniqueVideoPostTenantIdSlugQry.Request?, context: ConstraintValidatorContext): Boolean"
+                "override fun isValid(value: Any?, context: ConstraintValidatorContext): Boolean"
             )
         )
-        assertTrue(uniqueValidatorContent.contains("request.tenantId"))
-        assertTrue(uniqueValidatorContent.contains("request.slug"))
-        assertTrue(uniqueValidatorContent.contains("request.excludeVideoPostId"))
+        assertTrue(uniqueValidatorContent.contains("value::class.memberProperties.associateBy"))
+        assertTrue(uniqueValidatorContent.contains("Mediator.queries.send("))
+        assertTrue(uniqueValidatorContent.contains("return !result.exists"))
+        assertFalse(
+            uniqueValidatorContent.contains(
+                "ConstraintValidator<UniqueVideoPostTenantIdSlug, UniqueVideoPostTenantIdSlugQry.Request>"
+            )
+        )
     }
 
     @Test
@@ -4866,6 +4908,119 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
         assertTrue(content.contains("// override: renderer validator template"))
         assertTrue(content.contains("annotation class IssueToken"))
+    }
+
+    @Test
+    fun `unique templates render business validator and repository backed handler semantics`() {
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver("ddd-default", emptyList())
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "adapter",
+                    templateId = "aggregate/unique_query_handler.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/user_message/unique/UniqueUserMessageMessageKeyQryHandler.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.queries.user_message.unique",
+                        "typeName" to "UniqueUserMessageMessageKeyQryHandler",
+                        "queryTypeName" to "UniqueUserMessageMessageKeyQry",
+                        "queryTypeFqn" to "com.acme.demo.application.queries.user_message.unique.UniqueUserMessageMessageKeyQry",
+                        "repositoryTypeName" to "UserMessageRepository",
+                        "repositoryTypeFqn" to "com.acme.demo.adapter.domain.repositories.UserMessageRepository",
+                        "schemaTypeName" to "SUserMessage",
+                        "schemaTypeFqn" to "com.acme.demo.domain._share.meta.user_message.SUserMessage",
+                        "entityTypeName" to "UserMessage",
+                        "entityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.UserMessage",
+                        "whereProps" to listOf("messageKey"),
+                        "idPropName" to "id",
+                        "excludeIdParamName" to "excludeUserMessageId",
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "application",
+                    templateId = "aggregate/unique_validator.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/validators/user_message/unique/UniqueUserMessageMessageKey.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.validators.user_message.unique",
+                        "typeName" to "UniqueUserMessageMessageKey",
+                        "queryTypeName" to "UniqueUserMessageMessageKeyQry",
+                        "queryTypeFqn" to "com.acme.demo.application.queries.user_message.unique.UniqueUserMessageMessageKeyQry",
+                        "requestProps" to listOf(
+                            mapOf(
+                                "name" to "messageKey",
+                                "type" to "String",
+                                "isString" to true,
+                                "param" to "messageKeyField",
+                                "varName" to "messageKeyProperty",
+                            )
+                        ),
+                        "fieldParams" to listOf(
+                            mapOf(
+                                "param" to "messageKeyField",
+                                "default" to "messageKey",
+                            )
+                        ),
+                        "idType" to "Long",
+                        "excludeIdParamName" to "excludeUserMessageId",
+                        "entityIdParam" to "userMessageIdField",
+                        "entityIdDefault" to "userMessageId",
+                        "entityIdVar" to "userMessageIdProperty",
+                        "entityName" to "UserMessage",
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        )
+
+        val handlerContent = rendered.single {
+            it.outputPath.endsWith("UniqueUserMessageMessageKeyQryHandler.kt")
+        }.content
+        val validatorContent = rendered.single {
+            it.outputPath.endsWith("UniqueUserMessageMessageKey.kt")
+        }.content
+
+        assertTrue(validatorContent.contains("ConstraintValidator<UniqueUserMessageMessageKey, Any>"))
+        assertTrue(validatorContent.contains("value::class.memberProperties.associateBy"))
+        assertTrue(validatorContent.contains("Mediator.queries.send("))
+        assertTrue(validatorContent.contains("return !result.exists"))
+        assertFalse(
+            validatorContent.contains(
+                "ConstraintValidator<UniqueUserMessageMessageKey, UniqueUserMessageMessageKeyQry.Request>"
+            )
+        )
+        assertTrue(
+            validatorContent.contains(
+                "import com.acme.demo.application.queries.user_message.unique.UniqueUserMessageMessageKeyQry"
+            )
+        )
+        assertFalse(validatorContent.contains("message_key"))
+
+        assertTrue(handlerContent.contains("private val repository: UserMessageRepository"))
+        assertTrue(handlerContent.contains("val exists = repository.exists("))
+        assertTrue(handlerContent.contains("SUserMessage.specify"))
+        assertTrue(handlerContent.contains("schema.messageKey eq request.messageKey"))
+        assertTrue(
+            handlerContent.contains(
+                "import com.acme.demo.application.queries.user_message.unique.UniqueUserMessageMessageKeyQry"
+            )
+        )
+        assertTrue(handlerContent.contains("import com.acme.demo.adapter.domain.repositories.UserMessageRepository"))
+        assertTrue(handlerContent.contains("import com.acme.demo.domain._share.meta.user_message.SUserMessage"))
+        assertFalse(handlerContent.contains("exists = false"))
+        assertFalse(handlerContent.contains("message_key"))
     }
 }
 
