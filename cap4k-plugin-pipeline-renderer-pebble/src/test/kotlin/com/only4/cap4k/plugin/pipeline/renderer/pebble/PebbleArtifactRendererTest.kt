@@ -13,6 +13,50 @@ import org.junit.jupiter.api.assertThrows
 class PebbleArtifactRendererTest {
 
     @Test
+    fun `aggregate wrapper template does not emit trailing whitespace when comment is blank`() {
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver("ddd-default", emptyList())
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/wrapper.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/AggOrder.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.aggregates.order",
+                        "typeName" to "AggOrder",
+                        "entityName" to "Order",
+                        "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
+                        "factoryTypeName" to "OrderFactory",
+                        "factoryTypeFqn" to "com.acme.demo.domain.aggregates.order.factory.OrderFactory",
+                        "idType" to "Long",
+                        "comment" to "",
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        )
+
+        val trailingWhitespaceLine = Regex("""(?m)[ \t]+$""")
+
+        assertFalse(
+            trailingWhitespaceLine.containsMatchIn(rendered.single().content),
+            "Generated Kotlin must not contain trailing whitespace.",
+        )
+    }
+
+    @Test
     fun `type helper reads renderedType from object and passes through string input`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-helper-type")
         val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))

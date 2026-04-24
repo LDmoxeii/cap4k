@@ -9,7 +9,7 @@ import {{ import }}
 
 /**
  * {{ entityName }} aggregate wrapper
- * {{ comment }}
+ *{% if comment %} {{ comment }}{% endif %}
  */
 class {{ typeName }}(
     payload: {{ factoryTypeName }}.Payload? = null,
