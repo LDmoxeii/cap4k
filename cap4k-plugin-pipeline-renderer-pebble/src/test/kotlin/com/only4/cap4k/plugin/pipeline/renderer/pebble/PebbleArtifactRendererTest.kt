@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.renderer.pebble
 import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.api.*
 import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.io.path.writeText
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -15,6 +16,25 @@ class PebbleArtifactRendererTest {
     private fun assertReadableKotlin(content: String) {
         assertFalse(Regex("""(?m)[ \t]+$""").containsMatchIn(content), "Generated Kotlin must not contain trailing whitespace.")
         assertFalse(Regex("""\n{3,}""").containsMatchIn(content), "Generated Kotlin must not contain three or more consecutive newlines.")
+    }
+
+    private fun assertMaintainableTemplateSource(templateId: String) {
+        val content = Files.readString(Path.of("src/main/resources/presets/ddd-default", templateId))
+        val compressedPatterns = listOf(
+            Regex("""(?m)^\s*\{%-?\s*endif\s*-?%}\{%-?\s*else\s*-?%}"""),
+            Regex("""(?m)^\s*\{%-?\s*endif\s*-?%}\{%-?\s*if"""),
+            Regex("""(?m)^\s*\{%-?\s*if [^%]+-?%}[ \t]*\S"""),
+            Regex("""(?m)^\s*\{%-?\s*else\s*-?%}[ \t]*\S"""),
+            Regex("""(?m)^\s*\{%-?\s*for [^%]+-?%}[ \t]*\S"""),
+            Regex("""(?m)^\s*\{%-?\s*endfor\s*-?%}[ \t]*\S"""),
+        )
+
+        compressedPatterns.forEach { pattern ->
+            assertFalse(
+                pattern.containsMatchIn(content),
+                "Template $templateId must keep Pebble control tags separate from Kotlin output.",
+            )
+        }
     }
 
     @Test
@@ -724,6 +744,14 @@ class PebbleArtifactRendererTest {
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver("ddd-default", emptyList())
         )
+        val templateIds = listOf(
+            "design/query.kt.peb",
+            "design/command.kt.peb",
+            "design/client.kt.peb",
+            "design/query_list.kt.peb",
+            "design/query_page.kt.peb",
+            "design/api_payload.kt.peb",
+        )
         val commonRequestFields = listOf(
             mapOf("name" to "messageKey", "renderedType" to "String", "nullable" to false),
         )
@@ -819,7 +847,13 @@ class PebbleArtifactRendererTest {
             )
         )
 
-        rendered.forEach { assertReadableKotlin(it.content) }
+        templateIds.forEach(::assertMaintainableTemplateSource)
+        rendered.forEach {
+            assertReadableKotlin(it.content)
+            assertFalse(Regex("""package .+import """).containsMatchIn(it.content))
+            assertFalse(Regex("""}\s*object """).containsMatchIn(it.content))
+            assertFalse(Regex("""\) : RequestParam<Response>[ \t]+data class Response""").containsMatchIn(it.content))
+        }
 
         val renderedByFile = rendered.associateBy { it.outputPath.substringAfterLast("/") }
         val queryContent = renderedByFile.getValue("FindUserMessageQry.kt").content
