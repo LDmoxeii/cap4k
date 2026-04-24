@@ -259,14 +259,6 @@ class {{ typeName }}(
     }
 
 {% endfor %}
-{%- if relationFields %}
-{% for relationField in relationFields %}
-    val {{ relationField.fieldName }}: Field<Any> by lazy {
-        Field(root.get("{{ relationField.fieldName }}"), criteriaBuilder)
-    }
-
-{% endfor %}
-{%- endif %}
     fun all(vararg restrictions: Predicate): Predicate {
         return criteriaBuilder.and(*restrictions)
     }

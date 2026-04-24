@@ -2,17 +2,21 @@ package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
 internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val adapterRoot = requireRelativeModule(config, "adapter")
-        val entityByName = model.entities
+        val entitiesByName = model.entities
             .groupBy { it.name }
-            .mapValues { (_, entities) -> entities.singleOrNull() }
 
         return model.repositories.map { repository ->
-            val entity = entityByName[repository.entityName]
+            val entity = requireUniqueRepositoryEntity(
+                repositoryName = repository.name,
+                entityName = repository.entityName,
+                entities = entitiesByName[repository.entityName].orEmpty(),
+            )
             ArtifactPlanItem(
                 generatorId = "aggregate",
                 moduleRole = "adapter",
@@ -30,6 +34,17 @@ internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 conflictPolicy = config.templates.conflictPolicy,
             )
         }
+    }
+
+    private fun requireUniqueRepositoryEntity(
+        repositoryName: String,
+        entityName: String,
+        entities: List<EntityModel>,
+    ): EntityModel {
+        if (entities.size != 1) {
+            error("repository $repositoryName requires exactly one entity named $entityName, but found ${entities.size}")
+        }
+        return entities.single()
     }
 
     private fun buildEntityFqn(packageName: String, entityName: String): String =

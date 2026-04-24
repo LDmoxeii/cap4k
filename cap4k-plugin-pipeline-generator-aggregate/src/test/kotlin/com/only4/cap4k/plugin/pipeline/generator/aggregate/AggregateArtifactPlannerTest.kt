@@ -118,6 +118,72 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `repository planner fails fast when repository entity is missing`() {
+        val ex = assertThrows(IllegalStateException::class.java) {
+            RepositoryArtifactPlanner().plan(
+                aggregateConfig(),
+                CanonicalModel(
+                    repositories = listOf(
+                        RepositoryModel(
+                            name = "UserMessageRepository",
+                            packageName = "com.acme.demo.adapter.domain.repositories",
+                            entityName = "UserMessage",
+                            idType = "Long",
+                        )
+                    ),
+                )
+            )
+        }
+
+        assertEquals(
+            "repository UserMessageRepository requires exactly one entity named UserMessage, but found 0",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `repository planner fails fast when repository entity is ambiguous`() {
+        val ex = assertThrows(IllegalStateException::class.java) {
+            RepositoryArtifactPlanner().plan(
+                aggregateConfig(),
+                CanonicalModel(
+                    entities = listOf(
+                        EntityModel(
+                            name = "UserMessage",
+                            packageName = "com.acme.demo.domain.aggregates.primary_user_message",
+                            tableName = "primary_user_message",
+                            comment = "primary user message",
+                            fields = listOf(FieldModel("id", "Long")),
+                            idField = FieldModel("id", "Long"),
+                        ),
+                        EntityModel(
+                            name = "UserMessage",
+                            packageName = "com.acme.demo.domain.aggregates.secondary_user_message",
+                            tableName = "secondary_user_message",
+                            comment = "secondary user message",
+                            fields = listOf(FieldModel("id", "Long")),
+                            idField = FieldModel("id", "Long"),
+                        ),
+                    ),
+                    repositories = listOf(
+                        RepositoryModel(
+                            name = "UserMessageRepository",
+                            packageName = "com.acme.demo.adapter.domain.repositories",
+                            entityName = "UserMessage",
+                            idType = "Long",
+                        )
+                    ),
+                )
+            )
+        }
+
+        assertEquals(
+            "repository UserMessageRepository requires exactly one entity named UserMessage, but found 2",
+            ex.message,
+        )
+    }
+
+    @Test
     fun `entity planner surfaces bounded aggregate JPA metadata`() {
         val plan = AggregateArtifactPlanner().plan(
             aggregateConfig(),
@@ -1621,7 +1687,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `schema is ambiguity-safe and factory plus specification planners use the current entity when names collide`() {
+    fun `schema planner fails fast when schema entity is ambiguous`() {
         val config = aggregateConfig()
         val primaryEntity = EntityModel(
             name = "VideoPost",
@@ -1657,8 +1723,46 @@ class AggregateArtifactPlannerTest {
             repositories = emptyList(),
         )
 
+        val ex = assertThrows(IllegalStateException::class.java) {
+            AggregateArtifactPlanner().plan(config, model)
+        }
+
+        assertEquals(
+            "schema SVideoPost requires exactly one entity named VideoPost, but found 2",
+            ex.message,
+        )
+    }
+
+    @Test
+    fun `factory specification and wrapper planners use the current entity when names collide`() {
+        val config = aggregateConfig()
+        val primaryEntity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.primary_video_post",
+            tableName = "primary_video_post",
+            comment = "Primary video post entity",
+            fields = listOf(FieldModel("id", "Long")),
+            idField = FieldModel("id", "Long"),
+        )
+        val secondaryEntity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.secondary_video_post",
+            tableName = "secondary_video_post",
+            comment = "Secondary video post entity",
+            fields = listOf(FieldModel("id", "Long")),
+            idField = FieldModel("id", "Long"),
+        )
+        val model = CanonicalModel(
+            schemas = emptyList(),
+            entities = listOf(primaryEntity, secondaryEntity),
+            aggregateEntityJpa = listOf(
+                defaultAggregateEntityJpa(primaryEntity),
+                defaultAggregateEntityJpa(secondaryEntity),
+            ),
+            repositories = emptyList(),
+        )
+
         val planItems = AggregateArtifactPlanner().plan(config, model)
-        val schemaContext = planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context
         val primaryFactoryContext = planItems.first {
             it.templateId == "aggregate/factory.kt.peb" &&
                 it.context["packageName"] == "com.acme.demo.domain.aggregates.primary_video_post.factory"
@@ -1681,11 +1785,9 @@ class AggregateArtifactPlannerTest {
         }.context
         val secondaryWrapperContext = planItems.first {
             it.templateId == "aggregate/wrapper.kt.peb" &&
-                it.context["packageName"] == "com.acme.demo.domain.aggregates.secondary_video_post"
+            it.context["packageName"] == "com.acme.demo.domain.aggregates.secondary_video_post"
         }.context
 
-        assertEquals("", schemaContext["entityTypeFqn"])
-        assertEquals("", schemaContext["qEntityTypeFqn"])
         assertEquals(
             "com.acme.demo.domain.aggregates.primary_video_post.VideoPost",
             primaryFactoryContext["entityTypeFqn"],
@@ -1721,7 +1823,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `leaves derived schema type references blank when schema entity is missing`() {
+    fun `schema planner fails fast when schema entity is missing`() {
         val config = aggregateConfig()
         val model = CanonicalModel(
             schemas = listOf(
@@ -1737,11 +1839,14 @@ class AggregateArtifactPlannerTest {
             repositories = emptyList(),
         )
 
-        val planItems = AggregateArtifactPlanner().plan(config, model)
-        val schemaContext = planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context
+        val ex = assertThrows(IllegalStateException::class.java) {
+            AggregateArtifactPlanner().plan(config, model)
+        }
 
-        assertEquals("", schemaContext["entityTypeFqn"])
-        assertEquals("", schemaContext["qEntityTypeFqn"])
+        assertEquals(
+            "schema SUnknown requires exactly one entity named Unknown, but found 0",
+            ex.message,
+        )
     }
 
     @Test

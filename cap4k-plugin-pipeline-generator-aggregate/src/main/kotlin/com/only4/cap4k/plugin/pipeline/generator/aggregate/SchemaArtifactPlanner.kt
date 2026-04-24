@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
@@ -11,18 +12,17 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
         val domainRoot = requireRelativeModule(config, "domain")
         val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
         val planning = AggregateEnumPlanning.from(model, config.basePackage, config.typeRegistry)
-        val entityByName = model.entities
+        val entitiesByName = model.entities
             .groupBy { it.name }
-            .mapValues { (_, entities) -> entities.singleOrNull() }
 
         return model.schemas.map { schema ->
-            val entity = entityByName[schema.entityName]
-            val entityTypeFqn = derivedTypeReferences.entityFqn(schema.entityName) ?: ""
-            val qEntityTypeFqn = derivedTypeReferences.qEntityFqn(schema.entityName) ?: ""
-            val aggregateTypeFqn = entity?.let { buildAggregateWrapperFqn(it.packageName, it.name) } ?: ""
-            val ownerPackage = entity?.packageName
+            val entity = requireUniqueSchemaEntity(schema.name, schema.entityName, entitiesByName[schema.entityName].orEmpty())
+            val entityTypeFqn = derivedTypeReferences.entityFqn(entity)
+            val qEntityTypeFqn = requireNotNull(derivedTypeReferences.qEntityFqn(schema.entityName))
+            val aggregateTypeFqn = buildAggregateWrapperFqn(entity.packageName, entity.name)
+            val ownerPackage = entity.packageName
             val fields = schema.fields.map { field ->
-                val fieldType = planning.resolveFieldType(ownerPackage ?: schema.packageName, field)
+                val fieldType = planning.resolveFieldType(ownerPackage, field)
                 mapOf(
                     "name" to field.name,
                     "fieldName" to field.name,
@@ -59,6 +59,17 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                 conflictPolicy = config.templates.conflictPolicy,
             )
         }
+    }
+
+    private fun requireUniqueSchemaEntity(
+        schemaName: String,
+        entityName: String,
+        entities: List<EntityModel>,
+    ): EntityModel {
+        if (entities.size != 1) {
+            error("schema $schemaName requires exactly one entity named $entityName, but found ${entities.size}")
+        }
+        return entities.single()
     }
 
     private fun buildAggregateWrapperFqn(packageName: String, entityName: String): String =

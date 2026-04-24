@@ -117,6 +117,12 @@ class PebbleArtifactRendererTest {
                                 "comment" to "message key",
                             )
                         ),
+                        "relationFields" to listOf(
+                            mapOf(
+                                "name" to "sender",
+                                "targetTypeRef" to "UserProfile",
+                            )
+                        ),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
@@ -145,11 +151,15 @@ class PebbleArtifactRendererTest {
         assertTrue(repositoryContent.contains("AbstractJpaRepository<UserMessage, Long>"))
         assertTrue(schemaBaseContent.contains("fun interface SchemaSpecification<E, S>"))
         assertTrue(schemaBaseContent.contains("class Field<T>"))
+        assertTrue(schemaContent.contains("import com.acme.demo.domain.aggregates.user_message.UserMessage"))
+        assertTrue(schemaContent.contains("import com.acme.demo.domain.aggregates.user_message.AggUserMessage"))
+        assertFalse(schemaContent.contains("import {{"))
         assertTrue(schemaContent.contains("class SUserMessage("))
         assertTrue(schemaContent.contains("fun specify(builder: PredicateBuilder<SUserMessage>): Specification<UserMessage>"))
         assertTrue(schemaContent.contains("fun predicateById(id: Any): AggregatePredicate<AggUserMessage, UserMessage>"))
         assertTrue(schemaContent.contains("val messageKey: Field<String>"))
         assertFalse(schemaContent.contains("val message_key"))
+        assertFalse(schemaContent.contains("Field<Any>"))
     }
 
     @Test

@@ -10,9 +10,10 @@ import org.junit.jupiter.api.Test
 
 class DefaultKotlinTemplateImportContractTest {
     private val presetRoot: Path = Path.of("src/main/resources/presets/ddd-default")
-    private val noImportTemplates = setOf(
+    private val aggregateHelperImportTemplates = setOf(
         "aggregate/repository.kt.peb",
-        "aggregate/schema.kt.peb"
+        "aggregate/schema.kt.peb",
+        "aggregate/schema_base.kt.peb",
     )
 
     @Test
@@ -37,14 +38,13 @@ class DefaultKotlinTemplateImportContractTest {
             val directImportCount = Regex("(?m)^import\\s+(?!\\{\\{\\s*\\w+\\s*\\}\\})")
                 .findAll(templateContent)
                 .count()
+            val bareFixedImportCount = Regex("""(?m)^\s*import\s+(?!\{\{\s*\w+\s*\}\})[A-Za-z_]""")
+                .findAll(templateContent)
+                .count()
 
             assertEquals(0, importsJpaImportsCount, "$templatePath must not use imports(jpaImports)")
             assertEquals(0, directImportCount, "$templatePath must not contain direct import lines")
-
-            if (templatePath in noImportTemplates) {
-                assertEquals(0, importsImportsCount, "$templatePath should not emit imports(imports)")
-                continue
-            }
+            assertEquals(0, bareFixedImportCount, "$templatePath must not contain bare fixed import lines")
 
             assertEquals(1, importsImportsCount, "$templatePath must contain exactly one imports(imports) helper usage")
             assertTrue(
@@ -52,6 +52,12 @@ class DefaultKotlinTemplateImportContractTest {
                     .containsMatchIn(templateContent),
                 "$templatePath must emit final import lines through imports(imports)"
             )
+            if (templatePath in aggregateHelperImportTemplates) {
+                assertTrue(
+                    Regex("""\{\{\s*use\(""").containsMatchIn(templateContent),
+                    "$templatePath must declare helper imports through use(...)"
+                )
+            }
             assertFalse(
                 templateContent.contains("imports(list)"),
                 "$templatePath should not document legacy imports(list) helper usage"
