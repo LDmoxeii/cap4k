@@ -72,6 +72,28 @@ class DesignCommandArtifactPlannerTest {
     }
 
     @Test
+    fun `uses sibling query names for unresolved type diagnostics`() {
+        val planner = DesignCommandArtifactPlanner()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("application" to "demo-application")),
+                model = CanonicalModel(
+                    commands = listOf(
+                        commandModel(
+                            typeName = "CreateOrderCmd",
+                            requestFields = listOf(FieldModel("other", "FindOrderQry")),
+                        ),
+                    ),
+                    queries = listOf(queryModel(packageName = "order.submit", typeName = "FindOrderQry")),
+                ),
+            )
+        }
+
+        assertTrue(error.message.orEmpty().contains("sibling design-entry references are not supported"))
+    }
+
+    @Test
     fun `fails when application module is missing`() {
         val planner = DesignCommandArtifactPlanner()
 
@@ -97,9 +119,12 @@ class DesignCommandArtifactPlannerTest {
         variant = CommandVariant.DEFAULT,
     )
 
-    private fun queryModel() = QueryModel(
-        packageName = "order.read",
-        typeName = "FindOrderQry",
+    private fun queryModel(
+        packageName: String = "order.read",
+        typeName: String = "FindOrderQry",
+    ) = QueryModel(
+        packageName = packageName,
+        typeName = typeName,
         description = "find order",
         aggregateRef = AggregateRef("Order", "com.acme.demo.domain.aggregates.order"),
         variant = QueryVariant.DEFAULT,

@@ -118,7 +118,10 @@ open class IrAnalysisSourceExtension @Inject constructor(objects: ObjectFactory)
 }
 
 open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) {
-    val design: DesignGeneratorExtension = objects.newInstance(DesignGeneratorExtension::class.java)
+    val designCommand: DesignCommandGeneratorExtension =
+        objects.newInstance(DesignCommandGeneratorExtension::class.java)
+    val designQuery: DesignQueryGeneratorExtension =
+        objects.newInstance(DesignQueryGeneratorExtension::class.java)
     val designQueryHandler: DesignQueryHandlerGeneratorExtension =
         objects.newInstance(DesignQueryHandlerGeneratorExtension::class.java)
     val designClient: DesignClientGeneratorExtension =
@@ -137,8 +140,12 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
     val drawingBoard: DrawingBoardGeneratorExtension = objects.newInstance(DrawingBoardGeneratorExtension::class.java)
     val flow: FlowGeneratorExtension = objects.newInstance(FlowGeneratorExtension::class.java)
 
-    fun design(block: DesignGeneratorExtension.() -> Unit) {
-        design.block()
+    fun designCommand(block: DesignCommandGeneratorExtension.() -> Unit) {
+        designCommand.block()
+    }
+
+    fun designQuery(block: DesignQueryGeneratorExtension.() -> Unit) {
+        designQuery.block()
     }
 
     fun designQueryHandler(block: DesignQueryHandlerGeneratorExtension.() -> Unit) {
@@ -182,7 +189,11 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
     }
 }
 
-open class DesignGeneratorExtension @Inject constructor(objects: ObjectFactory) {
+open class DesignCommandGeneratorExtension @Inject constructor(objects: ObjectFactory) {
+    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+}
+
+open class DesignQueryGeneratorExtension @Inject constructor(objects: ObjectFactory) {
     val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }
 

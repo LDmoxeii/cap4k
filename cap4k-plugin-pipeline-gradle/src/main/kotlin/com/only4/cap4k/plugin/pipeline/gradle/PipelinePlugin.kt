@@ -15,12 +15,13 @@ import com.only4.cap4k.plugin.pipeline.core.FilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.NoopArtifactExporter
 import com.only4.cap4k.plugin.pipeline.bootstrap.DddMultiModuleBootstrapPresetProvider
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateArtifactPlanner
-import com.only4.cap4k.plugin.pipeline.generator.design.DesignArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignApiPayloadArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignClientArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignClientHandlerArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignCommandArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainEventArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainEventHandlerArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryHandlerArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignValidatorArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.drawingboard.DrawingBoardArtifactPlanner
@@ -111,7 +112,8 @@ private const val JAKARTA_PERSISTENCE_NAME = "jakarta.persistence-api"
 private const val JAKARTA_PERSISTENCE_COORDINATE = "$JAKARTA_PERSISTENCE_GROUP:$JAKARTA_PERSISTENCE_NAME:3.1.0"
 private val SOURCE_TASK_SOURCE_IDS = setOf("db", "enum-manifest", "design-json", "ksp-metadata")
 private val SOURCE_TASK_GENERATOR_IDS = setOf(
-    "design",
+    "design-command",
+    "design-query",
     "design-query-handler",
     "design-client",
     "design-client-handler",
@@ -133,7 +135,8 @@ private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf
 ).any { it.orNull == true }
 
 private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean = listOf(
-    extension.generators.design.enabled,
+    extension.generators.designCommand.enabled,
+    extension.generators.designQuery.enabled,
     extension.generators.designQueryHandler.enabled,
     extension.generators.designClient.enabled,
     extension.generators.designClientHandler.enabled,
@@ -185,7 +188,9 @@ internal fun inferSourceDependencies(project: Project, config: ProjectConfig): L
     val allProjects = project.rootProject.allprojects
 
     val enabledGenerators = config.enabledGeneratorIds()
-    val shouldDependOnKsp = enabledGenerators.any { it == "design" || it == "design-domain-event" } &&
+    val shouldDependOnKsp = enabledGenerators.any {
+        it == "design-command" || it == "design-query" || it == "design-domain-event"
+    } &&
         config.enabledSourceIds().contains("ksp-metadata")
     if (shouldDependOnKsp) {
         val kspInputDir = config.sources["ksp-metadata"]
@@ -284,7 +289,8 @@ internal fun buildSourceRunner(project: Project, config: ProjectConfig, exportEn
             KspMetadataSourceProvider(),
         ),
         generators = listOf(
-            DesignArtifactPlanner(),
+            DesignCommandArtifactPlanner(),
+            DesignQueryArtifactPlanner(),
             DesignQueryHandlerArtifactPlanner(),
             DesignClientArtifactPlanner(),
             DesignClientHandlerArtifactPlanner(),

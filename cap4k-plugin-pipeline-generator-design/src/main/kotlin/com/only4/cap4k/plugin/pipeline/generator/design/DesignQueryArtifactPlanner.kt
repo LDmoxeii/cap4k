@@ -12,14 +12,11 @@ class DesignQueryArtifactPlanner : GeneratorProvider {
         val applicationRoot = requireRelativeModuleRoot(config, "application")
         val basePath = config.basePackage.replace(".", "/")
 
-        return model.queries.mapIndexed { index, query ->
-            val siblingTypeNames = model.queries
-                .asSequence()
-                .filterIndexed { siblingIndex, sibling ->
-                    siblingIndex != index && sibling.packageName == query.packageName
-                }
-                .map { it.typeName }
-                .toSet()
+        return model.queries.map { query ->
+            val siblingTypeNames = model.designInteractionSiblingTypeNames(
+                packageName = query.packageName,
+                currentTypeName = query.typeName,
+            )
             val packagePath = query.packageName.replace(".", "/")
 
             ArtifactPlanItem(

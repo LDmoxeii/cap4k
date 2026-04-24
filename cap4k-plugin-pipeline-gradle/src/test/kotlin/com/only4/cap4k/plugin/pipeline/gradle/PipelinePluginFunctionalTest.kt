@@ -232,12 +232,12 @@ class PipelinePluginFunctionalTest {
         buildFile.writeText(
             buildFileContent.replace(
                 """
-                |        design {
+                |        designQuery {
                 |            enabled.set(true)
                 |        }
                 """.trimMargin(),
                 """
-                |        design {
+                |        designQuery {
                 |            enabled.set(true)
                 |        }
                 |        templates {
@@ -306,12 +306,12 @@ class PipelinePluginFunctionalTest {
         buildFile.writeText(
             buildFileContent.replace(
                 """
-                |        design {
+                |        designQuery {
                 |            enabled.set(true)
                 |        }
                 """.trimMargin(),
                 """
-                |        design {
+                |        designQuery {
                 |            enabled.set(true)
                 |        }
                 |        templates {
@@ -396,12 +396,12 @@ class PipelinePluginFunctionalTest {
                 .replace("\r\n", "\n")
                 .replace(
                     """
-                    |        design {
+                    |        designQuery {
                     |            enabled.set(true)
                     |        }
                     """.trimMargin(),
                     """
-                    |        design {
+                    |        designQuery {
                     |            enabled.set(true)
                     |        }
                     |        designQueryHandler {
@@ -445,12 +445,12 @@ class PipelinePluginFunctionalTest {
                 .replace("\r\n", "\n")
                 .replace(
                     """
-                    |        design {
+                    |        designQuery {
                     |            enabled.set(true)
                     |        }
                     """.trimMargin(),
                     """
-                    |        design {
+                    |        designQuery {
                     |            enabled.set(true)
                     |        }
                     |        designQueryHandler {
@@ -546,7 +546,10 @@ class PipelinePluginFunctionalTest {
             buildFileContent.replace(
                 """
                 |    generators {
-                |        design {
+                |        designCommand {
+                |            enabled.set(true)
+                |        }
+                |        designQuery {
                 |            enabled.set(true)
                 |        }
                 |        designClient {
@@ -559,7 +562,10 @@ class PipelinePluginFunctionalTest {
                 """.trimMargin(),
                 """
                 |    generators {
-                |        design {
+                |        designCommand {
+                |            enabled.set(true)
+                |        }
+                |        designQuery {
                 |            enabled.set(true)
                 |        }
                 |        designClient {
@@ -618,12 +624,12 @@ class PipelinePluginFunctionalTest {
                 .replace("        adapterModulePath.set(\"demo-adapter\")", "        adapterModulePath.set(\"\")")
                 .replace(
                     """
-                    |        design {
+                    |        designQuery {
                     |            enabled.set(true)
                     |        }
                     """.trimMargin(),
                     """
-                    |        design {
+                    |        designQuery {
                     |            enabled.set(true)
                     |        }
                     |        designQueryHandler {
@@ -645,7 +651,7 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kPlan fails fast when design query handler is enabled without design`() {
+    fun `cap4kPlan fails fast when design query handler is enabled without design query`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-query-handler-without-design")
         copyFixture(projectDir, "design-sample")
 
@@ -655,12 +661,12 @@ class PipelinePluginFunctionalTest {
             buildFileContent
                 .replace(
                     """
-                    |        design {
+                    |        designQuery {
                     |            enabled.set(true)
                     |        }
                     """.trimMargin(),
                     """
-                    |        design {
+                    |        designQuery {
                     |            enabled.set(false)
                     |        }
                     |        designQueryHandler {
@@ -676,7 +682,7 @@ class PipelinePluginFunctionalTest {
             .withArguments("cap4kPlan")
             .buildAndFail()
 
-        assertTrue(result.output.contains("designQueryHandler generator requires enabled design generator."))
+        assertTrue(result.output.contains("designQueryHandler generator requires enabled designQuery generator."))
         assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
     }
 
@@ -761,7 +767,10 @@ class PipelinePluginFunctionalTest {
             buildFileContent.replace(
                 """
                 |    generators {
-                |        design {
+                |        designCommand {
+                |            enabled.set(true)
+                |        }
+                |        designQuery {
                 |            enabled.set(true)
                 |        }
                 |        designClient {
@@ -774,7 +783,10 @@ class PipelinePluginFunctionalTest {
                 """.trimMargin(),
                 """
                 |    generators {
-                |        design {
+                |        designCommand {
+                |            enabled.set(true)
+                |        }
+                |        designQuery {
                 |            enabled.set(true)
                 |        }
                 |        designClient {
@@ -823,12 +835,18 @@ class PipelinePluginFunctionalTest {
                 "        applicationModulePath.set(\"\")",
             ).replace(
                 """
-                |        design {
+                |        designCommand {
+                |            enabled.set(true)
+                |        }
+                |        designQuery {
                 |            enabled.set(true)
                 |        }
                 """.trimMargin(),
                 """
-                |        design {
+                |        designCommand {
+                |            enabled.set(false)
+                |        }
+                |        designQuery {
                 |            enabled.set(false)
                 |        }
                 """.trimMargin()

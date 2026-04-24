@@ -2,13 +2,13 @@ package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.CommandModel
+import com.only4.cap4k.plugin.pipeline.api.CommandVariant
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
-import com.only4.cap4k.plugin.pipeline.api.RequestKind
-import com.only4.cap4k.plugin.pipeline.api.RequestModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.ValidatorModel
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -97,12 +97,12 @@ class DesignApiPayloadArtifactPlannerTest {
         val items = planner.plan(
             config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
             model = CanonicalModel(
-                requests = listOf(
-                    RequestModel(
-                        kind = RequestKind.COMMAND,
+                commands = listOf(
+                    CommandModel(
                         packageName = "order.submit",
                         typeName = "SubmitOrderCmd",
                         description = "submit order",
+                        variant = CommandVariant.DEFAULT,
                     ),
                 ),
                 validators = listOf(

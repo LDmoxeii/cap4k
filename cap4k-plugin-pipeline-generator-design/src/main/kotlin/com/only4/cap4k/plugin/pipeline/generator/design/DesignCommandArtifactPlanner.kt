@@ -12,14 +12,11 @@ class DesignCommandArtifactPlanner : GeneratorProvider {
         val applicationRoot = requireRelativeModuleRoot(config, "application")
         val basePath = config.basePackage.replace(".", "/")
 
-        return model.commands.mapIndexed { index, command ->
-            val siblingTypeNames = model.commands
-                .asSequence()
-                .filterIndexed { siblingIndex, sibling ->
-                    siblingIndex != index && sibling.packageName == command.packageName
-                }
-                .map { it.typeName }
-                .toSet()
+        return model.commands.map { command ->
+            val siblingTypeNames = model.designInteractionSiblingTypeNames(
+                packageName = command.packageName,
+                currentTypeName = command.typeName,
+            )
             val packagePath = command.packageName.replace(".", "/")
 
             ArtifactPlanItem(

@@ -54,14 +54,14 @@ class DefaultPipelineRunnerTest {
 
         val expectedPlanItems = listOf(
             ArtifactPlanItem(
-                generatorId = "design",
+                generatorId = "design-command",
                 moduleRole = "app",
                 templateId = "template-overwrite",
                 outputPath = "generated/Request.kt",
                 conflictPolicy = ConflictPolicy.OVERWRITE,
             ),
             ArtifactPlanItem(
-                generatorId = "design",
+                generatorId = "design-command",
                 moduleRole = "app",
                 templateId = "template-skip",
                 outputPath = "generated/Skipped.kt",
@@ -70,7 +70,7 @@ class DefaultPipelineRunnerTest {
         )
 
         val enabledGeneratorProvider = object : GeneratorProvider {
-            override val id: String = "design"
+            override val id: String = "design-command"
 
             override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
                 callOrder += "plan"
@@ -134,7 +134,7 @@ class DefaultPipelineRunnerTest {
                     "disabled-source" to SourceConfig(enabled = false),
                 ),
                 generators = mapOf(
-                    "design" to GeneratorConfig(enabled = true),
+                    "design-command" to GeneratorConfig(enabled = true),
                     "disabled-generator" to GeneratorConfig(enabled = false),
                 ),
                 templates = TemplateConfig(
@@ -327,7 +327,7 @@ class DefaultPipelineRunnerTest {
         }
 
         val generatorProvider = object : GeneratorProvider {
-            override val id: String = "design"
+            override val id: String = "design-command"
 
             override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
                 return listOf(
@@ -366,7 +366,7 @@ class DefaultPipelineRunnerTest {
             layout = ProjectLayout.SINGLE_MODULE,
             modules = mapOf("app" to "sample-app"),
             sources = mapOf("design-json" to SourceConfig(enabled = true)),
-            generators = mapOf("design" to GeneratorConfig(enabled = true)),
+            generators = mapOf("design-command" to GeneratorConfig(enabled = true)),
             templates = TemplateConfig(
                 preset = "default",
                 overrideDirs = emptyList(),

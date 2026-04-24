@@ -34,7 +34,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -86,7 +86,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -143,7 +143,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -203,7 +203,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -247,7 +247,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design",
+                        generatorId = "design-command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -294,7 +294,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design",
+                        generatorId = "design-command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -341,7 +341,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design",
+                        generatorId = "design-command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -394,7 +394,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -444,7 +444,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -487,7 +487,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/command.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
@@ -577,7 +577,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/command.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
@@ -647,7 +647,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -715,7 +715,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -781,7 +781,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query_list.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderListQry.kt",
@@ -804,7 +804,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query_page.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderPageQry.kt",
@@ -875,7 +875,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query_list.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderListQry.kt",
@@ -891,7 +891,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query_page.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderPageQry.kt",
@@ -969,7 +969,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt",
@@ -2659,7 +2659,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = outputPath,
@@ -2806,7 +2806,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -2855,7 +2855,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -2907,7 +2907,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/first.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/First.kt",
@@ -2915,7 +2915,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/second.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/Second.kt",
@@ -3258,7 +3258,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -3307,7 +3307,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -3361,7 +3361,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design",
+                    generatorId = "design-command",
                     moduleRole = "application",
                     templateId = "design/command.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/SubmitOrderCmd.kt",
@@ -3424,7 +3424,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design",
+                        generatorId = "design-command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -3471,7 +3471,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design",
+                        generatorId = "design-command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -3518,7 +3518,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design",
+                        generatorId = "design-command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -3565,7 +3565,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design",
+                        generatorId = "design-command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -3612,7 +3612,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design",
+                        generatorId = "design-command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -3664,7 +3664,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design",
+                        generatorId = "design-command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -3719,7 +3719,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design",
+                        generatorId = "design-command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",

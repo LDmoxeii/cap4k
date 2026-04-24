@@ -14,7 +14,10 @@ cap4k {
         }
     }
     generators {
-        design {
+        designCommand {
+            enabled.set(true)
+        }
+        designQuery {
             enabled.set(true)
         }
     }

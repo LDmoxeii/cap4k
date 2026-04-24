@@ -19,7 +19,8 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.sources.kspMetadata.enabled.get())
         assertFalse(extension.sources.db.enabled.get())
         assertFalse(extension.sources.irAnalysis.enabled.get())
-        assertFalse(extension.generators.design.enabled.get())
+        assertFalse(extension.generators.designCommand.enabled.get())
+        assertFalse(extension.generators.designQuery.enabled.get())
         assertFalse(extension.generators.designQueryHandler.enabled.get())
         assertFalse(extension.generators.designClient.enabled.get())
         assertFalse(extension.generators.designClientHandler.enabled.get())
@@ -477,7 +478,8 @@ class Cap4kProjectConfigFactoryTest {
             }
         }
         extension.generators {
-            design { enabled.set(true) }
+            designCommand { enabled.set(true) }
+            designQuery { enabled.set(true) }
             designQueryHandler { enabled.set(true) }
         }
 
@@ -490,7 +492,7 @@ class Cap4kProjectConfigFactoryTest {
             ),
             config.modules,
         )
-        assertEquals(setOf("design", "design-query-handler"), config.enabledGeneratorIds())
+        assertEquals(setOf("design-command", "design-query", "design-query-handler"), config.enabledGeneratorIds())
     }
 
     @Test
@@ -509,7 +511,7 @@ class Cap4kProjectConfigFactoryTest {
             }
         }
         extension.generators {
-            design { enabled.set(true) }
+            designQuery { enabled.set(true) }
             designQueryHandler { enabled.set(true) }
         }
 
@@ -521,7 +523,7 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `design query handler generator requires enabled design generator`() {
+    fun `design query handler generator requires enabled design query generator`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
@@ -543,7 +545,7 @@ class Cap4kProjectConfigFactoryTest {
             Cap4kProjectConfigFactory().build(project, extension)
         }
 
-        assertEquals("designQueryHandler generator requires enabled design generator.", error.message)
+        assertEquals("designQueryHandler generator requires enabled designQuery generator.", error.message)
     }
 
     @Test
@@ -568,7 +570,7 @@ class Cap4kProjectConfigFactoryTest {
             }
         }
         extension.generators {
-            design { enabled.set(true) }
+            designCommand { enabled.set(true) }
             aggregate { enabled.set(false) }
         }
         extension.templates {
@@ -581,7 +583,7 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals("com.acme.demo", config.basePackage)
         assertEquals(mapOf("application" to "demo-application"), config.modules)
         assertEquals(setOf("design-json"), config.enabledSourceIds())
-        assertEquals(setOf("design"), config.enabledGeneratorIds())
+        assertEquals(setOf("design-command"), config.enabledGeneratorIds())
         assertEquals("ddd-default", config.templates.preset)
         assertEquals(ConflictPolicy.SKIP, config.templates.conflictPolicy)
         assertEquals(
@@ -1109,7 +1111,8 @@ class Cap4kProjectConfigFactoryTest {
             irAnalysis { enabled.set(false) }
         }
         extension.generators {
-            design { enabled.set(false) }
+            designCommand { enabled.set(false) }
+            designQuery { enabled.set(false) }
             aggregate { enabled.set(false) }
             flow { enabled.set(false) }
             drawingBoard { enabled.set(false) }
@@ -1135,7 +1138,7 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `design generator requires application module path`() {
+    fun `design command generator requires application module path`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
@@ -1149,14 +1152,14 @@ class Cap4kProjectConfigFactoryTest {
             }
         }
         extension.generators {
-            design { enabled.set(true) }
+            designCommand { enabled.set(true) }
         }
 
         val error = assertThrows(IllegalArgumentException::class.java) {
             Cap4kProjectConfigFactory().build(project, extension)
         }
 
-        assertEquals("project.applicationModulePath is required when design is enabled.", error.message)
+        assertEquals("project.applicationModulePath is required when designCommand is enabled.", error.message)
     }
 
     @Test
@@ -1269,7 +1272,7 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `design generator requires enabled design json source`() {
+    fun `design command generator requires enabled design json source`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
@@ -1278,14 +1281,14 @@ class Cap4kProjectConfigFactoryTest {
             applicationModulePath.set("demo-application")
         }
         extension.generators {
-            design { enabled.set(true) }
+            designCommand { enabled.set(true) }
         }
 
         val error = assertThrows(IllegalArgumentException::class.java) {
             Cap4kProjectConfigFactory().build(project, extension)
         }
 
-        assertEquals("design generator requires enabled designJson source.", error.message)
+        assertEquals("designCommand generator requires enabled designJson source.", error.message)
     }
 
     @Test

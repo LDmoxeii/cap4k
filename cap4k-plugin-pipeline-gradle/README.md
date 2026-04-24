@@ -89,9 +89,9 @@
                     ▼ CanonicalModel
 ┌──────────────────────────────────────────────────────────────────────┐
 │                    GeneratorProvider[].plan()                        │
-│  - design / design-query-handler / design-client / design-client-    │
-│    handler / design-validator / design-api-payload / design-domain-  │
-│    event / design-domain-event-handler                               │
+│  - design-command / design-query / design-query-handler / design-    │
+│    client / design-client-handler / design-validator / design-api-   │
+│    payload / design-domain-event / design-domain-event-handler       │
 │  - aggregate (内部委派 12 个 family planner)                         │
 │  - flow / drawing-board                                              │
 └──────────────────────────────────────────────────────────────────────┘
@@ -179,7 +179,7 @@ interface BootstrapRenderer {
 | `cap4k-plugin-pipeline-source-ksp-metadata` | 读取 KSP 聚合元数据 | `KspMetadataSourceProvider` |
 | `cap4k-plugin-pipeline-source-ir-analysis` | 读取 IR 节点/边/设计元素 | `IrAnalysisSourceProvider` |
 | `cap4k-plugin-pipeline-source-enum-manifest` | 读取共享枚举清单 | `EnumManifestSourceProvider` |
-| `cap4k-plugin-pipeline-generator-design` | 设计族（command/query/client/validator/api_payload/domain_event/...） | `DesignArtifactPlanner`, `DesignQueryHandlerArtifactPlanner`, `DesignClientArtifactPlanner`, `DesignClientHandlerArtifactPlanner`, `DesignValidatorArtifactPlanner`, `DesignApiPayloadArtifactPlanner`, `DesignDomainEventArtifactPlanner`, `DesignDomainEventHandlerArtifactPlanner` |
+| `cap4k-plugin-pipeline-generator-design` | 设计族（command/query/client/validator/api_payload/domain_event/...） | `DesignCommandArtifactPlanner`, `DesignQueryArtifactPlanner`, `DesignQueryHandlerArtifactPlanner`, `DesignClientArtifactPlanner`, `DesignClientHandlerArtifactPlanner`, `DesignValidatorArtifactPlanner`, `DesignApiPayloadArtifactPlanner`, `DesignDomainEventArtifactPlanner`, `DesignDomainEventHandlerArtifactPlanner` |
 | `cap4k-plugin-pipeline-generator-aggregate` | 聚合族（entity/schema/repository/factory/specification/wrapper/enum/...） | `AggregateArtifactPlanner` 及 12 个 family planner |
 | `cap4k-plugin-pipeline-generator-flow` | 流图导出 | `FlowArtifactPlanner` |
 | `cap4k-plugin-pipeline-generator-drawing-board` | 画板文档 | `DrawingBoardArtifactPlanner` |
@@ -229,7 +229,8 @@ cap4k {
         }
     }
     generators {
-        design { enabled = true }
+        designCommand { enabled = true }
+        designQuery { enabled = true }
         designDomainEvent { enabled = true }
         designDomainEventHandler { enabled = true }
     }
@@ -287,11 +288,11 @@ cat build/cap4k/plan.json
 
 **支持的 `tag`**（大小写不敏感）：
 
-| tag | 家族 | 映射 Kind |
+| tag | Generator | Canonical 模型 |
 |-----|------|----------|
-| `cmd`, `command` | design | COMMAND（类名 `{Name}Cmd`） |
-| `qry`, `query` | design | QUERY（类名 `{Name}Qry`） |
-| `cli`, `client`, `clients` | design-client | CLIENT（类名 `{Name}Cli`） |
+| `cmd`, `command` | design-command | `CommandModel`（类名 `{Name}Cmd`，当前 `CommandVariant.DEFAULT`） |
+| `qry`, `query` | design-query | `QueryModel`（类名 `{Name}Qry`，`QueryVariant.DEFAULT/LIST/PAGE`） |
+| `cli`, `client`, `clients` | design-client | `ClientModel`（类名 `{Name}Cli`） |
 | `validator` | design-validator | 类名 `{UpperCamel}`（规范化驼峰） |
 | `api_payload` | design-api-payload | 类名 `{UpperCamel}` |
 | `domain_event` | design-domain-event | 类名不以 `Evt`/`Event` 结尾时自动追加 `DomainEvent` |
@@ -319,7 +320,8 @@ cap4k {
 
 | 启用的 Generator | 必填字段 |
 |-------------------|---------|
-| `design` | `applicationModulePath` |
+| `designCommand` | `applicationModulePath` |
+| `designQuery` | `applicationModulePath` |
 | `designQueryHandler` | `adapterModulePath` |
 | `designClient` | `applicationModulePath` |
 | `designClientHandler` | `adapterModulePath` |
@@ -408,7 +410,8 @@ cap4k {
 ```kotlin
 cap4k {
     generators {
-        design { enabled = true }
+        designCommand { enabled = true }
+        designQuery { enabled = true }
         designQueryHandler { enabled = true }
         designClient { enabled = true }
         designClientHandler { enabled = true }
@@ -436,8 +439,9 @@ cap4k {
 
 | Generator | 需要启用 |
 |-----------|---------|
-| `design` | `designJson` source |
-| `designQueryHandler` | `design` generator |
+| `designCommand` | `designJson` source |
+| `designQuery` | `designJson` source |
+| `designQueryHandler` | `designQuery` generator |
 | `designClient` | `designJson` source |
 | `designClientHandler` | `designClient` generator |
 | `designValidator` | `designJson` source |
@@ -551,7 +555,7 @@ cap4k {
 **自动任务依赖推断**（`inferSourceDependencies` + `inferAnalysisDependencies`）：
 
 - `cap4kPlan` / `cap4kGenerate`（源码任务族）：
-  当启用了 `design` 或 `design-domain-event` 且启用 `ksp-metadata`，并且 `ksp-metadata.inputDir` 落在某个子工程的 `build/` 下 → 自动 `dependsOn(":{proj}:kspKotlin")`
+  当启用了 `design-command`、`design-query` 或 `design-domain-event` 且启用 `ksp-metadata`，并且 `ksp-metadata.inputDir` 落在某个子工程的 `build/` 下 → 自动 `dependsOn(":{proj}:kspKotlin")`
 - `cap4kAnalysisPlan` / `cap4kAnalysisGenerate`（分析任务族）：
   当启用了 `flow` 或 `drawing-board` 且启用 `ir-analysis`，并且 `ir-analysis.inputDirs` 落在某个子工程的 `build/` 下 → 自动 `dependsOn(":{proj}:compileKotlin")`
 
@@ -606,7 +610,7 @@ type FieldModel = {
 }
 ```
 
-- 用途：作为 `domain_event` 聚合元数据的兼容回退来源。`designDomainEvent` 会优先使用当前运行中由 aggregate canonical 产出的聚合信息，只有缺失时才回退到 `kspMetadata`；`design` 的 CMD/QRY 亦会尝试用之标注 `aggregatePackageName`
+- 用途：作为 `domain_event` 聚合元数据的兼容回退来源。`designDomainEvent` 会优先使用当前运行中由 aggregate canonical 产出的聚合信息，只有缺失时才回退到 `kspMetadata`；`designCommand` / `designQuery` 亦会尝试用之标注 `aggregateRef`
 
 ### 8.3 `db` — JDBC Schema
 
@@ -686,19 +690,19 @@ Generator 统一约束：
 - `plan(config, model)` 返回 `List<ArtifactPlanItem>`，每项指定 `templateId` + `outputPath` + `context`
 - **不在生成器里直接写文件**（交给 exporter）
 
-### 9.1 `design` — 命令/查询请求类
+### 9.1 `design-command` / `design-query` — 命令/查询请求类
 
-- id：`design`
+- id：`design-command`、`design-query`
 - 模块：application
 - 产物：`{application}/src/main/kotlin/{basePackage}/application/{commands|queries}/{package}/{TypeName}.kt`
-- 模板：`design/command.kt.peb`, `design/query.kt.peb`, `design/query_list.kt.peb`, `design/query_page.kt.peb`（`DesignQueryVariantResolver` 按响应字段形态选择）
+- 模板：`design/command.kt.peb`, `design/query.kt.peb`, `design/query_list.kt.peb`, `design/query_page.kt.peb`（`QueryModel.variant` 选择查询模板）
 - 类名规则：`{Name}Cmd` / `{Name}Qry`
 
 ### 9.2 `design-query-handler`
 
 - id：`design-query-handler`
 - 模块：adapter
-- 与 `design` 1:1 配套
+- 与 `design-query` 1:1 配套
 - 模板：`design/query_handler.kt.peb`, `design/query_list_handler.kt.peb`, `design/query_page_handler.kt.peb`
 
 ### 9.3 `design-client` / `design-client-handler`
@@ -781,7 +785,9 @@ Generator 统一约束：
 
 ```kotlin
 data class CanonicalModel(
-    val requests: List<RequestModel> = emptyList(),           // 来自 design-json 的 cmd/qry/cli
+    val commands: List<CommandModel> = emptyList(),           // 来自 design-json 的 cmd
+    val queries: List<QueryModel> = emptyList(),              // 来自 design-json 的 qry
+    val clients: List<ClientModel> = emptyList(),             // 来自 design-json 的 cli
     val validators: List<ValidatorModel> = emptyList(),       // tag=validator
     val domainEvents: List<DomainEventModel> = emptyList(),   // tag=domain_event
     val schemas: List<SchemaModel> = emptyList(),             // 来自 db
@@ -1303,7 +1309,8 @@ interface ArtifactExporter {
 |----------|------|------|
 | `project.basePackage is required.` | DSL 没填 `basePackage` | 在 `project { basePackage = "..." }` 补上 |
 | `project.domainModulePath is required when designDomainEvent is enabled.` | 启用了 domain 类生成但没配模块路径 | 参见 6.1 校验表 |
-| `design generator requires enabled designJson source.` | Generator 依赖被违反 | 参见 6.4 依赖表 |
+| `designCommand generator requires enabled designJson source.` | Generator 依赖被违反 | 参见 6.4 依赖表 |
+| `designQueryHandler generator requires enabled designQuery generator.` | Generator 依赖被违反 | 参见 6.4 依赖表 |
 | `sources.designJson.files must not be empty when designJson is enabled.` | 启用但列表为空 | 用 `files.from(...)` 或 `manifestFile` |
 | `design manifest entry escapes projectDir: ../secret.json` | manifest 路径逃逸 | 路径必须在工程目录内 |
 | `ksp-metadata inputDir does not exist: ...` | 上游 `kspKotlin` 没跑 | 先 `./gradlew :domain:kspKotlin` 或依赖自动推断应当生效 |
@@ -1407,7 +1414,8 @@ assertTrue(result.output.contains("BUILD SUCCESSFUL"))
 
 | Generator id | 模块 role | 主模板 | 输出位置模板 |
 |--------------|-----------|--------|-------------|
-| `design` | application | `design/command.kt.peb` 等 | `{application}/src/main/kotlin/{pkg}/application/{commands|queries}/{sub}/{Name}{Cmd|Qry}.kt` |
+| `design-command` | application | `design/command.kt.peb` | `{application}/src/main/kotlin/{pkg}/application/commands/{sub}/{Name}Cmd.kt` |
+| `design-query` | application | `design/query*.kt.peb` | `{application}/src/main/kotlin/{pkg}/application/queries/{sub}/{Name}Qry.kt` |
 | `design-query-handler` | adapter | `design/query*_handler.kt.peb` | `{adapter}/src/main/kotlin/{pkg}/adapter/application/query/{sub}/{Name}QryHandler.kt` |
 | `design-client` | application | `design/client.kt.peb` | `{application}/src/main/kotlin/{pkg}/application/clients/{sub}/{Name}Cli.kt` |
 | `design-client-handler` | adapter | `design/client_handler.kt.peb` | `{adapter}/src/main/kotlin/{pkg}/adapter/application/client/{sub}/{Name}CliHandler.kt` |

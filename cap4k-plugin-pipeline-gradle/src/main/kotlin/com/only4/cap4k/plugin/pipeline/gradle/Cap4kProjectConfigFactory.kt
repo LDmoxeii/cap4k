@@ -27,7 +27,8 @@ class Cap4kProjectConfigFactory {
             irAnalysisEnabled = extension.sources.irAnalysis.enabled.get(),
         )
         val generatorStates = GeneratorStates(
-            designEnabled = extension.generators.design.enabled.get(),
+            designCommandEnabled = extension.generators.designCommand.enabled.get(),
+            designQueryEnabled = extension.generators.designQuery.enabled.get(),
             designQueryHandlerEnabled = extension.generators.designQueryHandler.enabled.get(),
             designClientEnabled = extension.generators.designClient.enabled.get(),
             designClientHandlerEnabled = extension.generators.designClientHandler.enabled.get(),
@@ -65,10 +66,16 @@ class Cap4kProjectConfigFactory {
     }
 
     private fun validateProjectRules(extension: Cap4kExtension, generators: GeneratorStates) {
-        if (generators.designEnabled) {
+        if (generators.designCommandEnabled) {
             extension.project.applicationModulePath.requiredWhenEnabled(
                 "project.applicationModulePath",
-                "design"
+                "designCommand"
+            )
+        }
+        if (generators.designQueryEnabled) {
+            extension.project.applicationModulePath.requiredWhenEnabled(
+                "project.applicationModulePath",
+                "designQuery"
             )
         }
         if (generators.designQueryHandlerEnabled) {
@@ -129,7 +136,10 @@ class Cap4kProjectConfigFactory {
         extension: Cap4kExtension,
         generators: GeneratorStates,
     ): Map<String, String> = buildMap {
-        if (generators.designEnabled) {
+        if (generators.designCommandEnabled) {
+            put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
+        }
+        if (generators.designQueryEnabled) {
             put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
         }
         if (generators.designQueryHandlerEnabled) {
@@ -240,8 +250,11 @@ class Cap4kProjectConfigFactory {
         extension: Cap4kExtension,
         states: GeneratorStates,
     ): Map<String, GeneratorConfig> = buildMap {
-        if (states.designEnabled) {
-            put("design", GeneratorConfig(enabled = true))
+        if (states.designCommandEnabled) {
+            put("design-command", GeneratorConfig(enabled = true))
+        }
+        if (states.designQueryEnabled) {
+            put("design-query", GeneratorConfig(enabled = true))
         }
         if (states.designQueryHandlerEnabled) {
             put("design-query-handler", GeneratorConfig(enabled = true))
@@ -357,8 +370,8 @@ class Cap4kProjectConfigFactory {
     }
 
     private fun validateGeneratorDependencies(sources: SourceStates, generators: GeneratorStates) {
-        if (generators.designQueryHandlerEnabled && !generators.designEnabled) {
-            throw IllegalArgumentException("designQueryHandler generator requires enabled design generator.")
+        if (generators.designQueryHandlerEnabled && !generators.designQueryEnabled) {
+            throw IllegalArgumentException("designQueryHandler generator requires enabled designQuery generator.")
         }
         if (generators.designClientEnabled && !sources.designJsonEnabled) {
             throw IllegalArgumentException("designClient generator requires enabled designJson source.")
@@ -366,8 +379,11 @@ class Cap4kProjectConfigFactory {
         if (generators.designClientHandlerEnabled && !generators.designClientEnabled) {
             throw IllegalArgumentException("designClientHandler generator requires enabled designClient generator.")
         }
-        if (generators.designEnabled && !sources.designJsonEnabled) {
-            throw IllegalArgumentException("design generator requires enabled designJson source.")
+        if (generators.designCommandEnabled && !sources.designJsonEnabled) {
+            throw IllegalArgumentException("designCommand generator requires enabled designJson source.")
+        }
+        if (generators.designQueryEnabled && !sources.designJsonEnabled) {
+            throw IllegalArgumentException("designQuery generator requires enabled designJson source.")
         }
         if (generators.designValidatorEnabled && !sources.designJsonEnabled) {
             throw IllegalArgumentException("designValidator generator requires enabled designJson source.")
@@ -408,7 +424,8 @@ private data class SourceStates(
 )
 
 private data class GeneratorStates(
-    val designEnabled: Boolean,
+    val designCommandEnabled: Boolean,
+    val designQueryEnabled: Boolean,
     val designQueryHandlerEnabled: Boolean,
     val designClientEnabled: Boolean,
     val designClientHandlerEnabled: Boolean,

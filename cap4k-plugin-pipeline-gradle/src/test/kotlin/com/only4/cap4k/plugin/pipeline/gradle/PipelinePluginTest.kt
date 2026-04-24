@@ -236,7 +236,7 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `design with ksp metadata depends on relevant ksp task only`() {
+    fun `design command with ksp metadata depends on relevant ksp task only`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-ksp-root")
         val rootProject = ProjectBuilder.builder()
             .withProjectDir(rootProjectDir)
@@ -258,7 +258,7 @@ class PipelinePluginTest {
                         options = mapOf("inputDir" to domainProject.layout.buildDirectory.dir("generated/ksp/main").get().asFile.absolutePath),
                     )
                 ),
-                generators = mapOf("design" to GeneratorConfig(enabled = true)),
+                generators = mapOf("design-command" to GeneratorConfig(enabled = true)),
             )
         )
 

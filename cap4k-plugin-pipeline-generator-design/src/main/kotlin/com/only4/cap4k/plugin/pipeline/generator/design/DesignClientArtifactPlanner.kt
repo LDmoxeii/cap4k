@@ -12,14 +12,11 @@ class DesignClientArtifactPlanner : GeneratorProvider {
         val applicationRoot = requireRelativeModuleRoot(config, "application")
         val basePath = config.basePackage.replace(".", "/")
 
-        return model.clients.mapIndexed { index, client ->
-            val siblingTypeNames = model.clients
-                .asSequence()
-                .filterIndexed { siblingIndex, sibling ->
-                    siblingIndex != index && sibling.packageName == client.packageName
-                }
-                .map { it.typeName }
-                .toSet()
+        return model.clients.map { client ->
+            val siblingTypeNames = model.designInteractionSiblingTypeNames(
+                packageName = client.packageName,
+                currentTypeName = client.typeName,
+            )
             val packagePath = client.packageName.replace(".", "/")
 
             ArtifactPlanItem(
