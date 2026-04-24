@@ -2666,8 +2666,8 @@ class PipelinePluginFunctionalTest {
             "Expected no trailing whitespace in $file"
         )
         assertFalse(
-            Regex("""\n{4,}""").containsMatchIn(content),
-            "Expected no runs of more than three consecutive newlines in $file"
+            Regex("""\n{3,}""").containsMatchIn(content),
+            "Expected no runs of three or more consecutive newlines in $file"
         )
     }
 

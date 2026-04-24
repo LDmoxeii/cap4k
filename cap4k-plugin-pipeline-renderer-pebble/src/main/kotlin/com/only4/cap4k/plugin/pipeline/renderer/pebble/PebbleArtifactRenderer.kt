@@ -42,7 +42,7 @@ class PebbleArtifactRenderer(
             )
             return RenderedArtifact(
                 outputPath = item.outputPath,
-                content = normalizeLineEndings(writer.toString()),
+                content = sanitizeRenderedContent(item.outputPath, writer.toString()),
                 conflictPolicy = item.conflictPolicy
             )
         } finally {
@@ -95,9 +95,24 @@ class PebbleArtifactRenderer(
         )
     }
 
+    private fun sanitizeRenderedContent(outputPath: String, content: String): String {
+        val normalized = normalizeLineEndings(content)
+        return if (outputPath.endsWith(".kt")) {
+            normalizeKotlinArtifact(normalized)
+        } else {
+            normalized
+        }
+    }
+
     private fun normalizeLineEndings(content: String): String = content
         .replace("\r\n", "\n")
         .replace('\r', '\n')
+
+    private fun normalizeKotlinArtifact(content: String): String = content
+        .lineSequence()
+        .joinToString("\n") { it.trimEnd() }
+        .replace(Regex("\n{3,}"), "\n\n")
+        .trimEnd('\n') + "\n"
 }
 
 internal class PebbleRenderSession(

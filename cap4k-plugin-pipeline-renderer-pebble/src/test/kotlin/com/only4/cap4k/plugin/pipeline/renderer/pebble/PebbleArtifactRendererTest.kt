@@ -38,6 +38,98 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `renderer normalizes kotlin artifact whitespace without mutating template semantics`() {
+        val overrideDir = Files.createTempDirectory("cap4k-renderer-kotlin-hygiene")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb").writeText(
+            "package demo\r\n\r\n\r\nimport java.util.UUID   \r\n\r\nclass Demo(   \r\n    val id: UUID   \r\n)\r\n\r\n\r\n"
+        )
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-query",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/Demo.kt",
+                    context = emptyMap(),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertReadableKotlin(content)
+        assertEquals(
+            "package demo\n\nimport java.util.UUID\n\nclass Demo(\n    val id: UUID\n)\n",
+            content
+        )
+    }
+
+    @Test
+    fun `renderer keeps non kotlin artifacts free from kotlin specific whitespace cleanup`() {
+        val overrideDir = Files.createTempDirectory("cap4k-renderer-non-kotlin-hygiene")
+        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
+        overrideDesignDir.resolve("query.kt.peb").writeText("{\r\n  \"value\": 1  \r\n\r\n\r\n}\r\n")
+
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-query",
+                    moduleRole = "application",
+                    templateId = "design/query.kt.peb",
+                    outputPath = "demo-application/src/main/resources/demo.json",
+                    context = emptyMap(),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        assertEquals(
+            "{\n  \"value\": 1  \n\n\n}\n",
+            rendered.single().content
+        )
+    }
+
+    @Test
     fun `aggregate wrapper template does not emit trailing whitespace when comment is blank`() {
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver("ddd-default", emptyList())
