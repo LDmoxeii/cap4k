@@ -1,3 +1,47 @@
 package {{ packageName }}
 
-interface {{ typeName }}
+{{ use("org.springframework.data.jpa.repository.JpaRepository") -}}
+{{ use("org.springframework.data.jpa.repository.JpaSpecificationExecutor") -}}
+{{ use("org.springframework.stereotype.Repository") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
+{{ use("com.only4.cap4k.ddd.domain.repo.AbstractJpaRepository") -}}
+{{ use("org.springframework.stereotype.Component") -}}
+{%- if entityTypeFqn %}
+{{ use(entityTypeFqn) -}}
+{%- endif %}
+{%- if supportQuerydsl %}
+{{ use("org.springframework.data.querydsl.QuerydslPredicateExecutor") -}}
+{{ use("com.only4.cap4k.ddd.domain.repo.querydsl.AbstractQuerydslRepository") -}}
+{%- endif %}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+
+@Repository
+{%- if supportQuerydsl %}
+interface {{ typeName }} : JpaRepository<{{ entityName }}, {{ idType }}>, JpaSpecificationExecutor<{{ entityName }}>,
+    QuerydslPredicateExecutor<{{ entityName }}> {
+{%- else %}
+interface {{ typeName }} : JpaRepository<{{ entityName }}, {{ idType }}>, JpaSpecificationExecutor<{{ entityName }}> {
+{%- endif %}
+
+    @Component
+    @Aggregate(aggregate = "{{ aggregateName }}", name = "{{ aggregateName }}Repo", type = Aggregate.TYPE_REPOSITORY, description = "")
+    class {{ entityName }}JpaRepositoryAdapter(
+        jpaSpecificationExecutor: JpaSpecificationExecutor<{{ entityName }}>,
+        jpaRepository: JpaRepository<{{ entityName }}, {{ idType }}>
+    ) : AbstractJpaRepository<{{ entityName }}, {{ idType }}>(
+        jpaSpecificationExecutor,
+        jpaRepository
+    )
+
+{%- if supportQuerydsl %}
+    @Component
+    @Aggregate(aggregate = "{{ aggregateName }}", name = "{{ aggregateName }}QuerydslRepo", type = Aggregate.TYPE_REPOSITORY, description = "")
+    class {{ entityName }}QuerydslRepositoryAdapter(
+        querydslPredicateExecutor: QuerydslPredicateExecutor<{{ entityName }}>
+    ) : AbstractQuerydslRepository<{{ entityName }}>(
+        querydslPredicateExecutor
+    )
+{%- endif %}
+}

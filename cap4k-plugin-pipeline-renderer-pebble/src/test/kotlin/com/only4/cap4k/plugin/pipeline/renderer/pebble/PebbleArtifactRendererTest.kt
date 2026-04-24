@@ -57,6 +57,102 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `aggregate repository schema base and schema templates restore default contracts`() {
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver("ddd-default", emptyList())
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "adapter",
+                    templateId = "aggregate/repository.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/UserMessageRepository.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.domain.repositories",
+                        "typeName" to "UserMessageRepository",
+                        "entityName" to "UserMessage",
+                        "entityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.UserMessage",
+                        "aggregateName" to "UserMessage",
+                        "idType" to "Long",
+                        "supportQuerydsl" to false,
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/schema_base.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/Schema.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain._share.meta",
+                        "typeName" to "Schema",
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/schema.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/user_message/SUserMessage.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain._share.meta.user_message",
+                        "typeName" to "SUserMessage",
+                        "entityName" to "UserMessage",
+                        "schemaBasePackage" to "com.acme.demo.domain._share.meta",
+                        "entityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.UserMessage",
+                        "qEntityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.QUserMessage",
+                        "aggregateTypeFqn" to "com.acme.demo.domain.aggregates.user_message.AggUserMessage",
+                        "isAggregateRoot" to true,
+                        "generateAggregate" to true,
+                        "repositorySupportQuerydsl" to false,
+                        "fields" to listOf(
+                            mapOf(
+                                "name" to "messageKey",
+                                "fieldName" to "messageKey",
+                                "columnName" to "message_key",
+                                "fieldType" to "String",
+                                "type" to "String",
+                                "comment" to "message key",
+                            )
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        )
+
+        val repositoryContent = rendered.single { it.outputPath.endsWith("UserMessageRepository.kt") }.content
+        val schemaBaseContent = rendered.single { it.outputPath.endsWith("Schema.kt") }.content
+        val schemaContent = rendered.single { it.outputPath.endsWith("SUserMessage.kt") }.content
+
+        assertTrue(repositoryContent.contains("@Repository"))
+        assertTrue(
+            repositoryContent.contains(
+                "interface UserMessageRepository : JpaRepository<UserMessage, Long>, JpaSpecificationExecutor<UserMessage>"
+            )
+        )
+        assertTrue(repositoryContent.contains("class UserMessageJpaRepositoryAdapter("))
+        assertTrue(repositoryContent.contains("AbstractJpaRepository<UserMessage, Long>"))
+        assertTrue(schemaBaseContent.contains("fun interface SchemaSpecification<E, S>"))
+        assertTrue(schemaBaseContent.contains("class Field<T>"))
+        assertTrue(schemaContent.contains("class SUserMessage("))
+        assertTrue(schemaContent.contains("fun specify(builder: PredicateBuilder<SUserMessage>): Specification<UserMessage>"))
+        assertTrue(schemaContent.contains("fun predicateById(id: Any): AggregatePredicate<AggUserMessage, UserMessage>"))
+        assertTrue(schemaContent.contains("val messageKey: Field<String>"))
+        assertFalse(schemaContent.contains("val message_key"))
+    }
+
+    @Test
     fun `type helper reads renderedType from object and passes through string input`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-helper-type")
         val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
@@ -1065,15 +1161,47 @@ class PebbleArtifactRendererTest {
                 ArtifactPlanItem(
                     generatorId = "aggregate",
                     moduleRole = "domain",
-                    templateId = "aggregate/schema.kt.peb",
-                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/OrderSchema.kt",
+                    templateId = "aggregate/schema_base.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/Schema.kt",
                     context = mapOf(
-                        "packageName" to "com.acme.demo.domain.aggregates.order",
-                        "typeName" to "OrderSchema",
+                        "packageName" to "com.acme.demo.domain._share.meta",
+                        "typeName" to "Schema",
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/schema.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/order/SOrder.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain._share.meta.order",
+                        "typeName" to "SOrder",
                         "entityName" to "Order",
+                        "schemaBasePackage" to "com.acme.demo.domain._share.meta",
+                        "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
+                        "qEntityTypeFqn" to "com.acme.demo.domain.aggregates.order.QOrder",
+                        "aggregateTypeFqn" to "com.acme.demo.domain.aggregates.order.AggOrder",
+                        "isAggregateRoot" to true,
+                        "generateAggregate" to true,
+                        "repositorySupportQuerydsl" to false,
                         "fields" to listOf(
-                            FieldModel("id", "Long"),
-                            FieldModel("orderNo", "String", nullable = true)
+                            mapOf(
+                                "name" to "id",
+                                "fieldName" to "id",
+                                "columnName" to "id",
+                                "fieldType" to "Long",
+                                "type" to "Long",
+                                "nullable" to false,
+                            ),
+                            mapOf(
+                                "name" to "orderNo",
+                                "fieldName" to "orderNo",
+                                "columnName" to "order_no",
+                                "fieldType" to "String",
+                                "type" to "String",
+                                "nullable" to true,
+                            )
                         )
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
@@ -1111,7 +1239,10 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.adapter.domain.repositories",
                         "typeName" to "OrderRepository",
                         "entityName" to "Order",
-                        "idType" to "Long"
+                        "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
+                        "aggregateName" to "Order",
+                        "idType" to "Long",
+                        "supportQuerydsl" to false,
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
@@ -1231,13 +1362,14 @@ class PebbleArtifactRendererTest {
 
         val aggregateArtifacts = rendered.reversed()
 
-        assertEquals(9, aggregateArtifacts.size)
+        assertEquals(10, aggregateArtifacts.size)
 
         fun contentFor(pathSuffix: String): String = aggregateArtifacts.single {
             it.outputPath.endsWith(pathSuffix)
         }.content
 
-        val schemaContent = contentFor("/aggregates/order/OrderSchema.kt")
+        val schemaBaseContent = contentFor("/_share/meta/Schema.kt")
+        val schemaContent = contentFor("/_share/meta/order/SOrder.kt")
         val entityContent = contentFor("/aggregates/order/Order.kt")
         val repositoryContent = contentFor("/adapter/domain/repositories/OrderRepository.kt")
         val factoryContent = contentFor("/factory/OrderFactory.kt")
@@ -1247,13 +1379,15 @@ class PebbleArtifactRendererTest {
         val uniqueHandlerContent = contentFor("/adapter/queries/video_post/unique/UniqueVideoPostTenantIdSlugQryHandler.kt")
         val uniqueValidatorContent = contentFor("/application/validators/video_post/unique/UniqueVideoPostTenantIdSlug.kt")
 
-        assertTrue(schemaContent.contains("object OrderSchema"))
-        assertTrue(schemaContent.contains("const val id = \"id\""))
-        assertTrue(schemaContent.contains("const val orderNo = \"orderNo\""))
+        assertTrue(schemaBaseContent.contains("fun interface SchemaSpecification<E, S>"))
+        assertTrue(schemaContent.contains("class SOrder("))
+        assertTrue(schemaContent.contains("fun specify(builder: PredicateBuilder<SOrder>): Specification<Order>"))
+        assertTrue(schemaContent.contains("val orderNo: Field<String>"))
         assertTrue(entityContent.contains("data class Order("))
         assertTrue(entityContent.contains("val orderNo: String?"))
         assertFalse(entityContent.contains("jakarta.persistence"))
-        assertTrue(repositoryContent.contains("interface OrderRepository"))
+        assertTrue(repositoryContent.contains("@Repository"))
+        assertTrue(repositoryContent.contains("interface OrderRepository : JpaRepository<Order, Long>, JpaSpecificationExecutor<Order>"))
         assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory"))
         assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload"))
         assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"))

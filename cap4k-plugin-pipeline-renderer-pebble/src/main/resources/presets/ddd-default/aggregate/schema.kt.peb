@@ -1,7 +1,301 @@
 package {{ packageName }}
 
-object {{ typeName }} {
-{% for field in fields %}
-        const val {{ field.name }} = "{{ field.name }}"
+{{ use("org.springframework.data.jpa.domain.Specification") -}}
+{{ use("jakarta.persistence.criteria.CriteriaBuilder") -}}
+{{ use("jakarta.persistence.criteria.CriteriaQuery") -}}
+{{ use("jakarta.persistence.criteria.Path") -}}
+{{ use("jakarta.persistence.criteria.Predicate") -}}
+{{ use("jakarta.persistence.criteria.Subquery") -}}
+{{ use(schemaBasePackage ~ ".SchemaSpecification") -}}
+{{ use(schemaBasePackage ~ ".PredicateBuilder") -}}
+{{ use(schemaBasePackage ~ ".OrderBuilder") -}}
+{{ use(schemaBasePackage ~ ".ExpressionBuilder") -}}
+{{ use(schemaBasePackage ~ ".SubqueryConfigure") -}}
+{{ use(schemaBasePackage ~ ".Field") -}}
+{%- if entityTypeFqn %}
+{{ use(entityTypeFqn) -}}
+{%- endif %}
+{%- if isAggregateRoot %}
+{{ use("com.only4.cap4k.ddd.domain.repo.JpaPredicate") -}}
+{%- endif %}
+{%- if isAggregateRoot and generateAggregate %}
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate") -}}
+{%- if aggregateTypeFqn %}
+{{ use(aggregateTypeFqn) -}}
+{%- endif %}
+{%- endif %}
+{%- if isAggregateRoot and generateAggregate and repositorySupportQuerydsl %}
+{{ use("com.querydsl.core.types.OrderSpecifier") -}}
+{{ use("com.only4.cap4k.ddd.domain.repo.querydsl.QuerydslPredicate") -}}
+{%- if qEntityTypeFqn %}
+{{ use(qEntityTypeFqn) -}}
+{%- endif %}
+{%- endif %}
+{% for import in imports(imports) -%}
+import {{ import }}
 {% endfor %}
+
+class {{ typeName }}(
+    private val root: Path<{{ entityName }}>,
+    private val criteriaBuilder: CriteriaBuilder,
+) {
+    class PROPERTY_NAMES {
+{% for field in fields %}
+        val {{ field.fieldName }} = "{{ field.fieldName }}"
+{% endfor %}
+    }
+
+    companion object {
+
+        val props = PROPERTY_NAMES()
+
+        @JvmStatic
+        fun specify(builder: PredicateBuilder<{{ typeName }}>): Specification<{{ entityName }}> {
+            return specify(builder, false, emptyList())
+        }
+
+        @JvmStatic
+        fun specify(builder: PredicateBuilder<{{ typeName }}>, distinct: Boolean): Specification<{{ entityName }}> {
+            return specify(builder, distinct, emptyList())
+        }
+
+        @JvmStatic
+        fun specify(
+            builder: PredicateBuilder<{{ typeName }}>,
+            vararg orderBuilders: OrderBuilder<{{ typeName }}>,
+        ): Specification<{{ entityName }}> {
+            return specify(builder, orderBuilders.toList())
+        }
+
+        @JvmStatic
+        fun specify(
+            builder: PredicateBuilder<{{ typeName }}>,
+            orderBuilders: List<OrderBuilder<{{ typeName }}>>,
+        ): Specification<{{ entityName }}> {
+            return specify(builder, false, orderBuilders)
+        }
+
+        @JvmStatic
+        fun specify(
+            builder: PredicateBuilder<{{ typeName }}>,
+            distinct: Boolean,
+            vararg orderBuilders: OrderBuilder<{{ typeName }}>,
+        ): Specification<{{ entityName }}> {
+            return specify(builder, distinct, orderBuilders.toList())
+        }
+
+        @JvmStatic
+        fun specify(
+            builder: PredicateBuilder<{{ typeName }}>,
+            distinct: Boolean,
+            orderBuilders: List<OrderBuilder<{{ typeName }}>>,
+        ): Specification<{{ entityName }}> {
+            return specify { schema, criteriaQuery, _ ->
+                criteriaQuery.where(builder.build(schema))
+                criteriaQuery.distinct(distinct)
+                if (orderBuilders.isNotEmpty()) {
+                    criteriaQuery.orderBy(orderBuilders.map { it.build(schema) })
+                }
+                null
+            }
+        }
+
+        @JvmStatic
+        fun specify(specifier: SchemaSpecification<{{ entityName }}, {{ typeName }}>): Specification<{{ entityName }}> {
+            return Specification { root, criteriaQuery, criteriaBuilder ->
+                val schema = {{ typeName }}(root, criteriaBuilder)
+                specifier.toPredicate(schema, criteriaQuery, criteriaBuilder)
+            }
+        }
+
+        @JvmStatic
+        fun <E> subquery(
+            resultClass: Class<E>,
+            selectBuilder: ExpressionBuilder<{{ typeName }}, E>,
+            predicateBuilder: PredicateBuilder<{{ typeName }}>,
+            criteriaBuilder: CriteriaBuilder,
+            criteriaQuery: CriteriaQuery<*>,
+        ): Subquery<E> {
+            return subquery(resultClass, { sq, schema ->
+                sq.select(selectBuilder.build(schema))
+                sq.where(predicateBuilder.build(schema))
+            }, criteriaBuilder, criteriaQuery)
+        }
+
+        @JvmStatic
+        fun <E> subquery(
+            resultClass: Class<E>,
+            subqueryConfigure: SubqueryConfigure<E, {{ typeName }}>,
+            criteriaBuilder: CriteriaBuilder,
+            criteriaQuery: CriteriaQuery<*>,
+        ): Subquery<E> {
+            val sq = criteriaQuery.subquery(resultClass)
+            val root = sq.from({{ entityName }}::class.java)
+            val schema = {{ typeName }}(root, criteriaBuilder)
+            subqueryConfigure.configure(sq, schema)
+            return sq
+        }
+{%- if isAggregateRoot and generateAggregate %}
+
+        @JvmStatic
+        fun predicateById(id: Any): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
+            return JpaPredicate.byId({{ entityName }}::class.java, id).toAggregatePredicate(Agg{{ entityName }}::class.java)
+        }
+
+        @JvmStatic
+        fun predicateByIds(ids: Iterable<*>): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
+            @Suppress("UNCHECKED_CAST")
+            return JpaPredicate.byIds({{ entityName }}::class.java, ids as Iterable<Any>).toAggregatePredicate(Agg{{ entityName }}::class.java)
+        }
+
+        @JvmStatic
+        fun predicateByIds(vararg ids: Any): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
+            return JpaPredicate.byIds({{ entityName }}::class.java, ids.toList()).toAggregatePredicate(Agg{{ entityName }}::class.java)
+        }
+
+        @JvmStatic
+        fun predicate(builder: PredicateBuilder<{{ typeName }}>): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
+            return JpaPredicate.bySpecification({{ entityName }}::class.java, specify(builder)).toAggregatePredicate(Agg{{ entityName }}::class.java)
+        }
+
+        @JvmStatic
+        fun predicate(builder: PredicateBuilder<{{ typeName }}>, distinct: Boolean): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
+            return JpaPredicate.bySpecification({{ entityName }}::class.java, specify(builder, distinct)).toAggregatePredicate(Agg{{ entityName }}::class.java)
+        }
+
+        @JvmStatic
+        fun predicate(
+            builder: PredicateBuilder<{{ typeName }}>,
+            orderBuilders: List<OrderBuilder<{{ typeName }}>>,
+        ): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
+            return JpaPredicate.bySpecification({{ entityName }}::class.java, specify(builder, false, orderBuilders)).toAggregatePredicate(Agg{{ entityName }}::class.java)
+        }
+
+        @JvmStatic
+        fun predicate(
+            builder: PredicateBuilder<{{ typeName }}>,
+            vararg orderBuilders: OrderBuilder<{{ typeName }}>,
+        ): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
+            return JpaPredicate.bySpecification({{ entityName }}::class.java, specify(builder, false, *orderBuilders)).toAggregatePredicate(Agg{{ entityName }}::class.java)
+        }
+
+        @JvmStatic
+        fun predicate(
+            builder: PredicateBuilder<{{ typeName }}>,
+            distinct: Boolean,
+            orderBuilders: List<OrderBuilder<{{ typeName }}>>,
+        ): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
+            return JpaPredicate.bySpecification({{ entityName }}::class.java, specify(builder, distinct, orderBuilders)).toAggregatePredicate(Agg{{ entityName }}::class.java)
+        }
+
+        @JvmStatic
+        fun predicate(
+            builder: PredicateBuilder<{{ typeName }}>,
+            distinct: Boolean,
+            vararg orderBuilders: OrderBuilder<{{ typeName }}>,
+        ): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
+            return JpaPredicate.bySpecification({{ entityName }}::class.java, specify(builder, distinct, *orderBuilders)).toAggregatePredicate(Agg{{ entityName }}::class.java)
+        }
+
+        @JvmStatic
+        fun predicate(specifier: SchemaSpecification<{{ entityName }}, {{ typeName }}>): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
+            return JpaPredicate.bySpecification({{ entityName }}::class.java, specify(specifier)).toAggregatePredicate(Agg{{ entityName }}::class.java)
+        }
+{%- elseif isAggregateRoot %}
+
+        @JvmStatic
+        fun predicateById(id: Any): JpaPredicate<{{ entityName }}> {
+            return JpaPredicate.byId({{ entityName }}::class.java, id)
+        }
+
+        @JvmStatic
+        fun predicateByIds(ids: Iterable<*>): JpaPredicate<{{ entityName }}> {
+            @Suppress("UNCHECKED_CAST")
+            return JpaPredicate.byIds({{ entityName }}::class.java, ids as Iterable<Any>)
+        }
+
+        @JvmStatic
+        fun predicateByIds(vararg ids: Any): JpaPredicate<{{ entityName }}> {
+            return JpaPredicate.byIds({{ entityName }}::class.java, ids.toList())
+        }
+
+        @JvmStatic
+        fun predicate(builder: PredicateBuilder<{{ typeName }}>): JpaPredicate<{{ entityName }}> {
+            return JpaPredicate.bySpecification({{ entityName }}::class.java, specify(builder))
+        }
+
+        @JvmStatic
+        fun predicate(specifier: SchemaSpecification<{{ entityName }}, {{ typeName }}>): JpaPredicate<{{ entityName }}> {
+            return JpaPredicate.bySpecification({{ entityName }}::class.java, specify(specifier))
+        }
+{%- endif %}
+
+{%- if isAggregateRoot and generateAggregate and repositorySupportQuerydsl %}
+        @JvmStatic
+        fun querydsl(
+            filter: com.querydsl.core.types.Predicate,
+            vararg orderSpecifiers: OrderSpecifier<*>,
+        ): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
+            return QuerydslPredicate.of({{ entityName }}::class.java)
+                .where(filter)
+                .orderBy(*orderSpecifiers)
+                .toAggregatePredicate(Agg{{ entityName }}::class.java)
+        }
+{%- endif %}
+    }
+
+    fun _criteriaBuilder(): CriteriaBuilder = criteriaBuilder
+
+    fun _root(): Path<{{ entityName }}> = root
+
+{% for field in fields %}
+{%- if field.comment %}
+    /**
+     * {{ field.comment }}
+     */
+{%- endif %}
+    val {{ field.fieldName }}: Field<{{ type(field.fieldType) }}> by lazy {
+        Field(root.get("{{ field.fieldName }}"), criteriaBuilder)
+    }
+
+{% endfor %}
+{%- if relationFields %}
+{% for relationField in relationFields %}
+    val {{ relationField.fieldName }}: Field<Any> by lazy {
+        Field(root.get("{{ relationField.fieldName }}"), criteriaBuilder)
+    }
+
+{% endfor %}
+{%- endif %}
+    fun all(vararg restrictions: Predicate): Predicate {
+        return criteriaBuilder.and(*restrictions)
+    }
+
+    fun any(vararg restrictions: Predicate): Predicate {
+        return criteriaBuilder.or(*restrictions)
+    }
+
+    fun allNotNull(vararg restrictions: Predicate?): Predicate? {
+        val nonNullRestrictions = restrictions.filterNotNull().toTypedArray()
+        return when {
+            nonNullRestrictions.isEmpty() -> null
+            nonNullRestrictions.size == 1 -> nonNullRestrictions[0]
+            else -> criteriaBuilder.and(*nonNullRestrictions)
+        }
+    }
+
+    fun anyNotNull(vararg restrictions: Predicate?): Predicate? {
+        val nonNullRestrictions = restrictions.filterNotNull().toTypedArray()
+        return when {
+            nonNullRestrictions.isEmpty() -> null
+            nonNullRestrictions.size == 1 -> nonNullRestrictions[0]
+            else -> criteriaBuilder.or(*nonNullRestrictions)
+        }
+    }
+
+    fun not(restriction: Predicate): Predicate = criteriaBuilder.not(restriction)
+
+    fun spec(builder: PredicateBuilder<{{ typeName }}>): Predicate {
+        return builder.build(this)
+    }
 }

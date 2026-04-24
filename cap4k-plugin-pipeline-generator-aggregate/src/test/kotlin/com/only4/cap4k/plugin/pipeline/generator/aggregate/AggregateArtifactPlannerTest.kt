@@ -30,6 +30,94 @@ import java.nio.file.Path
 class AggregateArtifactPlannerTest {
 
     @Test
+    fun `aggregate planner emits schema base before entity schemas`() {
+        val entity = EntityModel(
+            name = "UserMessage",
+            packageName = "com.acme.demo.domain.aggregates.user_message",
+            tableName = "user_message",
+            comment = "user message",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                schemas = listOf(
+                    SchemaModel(
+                        name = "SUserMessage",
+                        packageName = "com.acme.demo.domain._share.meta.user_message",
+                        entityName = "UserMessage",
+                        comment = "user message",
+                        fields = entity.fields,
+                    )
+                ),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            )
+        )
+
+        val schemaBase = plan.single { it.templateId == "aggregate/schema_base.kt.peb" }
+        val schema = plan.single { it.templateId == "aggregate/schema.kt.peb" }
+
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/Schema.kt",
+            schemaBase.outputPath,
+        )
+        assertEquals("com.acme.demo.domain._share.meta", schemaBase.context["packageName"])
+        assertEquals("Schema", schemaBase.context["typeName"])
+        assertEquals("com.acme.demo.domain._share.meta", schema.context["schemaBasePackage"])
+        assertEquals(
+            "com.acme.demo.domain.aggregates.user_message.UserMessage",
+            schema.context["entityTypeFqn"],
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.user_message.AggUserMessage",
+            schema.context["aggregateTypeFqn"],
+        )
+        assertEquals(true, schema.context["isAggregateRoot"])
+        assertEquals(true, schema.context["generateAggregate"])
+        assertEquals(false, schema.context["repositorySupportQuerydsl"])
+        assertTrue(plan.indexOf(schemaBase) < plan.indexOf(schema))
+    }
+
+    @Test
+    fun `repository planner exposes JPA repository adapter render model`() {
+        val entity = EntityModel(
+            name = "UserMessage",
+            packageName = "com.acme.demo.domain.aggregates.user_message",
+            tableName = "user_message",
+            comment = "user message",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val plan = RepositoryArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                repositories = listOf(
+                    RepositoryModel(
+                        name = "UserMessageRepository",
+                        packageName = "com.acme.demo.adapter.domain.repositories",
+                        entityName = "UserMessage",
+                        idType = "Long",
+                    )
+                ),
+            )
+        )
+
+        val repository = plan.single()
+
+        assertEquals("UserMessageRepository", repository.context["typeName"])
+        assertEquals("UserMessage", repository.context["entityName"])
+        assertEquals(
+            "com.acme.demo.domain.aggregates.user_message.UserMessage",
+            repository.context["entityTypeFqn"],
+        )
+        assertEquals("Long", repository.context["idType"])
+        assertEquals(false, repository.context["supportQuerydsl"])
+    }
+
+    @Test
     fun `entity planner surfaces bounded aggregate JPA metadata`() {
         val plan = AggregateArtifactPlanner().plan(
             aggregateConfig(),
@@ -1053,7 +1141,11 @@ class AggregateArtifactPlannerTest {
 
         val planItems = AggregateArtifactPlanner().plan(config, model)
 
-        assertEquals(6, planItems.size)
+        assertEquals(7, planItems.size)
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/Schema.kt",
+            planItems.first { it.templateId == "aggregate/schema_base.kt.peb" }.outputPath,
+        )
         assertEquals(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt",
             planItems.first { it.templateId == "aggregate/schema.kt.peb" }.outputPath,
@@ -1090,7 +1182,9 @@ class AggregateArtifactPlannerTest {
             planItems.first { it.templateId == "aggregate/repository.kt.peb" }.outputPath,
         )
         val repositoryContext = planItems.first { it.templateId == "aggregate/repository.kt.peb" }.context
-        assertEquals(false, repositoryContext.containsKey("entityTypeFqn"))
+        assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", repositoryContext["entityTypeFqn"])
+        assertEquals("VideoPost", repositoryContext["aggregateName"])
+        assertEquals(false, repositoryContext["supportQuerydsl"])
         assertEquals(false, repositoryContext.containsKey("qEntityTypeFqn"))
         assertEquals(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
@@ -1522,7 +1616,8 @@ class AggregateArtifactPlannerTest {
         assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", factoryContext["entityTypeFqn"])
         assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", specificationContext["entityTypeFqn"])
         assertEquals(false, entityContext.containsKey("entityTypeFqn"))
-        assertEquals(false, repositoryContext.containsKey("entityTypeFqn"))
+        assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", repositoryContext["entityTypeFqn"])
+        assertEquals(false, repositoryContext["supportQuerydsl"])
     }
 
     @Test

@@ -9,6 +9,7 @@ class AggregateArtifactPlanner : GeneratorProvider {
     override val id: String = "aggregate"
 
     private val delegates: List<AggregateArtifactFamilyPlanner> = listOf(
+        SchemaBaseArtifactPlanner(),
         SchemaArtifactPlanner(),
         EntityArtifactPlanner(),
         RepositoryArtifactPlanner(),
