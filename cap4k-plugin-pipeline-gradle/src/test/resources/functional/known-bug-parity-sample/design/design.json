@@ -1,0 +1,81 @@
+[
+  {
+    "tag": "command",
+    "package": "message.create",
+    "name": "CreateUserMessage",
+    "desc": "create user message",
+    "aggregates": ["UserMessage"],
+    "requestFields": [
+      { "name": "messageKey", "type": "String" },
+      { "name": "roomId", "type": "String" },
+      { "name": "content", "type": "String" }
+    ],
+    "responseFields": [
+      { "name": "accepted", "type": "Boolean" }
+    ]
+  },
+  {
+    "tag": "query",
+    "package": "message.read",
+    "name": "FindUserMessage",
+    "desc": "find user message",
+    "aggregates": ["UserMessage"],
+    "requestFields": [
+      { "name": "messageKey", "type": "String" }
+    ],
+    "responseFields": [
+      { "name": "messageKey", "type": "String" },
+      { "name": "content", "type": "String" }
+    ]
+  },
+  {
+    "tag": "client",
+    "package": "message.delivery",
+    "name": "PublishUserMessage",
+    "desc": "publish user message",
+    "aggregates": ["UserMessage"],
+    "requestFields": [
+      { "name": "messageKey", "type": "String" }
+    ],
+    "responseFields": [
+      { "name": "published", "type": "Boolean" }
+    ]
+  },
+  {
+    "tag": "validator",
+    "package": "message",
+    "name": "UserMessageKeyValid",
+    "desc": "user message key validator",
+    "aggregates": [],
+    "requestFields": [],
+    "responseFields": []
+  },
+  {
+    "tag": "api_payload",
+    "package": "message",
+    "name": "CreateUserMessagePayload",
+    "desc": "create user message payload",
+    "aggregates": [],
+    "requestFields": [
+      { "name": "messageKey", "type": "String" },
+      { "name": "body", "type": "Body", "nullable": true },
+      { "name": "body.content", "type": "String" }
+    ],
+    "responseFields": [
+      { "name": "receipt", "type": "Receipt", "nullable": true },
+      { "name": "receipt.messageKey", "type": "String" }
+    ]
+  },
+  {
+    "tag": "domain_event",
+    "package": "message",
+    "name": "UserMessageCreated",
+    "desc": "user message created",
+    "aggregates": ["UserMessage"],
+    "persist": false,
+    "requestFields": [
+      { "name": "reason", "type": "String" }
+    ],
+    "responseFields": []
+  }
+]

@@ -2,22 +2,16 @@ plugins {
     kotlin("jvm") version "2.2.20"
 }
 
-group = "{{ basePackage }}"
-version = "0.1.0-SNAPSHOT"
-
-repositories {
-    mavenCentral()
+kotlin {
+    jvmToolchain(17)
 }
 
 dependencies {
-    implementation(project(":{{ domainModuleName }}"))
-    implementation(project(":{{ applicationModuleName }}"))
+    implementation(project(":demo-domain"))
+    implementation(project(":demo-application"))
     implementation("com.only4:ddd-core:0.5.0-SNAPSHOT")
     implementation("com.only4:ddd-domain-repo-jpa:0.5.0-SNAPSHOT")
+    implementation("jakarta.persistence:jakarta.persistence-api:3.1.0")
     implementation("org.springframework:spring-context")
     implementation("org.springframework.data:spring-data-jpa")
-}
-
-kotlin {
-    jvmToolchain(17)
 }

@@ -1,5 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
+import com.only4.cap4k.plugin.pipeline.gradle.FunctionalFixtureSupport.copyCompileFixture
 import com.only4.cap4k.plugin.pipeline.gradle.FunctionalFixtureSupport.copyFixture
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -7,6 +8,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
 import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
@@ -2537,6 +2539,136 @@ class PipelinePluginFunctionalTest {
             .buildAndFail()
 
         assertTrue(result.output.contains("domain_event OrderCreated references missing aggregate metadata: Order"))
+    }
+
+    @Test
+    fun `cap4kGenerate removes known only danmaku next generator bugs`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-known-bug-parity")
+        copyCompileFixture(projectDir, "known-bug-parity-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate", "build")
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+
+        val repositoryFile = projectDir.generatedFile(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/UserMessageRepository.kt"
+        )
+        val entityFile = projectDir.generatedFile(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_message/UserMessage.kt"
+        )
+        val schemaBaseFile = projectDir.generatedFile(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/Schema.kt"
+        )
+        val schemaFile = projectDir.generatedFile(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/user_message/SUserMessage.kt"
+        )
+        val uniqueValidatorFile = projectDir.generatedFile(
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/user_message/unique/UniqueUserMessageMessageKey.kt"
+        )
+        val uniqueHandlerFile = projectDir.generatedFile(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/user_message/unique/UniqueUserMessageMessageKeyQryHandler.kt"
+        )
+        val queryFile = projectDir.generatedFile(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/message/read/FindUserMessageQry.kt"
+        )
+        val commandFile = projectDir.generatedFile(
+            "demo-application/src/main/kotlin/com/acme/demo/application/commands/message/create/CreateUserMessageCmd.kt"
+        )
+        val clientFile = projectDir.generatedFile(
+            "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/message/delivery/PublishUserMessageCli.kt"
+        )
+        val payloadFile = projectDir.generatedFile(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/message/CreateUserMessagePayload.kt"
+        )
+
+        listOf(
+            repositoryFile,
+            entityFile,
+            schemaBaseFile,
+            schemaFile,
+            uniqueValidatorFile,
+            uniqueHandlerFile,
+            queryFile,
+            commandFile,
+            clientFile,
+            payloadFile,
+        ).forEach(::assertNoFormattingRegression)
+
+        val entityContent = entityFile.readText()
+        assertTrue(entityContent.contains("val messageKey: String"))
+        assertTrue(entityContent.contains("@Column(name = \"message_key\")"))
+        assertFalse(entityContent.contains("val message_key"))
+
+        val repositoryContent = repositoryFile.readText()
+        assertTrue(
+            repositoryContent.contains(
+                "interface UserMessageRepository : JpaRepository<UserMessage, Long>, JpaSpecificationExecutor<UserMessage>"
+            )
+        )
+        assertTrue(repositoryContent.contains("class UserMessageJpaRepositoryAdapter("))
+
+        val schemaBaseContent = schemaBaseFile.readText()
+        assertTrue(schemaBaseContent.contains("fun interface SchemaSpecification<E, S>"))
+        assertTrue(schemaBaseContent.contains("class Field<T>"))
+
+        val schemaContent = schemaFile.readText()
+        assertTrue(schemaContent.contains("class SUserMessage("))
+        assertTrue(schemaContent.contains("fun specify(builder: PredicateBuilder<SUserMessage>): Specification<UserMessage>"))
+        assertTrue(schemaContent.contains("val messageKey: Field<String>"))
+        assertFalse(schemaContent.contains("val message_key"))
+
+        val uniqueValidatorContent = uniqueValidatorFile.readText()
+        assertTrue(uniqueValidatorContent.contains("ConstraintValidator<UniqueUserMessageMessageKey, Any>"))
+        assertTrue(uniqueValidatorContent.contains("Mediator.queries.send("))
+        assertTrue(uniqueValidatorContent.contains("return !result.exists"))
+        assertFalse(
+            uniqueValidatorContent.contains(
+                "ConstraintValidator<UniqueUserMessageMessageKey, UniqueUserMessageMessageKeyQry.Request>"
+            )
+        )
+
+        val uniqueHandlerContent = uniqueHandlerFile.readText()
+        assertTrue(uniqueHandlerContent.contains("private val repository: UserMessageRepository"))
+        assertTrue(uniqueHandlerContent.contains("repository.exists("))
+        assertTrue(uniqueHandlerContent.contains("SUserMessage.specify"))
+        assertFalse(uniqueHandlerContent.contains("exists = false"))
+
+        val queryContent = queryFile.readText()
+        assertTrue(queryContent.contains(") : RequestParam<Response>"))
+
+        val commandContent = commandFile.readText()
+        assertTrue(commandContent.contains(") : RequestParam<Response>"))
+
+        val clientContent = clientFile.readText()
+        assertTrue(clientContent.contains(") : RequestParam<Response>"))
+
+        val payloadContent = payloadFile.readText()
+        assertTrue(payloadContent.contains("data class Body("))
+        assertTrue(payloadContent.contains("data class Receipt("))
+        assertTrue(payloadContent.contains("data class Request("))
+        assertTrue(payloadContent.contains("data class Response("))
+    }
+
+    private fun Path.generatedFile(relativePath: String): Path {
+        val file = resolve(relativePath)
+        assertTrue(file.toFile().exists(), "Expected generated file to exist: $relativePath")
+        return file
+    }
+
+    private fun assertNoFormattingRegression(file: Path) {
+        val content = file.readText()
+        assertFalse(
+            content.lineSequence().any { it.endsWith(" ") || it.endsWith("\t") },
+            "Expected no trailing whitespace in $file"
+        )
+        assertFalse(
+            Regex("""\n{4,}""").containsMatchIn(content),
+            "Expected no runs of more than three consecutive newlines in $file"
+        )
     }
 
 }
