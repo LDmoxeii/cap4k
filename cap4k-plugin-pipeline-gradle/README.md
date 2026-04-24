@@ -569,6 +569,7 @@ cap4k {
 
 - 实现：`DesignJsonSourceProvider`
 - 输入格式：JSON 数组，每项为 `DesignSpecEntry`
+- 定位：表达一次业务设计中的交互/边界产物意图，例如 command、query、client、validator、api_payload、domain_event。它不是项目级字典入口，也不承载跨聚合复用的共享枚举定义。
 
 ```ts
 type DesignSpecEntry = {
@@ -592,6 +593,7 @@ type FieldModel = {
 
 - **manifestFile 模式**：清单必须是字符串数组，条目相对于 `projectDir`；不允许 `../` 逃逸，不允许重复，不允许指向不存在文件
 - 字段 `type` 如果是短名，会经过 `typeRegistry` 解析；未解析的短名保持原样（模板侧可能因此产出错误 import）
+- 枚举边界：如果枚举是某个数据库列的本地声明，走 `db` source 的 `@T + @E` 注解；如果枚举是跨聚合复用、需要独立生成的项目级共享类型，走 `enum-manifest`。不要因为两者都是 JSON 文件就把共享枚举塞进 `design-json`。
 
 ### 8.2 `ksp-metadata` — 聚合元数据
 
@@ -665,8 +667,10 @@ CREATE TABLE order_line (
 ### 8.4 `enum-manifest` — 共享枚举
 
 - 实现：`EnumManifestSourceProvider`
+- 定位：项目级共享枚举字典 source。它描述可跨聚合复用的枚举类型及其条目，不描述一次设计交互，也不参与 `cmd/qry/cli/validator/api_payload/domain_event` 这些 design tag 的语义分流。
 - 结构：每个定义一个 `SharedEnumDefinition { typeName, packageName, generateTranslation, items[] }`
 - 归属：仅喂给 `model.sharedEnums`，由 `aggregate` 生成器的 `SharedEnumArtifactPlanner` 产出（模板 `aggregate/enum.kt.peb`）；当 `generateTranslation = true` 时额外由 `EnumTranslationArtifactPlanner` 产出翻译器（模板 `aggregate/enum_translation.kt.peb`）
+- 为什么不并入 `design-json`：两者生命周期和消费方不同。`design-json` 面向设计交互产物，最终进入 `commands/queries/clients/validators/apiPayloads/domainEvents` 等切片；`enum-manifest` 面向项目级共享字典，最终只进入 `sharedEnums`，并由 aggregate 族生成共享 enum 与可选翻译器。把它合进 `design-json` 只会让 tag 语义变宽、让设计输入承担字典职责，收益不明显。
 - **与本地枚举的分工**：`db` source 在列注释中的 `@T + @E` 组合会进入 `model.entities[].fields[].{typeBinding, enumItems}`，由独立的 `LocalEnumArtifactPlanner` 产出。两条路径互不合并，各自负责自己的 Canonical 字段
   - 共享枚举（跨聚合复用） → `enum-manifest` → `sharedEnums` → `SharedEnumArtifactPlanner`
   - 本地枚举（单列就地声明） → `db` 注解 → `entities.fields.enumItems` → `LocalEnumArtifactPlanner`
