@@ -4978,12 +4978,21 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
+        val normalizedContent = content.replace("\r\n", "\n")
         assertTrue(content.contains("@Service"))
         assertTrue(content.contains("@EventListener(OrderCreatedDomainEvent::class)"))
         assertTrue(content.contains("* order * / created event"))
         assertFalse(content.contains("* order */ created event"))
         assertTrue(content.contains("class OrderCreatedDomainEventSubscriber"))
         assertTrue(content.contains("import com.acme.demo.domain.order.events.OrderCreatedDomainEvent"))
+        assertTrue(
+            normalizedContent.contains("package com.acme.demo.application.order.events\n\nimport"),
+            "domain event handler should keep one blank line between package and imports"
+        )
+        assertFalse(
+            normalizedContent.contains("OrderCreatedDomainEvent\n\nimport"),
+            "domain event handler imports should not contain blank lines between imports"
+        )
     }
 
     @Test
