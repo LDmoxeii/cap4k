@@ -1,7 +1,8 @@
 {{ use("org.springframework.stereotype.Service") -}}
 {{ use("com.only4.cap4k.ddd.core.application.query.ListQuery") -}}
 package {{ packageName }}
-{% for import in imports(imports) %}
+
+{% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
 
@@ -14,16 +15,16 @@ import {{ import }}
 class {{ typeName }} : ListQuery<{{ queryTypeName }}.Request, {{ queryTypeName }}.Response> {
 
     override fun exec(request: {{ queryTypeName }}.Request): List<{{ queryTypeName }}.Response> {
-{% if responseFields|length > 0 %}
+{%- if responseFields|length > 0 %}
         return listOf(
             {{ queryTypeName }}.Response(
-{% for field in responseFields %}
+{%- for field in responseFields %}
                 {{ field.name }} = TODO("set {{ field.name }}"){% if not loop.last %},{% endif %}
-{% endfor %}
+{%- endfor %}
             )
         )
-{% else %}
+{%- else %}
         return emptyList()
-{% endif %}
+{%- endif %}
     }
 }

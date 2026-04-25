@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -10,22 +11,22 @@ class DesignCommandArtifactPlanner : GeneratorProvider {
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val applicationRoot = requireRelativeModuleRoot(config, "application")
-        val basePath = config.basePackage.replace(".", "/")
+        val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
 
         return model.commands.map { command ->
             val siblingTypeNames = model.designInteractionSiblingTypeNames(
                 packageName = command.packageName,
                 currentTypeName = command.typeName,
             )
-            val packagePath = command.packageName.replace(".", "/")
+            val packageName = artifactLayout.designCommandPackage(command.packageName)
 
             ArtifactPlanItem(
                 generatorId = id,
                 moduleRole = "application",
                 templateId = "design/command.kt.peb",
-                outputPath = "$applicationRoot/src/main/kotlin/$basePath/application/commands/$packagePath/${command.typeName}.kt",
+                outputPath = artifactLayout.kotlinSourcePath(applicationRoot, packageName, command.typeName),
                 context = DesignPayloadRenderModelFactory.create(
-                    packageName = "${config.basePackage}.application.commands.${command.packageName}",
+                    packageName = packageName,
                     interaction = command,
                     typeRegistry = config.typeRegistry,
                     siblingTypeNames = siblingTypeNames,

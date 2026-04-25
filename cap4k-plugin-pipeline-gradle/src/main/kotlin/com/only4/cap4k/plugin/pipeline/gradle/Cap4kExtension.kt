@@ -18,6 +18,7 @@ open class Cap4kExtension @Inject constructor(objects: ObjectFactory) {
     val generators: Cap4kGeneratorsExtension = objects.newInstance(Cap4kGeneratorsExtension::class.java)
     val templates: Cap4kTemplatesExtension = objects.newInstance(Cap4kTemplatesExtension::class.java)
     val bootstrap: Cap4kBootstrapExtension = objects.newInstance(Cap4kBootstrapExtension::class.java)
+    val layout: Cap4kLayoutExtension = objects.newInstance(Cap4kLayoutExtension::class.java)
 
     fun project(block: Cap4kProjectExtension.() -> Unit) {
         project.block()
@@ -42,6 +43,10 @@ open class Cap4kExtension @Inject constructor(objects: ObjectFactory) {
     fun bootstrap(block: Cap4kBootstrapExtension.() -> Unit) {
         bootstrap.block()
     }
+
+    fun layout(block: Cap4kLayoutExtension.() -> Unit) {
+        layout.block()
+    }
 }
 
 internal typealias PipelineExtension = Cap4kExtension
@@ -55,6 +60,149 @@ open class Cap4kProjectExtension @Inject constructor(objects: ObjectFactory) {
 
 open class Cap4kTypesExtension @Inject constructor(objects: ObjectFactory) {
     val registryFile: Property<String> = objects.property(String::class.java)
+}
+
+open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
+    val aggregate: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("domain.aggregates")
+    val aggregateSchema: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("domain._share.meta")
+    val aggregateRepository: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("adapter.domain.repositories")
+    val aggregateSharedEnum: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention(packageRoot = "domain", packageSuffix = "enums", defaultPackage = "shared")
+    val aggregateEnumTranslation: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("domain.translation")
+    val aggregateUniqueQuery: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention(packageRoot = "application.queries", packageSuffix = "unique")
+    val aggregateUniqueQueryHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention(packageRoot = "adapter.queries", packageSuffix = "unique")
+    val aggregateUniqueValidator: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention(packageRoot = "application.validators", packageSuffix = "unique")
+    val flow: OutputRootLayoutExtension = objects.newInstance(OutputRootLayoutExtension::class.java)
+        .convention("flows")
+    val drawingBoard: OutputRootLayoutExtension = objects.newInstance(OutputRootLayoutExtension::class.java)
+        .convention("design")
+    val designCommand: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("application.commands")
+    val designQuery: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("application.queries")
+    val designClient: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("application.distributed.clients")
+    val designQueryHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("adapter.queries")
+    val designClientHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("adapter.application.distributed.clients")
+    val designValidator: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("application.validators")
+    val designApiPayload: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("adapter.portal.api.payload")
+    val designDomainEvent: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention(packageRoot = "domain.aggregates", packageSuffix = "events")
+    val designDomainEventHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention(packageRoot = "application", packageSuffix = "events")
+
+    fun aggregate(block: PackageLayoutExtension.() -> Unit) {
+        aggregate.block()
+    }
+
+    fun aggregateSchema(block: PackageLayoutExtension.() -> Unit) {
+        aggregateSchema.block()
+    }
+
+    fun aggregateRepository(block: PackageLayoutExtension.() -> Unit) {
+        aggregateRepository.block()
+    }
+
+    fun aggregateSharedEnum(block: PackageLayoutExtension.() -> Unit) {
+        aggregateSharedEnum.block()
+    }
+
+    fun aggregateEnumTranslation(block: PackageLayoutExtension.() -> Unit) {
+        aggregateEnumTranslation.block()
+    }
+
+    fun aggregateUniqueQuery(block: PackageLayoutExtension.() -> Unit) {
+        aggregateUniqueQuery.block()
+    }
+
+    fun aggregateUniqueQueryHandler(block: PackageLayoutExtension.() -> Unit) {
+        aggregateUniqueQueryHandler.block()
+    }
+
+    fun aggregateUniqueValidator(block: PackageLayoutExtension.() -> Unit) {
+        aggregateUniqueValidator.block()
+    }
+
+    fun flow(block: OutputRootLayoutExtension.() -> Unit) {
+        flow.block()
+    }
+
+    fun drawingBoard(block: OutputRootLayoutExtension.() -> Unit) {
+        drawingBoard.block()
+    }
+
+    fun designCommand(block: PackageLayoutExtension.() -> Unit) {
+        designCommand.block()
+    }
+
+    fun designQuery(block: PackageLayoutExtension.() -> Unit) {
+        designQuery.block()
+    }
+
+    fun designClient(block: PackageLayoutExtension.() -> Unit) {
+        designClient.block()
+    }
+
+    fun designQueryHandler(block: PackageLayoutExtension.() -> Unit) {
+        designQueryHandler.block()
+    }
+
+    fun designClientHandler(block: PackageLayoutExtension.() -> Unit) {
+        designClientHandler.block()
+    }
+
+    fun designValidator(block: PackageLayoutExtension.() -> Unit) {
+        designValidator.block()
+    }
+
+    fun designApiPayload(block: PackageLayoutExtension.() -> Unit) {
+        designApiPayload.block()
+    }
+
+    fun designDomainEvent(block: PackageLayoutExtension.() -> Unit) {
+        designDomainEvent.block()
+    }
+
+    fun designDomainEventHandler(block: PackageLayoutExtension.() -> Unit) {
+        designDomainEventHandler.block()
+    }
+}
+
+open class PackageLayoutExtension @Inject constructor(objects: ObjectFactory) {
+    val packageRoot: Property<String> = objects.property(String::class.java)
+    val packageSuffix: Property<String> = objects.property(String::class.java).convention("")
+    val defaultPackage: Property<String> = objects.property(String::class.java).convention("")
+
+    fun convention(
+        packageRoot: String,
+        packageSuffix: String = "",
+        defaultPackage: String = "",
+    ): PackageLayoutExtension {
+        this.packageRoot.convention(packageRoot)
+        this.packageSuffix.convention(packageSuffix)
+        this.defaultPackage.convention(defaultPackage)
+        return this
+    }
+}
+
+open class OutputRootLayoutExtension @Inject constructor(objects: ObjectFactory) {
+    val outputRoot: Property<String> = objects.property(String::class.java)
+
+    fun convention(outputRoot: String): OutputRootLayoutExtension {
+        this.outputRoot.convention(outputRoot)
+        return this
+    }
 }
 
 open class Cap4kSourcesExtension @Inject constructor(objects: ObjectFactory) {
@@ -232,12 +380,10 @@ open class AggregateGeneratorExtension @Inject constructor(objects: ObjectFactor
 
 open class DrawingBoardGeneratorExtension @Inject constructor(objects: ObjectFactory) {
     val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-    val outputDir: Property<String> = objects.property(String::class.java)
 }
 
 open class FlowGeneratorExtension @Inject constructor(objects: ObjectFactory) {
     val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-    val outputDir: Property<String> = objects.property(String::class.java)
 }
 
 open class Cap4kBootstrapExtension @Inject constructor(objects: ObjectFactory) {
@@ -367,12 +513,6 @@ internal val Cap4kExtension.kspMetadataDir: Property<String>
 
 internal val Cap4kExtension.irAnalysisInputDirs: ConfigurableFileCollection
     get() = sources.irAnalysis.inputDirs
-
-internal val Cap4kExtension.drawingBoardOutputDir: Property<String>
-    get() = generators.drawingBoard.outputDir
-
-internal val Cap4kExtension.flowOutputDir: Property<String>
-    get() = generators.flow.outputDir
 
 internal val Cap4kExtension.dbUrl: Property<String>
     get() = sources.db.url

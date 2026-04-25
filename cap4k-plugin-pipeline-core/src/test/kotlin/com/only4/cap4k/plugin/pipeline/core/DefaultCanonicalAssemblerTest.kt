@@ -5,6 +5,7 @@ import com.only4.cap4k.plugin.pipeline.api.CommandVariant
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
@@ -27,6 +28,7 @@ import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
+import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.QueryVariant
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
@@ -637,6 +639,45 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `domain event package key is derived from aggregate package group instead of design package`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "domain_event",
+                            packageName = "message",
+                            name = "UserMessageCreated",
+                            description = "user message created",
+                            aggregates = listOf("UserMessage"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    )
+                ),
+                KspMetadataSnapshot(
+                    aggregates = listOf(
+                        AggregateMetadataRecord(
+                            aggregateName = "UserMessage",
+                            rootQualifiedName = "com.acme.demo.domain.aggregates.user_message.UserMessage",
+                            rootPackageName = "com.acme.demo.domain.aggregates.user_message",
+                            rootClassName = "UserMessage",
+                        )
+                    )
+                ),
+            ),
+        ).model
+
+        val event = model.domainEvents.single()
+        assertEquals("user_message", event.packageName)
+        assertEquals("UserMessage", event.aggregateName)
+        assertEquals("com.acme.demo.domain.aggregates.user_message", event.aggregatePackageName)
+    }
+
+    @Test
     fun `domain event resolves aggregate package from canonical aggregate entities before ksp metadata`() {
         val assembler = DefaultCanonicalAssembler()
 
@@ -1240,6 +1281,107 @@ class DefaultCanonicalAssemblerTest {
         val entity = result.entities.single()
         assertEquals("Status", entity.fields.first { it.name == "status" }.typeBinding)
         assertEquals("VideoPostVisibility", entity.fields.first { it.name == "visibility" }.typeBinding)
+    }
+
+    @Test
+    fun `assembler routes aggregate canonical packages through custom artifact layout`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            config = baseAggregateConfig(
+                artifactLayout = ArtifactLayoutConfig(
+                    aggregate = PackageLayout("domain.model"),
+                    aggregateSchema = PackageLayout("domain.meta"),
+                    aggregateRepository = PackageLayout("adapter.persistence.repositories"),
+                    aggregateSharedEnum = PackageLayout(
+                        packageRoot = "domain.model",
+                        defaultPackage = "shared",
+                        packageSuffix = "enums",
+                    ),
+                )
+            ),
+            snapshots = listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "user_profile",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                        DbTableSnapshot(
+                            tableName = "user_message",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "author_id",
+                                    dbType = "BIGINT",
+                                    kotlinType = "Long",
+                                    nullable = false,
+                                    referenceTable = "user_profile",
+                                ),
+                                DbColumnSnapshot(
+                                    name = "status",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "MessageStatus",
+                                ),
+                                DbColumnSnapshot(
+                                    name = "kind",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "MessageKind",
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        ),
+                    )
+                ),
+                EnumManifestSnapshot(
+                    definitions = listOf(
+                        SharedEnumDefinition(
+                            typeName = "MessageStatus",
+                            packageName = "shared",
+                            generateTranslation = true,
+                            items = listOf(EnumItemModel(0, "DRAFT", "Draft")),
+                        ),
+                        SharedEnumDefinition(
+                            typeName = "MessageKind",
+                            packageName = "com.external.enums",
+                            generateTranslation = true,
+                            items = listOf(EnumItemModel(0, "DIRECT", "Direct")),
+                        )
+                    )
+                )
+            )
+        ).model
+
+        val messageEntity = result.entities.single { it.name == "UserMessage" }
+        val messageSchema = result.schemas.single { it.name == "SUserMessage" }
+        val messageRepository = result.repositories.single { it.name == "UserMessageRepository" }
+        val relation = result.aggregateRelations.single {
+            it.ownerEntityName == "UserMessage" && it.targetEntityName == "UserProfile"
+        }
+        val messageJpa = result.aggregateEntityJpa.single { it.entityName == "UserMessage" }
+
+        assertEquals("com.acme.demo.domain.model.user_message", messageEntity.packageName)
+        assertEquals("com.acme.demo.domain.meta.user_message", messageSchema.packageName)
+        assertEquals("com.acme.demo.adapter.persistence.repositories", messageRepository.packageName)
+        assertEquals("com.acme.demo.domain.model.user_message", relation.ownerEntityPackageName)
+        assertEquals("com.acme.demo.domain.model.user_profile", relation.targetEntityPackageName)
+        assertEquals(
+            "com.acme.demo.domain.model.shared.enums.MessageStatus",
+            messageJpa.columns.single { it.fieldName == "status" }.converterTypeFqn,
+        )
+        assertEquals(
+            "com.external.enums.MessageKind",
+            messageJpa.columns.single { it.fieldName == "kind" }.converterTypeFqn,
+        )
     }
 
     @Test
@@ -3463,7 +3605,10 @@ class DefaultCanonicalAssemblerTest {
         )
     }
 
-    private fun baseAggregateConfig(generators: Map<String, GeneratorConfig> = emptyMap()): ProjectConfig {
+    private fun baseAggregateConfig(
+        generators: Map<String, GeneratorConfig> = emptyMap(),
+        artifactLayout: ArtifactLayoutConfig = ArtifactLayoutConfig(),
+    ): ProjectConfig {
         return ProjectConfig(
             basePackage = "com.acme.demo",
             layout = MULTI_MODULE,
@@ -3474,6 +3619,7 @@ class DefaultCanonicalAssemblerTest {
             sources = emptyMap(),
             generators = generators,
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            artifactLayout = artifactLayout,
         )
     }
 

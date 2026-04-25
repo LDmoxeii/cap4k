@@ -2,7 +2,8 @@
 {{ use("com.only4.cap4k.ddd.core.application.query.PageQuery") -}}
 {{ use("com.only4.cap4k.ddd.core.share.PageData") -}}
 package {{ packageName }}
-{% for import in imports(imports) %}
+
+{% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
 
@@ -15,16 +16,16 @@ import {{ import }}
 class {{ typeName }} : PageQuery<{{ queryTypeName }}.Request, {{ queryTypeName }}.Response> {
 
     override fun exec(request: {{ queryTypeName }}.Request): PageData<{{ queryTypeName }}.Response> {
-{% if responseFields|length > 0 %}
+{%- if responseFields|length > 0 %}
         return PageData.create(request, 1L, listOf(
             {{ queryTypeName }}.Response(
-{% for field in responseFields %}
+{%- for field in responseFields %}
                 {{ field.name }} = TODO("set {{ field.name }}"){% if not loop.last %},{% endif %}
-{% endfor %}
+{%- endfor %}
             )
         ))
-{% else %}
+{%- else %}
         return PageData.empty(pageSize = request.pageSize, pageNum = request.pageNum)
-{% endif %}
+{%- endif %}
     }
 }

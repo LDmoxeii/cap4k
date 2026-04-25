@@ -62,10 +62,14 @@ cap4k {
             inputDirs.from(analysisDir)
         }
     }
+    layout {
+        flow {
+            outputRoot.set("flows")
+        }
+    }
     generators {
         flow {
             enabled.set(true)
-            outputDir.set("flows")
         }
     }
     templates {

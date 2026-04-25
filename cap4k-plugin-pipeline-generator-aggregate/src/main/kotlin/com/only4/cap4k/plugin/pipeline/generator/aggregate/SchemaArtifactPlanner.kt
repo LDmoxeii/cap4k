@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -10,10 +11,12 @@ import java.nio.file.Path
 internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val domainRoot = requireRelativeModule(config, "domain")
+        val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
-        val planning = AggregateEnumPlanning.from(model, config.basePackage, config.typeRegistry)
+        val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry)
         val entitiesByName = model.entities
             .groupBy { it.name }
+        val schemaBasePackage = artifactLayout.aggregateSchemaBasePackage()
 
         return model.schemas.map { schema ->
             val entity = requireUniqueSchemaEntity(schema.name, schema.entityName, entitiesByName[schema.entityName].orEmpty())
@@ -41,13 +44,13 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                 generatorId = "aggregate",
                 moduleRole = "domain",
                 templateId = "aggregate/schema.kt.peb",
-                outputPath = "$domainRoot/src/main/kotlin/${schema.packageName.replace(".", "/")}/${schema.name}.kt",
+                outputPath = artifactLayout.kotlinSourcePath(domainRoot, schema.packageName, schema.name),
                 context = mapOf(
                     "packageName" to schema.packageName,
                     "typeName" to schema.name,
                     "comment" to schema.comment,
                     "entityName" to schema.entityName,
-                    "schemaBasePackage" to "${config.basePackage}.domain._share.meta",
+                    "schemaBasePackage" to schemaBasePackage,
                     "entityTypeFqn" to entityTypeFqn,
                     "qEntityTypeFqn" to qEntityTypeFqn,
                     "aggregateTypeFqn" to aggregateTypeFqn,

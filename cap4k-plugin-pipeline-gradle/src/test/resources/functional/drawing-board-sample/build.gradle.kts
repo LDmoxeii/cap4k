@@ -12,10 +12,14 @@ cap4k {
             inputDirs.from("analysis/app/build/cap4k-code-analysis")
         }
     }
+    layout {
+        drawingBoard {
+            outputRoot.set("design")
+        }
+    }
     generators {
         drawingBoard {
             enabled.set(true)
-            outputDir.set("design")
         }
     }
     templates {

@@ -33,5 +33,8 @@ class ProjectConfigTest {
         assertEquals(setOf("design-command"), config.enabledGeneratorIds())
         assertEquals("sample-api", config.modules["api"])
         assertEquals(ConflictPolicy.SKIP, config.templates.conflictPolicy)
+        assertEquals("domain.aggregates", config.artifactLayout.aggregate.packageRoot)
+        assertEquals("flows", config.artifactLayout.flow.outputRoot)
+        assertEquals("design", config.artifactLayout.drawingBoard.outputRoot)
     }
 }

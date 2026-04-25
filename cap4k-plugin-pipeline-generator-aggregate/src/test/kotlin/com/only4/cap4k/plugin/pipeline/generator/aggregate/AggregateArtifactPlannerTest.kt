@@ -8,12 +8,14 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateIdGeneratorControl
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
+import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
@@ -28,6 +30,116 @@ import org.junit.jupiter.api.Test
 import java.nio.file.Path
 
 class AggregateArtifactPlannerTest {
+
+    @Test
+    fun `aggregate planner routes custom canonical layout through artifact layout`() {
+        val artifactLayout = ArtifactLayoutConfig(
+            aggregate = PackageLayout("domain.model"),
+            aggregateSchema = PackageLayout("domain.meta"),
+            aggregateRepository = PackageLayout("adapter.persistence.repositories"),
+            aggregateUniqueQuery = PackageLayout("application.readmodels", packageSuffix = "unique"),
+            aggregateUniqueQueryHandler = PackageLayout("adapter.readmodels", packageSuffix = "unique"),
+            aggregateUniqueValidator = PackageLayout("application.rules", packageSuffix = "unique"),
+        )
+        val entity = EntityModel(
+            name = "UserMessage",
+            packageName = "com.acme.demo.domain.model.user_message",
+            tableName = "user_message",
+            comment = "user message",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("tenantId", "Long", columnName = "tenant_id"),
+                FieldModel("slug", "String", columnName = "slug"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            uniqueConstraints = listOf(listOf("tenant_id", "slug")),
+        )
+        val schema = SchemaModel(
+            name = "SUserMessage",
+            packageName = "com.acme.demo.domain.meta.user_message",
+            entityName = "UserMessage",
+            comment = "user message",
+            fields = entity.fields,
+        )
+        val repository = RepositoryModel(
+            name = "UserMessageRepository",
+            packageName = "com.acme.demo.adapter.persistence.repositories",
+            entityName = "UserMessage",
+            idType = "Long",
+        )
+
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(artifactLayout = artifactLayout),
+            CanonicalModel(
+                entities = listOf(entity),
+                schemas = listOf(schema),
+                repositories = listOf(repository),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            )
+        )
+
+        val schemaBase = plan.single { it.templateId == "aggregate/schema_base.kt.peb" }
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        val factory = plan.single { it.templateId == "aggregate/factory.kt.peb" }
+        val specification = plan.single { it.templateId == "aggregate/specification.kt.peb" }
+        val repositoryItem = plan.single { it.templateId == "aggregate/repository.kt.peb" }
+        val schemaItem = plan.single { it.templateId == "aggregate/schema.kt.peb" }
+        val uniqueQuery = plan.single { it.templateId == "aggregate/unique_query.kt.peb" }
+        val uniqueQueryHandler = plan.single { it.templateId == "aggregate/unique_query_handler.kt.peb" }
+        val uniqueValidator = plan.single { it.templateId == "aggregate/unique_validator.kt.peb" }
+
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/meta/Schema.kt",
+            schemaBase.outputPath,
+        )
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/model/user_message/UserMessage.kt",
+            entityItem.outputPath,
+        )
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/model/user_message/factory/UserMessageFactory.kt",
+            factory.outputPath,
+        )
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/model/user_message/specification/UserMessageSpecification.kt",
+            specification.outputPath,
+        )
+        assertEquals(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/persistence/repositories/UserMessageRepository.kt",
+            repositoryItem.outputPath,
+        )
+        assertEquals("com.acme.demo.domain.meta", schemaItem.context["schemaBasePackage"])
+        assertEquals("com.acme.demo.domain.model.user_message", entityItem.context["packageName"])
+        assertEquals("com.acme.demo.domain.model.user_message.factory", factory.context["packageName"])
+        assertEquals(
+            "com.acme.demo.domain.model.user_message.specification",
+            specification.context["packageName"],
+        )
+        assertEquals("com.acme.demo.adapter.persistence.repositories", repositoryItem.context["packageName"])
+        assertEquals(
+            "demo-application/src/main/kotlin/com/acme/demo/application/readmodels/user_message/unique/UniqueUserMessageTenantIdSlugQry.kt",
+            uniqueQuery.outputPath,
+        )
+        assertEquals(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/readmodels/user_message/unique/UniqueUserMessageTenantIdSlugQryHandler.kt",
+            uniqueQueryHandler.outputPath,
+        )
+        assertEquals(
+            "demo-application/src/main/kotlin/com/acme/demo/application/rules/user_message/unique/UniqueUserMessageTenantIdSlug.kt",
+            uniqueValidator.outputPath,
+        )
+        assertEquals("com.acme.demo.application.readmodels.user_message.unique", uniqueQuery.context["packageName"])
+        assertEquals("com.acme.demo.adapter.readmodels.user_message.unique", uniqueQueryHandler.context["packageName"])
+        assertEquals("com.acme.demo.application.rules.user_message.unique", uniqueValidator.context["packageName"])
+        assertEquals(
+            "com.acme.demo.application.readmodels.user_message.unique.UniqueUserMessageTenantIdSlugQry",
+            uniqueQueryHandler.context["queryTypeFqn"],
+        )
+        assertEquals(
+            "com.acme.demo.application.readmodels.user_message.unique.UniqueUserMessageTenantIdSlugQry",
+            uniqueValidator.context["queryTypeFqn"],
+        )
+    }
 
     @Test
     fun `aggregate planner emits schema base before entity schemas`() {
@@ -1568,6 +1680,126 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `aggregate planner routes custom enum layouts through artifact layout`() {
+        val artifactLayout = ArtifactLayoutConfig(
+            aggregate = PackageLayout("domain.model"),
+            aggregateSchema = PackageLayout("domain.meta"),
+            aggregateSharedEnum = PackageLayout(
+                packageRoot = "domain.catalog",
+                defaultPackage = "shared",
+                packageSuffix = "types",
+            ),
+            aggregateEnumTranslation = PackageLayout("adapter.enum_text"),
+        )
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.model.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel(name = "id", type = "Long"),
+                FieldModel(name = "status", type = "Int", typeBinding = "Status"),
+                FieldModel(
+                    name = "visibility",
+                    type = "Int",
+                    typeBinding = "Visibility",
+                    enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden")),
+                ),
+            ),
+            idField = FieldModel(name = "id", type = "Long"),
+        )
+        val model = CanonicalModel(
+            sharedEnums = listOf(
+                SharedEnumDefinition(
+                    typeName = "Status",
+                    packageName = "",
+                    generateTranslation = true,
+                    items = listOf(
+                        EnumItemModel(0, "DRAFT", "Draft"),
+                        EnumItemModel(1, "PUBLISHED", "Published"),
+                    ),
+                )
+            ),
+            schemas = listOf(
+                SchemaModel(
+                    name = "SVideoPost",
+                    packageName = "com.acme.demo.domain.meta.video_post",
+                    entityName = "VideoPost",
+                    comment = "video post schema",
+                    fields = entity.fields,
+                )
+            ),
+            entities = listOf(entity),
+            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+        )
+
+        val items = AggregateArtifactPlanner().plan(
+            aggregateConfig(artifactLayout = artifactLayout),
+            model,
+        )
+
+        val sharedEnum = items.single {
+            it.templateId == "aggregate/enum.kt.peb" &&
+                it.context["typeName"] == "Status"
+        }
+        val localEnum = items.single {
+            it.templateId == "aggregate/enum.kt.peb" &&
+                it.context["typeName"] == "Visibility"
+        }
+        val sharedTranslation = items.single {
+            it.templateId == "aggregate/enum_translation.kt.peb" &&
+                it.context["typeName"] == "StatusTranslation"
+        }
+        val localTranslation = items.single {
+            it.templateId == "aggregate/enum_translation.kt.peb" &&
+                it.context["typeName"] == "VisibilityTranslation"
+        }
+        val entityPlan = items.single { it.templateId == "aggregate/entity.kt.peb" }
+        val schemaPlan = items.single { it.templateId == "aggregate/schema.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val entityFields = entityPlan.context.getValue("scalarFields") as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val schemaFields = schemaPlan.context.getValue("fields") as List<Map<String, Any?>>
+
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/catalog/shared/types/Status.kt",
+            sharedEnum.outputPath,
+        )
+        assertEquals("com.acme.demo.domain.catalog.shared.types", sharedEnum.context["packageName"])
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/model/video_post/enums/Visibility.kt",
+            localEnum.outputPath,
+        )
+        assertEquals("com.acme.demo.domain.model.video_post.enums", localEnum.context["packageName"])
+        assertEquals(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/enum_text/shared/StatusTranslation.kt",
+            sharedTranslation.outputPath,
+        )
+        assertEquals("com.acme.demo.adapter.enum_text.shared", sharedTranslation.context["packageName"])
+        assertEquals(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/enum_text/video_post/VisibilityTranslation.kt",
+            localTranslation.outputPath,
+        )
+        assertEquals("com.acme.demo.adapter.enum_text.video_post", localTranslation.context["packageName"])
+        assertEquals(
+            "com.acme.demo.domain.catalog.shared.types.Status",
+            entityFields.single { it["name"] == "status" }["type"],
+        )
+        assertEquals(
+            "com.acme.demo.domain.model.video_post.enums.Visibility",
+            entityFields.single { it["name"] == "visibility" }["type"],
+        )
+        assertEquals(
+            "com.acme.demo.domain.catalog.shared.types.Status",
+            schemaFields.single { it["name"] == "status" }["type"],
+        )
+        assertEquals(
+            "com.acme.demo.domain.model.video_post.enums.Visibility",
+            schemaFields.single { it["name"] == "visibility" }["type"],
+        )
+    }
+
+    @Test
     fun `local enum translations under different aggregate owners use different translation keys`() {
         val planner = AggregateArtifactPlanner()
         val config = aggregateConfig()
@@ -1990,6 +2222,7 @@ class AggregateArtifactPlannerTest {
         domainModule: String? = "demo-domain",
         applicationModule: String? = "demo-application",
         adapterModule: String? = "demo-adapter",
+        artifactLayout: ArtifactLayoutConfig = ArtifactLayoutConfig(),
     ): ProjectConfig =
         ProjectConfig(
             basePackage = "com.acme.demo",
@@ -2002,6 +2235,7 @@ class AggregateArtifactPlannerTest {
             sources = emptyMap(),
             generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            artifactLayout = artifactLayout,
         )
 
     private fun defaultAggregateEntityJpa(entity: EntityModel): AggregateEntityJpaModel =

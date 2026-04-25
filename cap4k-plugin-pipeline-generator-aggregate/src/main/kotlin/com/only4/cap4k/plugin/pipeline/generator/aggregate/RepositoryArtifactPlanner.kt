@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -8,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val adapterRoot = requireRelativeModule(config, "adapter")
+        val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val entitiesByName = model.entities
             .groupBy { it.name }
 
@@ -21,7 +23,7 @@ internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 generatorId = "aggregate",
                 moduleRole = "adapter",
                 templateId = "aggregate/repository.kt.peb",
-                outputPath = "$adapterRoot/src/main/kotlin/${repository.packageName.replace(".", "/")}/${repository.name}.kt",
+                outputPath = artifactLayout.kotlinSourcePath(adapterRoot, repository.packageName, repository.name),
                 context = mapOf(
                     "packageName" to repository.packageName,
                     "typeName" to repository.name,

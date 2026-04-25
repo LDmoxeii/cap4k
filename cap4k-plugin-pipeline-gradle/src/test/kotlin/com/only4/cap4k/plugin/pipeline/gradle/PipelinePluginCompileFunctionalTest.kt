@@ -189,7 +189,7 @@ class PipelinePluginCompileFunctionalTest {
             .runner(projectDir, ":demo-application:compileKotlin")
             .build()
         val generatedEvent = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt"
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt"
         ).readText()
         val generatedHandler = projectDir.resolve(
             "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt"
@@ -197,7 +197,7 @@ class PipelinePluginCompileFunctionalTest {
 
         assertGeneratedFilesExist(
             projectDir,
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt",
         )
         assertTrue(generatedEvent.contains("* order * / created"))
@@ -732,7 +732,7 @@ class PipelinePluginCompileFunctionalTest {
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/validators/order/OrderIdValid.kt",
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/order/SubmitOrderPayload.kt",
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt",
         )
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))

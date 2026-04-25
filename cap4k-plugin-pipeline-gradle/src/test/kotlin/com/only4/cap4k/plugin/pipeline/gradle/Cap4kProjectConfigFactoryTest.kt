@@ -1,5 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -35,6 +36,161 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals("ddd-default", extension.templates.preset.get())
         assertEquals("SKIP", extension.templates.conflictPolicy.get())
         assertEquals(null, extension.types.registryFile.orNull)
+    }
+
+    @Test
+    fun `nested cap4k extension exposes artifact layout defaults`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        assertEquals("domain.aggregates", extension.layout.aggregate.packageRoot.get())
+        assertEquals("domain._share.meta", extension.layout.aggregateSchema.packageRoot.get())
+        assertEquals("adapter.domain.repositories", extension.layout.aggregateRepository.packageRoot.get())
+        assertEquals("flows", extension.layout.flow.outputRoot.get())
+        assertEquals("design", extension.layout.drawingBoard.outputRoot.get())
+        assertEquals("domain.aggregates", extension.layout.designDomainEvent.packageRoot.get())
+        assertEquals("events", extension.layout.designDomainEvent.packageSuffix.get())
+    }
+
+    @Test
+    fun `factory artifact layout defaults match api defaults`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(ArtifactLayoutConfig(), config.artifactLayout)
+    }
+
+    @Test
+    fun `factory copies custom artifact layout into project config`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.layout {
+            aggregate {
+                packageRoot.set("domain.model")
+                packageSuffix.set("aggregates")
+            }
+            aggregateSchema {
+                packageRoot.set("domain.model")
+                packageSuffix.set("schema")
+            }
+            aggregateRepository {
+                packageRoot.set("adapter.persistence")
+                packageSuffix.set("repositories")
+            }
+            flow {
+                outputRoot.set("build/cap4k/flows")
+            }
+            drawingBoard {
+                outputRoot.set("build/cap4k/design")
+            }
+            designDomainEvent {
+                packageRoot.set("domain.model")
+                packageSuffix.set("events")
+            }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals("domain.model", config.artifactLayout.aggregate.packageRoot)
+        assertEquals("aggregates", config.artifactLayout.aggregate.packageSuffix)
+        assertEquals("domain.model", config.artifactLayout.aggregateSchema.packageRoot)
+        assertEquals("schema", config.artifactLayout.aggregateSchema.packageSuffix)
+        assertEquals("adapter.persistence", config.artifactLayout.aggregateRepository.packageRoot)
+        assertEquals("repositories", config.artifactLayout.aggregateRepository.packageSuffix)
+        assertEquals("build/cap4k/flows", config.artifactLayout.flow.outputRoot)
+        assertEquals("build/cap4k/design", config.artifactLayout.drawingBoard.outputRoot)
+        assertEquals("domain.model", config.artifactLayout.designDomainEvent.packageRoot)
+        assertEquals("events", config.artifactLayout.designDomainEvent.packageSuffix)
+    }
+
+    @Test
+    fun `factory rejects invalid layout package root`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.layout.aggregate.packageRoot.set("domain/aggregates")
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals(
+            "layout.aggregate.packageRoot must be a valid relative Kotlin package fragment: domain/aggregates",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `factory rejects layout package root with surrounding whitespace`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.layout.aggregate.packageRoot.set(" domain.aggregates ")
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals(
+            "layout.aggregate.packageRoot must be a valid relative Kotlin package fragment:  domain.aggregates ",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `factory rejects invalid layout output root`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.layout.flow.outputRoot.set("../flows")
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals(
+            "flow outputRoot must be a valid relative filesystem path: ../flows",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `factory rejects layout output root with surrounding whitespace`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.layout.flow.outputRoot.set(" flows ")
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals(
+            "flow outputRoot must be a valid relative filesystem path:  flows ",
+            error.message,
+        )
     }
 
     @Test
@@ -1322,10 +1478,7 @@ class Cap4kProjectConfigFactoryTest {
             basePackage.set("com.acme.demo")
         }
         extension.generators {
-            flow {
-                enabled.set(true)
-                outputDir.set("flows")
-            }
+            flow { enabled.set(true) }
         }
 
         val error = assertThrows(IllegalArgumentException::class.java) {
@@ -1344,10 +1497,7 @@ class Cap4kProjectConfigFactoryTest {
             basePackage.set("com.acme.demo")
         }
         extension.generators {
-            drawingBoard {
-                enabled.set(true)
-                outputDir.set("design")
-            }
+            drawingBoard { enabled.set(true) }
         }
 
         val error = assertThrows(IllegalArgumentException::class.java) {

@@ -1,10 +1,12 @@
 package com.only4.cap4k.plugin.pipeline.generator.drawingboard
 
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
+import com.only4.cap4k.plugin.pipeline.api.OutputRootLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
@@ -51,54 +53,48 @@ class DrawingBoardArtifactPlannerTest {
     }
 
     @Test
-    fun `defaults output dir to design and rejects invalid output dir values`() {
+    fun `rejects invalid output root values`() {
         val planner = DrawingBoardArtifactPlanner()
-
-        val defaultPlan = planner.plan(config(outputDir = " "), model())
-        assertEquals("design/drawing_board_cli.json", defaultPlan.first().outputPath)
-
-        val missingOptionPlan = planner.plan(config(includeOutputDir = false), model())
-        assertEquals("design/drawing_board_cli.json", missingOptionPlan.first().outputPath)
 
         val absolutePath = Path.of("design").toAbsolutePath().toString()
         val absoluteEx = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(config(outputDir = absolutePath), model())
+            planner.plan(config(outputRoot = absolutePath), model())
         }
         assertEquals(
-            "drawing-board outputDir must be a valid relative filesystem path: $absolutePath",
+            "drawing-board outputRoot must be a valid relative filesystem path: $absolutePath",
             absoluteEx.message,
         )
 
         val traversalEx = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(config(outputDir = "../design"), model())
+            planner.plan(config(outputRoot = "../design"), model())
         }
         assertEquals(
-            "drawing-board outputDir must be a valid relative filesystem path: ../design",
+            "drawing-board outputRoot must be a valid relative filesystem path: ../design",
             traversalEx.message,
         )
 
         val dotEx = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(config(outputDir = "."), model())
+            planner.plan(config(outputRoot = " design"), model())
         }
         assertEquals(
-            "drawing-board outputDir must be a valid relative filesystem path: .",
+            "drawing-board outputRoot must be a valid relative filesystem path:  design",
             dotEx.message,
         )
 
         val normalizedBlankEx = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(config(outputDir = "design/.."), model())
+            planner.plan(config(outputRoot = "design/.."), model())
         }
         assertEquals(
-            "drawing-board outputDir must be a valid relative filesystem path: design/..",
+            "drawing-board outputRoot must be a valid relative filesystem path: design/..",
             normalizedBlankEx.message,
         )
     }
 
     @Test
-    fun `supports custom relative output dir`() {
+    fun `supports custom relative output root`() {
         val planner = DrawingBoardArtifactPlanner()
 
-        val plan = planner.plan(config(outputDir = "design/generated"), model())
+        val plan = planner.plan(config(outputRoot = "design/generated"), model())
 
         assertEquals("design/generated/drawing_board_cli.json", plan.first().outputPath)
     }
@@ -117,7 +113,7 @@ class DrawingBoardArtifactPlannerTest {
         )
     }
 
-    private fun config(outputDir: String = "design", includeOutputDir: Boolean = true): ProjectConfig =
+    private fun config(outputRoot: String = "design"): ProjectConfig =
         ProjectConfig(
             basePackage = "com.acme.demo",
             layout = ProjectLayout.MULTI_MODULE,
@@ -126,14 +122,10 @@ class DrawingBoardArtifactPlannerTest {
             generators = mapOf(
                 "drawing-board" to GeneratorConfig(
                     enabled = true,
-                    options = if (includeOutputDir) {
-                        mapOf("outputDir" to outputDir)
-                    } else {
-                        emptyMap()
-                    },
                 ),
             ),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            artifactLayout = ArtifactLayoutConfig(drawingBoard = OutputRootLayout(outputRoot)),
         )
 
     private fun model(): CanonicalModel =

@@ -1,7 +1,8 @@
 package {{ packageName }}
+
 {{ use("org.springframework.context.event.EventListener") -}}
 {{ use("org.springframework.stereotype.Service") -}}
-{% for import in imports(imports) %}
+{% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
 

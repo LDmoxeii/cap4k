@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.core
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import java.util.Locale
 
@@ -27,7 +28,7 @@ internal object AggregateRelationInference {
     private val fieldTokenSplitRegex = Regex("(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+")
 
     fun fromTables(
-        basePackage: String,
+        artifactLayout: ArtifactLayoutResolver,
         tables: List<DbTableSnapshot>,
         skippedTableNames: Set<String> = emptySet(),
         outOfScopeTableNames: Set<String> = emptySet(),
@@ -38,7 +39,7 @@ internal object AggregateRelationInference {
             valueTransform = { table ->
                 Endpoint(
                     entityName = AggregateNaming.entityName(table.tableName),
-                    packageName = "${basePackage}.domain.aggregates.${AggregateNaming.tableSegment(table.tableName)}",
+                    packageName = artifactLayout.aggregateEntityPackage(AggregateNaming.tableSegment(table.tableName)),
                 )
             }
         )

@@ -25,16 +25,20 @@ internal data class DesignDomainEventHandlerRenderModel(
 }
 
 internal object DesignDomainEventHandlerRenderModelFactory {
-    fun create(basePackage: String, event: DomainEventModel): DesignDomainEventHandlerRenderModel {
+    fun create(
+        eventHandlerPackageName: String,
+        domainEventType: String,
+        event: DomainEventModel,
+    ): DesignDomainEventHandlerRenderModel {
         return DesignDomainEventHandlerRenderModel(
-            packageName = "$basePackage.application.${event.packageName}.events",
+            packageName = eventHandlerPackageName,
             typeName = "${event.typeName}Subscriber",
             domainEventTypeName = event.typeName,
-            domainEventType = "$basePackage.domain.${event.packageName}.events.${event.typeName}",
+            domainEventType = domainEventType,
             aggregateName = event.aggregateName,
             description = event.description,
             descriptionCommentText = event.description.toKDocCommentText(),
-            imports = listOf("$basePackage.domain.${event.packageName}.events.${event.typeName}"),
+            imports = listOf(domainEventType),
         )
     }
 }
