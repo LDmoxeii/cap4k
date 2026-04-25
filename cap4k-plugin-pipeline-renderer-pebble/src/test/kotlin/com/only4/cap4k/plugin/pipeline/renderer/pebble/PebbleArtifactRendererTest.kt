@@ -37,6 +37,8 @@ class PebbleArtifactRendererTest {
         }
     }
 
+    private fun String.normalizedLineEndings(): String = replace("\r\n", "\n")
+
     @Test
     fun `renderer normalizes kotlin artifact whitespace without mutating template semantics`() {
         val overrideDir = Files.createTempDirectory("cap4k-renderer-kotlin-hygiene")
@@ -956,8 +958,22 @@ class PebbleArtifactRendererTest {
         listOf(queryContent, commandContent, clientContent).forEach { content ->
             assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
             assertTrue(content.contains(") : RequestParam<Response>"))
+            assertTrue(content.normalizedLineEndings().contains(") : RequestParam<Response>\n\n    data class Response("))
             assertFalse(content.contains("\n\n\n"))
         }
+
+        assertTrue(commandContent.contains("import com.only4.cap4k.ddd.core.Mediator"))
+        assertTrue(commandContent.contains("import com.only4.cap4k.ddd.core.application.command.Command"))
+        assertTrue(commandContent.contains("import org.springframework.stereotype.Service"))
+        assertTrue(commandContent.contains("@Service\n    class Handler : Command<Request, Response>"))
+        assertTrue(commandContent.contains("Mediator.uow.save()"))
+        assertTrue(
+            commandContent.normalizedLineEndings().contains(
+                "            return Response(\n" +
+                    "                content = TODO(\"set content\")\n" +
+                    "            )"
+            )
+        )
 
         val requestIndex = apiPayloadContent.indexOf("data class Request(")
         val responseIndex = apiPayloadContent.indexOf("data class Response(")
@@ -972,6 +988,7 @@ class PebbleArtifactRendererTest {
         assertTrue(responseSection.contains("val messageKey: String"))
         assertFalse(Regex("^ {4}data class Body\\(", RegexOption.MULTILINE).containsMatchIn(apiPayloadContent))
         assertFalse(Regex("^ {4}data class Receipt\\(", RegexOption.MULTILINE).containsMatchIn(apiPayloadContent))
+        assertTrue(apiPayloadContent.normalizedLineEndings().contains("    }\n\n    data class Response("))
     }
 
     @Test
@@ -4294,6 +4311,19 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("class FindOrderQryHandler : Query<FindOrderQry.Request, FindOrderQry.Response>"))
         assertTrue(content.contains("responseStatus = TODO(\"set responseStatus\")"))
         assertTrue(content.contains("snapshot = TODO(\"set snapshot\")"))
+        val normalizedContent = content.normalizedLineEndings()
+        assertTrue(normalizedContent.contains("package com.acme.demo.adapter.queries.order.read\n\nimport"))
+        assertTrue(
+            normalizedContent.contains(
+                "        return FindOrderQry.Response(\n" +
+                    "            responseStatus = TODO(\"set responseStatus\"),\n" +
+                    "            snapshot = TODO(\"set snapshot\")\n" +
+                    "        )"
+            )
+        )
+        assertFalse(Regex("""Response\(\n\s*\n""").containsMatchIn(normalizedContent))
+        assertFalse(Regex("""TODO\("set responseStatus"\),\n\s*\n\s*snapshot""").containsMatchIn(normalizedContent))
+        assertFalse(Regex("""TODO\("set snapshot"\)\n\s*\n\s*\)""").containsMatchIn(normalizedContent))
     }
 
     @Test
@@ -4358,14 +4388,23 @@ class PebbleArtifactRendererTest {
         )
 
         val listContent = rendered[0].content
+        assertTrue(listContent.normalizedLineEndings().contains("package com.acme.demo.adapter.queries.order.read\n\nimport"))
         assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.ListQuery"))
         assertTrue(listContent.contains("import com.acme.demo.application.queries.order.read.FindOrderListQry"))
         assertTrue(listContent.contains("class FindOrderListQryHandler : ListQuery<FindOrderListQry.Request, FindOrderListQry.Response>"))
         assertTrue(listContent.contains("override fun exec(request: FindOrderListQry.Request): List<FindOrderListQry.Response>"))
         assertTrue(listContent.contains("return listOf("))
         assertTrue(listContent.contains("responseStatus = TODO(\"set responseStatus\")"))
+        assertTrue(
+            listContent.normalizedLineEndings().contains(
+                "            FindOrderListQry.Response(\n" +
+                    "                responseStatus = TODO(\"set responseStatus\")\n" +
+                    "            )"
+            )
+        )
 
         val pageContent = rendered[1].content
+        assertTrue(pageContent.normalizedLineEndings().contains("package com.acme.demo.adapter.queries.order.read\n\nimport"))
         assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.share.PageData"))
         assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.PageQuery"))
         assertTrue(pageContent.contains("import com.acme.demo.application.queries.order.read.FindOrderPageQry"))
@@ -4373,6 +4412,13 @@ class PebbleArtifactRendererTest {
         assertTrue(pageContent.contains("override fun exec(request: FindOrderPageQry.Request): PageData<FindOrderPageQry.Response>"))
         assertTrue(pageContent.contains("return PageData.create(request, 1L, listOf("))
         assertTrue(pageContent.contains("responseStatus = TODO(\"set responseStatus\")"))
+        assertTrue(
+            pageContent.normalizedLineEndings().contains(
+                "            FindOrderPageQry.Response(\n" +
+                    "                responseStatus = TODO(\"set responseStatus\")\n" +
+                    "            )"
+            )
+        )
     }
 
     @Test
@@ -4605,6 +4651,19 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("class IssueTokenCliHandler : RequestHandler<IssueTokenCli.Request, IssueTokenCli.Response>"))
         assertTrue(content.contains("token = TODO(\"set token\")"))
         assertTrue(content.contains("expiresAt = TODO(\"set expiresAt\")"))
+        val normalizedContent = content.normalizedLineEndings()
+        assertTrue(normalizedContent.contains("package com.acme.demo.adapter.application.distributed.clients.authorize\n\nimport"))
+        assertTrue(
+            normalizedContent.contains(
+                "        return IssueTokenCli.Response(\n" +
+                    "            token = TODO(\"set token\"),\n" +
+                    "            expiresAt = TODO(\"set expiresAt\")\n" +
+                    "        )"
+            )
+        )
+        assertFalse(Regex("""Response\(\n\s*\n""").containsMatchIn(normalizedContent))
+        assertFalse(Regex("""TODO\("set token"\),\n\s*\n\s*expiresAt""").containsMatchIn(normalizedContent))
+        assertFalse(Regex("""TODO\("set expiresAt"\)\n\s*\n\s*\)""").containsMatchIn(normalizedContent))
     }
 
     @Test

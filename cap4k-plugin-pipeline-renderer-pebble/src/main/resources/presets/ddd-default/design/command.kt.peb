@@ -1,11 +1,35 @@
+{{ use("com.only4.cap4k.ddd.core.Mediator") -}}
 {{ use("com.only4.cap4k.ddd.core.application.RequestParam") -}}
+{{ use("com.only4.cap4k.ddd.core.application.command.Command") -}}
+{{ use("org.springframework.stereotype.Service") -}}
 package {{ packageName }}
+
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
 object {{ typeName }} {
-{%- if requestFields.size > 0 %}
-{%- if requestNestedTypes.size > 0 %}
+
+    @Service
+    class Handler : Command<Request, Response> {
+
+        override fun exec(request: Request): Response {
+            Mediator.uow.save()
+{%- if responseFields.size > 0 %}
+
+            return Response(
+{%- for field in responseFields %}
+                {{ field.name }} = TODO("set {{ field.name }}"){% if not loop.last %},{% endif %}
+{%- endfor %}
+            )
+{%- else %}
+
+            return Response
+{%- endif %}
+        }
+    }
+
+{% if requestFields.size > 0 %}
+{% if requestNestedTypes.size > 0 %}
     data class Request(
 {%- for field in requestFields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
@@ -19,18 +43,19 @@ object {{ typeName }} {
         )
 {%- endfor %}
     }
-{%- else %}
+{% else %}
     data class Request(
 {%- for field in requestFields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
     ) : RequestParam<Response>
-{%- endif %}
-{%- else %}
+{% endif %}
+{% else %}
     class Request : RequestParam<Response>
-{%- endif %}
-{%- if responseFields.size > 0 %}
-{%- if responseNestedTypes.size > 0 %}
+{% endif %}
+
+{% if responseFields.size > 0 %}
+{% if responseNestedTypes.size > 0 %}
     data class Response(
 {%- for field in responseFields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
@@ -44,14 +69,14 @@ object {{ typeName }} {
         )
 {%- endfor %}
     }
-{%- else %}
+{% else %}
     data class Response(
 {%- for field in responseFields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
     )
-{%- endif %}
-{%- else %}
+{% endif %}
+{% else %}
     data object Response
-{%- endif %}
+{% endif %}
 }

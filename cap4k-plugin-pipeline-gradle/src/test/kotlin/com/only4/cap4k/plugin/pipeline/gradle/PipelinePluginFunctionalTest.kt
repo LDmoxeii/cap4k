@@ -2660,6 +2660,12 @@ class PipelinePluginFunctionalTest {
         val clientFile = projectDir.generatedFile(
             "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/message/delivery/PublishUserMessageCli.kt"
         )
+        val clientHandlerFile = projectDir.generatedFile(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/message/delivery/PublishUserMessageCliHandler.kt"
+        )
+        val queryHandlerFile = projectDir.generatedFile(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/message/read/FindUserMessageQryHandler.kt"
+        )
         val payloadFile = projectDir.generatedFile(
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/message/CreateUserMessagePayload.kt"
         )
@@ -2680,6 +2686,8 @@ class PipelinePluginFunctionalTest {
             queryFile,
             commandFile,
             clientFile,
+            clientHandlerFile,
+            queryHandlerFile,
             payloadFile,
             domainEventFile,
             domainEventHandlerFile,
@@ -2732,14 +2740,39 @@ class PipelinePluginFunctionalTest {
 
         val queryContent = queryFile.readText()
         assertTrue(queryContent.contains(") : RequestParam<Response>"))
+        assertTrue(queryContent.replace("\r\n", "\n").contains(") : RequestParam<Response>\n\n    data class Response("))
 
         val commandContent = commandFile.readText()
         assertTrue(commandContent.contains(") : RequestParam<Response>"))
+        assertTrue(commandContent.contains("class Handler : Command<Request, Response>"))
+        assertTrue(commandContent.contains("Mediator.uow.save()"))
+        assertTrue(commandContent.replace("\r\n", "\n").contains(") : RequestParam<Response>\n\n    data class Response("))
 
         val clientContent = clientFile.readText()
         assertTrue(clientContent.contains(") : RequestParam<Response>"))
+        assertTrue(clientContent.replace("\r\n", "\n").contains(") : RequestParam<Response>\n\n    data class Response("))
+
+        val clientHandlerContent = clientHandlerFile.readText().replace("\r\n", "\n")
+        assertTrue(
+            clientHandlerContent.contains(
+                "        return PublishUserMessageCli.Response(\n" +
+                    "            published = TODO(\"set published\")\n" +
+                    "        )"
+            )
+        )
+
+        val queryHandlerContent = queryHandlerFile.readText().replace("\r\n", "\n")
+        assertTrue(
+            queryHandlerContent.contains(
+                "        return FindUserMessageQry.Response(\n" +
+                    "            messageKey = TODO(\"set messageKey\"),\n" +
+                    "            content = TODO(\"set content\")\n" +
+                    "        )"
+            )
+        )
 
         val payloadContent = payloadFile.readText()
+        assertTrue(payloadContent.replace("\r\n", "\n").contains("    }\n\n    data class Response("))
         val requestIndex = payloadContent.indexOf("data class Request(")
         val responseIndex = payloadContent.indexOf("data class Response(")
         assertTrue(requestIndex >= 0, "Request class must be rendered.")
