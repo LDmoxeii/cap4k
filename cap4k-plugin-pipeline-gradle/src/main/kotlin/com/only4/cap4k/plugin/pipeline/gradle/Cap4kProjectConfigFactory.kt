@@ -2,8 +2,12 @@ package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
+import com.only4.cap4k.plugin.pipeline.api.OutputRootLayout
+import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
@@ -47,6 +51,7 @@ class Cap4kProjectConfigFactory {
         val generators = buildGenerators(extension, generatorStates)
         validateGeneratorDependencies(sourceStates, generatorStates)
         val typeRegistry = buildTypeRegistry(project, extension)
+        val artifactLayout = buildArtifactLayout(basePackage, extension)
 
         return ProjectConfig(
             basePackage = basePackage,
@@ -62,6 +67,7 @@ class Cap4kProjectConfigFactory {
                     extension.templates.conflictPolicy.normalized().ifEmpty { "SKIP" }
                 ),
             ),
+            artifactLayout = artifactLayout,
         )
     }
 
@@ -292,33 +298,45 @@ class Cap4kProjectConfigFactory {
             )
         }
         if (states.flowEnabled) {
-            put(
-                "flow",
-                GeneratorConfig(
-                    enabled = true,
-                    options = mapOf(
-                        "outputDir" to extension.generators.flow.outputDir.requiredWhenEnabled(
-                            "generators.flow.outputDir",
-                            "flow"
-                        )
-                    ),
-                )
-            )
+            put("flow", GeneratorConfig(enabled = true))
         }
         if (states.drawingBoardEnabled) {
-            put(
-                "drawing-board",
-                GeneratorConfig(
-                    enabled = true,
-                    options = mapOf(
-                        "outputDir" to extension.generators.drawingBoard.outputDir.requiredWhenEnabled(
-                            "generators.drawingBoard.outputDir",
-                            "drawingBoard"
-                        )
-                    ),
-                )
-            )
+            put("drawing-board", GeneratorConfig(enabled = true))
         }
+    }
+
+    private fun buildArtifactLayout(basePackage: String, extension: Cap4kExtension): ArtifactLayoutConfig {
+        val artifactLayout = ArtifactLayoutConfig(
+            aggregate = extension.layout.aggregate.toPackageLayout("aggregate"),
+            aggregateSchema = extension.layout.aggregateSchema.toPackageLayout("aggregateSchema"),
+            aggregateRepository = extension.layout.aggregateRepository.toPackageLayout("aggregateRepository"),
+            aggregateSharedEnum = extension.layout.aggregateSharedEnum.toPackageLayout("aggregateSharedEnum"),
+            aggregateEnumTranslation = extension.layout.aggregateEnumTranslation.toPackageLayout(
+                "aggregateEnumTranslation"
+            ),
+            aggregateUniqueQuery = extension.layout.aggregateUniqueQuery.toPackageLayout("aggregateUniqueQuery"),
+            aggregateUniqueQueryHandler = extension.layout.aggregateUniqueQueryHandler.toPackageLayout(
+                "aggregateUniqueQueryHandler"
+            ),
+            aggregateUniqueValidator = extension.layout.aggregateUniqueValidator.toPackageLayout(
+                "aggregateUniqueValidator"
+            ),
+            flow = extension.layout.flow.toOutputRootLayout("flow"),
+            drawingBoard = extension.layout.drawingBoard.toOutputRootLayout("drawing-board"),
+            designCommand = extension.layout.designCommand.toPackageLayout("designCommand"),
+            designQuery = extension.layout.designQuery.toPackageLayout("designQuery"),
+            designClient = extension.layout.designClient.toPackageLayout("designClient"),
+            designQueryHandler = extension.layout.designQueryHandler.toPackageLayout("designQueryHandler"),
+            designClientHandler = extension.layout.designClientHandler.toPackageLayout("designClientHandler"),
+            designValidator = extension.layout.designValidator.toPackageLayout("designValidator"),
+            designApiPayload = extension.layout.designApiPayload.toPackageLayout("designApiPayload"),
+            designDomainEvent = extension.layout.designDomainEvent.toPackageLayout("designDomainEvent"),
+            designDomainEventHandler = extension.layout.designDomainEventHandler.toPackageLayout(
+                "designDomainEventHandler"
+            ),
+        )
+        ArtifactLayoutResolver(basePackage = basePackage, artifactLayout = artifactLayout)
+        return artifactLayout
     }
 
     private fun buildTypeRegistry(project: Project, extension: Cap4kExtension): Map<String, String> {
@@ -449,6 +467,29 @@ private fun Property<String>.optionalValue(): String? =
 
 private fun Property<String>.normalized(): String =
     orNull?.trim().orEmpty()
+
+private fun PackageLayoutExtension.toPackageLayout(familyName: String): PackageLayout =
+    PackageLayout(
+        packageRoot = packageRoot.validPackageFragment("layout.$familyName.packageRoot"),
+        packageSuffix = packageSuffix.validPackageFragment("layout.$familyName.packageSuffix"),
+        defaultPackage = defaultPackage.validPackageFragment("layout.$familyName.defaultPackage"),
+    )
+
+private fun OutputRootLayoutExtension.toOutputRootLayout(familyName: String): OutputRootLayout =
+    OutputRootLayout(
+        outputRoot = ArtifactLayoutResolver.normalizeOutputRoot(outputRoot.rawValue(), familyName)
+    )
+
+private fun Property<String>.validPackageFragment(label: String): String {
+    val value = rawValue()
+    require(value == value.trim()) {
+        "$label must be a valid relative Kotlin package fragment: $value"
+    }
+    return ArtifactLayoutResolver.validatePackageFragment(value, label, allowBlank = true).trim()
+}
+
+private fun Property<String>.rawValue(): String =
+    orNull.orEmpty()
 
 private fun ListProperty<String>.normalizedValues(): List<String> =
     orNull.orEmpty().mapNotNull { value -> value.trim().takeIf { it.isNotEmpty() } }
