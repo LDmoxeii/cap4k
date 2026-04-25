@@ -1,27 +1,34 @@
-# 2026-04-25 cap4k Artifact Package Layout Design
+# 2026-04-25 cap4k Artifact Layout Design
 
 ## Background
 
-The pipeline generator currently decides generated package names and output paths in several different places.
+The pipeline generator currently decides generated package names, output directories, and output paths in several different places.
 
-Design-derived artifacts and DB-derived aggregate artifacts do not share one placement contract:
+The problem is not that design artifacts and DB artifacts need different routing systems. The problem is that all generated artifact families lack one placement contract.
 
-- design providers keep `design.json` `package` as a semantic subpackage and append hardcoded roots in each planner
-- DB aggregate assembly creates complete package names directly in canonical assembly
-- aggregate planners then trust those complete package names and turn them into output paths
+Different sources currently enter the pipeline differently:
 
-This caused a visible defect in `only-danmaku-next`:
+- `design.json` provides semantic package segments
+- DB snapshots provide table names that become semantic table segments
+- enum manifests provide enum package segments
+- IR analysis snapshots provide flow and drawing-board graph data
+
+After source normalization, all generated artifacts should use the same family layout resolver. Source origin must not create a second placement mechanism.
+
+This caused a visible code-generation defect in `only-danmaku-next`:
 
 - `UserMessageCreatedDomainEvent` was generated under `edu.only4.danmaku.domain.message.events`
 - the project convention expects `edu.only4.danmaku.domain.aggregates.message.events`
 
 The defect is not only a `designDomainEvent` bug. It exposes a broader missing abstraction: generated artifact placement is not centralized, configurable, or consistently explainable in `cap4kPlan`.
 
+The same rule also applies to analysis outputs such as `flow` and `drawing-board`. They do not have Kotlin packages, but their output directories are still artifact layout. They must not remain configured through a separate generator-specific location mechanism.
+
 ## Current Problems
 
 ### 1. Defaults Are Hidden In Implementation Code
 
-The current defaults are scattered across canonical assembly and generator planners.
+The current defaults are scattered across canonical assembly, generator planner code, and generator-specific Gradle options.
 
 Examples:
 
@@ -31,6 +38,8 @@ Examples:
 - design command: `${basePackage}.application.commands.${command.packageName}`
 - design query: `${basePackage}.application.queries.${query.packageName}`
 - design domain event: `${basePackage}.domain.${event.packageName}.events`
+- flow output: generator option `generators.flow.outputDir`, defaulting to `flows`
+- drawing-board output: generator option `generators.drawingBoard.outputDir`, defaulting to `design`
 
 The user cannot inspect or override these defaults as one coherent configuration surface.
 
@@ -49,9 +58,11 @@ If a user changes only the template package declaration, these values can diverg
 
 That is worse than having no override, because it produces inconsistent generated output.
 
-### 3. DB-Derived Artifacts Need The Same Capability
+### 3. Every Artifact Family Needs The Same Capability
 
-DB-derived artifacts are not driven by `design.json`, but they still need a package-root convention.
+Aggregate artifacts are not driven by `design.json`, but they still need the same artifact-family layout mechanism as every other generated artifact.
+
+Analysis output artifacts are not Kotlin source artifacts, but they still need the same artifact-family layout mechanism for output directories.
 
 For example, entity placement is currently finalized during canonical assembly:
 
@@ -92,12 +103,12 @@ The new pipeline should keep deterministic typed planning, but it needs a bounde
 
 ## Goals
 
-- Provide explicit default package-root configuration for generated artifact families
-- Support overriding package roots by artifact family
+- Provide explicit default layout configuration for generated artifact families
+- Support overriding package roots or output roots by artifact family
 - Keep module ownership fixed by framework convention in the first version
-- Use one resolver for package names, output paths, and generated imports
+- Use one resolver for package names, output directories, output paths, and generated imports
 - Make `cap4kPlan` reflect the final resolved output paths
-- Cover both design-derived and DB-derived aggregate artifacts
+- Cover every current generated artifact family through the same layout contract, regardless of source or artifact type
 - Fix the default `designDomainEvent` route to `domain.aggregates.<package>.events`
 - Avoid bringing back the old unified JSON runtime
 
@@ -114,17 +125,28 @@ The new pipeline should keep deterministic typed planning, but it needs a bounde
 
 ## Design Summary
 
-Add a project-level artifact package layout configuration.
+Add a project-level artifact layout configuration.
 
-The layout expresses where each artifact family lives relative to `basePackage`.
+The layout expresses where each artifact family lives.
+
+There is one layout contract with location shapes based on artifact type:
+
+- Kotlin source families use package layout relative to `basePackage`
+- project resource families use output-root layout relative to the project root
 
 It is not a source. It is not a template concern. It is not a replacement for generator enablement.
 
-The central contract is:
+The Kotlin source contract is:
 
 ```text
 final package = basePackage + packageRoot + semanticPackage + packageSuffix
 output path   = module root + src/main/kotlin + final package path + type name
+```
+
+The project resource contract is:
+
+```text
+output path = project root + outputRoot + semantic relative path
 ```
 
 Not every artifact family uses all segments:
@@ -135,6 +157,8 @@ Not every artifact family uses all segments:
 - aggregate repository uses only `packageRoot`
 - design command uses `packageRoot + design package`
 - design domain event uses `packageRoot + design package + packageSuffix`
+- flow uses `outputRoot + flow file name`
+- drawing-board uses `outputRoot + drawing board file name`
 
 The key point is that every package and path must be resolved by the same layout resolver.
 
@@ -184,6 +208,14 @@ cap4k {
             packageSuffix.set("unique")
         }
 
+        flow {
+            outputRoot.set("flows")
+        }
+
+        drawingBoard {
+            outputRoot.set("design")
+        }
+
         designCommand {
             packageRoot.set("application.commands")
         }
@@ -227,11 +259,11 @@ cap4k {
 
 The default values must be provided by the DSL/config model, even when the user does not write the block.
 
-Implementation code should not keep these defaults scattered as string concatenation.
+Implementation code should not keep these defaults scattered as string concatenation or generator-specific output directory defaults.
 
 ## Supported Configuration Shape
 
-Each first-version layout entry supports:
+Each first-version Kotlin source layout entry supports:
 
 ```kotlin
 packageRoot: Property<String>
@@ -243,6 +275,14 @@ defaultPackage: Property<String>
 
 `defaultPackage` is optional and is used only for families whose source may omit a semantic package, such as shared enums.
 
+Each first-version project resource layout entry supports:
+
+```kotlin
+outputRoot: Property<String>
+```
+
+`outputRoot` is a relative filesystem path from the project root.
+
 The first version does not expose:
 
 - `moduleRole`
@@ -251,10 +291,19 @@ The first version does not expose:
 - per-table rules
 - per-entity rules
 - arbitrary package expressions
+- arbitrary output path expressions
 
-This is intentional. Package layout is configurable, module ownership is not.
+This is intentional. Artifact family layout is configurable, module ownership is not.
 
-## Aggregate And DB-Derived Layout
+For non-Kotlin project resource artifacts, output root is configurable, but individual file names are still framework-owned.
+
+## Artifact Family Layout Rules
+
+All generated output is resolved by artifact family.
+
+Source data may provide the semantic segment for an artifact, but it does not choose the final location.
+
+### Aggregate Families
 
 DB source data should remain factual:
 
@@ -269,7 +318,7 @@ DB source data must not decide Kotlin package layout.
 
 Canonical assembly is the correct place to turn DB facts into aggregate semantic models, but it must use layout configuration instead of hardcoded package roots.
 
-### Aggregate Entity
+#### Aggregate Entity
 
 Default:
 
@@ -297,7 +346,7 @@ basePackage.domain.model.<tableSegment>.<EntityName>
 
 The table segment remains generated from the DB table name. This slice does not allow overriding it per table.
 
-### Entity-Attached Aggregate Artifacts
+#### Entity-Attached Aggregate Artifacts
 
 These artifacts follow the resolved entity package:
 
@@ -320,7 +369,7 @@ If the aggregate entity root changes, these generated FQNs must move with it.
 
 They should not each require a separate first-version package root unless there is a proven need.
 
-### Aggregate Schema
+#### Aggregate Schema
 
 Schema is not entity-attached in the same way. It is a shared metadata family.
 
@@ -360,7 +409,7 @@ If `aggregateSchema.packageRoot` is changed to `domain.meta`, the base schema pa
 basePackage.domain.meta.Schema
 ```
 
-### Aggregate Repository
+#### Aggregate Repository
 
 Repository has a separate family root because it belongs to the adapter module by framework convention.
 
@@ -390,9 +439,9 @@ basePackage.adapter.persistence.repositories.<RepositoryName>
 
 Repository remains in the adapter module. The first version must not allow moving it to domain or application.
 
-### Unique Constraint Families
+#### Unique Constraint Families
 
-Unique query, unique query handler, and unique validator are DB-derived, but they are not attached to the entity package.
+Unique query, unique query handler, and unique validator are aggregate families, but they are not attached to the entity package.
 
 Their defaults should be represented in layout:
 
@@ -412,7 +461,7 @@ aggregateUniqueValidator    -> application module
 
 The table segment remains generated from the DB table name.
 
-### Shared Enum And Enum Translation
+#### Shared Enum And Enum Translation
 
 Shared enum placement is a family-level layout concern, but enum manifest entries may still provide a semantic package segment.
 
@@ -448,7 +497,7 @@ aggregateEnumTranslation -> basePackage.domain.translation.<scope>.<EnumName>Tra
 
 The `<scope>` is `shared` for shared enum translations and the aggregate table segment for local enum translations.
 
-## Design-Derived Layout
+### Design Families
 
 `design.json` `package` remains a semantic subpackage.
 
@@ -482,7 +531,7 @@ This fixes the current wrong route:
 basePackage.domain.message.events.UserMessageCreatedDomainEvent
 ```
 
-### Design Request Families
+#### Design Request Families
 
 Default packages:
 
@@ -494,7 +543,7 @@ designClient  -> basePackage.application.distributed.clients.<designPackage>
 
 The source `package` value remains the same. Only the family root changes.
 
-### Design Handler Families
+#### Design Handler Families
 
 Default packages:
 
@@ -505,7 +554,7 @@ designClientHandler -> basePackage.adapter.application.distributed.clients.<desi
 
 Handlers keep their framework-owned module roles.
 
-### Design Domain Event Families
+#### Design Domain Event Families
 
 Default packages:
 
@@ -522,7 +571,7 @@ It must not independently reconstruct:
 basePackage.domain.<designPackage>.events.<Type>
 ```
 
-### Design Validator And API Payload
+#### Design Validator And API Payload
 
 Default packages:
 
@@ -533,11 +582,123 @@ designApiPayload -> basePackage.adapter.portal.api.payload.<designPackage>
 
 These families are included because template override and user project layout needs apply equally to them.
 
+### Analysis Families
+
+Analysis output families are not Kotlin source artifacts, so they do not use `packageRoot`.
+
+They still use the same artifact family layout contract through `outputRoot`.
+
+The current generator-specific options:
+
+```kotlin
+generators {
+    flow {
+        outputDir.set("flows")
+    }
+    drawingBoard {
+        outputDir.set("design")
+    }
+}
+```
+
+must move to layout:
+
+```kotlin
+layout {
+    flow {
+        outputRoot.set("flows")
+    }
+    drawingBoard {
+        outputRoot.set("design")
+    }
+}
+```
+
+Generator blocks should keep enablement and generator-specific behavior only. They should not own artifact location.
+
+#### Flow
+
+Default:
+
+```text
+flow -> flows
+```
+
+Generated files:
+
+```text
+flows/<flowSlug>.json
+flows/<flowSlug>.mmd
+flows/index.json
+```
+
+Custom output root:
+
+```kotlin
+cap4k {
+    layout {
+        flow {
+            outputRoot.set("build/cap4k/flows")
+        }
+    }
+}
+```
+
+Result:
+
+```text
+build/cap4k/flows/<flowSlug>.json
+build/cap4k/flows/<flowSlug>.mmd
+build/cap4k/flows/index.json
+```
+
+#### Drawing Board
+
+Default:
+
+```text
+drawingBoard -> design
+```
+
+Generated files:
+
+```text
+design/drawing_board_cmd.json
+design/drawing_board_qry.json
+design/drawing_board_cli.json
+design/drawing_board_payload.json
+design/drawing_board_de.json
+```
+
+Custom output root:
+
+```kotlin
+cap4k {
+    layout {
+        drawingBoard {
+            outputRoot.set("build/cap4k/design")
+        }
+    }
+}
+```
+
+Result:
+
+```text
+build/cap4k/design/drawing_board_cmd.json
+build/cap4k/design/drawing_board_qry.json
+build/cap4k/design/drawing_board_cli.json
+build/cap4k/design/drawing_board_payload.json
+build/cap4k/design/drawing_board_de.json
+```
+
+The individual file names stay framework-owned. The user controls the family output root only.
+
 ## Resolver Design
 
 Introduce a central resolver, tentatively named `ArtifactPackageLayoutResolver`.
 
-The resolver owns all package-root defaults and package/path construction.
+The resolver owns all package-root defaults, output-root defaults, package construction, and path construction.
 
 It should expose intention-level functions, not raw string helpers:
 
@@ -567,6 +728,9 @@ interface ArtifactPackageLayoutResolver {
     fun designApiPayloadPackage(designPackage: String): String
     fun designDomainEventPackage(designPackage: String): String
     fun designDomainEventHandlerPackage(designPackage: String): String
+
+    fun flowOutputRoot(): String
+    fun drawingBoardOutputRoot(): String
 }
 ```
 
@@ -582,10 +746,22 @@ For Kotlin source artifacts, the resolver should provide or support a shared hel
 moduleRoot/src/main/kotlin/<resolvedPackagePath>/<typeName>.kt
 ```
 
+For project resource artifacts, the resolver should provide or support a shared helper:
+
+```text
+<outputRoot>/<relativeFileName>
+```
+
 This helper must be used by planners instead of duplicating:
 
 ```kotlin
 "$root/src/main/kotlin/${packageName.replace(".", "/")}/$typeName.kt"
+```
+
+or:
+
+```kotlin
+"$outputDir/$fileName"
 ```
 
 Centralizing this is important because `cap4kPlan` is only useful if it reports the same final path that generation will write.
@@ -624,6 +800,8 @@ data class ArtifactPackageLayoutConfig(
         packageRoot = "application.validators",
         packageSuffix = "unique",
     ),
+    val flow: OutputRootLayout = OutputRootLayout("flows"),
+    val drawingBoard: OutputRootLayout = OutputRootLayout("design"),
     val designCommand: PackageLayout = PackageLayout("application.commands"),
     val designQuery: PackageLayout = PackageLayout("application.queries"),
     val designClient: PackageLayout = PackageLayout("application.distributed.clients"),
@@ -646,6 +824,10 @@ data class PackageLayout(
     val packageSuffix: String = "",
     val defaultPackage: String = "",
 )
+
+data class OutputRootLayout(
+    val outputRoot: String,
+)
 ```
 
 This is illustrative. The exact Gradle extension classes will use Gradle `Property<String>`, but the pipeline API should receive immutable values.
@@ -659,12 +841,17 @@ Rules:
 - package root must be blank or a valid relative Kotlin package fragment
 - package suffix must be blank or a valid relative Kotlin package fragment
 - default package must be blank or a valid relative Kotlin package fragment
+- output root must be a non-blank relative filesystem path
 - package fragments must not start or end with `.`
 - package fragments must not contain `..`
 - package fragments must not contain path separators
 - package fragments must not contain wildcard or expression syntax
 - package fragments must not include `basePackage`
 - package fragments must not escape module ownership
+- output roots must not be absolute
+- output roots must not contain `..`
+- output roots must normalize to slash-separated relative paths
+- output roots must not contain wildcard or expression syntax
 
 Blank `packageRoot` is allowed only if it produces a valid package with `basePackage`.
 
@@ -698,11 +885,15 @@ design validator        -> application module
 design api payload      -> adapter module
 design domain event     -> domain module
 design event handler    -> application module
+flow                    -> project root
+drawing board           -> project root
 ```
 
 The DSL controls package root inside that module. It does not control the module.
 
 This prevents accidental dependency-direction breakage.
+
+For project resource artifacts, the DSL controls the output root inside the project. It does not control individual file names.
 
 ## Migration Strategy
 
@@ -713,11 +904,13 @@ The implementation should still be incremental:
 1. Add config model and Gradle DSL defaults.
 2. Add validation.
 3. Add resolver.
-4. Route DB-derived canonical assembly through resolver.
+4. Route canonical assembly through resolver wherever it creates generated package names.
 5. Route aggregate planners through resolver-derived package names and path helpers.
 6. Route design planners and render-model imports through resolver.
-7. Update tests and README.
-8. Regenerate `only-danmaku-next` and verify compile.
+7. Route flow and drawing-board planners through resolver-derived output roots.
+8. Move generator-specific `outputDir` into layout so analysis outputs do not keep a second location configuration path.
+9. Update tests and README.
+10. Regenerate `only-danmaku-next` and verify compile.
 
 During implementation, temporary adapters are acceptable on the feature branch if needed to keep tests running.
 
@@ -735,9 +928,23 @@ before: basePackage.domain.<designPackage>.events
 after:  basePackage.domain.aggregates.<designPackage>.events
 ```
 
-This aligns design-authored domain events with the aggregate package convention already used by DB-derived aggregate artifacts.
+This aligns domain events with the same aggregate package convention used by aggregate entity artifacts.
 
 Handler imports must change accordingly.
+
+Analysis artifact defaults stay behaviorally the same, but their configuration owner changes:
+
+```text
+flow
+before config owner: generators.flow.outputDir
+after config owner:  layout.flow.outputRoot
+default output:      flows
+
+drawingBoard
+before config owner: generators.drawingBoard.outputDir
+after config owner:  layout.drawingBoard.outputRoot
+default output:      design
+```
 
 ## Test Requirements
 
@@ -760,6 +967,8 @@ Add resolver tests for default package resolution:
 - design query package
 - design domain event package
 - design domain event handler package
+- flow output root
+- drawing-board output root
 
 Add custom layout tests:
 
@@ -774,6 +983,8 @@ Add custom layout tests:
 - custom `designCommand.packageRoot`
 - custom `designDomainEvent.packageRoot`
 - custom `designDomainEvent.packageSuffix`
+- custom `flow.outputRoot`
+- custom `drawingBoard.outputRoot`
 
 Add validation tests:
 
@@ -784,6 +995,10 @@ Add validation tests:
 - rejects package roots ending with `.`
 - rejects package roots containing wildcard syntax
 - rejects package roots that include `basePackage`
+- rejects blank output roots
+- rejects absolute output roots
+- rejects output roots containing `..`
+- normalizes output roots to slash-separated relative paths
 
 ### Planner Tests
 
@@ -817,6 +1032,15 @@ Design planner tests must assert both context package and output path for:
 
 Domain event handler tests must also assert the imported domain event FQN.
 
+Analysis planner tests must assert output path for:
+
+- flow entry JSON
+- flow entry Mermaid
+- flow index JSON
+- drawing-board JSON documents
+- custom flow output root
+- custom drawing-board output root
+
 ### Functional Tests
 
 Functional tests should include one custom-layout project where at least these roots are overridden:
@@ -831,6 +1055,12 @@ layout {
     }
     aggregateRepository {
         packageRoot.set("adapter.persistence.repositories")
+    }
+    flow {
+        outputRoot.set("build/cap4k/flows")
+    }
+    drawingBoard {
+        outputRoot.set("build/cap4k/design")
     }
     designDomainEvent {
         packageRoot.set("domain.model")
@@ -847,6 +1077,7 @@ It must verify that:
 - generated Kotlin package declarations match the output path
 - imports match the moved packages
 - `cap4kPlan` reports the same final output paths
+- analysis generated files land under the configured output roots
 
 ### Real Project Verification
 
@@ -877,6 +1108,7 @@ Update the Gradle plugin README to explain:
 - placement is controlled by `layout`, not templates
 - `design.json` `package` is a semantic subpackage
 - DB table segment is generated from table name and is not per-table configurable
+- flow and drawing-board output roots are controlled by `layout`, not generator `outputDir`
 - module ownership is fixed in the first version
 - `cap4kPlan` is the source for reviewing final output paths
 
@@ -886,11 +1118,13 @@ The README should show default-equivalent layout values so users can understand 
 
 This slice is complete when:
 
-- all package-root defaults are visible in layout config
-- no aggregate or design planner owns hidden package-root defaults for covered families
-- DB-derived entity package names are produced through the resolver
-- design-derived package names are produced through the resolver
+- all Kotlin source package-root defaults are visible in layout config
+- all project resource output-root defaults are visible in layout config
+- no planner owns hidden package-root or output-root defaults for covered families
+- generated Kotlin package names are produced through the resolver regardless of source
+- generated project resource output roots are produced through the resolver regardless of source
 - output paths and Kotlin package declarations are consistent
+- project resource output paths are resolved through the same layout contract
 - imports are derived from the same resolved packages
 - `designDomainEvent` defaults to `domain.aggregates.<package>.events`
 - tests cover default and custom package roots
@@ -906,6 +1140,7 @@ Do not weaken this design during implementation by adding:
 - template-controlled output paths
 - module override in layout
 - fallback string concatenation for covered package roots in individual planners
+- generator-specific output directory defaults outside layout
 - separate import package logic that bypasses the resolver
 
 If a future artifact family is added later, it must either join the resolver contract immediately or be explicitly documented as out of scope. Do not add more local hardcoded package roots while implementing this feature.
