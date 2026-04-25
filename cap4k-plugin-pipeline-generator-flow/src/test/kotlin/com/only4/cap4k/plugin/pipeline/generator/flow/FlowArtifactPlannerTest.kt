@@ -3,9 +3,11 @@ package com.only4.cap4k.plugin.pipeline.generator.flow
 import com.only4.cap4k.plugin.pipeline.api.AnalysisEdgeModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
+import com.only4.cap4k.plugin.pipeline.api.OutputRootLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
@@ -116,7 +118,7 @@ class FlowArtifactPlannerTest {
     }
 
     @Test
-    fun `defaults blank flow output dir to flows`() {
+    fun `supports custom flow output root`() {
         val planner = FlowArtifactPlanner()
         val model = CanonicalModel(
             analysisGraph = AnalysisGraphModel(
@@ -133,13 +135,13 @@ class FlowArtifactPlannerTest {
             ),
         )
 
-        val plan = planner.plan(config(outputDir = " "), model)
+        val plan = planner.plan(config(outputRoot = "build/cap4k/flows"), model)
 
-        assertEquals("flows/OrderController_submit.json", plan.first().outputPath)
+        assertEquals("build/cap4k/flows/OrderController_submit.json", plan.first().outputPath)
     }
 
     @Test
-    fun `rejects absolute and parent traversing flow output dir`() {
+    fun `rejects absolute and parent traversing flow output root`() {
         val planner = FlowArtifactPlanner()
         val model = CanonicalModel(
             analysisGraph = AnalysisGraphModel(
@@ -158,18 +160,18 @@ class FlowArtifactPlannerTest {
 
         val absolutePath = Path.of("flows").toAbsolutePath().toString()
         val absoluteEx = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(config(outputDir = absolutePath), model)
+            planner.plan(config(outputRoot = absolutePath), model)
         }
         assertEquals(
-            "flow outputDir must be a valid relative filesystem path: $absolutePath",
+            "flow outputRoot must be a valid relative filesystem path: $absolutePath",
             absoluteEx.message,
         )
 
         val traversalEx = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(config(outputDir = "../flows"), model)
+            planner.plan(config(outputRoot = "../flows"), model)
         }
         assertEquals(
-            "flow outputDir must be a valid relative filesystem path: ../flows",
+            "flow outputRoot must be a valid relative filesystem path: ../flows",
             traversalEx.message,
         )
     }
@@ -241,7 +243,7 @@ class FlowArtifactPlannerTest {
         assertTrue(indexJson.contains("\"controllermethod\": 1"))
     }
 
-    private fun config(outputDir: String = "flows"): ProjectConfig =
+    private fun config(outputRoot: String = "flows"): ProjectConfig =
         ProjectConfig(
             basePackage = "com.acme.demo",
             layout = ProjectLayout.MULTI_MODULE,
@@ -250,9 +252,9 @@ class FlowArtifactPlannerTest {
             generators = mapOf(
                 "flow" to GeneratorConfig(
                     enabled = true,
-                    options = mapOf("outputDir" to outputDir),
                 ),
             ),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            artifactLayout = ArtifactLayoutConfig(flow = OutputRootLayout(outputRoot)),
         )
 }
