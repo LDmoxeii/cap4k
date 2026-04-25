@@ -128,9 +128,14 @@ class DddMultiModuleBootstrapPresetProviderTest {
         assertEquals("custom-bootstrap-preset", context["templatePreset"])
         assertEquals("only-danmuku-start", context["startModuleName"])
         assertEquals(listOf("C:/cap4k/overrides", "D:/cap4k/more-overrides"), context["templateOverrideDirs"])
-        assertTrue(context["slotBindings"].toString().contains("C:/cap4k/slots/root"))
-        assertTrue(context["slotBindings"].toString().contains("D:/cap4k/slots/domain-package"))
-        assertTrue(context["slotBindings"].toString().contains("MODULE_PACKAGE"))
+        val slotStatements = context["slotStatements"] as List<*>
+        assertEquals(
+            listOf(
+                "root.from(\"C:/cap4k/slots/root\")",
+                "modulePackage(\"domain\").from(\"D:/cap4k/slots/domain-package\")",
+            ),
+            slotStatements,
+        )
     }
 
     @Test
@@ -156,8 +161,14 @@ class DddMultiModuleBootstrapPresetProviderTest {
 
         assertEquals(listOf("C:/cap4k/\\\$tmp", "D:/cap4k/quote\\\"dir"), context["templateOverrideDirs"])
         assertEquals("preview/\\\$slot\\\"dir", context["previewDir"])
-        assertTrue(context["slotBindings"].toString().contains("E:/cap4k/\\\$slot-root"))
-        assertTrue(context["slotBindings"].toString().contains("F:/cap4k/quote\\\"slot"))
+        val slotStatements = context["slotStatements"] as List<*>
+        assertEquals(
+            listOf(
+                "root.from(\"E:/cap4k/\\\$slot-root\")",
+                "modulePackage(\"domain\").from(\"F:/cap4k/quote\\\"slot\")",
+            ),
+            slotStatements,
+        )
     }
 
     @Test
