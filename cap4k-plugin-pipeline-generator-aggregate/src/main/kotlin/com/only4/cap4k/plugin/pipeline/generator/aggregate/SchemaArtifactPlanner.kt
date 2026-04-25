@@ -9,20 +9,28 @@ import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
 internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
+    private companion object {
+        const val SCHEMA_RUNTIME_PACKAGE = "com.only4.cap4k.ddd.domain.repo.schema"
+    }
+
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val domainRoot = requireRelativeModule(config, "domain")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
+        val selection = AggregateArtifactSelection.from(config)
         val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
         val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry)
         val entitiesByName = model.entities
             .groupBy { it.name }
-        val schemaBasePackage = artifactLayout.aggregateSchemaBasePackage()
 
         return model.schemas.map { schema ->
             val entity = requireUniqueSchemaEntity(schema.name, schema.entityName, entitiesByName[schema.entityName].orEmpty())
             val entityTypeFqn = derivedTypeReferences.entityFqn(entity)
             val qEntityTypeFqn = requireNotNull(derivedTypeReferences.qEntityFqn(schema.entityName))
-            val aggregateTypeFqn = buildAggregateWrapperFqn(entity.packageName, entity.name)
+            val aggregateTypeFqn = if (selection.wrapperEnabled) {
+                buildAggregateWrapperFqn(entity.packageName, entity.name)
+            } else {
+                ""
+            }
             val ownerPackage = entity.packageName
             val fields = schema.fields.map { field ->
                 val fieldType = planning.resolveFieldType(ownerPackage, field)
@@ -50,12 +58,11 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "typeName" to schema.name,
                     "comment" to schema.comment,
                     "entityName" to schema.entityName,
-                    "schemaBasePackage" to schemaBasePackage,
+                    "schemaRuntimePackage" to SCHEMA_RUNTIME_PACKAGE,
                     "entityTypeFqn" to entityTypeFqn,
                     "qEntityTypeFqn" to qEntityTypeFqn,
                     "aggregateTypeFqn" to aggregateTypeFqn,
-                    "isAggregateRoot" to true,
-                    "generateAggregate" to true,
+                    "wrapperEnabled" to selection.wrapperEnabled,
                     "repositorySupportQuerydsl" to false,
                     "fields" to fields,
                 ),

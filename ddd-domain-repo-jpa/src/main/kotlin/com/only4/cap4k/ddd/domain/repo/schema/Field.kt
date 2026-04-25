@@ -1,54 +1,14 @@
-package {{ packageName }}
+package com.only4.cap4k.ddd.domain.repo.schema
 
-{{ use("jakarta.persistence.criteria.CriteriaBuilder") -}}
-{{ use("jakarta.persistence.criteria.CriteriaQuery") -}}
-{{ use("jakarta.persistence.criteria.Expression") -}}
-{{ use("jakarta.persistence.criteria.Order") -}}
-{{ use("jakarta.persistence.criteria.Path") -}}
-{{ use("jakarta.persistence.criteria.Predicate") -}}
-{{ use("jakarta.persistence.criteria.Subquery") -}}
-{{ use("org.hibernate.query.NullPrecedence") -}}
-{{ use("org.hibernate.query.SortDirection") -}}
-{{ use("org.hibernate.query.sqm.tree.domain.SqmBasicValuedSimplePath") -}}
-{{ use("org.hibernate.query.sqm.tree.select.SqmSortSpecification") -}}
-{% for import in imports(imports) -%}
-import {{ import }}
-{% endfor %}
-
-fun interface SchemaSpecification<E, S> {
-    fun toPredicate(schema: S, criteriaQuery: CriteriaQuery<*>, criteriaBuilder: CriteriaBuilder): Predicate?
-}
-
-fun interface SubqueryConfigure<E, S> {
-    fun configure(subquery: Subquery<E>, schema: S)
-}
-
-fun interface ExpressionBuilder<S, T> {
-    fun build(schema: S): Expression<T>
-}
-
-fun interface PredicateBuilder<S> {
-    fun build(schema: S): Predicate
-}
-
-fun interface OrderBuilder<S> {
-    fun build(schema: S): Order
-}
-
-enum class JoinType {
-    INNER,
-    LEFT,
-    RIGHT,
-    ;
-
-    fun toJpaJoinType(): jakarta.persistence.criteria.JoinType {
-        return when (this) {
-            INNER -> jakarta.persistence.criteria.JoinType.INNER
-            LEFT -> jakarta.persistence.criteria.JoinType.LEFT
-            RIGHT -> jakarta.persistence.criteria.JoinType.RIGHT
-        }
-    }
-}
+import jakarta.persistence.criteria.CriteriaBuilder
+import jakarta.persistence.criteria.Expression
+import jakarta.persistence.criteria.Order
+import jakarta.persistence.criteria.Path
+import jakarta.persistence.criteria.Predicate
+import org.hibernate.query.NullPrecedence
+import org.hibernate.query.SortDirection
+import org.hibernate.query.sqm.tree.domain.SqmBasicValuedSimplePath
+import org.hibernate.query.sqm.tree.select.SqmSortSpecification
 
 @Suppress("UNCHECKED_CAST")
 class Field<T> {
@@ -197,45 +157,4 @@ class Field<T> {
     infix fun `in?`(values: Collection<*>?): Predicate? = if (values.isNullOrEmpty()) null else `in`(values)
 
     infix fun `notIn?`(values: Collection<*>?): Predicate? = if (values.isNullOrEmpty()) null else notIn(values)
-}
-
-fun and(vararg predicates: Predicate?): Predicate? =
-    predicates.filterNotNull().let {
-        when (it.size) {
-            0 -> null
-            1 -> it[0]
-            else -> getCriteriaBuilderFromPredicate(it[0]).and(*it.toTypedArray())
-        }
-    }
-
-fun or(vararg predicates: Predicate?): Predicate? =
-    predicates.filterNotNull().let {
-        when (it.size) {
-            0 -> null
-            1 -> it[0]
-            else -> getCriteriaBuilderFromPredicate(it[0]).or(*it.toTypedArray())
-        }
-    }
-
-infix fun Predicate.and(other: Predicate): Predicate =
-    getCriteriaBuilderFromPredicate(this).and(this, other)
-
-infix fun Predicate.or(other: Predicate): Predicate =
-    getCriteriaBuilderFromPredicate(this).or(this, other)
-
-fun Predicate.not(): Predicate =
-    getCriteriaBuilderFromPredicate(this).not(this)
-
-private fun getCriteriaBuilderFromPredicate(predicate: Predicate): CriteriaBuilder {
-    return when (predicate) {
-        is org.hibernate.query.sqm.tree.predicate.SqmPredicate -> predicate.nodeBuilder()
-        else -> {
-            try {
-                val method = predicate.javaClass.getMethod("criteriaBuilder")
-                method.invoke(predicate) as CriteriaBuilder
-            } catch (ex: Exception) {
-                throw IllegalStateException("Unable to read CriteriaBuilder from ${predicate.javaClass}", ex)
-            }
-        }
-    }
 }

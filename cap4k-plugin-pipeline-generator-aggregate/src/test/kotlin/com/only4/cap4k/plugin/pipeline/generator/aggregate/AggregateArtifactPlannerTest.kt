@@ -195,7 +195,6 @@ class AggregateArtifactPlannerTest {
             )
         )
 
-        val schemaBase = plan.single { it.templateId == "aggregate/schema_base.kt.peb" }
         val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
         val factory = plan.single { it.templateId == "aggregate/factory.kt.peb" }
         val specification = plan.single { it.templateId == "aggregate/specification.kt.peb" }
@@ -205,10 +204,7 @@ class AggregateArtifactPlannerTest {
         val uniqueQueryHandler = plan.single { it.templateId == "aggregate/unique_query_handler.kt.peb" }
         val uniqueValidator = plan.single { it.templateId == "aggregate/unique_validator.kt.peb" }
 
-        assertEquals(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/meta/Schema.kt",
-            schemaBase.outputPath,
-        )
+        assertFalse(plan.any { it.templateId == "aggregate/schema_base.kt.peb" })
         assertEquals(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/model/user_message/UserMessage.kt",
             entityItem.outputPath,
@@ -225,7 +221,8 @@ class AggregateArtifactPlannerTest {
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/persistence/repositories/UserMessageRepository.kt",
             repositoryItem.outputPath,
         )
-        assertEquals("com.acme.demo.domain.meta", schemaItem.context["schemaBasePackage"])
+        assertEquals("com.only4.cap4k.ddd.domain.repo.schema", schemaItem.context["schemaRuntimePackage"])
+        assertEquals(false, schemaItem.context.containsKey("schemaBasePackage"))
         assertEquals("com.acme.demo.domain.model.user_message", entityItem.context["packageName"])
         assertEquals("com.acme.demo.domain.model.user_message.factory", factory.context["packageName"])
         assertEquals(
@@ -259,7 +256,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `aggregate planner emits schema base before entity schemas`() {
+    fun `aggregate planner uses framework schema runtime instead of project schema base artifact`() {
         val entity = EntityModel(
             name = "UserMessage",
             packageName = "com.acme.demo.domain.aggregates.user_message",
@@ -285,16 +282,11 @@ class AggregateArtifactPlannerTest {
             )
         )
 
-        val schemaBase = plan.single { it.templateId == "aggregate/schema_base.kt.peb" }
         val schema = plan.single { it.templateId == "aggregate/schema.kt.peb" }
 
-        assertEquals(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/Schema.kt",
-            schemaBase.outputPath,
-        )
-        assertEquals("com.acme.demo.domain._share.meta", schemaBase.context["packageName"])
-        assertEquals("Schema", schemaBase.context["typeName"])
-        assertEquals("com.acme.demo.domain._share.meta", schema.context["schemaBasePackage"])
+        assertFalse(plan.any { it.templateId == "aggregate/schema_base.kt.peb" })
+        assertEquals("com.only4.cap4k.ddd.domain.repo.schema", schema.context["schemaRuntimePackage"])
+        assertEquals(false, schema.context.containsKey("schemaBasePackage"))
         assertEquals(
             "com.acme.demo.domain.aggregates.user_message.UserMessage",
             schema.context["entityTypeFqn"],
@@ -303,10 +295,49 @@ class AggregateArtifactPlannerTest {
             "com.acme.demo.domain.aggregates.user_message.AggUserMessage",
             schema.context["aggregateTypeFqn"],
         )
-        assertEquals(true, schema.context["isAggregateRoot"])
-        assertEquals(true, schema.context["generateAggregate"])
+        assertEquals(true, schema.context["wrapperEnabled"])
         assertEquals(false, schema.context["repositorySupportQuerydsl"])
-        assertTrue(plan.indexOf(schemaBase) < plan.indexOf(schema))
+    }
+
+    @Test
+    fun `schema planner disables wrapper dependent render model when wrapper artifact is disabled`() {
+        val entity = EntityModel(
+            name = "UserMessage",
+            packageName = "com.acme.demo.domain.aggregates.user_message",
+            tableName = "user_message",
+            comment = "user message",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(
+                options = mapOf(
+                    "artifact.factory" to false,
+                    "artifact.specification" to false,
+                    "artifact.wrapper" to false,
+                    "artifact.unique" to false,
+                    "artifact.enumTranslation" to false,
+                )
+            ),
+            CanonicalModel(
+                entities = listOf(entity),
+                schemas = listOf(
+                    SchemaModel(
+                        name = "SUserMessage",
+                        packageName = "com.acme.demo.domain._share.meta.user_message",
+                        entityName = "UserMessage",
+                        comment = "user message",
+                        fields = entity.fields,
+                    )
+                ),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            )
+        )
+
+        val schema = plan.single { it.templateId == "aggregate/schema.kt.peb" }
+
+        assertEquals(false, schema.context["wrapperEnabled"])
+        assertEquals("", schema.context["aggregateTypeFqn"])
     }
 
     @Test
@@ -1436,11 +1467,8 @@ class AggregateArtifactPlannerTest {
 
         val planItems = AggregateArtifactPlanner().plan(config, model)
 
-        assertEquals(7, planItems.size)
-        assertEquals(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/Schema.kt",
-            planItems.first { it.templateId == "aggregate/schema_base.kt.peb" }.outputPath,
-        )
+        assertEquals(6, planItems.size)
+        assertFalse(planItems.any { it.templateId == "aggregate/schema_base.kt.peb" })
         assertEquals(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt",
             planItems.first { it.templateId == "aggregate/schema.kt.peb" }.outputPath,
@@ -1456,6 +1484,10 @@ class AggregateArtifactPlannerTest {
         assertEquals(
             "com.acme.demo.domain.aggregates.video_post.QVideoPost",
             planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context["qEntityTypeFqn"],
+        )
+        assertEquals(
+            "com.only4.cap4k.ddd.domain.repo.schema",
+            planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context["schemaRuntimePackage"],
         )
         assertEquals(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
