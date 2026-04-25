@@ -4908,6 +4908,7 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
+        val normalizedContent = content.replace("\r\n", "\n")
         assertTrue(content.contains("@DomainEvent"))
         assertTrue(content.contains("@Aggregate"))
         assertTrue(content.contains("* order * / \"created\" event"))
@@ -4920,6 +4921,12 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("import com.acme.demo.domain.order.Order"))
         assertTrue(content.contains("data class Snapshot("))
         assertTrue(content.contains("val traceId: UUID"))
+        val importBlock = normalizedContent.substringAfter("package com.acme.demo.domain.order.events\n").substringBefore("/**")
+        assertFalse(importBlock.contains("\n\nimport"), "domain event imports should not contain blank lines between imports")
+        assertFalse(
+            normalizedContent.contains("val entity: Order,\n\n    val reason: String"),
+            "domain event constructor fields should not contain blank lines between parameters"
+        )
     }
 
     @Test
