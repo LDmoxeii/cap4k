@@ -12,10 +12,14 @@ cap4k {
             inputDirs.from("analysis/app/build/cap4k-code-analysis")
         }
     }
+    layout {
+        flow {
+            outputRoot.set("flows")
+        }
+    }
     generators {
         flow {
             enabled.set(true)
-            outputDir.set("flows")
         }
     }
     templates {

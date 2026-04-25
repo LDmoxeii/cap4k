@@ -423,14 +423,8 @@ cap4k {
             enabled = true
             unsupportedTablePolicy = "FAIL"   // FAIL / SKIP
         }
-        flow {
-            enabled = true
-            outputDir = "docs/flow"           // 相对工程根
-        }
-        drawingBoard {
-            enabled = true
-            outputDir = "docs/drawing-board"
-        }
+        flow { enabled = true }
+        drawingBoard { enabled = true }
     }
 }
 ```
@@ -452,7 +446,46 @@ cap4k {
 | `flow` | `irAnalysis` source（由 `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 执行） |
 | `drawingBoard` | `irAnalysis` source（由 `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 执行） |
 
-### 6.5 `templates { }`
+### 6.5 Artifact Layout
+
+`layout { }` 只控制**生成产物**的落点：Kotlin 源码类的包根、包后缀，以及 project resource 类产物的输出根。输入仍归 `sources { }` 管理，例如 `sources.irAnalysis.inputDirs` 仍然只表示 IR 分析输入目录，不要放到 `layout` 中。
+
+Kotlin 源码 family 使用 `packageRoot` / `packageSuffix` 组合输出包名：
+
+```kotlin
+cap4k {
+    layout {
+        designDomainEvent {
+            packageRoot.set("domain.model")
+            packageSuffix.set("events")
+        }
+        designDomainEventHandler {
+            packageRoot.set("application")
+            packageSuffix.set("events")
+        }
+        aggregate {
+            packageRoot.set("domain.model")
+        }
+    }
+}
+```
+
+Project resource family 使用 `outputRoot` 组合输出目录，路径相对工程根：
+
+```kotlin
+cap4k {
+    layout {
+        flow {
+            outputRoot.set("docs/flow")
+        }
+        drawingBoard {
+            outputRoot.set("docs/drawing-board")
+        }
+    }
+}
+```
+
+### 6.6 `templates { }`
 
 ```kotlin
 cap4k {
@@ -468,7 +501,7 @@ cap4k {
 - `overrideDirs`：按目录顺序查找；首个命中的同 id 文件即为最终模板文本
 - `conflictPolicy` 作用于 **导出** 阶段，决定目标文件已存在时的行为
 
-### 6.6 `bootstrap { }`
+### 6.7 `bootstrap { }`
 
 用于生成 Bootstrap 骨架（多模块 Gradle 根 + 各模块源目录，外加可选 slot 扩展）。
 
@@ -548,7 +581,7 @@ cap4k {
 | `cap4kPlan` | 规划**源码生成**计划（design / aggregate 家族） | `build/cap4k/plan.json`（含 `items` 与 `diagnostics`） | 否 |
 | `cap4kGenerate` | 执行**源码生成**流水线（design / aggregate 家族） | 生成到 `outputPath` 指向的位置 | 是 |
 | `cap4kAnalysisPlan` | 规划**分析导出**计划（flow / drawing-board 家族） | `build/cap4k/analysis-plan.json`（含 `items` 与 `diagnostics`） | 否 |
-| `cap4kAnalysisGenerate` | 执行**分析导出**流水线（flow / drawing-board 家族） | 生成到 `flow.outputDir` / `drawingBoard.outputDir` 指向的位置 | 是 |
+| `cap4kAnalysisGenerate` | 执行**分析导出**流水线（flow / drawing-board 家族） | 生成到 `layout.flow.outputRoot` / `layout.drawingBoard.outputRoot` 指向的位置 | 是 |
 | `cap4kBootstrapPlan` | 规划 Bootstrap 骨架 | `build/cap4k/bootstrap-plan.json` | 否 |
 | `cap4kBootstrap` | 生成 Bootstrap 骨架 | 按 `bootstrap.mode` 写入：`IN_PLACE` 写向当前受管宿主根；`PREVIEW_SUBTREE` 写到 `previewDir/` | 是 |
 
@@ -768,7 +801,7 @@ Generator 统一约束：
 
 - id：`flow`
 - 模块：project（写到工程根）
-- `outputDir` 必填（相对路径，禁止 `..` 逃逸）
+- `layout.flow.outputRoot` 控制输出根（相对路径，禁止 `..` 逃逸）
 - 每个 "controllermethod" 产出 `{slug}.json` 和 `{slug}.mmd`，另外有一个 `index.json`
 - 模板：`flow/entry.json.peb`, `flow/entry.mmd.peb`, `flow/index.json.peb`
 
@@ -1428,8 +1461,8 @@ assertTrue(result.output.contains("BUILD SUCCESSFUL"))
 | `design-domain-event` | domain | `design/domain_event.kt.peb` | `{domain}/src/main/kotlin/{pkg}/domain/{sub}/events/{Name}DomainEvent.kt` |
 | `design-domain-event-handler` | application | `design/domain_event_handler.kt.peb` | `{application}/src/main/kotlin/{pkg}/application/subscribers/domain/{sub}/{Name}DomainEventSubscriber.kt` |
 | `aggregate` | domain+application+adapter | `aggregate/*.kt.peb` | 多处，见 9.8 |
-| `flow` | project | `flow/entry.{json|mmd}.peb`, `flow/index.json.peb` | `{generators.flow.outputDir}/...` |
-| `drawing-board` | project | `drawing-board/document.json.peb` | `{generators.drawingBoard.outputDir}/...` |
+| `flow` | project | `flow/entry.{json|mmd}.peb`, `flow/index.json.peb` | `{layout.flow.outputRoot}/...` |
+| `drawing-board` | project | `drawing-board/document.json.peb` | `{layout.drawingBoard.outputRoot}/...` |
 
 ---
 

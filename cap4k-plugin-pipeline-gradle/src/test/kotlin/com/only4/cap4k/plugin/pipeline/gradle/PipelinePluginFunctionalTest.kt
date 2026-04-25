@@ -1761,6 +1761,36 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kAnalysisGenerate flow artifacts support custom layout output root`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-analysis-flow-layout")
+        copyFixture(projectDir, "flow-sample")
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace(
+                """outputRoot.set("flows")""",
+                """outputRoot.set("build/cap4k/flows")""",
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kAnalysisPlan", "cap4kAnalysisGenerate")
+            .build()
+
+        val analysisPlanFile = projectDir.resolve("build/cap4k/analysis-plan.json")
+        val analysisPlanContent = analysisPlanFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(analysisPlanContent.contains("\"outputPath\": \"build/cap4k/flows/OrderController_submit.json\""))
+        assertTrue(projectDir.resolve("build/cap4k/flows/OrderController_submit.json").toFile().exists())
+        assertTrue(projectDir.resolve("build/cap4k/flows/OrderController_submit.mmd").toFile().exists())
+        assertTrue(projectDir.resolve("build/cap4k/flows/index.json").toFile().exists())
+        assertFalse(projectDir.resolve("flows/index.json").toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan and cap4kGenerate ignore flow and drawing board generators`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-main-ignores-analysis")
         copyFixture(projectDir, "flow-sample")
@@ -1768,19 +1798,38 @@ class PipelinePluginFunctionalTest {
         buildFile.writeText(
             buildFile.readText().replace("\r\n", "\n").replace(
                 """
-                flow {
-                    enabled.set(true)
-                    outputDir.set("flows")
+                layout {
+                    flow {
+                        outputRoot.set("flows")
+                    }
                 }
                 """.trimIndent(),
                 """
-                flow {
-                    enabled.set(true)
-                    outputDir.set("flows")
+                layout {
+                    flow {
+                        outputRoot.set("flows")
+                    }
+                    drawingBoard {
+                        outputRoot.set("design")
+                    }
                 }
-                drawingBoard {
-                    enabled.set(true)
-                    outputDir.set("design")
+                """.trimIndent()
+            ).replace(
+                """
+                generators {
+                    flow {
+                        enabled.set(true)
+                    }
+                }
+                """.trimIndent(),
+                """
+                generators {
+                    flow {
+                        enabled.set(true)
+                    }
+                    drawingBoard {
+                        enabled.set(true)
+                    }
                 }
                 """.trimIndent()
             )
@@ -2247,7 +2296,7 @@ class PipelinePluginFunctionalTest {
             .build()
 
         val eventFile = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt"
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt"
         )
         val handlerFile = projectDir.resolve(
             "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt"
@@ -2282,6 +2331,44 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kGenerate domain event flow supports custom Kotlin package root`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-layout")
+        copyFixture(projectDir, "design-domain-event-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace("\r\n", "\n").replace(
+                "cap4k {\n",
+                """
+                cap4k {
+                    layout {
+                        designDomainEvent {
+                            packageRoot.set("domain.model")
+                            packageSuffix.set("events")
+                        }
+                    }
+                """.trimIndent() + "\n",
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan", "cap4kGenerate")
+            .build()
+
+        val eventFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/model/order/events/OrderCreatedDomainEvent.kt"
+        )
+        val eventContent = eventFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(eventFile.toFile().exists())
+        assertTrue(eventContent.contains("package com.acme.demo.domain.model.order.events"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kGenerate domain event flow supports override template replacement for event and handler`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-override")
         copyFixture(projectDir, "design-domain-event-sample")
@@ -2306,7 +2393,7 @@ class PipelinePluginFunctionalTest {
             .build()
 
         val eventFile = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt"
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt"
         )
         val handlerFile = projectDir.resolve(
             "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt"
