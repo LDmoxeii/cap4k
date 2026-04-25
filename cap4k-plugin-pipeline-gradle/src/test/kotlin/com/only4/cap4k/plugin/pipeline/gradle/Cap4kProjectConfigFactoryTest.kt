@@ -31,6 +31,11 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.generators.designDomainEventHandler.enabled.get())
         assertFalse(extension.generators.aggregate.enabled.get())
         assertEquals("FAIL", extension.generators.aggregate.unsupportedTablePolicy.get())
+        assertFalse(extension.generators.aggregate.artifacts.factory.get())
+        assertFalse(extension.generators.aggregate.artifacts.specification.get())
+        assertFalse(extension.generators.aggregate.artifacts.wrapper.get())
+        assertFalse(extension.generators.aggregate.artifacts.unique.get())
+        assertFalse(extension.generators.aggregate.artifacts.enumTranslation.get())
         assertFalse(extension.generators.drawingBoard.enabled.get())
         assertFalse(extension.generators.flow.enabled.get())
         assertEquals("ddd-default", extension.templates.preset.get())
@@ -1110,6 +1115,83 @@ class Cap4kProjectConfigFactoryTest {
             "SKIP",
             config.generators.getValue("aggregate").options["unsupportedTablePolicy"]
         )
+    }
+
+    @Test
+    fun `aggregate artifact selection maps into generator options`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:test")
+                username.set("sa")
+                password.set("secret")
+            }
+        }
+        extension.generators {
+            aggregate {
+                enabled.set(true)
+                artifacts {
+                    factory.set(true)
+                    specification.set(true)
+                    wrapper.set(true)
+                    unique.set(true)
+                    enumTranslation.set(true)
+                }
+            }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+        val options = config.generators.getValue("aggregate").options
+
+        assertEquals(true, options["artifact.factory"])
+        assertEquals(true, options["artifact.specification"])
+        assertEquals(true, options["artifact.wrapper"])
+        assertEquals(true, options["artifact.unique"])
+        assertEquals(true, options["artifact.enumTranslation"])
+    }
+
+    @Test
+    fun `aggregate wrapper artifact requires factory artifact`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:test")
+                username.set("sa")
+                password.set("secret")
+            }
+        }
+        extension.generators {
+            aggregate {
+                enabled.set(true)
+                artifacts {
+                    wrapper.set(true)
+                }
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("aggregate wrapper artifact requires enabled aggregate factory artifact.", error.message)
     }
 
     @Test

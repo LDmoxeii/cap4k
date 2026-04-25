@@ -23,6 +23,7 @@ import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -30,6 +31,122 @@ import org.junit.jupiter.api.Test
 import java.nio.file.Path
 
 class AggregateArtifactPlannerTest {
+
+    @Test
+    fun `aggregate planner keeps fixed baseline families when optional artifacts are disabled`() {
+        val entity = EntityModel(
+            name = "UserMessage",
+            packageName = "com.acme.demo.domain.aggregates.user_message",
+            tableName = "user_message",
+            comment = "user message",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("tenantId", "Long", columnName = "tenant_id"),
+                FieldModel("slug", "String", columnName = "slug"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            uniqueConstraints = listOf(listOf("tenant_id", "slug")),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(
+                options = mapOf(
+                    "artifact.factory" to false,
+                    "artifact.specification" to false,
+                    "artifact.wrapper" to false,
+                    "artifact.unique" to false,
+                    "artifact.enumTranslation" to false,
+                )
+            ),
+            CanonicalModel(
+                entities = listOf(entity),
+                schemas = listOf(
+                    SchemaModel(
+                        name = "SUserMessage",
+                        packageName = "com.acme.demo.domain._share.meta.user_message",
+                        entityName = "UserMessage",
+                        comment = "user message",
+                        fields = entity.fields,
+                    )
+                ),
+                repositories = listOf(
+                    RepositoryModel(
+                        name = "UserMessageRepository",
+                        packageName = "com.acme.demo.adapter.domain.repositories",
+                        entityName = "UserMessage",
+                        idType = "Long",
+                    )
+                ),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            )
+        )
+
+        assertTrue(plan.any { it.templateId == "aggregate/entity.kt.peb" })
+        assertTrue(plan.any { it.templateId == "aggregate/schema.kt.peb" })
+        assertTrue(plan.any { it.templateId == "aggregate/repository.kt.peb" })
+        assertFalse(plan.any { it.templateId == "aggregate/factory.kt.peb" })
+        assertFalse(plan.any { it.templateId == "aggregate/specification.kt.peb" })
+        assertFalse(plan.any { it.templateId == "aggregate/wrapper.kt.peb" })
+        assertFalse(plan.any { it.templateId == "aggregate/unique_query.kt.peb" })
+        assertFalse(plan.any { it.templateId == "aggregate/unique_query_handler.kt.peb" })
+        assertFalse(plan.any { it.templateId == "aggregate/unique_validator.kt.peb" })
+        assertFalse(plan.any { it.templateId == "aggregate/enum_translation.kt.peb" })
+    }
+
+    @Test
+    fun `aggregate planner expands unique capability into three concrete artifact items`() {
+        val entity = EntityModel(
+            name = "UserMessage",
+            packageName = "com.acme.demo.domain.aggregates.user_message",
+            tableName = "user_message",
+            comment = "user message",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("tenantId", "Long", columnName = "tenant_id"),
+                FieldModel("slug", "String", columnName = "slug"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            uniqueConstraints = listOf(listOf("tenant_id", "slug")),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(
+                options = mapOf(
+                    "artifact.factory" to false,
+                    "artifact.specification" to false,
+                    "artifact.wrapper" to false,
+                    "artifact.unique" to true,
+                    "artifact.enumTranslation" to false,
+                )
+            ),
+            CanonicalModel(
+                entities = listOf(entity),
+                schemas = listOf(
+                    SchemaModel(
+                        name = "SUserMessage",
+                        packageName = "com.acme.demo.domain._share.meta.user_message",
+                        entityName = "UserMessage",
+                        comment = "user message",
+                        fields = entity.fields,
+                    )
+                ),
+                repositories = listOf(
+                    RepositoryModel(
+                        name = "UserMessageRepository",
+                        packageName = "com.acme.demo.adapter.domain.repositories",
+                        entityName = "UserMessage",
+                        idType = "Long",
+                    )
+                ),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            )
+        )
+
+        assertEquals(1, plan.count { it.templateId == "aggregate/unique_query.kt.peb" })
+        assertEquals(1, plan.count { it.templateId == "aggregate/unique_query_handler.kt.peb" })
+        assertEquals(1, plan.count { it.templateId == "aggregate/unique_validator.kt.peb" })
+        assertFalse(plan.any { it.templateId == "aggregate/factory.kt.peb" })
+        assertFalse(plan.any { it.templateId == "aggregate/specification.kt.peb" })
+        assertFalse(plan.any { it.templateId == "aggregate/wrapper.kt.peb" })
+    }
 
     @Test
     fun `aggregate planner routes custom canonical layout through artifact layout`() {
@@ -1272,7 +1389,7 @@ class AggregateArtifactPlannerTest {
                 "adapter" to "demo-adapter",
             ),
             sources = emptyMap(),
-            generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+            generators = mapOf("aggregate" to GeneratorConfig(enabled = true, options = allAggregateArtifactsEnabled())),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         )
 
@@ -1414,7 +1531,7 @@ class AggregateArtifactPlannerTest {
                 "adapter" to "demo-adapter",
             ),
             sources = emptyMap(),
-            generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+            generators = mapOf("aggregate" to GeneratorConfig(enabled = true, options = allAggregateArtifactsEnabled())),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         )
 
@@ -2223,6 +2340,7 @@ class AggregateArtifactPlannerTest {
         applicationModule: String? = "demo-application",
         adapterModule: String? = "demo-adapter",
         artifactLayout: ArtifactLayoutConfig = ArtifactLayoutConfig(),
+        options: Map<String, Any?> = allAggregateArtifactsEnabled(),
     ): ProjectConfig =
         ProjectConfig(
             basePackage = "com.acme.demo",
@@ -2233,9 +2351,18 @@ class AggregateArtifactPlannerTest {
                 adapterModule?.let { put("adapter", it) }
             },
             sources = emptyMap(),
-            generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+            generators = mapOf("aggregate" to GeneratorConfig(enabled = true, options = options)),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             artifactLayout = artifactLayout,
+        )
+
+    private fun allAggregateArtifactsEnabled(): Map<String, Any?> =
+        mapOf(
+            "artifact.factory" to true,
+            "artifact.specification" to true,
+            "artifact.wrapper" to true,
+            "artifact.unique" to true,
+            "artifact.enumTranslation" to true,
         )
 
     private fun defaultAggregateEntityJpa(entity: EntityModel): AggregateEntityJpaModel =
