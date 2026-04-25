@@ -61,6 +61,22 @@ object FunctionalFixtureSupport {
         return bootstrapResult to generatedResult
     }
 
+    fun bootstrapThenRunGeneratedProjectWithLocalCap4kBuild(
+        fixtureDir: Path,
+        projectName: String,
+        generatedDirName: String = projectName,
+        vararg arguments: String,
+    ): Pair<BuildResult, BuildResult> {
+        require(arguments.isNotEmpty()) {
+            "generated project arguments must not be empty"
+        }
+        val bootstrapResult = runner(fixtureDir, "cap4kBootstrap").build()
+        val generatedDir = generatedProjectDir(fixtureDir, projectName, generatedDirName)
+        wireSettingsToLocalCap4kBuild(generatedDir.resolve("settings.gradle.kts"))
+        val generatedResult = generatedProjectBuildRunner(generatedDir, *arguments).build()
+        return bootstrapResult to generatedResult
+    }
+
     fun generatedProjectRunner(
         fixtureDir: Path,
         projectName: String,
@@ -83,6 +99,23 @@ object FunctionalFixtureSupport {
         .withProjectDir(projectDir.toFile())
         .withPluginClasspath()
         .withArguments(*arguments)
+
+    private fun wireSettingsToLocalCap4kBuild(settingsFile: Path) {
+        val repoRoot = discoverRepositoryRoot()
+        val repoPath = repoRoot.toString()
+            .replace("\\", "/")
+            .replace("$", "\\$")
+        val marker = "// [cap4k-test:local-build]"
+        val current = settingsFile.readText()
+        if (current.contains(marker)) {
+            return
+        }
+        settingsFile.writeText(
+            "$marker\n" +
+                "includeBuild(\"$repoPath\")\n\n" +
+                current
+        )
+    }
 
     private fun discoverRepositoryRoot(): Path {
         val startPoints = linkedSetOf<Path>()

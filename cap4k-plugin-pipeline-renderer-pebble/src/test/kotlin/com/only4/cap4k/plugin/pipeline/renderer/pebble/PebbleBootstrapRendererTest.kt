@@ -84,4 +84,30 @@ class PebbleBootstrapRendererTest {
         assertTrue(artifact.content.contains("include(\":only-danmuku-application\")"))
         assertTrue(artifact.content.contains("include(\":only-danmuku-adapter\")"))
     }
+
+    @Test
+    fun `render default application module build with generated code dependencies`() {
+        val item = BootstrapPlanItem(
+            presetId = "ddd-multi-module",
+            templateId = "bootstrap/module/application-build.gradle.kts.peb",
+            outputPath = "only-danmuku/only-danmuku-application/build.gradle.kts",
+            conflictPolicy = ConflictPolicy.FAIL,
+            context = mapOf(
+                "basePackage" to "edu.only4.danmuku",
+                "domainModuleName" to "only-danmuku-domain",
+            ),
+        )
+
+        val renderer = PebbleBootstrapRenderer(
+            PresetTemplateResolver("ddd-default-bootstrap", emptyList())
+        )
+
+        val artifact = renderer.render(listOf(item)).single()
+
+        assertTrue(artifact.content.contains("implementation(project(\":only-danmuku-domain\"))"))
+        assertTrue(artifact.content.contains("implementation(\"com.only4:ddd-core:0.5.0-SNAPSHOT\")"))
+        assertTrue(artifact.content.contains("implementation(\"jakarta.validation:jakarta.validation-api:3.0.2\")"))
+        assertTrue(artifact.content.contains("implementation(\"org.jetbrains.kotlin:kotlin-reflect:2.2.20\")"))
+        assertTrue(artifact.content.contains("implementation(\"org.springframework:spring-context\")"))
+    }
 }

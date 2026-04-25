@@ -51,7 +51,7 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         val fixtureDir = Files.createTempDirectory("bootstrap-generated-project-compile")
         FunctionalFixtureSupport.copyFixture(fixtureDir, "bootstrap-generated-project-smoke-sample")
 
-        val (bootstrapResult, compileResult) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProject(
+        val (bootstrapResult, compileResult) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProjectWithLocalCap4kBuild(
             fixtureDir,
             projectName = "only-danmuku",
             generatedDirName = "bootstrap-preview",
@@ -70,7 +70,7 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         val fixtureDir = Files.createTempDirectory("bootstrap-generated-project-override")
         FunctionalFixtureSupport.copyFixture(fixtureDir, "bootstrap-generated-project-override-sample")
 
-        val (bootstrapResult, generatedBuildResult) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProject(
+        val (bootstrapResult, generatedBuildResult) = FunctionalFixtureSupport.bootstrapThenRunGeneratedProjectWithLocalCap4kBuild(
             fixtureDir,
             projectName = "only-danmuku",
             generatedDirName = "bootstrap-preview",
