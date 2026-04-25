@@ -107,7 +107,7 @@ The new pipeline should keep deterministic typed planning, but it needs a bounde
 - Support overriding package roots or output roots by artifact family
 - Keep module ownership fixed by framework convention in the first version
 - Use one resolver for package names, output directories, output paths, and generated imports
-- Make `cap4kPlan` reflect the final resolved output paths
+- Make `cap4kPlan` and `cap4kAnalysisPlan` reflect the final resolved output paths
 - Cover every current generated artifact family through the same layout contract, regardless of source or artifact type
 - Fix the default `designDomainEvent` route to `domain.aggregates.<package>.events`
 - Avoid bringing back the old unified JSON runtime
@@ -121,6 +121,9 @@ The new pipeline should keep deterministic typed planning, but it needs a bounde
 - Do not make templates responsible for file placement
 - Do not add arbitrary path expressions or scripting
 - Do not change source formats such as `design.json` or DB snapshots in this slice
+- Do not move source input configuration into `layout`
+- Do not move `sources.irAnalysis.inputDirs` into `layout`
+- Do not move `flow` or `drawingBoard` back under `cap4kGenerate`
 - Do not introduce compatibility shims for long-term use on `master`
 
 ## Design Summary
@@ -135,6 +138,8 @@ There is one layout contract with location shapes based on artifact type:
 - project resource families use output-root layout relative to the project root
 
 It is not a source. It is not a template concern. It is not a replacement for generator enablement.
+
+`layout` only owns generated artifact locations. Source input locations remain under `sources`, and task ownership remains unchanged.
 
 The Kotlin source contract is:
 
@@ -616,6 +621,15 @@ layout {
 
 Generator blocks should keep enablement and generator-specific behavior only. They should not own artifact location.
 
+This does not change task ownership:
+
+```text
+flow         -> cap4kAnalysisPlan / cap4kAnalysisGenerate
+drawingBoard -> cap4kAnalysisPlan / cap4kAnalysisGenerate
+```
+
+The `layout` block decides where analysis artifacts are written. It does not make analysis artifacts part of the normal `cap4kPlan` / `cap4kGenerate` source-generation entrypoint.
+
 #### Flow
 
 Default:
@@ -909,8 +923,10 @@ The implementation should still be incremental:
 6. Route design planners and render-model imports through resolver.
 7. Route flow and drawing-board planners through resolver-derived output roots.
 8. Move generator-specific `outputDir` into layout so analysis outputs do not keep a second location configuration path.
-9. Update tests and README.
-10. Regenerate `only-danmaku-next` and verify compile.
+9. Keep `sources.irAnalysis.inputDirs` under source configuration.
+10. Keep flow and drawing-board generation under `cap4kAnalysisPlan` / `cap4kAnalysisGenerate`.
+11. Update tests and README.
+12. Regenerate `only-danmaku-next` and verify compile.
 
 During implementation, temporary adapters are acceptable on the feature branch if needed to keep tests running.
 
@@ -1069,7 +1085,9 @@ layout {
 }
 ```
 
-The test should run `cap4kPlan`, `cap4kGenerate`, and Kotlin compilation where feasible.
+The source-generation part of the test should run `cap4kPlan`, `cap4kGenerate`, and Kotlin compilation where feasible.
+
+The analysis-generation part of the test should run `cap4kAnalysisPlan` and `cap4kAnalysisGenerate`.
 
 It must verify that:
 
@@ -1077,6 +1095,7 @@ It must verify that:
 - generated Kotlin package declarations match the output path
 - imports match the moved packages
 - `cap4kPlan` reports the same final output paths
+- `cap4kAnalysisPlan` reports the same final analysis output paths
 - analysis generated files land under the configured output roots
 
 ### Real Project Verification
@@ -1109,8 +1128,10 @@ Update the Gradle plugin README to explain:
 - `design.json` `package` is a semantic subpackage
 - DB table segment is generated from table name and is not per-table configurable
 - flow and drawing-board output roots are controlled by `layout`, not generator `outputDir`
+- source input locations such as `sources.irAnalysis.inputDirs` stay under `sources`
+- flow and drawing-board still run through `cap4kAnalysisPlan` / `cap4kAnalysisGenerate`
 - module ownership is fixed in the first version
-- `cap4kPlan` is the source for reviewing final output paths
+- `cap4kPlan` and `cap4kAnalysisPlan` are the sources for reviewing final output paths
 
 The README should show default-equivalent layout values so users can understand the default convention.
 
@@ -1128,6 +1149,7 @@ This slice is complete when:
 - imports are derived from the same resolved packages
 - `designDomainEvent` defaults to `domain.aggregates.<package>.events`
 - tests cover default and custom package roots
+- tests cover default and custom output roots
 - `only-danmaku-next` generation and build succeed
 
 ## Explicit Anti-Drift Rules
@@ -1139,6 +1161,8 @@ Do not weaken this design during implementation by adding:
 - raw output path hooks
 - template-controlled output paths
 - module override in layout
+- source input configuration in layout
+- task entrypoint changes caused by layout
 - fallback string concatenation for covered package roots in individual planners
 - generator-specific output directory defaults outside layout
 - separate import package logic that bypasses the resolver
