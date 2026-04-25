@@ -9,6 +9,7 @@ data class ProjectConfig(
     val sources: Map<String, SourceConfig>,
     val generators: Map<String, GeneratorConfig>,
     val templates: TemplateConfig,
+    val artifactLayout: ArtifactLayoutConfig = ArtifactLayoutConfig(),
 ) {
     fun enabledSourceIds(): Set<String> = sources.filterValues { it.enabled }.keys
 
@@ -19,6 +20,57 @@ enum class ProjectLayout {
     SINGLE_MODULE,
     MULTI_MODULE,
 }
+
+data class ArtifactLayoutConfig(
+    val aggregate: PackageLayout = PackageLayout("domain.aggregates"),
+    val aggregateSchema: PackageLayout = PackageLayout("domain._share.meta"),
+    val aggregateRepository: PackageLayout = PackageLayout("adapter.domain.repositories"),
+    val aggregateSharedEnum: PackageLayout = PackageLayout(
+        packageRoot = "domain",
+        defaultPackage = "shared",
+        packageSuffix = "enums",
+    ),
+    val aggregateEnumTranslation: PackageLayout = PackageLayout("domain.translation"),
+    val aggregateUniqueQuery: PackageLayout = PackageLayout(
+        packageRoot = "application.queries",
+        packageSuffix = "unique",
+    ),
+    val aggregateUniqueQueryHandler: PackageLayout = PackageLayout(
+        packageRoot = "adapter.queries",
+        packageSuffix = "unique",
+    ),
+    val aggregateUniqueValidator: PackageLayout = PackageLayout(
+        packageRoot = "application.validators",
+        packageSuffix = "unique",
+    ),
+    val flow: OutputRootLayout = OutputRootLayout("flows"),
+    val drawingBoard: OutputRootLayout = OutputRootLayout("design"),
+    val designCommand: PackageLayout = PackageLayout("application.commands"),
+    val designQuery: PackageLayout = PackageLayout("application.queries"),
+    val designClient: PackageLayout = PackageLayout("application.distributed.clients"),
+    val designQueryHandler: PackageLayout = PackageLayout("adapter.queries"),
+    val designClientHandler: PackageLayout = PackageLayout("adapter.application.distributed.clients"),
+    val designValidator: PackageLayout = PackageLayout("application.validators"),
+    val designApiPayload: PackageLayout = PackageLayout("adapter.portal.api.payload"),
+    val designDomainEvent: PackageLayout = PackageLayout(
+        packageRoot = "domain.aggregates",
+        packageSuffix = "events",
+    ),
+    val designDomainEventHandler: PackageLayout = PackageLayout(
+        packageRoot = "application",
+        packageSuffix = "events",
+    ),
+)
+
+data class PackageLayout(
+    val packageRoot: String,
+    val packageSuffix: String = "",
+    val defaultPackage: String = "",
+)
+
+data class OutputRootLayout(
+    val outputRoot: String,
+)
 
 data class SourceConfig(
     val enabled: Boolean,
