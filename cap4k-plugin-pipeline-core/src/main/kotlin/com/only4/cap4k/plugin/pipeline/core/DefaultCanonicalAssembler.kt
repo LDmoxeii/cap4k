@@ -6,6 +6,7 @@ import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
 import com.only4.cap4k.plugin.pipeline.api.AggregateRef
 import com.only4.cap4k.plugin.pipeline.api.AggregateDiagnostics
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
@@ -44,6 +45,7 @@ interface CanonicalAssembler {
 
 class DefaultCanonicalAssembler : CanonicalAssembler {
     override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
+        val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val designSnapshot = snapshots.filterIsInstance<DesignSpecSnapshot>().firstOrNull()
         val dbSnapshot = snapshots.filterIsInstance<DbSchemaSnapshot>().firstOrNull()
         val sharedEnums = snapshots.filterIsInstance<EnumManifestSnapshot>().flatMap { it.definitions }
@@ -175,7 +177,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         }
 
         val aggregateRelations = AggregateRelationInference.fromTables(
-            basePackage = config.basePackage,
+            artifactLayout = artifactLayout,
             tables = supportedTables,
             skippedTableNames = if (aggregatePolicy == UnsupportedTablePolicy.SKIP) {
                 unsupportedTables.map { it.tableName.lowercase(Locale.ROOT) }.toSet()
@@ -209,14 +211,14 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             Triple(
                 SchemaModel(
                     name = schemaName,
-                    packageName = "${config.basePackage}.domain._share.meta.$segment",
+                    packageName = artifactLayout.aggregateSchemaPackage(segment),
                     entityName = entityName,
                     comment = table.comment,
                     fields = fields,
                 ),
                 EntityModel(
                     name = entityName,
-                    packageName = "${config.basePackage}.domain.aggregates.$segment",
+                    packageName = artifactLayout.aggregateEntityPackage(segment),
                     tableName = table.tableName,
                     comment = table.comment,
                     fields = fields,
@@ -234,7 +236,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 ),
                 RepositoryModel(
                     name = repositoryName,
-                    packageName = "${config.basePackage}.adapter.domain.repositories",
+                    packageName = artifactLayout.aggregateRepositoryPackage(),
                     entityName = entityName,
                     idType = idField.type,
                 ),
@@ -285,7 +287,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             entities = entities,
             schema = dbSnapshot,
             sharedEnums = sharedEnums,
-            basePackage = config.basePackage,
+            artifactLayout = artifactLayout,
         )
         val aggregatePersistenceFieldControls = AggregatePersistenceFieldBehaviorInference.infer(
             entities = entities,

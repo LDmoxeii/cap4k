@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.AggregateColumnJpaModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateEntityJpaModel
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
@@ -12,11 +13,11 @@ internal object AggregateJpaControlInference {
         entities: List<EntityModel>,
         schema: DbSchemaSnapshot?,
         sharedEnums: List<SharedEnumDefinition>,
-        basePackage: String,
+        artifactLayout: ArtifactLayoutResolver,
     ): List<AggregateEntityJpaModel> {
         val sharedEnumsByType = buildSharedEnumFqns(
             definitions = sharedEnums,
-            basePackage = basePackage,
+            artifactLayout = artifactLayout,
         )
         val localEnumOwnership = buildLocalEnumOwnership(entities)
         val tableByName = schema?.tables?.associateBy { it.tableName.lowercase(Locale.ROOT) }.orEmpty()
@@ -102,13 +103,12 @@ internal object AggregateJpaControlInference {
 
     private fun buildSharedEnumFqns(
         definitions: List<SharedEnumDefinition>,
-        basePackage: String,
+        artifactLayout: ArtifactLayoutResolver,
     ): Map<String, String> {
-        val sharedEnumBasePackage = sharedEnumBasePackage(basePackage)
         return definitions.associate { definition ->
             val packageName = resolveSharedEnumPackageName(
                 packageName = definition.packageName,
-                sharedEnumBasePackage = sharedEnumBasePackage,
+                artifactLayout = artifactLayout,
             )
             val fqn = if (packageName.isBlank()) {
                 definition.typeName
@@ -119,18 +119,12 @@ internal object AggregateJpaControlInference {
         }
     }
 
-    private fun resolveSharedEnumPackageName(packageName: String, sharedEnumBasePackage: String?): String {
+    private fun resolveSharedEnumPackageName(packageName: String, artifactLayout: ArtifactLayoutResolver): String {
         val trimmed = packageName.trim()
-        if (trimmed.isBlank()) {
-            return sharedEnumBasePackage?.let { "$it.shared.enums" }.orEmpty()
-        }
         if ('.' in trimmed) {
             return trimmed
         }
-        if (sharedEnumBasePackage.isNullOrBlank()) {
-            return "$trimmed.enums"
-        }
-        return "$sharedEnumBasePackage.$trimmed.enums"
+        return artifactLayout.aggregateSharedEnumPackage(trimmed)
     }
 
     private fun buildLocalEnumFqn(ownerPackageName: String, typeName: String): String {
@@ -140,13 +134,6 @@ internal object AggregateJpaControlInference {
         return "$ownerPackageName.enums.$typeName"
     }
 
-    private fun sharedEnumBasePackage(basePackage: String): String? {
-        val trimmed = basePackage.trim()
-        if (trimmed.isBlank()) {
-            return null
-        }
-        return "$trimmed.domain"
-    }
 }
 
 private data class LocalEnumOwnerKey(
