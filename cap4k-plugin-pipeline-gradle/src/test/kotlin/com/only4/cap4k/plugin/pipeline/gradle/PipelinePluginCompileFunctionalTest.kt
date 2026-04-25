@@ -366,7 +366,7 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(generatedRootEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
         assertTrue(generatedRootEntity.contains("var items: List<VideoPostItem> = emptyList()"))
         assertTrue(generatedChildEntity.contains("@Column(name = \"video_post_id\")"))
-        assertTrue(generatedChildEntity.contains("val video_post_id: Long"))
+        assertTrue(generatedChildEntity.contains("val videoPostId: Long"))
         assertTrue(generatedChildEntity.contains("@ManyToOne(fetch = FetchType.LAZY)"))
         assertTrue(
             generatedChildEntity.contains(

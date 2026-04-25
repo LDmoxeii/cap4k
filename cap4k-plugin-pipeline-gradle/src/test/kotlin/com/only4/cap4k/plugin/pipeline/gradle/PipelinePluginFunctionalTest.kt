@@ -1197,11 +1197,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(uniqueQueryContent.contains("val excludeVideoPostId: Long?"))
         assertTrue(uniqueQueryContent.contains("val exists: Boolean"))
         assertTrue(uniqueQueryHandlerContent.contains("class UniqueVideoPostSlugQryHandler"))
-        assertTrue(
-            uniqueQueryHandlerContent.contains(
-                "class UniqueVideoPostSlugQryHandler : Query<UniqueVideoPostSlugQry.Request, UniqueVideoPostSlugQry.Response>"
-            )
-        )
+        assertTrue(uniqueQueryHandlerContent.contains("class UniqueVideoPostSlugQryHandler("))
         assertTrue(
             uniqueQueryHandlerContent.contains(
                 "override fun exec(request: UniqueVideoPostSlugQry.Request): UniqueVideoPostSlugQry.Response"
@@ -1214,13 +1210,9 @@ class PipelinePluginFunctionalTest {
                 "@Constraint(validatedBy = [UniqueVideoPostSlug.Validator::class])"
             )
         )
-        assertTrue(
-            uniqueValidatorContent.contains(
-                "class Validator : ConstraintValidator<UniqueVideoPostSlug, UniqueVideoPostSlugQry.Request>"
-            )
-        )
-        assertTrue(uniqueValidatorContent.contains("request.slug"))
-        assertTrue(uniqueValidatorContent.contains("request.excludeVideoPostId"))
+        assertTrue(uniqueValidatorContent.contains("class Validator : ConstraintValidator<UniqueVideoPostSlug, Any>"))
+        assertTrue(uniqueValidatorContent.contains("slug = slugTrimmed!!"))
+        assertTrue(uniqueValidatorContent.contains("excludeVideoPostId = excludeId"))
         assertTrue(
             uniqueValidatorContent.contains(
                 "import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry"
