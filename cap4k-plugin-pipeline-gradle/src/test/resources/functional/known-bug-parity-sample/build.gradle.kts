@@ -32,6 +32,9 @@ cap4k {
     generators {
         aggregate {
             enabled.set(true)
+            artifacts {
+                unique.set(true)
+            }
         }
         designCommand {
             enabled.set(true)

@@ -422,6 +422,13 @@ cap4k {
         aggregate {
             enabled = true
             unsupportedTablePolicy = "FAIL"   // FAIL / SKIP
+            artifacts {
+                factory = false
+                specification = false
+                wrapper = false
+                unique = false
+                enumTranslation = false
+            }
         }
         flow { enabled = true }
         drawingBoard { enabled = true }
@@ -442,9 +449,11 @@ cap4k {
 | `designApiPayload` | `designJson` source |
 | `designDomainEvent` | `designJson` source；聚合元数据优先来自当前运行的 aggregate canonical 数据，不足时回退到 `kspMetadata` |
 | `designDomainEventHandler` | `designDomainEvent` generator |
-| `aggregate` | `db` source |
+| `aggregate` | `db` source；`artifacts.wrapper = true` 时必须同时启用 `artifacts.factory = true` |
 | `flow` | `irAnalysis` source（由 `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 执行） |
 | `drawingBoard` | `irAnalysis` source（由 `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 执行） |
+
+`aggregate.artifacts` 只控制可选聚合产物，默认全为 `false`。固定基线产物始终包含 `entity`、`schema`、`repository`、`shared/local enum`；可选项分别控制 `factory`、`specification`、`wrapper`、`unique` 三件套，以及 enum translation。
 
 ### 6.5 Artifact Layout
 
@@ -702,12 +711,12 @@ CREATE TABLE order_line (
 - 实现：`EnumManifestSourceProvider`
 - 定位：项目级共享枚举字典 source。它描述可跨聚合复用的枚举类型及其条目，不描述一次设计交互，也不参与 `cmd/qry/cli/validator/api_payload/domain_event` 这些 design tag 的语义分流。
 - 结构：每个定义一个 `SharedEnumDefinition { typeName, packageName, generateTranslation, items[] }`
-- 归属：仅喂给 `model.sharedEnums`，由 `aggregate` 生成器的 `SharedEnumArtifactPlanner` 产出（模板 `aggregate/enum.kt.peb`）；当 `generateTranslation = true` 时额外由 `EnumTranslationArtifactPlanner` 产出翻译器（模板 `aggregate/enum_translation.kt.peb`）
+- 归属：仅喂给 `model.sharedEnums`，由 `aggregate` 生成器的 `SharedEnumArtifactPlanner` 产出（模板 `aggregate/enum.kt.peb`）；当 `generateTranslation = true` 且 `generators.aggregate.artifacts.enumTranslation = true` 时额外由 `EnumTranslationArtifactPlanner` 产出翻译器（模板 `aggregate/enum_translation.kt.peb`）
 - 为什么不并入 `design-json`：两者生命周期和消费方不同。`design-json` 面向设计交互产物，最终进入 `commands/queries/clients/validators/apiPayloads/domainEvents` 等切片；`enum-manifest` 面向项目级共享字典，最终只进入 `sharedEnums`，并由 aggregate 族生成共享 enum 与可选翻译器。把它合进 `design-json` 只会让 tag 语义变宽、让设计输入承担字典职责，收益不明显。
 - **与本地枚举的分工**：`db` source 在列注释中的 `@T + @E` 组合会进入 `model.entities[].fields[].{typeBinding, enumItems}`，由独立的 `LocalEnumArtifactPlanner` 产出。两条路径互不合并，各自负责自己的 Canonical 字段
   - 共享枚举（跨聚合复用） → `enum-manifest` → `sharedEnums` → `SharedEnumArtifactPlanner`
   - 本地枚举（单列就地声明） → `db` 注解 → `entities.fields.enumItems` → `LocalEnumArtifactPlanner`
-  - 翻译器 → `EnumTranslationArtifactPlanner`（仅处理 `sharedEnums` 中 `generateTranslation = true` 的条目）
+  - 翻译器 → `EnumTranslationArtifactPlanner`（仅在 `artifacts.enumTranslation = true` 时处理 `sharedEnums` 中 `generateTranslation = true` 的条目）
 
 ### 8.5 `ir-analysis` — IR 分析图
 
@@ -791,6 +800,14 @@ Generator 统一约束：
   - `AggregateWrapperArtifactPlanner` → `aggregate/wrapper.kt.peb`
   - `UniqueQueryArtifactPlanner` / `UniqueQueryHandlerArtifactPlanner` / `UniqueValidatorArtifactPlanner` → `aggregate/unique_*.kt.peb`
   - `SharedEnumArtifactPlanner` / `LocalEnumArtifactPlanner` / `EnumTranslationArtifactPlanner` → `aggregate/enum*.kt.peb`
+- 固定基线：`entity`、`schema`、`repository`、`shared/local enum`
+- 可选产物默认不生成：
+  - `artifacts.factory` → `factory`
+  - `artifacts.specification` → `specification`
+  - `artifacts.wrapper` → `wrapper`，且要求 `factory = true`
+  - `artifacts.unique` → `unique-query` / `unique-query-handler` / `unique-validator`
+  - `artifacts.enumTranslation` → `enum-translation`
+- `schema` 使用框架运行时 `com.only4.cap4k.ddd.domain.repo.schema`，不会再生成项目级 `{basePackage}/domain/_share/meta/Schema.kt`
 - 目录约定：
   - `{domain}/src/main/kotlin/{basePackage}/domain/aggregates/{segment}/...`
   - `{domain}/src/main/kotlin/{basePackage}/domain/_share/meta/{segment}/{Schema}.kt`
@@ -1397,7 +1414,8 @@ override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPl
 | `design-default-value-invalid-sample` | 默认值非法时的 fail-fast |
 | `design-manifest-sample` | `manifestFile` 模式 |
 | `design-type-registry-sample` | `types.registryFile` 短名解析 |
-| `aggregate-sample` | 基本聚合（单表） |
+| `aggregate-minimal-sample` | 聚合默认最小输出（entity/schema/repository，optional artifacts 关闭） |
+| `aggregate-sample` | 聚合 rich 输出（factory/specification/wrapper/unique 显式 opt-in） |
 | `aggregate-policy-sample` | `unsupportedTablePolicy` 行为 |
 | `flow-sample` | IR 分析图 → flow |
 | `flow-compile-sample` | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 对 `compileKotlin` 的依赖推断 |

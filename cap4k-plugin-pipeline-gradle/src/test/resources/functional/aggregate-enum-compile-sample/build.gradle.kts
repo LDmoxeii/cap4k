@@ -32,6 +32,9 @@ cap4k {
     generators {
         aggregate {
             enabled.set(true)
+            artifacts {
+                enumTranslation.set(true)
+            }
         }
     }
 }

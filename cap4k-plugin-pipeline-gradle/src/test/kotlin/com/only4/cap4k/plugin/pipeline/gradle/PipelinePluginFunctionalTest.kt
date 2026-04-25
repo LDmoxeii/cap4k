@@ -1222,6 +1222,77 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `aggregate generator defaults to minimal aggregate artifacts`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-minimal")
+        copyFixture(projectDir, "aggregate-minimal-sample")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan", "cap4kGenerate")
+            .build()
+
+        val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
+        val schemaFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt"
+        )
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planContent.contains("\"templateId\": \"aggregate/entity.kt.peb\""))
+        assertTrue(planContent.contains("\"templateId\": \"aggregate/schema.kt.peb\""))
+        assertTrue(planContent.contains("\"templateId\": \"aggregate/repository.kt.peb\""))
+        assertFalse(planContent.contains("\"templateId\": \"aggregate/factory.kt.peb\""))
+        assertFalse(planContent.contains("\"templateId\": \"aggregate/specification.kt.peb\""))
+        assertFalse(planContent.contains("\"templateId\": \"aggregate/wrapper.kt.peb\""))
+        assertFalse(planContent.contains("\"templateId\": \"aggregate/unique_query.kt.peb\""))
+        assertFalse(planContent.contains("\"templateId\": \"aggregate/unique_query_handler.kt.peb\""))
+        assertFalse(planContent.contains("\"templateId\": \"aggregate/unique_validator.kt.peb\""))
+        assertFalse(planContent.contains("\"templateId\": \"aggregate/enum_translation.kt.peb\""))
+        assertFalse(planContent.contains("\"templateId\": \"aggregate/schema_base.kt.peb\""))
+        assertTrue(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+            ).toFile().exists()
+        )
+        assertTrue(schemaFile.toFile().exists())
+        assertTrue(
+            projectDir.resolve(
+                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt"
+            ).toFile().exists()
+        )
+        assertFalse(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt"
+            ).toFile().exists()
+        )
+        assertFalse(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt"
+            ).toFile().exists()
+        )
+        assertFalse(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/AggVideoPost.kt"
+            ).toFile().exists()
+        )
+        assertFalse(
+            projectDir.resolve(
+                "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt"
+            ).toFile().exists()
+        )
+        assertFalse(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/Schema.kt"
+            ).toFile().exists()
+        )
+        val schemaContent = schemaFile.readText()
+        assertTrue(schemaContent.contains("fun predicateById(id: Any): JpaPredicate<VideoPost>"))
+        assertFalse(schemaContent.contains("AggregatePredicate"))
+        assertFalse(schemaContent.contains("AggVideoPost"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kGenerate emits representative aggregate relation artifacts`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-relation")
         copyFixture(projectDir, "aggregate-relation-sample")
@@ -2639,7 +2710,7 @@ class PipelinePluginFunctionalTest {
         val entityFile = projectDir.generatedFile(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_message/UserMessage.kt"
         )
-        val schemaBaseFile = projectDir.generatedFile(
+        val schemaBaseFile = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/Schema.kt"
         )
         val schemaFile = projectDir.generatedFile(
@@ -2679,7 +2750,6 @@ class PipelinePluginFunctionalTest {
         listOf(
             repositoryFile,
             entityFile,
-            schemaBaseFile,
             schemaFile,
             uniqueValidatorFile,
             uniqueHandlerFile,
@@ -2692,6 +2762,8 @@ class PipelinePluginFunctionalTest {
             domainEventFile,
             domainEventHandlerFile,
         ).forEach(::assertNoFormattingRegression)
+
+        assertFalse(schemaBaseFile.toFile().exists(), "Schema runtime must be provided by the framework module.")
 
         val entityContent = entityFile.readText()
         assertTrue(entityContent.contains("val messageKey: String"))
@@ -2706,19 +2778,11 @@ class PipelinePluginFunctionalTest {
         )
         assertTrue(repositoryContent.contains("class UserMessageJpaRepositoryAdapter("))
 
-        val schemaBaseContent = schemaBaseFile.readText()
-        assertTrue(schemaBaseContent.contains("fun interface SchemaSpecification<E, S>"))
-        assertTrue(schemaBaseContent.contains("fun interface PredicateBuilder<S>"))
-        assertTrue(schemaBaseContent.contains("fun interface OrderBuilder<S>"))
-        assertTrue(schemaBaseContent.contains("fun interface ExpressionBuilder<S, T>"))
-        assertTrue(schemaBaseContent.contains("fun interface SubqueryConfigure<E, S>"))
-        assertTrue(schemaBaseContent.contains("class Field<T>"))
-        assertTrue(schemaBaseContent.contains("fun and("))
-        assertTrue(schemaBaseContent.contains("fun or("))
-
         val schemaContent = schemaFile.readText()
         assertTrue(schemaContent.contains("class SUserMessage("))
         assertTrue(schemaContent.contains("fun specify(builder: PredicateBuilder<SUserMessage>): Specification<UserMessage>"))
+        assertTrue(schemaContent.contains("import com.only4.cap4k.ddd.domain.repo.schema.Field"))
+        assertTrue(schemaContent.contains("import com.only4.cap4k.ddd.domain.repo.schema.PredicateBuilder"))
         assertTrue(schemaContent.contains("val messageKey: Field<String>"))
         assertFalse(schemaContent.contains("val message_key"))
 
