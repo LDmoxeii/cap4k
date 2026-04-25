@@ -27,12 +27,12 @@ class DesignDomainEventArtifactPlannerTest {
         assertEquals("design-domain-event", event.generatorId)
         assertEquals("design/domain_event.kt.peb", event.templateId)
         assertEquals(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt",
             event.outputPath,
         )
         assertEquals("domain", event.moduleRole)
         assertEquals(ConflictPolicy.SKIP, event.conflictPolicy)
-        assertEquals("com.acme.demo.domain.order.events", event.context["packageName"])
+        assertEquals("com.acme.demo.domain.aggregates.order.events", event.context["packageName"])
         assertEquals("OrderCreatedDomainEvent", event.context["typeName"])
         assertEquals("order */ \"created\" event", event.context["description"])
         assertEquals("order */ \"created\" event", event.context["descriptionText"])

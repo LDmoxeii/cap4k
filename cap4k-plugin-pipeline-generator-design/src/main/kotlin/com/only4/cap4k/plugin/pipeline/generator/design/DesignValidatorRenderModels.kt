@@ -21,9 +21,9 @@ internal data class DesignValidatorRenderModel(
 }
 
 internal object DesignValidatorRenderModelFactory {
-    fun create(basePackage: String, validator: ValidatorModel): DesignValidatorRenderModel {
+    fun create(packageName: String, validator: ValidatorModel): DesignValidatorRenderModel {
         return DesignValidatorRenderModel(
-            packageName = "$basePackage.application.validators.${validator.packageName}",
+            packageName = packageName,
             typeName = validator.typeName,
             description = validator.description,
             descriptionCommentText = validator.description.toKDocCommentText(),

@@ -8,7 +8,6 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class DesignClientArtifactPlannerTest {
@@ -38,8 +37,9 @@ class DesignClientArtifactPlannerTest {
         val client = items.single()
         assertEquals("design-client", client.generatorId)
         assertEquals("design/client.kt.peb", client.templateId)
-        assertTrue(
-            client.outputPath.endsWith("application/distributed/clients/authorize/IssueTokenCli.kt"),
+        assertEquals(
+            "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt",
+            client.outputPath,
         )
         assertEquals(
             "com.acme.demo.application.distributed.clients.authorize",

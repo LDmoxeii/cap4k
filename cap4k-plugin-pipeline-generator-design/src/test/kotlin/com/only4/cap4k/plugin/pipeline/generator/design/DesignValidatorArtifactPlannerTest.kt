@@ -37,8 +37,9 @@ class DesignValidatorArtifactPlannerTest {
         val validator = items.single()
         assertEquals("design-validator", validator.generatorId)
         assertEquals("design/validator.kt.peb", validator.templateId)
-        assertTrue(
-            validator.outputPath.endsWith("application/validators/authorize/IssueToken.kt"),
+        assertEquals(
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/authorize/IssueToken.kt",
+            validator.outputPath,
         )
         assertEquals("com.acme.demo.application.validators.authorize", validator.context["packageName"])
         assertEquals("IssueToken", validator.context["typeName"])

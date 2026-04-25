@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -10,12 +11,12 @@ class DesignDomainEventArtifactPlanner : GeneratorProvider {
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val domainRoot = requireRelativeModuleRoot(config, "domain")
-        val basePath = config.basePackage.replace(".", "/")
+        val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
 
         return model.domainEvents.map { event ->
-            val packagePath = event.packageName.replace(".", "/")
+            val packageName = artifactLayout.designDomainEventPackage(event.packageName)
             val renderModel = DesignPayloadRenderModelFactory.createForDomainEvent(
-                packageName = "${config.basePackage}.domain.${event.packageName}.events",
+                packageName = packageName,
                 event = event,
                 typeRegistry = config.typeRegistry,
             )
@@ -23,7 +24,7 @@ class DesignDomainEventArtifactPlanner : GeneratorProvider {
                 generatorId = id,
                 moduleRole = "domain",
                 templateId = "design/domain_event.kt.peb",
-                outputPath = "$domainRoot/src/main/kotlin/$basePath/domain/$packagePath/events/${event.typeName}.kt",
+                outputPath = artifactLayout.kotlinSourcePath(domainRoot, packageName, event.typeName),
                 context = mapOf(
                     "packageName" to renderModel.packageName,
                     "typeName" to renderModel.typeName,

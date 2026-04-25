@@ -11,6 +11,7 @@ internal data class DesignQueryHandlerRenderModel(
     val typeName: String,
     val description: String,
     val queryTypeName: String,
+    val queryTypeFqn: String,
     val imports: List<String>,
     val responseFields: List<DesignQueryHandlerResponseFieldModel>,
 ) {
@@ -19,19 +20,21 @@ internal data class DesignQueryHandlerRenderModel(
         "typeName" to typeName,
         "description" to description,
         "queryTypeName" to queryTypeName,
+        "queryTypeFqn" to queryTypeFqn,
         "imports" to imports,
         "responseFields" to responseFields,
     )
 }
 
 internal object DesignQueryHandlerRenderModelFactory {
-    fun create(basePackage: String, query: QueryModel): DesignQueryHandlerRenderModel {
+    fun create(packageName: String, queryType: String, query: QueryModel): DesignQueryHandlerRenderModel {
         return DesignQueryHandlerRenderModel(
-            packageName = "$basePackage.adapter.queries.${query.packageName}",
+            packageName = packageName,
             typeName = "${query.typeName}Handler",
             description = query.description,
             queryTypeName = query.typeName,
-            imports = listOf("$basePackage.application.queries.${query.packageName}.${query.typeName}"),
+            queryTypeFqn = queryType,
+            imports = listOf(queryType),
             responseFields = query.responseFields
                 .asSequence()
                 .filterNot { it.name.contains('.') }

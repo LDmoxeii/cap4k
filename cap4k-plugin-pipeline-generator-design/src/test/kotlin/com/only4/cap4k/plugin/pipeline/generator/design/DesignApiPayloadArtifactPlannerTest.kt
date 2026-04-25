@@ -47,8 +47,9 @@ class DesignApiPayloadArtifactPlannerTest {
         val payload = items.single()
         assertEquals("design-api-payload", payload.generatorId)
         assertEquals("design/api_payload.kt.peb", payload.templateId)
-        assertTrue(
-            payload.outputPath.endsWith("adapter/portal/api/payload/account/BatchSaveAccountList.kt"),
+        assertEquals(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt",
+            payload.outputPath,
         )
         assertEquals("com.acme.demo.adapter.portal.api.payload.account", payload.context["packageName"])
         assertEquals("BatchSaveAccountList", payload.context["typeName"])

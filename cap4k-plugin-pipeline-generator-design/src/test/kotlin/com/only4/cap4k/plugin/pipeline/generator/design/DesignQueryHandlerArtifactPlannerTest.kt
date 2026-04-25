@@ -1,9 +1,11 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
+import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.QueryModel
@@ -102,6 +104,49 @@ class DesignQueryHandlerArtifactPlannerTest {
     }
 
     @Test
+    fun `custom query handler layout imports query from custom query layout`() {
+        val planner = DesignQueryHandlerArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(
+                modules = mapOf(
+                    "application" to "demo-application",
+                    "adapter" to "demo-adapter",
+                ),
+                artifactLayout = ArtifactLayoutConfig(
+                    designQuery = PackageLayout("application.readmodels"),
+                    designQueryHandler = PackageLayout("adapter.readmodels"),
+                ),
+            ),
+            model = CanonicalModel(
+                queries = listOf(
+                    QueryModel(
+                        packageName = "order.read",
+                        typeName = "FindOrderQry",
+                        description = "find order",
+                        variant = QueryVariant.DEFAULT,
+                    ),
+                ),
+            ),
+        )
+
+        val handler = items.single()
+        assertEquals(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/readmodels/order/read/FindOrderQryHandler.kt",
+            handler.outputPath,
+        )
+        assertEquals("com.acme.demo.adapter.readmodels.order.read", handler.context["packageName"])
+        assertEquals(
+            listOf("com.acme.demo.application.readmodels.order.read.FindOrderQry"),
+            handler.context["imports"],
+        )
+        assertEquals(
+            "com.acme.demo.application.readmodels.order.read.FindOrderQry",
+            handler.context["queryTypeFqn"],
+        )
+    }
+
+    @Test
     fun `keeps default handler template when page or list are not suffix variants`() {
         val planner = DesignQueryHandlerArtifactPlanner()
 
@@ -156,12 +201,16 @@ class DesignQueryHandlerArtifactPlannerTest {
         assertEquals("adapter module is required", error.message)
     }
 
-    private fun projectConfig(modules: Map<String, String>) = ProjectConfig(
+    private fun projectConfig(
+        modules: Map<String, String>,
+        artifactLayout: ArtifactLayoutConfig = ArtifactLayoutConfig(),
+    ) = ProjectConfig(
         basePackage = "com.acme.demo",
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
         generators = mapOf("design-query-handler" to GeneratorConfig(enabled = true)),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+        artifactLayout = artifactLayout,
     )
 }

@@ -17,12 +17,12 @@ internal data class DesignClientHandlerRenderModel(
 }
 
 internal object DesignClientHandlerRenderModelFactory {
-    fun create(basePackage: String, client: ClientModel): DesignClientHandlerRenderModel {
+    fun create(packageName: String, clientType: String, client: ClientModel): DesignClientHandlerRenderModel {
         return DesignClientHandlerRenderModel(
-            packageName = "$basePackage.adapter.application.distributed.clients.${client.packageName}",
+            packageName = packageName,
             typeName = "${client.typeName}Handler",
             clientTypeName = client.typeName,
-            imports = listOf("$basePackage.application.distributed.clients.${client.packageName}.${client.typeName}"),
+            imports = listOf(clientType),
         )
     }
 }

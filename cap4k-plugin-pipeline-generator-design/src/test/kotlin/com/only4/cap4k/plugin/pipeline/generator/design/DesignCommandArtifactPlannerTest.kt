@@ -1,12 +1,14 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.AggregateRef
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.CommandModel
 import com.only4.cap4k.plugin.pipeline.api.CommandVariant
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
+import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.QueryModel
@@ -47,6 +49,35 @@ class DesignCommandArtifactPlannerTest {
         assertEquals(emptyList<DesignRenderFieldModel>(), command.context["requestFields"])
         assertEquals(emptyList<DesignRenderFieldModel>(), command.context["responseFields"])
         assertEquals(ConflictPolicy.SKIP, command.conflictPolicy)
+    }
+
+    @Test
+    fun `designCommand uses custom artifact layout package root`() {
+        val planner = DesignCommandArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(
+                modules = mapOf("application" to "demo-application"),
+                artifactLayout = ArtifactLayoutConfig(
+                    designCommand = PackageLayout("application.usecases.commands"),
+                ),
+            ),
+            model = CanonicalModel(
+                commands = listOf(
+                    commandModel(
+                        packageName = "message.create",
+                        typeName = "CreateUserMessageCmd",
+                    ),
+                ),
+            ),
+        )
+
+        val command = items.single()
+        assertEquals(
+            "demo-application/src/main/kotlin/com/acme/demo/application/usecases/commands/message/create/CreateUserMessageCmd.kt",
+            command.outputPath,
+        )
+        assertEquals("com.acme.demo.application.usecases.commands.message.create", command.context["packageName"])
     }
 
     @Test
@@ -108,10 +139,11 @@ class DesignCommandArtifactPlannerTest {
     }
 
     private fun commandModel(
+        packageName: String = "order.submit",
         typeName: String = "SubmitOrderCmd",
         requestFields: List<FieldModel> = emptyList(),
     ) = CommandModel(
-        packageName = "order.submit",
+        packageName = packageName,
         typeName = typeName,
         description = "submit order",
         aggregateRef = AggregateRef("Order", "com.acme.demo.domain.aggregates.order"),
@@ -130,12 +162,16 @@ class DesignCommandArtifactPlannerTest {
         variant = QueryVariant.DEFAULT,
     )
 
-    private fun projectConfig(modules: Map<String, String>) = ProjectConfig(
+    private fun projectConfig(
+        modules: Map<String, String>,
+        artifactLayout: ArtifactLayoutConfig = ArtifactLayoutConfig(),
+    ) = ProjectConfig(
         basePackage = "com.acme.demo",
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
         generators = mapOf("design-command" to GeneratorConfig(enabled = true)),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+        artifactLayout = artifactLayout,
     )
 }
