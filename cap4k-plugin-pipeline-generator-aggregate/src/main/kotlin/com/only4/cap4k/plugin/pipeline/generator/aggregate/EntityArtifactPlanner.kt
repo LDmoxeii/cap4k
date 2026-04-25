@@ -2,13 +2,15 @@ package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
 internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val domainRoot = requireRelativeModule(config, "domain")
-        val planning = AggregateEnumPlanning.from(model, config.basePackage, config.typeRegistry)
+        val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
+        val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry)
 
         return model.entities.map { entity ->
             val entityJpa = model.aggregateEntityJpa.singleOrNull {
@@ -127,7 +129,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 generatorId = "aggregate",
                 moduleRole = "domain",
                 templateId = "aggregate/entity.kt.peb",
-                outputPath = "$domainRoot/src/main/kotlin/${entity.packageName.replace(".", "/")}/${entity.name}.kt",
+                outputPath = artifactLayout.kotlinSourcePath(domainRoot, entity.packageName, entity.name),
                 context = mapOf(
                     "packageName" to entity.packageName,
                     "typeName" to entity.name,

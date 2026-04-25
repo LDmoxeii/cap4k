@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
@@ -14,8 +15,11 @@ internal class UniqueQueryHandlerArtifactPlanner : AggregateArtifactFamilyPlanne
         if (plannedSelections.isEmpty()) return emptyList()
 
         val adapterRoot = requireRelativeModule(config, "adapter")
+        val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         return plannedSelections.flatMap { (entity, selections) ->
             val tableSegment = aggregateTableSegment(entity.tableName)
+            val packageName = artifactLayout.aggregateUniqueQueryHandlerPackage(tableSegment)
+            val queryPackageName = artifactLayout.aggregateUniqueQueryPackage(tableSegment)
             val repository = requireUniqueRepository(
                 handlerTypeName = "unique query handler",
                 entityName = entity.name,
@@ -31,12 +35,12 @@ internal class UniqueQueryHandlerArtifactPlanner : AggregateArtifactFamilyPlanne
                     generatorId = "aggregate",
                     moduleRole = "adapter",
                     templateId = "aggregate/unique_query_handler.kt.peb",
-                    outputPath = "$adapterRoot/src/main/kotlin/${config.basePackage.replace(".", "/")}/adapter/queries/$tableSegment/unique/${selection.queryHandlerTypeName}.kt",
+                    outputPath = artifactLayout.kotlinSourcePath(adapterRoot, packageName, selection.queryHandlerTypeName),
                     context = mapOf(
-                        "packageName" to "${config.basePackage}.adapter.queries.$tableSegment.unique",
+                        "packageName" to packageName,
                         "typeName" to selection.queryHandlerTypeName,
                         "queryTypeName" to selection.queryTypeName,
-                        "queryTypeFqn" to "${config.basePackage}.application.queries.$tableSegment.unique.${selection.queryTypeName}",
+                        "queryTypeFqn" to "$queryPackageName.${selection.queryTypeName}",
                         "repositoryTypeName" to repository.name,
                         "repositoryTypeFqn" to "${repository.packageName}.${repository.name}",
                         "schemaTypeName" to schema.name,

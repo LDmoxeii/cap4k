@@ -1,5 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
@@ -45,14 +47,21 @@ internal class AggregateEnumPlanning private constructor(
     }
 
     companion object {
-        fun from(model: CanonicalModel, basePackage: String, typeRegistry: Map<String, String>): AggregateEnumPlanning {
-            val sharedEnumFqns = buildSharedEnumFqns(model.sharedEnums, sharedEnumBasePackage(basePackage))
+        fun from(model: CanonicalModel, basePackage: String, typeRegistry: Map<String, String>): AggregateEnumPlanning =
+            from(model, ArtifactLayoutResolver(basePackage, ArtifactLayoutConfig()), typeRegistry)
+
+        fun from(
+            model: CanonicalModel,
+            artifactLayout: ArtifactLayoutResolver,
+            typeRegistry: Map<String, String>,
+        ): AggregateEnumPlanning {
+            val sharedEnumFqns = buildSharedEnumFqns(model.sharedEnums, artifactLayout)
             sharedEnumFqns.keys.firstOrNull { it in typeRegistry }?.let { typeName ->
                 throw IllegalArgumentException(
                     "ambiguous type binding for $typeName: matches both shared enum and general type registry"
                 )
             }
-            val localEnumFqns = buildLocalEnumFqns(model.entities)
+            val localEnumFqns = buildLocalEnumFqns(model.entities, artifactLayout)
             localEnumFqns.keys.firstOrNull { key -> key.typeBinding in sharedEnumFqns }?.let { key ->
                 throw IllegalArgumentException(
                     "ambiguous enum ownership for ${key.typeBinding}: matches both shared enum and local enum in ${key.ownerPackageName}"
@@ -67,7 +76,7 @@ internal class AggregateEnumPlanning private constructor(
 
         private fun buildSharedEnumFqns(
             definitions: List<SharedEnumDefinition>,
-            sharedEnumBasePackage: String?,
+            artifactLayout: ArtifactLayoutResolver,
         ): Map<String, String> {
             val grouped = definitions.groupBy { it.typeName.trim() }
             grouped.entries.firstOrNull { it.value.size > 1 }?.key?.let { duplicated ->
@@ -75,7 +84,7 @@ internal class AggregateEnumPlanning private constructor(
             }
             return grouped.mapValues { (_, values) ->
                 val definition = values.single()
-                val packageName = resolveSharedEnumPackageName(definition.packageName, sharedEnumBasePackage)
+                val packageName = resolveSharedEnumPackageName(definition.packageName, artifactLayout)
                 if (packageName.isBlank()) {
                     definition.typeName
                 } else {
@@ -84,21 +93,21 @@ internal class AggregateEnumPlanning private constructor(
             }
         }
 
-        private fun resolveSharedEnumPackageName(packageName: String, sharedEnumBasePackage: String?): String {
+        private fun resolveSharedEnumPackageName(
+            packageName: String,
+            artifactLayout: ArtifactLayoutResolver,
+        ): String {
             val trimmed = packageName.trim()
-            if (trimmed.isBlank()) {
-                return sharedEnumBasePackage?.let { "$it.shared.enums" }.orEmpty()
-            }
             if ('.' in trimmed) {
                 return trimmed
             }
-            if (sharedEnumBasePackage.isNullOrBlank()) {
-                return "$trimmed.enums"
-            }
-            return "$sharedEnumBasePackage.$trimmed.enums"
+            return artifactLayout.aggregateSharedEnumPackage(trimmed)
         }
 
-        private fun buildLocalEnumFqns(entities: List<EntityModel>): Map<LocalEnumOwnerKey, String> {
+        private fun buildLocalEnumFqns(
+            entities: List<EntityModel>,
+            artifactLayout: ArtifactLayoutResolver,
+        ): Map<LocalEnumOwnerKey, String> {
             val grouped = entities
                 .flatMap { entity ->
                     entity.fields.mapNotNull { field ->
@@ -110,7 +119,7 @@ internal class AggregateEnumPlanning private constructor(
                             ownerPackageName = entity.packageName,
                             typeBinding = typeBinding,
                         ) to LocalEnumDefinition(
-                            fqn = buildLocalEnumFqn(entity, typeBinding),
+                            fqn = buildLocalEnumFqn(entity, typeBinding, artifactLayout),
                             enumItems = field.enumItems,
                         )
                     }
@@ -125,20 +134,12 @@ internal class AggregateEnumPlanning private constructor(
             return grouped.mapValues { (_, values) -> values.first().fqn }
         }
 
-        private fun buildLocalEnumFqn(entity: EntityModel, typeName: String): String =
-            if (entity.packageName.isBlank()) {
-                "enums.$typeName"
-            } else {
-                "${entity.packageName}.enums.$typeName"
-            }
-
-        private fun sharedEnumBasePackage(basePackage: String): String? {
-            val trimmed = basePackage.trim()
-            if (trimmed.isBlank()) {
-                return null
-            }
-            return "$trimmed.domain"
-        }
+        private fun buildLocalEnumFqn(
+            entity: EntityModel,
+            typeName: String,
+            artifactLayout: ArtifactLayoutResolver,
+        ): String =
+            "${artifactLayout.aggregateLocalEnumPackage(entity.packageName)}.$typeName"
     }
 }
 

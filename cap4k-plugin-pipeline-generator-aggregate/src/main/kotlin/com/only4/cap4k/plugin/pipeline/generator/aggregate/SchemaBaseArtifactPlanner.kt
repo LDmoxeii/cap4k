@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
@@ -11,14 +12,15 @@ internal class SchemaBaseArtifactPlanner : AggregateArtifactFamilyPlanner {
         }
 
         val domainRoot = requireRelativeModule(config, "domain")
-        val packageName = "${config.basePackage}.domain._share.meta"
+        val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
+        val packageName = artifactLayout.aggregateSchemaBasePackage()
 
         return listOf(
             ArtifactPlanItem(
                 generatorId = "aggregate",
                 moduleRole = "domain",
                 templateId = "aggregate/schema_base.kt.peb",
-                outputPath = "$domainRoot/src/main/kotlin/${packageName.replace(".", "/")}/Schema.kt",
+                outputPath = artifactLayout.kotlinSourcePath(domainRoot, packageName, "Schema"),
                 context = mapOf(
                     "packageName" to packageName,
                     "typeName" to "Schema",
