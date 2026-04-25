@@ -4921,6 +4921,10 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("import com.acme.demo.domain.order.Order"))
         assertTrue(content.contains("data class Snapshot("))
         assertTrue(content.contains("val traceId: UUID"))
+        assertTrue(
+            normalizedContent.contains("package com.acme.demo.domain.order.events\n\nimport"),
+            "domain event should keep one blank line between package and imports"
+        )
         val importBlock = normalizedContent.substringAfter("package com.acme.demo.domain.order.events\n").substringBefore("/**")
         assertFalse(importBlock.contains("\n\nimport"), "domain event imports should not contain blank lines between imports")
         assertFalse(
