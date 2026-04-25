@@ -639,6 +639,45 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `domain event package key is derived from aggregate package group instead of design package`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "domain_event",
+                            packageName = "message",
+                            name = "UserMessageCreated",
+                            description = "user message created",
+                            aggregates = listOf("UserMessage"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    )
+                ),
+                KspMetadataSnapshot(
+                    aggregates = listOf(
+                        AggregateMetadataRecord(
+                            aggregateName = "UserMessage",
+                            rootQualifiedName = "com.acme.demo.domain.aggregates.user_message.UserMessage",
+                            rootPackageName = "com.acme.demo.domain.aggregates.user_message",
+                            rootClassName = "UserMessage",
+                        )
+                    )
+                ),
+            ),
+        ).model
+
+        val event = model.domainEvents.single()
+        assertEquals("user_message", event.packageName)
+        assertEquals("UserMessage", event.aggregateName)
+        assertEquals("com.acme.demo.domain.aggregates.user_message", event.aggregatePackageName)
+    }
+
+    @Test
     fun `domain event resolves aggregate package from canonical aggregate entities before ksp metadata`() {
         val assembler = DefaultCanonicalAssembler()
 

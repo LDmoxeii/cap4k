@@ -2663,6 +2663,12 @@ class PipelinePluginFunctionalTest {
         val payloadFile = projectDir.generatedFile(
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/message/CreateUserMessagePayload.kt"
         )
+        val domainEventFile = projectDir.generatedFile(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_message/events/UserMessageCreatedDomainEvent.kt"
+        )
+        val domainEventHandlerFile = projectDir.generatedFile(
+            "demo-application/src/main/kotlin/com/acme/demo/application/user_message/events/UserMessageCreatedDomainEventSubscriber.kt"
+        )
 
         listOf(
             repositoryFile,
@@ -2675,6 +2681,8 @@ class PipelinePluginFunctionalTest {
             commandFile,
             clientFile,
             payloadFile,
+            domainEventFile,
+            domainEventHandlerFile,
         ).forEach(::assertNoFormattingRegression)
 
         val entityContent = entityFile.readText()
@@ -2744,6 +2752,25 @@ class PipelinePluginFunctionalTest {
         assertTrue(responseSection.contains("        data class Receipt("))
         assertTrue(responseSection.contains("val messageKey: String"))
         assertFalse(responseSection.contains("data class Body("))
+
+        val domainEventContent = domainEventFile.readText()
+        assertTrue(domainEventContent.contains("package com.acme.demo.domain.aggregates.user_message.events"))
+        assertTrue(domainEventContent.contains("import com.acme.demo.domain.aggregates.user_message.UserMessage"))
+        assertTrue(domainEventContent.contains("class UserMessageCreatedDomainEvent("))
+        assertFalse(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/message/events/UserMessageCreatedDomainEvent.kt"
+            ).toFile().exists(),
+            "Domain event must not be routed by the design package."
+        )
+
+        val domainEventHandlerContent = domainEventHandlerFile.readText()
+        assertTrue(domainEventHandlerContent.contains("package com.acme.demo.application.user_message.events"))
+        assertTrue(
+            domainEventHandlerContent.contains(
+                "import com.acme.demo.domain.aggregates.user_message.events.UserMessageCreatedDomainEvent"
+            )
+        )
     }
 
     private fun Path.generatedFile(relativePath: String): Path {

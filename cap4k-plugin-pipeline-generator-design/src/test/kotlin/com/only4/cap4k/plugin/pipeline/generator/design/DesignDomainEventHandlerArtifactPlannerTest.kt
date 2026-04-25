@@ -64,6 +64,42 @@ class DesignDomainEventHandlerArtifactPlannerTest {
     }
 
     @Test
+    fun `routes domain event subscriber artifacts by aggregate package group`() {
+        val planner = DesignDomainEventHandlerArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("application" to "demo-application")),
+            model = CanonicalModel(
+                domainEvents = listOf(
+                    DomainEventModel(
+                        packageName = "user_message",
+                        typeName = "UserMessageCreatedDomainEvent",
+                        description = "user message created",
+                        aggregateName = "UserMessage",
+                        aggregatePackageName = "com.acme.demo.domain.aggregates.user_message",
+                        persist = false,
+                    ),
+                ),
+            ),
+        )
+
+        val handler = items.single()
+        assertEquals(
+            "demo-application/src/main/kotlin/com/acme/demo/application/user_message/events/UserMessageCreatedDomainEventSubscriber.kt",
+            handler.outputPath,
+        )
+        assertEquals("com.acme.demo.application.user_message.events", handler.context["packageName"])
+        assertEquals(
+            "com.acme.demo.domain.aggregates.user_message.events.UserMessageCreatedDomainEvent",
+            handler.context["domainEventType"],
+        )
+        assertEquals(
+            listOf("com.acme.demo.domain.aggregates.user_message.events.UserMessageCreatedDomainEvent"),
+            handler.context["imports"],
+        )
+    }
+
+    @Test
     fun `custom domain event handler layout imports event from custom event layout`() {
         val planner = DesignDomainEventHandlerArtifactPlanner()
 

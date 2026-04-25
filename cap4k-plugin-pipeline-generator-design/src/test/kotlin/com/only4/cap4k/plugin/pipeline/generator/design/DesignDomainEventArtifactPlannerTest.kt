@@ -65,12 +65,44 @@ class DesignDomainEventArtifactPlannerTest {
         assertTrue(fields.none { (it as? DesignRenderFieldModel)?.name == "entity" })
     }
 
-    private fun domainEvent() = DomainEventModel(
-        packageName = "order",
-        typeName = "OrderCreatedDomainEvent",
+    @Test
+    fun `routes domain event artifacts by aggregate package group`() {
+        val planner = DesignDomainEventArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("domain" to "demo-domain")),
+            model = CanonicalModel(
+                domainEvents = listOf(
+                    domainEvent(
+                        packageName = "user_message",
+                        typeName = "UserMessageCreatedDomainEvent",
+                        aggregateName = "UserMessage",
+                        aggregatePackageName = "com.acme.demo.domain.aggregates.user_message",
+                    ),
+                ),
+            ),
+        )
+
+        val event = items.single()
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_message/events/UserMessageCreatedDomainEvent.kt",
+            event.outputPath,
+        )
+        assertEquals("com.acme.demo.domain.aggregates.user_message.events", event.context["packageName"])
+        assertEquals("com.acme.demo.domain.aggregates.user_message.UserMessage", event.context["aggregateType"])
+    }
+
+    private fun domainEvent(
+        packageName: String = "order",
+        typeName: String = "OrderCreatedDomainEvent",
+        aggregateName: String = "Order",
+        aggregatePackageName: String = "com.acme.demo.domain.order",
+    ) = DomainEventModel(
+        packageName = packageName,
+        typeName = typeName,
         description = "order */ \"created\" event",
-        aggregateName = "Order",
-        aggregatePackageName = "com.acme.demo.domain.order",
+        aggregateName = aggregateName,
+        aggregatePackageName = aggregatePackageName,
         persist = false,
         fields = listOf(
             FieldModel("reason", "String"),

@@ -8,6 +8,7 @@ import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import java.io.File
+import java.util.Locale
 
 class DesignJsonSourceProvider : SourceProvider {
     override val id: String = "design-json"
@@ -82,9 +83,10 @@ class DesignJsonSourceProvider : SourceProvider {
         val array = file.reader(Charsets.UTF_8).use { JsonParser.parseReader(it).asJsonArray }
         return array.map { element ->
             val obj = element.asJsonObject
+            val tag = obj["tag"].asString
             DesignSpecEntry(
-                tag = obj["tag"].asString,
-                packageName = obj["package"].asString,
+                tag = tag,
+                packageName = readPackageName(obj["package"]?.asString, tag),
                 name = obj["name"].asString,
                 description = obj["desc"]?.asString ?: "",
                 aggregates = obj["aggregates"]?.asJsonArray?.map { it.asString } ?: emptyList(),
@@ -93,6 +95,16 @@ class DesignJsonSourceProvider : SourceProvider {
                 responseFields = parseFields(obj["responseFields"]?.asJsonArray),
             )
         }
+    }
+
+    private fun readPackageName(packageName: String?, tag: String): String {
+        if (packageName != null) {
+            return packageName
+        }
+        if (tag.lowercase(Locale.ROOT) == "domain_event") {
+            return ""
+        }
+        error("design entry package is required for tag: $tag")
     }
 
     private fun parseFields(array: JsonArray?): List<FieldModel> {

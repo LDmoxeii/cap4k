@@ -268,7 +268,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     aggregateLookup = aggregateLookup,
                 )
                 DomainEventModel(
-                    packageName = entry.packageName,
+                    packageName = resolveDomainEventPackageKey(aggregate.rootPackageName, config),
                     typeName = entry.name.toDomainEventTypeName(),
                     description = entry.description,
                     aggregateName = aggregateName,
@@ -472,6 +472,34 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return aggregateEntityMetadata[aggregateName]
             ?: aggregateLookup[aggregateName]
             ?: throw IllegalArgumentException("domain_event ${entry.name} references missing aggregate metadata: $aggregateName")
+    }
+
+    private fun resolveDomainEventPackageKey(
+        aggregateRootPackageName: String,
+        config: ProjectConfig,
+    ): String {
+        val normalizedRootPackage = aggregateRootPackageName.trim('.')
+        if (normalizedRootPackage.isBlank()) {
+            return ""
+        }
+
+        val aggregateRootPrefix = ArtifactLayoutResolver.joinPackage(
+            config.basePackage,
+            config.artifactLayout.aggregate.packageRoot,
+        )
+        val packageKey = when {
+            aggregateRootPrefix.isNotBlank() && normalizedRootPackage == aggregateRootPrefix -> ""
+            aggregateRootPrefix.isNotBlank() && normalizedRootPackage.startsWith("$aggregateRootPrefix.") ->
+                normalizedRootPackage.removePrefix("$aggregateRootPrefix.")
+            else -> normalizedRootPackage.substringAfterLast('.')
+        }
+        val aggregateSuffix = config.artifactLayout.aggregate.packageSuffix.trim('.')
+        return when {
+            aggregateSuffix.isBlank() -> packageKey
+            packageKey == aggregateSuffix -> ""
+            packageKey.endsWith(".$aggregateSuffix") -> packageKey.removeSuffix(".$aggregateSuffix")
+            else -> packageKey
+        }
     }
 
     private fun buildDiagnostics(
