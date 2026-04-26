@@ -376,6 +376,20 @@ open class DesignDomainEventHandlerGeneratorExtension @Inject constructor(object
 open class AggregateGeneratorExtension @Inject constructor(objects: ObjectFactory) {
     val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
     val unsupportedTablePolicy: Property<String> = objects.property(String::class.java).convention("FAIL")
+    val artifacts: AggregateGeneratorArtifactsExtension =
+        objects.newInstance(AggregateGeneratorArtifactsExtension::class.java)
+
+    fun artifacts(block: AggregateGeneratorArtifactsExtension.() -> Unit) {
+        artifacts.block()
+    }
+}
+
+open class AggregateGeneratorArtifactsExtension @Inject constructor(objects: ObjectFactory) {
+    val factory: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val specification: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val wrapper: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val unique: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    val enumTranslation: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }
 
 open class DrawingBoardGeneratorExtension @Inject constructor(objects: ObjectFactory) {

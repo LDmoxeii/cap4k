@@ -6,25 +6,21 @@ package {{ packageName }}
 {{ use("jakarta.persistence.criteria.Path") -}}
 {{ use("jakarta.persistence.criteria.Predicate") -}}
 {{ use("jakarta.persistence.criteria.Subquery") -}}
-{{ use(schemaBasePackage ~ ".SchemaSpecification") -}}
-{{ use(schemaBasePackage ~ ".PredicateBuilder") -}}
-{{ use(schemaBasePackage ~ ".OrderBuilder") -}}
-{{ use(schemaBasePackage ~ ".ExpressionBuilder") -}}
-{{ use(schemaBasePackage ~ ".SubqueryConfigure") -}}
-{{ use(schemaBasePackage ~ ".Field") -}}
+{{ use(schemaRuntimePackage ~ ".SchemaSpecification") -}}
+{{ use(schemaRuntimePackage ~ ".PredicateBuilder") -}}
+{{ use(schemaRuntimePackage ~ ".OrderBuilder") -}}
+{{ use(schemaRuntimePackage ~ ".ExpressionBuilder") -}}
+{{ use(schemaRuntimePackage ~ ".SubqueryConfigure") -}}
+{{ use(schemaRuntimePackage ~ ".Field") -}}
 {%- if entityTypeFqn %}
 {{ use(entityTypeFqn) -}}
 {%- endif %}
-{%- if isAggregateRoot %}
 {{ use("com.only4.cap4k.ddd.domain.repo.JpaPredicate") -}}
-{%- endif %}
-{%- if isAggregateRoot and generateAggregate %}
+{%- if wrapperEnabled and aggregateTypeFqn %}
 {{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate") -}}
-{%- if aggregateTypeFqn %}
 {{ use(aggregateTypeFqn) -}}
 {%- endif %}
-{%- endif %}
-{%- if isAggregateRoot and generateAggregate and repositorySupportQuerydsl %}
+{%- if wrapperEnabled and aggregateTypeFqn and repositorySupportQuerydsl %}
 {{ use("com.querydsl.core.types.OrderSpecifier") -}}
 {{ use("com.only4.cap4k.ddd.domain.repo.querydsl.QuerydslPredicate") -}}
 {%- if qEntityTypeFqn %}
@@ -135,7 +131,7 @@ class {{ typeName }}(
             subqueryConfigure.configure(sq, schema)
             return sq
         }
-{%- if isAggregateRoot and generateAggregate %}
+{%- if wrapperEnabled and aggregateTypeFqn %}
 
         @JvmStatic
         fun predicateById(id: Any): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
@@ -201,7 +197,7 @@ class {{ typeName }}(
         fun predicate(specifier: SchemaSpecification<{{ entityName }}, {{ typeName }}>): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
             return JpaPredicate.bySpecification({{ entityName }}::class.java, specify(specifier)).toAggregatePredicate(Agg{{ entityName }}::class.java)
         }
-{%- elseif isAggregateRoot %}
+{%- else %}
 
         @JvmStatic
         fun predicateById(id: Any): JpaPredicate<{{ entityName }}> {
@@ -230,7 +226,7 @@ class {{ typeName }}(
         }
 {%- endif %}
 
-{%- if isAggregateRoot and generateAggregate and repositorySupportQuerydsl %}
+{%- if wrapperEnabled and aggregateTypeFqn and repositorySupportQuerydsl %}
         @JvmStatic
         fun querydsl(
             filter: com.querydsl.core.types.Predicate,

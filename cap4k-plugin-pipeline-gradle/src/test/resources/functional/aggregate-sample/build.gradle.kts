@@ -28,6 +28,12 @@ cap4k {
     generators {
         aggregate {
             enabled.set(true)
+            artifacts {
+                factory.set(true)
+                specification.set(true)
+                wrapper.set(true)
+                unique.set(true)
+            }
         }
     }
     templates {

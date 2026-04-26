@@ -6,11 +6,12 @@ import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import io.mockk.*
 import jakarta.persistence.EntityManager
-import org.hibernate.engine.spi.PersistenceContext
 import org.hibernate.engine.spi.SessionImplementor
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.springframework.transaction.annotation.Propagation
+import java.lang.reflect.InvocationHandler
+import java.lang.reflect.Proxy
 
 @DisplayName("JpaUnitOfWork 测试")
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
@@ -22,8 +23,6 @@ class JpaUnitOfWorkTest {
     private lateinit var interceptor1: UnitOfWorkInterceptor
     private lateinit var interceptor2: UnitOfWorkInterceptor
     private lateinit var jpaUnitOfWork: TestableJpaUnitOfWork
-    private lateinit var sessionImplementor: SessionImplementor
-    private lateinit var persistenceContext: PersistenceContext
     private lateinit var mockEntityInfo: org.springframework.data.jpa.repository.support.JpaEntityInformation<Any, Any>
 
     // Testable subclass to access protected members
@@ -31,7 +30,8 @@ class JpaUnitOfWorkTest {
         uowInterceptors: List<UnitOfWorkInterceptor>,
         persistListenerManager: PersistListenerManager,
         supportEntityInlinePersistListener: Boolean,
-        supportValueObjectExistsCheckOnSave: Boolean
+        supportValueObjectExistsCheckOnSave: Boolean,
+        private val overridePersistenceContextEntities: Boolean = true,
     ) : JpaUnitOfWork(
         uowInterceptors,
         persistListenerManager,
@@ -43,6 +43,15 @@ class JpaUnitOfWorkTest {
             this.entityManager = em
         }
 
+        var persistenceContextEntityProvider: () -> List<Any> = { emptyList() }
+
+        override fun persistenceContextEntities(): List<Any> =
+            if (overridePersistenceContextEntities) {
+                persistenceContextEntityProvider()
+            } else {
+                super.persistenceContextEntities()
+            }
+
         fun testPersistenceContextEntities() = persistenceContextEntities()
     }
 
@@ -53,8 +62,6 @@ class JpaUnitOfWorkTest {
         persistListenerManager = mockk(relaxed = true)
         interceptor1 = mockk(relaxed = true)
         interceptor2 = mockk(relaxed = true)
-        sessionImplementor = mockk(relaxed = true)
-        persistenceContext = mockk(relaxed = true)
         uowInterceptors = listOf(interceptor1, interceptor2)
 
         jpaUnitOfWork = TestableJpaUnitOfWork(
@@ -70,12 +77,6 @@ class JpaUnitOfWorkTest {
 
         // Reset ThreadLocal state
         JpaUnitOfWork.reset()
-
-        // Mock entity manager delegate
-        every { entityManager.delegate } returns sessionImplementor
-        every { sessionImplementor.isClosed } returns false
-        every { sessionImplementor.persistenceContext } returns persistenceContext
-        every { persistenceContext.reentrantSafeEntityEntries() } returns emptyArray()
 
         // Set up static mock and create fresh entity info mock each time
         mockkStatic("org.springframework.data.jpa.repository.support.JpaEntityInformationSupport")
@@ -109,8 +110,6 @@ class JpaUnitOfWorkTest {
             persistListenerManager,
             interceptor1,
             interceptor2,
-            sessionImplementor,
-            persistenceContext,
             mockEntityInfo,
             answers = false,
             recordedCalls = true
@@ -384,10 +383,12 @@ class JpaUnitOfWorkTest {
     @DisplayName("会话关闭时应返回空列表")
     fun testPersistenceContextEntitiesSessionClosed() {
         // Given
-        every { sessionImplementor.isClosed } returns true
+        val unitOfWork = realPersistenceContextLookupUnitOfWork(
+            entityManagerProxy { closedSessionImplementor() }
+        )
 
         // When
-        val result = jpaUnitOfWork.testPersistenceContextEntities()
+        val result = unitOfWork.testPersistenceContextEntities()
 
         // Then
         assertTrue(result.isEmpty())
@@ -397,10 +398,12 @@ class JpaUnitOfWorkTest {
     @DisplayName("发生异常时应返回空列表")
     fun testPersistenceContextEntitiesException() {
         // Given
-        every { entityManager.delegate } throws RuntimeException("Test exception")
+        val unitOfWork = realPersistenceContextLookupUnitOfWork(
+            entityManagerProxy { throw RuntimeException("Test exception") }
+        )
 
         // When
-        val result = jpaUnitOfWork.testPersistenceContextEntities()
+        val result = unitOfWork.testPersistenceContextEntities()
 
         // Then
         assertTrue(result.isEmpty())
@@ -506,6 +509,52 @@ class JpaUnitOfWorkTest {
         verify { entityManager.merge(originalEntity) }
         // Verify the aggregate was updated with the merged entity
         assertEquals(mergedEntity, aggregate._unwrap())
+    }
+
+    private fun realPersistenceContextLookupUnitOfWork(entityManager: EntityManager): TestableJpaUnitOfWork =
+        TestableJpaUnitOfWork(
+            uowInterceptors = emptyList(),
+            persistListenerManager = persistListenerManager,
+            supportEntityInlinePersistListener = true,
+            supportValueObjectExistsCheckOnSave = true,
+            overridePersistenceContextEntities = false,
+        ).also {
+            it.setTestEntityManager(entityManager)
+        }
+
+    private fun entityManagerProxy(unwrapResult: () -> Any): EntityManager {
+        val handler = InvocationHandler { proxy, method, args ->
+            when (method.name) {
+                "unwrap" -> unwrapResult()
+                "toString" -> "EntityManagerProxy"
+                "hashCode" -> System.identityHashCode(proxy)
+                "equals" -> proxy === args?.firstOrNull()
+                else -> throw UnsupportedOperationException("Unexpected EntityManager call: ${method.name}")
+            }
+        }
+        return Proxy.newProxyInstance(
+            EntityManager::class.java.classLoader,
+            arrayOf(EntityManager::class.java),
+            handler,
+        ) as EntityManager
+    }
+
+    private fun closedSessionImplementor(): SessionImplementor {
+        val handler = InvocationHandler { proxy, method, args ->
+            when (method.name) {
+                "isOpen" -> false
+                "isClosed" -> true
+                "toString" -> "ClosedSessionImplementor"
+                "hashCode" -> System.identityHashCode(proxy)
+                "equals" -> proxy === args?.firstOrNull()
+                else -> throw UnsupportedOperationException("Unexpected SessionImplementor call: ${method.name}")
+            }
+        }
+        return Proxy.newProxyInstance(
+            SessionImplementor::class.java.classLoader,
+            arrayOf(SessionImplementor::class.java),
+            handler,
+        ) as SessionImplementor
     }
 
     // Test helper classes

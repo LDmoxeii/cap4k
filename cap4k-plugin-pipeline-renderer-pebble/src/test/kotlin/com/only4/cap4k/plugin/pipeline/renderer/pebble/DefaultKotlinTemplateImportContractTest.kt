@@ -13,7 +13,6 @@ class DefaultKotlinTemplateImportContractTest {
     private val aggregateHelperImportTemplates = setOf(
         "aggregate/repository.kt.peb",
         "aggregate/schema.kt.peb",
-        "aggregate/schema_base.kt.peb",
     )
 
     @Test
