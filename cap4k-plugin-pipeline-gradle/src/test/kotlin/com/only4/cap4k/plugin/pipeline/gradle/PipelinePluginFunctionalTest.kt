@@ -1305,7 +1305,7 @@ class PipelinePluginFunctionalTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
         )
         val childEntityFile = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post_item/VideoPostItem.kt"
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt"
         )
         val rootEntityContent = rootEntityFile.readText()
         val childEntityContent = childEntityFile.readText()
@@ -1364,7 +1364,7 @@ class PipelinePluginFunctionalTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
         )
         val childEntityFile = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post_item/VideoPostItem.kt"
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt"
         )
         val rootEntityContent = rootEntityFile.readText()
         val childEntityContent = childEntityFile.readText()

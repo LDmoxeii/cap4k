@@ -1,6 +1,5 @@
 package com.acme.demo.domain.aggregates.video_post
 
-import com.acme.demo.domain.aggregates.video_post_item.VideoPostItem
 import com.acme.demo.domain.aggregates.user_profile.UserProfile
 
 class AggregateRelationCompileSmoke {

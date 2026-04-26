@@ -212,6 +212,7 @@ class PebbleArtifactRendererTest {
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.UserMessage",
                         "qEntityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.QUserMessage",
                         "aggregateTypeFqn" to "com.acme.demo.domain.aggregates.user_message.AggUserMessage",
+                        "isAggregateRoot" to true,
                         "wrapperEnabled" to true,
                         "repositorySupportQuerydsl" to false,
                         "fields" to listOf(
@@ -289,6 +290,7 @@ class PebbleArtifactRendererTest {
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.UserMessage",
                         "qEntityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.QUserMessage",
                         "aggregateTypeFqn" to "",
+                        "isAggregateRoot" to true,
                         "wrapperEnabled" to false,
                         "repositorySupportQuerydsl" to false,
                         "fields" to listOf(
@@ -322,6 +324,66 @@ class PebbleArtifactRendererTest {
         assertFalse(schemaContent.contains("AggregatePredicate"))
         assertTrue(schemaContent.contains("fun predicateById(id: Any): JpaPredicate<UserMessage>"))
         assertTrue(schemaContent.contains("fun predicate(builder: PredicateBuilder<SUserMessage>): JpaPredicate<UserMessage>"))
+    }
+
+    @Test
+    fun `aggregate child schema keeps criteria helpers without root predicate helpers`() {
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver("ddd-default", emptyList())
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/schema.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video/SVideoFile.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain._share.meta.video",
+                        "typeName" to "SVideoFile",
+                        "entityName" to "VideoFile",
+                        "schemaRuntimePackage" to "com.only4.cap4k.ddd.domain.repo.schema",
+                        "entityTypeFqn" to "com.acme.demo.domain.aggregates.video.VideoFile",
+                        "qEntityTypeFqn" to "com.acme.demo.domain.aggregates.video.QVideoFile",
+                        "aggregateTypeFqn" to "",
+                        "isAggregateRoot" to false,
+                        "wrapperEnabled" to true,
+                        "repositorySupportQuerydsl" to false,
+                        "fields" to listOf(
+                            mapOf(
+                                "name" to "videoId",
+                                "fieldName" to "videoId",
+                                "columnName" to "video_id",
+                                "fieldType" to "Long",
+                                "type" to "Long",
+                                "comment" to "video id",
+                            )
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        )
+
+        val schemaContent = rendered.single().content
+
+        assertTrue(schemaContent.contains("class SVideoFile("))
+        assertTrue(schemaContent.contains("fun specify(builder: PredicateBuilder<SVideoFile>): Specification<VideoFile>"))
+        assertTrue(schemaContent.contains("val videoId: Field<Long>"))
+        assertFalse(schemaContent.contains("JpaPredicate"))
+        assertFalse(schemaContent.contains("AggregatePredicate"))
+        assertFalse(schemaContent.contains("AggVideoFile"))
+        assertFalse(schemaContent.contains("fun predicateById("))
+        assertFalse(schemaContent.contains("fun predicate(builder: PredicateBuilder<SVideoFile>)"))
     }
 
     @Test
@@ -5392,6 +5454,60 @@ class PebbleArtifactRendererTest {
         assertTrue(handlerContent.contains("import com.acme.demo.domain._share.meta.user_message.SUserMessage"))
         assertFalse(handlerContent.contains("exists = false"))
         assertFalse(handlerContent.contains("message_key"))
+    }
+
+    @Test
+    fun `unique child handler renders entity manager backed query without child repository`() {
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver("ddd-default", emptyList())
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "adapter",
+                    templateId = "aggregate/unique_query_handler.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video/unique/UniqueVideoFileVideoIdQryHandler.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.queries.video.unique",
+                        "typeName" to "UniqueVideoFileVideoIdQryHandler",
+                        "queryTypeName" to "UniqueVideoFileVideoIdQry",
+                        "queryTypeFqn" to "com.acme.demo.application.queries.video.unique.UniqueVideoFileVideoIdQry",
+                        "repositoryTypeName" to null,
+                        "repositoryTypeFqn" to null,
+                        "schemaTypeName" to "SVideoFile",
+                        "schemaTypeFqn" to "com.acme.demo.domain._share.meta.video.SVideoFile",
+                        "entityTypeName" to "VideoFile",
+                        "entityTypeFqn" to "com.acme.demo.domain.aggregates.video.VideoFile",
+                        "whereProps" to listOf("videoId"),
+                        "idPropName" to "id",
+                        "excludeIdParamName" to "excludeVideoFileId",
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        )
+
+        val handlerContent = rendered.single().content
+
+        assertTrue(handlerContent.contains("import jakarta.persistence.EntityManager"))
+        assertTrue(handlerContent.contains("import com.acme.demo.domain.aggregates.video.VideoFile"))
+        assertTrue(handlerContent.contains("private val entityManager: EntityManager"))
+        assertTrue(handlerContent.contains("val criteriaBuilder = entityManager.criteriaBuilder"))
+        assertTrue(handlerContent.contains("val root = criteriaQuery.from(VideoFile::class.java)"))
+        assertTrue(handlerContent.contains("SVideoFile.specify"))
+        assertTrue(handlerContent.contains("schema.videoId eq request.videoId"))
+        assertFalse(handlerContent.contains("private val repository"))
+        assertFalse(handlerContent.contains("repository.exists("))
     }
 }
 

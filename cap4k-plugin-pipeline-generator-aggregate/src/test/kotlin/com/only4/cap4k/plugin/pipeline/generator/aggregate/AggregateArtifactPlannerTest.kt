@@ -1553,6 +1553,161 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `planner keeps child entities and schemas in root aggregate package without root only artifacts`() {
+        val rootEntity = EntityModel(
+            name = "Video",
+            packageName = "com.acme.demo.domain.aggregates.video",
+            tableName = "video",
+            comment = "video aggregate",
+            fields = listOf(FieldModel("id", "Long")),
+            idField = FieldModel("id", "Long"),
+            aggregateRoot = true,
+        )
+        val childEntity = EntityModel(
+            name = "VideoFile",
+            packageName = "com.acme.demo.domain.aggregates.video",
+            tableName = "video_file",
+            comment = "video file entity",
+            fields = listOf(FieldModel("id", "Long"), FieldModel("videoId", "Long", columnName = "video_id")),
+            idField = FieldModel("id", "Long"),
+            aggregateRoot = false,
+            parentEntityName = "Video",
+        )
+        val model = CanonicalModel(
+            schemas = listOf(
+                SchemaModel(
+                    name = "SVideo",
+                    packageName = "com.acme.demo.domain._share.meta.video",
+                    entityName = "Video",
+                    comment = "video schema",
+                    fields = rootEntity.fields,
+                ),
+                SchemaModel(
+                    name = "SVideoFile",
+                    packageName = "com.acme.demo.domain._share.meta.video",
+                    entityName = "VideoFile",
+                    comment = "video file schema",
+                    fields = childEntity.fields,
+                ),
+            ),
+            entities = listOf(rootEntity, childEntity),
+            aggregateEntityJpa = listOf(
+                defaultAggregateEntityJpa(rootEntity),
+                defaultAggregateEntityJpa(childEntity),
+            ),
+            repositories = listOf(
+                RepositoryModel(
+                    name = "VideoRepository",
+                    packageName = "com.acme.demo.adapter.domain.repositories",
+                    entityName = "Video",
+                    idType = "Long",
+                )
+            ),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(aggregateConfig(), model)
+
+        assertTrue(planItems.any {
+            it.outputPath == "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video/VideoFile.kt"
+        })
+        assertTrue(planItems.any {
+            it.outputPath == "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video/SVideoFile.kt"
+        })
+        assertFalse(planItems.any { it.outputPath.endsWith("/VideoFileRepository.kt") })
+        assertFalse(planItems.any { it.outputPath.endsWith("/VideoFileFactory.kt") })
+        assertFalse(planItems.any { it.outputPath.endsWith("/VideoFileSpecification.kt") })
+        assertFalse(planItems.any { it.outputPath.endsWith("/AggVideoFile.kt") })
+
+        val rootSchemaContext = planItems.single {
+            it.templateId == "aggregate/schema.kt.peb" && it.context["typeName"] == "SVideo"
+        }.context
+        val childSchemaContext = planItems.single {
+            it.templateId == "aggregate/schema.kt.peb" && it.context["typeName"] == "SVideoFile"
+        }.context
+        assertEquals(true, rootSchemaContext["isAggregateRoot"])
+        assertEquals("com.acme.demo.domain.aggregates.video.AggVideo", rootSchemaContext["aggregateTypeFqn"])
+        assertEquals(false, childSchemaContext["isAggregateRoot"])
+        assertEquals("", childSchemaContext["aggregateTypeFqn"])
+    }
+
+    @Test
+    fun `unique planners keep child entity artifacts in root aggregate package without child repository`() {
+        val rootEntity = EntityModel(
+            name = "Video",
+            packageName = "com.acme.demo.domain.aggregates.video",
+            tableName = "video",
+            comment = "video aggregate",
+            fields = listOf(FieldModel("id", "Long")),
+            idField = FieldModel("id", "Long"),
+            aggregateRoot = true,
+        )
+        val childEntity = EntityModel(
+            name = "VideoFile",
+            packageName = "com.acme.demo.domain.aggregates.video",
+            tableName = "video_file",
+            comment = "video file entity",
+            fields = listOf(FieldModel("id", "Long"), FieldModel("videoId", "Long", columnName = "video_id")),
+            idField = FieldModel("id", "Long"),
+            uniqueConstraints = listOf(listOf("video_id")),
+            aggregateRoot = false,
+            parentEntityName = "Video",
+        )
+        val model = CanonicalModel(
+            schemas = listOf(
+                SchemaModel(
+                    name = "SVideo",
+                    packageName = "com.acme.demo.domain._share.meta.video",
+                    entityName = "Video",
+                    comment = "video schema",
+                    fields = rootEntity.fields,
+                ),
+                SchemaModel(
+                    name = "SVideoFile",
+                    packageName = "com.acme.demo.domain._share.meta.video",
+                    entityName = "VideoFile",
+                    comment = "video file schema",
+                    fields = childEntity.fields,
+                ),
+            ),
+            entities = listOf(rootEntity, childEntity),
+            aggregateEntityJpa = listOf(
+                defaultAggregateEntityJpa(rootEntity),
+                defaultAggregateEntityJpa(childEntity),
+            ),
+            repositories = listOf(
+                RepositoryModel(
+                    name = "VideoRepository",
+                    packageName = "com.acme.demo.adapter.domain.repositories",
+                    entityName = "Video",
+                    idType = "Long",
+                )
+            ),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(aggregateConfig(), model)
+
+        val query = planItems.single { it.context["typeName"] == "UniqueVideoFileVideoIdQry" }
+        val handler = planItems.single { it.context["typeName"] == "UniqueVideoFileVideoIdQryHandler" }
+        val validator = planItems.single { it.context["typeName"] == "UniqueVideoFileVideoId" }
+        assertEquals(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/video/unique/UniqueVideoFileVideoIdQry.kt",
+            query.outputPath,
+        )
+        assertEquals(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video/unique/UniqueVideoFileVideoIdQryHandler.kt",
+            handler.outputPath,
+        )
+        assertEquals(
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/video/unique/UniqueVideoFileVideoId.kt",
+            validator.outputPath,
+        )
+        assertEquals(null, handler.context["repositoryTypeName"])
+        assertEquals(null, handler.context["repositoryTypeFqn"])
+        assertEquals("com.acme.demo.domain.aggregates.video.VideoFile", handler.context["entityTypeFqn"])
+        assertEquals("com.acme.demo.domain._share.meta.video.SVideoFile", handler.context["schemaTypeFqn"])
+    }
+
+    @Test
     fun `plans unique query handler and validator artifacts from entity unique constraints`() {
         val config = ProjectConfig(
             basePackage = "com.acme.demo",

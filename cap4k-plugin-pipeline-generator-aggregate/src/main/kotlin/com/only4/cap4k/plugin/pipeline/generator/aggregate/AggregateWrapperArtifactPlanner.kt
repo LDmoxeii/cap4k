@@ -11,7 +11,7 @@ internal class AggregateWrapperArtifactPlanner : AggregateArtifactFamilyPlanner 
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
 
-        return model.entities.map { entity ->
+        return model.entities.filter { it.aggregateRoot }.map { entity ->
             val typeName = "Agg${entity.name}"
             val packageName = artifactLayout.aggregateWrapperPackage(entity.packageName)
 

@@ -34,12 +34,16 @@ internal object AggregateRelationInference {
         outOfScopeTableNames: Set<String> = emptySet(),
     ): List<AggregateRelationModel> {
         val allowedMissingTableNames = (skippedTableNames + outOfScopeTableNames).map(::tableKey).toSet()
+        val tablesByName = tables.associateBy { tableKey(it.tableName) }
         val entityLookup = tables.associateBy(
             keySelector = { tableKey(it.tableName) },
             valueTransform = { table ->
+                val aggregateOwnerTable = resolveAggregateOwnerTable(table, tablesByName)
                 Endpoint(
                     entityName = AggregateNaming.entityName(table.tableName),
-                    packageName = artifactLayout.aggregateEntityPackage(AggregateNaming.tableSegment(table.tableName)),
+                    packageName = artifactLayout.aggregateEntityPackage(
+                        AggregateNaming.tableSegment(aggregateOwnerTable.tableName)
+                    ),
                 )
             }
         )
@@ -253,6 +257,26 @@ internal object AggregateRelationInference {
     }
 
     private fun tableKey(tableName: String): String = tableName.lowercase(Locale.ROOT)
+
+    private fun resolveAggregateOwnerTable(
+        table: DbTableSnapshot,
+        tablesByName: Map<String, DbTableSnapshot>,
+    ): DbTableSnapshot {
+        val visited = mutableSetOf<String>()
+        var current = table
+        while (true) {
+            val currentKey = tableKey(current.tableName)
+            if (!visited.add(currentKey)) {
+                return table
+            }
+            if (current.aggregateRoot) {
+                return current
+            }
+
+            val parentKey = current.parentTable?.let(::tableKey) ?: return current
+            current = tablesByName[parentKey] ?: return current
+        }
+    }
 
     private fun lowerCamelIdentifier(value: String): String {
         val parts = value.trim()

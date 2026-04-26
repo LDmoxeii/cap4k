@@ -20,6 +20,7 @@ import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.EnumManifestSnapshot
@@ -140,7 +141,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             ?.let(UnsupportedTablePolicy::valueOf)
             ?: UnsupportedTablePolicy.FAIL
 
-        val supportedTables = mutableListOf<com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot>()
+        val supportedTables = mutableListOf<DbTableSnapshot>()
         val unsupportedTables = mutableListOf<UnsupportedAggregateTable>()
         dbSnapshot?.tables.orEmpty().forEach { table ->
             val unsupportedReason = when {
@@ -157,6 +158,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         }
 
         val supportedTableNames = supportedTables.map { it.tableName.lowercase(Locale.ROOT) }.toSet()
+        val supportedTablesByName = supportedTables.associateBy { it.tableName.lowercase(Locale.ROOT) }
         val outOfScopeTableNames = dbSnapshot?.let { snapshot ->
             snapshot.discoveredTables.map { it.lowercase(Locale.ROOT) }.toSet() -
                 snapshot.includedTables.map { it.lowercase(Locale.ROOT) }.toSet()
@@ -192,7 +194,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             val entityName = AggregateNaming.entityName(table.tableName)
             val schemaName = AggregateNaming.schemaName(table.tableName)
             val repositoryName = AggregateNaming.repositoryName(table.tableName)
-            val segment = AggregateNaming.tableSegment(table.tableName)
+            val aggregateOwnerTable = resolveAggregateOwnerTable(table, supportedTablesByName)
+            val segment = AggregateNaming.tableSegment(aggregateOwnerTable.tableName)
             val parentTable = table.parentTable
             val fields = table.columns.map {
                 FieldModel(
@@ -234,12 +237,16 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                         else -> AggregateNaming.entityName(parentTable)
                     },
                 ),
-                RepositoryModel(
-                    name = repositoryName,
-                    packageName = artifactLayout.aggregateRepositoryPackage(),
-                    entityName = entityName,
-                    idType = idField.type,
-                ),
+                if (table.aggregateRoot) {
+                    RepositoryModel(
+                        name = repositoryName,
+                        packageName = artifactLayout.aggregateRepositoryPackage(),
+                        entityName = entityName,
+                        idType = idField.type,
+                    )
+                } else {
+                    null
+                },
             )
         }
         val entities = aggregateModels.map { it.second }
@@ -359,7 +366,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 domainEvents = domainEvents,
                 schemas = aggregateModels.map { it.first },
                 entities = entities,
-                repositories = aggregateModels.map { it.third },
+                repositories = aggregateModels.mapNotNull { it.third },
                 analysisGraph = analysisGraph,
                 drawingBoard = drawingBoard,
                 sharedEnums = sharedEnums,
@@ -372,6 +379,26 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             ),
             diagnostics = diagnostics,
         )
+    }
+
+    private fun resolveAggregateOwnerTable(
+        table: DbTableSnapshot,
+        tablesByName: Map<String, DbTableSnapshot>,
+    ): DbTableSnapshot {
+        val visited = mutableSetOf<String>()
+        var current = table
+        while (true) {
+            val currentKey = current.tableName.lowercase(Locale.ROOT)
+            if (!visited.add(currentKey)) {
+                return table
+            }
+            if (current.aggregateRoot) {
+                return current
+            }
+
+            val parentKey = current.parentTable?.lowercase(Locale.ROOT) ?: return current
+            current = tablesByName[parentKey] ?: return current
+        }
     }
 
     private fun DesignSpecEntry.requestAggregateRef(

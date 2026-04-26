@@ -289,13 +289,13 @@ class PipelinePluginCompileFunctionalTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
         ).readText()
         val generatedChildEntity = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post_item/VideoPostItem.kt"
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt"
         ).readText()
 
         assertGeneratedFilesExist(
             projectDir,
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post_item/VideoPostItem.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_profile/UserProfile.kt",
         )
         assertTrue(generatedRootEntity.contains("import jakarta.persistence.CascadeType"))
@@ -354,13 +354,13 @@ class PipelinePluginCompileFunctionalTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
         ).readText()
         val generatedChildEntity = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post_item/VideoPostItem.kt"
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt"
         ).readText()
 
         assertGeneratedFilesExist(
             projectDir,
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post_item/VideoPostItem.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_profile/UserProfile.kt",
         )
         assertTrue(generatedRootEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
@@ -670,6 +670,60 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(handlerContent.contains("SVideoPost.specify"))
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
+    fun `aggregate child unique query handler generation participates in adapter compileKotlin without child repository`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-child-unique-adapter-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace(
+                """includeTables.set(listOf("video_post"))""",
+                """includeTables.set(listOf("video_post", "video_file"))""",
+            )
+        )
+        val schemaFile = projectDir.resolve("schema.sql")
+        schemaFile.writeText(
+            schemaFile.readText() +
+                """
+
+                create table if not exists video_file (
+                    id bigint primary key,
+                    video_post_id bigint not null comment '@Reference=video_post;@Lazy=true;',
+                    file_index int not null,
+                    constraint uq_video_file_parent_index unique (video_post_id, file_index)
+                );
+
+                comment on table video_file is '@Parent=video_post;';
+                """.trimIndent()
+        )
+
+        val (generateResult, compileResult) = FunctionalFixtureSupport.generateThenCompile(
+            projectDir,
+            ":demo-adapter:compileKotlin"
+        )
+        val childEntityFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoFile.kt"
+        )
+        val childSchemaFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoFile.kt"
+        )
+        val handlerFile = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoFileVideoPostIdFileIndexQryHandler.kt"
+        )
+        val handlerContent = handlerFile.readText()
+
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(childEntityFile.toFile().exists())
+        assertTrue(childSchemaFile.toFile().exists())
+        assertTrue(handlerFile.toFile().exists())
+        assertTrue(handlerContent.contains("private val entityManager: EntityManager"))
+        assertTrue(handlerContent.contains("criteriaQuery.from(VideoFile::class.java)"))
+        assertTrue(handlerContent.contains("SVideoFile.specify"))
+        assertFalse(handlerContent.contains("private val repository"))
+        assertFalse(handlerContent.contains("VideoFileRepository"))
     }
 
     @Test

@@ -3,7 +3,12 @@ package {{ packageName }}
 {{ use("com.only4.cap4k.ddd.core.application.query.Query") -}}
 {{ use("org.springframework.stereotype.Service") -}}
 {{ use(queryTypeFqn) -}}
+{%- if repositoryTypeFqn %}
 {{ use(repositoryTypeFqn) -}}
+{%- else %}
+{{ use("jakarta.persistence.EntityManager") -}}
+{{ use(entityTypeFqn) -}}
+{%- endif %}
 {{ use(schemaTypeFqn) -}}
 {% for import in imports(imports) -%}
 import {{ import }}
@@ -11,9 +16,14 @@ import {{ import }}
 
 @Service
 class {{ typeName }}(
+{%- if repositoryTypeName %}
     private val repository: {{ repositoryTypeName }},
+{%- else %}
+    private val entityManager: EntityManager,
+{%- endif %}
 ) : Query<{{ queryTypeName }}.Request, {{ queryTypeName }}.Response> {
     override fun exec(request: {{ queryTypeName }}.Request): {{ queryTypeName }}.Response {
+{%- if repositoryTypeName %}
         val exists = repository.exists(
             {{ schemaTypeName }}.specify { schema ->
                 schema.all(
@@ -24,6 +34,25 @@ class {{ typeName }}(
                 )
             }
         )
+{%- else %}
+        val criteriaBuilder = entityManager.criteriaBuilder
+        val criteriaQuery = criteriaBuilder.createQuery(Long::class.java)
+        val root = criteriaQuery.from({{ entityTypeName }}::class.java)
+        val specification = {{ schemaTypeName }}.specify { schema ->
+            schema.all(
+{%- for prop in whereProps %}
+                schema.{{ prop }} eq request.{{ prop }},
+{%- endfor %}
+                schema.{{ idPropName }} `neq?` request.{{ excludeIdParamName }} ?: schema.{{ idPropName }}.isNotNull(),
+            )
+        }
+        val predicate = specification.toPredicate(root, criteriaQuery, criteriaBuilder)
+        criteriaQuery.select(criteriaBuilder.count(root))
+        if (predicate != null) {
+            criteriaQuery.where(predicate)
+        }
+        val exists = entityManager.createQuery(criteriaQuery).singleResult > 0L
+{%- endif %}
 
         return {{ queryTypeName }}.Response(
             exists = exists

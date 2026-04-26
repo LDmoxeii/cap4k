@@ -26,7 +26,7 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
             val entity = requireUniqueSchemaEntity(schema.name, schema.entityName, entitiesByName[schema.entityName].orEmpty())
             val entityTypeFqn = derivedTypeReferences.entityFqn(entity)
             val qEntityTypeFqn = requireNotNull(derivedTypeReferences.qEntityFqn(schema.entityName))
-            val aggregateTypeFqn = if (selection.wrapperEnabled) {
+            val aggregateTypeFqn = if (entity.aggregateRoot && selection.wrapperEnabled) {
                 buildAggregateWrapperFqn(entity.packageName, entity.name)
             } else {
                 ""
@@ -58,6 +58,7 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "typeName" to schema.name,
                     "comment" to schema.comment,
                     "entityName" to schema.entityName,
+                    "isAggregateRoot" to entity.aggregateRoot,
                     "schemaRuntimePackage" to SCHEMA_RUNTIME_PACKAGE,
                     "entityTypeFqn" to entityTypeFqn,
                     "qEntityTypeFqn" to qEntityTypeFqn,

@@ -15,9 +15,9 @@ internal class UniqueValidatorArtifactPlanner : AggregateArtifactFamilyPlanner {
         val applicationRoot = requireRelativeModule(config, "application")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         return plannedSelections.flatMap { (entity, selections) ->
-            val tableSegment = aggregateTableSegment(entity.tableName)
-            val packageName = artifactLayout.aggregateUniqueValidatorPackage(tableSegment)
-            val queryPackageName = artifactLayout.aggregateUniqueQueryPackage(tableSegment)
+            val packageKey = aggregatePackageKey(config, entity.packageName)
+            val packageName = artifactLayout.aggregateUniqueValidatorPackage(packageKey)
+            val queryPackageName = artifactLayout.aggregateUniqueQueryPackage(packageKey)
             val entityCamel = entity.name.replaceFirstChar { it.lowercase() }
             selections.map { selection ->
                 val requestProps = selection.requestProps.map { field ->

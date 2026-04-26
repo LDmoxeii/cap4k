@@ -1974,6 +1974,68 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler groups child tables under aggregate root package and emits repositories only for roots`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video",
+                            comment = "video aggregate",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            aggregateRoot = true,
+                        ),
+                        DbTableSnapshot(
+                            tableName = "video_file",
+                            comment = "video file entity",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("video_id", "BIGINT", "Long", false, referenceTable = "video"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "video",
+                            aggregateRoot = false,
+                        ),
+                        DbTableSnapshot(
+                            tableName = "video_file_variant",
+                            comment = "video file variant entity",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("file_id", "BIGINT", "Long", false, referenceTable = "video_file"),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "video_file",
+                            aggregateRoot = false,
+                        ),
+                    )
+                )
+            )
+        ).model
+
+        val entities = result.entities.associateBy { it.name }
+        assertEquals("com.acme.demo.domain.aggregates.video", entities.getValue("Video").packageName)
+        assertEquals("com.acme.demo.domain.aggregates.video", entities.getValue("VideoFile").packageName)
+        assertEquals("com.acme.demo.domain.aggregates.video", entities.getValue("VideoFileVariant").packageName)
+        assertEquals(null, entities.getValue("Video").parentEntityName)
+        assertEquals("Video", entities.getValue("VideoFile").parentEntityName)
+        assertEquals("VideoFile", entities.getValue("VideoFileVariant").parentEntityName)
+
+        val schemas = result.schemas.associateBy { it.name }
+        assertEquals("com.acme.demo.domain._share.meta.video", schemas.getValue("SVideo").packageName)
+        assertEquals("com.acme.demo.domain._share.meta.video", schemas.getValue("SVideoFile").packageName)
+        assertEquals("com.acme.demo.domain._share.meta.video", schemas.getValue("SVideoFileVariant").packageName)
+
+        assertEquals(listOf("VideoRepository"), result.repositories.map { it.name })
+    }
+
+    @Test
     fun `assembler enriches parent child one to many with bounded relation controls`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -2292,7 +2354,7 @@ class DefaultCanonicalAssemblerTest {
         }
 
         assertEquals(
-            "aggregate inverse relation field collides with scalar field: com.acme.demo.domain.aggregates.video_post_item.VideoPostItem.videoPost",
+            "aggregate inverse relation field collides with scalar field: com.acme.demo.domain.aggregates.video_post.VideoPostItem.videoPost",
             error.message,
         )
     }
@@ -2344,7 +2406,7 @@ class DefaultCanonicalAssemblerTest {
         }
 
         assertEquals(
-            "aggregate inverse relation field collides with owner relation field: com.acme.demo.domain.aggregates.video_post_item.VideoPostItem.videoPost",
+            "aggregate inverse relation field collides with owner relation field: com.acme.demo.domain.aggregates.video_post.VideoPostItem.videoPost",
             error.message,
         )
     }

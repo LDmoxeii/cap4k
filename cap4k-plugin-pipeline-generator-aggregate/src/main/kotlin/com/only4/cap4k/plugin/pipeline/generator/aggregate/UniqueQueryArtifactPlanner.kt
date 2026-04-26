@@ -15,8 +15,8 @@ internal class UniqueQueryArtifactPlanner : AggregateArtifactFamilyPlanner {
         val applicationRoot = requireRelativeModule(config, "application")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         return plannedSelections.flatMap { (entity, selections) ->
-            val tableSegment = aggregateTableSegment(entity.tableName)
-            val packageName = artifactLayout.aggregateUniqueQueryPackage(tableSegment)
+            val packageKey = aggregatePackageKey(config, entity.packageName)
+            val packageName = artifactLayout.aggregateUniqueQueryPackage(packageKey)
             selections.map { selection ->
                 ArtifactPlanItem(
                     generatorId = "aggregate",

@@ -17,14 +17,18 @@ internal class UniqueQueryHandlerArtifactPlanner : AggregateArtifactFamilyPlanne
         val adapterRoot = requireRelativeModule(config, "adapter")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         return plannedSelections.flatMap { (entity, selections) ->
-            val tableSegment = aggregateTableSegment(entity.tableName)
-            val packageName = artifactLayout.aggregateUniqueQueryHandlerPackage(tableSegment)
-            val queryPackageName = artifactLayout.aggregateUniqueQueryPackage(tableSegment)
-            val repository = requireUniqueRepository(
-                handlerTypeName = "unique query handler",
-                entityName = entity.name,
-                repositories = model.repositories.filter { it.entityName == entity.name },
-            )
+            val packageKey = aggregatePackageKey(config, entity.packageName)
+            val packageName = artifactLayout.aggregateUniqueQueryHandlerPackage(packageKey)
+            val queryPackageName = artifactLayout.aggregateUniqueQueryPackage(packageKey)
+            val repository = if (entity.aggregateRoot) {
+                requireUniqueRepository(
+                    handlerTypeName = "unique query handler",
+                    entityName = entity.name,
+                    repositories = model.repositories.filter { it.entityName == entity.name },
+                )
+            } else {
+                null
+            }
             val schema = requireUniqueSchema(
                 handlerTypeName = "unique query handler",
                 entityName = entity.name,
@@ -41,8 +45,8 @@ internal class UniqueQueryHandlerArtifactPlanner : AggregateArtifactFamilyPlanne
                         "typeName" to selection.queryHandlerTypeName,
                         "queryTypeName" to selection.queryTypeName,
                         "queryTypeFqn" to "$queryPackageName.${selection.queryTypeName}",
-                        "repositoryTypeName" to repository.name,
-                        "repositoryTypeFqn" to "${repository.packageName}.${repository.name}",
+                        "repositoryTypeName" to repository?.name,
+                        "repositoryTypeFqn" to repository?.let { "${it.packageName}.${it.name}" },
                         "schemaTypeName" to schema.name,
                         "schemaTypeFqn" to "${schema.packageName}.${schema.name}",
                         "entityTypeName" to entity.name,

@@ -15,12 +15,14 @@ package {{ packageName }}
 {%- if entityTypeFqn %}
 {{ use(entityTypeFqn) -}}
 {%- endif %}
+{%- if isAggregateRoot %}
 {{ use("com.only4.cap4k.ddd.domain.repo.JpaPredicate") -}}
-{%- if wrapperEnabled and aggregateTypeFqn %}
+{%- endif %}
+{%- if isAggregateRoot and wrapperEnabled and aggregateTypeFqn %}
 {{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate") -}}
 {{ use(aggregateTypeFqn) -}}
 {%- endif %}
-{%- if wrapperEnabled and aggregateTypeFqn and repositorySupportQuerydsl %}
+{%- if isAggregateRoot and wrapperEnabled and aggregateTypeFqn and repositorySupportQuerydsl %}
 {{ use("com.querydsl.core.types.OrderSpecifier") -}}
 {{ use("com.only4.cap4k.ddd.domain.repo.querydsl.QuerydslPredicate") -}}
 {%- if qEntityTypeFqn %}
@@ -131,7 +133,7 @@ class {{ typeName }}(
             subqueryConfigure.configure(sq, schema)
             return sq
         }
-{%- if wrapperEnabled and aggregateTypeFqn %}
+{%- if isAggregateRoot and wrapperEnabled and aggregateTypeFqn %}
 
         @JvmStatic
         fun predicateById(id: Any): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
@@ -197,7 +199,7 @@ class {{ typeName }}(
         fun predicate(specifier: SchemaSpecification<{{ entityName }}, {{ typeName }}>): AggregatePredicate<Agg{{ entityName }}, {{ entityName }}> {
             return JpaPredicate.bySpecification({{ entityName }}::class.java, specify(specifier)).toAggregatePredicate(Agg{{ entityName }}::class.java)
         }
-{%- else %}
+{%- elseif isAggregateRoot %}
 
         @JvmStatic
         fun predicateById(id: Any): JpaPredicate<{{ entityName }}> {
@@ -226,7 +228,7 @@ class {{ typeName }}(
         }
 {%- endif %}
 
-{%- if wrapperEnabled and aggregateTypeFqn and repositorySupportQuerydsl %}
+{%- if isAggregateRoot and wrapperEnabled and aggregateTypeFqn and repositorySupportQuerydsl %}
         @JvmStatic
         fun querydsl(
             filter: com.querydsl.core.types.Predicate,
