@@ -25,11 +25,11 @@ class DrawingBoardArtifactPlannerTest {
 
         assertEquals(
             listOf(
-                "drawing_board_cli",
-                "drawing_board_cmd",
-                "drawing_board_qry",
-                "drawing_board_payload",
-                "drawing_board_de",
+                "drawing_board_command",
+                "drawing_board_query",
+                "drawing_board_client",
+                "drawing_board_api_payload",
+                "drawing_board_domain_event",
             ),
             plan.map { it.outputPath.removePrefix("design/").removeSuffix(".json") }
         )
@@ -45,11 +45,11 @@ class DrawingBoardArtifactPlannerTest {
         )
         assertEquals("drawing-board", plan.first().generatorId)
         assertEquals("project", plan.first().moduleRole)
-        assertEquals("cli", plan.first().context["drawingBoardTag"])
-        assertEquals("cmd", plan[1].context["drawingBoardTag"])
-        assertEquals("qry", plan[2].context["drawingBoardTag"])
-        assertEquals("payload", plan[3].context["drawingBoardTag"])
-        assertEquals("de", plan[4].context["drawingBoardTag"])
+        assertEquals("command", plan.first().context["drawingBoardTag"])
+        assertEquals("query", plan[1].context["drawingBoardTag"])
+        assertEquals("client", plan[2].context["drawingBoardTag"])
+        assertEquals("api_payload", plan[3].context["drawingBoardTag"])
+        assertEquals("domain_event", plan[4].context["drawingBoardTag"])
     }
 
     @Test
@@ -96,7 +96,7 @@ class DrawingBoardArtifactPlannerTest {
 
         val plan = planner.plan(config(outputRoot = "design/generated"), model())
 
-        assertEquals("design/generated/drawing_board_cli.json", plan.first().outputPath)
+        assertEquals("design/generated/drawing_board_command.json", plan.first().outputPath)
     }
 
     @Test
@@ -133,31 +133,31 @@ class DrawingBoardArtifactPlannerTest {
             drawingBoard = DrawingBoardModel(
                 elements = listOf(
                     DrawingBoardElementModel(
-                        tag = "cmd",
+                        tag = "command",
                         packageName = "orders.commands",
                         name = "SubmitOrder",
                         description = "submit order",
                     ),
                     DrawingBoardElementModel(
-                        tag = "cli",
+                        tag = "client",
                         packageName = "ops.cli",
                         name = "FetchStatus",
                         description = "fetch status",
                     ),
                     DrawingBoardElementModel(
-                        tag = "qry",
+                        tag = "query",
                         packageName = "orders.queries",
                         name = "ReadOrder",
                         description = "read order",
                     ),
                     DrawingBoardElementModel(
-                        tag = "payload",
+                        tag = "api_payload",
                         packageName = "orders.payload",
                         name = "OrderPayload",
                         description = "payload",
                     ),
                     DrawingBoardElementModel(
-                        tag = "de",
+                        tag = "domain_event",
                         packageName = "orders.domain",
                         name = "OrderEntity",
                         description = "domain entity",

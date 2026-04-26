@@ -3387,6 +3387,63 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `renders domain event drawing board json without reserved entity fields`() {
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = emptyList()
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "drawing-board",
+                    moduleRole = "project",
+                    templateId = "drawing-board/document.json.peb",
+                    outputPath = "design/domain_event.json",
+                    context = mapOf(
+                        "elements" to listOf(
+                            DrawingBoardElementModel(
+                                tag = "domain_event",
+                                packageName = "orders",
+                                name = "OrderCreated",
+                                description = "order created",
+                                aggregates = listOf("Order"),
+                                entity = "Order",
+                                persist = false,
+                                requestFields = listOf(
+                                    DrawingBoardFieldModel(name = "entity", type = "Order"),
+                                    DrawingBoardFieldModel(name = "reason", type = "String"),
+                                ),
+                                responseFields = emptyList(),
+                            )
+                        )
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val element = JsonParser.parseString(rendered.single().content).asJsonArray.single().asJsonObject
+        assertTrue(!element.has("entity"))
+        assertEquals(1, element["requestFields"].asJsonArray.size())
+        assertEquals("reason", element["requestFields"].asJsonArray[0].asJsonObject["name"].asString)
+    }
+
+    @Test
     fun `use helper merges explicit imports with computed imports`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-merge")
         val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))

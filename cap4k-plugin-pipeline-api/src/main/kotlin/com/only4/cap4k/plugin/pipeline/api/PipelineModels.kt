@@ -289,7 +289,14 @@ data class DrawingBoardElementModel(
     val persist: Boolean? = null,
     val requestFields: List<DrawingBoardFieldModel> = emptyList(),
     val responseFields: List<DrawingBoardFieldModel> = emptyList(),
-)
+) {
+    val designJsonRequestFields: List<DrawingBoardFieldModel>
+        get() = if (tag == "domain_event") {
+            requestFields.filterNot { it.name.equals("entity", ignoreCase = true) }
+        } else {
+            requestFields
+        }
+}
 
 data class DrawingBoardModel(
     val elements: List<DrawingBoardElementModel>,

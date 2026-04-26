@@ -202,6 +202,54 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
+    fun `rejects domain event request field named entity`() {
+        val tempFile = tempDir.resolve("domain-event-reserved-entity.json")
+        val content = """
+            [
+              {
+                "tag": "domain_event",
+                "name": "OrderCreated",
+                "desc": "order created event",
+                "aggregates": ["Order"],
+                "requestFields": [
+                  { "name": "entity", "type": "Order" },
+                  { "name": "reason", "type": "String" }
+                ],
+                "responseFields": []
+              }
+            ]
+        """.trimIndent()
+        Files.writeString(tempFile, content, StandardCharsets.UTF_8)
+
+        val config = ProjectConfig(
+            basePackage = "com.only4.cap4k",
+            layout = ProjectLayout.SINGLE_MODULE,
+            modules = emptyMap(),
+            sources = mapOf(
+                "design-json" to SourceConfig(
+                    enabled = true,
+                    options = mapOf("files" to listOf(tempFile.toString())),
+                ),
+            ),
+            generators = emptyMap(),
+            templates = TemplateConfig(
+                preset = "default",
+                overrideDirs = emptyList(),
+                conflictPolicy = ConflictPolicy.SKIP,
+            ),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(config)
+        }
+
+        assertEquals(
+            "domain_event OrderCreated request field 'entity' is reserved and derived from aggregates[0].",
+            error.message,
+        )
+    }
+
+    @Test
     fun `declares utf8 charset when reading design files`() {
         val sourceFile = File(
             "src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProvider.kt",

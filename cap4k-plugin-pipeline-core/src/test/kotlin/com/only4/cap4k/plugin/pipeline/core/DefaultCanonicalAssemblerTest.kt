@@ -1103,12 +1103,14 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembles drawing board from design elements with supported tags and first wins deduplication`() {
+    fun `assembles drawing board as generate ready design json contract`() {
         val assembler = DefaultCanonicalAssembler()
 
         val supportedField = DesignFieldSnapshot(name = "orderId", type = "Long", nullable = false, defaultValue = "0")
         val responseField = DesignFieldSnapshot(name = "accepted", type = "Boolean")
         val duplicateField = DesignFieldSnapshot(name = "ignored", type = "String")
+        val entityField = DesignFieldSnapshot(name = "entity", type = "Order")
+        val reasonField = DesignFieldSnapshot(name = "reason", type = "String")
 
         val model = assembler.assemble(
             config = baseConfig(),
@@ -1141,6 +1143,12 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = listOf(duplicateField),
                         ),
                         DesignElementSnapshot(
+                            tag = "cli",
+                            packageName = "order.delivery",
+                            name = "PublishOrder",
+                            description = "publish order",
+                        ),
+                        DesignElementSnapshot(
                             tag = "qry",
                             packageName = "order.read",
                             name = "FindOrder",
@@ -1148,6 +1156,22 @@ class DefaultCanonicalAssemblerTest {
                             aggregates = listOf("Order"),
                             requestFields = emptyList(),
                             responseFields = emptyList(),
+                        ),
+                        DesignElementSnapshot(
+                            tag = "payload",
+                            packageName = "order.payload",
+                            name = "CreateOrderPayload",
+                            description = "create order payload",
+                        ),
+                        DesignElementSnapshot(
+                            tag = "de",
+                            packageName = "order.events",
+                            name = "OrderCreatedDomainEvent",
+                            description = "order created",
+                            aggregates = listOf("Order"),
+                            entity = "Order",
+                            persist = false,
+                            requestFields = listOf(entityField, reasonField),
                         ),
                         DesignElementSnapshot(
                             tag = "evt",
@@ -1161,10 +1185,10 @@ class DefaultCanonicalAssemblerTest {
         ).model
 
         val drawingBoard = model.drawingBoard
-        assertEquals(2, drawingBoard!!.elements.size)
+        assertEquals(5, drawingBoard!!.elements.size)
         assertEquals(
             DrawingBoardElementModel(
-                tag = "cmd",
+                tag = "command",
                 packageName = "order.submit",
                 name = "SubmitOrder",
                 description = "submit order",
@@ -1176,9 +1200,17 @@ class DefaultCanonicalAssemblerTest {
             ),
             drawingBoard.elements.first(),
         )
-        assertEquals(listOf("cmd", "qry"), drawingBoard.elementsByTag.keys.toList())
-        assertEquals(1, drawingBoard.elementsByTag.getValue("cmd").size)
-        assertEquals("FindOrder", drawingBoard.elementsByTag.getValue("qry").single().name)
+        assertEquals(
+            listOf("command", "client", "query", "api_payload", "domain_event"),
+            drawingBoard.elementsByTag.keys.toList(),
+        )
+        assertEquals(1, drawingBoard.elementsByTag.getValue("command").size)
+        assertEquals("FindOrder", drawingBoard.elementsByTag.getValue("query").single().name)
+        assertEquals("CreateOrderPayload", drawingBoard.elementsByTag.getValue("api_payload").single().name)
+
+        val domainEvent = drawingBoard.elementsByTag.getValue("domain_event").single()
+        assertEquals(null, domainEvent.entity)
+        assertEquals(listOf(DrawingBoardFieldModel(name = "reason", type = "String")), domainEvent.requestFields)
     }
 
     @Test

@@ -84,16 +84,28 @@ class DesignJsonSourceProvider : SourceProvider {
         return array.map { element ->
             val obj = element.asJsonObject
             val tag = obj["tag"].asString
+            val name = obj["name"].asString
+            val requestFields = parseFields(obj["requestFields"]?.asJsonArray)
+            validateReservedFields(tag, name, requestFields)
             DesignSpecEntry(
                 tag = tag,
                 packageName = readPackageName(obj["package"]?.asString, tag),
-                name = obj["name"].asString,
+                name = name,
                 description = obj["desc"]?.asString ?: "",
                 aggregates = obj["aggregates"]?.asJsonArray?.map { it.asString } ?: emptyList(),
                 persist = obj["persist"]?.asBoolean,
-                requestFields = parseFields(obj["requestFields"]?.asJsonArray),
+                requestFields = requestFields,
                 responseFields = parseFields(obj["responseFields"]?.asJsonArray),
             )
+        }
+    }
+
+    private fun validateReservedFields(tag: String, name: String, requestFields: List<FieldModel>) {
+        if (tag.lowercase(Locale.ROOT) != "domain_event") {
+            return
+        }
+        require(requestFields.none { it.name.equals("entity", ignoreCase = true) }) {
+            "domain_event $name request field 'entity' is reserved and derived from aggregates[0]."
         }
     }
 

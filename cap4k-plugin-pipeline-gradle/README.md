@@ -833,7 +833,10 @@ Generator 统一约束：
 
 - id：`drawing-board`
 - 模块：project
-- 支持的 tag：`cli`, `cmd`, `qry`, `payload`, `de`（其他会被忽略）
+- 输入来自 `ir-analysis.design-elements`，输出是可直接作为 `sources.designJson.files` 使用的稳定 design-json contract。
+- 输出 tag：`client`, `command`, `query`, `api_payload`, `domain_event`（其他会被忽略）
+- 旧 analysis tag 会在 pipeline 层投影：`cli -> client`, `cmd -> command`, `qry -> query`, `payload -> api_payload`, `de -> domain_event`。
+- `domain_event` 的 `entity` 参数由 `aggregates[0]` 派生，drawing-board 输出不会携带顶层 `entity` 或 `requestFields.entity`。
 - 模板：`drawing-board/document.json.peb`
 
 ---

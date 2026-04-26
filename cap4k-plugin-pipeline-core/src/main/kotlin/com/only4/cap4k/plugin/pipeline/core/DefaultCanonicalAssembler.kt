@@ -281,7 +281,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     aggregateName = aggregateName,
                     aggregatePackageName = aggregate.rootPackageName,
                     persist = entry.persist ?: false,
-                    fields = entry.requestFields,
+                    fields = entry.requestFields.filterNot { it.name.equals("entity", ignoreCase = true) },
                 )
             }
             .toList()
@@ -420,10 +420,14 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
     private fun DesignElementSnapshot.toDrawingBoardElementOrNull(): DrawingBoardElementModel? {
-        val normalizedTag = tag.lowercase(Locale.ROOT)
+        val normalizedTag = normalizeDrawingBoardTag(tag) ?: return null
         if (normalizedTag !in SupportedDrawingBoardTags) {
             return null
         }
+        val normalizedRequestFields = requestFields
+            .filterNot { field ->
+                normalizedTag == "domain_event" && field.name.equals("entity", ignoreCase = true)
+            }
 
         return DrawingBoardElementModel(
             tag = normalizedTag,
@@ -431,9 +435,9 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             name = name,
             description = description,
             aggregates = aggregates,
-            entity = entity,
+            entity = if (normalizedTag == "domain_event") null else entity,
             persist = persist,
-            requestFields = requestFields.map { field ->
+            requestFields = normalizedRequestFields.map { field ->
                 DrawingBoardFieldModel(
                     name = field.name,
                     type = field.type,
@@ -451,6 +455,16 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             },
         )
     }
+
+    private fun normalizeDrawingBoardTag(tag: String): String? =
+        when (tag.lowercase(Locale.ROOT)) {
+            "cmd", "command" -> "command"
+            "qry", "query" -> "query"
+            "cli", "client", "clients" -> "client"
+            "payload", "api_payload" -> "api_payload"
+            "de", "domain_event" -> "domain_event"
+            else -> null
+        }
 
     private fun drawingBoardElementKey(element: DrawingBoardElementModel): String {
         return "${element.tag}|${element.packageName}|${element.name}"
@@ -551,7 +565,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
     private companion object {
-        val SupportedDrawingBoardTags = setOf("cli", "cmd", "qry", "payload", "de")
+        val SupportedDrawingBoardTags = setOf("command", "query", "client", "api_payload", "domain_event")
         val UpperCamelSplitRegex = Regex("(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+")
 
         fun lowerCamelIdentifier(value: String): String {

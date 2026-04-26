@@ -1914,8 +1914,8 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertFalse(projectDir.resolve("flows/index.json").toFile().exists())
-        assertFalse(projectDir.resolve("design/drawing_board_cli.json").toFile().exists())
-        assertFalse(projectDir.resolve("design/drawing_board_cmd.json").toFile().exists())
+        assertFalse(projectDir.resolve("design/drawing_board_client.json").toFile().exists())
+        assertFalse(projectDir.resolve("design/drawing_board_command.json").toFile().exists())
         assertFalse(projectDir.resolve("build/cap4k/analysis-plan.json").toFile().exists())
     }
 
@@ -1936,8 +1936,14 @@ class PipelinePluginFunctionalTest {
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(analysisPlanFile.toFile().exists())
         assertTrue(analysisPlanFile.readText().contains("\"templateId\": \"drawing-board/document.json.peb\""))
-        assertTrue(projectDir.resolve("design/drawing_board_cli.json").toFile().exists())
-        assertTrue(projectDir.resolve("design/drawing_board_cmd.json").toFile().exists())
+        assertTrue(projectDir.resolve("design/drawing_board_client.json").toFile().exists())
+        assertTrue(projectDir.resolve("design/drawing_board_command.json").toFile().exists())
+        val domainEventFile = projectDir.resolve("design/drawing_board_domain_event.json")
+        assertTrue(domainEventFile.toFile().exists())
+        val domainEventContent = domainEventFile.readText()
+        assertTrue(domainEventContent.contains("\"tag\": \"domain_event\""))
+        assertTrue(domainEventContent.contains("\"name\": \"reason\""))
+        assertFalse(domainEventContent.contains("\"name\": \"entity\""))
     }
 
     @OptIn(ExperimentalPathApi::class)

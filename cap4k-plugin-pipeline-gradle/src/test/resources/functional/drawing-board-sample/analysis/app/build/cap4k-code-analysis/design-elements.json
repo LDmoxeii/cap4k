@@ -41,5 +41,29 @@
       }
     ],
     "responseFields": []
+  },
+  {
+    "tag": "de",
+    "package": "orders.events",
+    "name": "OrderCreated",
+    "desc": "order created",
+    "aggregates": [
+      "Order"
+    ],
+    "entity": "Order",
+    "persist": false,
+    "requestFields": [
+      {
+        "name": "entity",
+        "type": "Order",
+        "nullable": false
+      },
+      {
+        "name": "reason",
+        "type": "String",
+        "nullable": false
+      }
+    ],
+    "responseFields": []
   }
 ]
