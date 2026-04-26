@@ -75,7 +75,7 @@ data class ArtifactLayoutConfig(
     val designCommand: PackageLayout = PackageLayout("application.commands"),
     val designQuery: PackageLayout = PackageLayout("application.queries"),
     val designClient: PackageLayout = PackageLayout("application.distributed.clients"),
-    val designQueryHandler: PackageLayout = PackageLayout("adapter.queries"),
+    val designQueryHandler: PackageLayout = PackageLayout("adapter.application.queries"),
     val designClientHandler: PackageLayout = PackageLayout("adapter.application.distributed.clients"),
     val designValidator: PackageLayout = PackageLayout("application.validators"),
     val designApiPayload: PackageLayout = PackageLayout("adapter.portal.api.payload"),

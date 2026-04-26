@@ -430,9 +430,9 @@ class PipelinePluginFunctionalTest {
         assertTrue(content.contains("demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt"))
         assertTrue(content.contains("demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderListQry.kt"))
         assertTrue(content.contains("demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt"))
-        assertTrue(content.contains("demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt"))
-        assertTrue(content.contains("demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt"))
-        assertTrue(content.contains("demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt"))
+        assertTrue(content.contains("demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderQryHandler.kt"))
+        assertTrue(content.contains("demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderListQryHandler.kt"))
+        assertTrue(content.contains("demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderPageQryHandler.kt"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -469,13 +469,13 @@ class PipelinePluginFunctionalTest {
             .build()
 
         val defaultHandlerFile = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt"
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderQryHandler.kt"
         )
         val listHandlerFile = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt"
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderListQryHandler.kt"
         )
         val pageHandlerFile = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt"
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderPageQryHandler.kt"
         )
         val defaultQueryFile = projectDir.resolve(
             "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt"
@@ -594,13 +594,13 @@ class PipelinePluginFunctionalTest {
             .build()
 
         val defaultContent = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt"
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderQryHandler.kt"
         ).readText()
         val listContent = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt"
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderListQryHandler.kt"
         ).readText()
         val pageContent = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt"
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderPageQryHandler.kt"
         ).readText()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
@@ -2735,7 +2735,7 @@ class PipelinePluginFunctionalTest {
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/message/delivery/PublishUserMessageCliHandler.kt"
         )
         val queryHandlerFile = projectDir.generatedFile(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/message/read/FindUserMessageQryHandler.kt"
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/message/read/FindUserMessageQryHandler.kt"
         )
         val payloadFile = projectDir.generatedFile(
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/message/CreateUserMessagePayload.kt"

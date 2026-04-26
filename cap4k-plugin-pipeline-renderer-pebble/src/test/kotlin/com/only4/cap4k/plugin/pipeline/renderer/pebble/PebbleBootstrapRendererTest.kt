@@ -110,4 +110,30 @@ class PebbleBootstrapRendererTest {
         assertTrue(artifact.content.contains("implementation(\"org.jetbrains.kotlin:kotlin-reflect:2.2.20\")"))
         assertTrue(artifact.content.contains("implementation(\"org.springframework:spring-context\")"))
     }
+
+    @Test
+    fun `render default start module build with spring boot dependency platform`() {
+        val item = BootstrapPlanItem(
+            presetId = "ddd-multi-module",
+            templateId = "bootstrap/module/start-build.gradle.kts.peb",
+            outputPath = "only-danmuku/only-danmuku-start/build.gradle.kts",
+            conflictPolicy = ConflictPolicy.FAIL,
+            context = mapOf(
+                "basePackage" to "edu.only4.danmuku",
+                "domainModuleName" to "only-danmuku-domain",
+                "applicationModuleName" to "only-danmuku-application",
+                "adapterModuleName" to "only-danmuku-adapter",
+            ),
+        )
+
+        val renderer = PebbleBootstrapRenderer(
+            PresetTemplateResolver("ddd-default-bootstrap", emptyList())
+        )
+
+        val artifact = renderer.render(listOf(item)).single()
+
+        assertTrue(artifact.content.contains("implementation(platform(\"org.springframework.boot:spring-boot-dependencies:3.5.6\"))"))
+        assertTrue(artifact.content.contains("implementation(\"org.springframework.boot:spring-boot-starter\")"))
+        assertTrue(artifact.content.contains("implementation(\"org.springframework.boot:spring-boot-starter-data-jpa\")"))
+    }
 }

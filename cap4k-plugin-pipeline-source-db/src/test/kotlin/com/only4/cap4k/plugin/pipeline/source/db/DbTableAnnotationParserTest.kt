@@ -19,6 +19,23 @@ class DbTableAnnotationParserTest {
     }
 
     @Test
+    fun `parser extracts table ignore marker from comment`() {
+        val metadata = DbTableAnnotationParser.parse("Framework table @I;")
+
+        assertEquals(true, metadata.ignored)
+        assertEquals("Framework table", metadata.cleanedComment)
+    }
+
+    @Test
+    fun `parser rejects valued table ignore marker`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@I=true;")
+        }
+
+        assertEquals("invalid @Ignore/@I annotation: explicit values are not supported.", error.message)
+    }
+
+    @Test
     fun `parser rejects malformed dynamic insert value`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbTableAnnotationParser.parse("@DynamicInsert=maybe;")

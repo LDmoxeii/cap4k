@@ -49,15 +49,19 @@ class DbSchemaSourceProvider : SourceProvider {
                 else -> discoveredTables.filter { it in includeTables }
             }
             val filteredTables = selectedTables.filterNot { it in excludeTables }
-            val tables = filteredTables
+            val tableResults = filteredTables
                 .asSequence()
                 .map { readTable(metadata, schema, it) }
                 .toList()
+            val tables = tableResults
+                .filterNot { it.ignored }
+                .map { it.table }
+            val includedTables = tables.map { it.tableName }
 
             return DbSchemaSnapshot(
                 tables = tables.sortedBy { it.tableName },
                 discoveredTables = discoveredTables.sorted(),
-                includedTables = filteredTables.sorted(),
+                includedTables = includedTables.sorted(),
                 excludedTables = excludeTables.sorted(),
             )
         }
@@ -67,7 +71,7 @@ class DbSchemaSourceProvider : SourceProvider {
         metadata: DatabaseMetaData,
         schema: String?,
         tableName: String,
-    ): DbTableSnapshot {
+    ): ReadTableResult {
         val tableComment = metadata.getTables(null, schema, tableName, arrayOf("TABLE")).use { rows ->
             if (rows.next()) rows.getString("REMARKS") ?: "" else ""
         }
@@ -146,19 +150,22 @@ class DbSchemaSourceProvider : SourceProvider {
                 .filter { it.toSet() != primaryKeySet }
         }
 
-        return DbTableSnapshot(
-            tableName = tableName,
-            comment = tableMetadata.cleanedComment,
-            columns = columns,
-            primaryKey = primaryKey,
-            uniqueConstraints = uniqueConstraints,
-            parentTable = tableMetadata.parentTable,
-            aggregateRoot = tableMetadata.aggregateRoot,
-            valueObject = tableMetadata.valueObject,
-            dynamicInsert = tableMetadata.dynamicInsert,
-            dynamicUpdate = tableMetadata.dynamicUpdate,
-            softDeleteColumn = tableMetadata.softDeleteColumn,
-            entityIdGenerator = tableMetadata.entityIdGenerator,
+        return ReadTableResult(
+            table = DbTableSnapshot(
+                tableName = tableName,
+                comment = tableMetadata.cleanedComment,
+                columns = columns,
+                primaryKey = primaryKey,
+                uniqueConstraints = uniqueConstraints,
+                parentTable = tableMetadata.parentTable,
+                aggregateRoot = tableMetadata.aggregateRoot,
+                valueObject = tableMetadata.valueObject,
+                dynamicInsert = tableMetadata.dynamicInsert,
+                dynamicUpdate = tableMetadata.dynamicUpdate,
+                softDeleteColumn = tableMetadata.softDeleteColumn,
+                entityIdGenerator = tableMetadata.entityIdGenerator,
+            ),
+            ignored = tableMetadata.ignored,
         )
     }
 
@@ -215,3 +222,8 @@ class DbSchemaSourceProvider : SourceProvider {
         else -> emptyList()
     }
 }
+
+private data class ReadTableResult(
+    val table: DbTableSnapshot,
+    val ignored: Boolean,
+)

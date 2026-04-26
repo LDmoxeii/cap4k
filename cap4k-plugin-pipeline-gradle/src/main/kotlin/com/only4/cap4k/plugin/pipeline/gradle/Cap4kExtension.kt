@@ -90,7 +90,7 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
     val designClient: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention("application.distributed.clients")
     val designQueryHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
-        .convention("adapter.queries")
+        .convention("adapter.application.queries")
     val designClientHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention("adapter.application.distributed.clients")
     val designValidator: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)

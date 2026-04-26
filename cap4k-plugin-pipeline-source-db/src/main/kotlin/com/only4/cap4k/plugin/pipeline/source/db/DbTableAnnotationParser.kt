@@ -4,7 +4,7 @@ import java.util.Locale
 
 internal object DbTableAnnotationParser {
     private val annotationPattern = Regex("@([A-Za-z]+)(=([^;]*))?;?")
-    private val tableAliases = setOf("PARENT", "P", "AGGREGATEROOT", "ROOT", "R", "VALUEOBJECT", "VO")
+    private val tableAliases = setOf("PARENT", "P", "AGGREGATEROOT", "ROOT", "R", "VALUEOBJECT", "VO", "IGNORE", "I")
     private val providerAliases = setOf("DYNAMICINSERT", "DYNAMICUPDATE", "SOFTDELETECOLUMN", "IDGENERATOR")
     private val multiSpacePattern = Regex("\\s{2,}")
 
@@ -31,6 +31,11 @@ internal object DbTableAnnotationParser {
             annotations = annotations,
             aliases = setOf("VALUEOBJECT", "VO"),
             invalidValueMessage = "invalid @ValueObject/@VO annotation: explicit values are not supported.",
+        )
+        val ignored = resolvePresenceAnnotation(
+            annotations = annotations,
+            aliases = setOf("IGNORE", "I"),
+            invalidValueMessage = "invalid @Ignore/@I annotation: explicit values are not supported.",
         )
         val aggregateRootAnnotation = resolveBooleanAnnotationValue(
             annotations = annotations,
@@ -70,6 +75,7 @@ internal object DbTableAnnotationParser {
             parentTable = parentTable,
             aggregateRoot = aggregateRootAnnotation.value ?: (parentTable == null),
             valueObject = valueObject,
+            ignored = ignored,
             dynamicInsert = dynamicInsert,
             dynamicUpdate = dynamicUpdate,
             softDeleteColumn = softDeleteColumn,
@@ -189,6 +195,7 @@ internal data class DbTableAnnotationParseResult(
     val parentTable: String? = null,
     val aggregateRoot: Boolean = true,
     val valueObject: Boolean = false,
+    val ignored: Boolean = false,
     val dynamicInsert: Boolean? = null,
     val dynamicUpdate: Boolean? = null,
     val softDeleteColumn: String? = null,

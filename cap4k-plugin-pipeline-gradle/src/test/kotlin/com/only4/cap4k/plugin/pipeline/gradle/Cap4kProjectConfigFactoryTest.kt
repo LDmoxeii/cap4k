@@ -57,6 +57,7 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals("design", extension.layout.drawingBoard.outputRoot.get())
         assertEquals("domain.aggregates", extension.layout.designDomainEvent.packageRoot.get())
         assertEquals("events", extension.layout.designDomainEvent.packageSuffix.get())
+        assertEquals("adapter.application.queries", extension.layout.designQueryHandler.packageRoot.get())
     }
 
     @Test

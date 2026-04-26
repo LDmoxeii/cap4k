@@ -73,19 +73,19 @@ class DesignQueryHandlerArtifactPlannerTest {
             items.map { it.templateId },
         )
         assertEquals(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt",
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderQryHandler.kt",
             items[0].outputPath,
         )
         assertEquals(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt",
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderListQryHandler.kt",
             items[1].outputPath,
         )
         assertEquals(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt",
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderPageQryHandler.kt",
             items[2].outputPath,
         )
         assertEquals("adapter", items[0].moduleRole)
-        assertEquals("com.acme.demo.adapter.queries.order.read", items[0].context["packageName"])
+        assertEquals("com.acme.demo.adapter.application.queries.order.read", items[0].context["packageName"])
         assertEquals("FindOrderQryHandler", items[0].context["typeName"])
         assertEquals("FindOrderQry", items[0].context["queryTypeName"])
         assertEquals(

@@ -40,7 +40,10 @@ class ArtifactLayoutResolverTest {
         assertEquals("com.acme.demo.application.commands.message.create", resolver.designCommandPackage("message.create"))
         assertEquals("com.acme.demo.application.queries.message.read", resolver.designQueryPackage("message.read"))
         assertEquals("com.acme.demo.application.distributed.clients.message.delivery", resolver.designClientPackage("message.delivery"))
-        assertEquals("com.acme.demo.adapter.queries.message.read", resolver.designQueryHandlerPackage("message.read"))
+        assertEquals(
+            "com.acme.demo.adapter.application.queries.message.read",
+            resolver.designQueryHandlerPackage("message.read"),
+        )
         assertEquals(
             "com.acme.demo.adapter.application.distributed.clients.message.delivery",
             resolver.designClientHandlerPackage("message.delivery"),

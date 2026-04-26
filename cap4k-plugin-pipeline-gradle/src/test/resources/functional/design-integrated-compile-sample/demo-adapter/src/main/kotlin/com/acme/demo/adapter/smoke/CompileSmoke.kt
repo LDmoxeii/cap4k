@@ -2,7 +2,7 @@ package com.acme.demo.adapter.smoke
 
 import com.acme.demo.adapter.application.distributed.clients.authorize.IssueTokenCliHandler
 import com.acme.demo.adapter.portal.api.payload.order.SubmitOrderPayload
-import com.acme.demo.adapter.queries.order.read.FindOrderQryHandler
+import com.acme.demo.adapter.application.queries.order.read.FindOrderQryHandler
 
 @Suppress("unused")
 internal fun ensureGeneratedAdapterTypesArePresent(
