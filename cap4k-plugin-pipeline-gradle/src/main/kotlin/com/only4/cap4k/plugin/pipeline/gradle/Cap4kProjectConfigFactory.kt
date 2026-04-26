@@ -12,6 +12,8 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverter
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import org.gradle.api.Project
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
@@ -348,13 +350,13 @@ class Cap4kProjectConfigFactory {
         return artifactLayout
     }
 
-    private fun buildTypeRegistry(project: Project, extension: Cap4kExtension): Map<String, String> {
+    private fun buildTypeRegistry(project: Project, extension: Cap4kExtension): Map<String, TypeRegistryEntry> {
         val registryFile = extension.types.registryFile.optionalValue() ?: return emptyMap()
         val file = project.file(registryFile).absoluteFile
         require(file.exists()) {
             "types.registryFile does not exist: ${file.path}"
         }
-        val registry = linkedMapOf<String, String>()
+        val registry = linkedMapOf<String, TypeRegistryEntry>()
         file.reader(Charsets.UTF_8).use { reader ->
             val jsonReader = JsonReader(reader)
             require(jsonReader.peek() == JsonToken.BEGIN_OBJECT) {
@@ -383,11 +385,10 @@ class Cap4kProjectConfigFactory {
                     "types.registryFile contains duplicate type name after normalization: $normalizedKey"
                 }
 
-                require(jsonReader.peek() == JsonToken.STRING) {
-                    "types.registryFile value for $normalizedKey must be a string FQN."
+                require(jsonReader.peek() == JsonToken.BEGIN_OBJECT) {
+                    "types.registryFile value for $normalizedKey must be an object."
                 }
-                val normalizedValue = jsonReader.nextString().asRegistryValue(normalizedKey)
-                registry[normalizedKey] = normalizedValue
+                registry[normalizedKey] = jsonReader.nextTypeRegistryEntry(normalizedKey)
             }
 
             jsonReader.endObject()
@@ -502,6 +503,63 @@ private fun Property<String>.rawValue(): String =
 
 private fun ListProperty<String>.normalizedValues(): List<String> =
     orNull.orEmpty().mapNotNull { value -> value.trim().takeIf { it.isNotEmpty() } }
+
+private fun JsonReader.nextTypeRegistryEntry(key: String): TypeRegistryEntry {
+    beginObject()
+    val rawFields = linkedSetOf<String>()
+    var fqn: String? = null
+    var converter = TypeRegistryConverter.nested()
+
+    while (hasNext()) {
+        val rawField = nextName()
+        require(rawFields.add(rawField)) {
+            "types.registryFile value for $key contains duplicate field: $rawField"
+        }
+        when (val field = rawField.trim()) {
+            "fqn" -> {
+                require(peek() == JsonToken.STRING) {
+                    "types.registryFile value for $key.fqn must be a fully qualified name."
+                }
+                fqn = nextString().asRegistryValue("$key.fqn")
+            }
+            "converter" -> {
+                converter = nextTypeRegistryConverter("$key.converter")
+            }
+            else -> throw IllegalArgumentException(
+                "types.registryFile value for $key contains unsupported field: $field"
+            )
+        }
+    }
+
+    endObject()
+    return TypeRegistryEntry(
+        fqn = requireNotNull(fqn) {
+            "types.registryFile value for $key.fqn is required."
+        },
+        converter = converter,
+    )
+}
+
+private fun JsonReader.nextTypeRegistryConverter(path: String): TypeRegistryConverter =
+    when (peek()) {
+        JsonToken.BOOLEAN -> {
+            val enabled = nextBoolean()
+            require(!enabled) {
+                "types.registryFile value for $path must be false, \"nested\", or a converter FQN."
+            }
+            TypeRegistryConverter.none()
+        }
+        JsonToken.STRING -> {
+            val value = nextString()
+            when (value) {
+                "nested" -> TypeRegistryConverter.nested()
+                else -> TypeRegistryConverter.explicit(value.asRegistryValue(path))
+            }
+        }
+        else -> throw IllegalArgumentException(
+            "types.registryFile value for $path must be false, \"nested\", or a converter FQN."
+        )
+    }
 
 private fun String.asRegistryValue(key: String): String {
     require(isNotBlank()) {

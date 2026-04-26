@@ -5,6 +5,7 @@ import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
@@ -72,7 +73,7 @@ class AggregateEnumPlanningTest {
                     entities = emptyList(),
                 ),
                 basePackage = "com.acme.demo",
-                typeRegistry = mapOf("Status" to "com.acme.shared.Status"),
+                typeRegistry = mapOf("Status" to TypeRegistryEntry("com.acme.shared.Status")),
             )
         }
 
@@ -120,6 +121,70 @@ class AggregateEnumPlanningTest {
 
         assertEquals(
             "ambiguous enum ownership for Status: matches both shared enum and local enum in com.acme.demo.domain.aggregates.video_post",
+            error.message
+        )
+    }
+
+    @Test
+    fun `local enum and general registry with the same type binding fails fast`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            AggregateEnumPlanning.from(
+                CanonicalModel(
+                    entities = listOf(
+                        EntityModel(
+                            name = "UserLoginLog",
+                            packageName = "com.acme.demo.domain.aggregates.user_login_log",
+                            tableName = "user_login_log",
+                            comment = "",
+                            fields = listOf(
+                                FieldModel(
+                                    name = "userType",
+                                    type = "Int",
+                                    typeBinding = "UserType",
+                                    enumItems = listOf(EnumItemModel(0, "UNKNOWN", "Unknown"))
+                                )
+                            ),
+                            idField = FieldModel(name = "id", type = "Long"),
+                        )
+                    )
+                ),
+                basePackage = "com.acme.demo",
+                typeRegistry = mapOf(
+                    "UserType" to TypeRegistryEntry("com.acme.demo.domain.aggregates.user.enums.UserType")
+                ),
+            )
+        }
+
+        assertEquals(
+            "ambiguous enum ownership for UserType: matches both local enum in com.acme.demo.domain.aggregates.user_login_log and general type registry",
+            error.message
+        )
+    }
+
+    @Test
+    fun `unresolved short type binding fails fast`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "",
+            fields = listOf(
+                FieldModel(name = "payload", type = "String", typeBinding = "SubmitPayload")
+            ),
+            idField = FieldModel(name = "id", type = "Long"),
+        )
+        val planning = AggregateEnumPlanning.from(
+            CanonicalModel(entities = listOf(entity)),
+            basePackage = "com.acme.demo",
+            typeRegistry = emptyMap(),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            planning.resolveFieldType(entity.packageName, entity.fields.single())
+        }
+
+        assertEquals(
+            "unresolved type binding for SubmitPayload: expected enum manifest, type registry, FQN, or built-in type",
             error.message
         )
     }

@@ -294,6 +294,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             entities = entities,
             schema = dbSnapshot,
             sharedEnums = sharedEnums,
+            typeRegistry = config.typeRegistry,
             artifactLayout = artifactLayout,
         )
         val aggregatePersistenceFieldControls = AggregatePersistenceFieldBehaviorInference.infer(

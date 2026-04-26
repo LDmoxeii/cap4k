@@ -6,6 +6,8 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverterKind
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import java.util.Locale
 
 internal object AggregateJpaControlInference {
@@ -13,12 +15,18 @@ internal object AggregateJpaControlInference {
         entities: List<EntityModel>,
         schema: DbSchemaSnapshot?,
         sharedEnums: List<SharedEnumDefinition>,
+        typeRegistry: Map<String, TypeRegistryEntry>,
         artifactLayout: ArtifactLayoutResolver,
     ): List<AggregateEntityJpaModel> {
         val sharedEnumsByType = buildSharedEnumFqns(
             definitions = sharedEnums,
             artifactLayout = artifactLayout,
         )
+        sharedEnumsByType.keys.firstOrNull { it in typeRegistry }?.let { typeName ->
+            throw IllegalArgumentException(
+                "ambiguous type binding for $typeName: matches both shared enum and general type registry"
+            )
+        }
         val localEnumOwnership = buildLocalEnumOwnership(entities)
         val tableByName = schema?.tables?.associateBy { it.tableName.lowercase(Locale.ROOT) }.orEmpty()
 
@@ -39,42 +47,61 @@ internal object AggregateJpaControlInference {
                     val column = requireNotNull(columnByName[fieldColumnName.lowercase(Locale.ROOT)]) {
                         "missing db column snapshot for field ${entity.name}.${field.name}"
                     }
+                    val converter = resolveConverterBinding(
+                        typeBinding = column.typeBinding,
+                        ownerPackageName = entity.packageName,
+                        hasLocalEnumOwner = LocalEnumOwnerKey(
+                            ownerPackageName = entity.packageName,
+                            typeBinding = column.typeBinding.orEmpty(),
+                        ) in localEnumOwnership,
+                        sharedEnumsByType = sharedEnumsByType,
+                        typeRegistry = typeRegistry,
+                    )
                     AggregateColumnJpaModel(
                         fieldName = field.name,
                         columnName = column.name,
                         isId = column.name.lowercase(Locale.ROOT) in primaryKeyColumnNames,
-                        converterTypeFqn = resolveConverterTypeFqn(
-                            typeBinding = column.typeBinding,
-                            ownerPackageName = entity.packageName,
-                            hasLocalEnumOwner = LocalEnumOwnerKey(
-                                ownerPackageName = entity.packageName,
-                                typeBinding = column.typeBinding.orEmpty(),
-                            ) in localEnumOwnership,
-                            sharedEnumsByType = sharedEnumsByType,
-                        ),
+                        converterTypeFqn = converter?.typeFqn,
+                        converterClassFqn = converter?.converterClassFqn,
                     )
                 },
             )
         }
     }
 
-    private fun resolveConverterTypeFqn(
+    private fun resolveConverterBinding(
         typeBinding: String?,
         ownerPackageName: String,
         hasLocalEnumOwner: Boolean,
         sharedEnumsByType: Map<String, String>,
-    ): String? {
+        typeRegistry: Map<String, TypeRegistryEntry>,
+    ): ConverterBinding? {
         val normalizedTypeBinding = typeBinding?.takeIf { it.isNotBlank() } ?: return null
         val sharedEnumFqn = sharedEnumsByType[normalizedTypeBinding]
+        val registryEntry = typeRegistry[normalizedTypeBinding]
 
         return when {
             sharedEnumFqn != null && hasLocalEnumOwner -> throw IllegalArgumentException(
                 "ambiguous enum ownership for $normalizedTypeBinding: " +
                     "matches both shared enum and local enum in $ownerPackageName"
             )
-            sharedEnumFqn != null -> sharedEnumFqn
+            registryEntry != null && hasLocalEnumOwner -> throw IllegalArgumentException(
+                "ambiguous enum ownership for $normalizedTypeBinding: " +
+                    "matches both local enum in $ownerPackageName and general type registry"
+            )
+            sharedEnumFqn != null -> ConverterBinding(sharedEnumFqn, "$sharedEnumFqn.Converter")
             hasLocalEnumOwner -> buildLocalEnumFqn(ownerPackageName, normalizedTypeBinding)
-            else -> null
+                .let { ConverterBinding(it, "$it.Converter") }
+            registryEntry != null -> registryEntry.toConverterBinding()
+            isFqn(normalizedTypeBinding) -> ConverterBinding(
+                typeFqn = normalizedTypeBinding,
+                converterClassFqn = "$normalizedTypeBinding.Converter",
+            )
+            normalizedTypeBinding in builtInTypeNames -> null
+            else -> throw IllegalArgumentException(
+                "unresolved type binding for $ownerPackageName.$normalizedTypeBinding: " +
+                    "expected enum manifest, type registry, FQN, or built-in type"
+            )
         }
     }
 
@@ -134,7 +161,57 @@ internal object AggregateJpaControlInference {
         return "$ownerPackageName.enums.$typeName"
     }
 
+    private fun TypeRegistryEntry.toConverterBinding(): ConverterBinding? =
+        when (converter.kind) {
+            TypeRegistryConverterKind.NONE -> null
+            TypeRegistryConverterKind.NESTED -> ConverterBinding(fqn, "$fqn.Converter")
+            TypeRegistryConverterKind.EXPLICIT -> ConverterBinding(
+                typeFqn = fqn,
+                converterClassFqn = requireNotNull(converter.fqn) {
+                    "explicit converter FQN is required for $fqn"
+                },
+            )
+        }
+
+    private fun isFqn(value: String): Boolean =
+        '.' in value
+
+    private val builtInTypeNames = setOf(
+        "Any",
+        "Array",
+        "Boolean",
+        "Byte",
+        "Char",
+        "Collection",
+        "Double",
+        "Float",
+        "Int",
+        "Iterable",
+        "List",
+        "Long",
+        "Map",
+        "MutableCollection",
+        "MutableIterable",
+        "MutableList",
+        "MutableMap",
+        "MutableSet",
+        "Nothing",
+        "Number",
+        "Pair",
+        "Sequence",
+        "Set",
+        "Short",
+        "String",
+        "Triple",
+        "Unit",
+    )
+
 }
+
+private data class ConverterBinding(
+    val typeFqn: String,
+    val converterClassFqn: String,
+)
 
 private data class LocalEnumOwnerKey(
     val ownerPackageName: String,

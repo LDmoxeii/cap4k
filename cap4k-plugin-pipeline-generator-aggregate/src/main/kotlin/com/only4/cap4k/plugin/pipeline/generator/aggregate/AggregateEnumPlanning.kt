@@ -7,17 +7,33 @@ import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 
 internal class AggregateEnumPlanning private constructor(
     private val sharedEnumFqns: Map<String, String>,
     private val localEnumFqns: Map<LocalEnumOwnerKey, String>,
-    private val typeRegistry: Map<String, String>,
+    private val typeRegistry: Map<String, TypeRegistryEntry>,
 ) {
     fun resolveFieldType(typeName: String, enumItems: List<EnumItemModel>): String {
         return resolveFieldType(ownerPackageName = null, typeName = typeName, enumItems = enumItems)
     }
 
     fun resolveFieldType(ownerPackageName: String?, typeName: String, enumItems: List<EnumItemModel>): String {
+        return resolveKnownType(ownerPackageName, typeName) ?: typeName
+    }
+
+    private fun resolveTypeBinding(ownerPackageName: String?, typeName: String): String {
+        return resolveKnownType(ownerPackageName, typeName)
+            ?: if (typeName in builtInTypeNames) {
+                typeName
+            } else {
+                throw IllegalArgumentException(
+                    "unresolved type binding for $typeName: expected enum manifest, type registry, FQN, or built-in type"
+                )
+            }
+    }
+
+    private fun resolveKnownType(ownerPackageName: String?, typeName: String): String? {
         if ('.' in typeName) {
             return typeName
         }
@@ -30,11 +46,11 @@ internal class AggregateEnumPlanning private constructor(
         if (sharedFqn != null) {
             return sharedFqn
         }
-        val mapped = typeRegistry[typeName]
+        val mapped = typeRegistry[typeName]?.fqn
         if (mapped != null) {
             return mapped
         }
-        return typeName
+        return null
     }
 
     fun resolveFieldType(field: FieldModel): String {
@@ -42,18 +58,25 @@ internal class AggregateEnumPlanning private constructor(
     }
 
     fun resolveFieldType(ownerPackageName: String?, field: FieldModel): String {
-        val typeName = field.typeBinding?.takeIf { it.isNotBlank() } ?: field.type
-        return resolveFieldType(ownerPackageName, typeName, field.enumItems)
+        val typeBinding = field.typeBinding?.takeIf { it.isNotBlank() }
+        if (typeBinding != null) {
+            return resolveTypeBinding(ownerPackageName, typeBinding)
+        }
+        return resolveFieldType(ownerPackageName, field.type, field.enumItems)
     }
 
     companion object {
-        fun from(model: CanonicalModel, basePackage: String, typeRegistry: Map<String, String>): AggregateEnumPlanning =
+        fun from(
+            model: CanonicalModel,
+            basePackage: String,
+            typeRegistry: Map<String, TypeRegistryEntry>,
+        ): AggregateEnumPlanning =
             from(model, ArtifactLayoutResolver(basePackage, ArtifactLayoutConfig()), typeRegistry)
 
         fun from(
             model: CanonicalModel,
             artifactLayout: ArtifactLayoutResolver,
-            typeRegistry: Map<String, String>,
+            typeRegistry: Map<String, TypeRegistryEntry>,
         ): AggregateEnumPlanning {
             val sharedEnumFqns = buildSharedEnumFqns(model.sharedEnums, artifactLayout)
             sharedEnumFqns.keys.firstOrNull { it in typeRegistry }?.let { typeName ->
@@ -65,6 +88,12 @@ internal class AggregateEnumPlanning private constructor(
             localEnumFqns.keys.firstOrNull { key -> key.typeBinding in sharedEnumFqns }?.let { key ->
                 throw IllegalArgumentException(
                     "ambiguous enum ownership for ${key.typeBinding}: matches both shared enum and local enum in ${key.ownerPackageName}"
+                )
+            }
+            localEnumFqns.keys.firstOrNull { key -> key.typeBinding in typeRegistry }?.let { key ->
+                throw IllegalArgumentException(
+                    "ambiguous enum ownership for ${key.typeBinding}: " +
+                        "matches both local enum in ${key.ownerPackageName} and general type registry"
                 )
             }
             return AggregateEnumPlanning(
@@ -151,4 +180,34 @@ private data class LocalEnumOwnerKey(
 private data class LocalEnumDefinition(
     val fqn: String,
     val enumItems: List<EnumItemModel>,
+)
+
+private val builtInTypeNames = setOf(
+    "Any",
+    "Array",
+    "Boolean",
+    "Byte",
+    "Char",
+    "Collection",
+    "Double",
+    "Float",
+    "Int",
+    "Iterable",
+    "List",
+    "Long",
+    "Map",
+    "MutableCollection",
+    "MutableIterable",
+    "MutableList",
+    "MutableMap",
+    "MutableSet",
+    "Nothing",
+    "Number",
+    "Pair",
+    "Sequence",
+    "Set",
+    "Short",
+    "String",
+    "Triple",
+    "Unit",
 )

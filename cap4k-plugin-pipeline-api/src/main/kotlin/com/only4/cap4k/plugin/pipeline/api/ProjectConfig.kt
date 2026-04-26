@@ -5,7 +5,7 @@ data class ProjectConfig(
     val layout: ProjectLayout,
     // Module role -> repository-relative filesystem path.
     val modules: Map<String, String>,
-    val typeRegistry: Map<String, String> = emptyMap(),
+    val typeRegistry: Map<String, TypeRegistryEntry> = emptyMap(),
     val sources: Map<String, SourceConfig>,
     val generators: Map<String, GeneratorConfig>,
     val templates: TemplateConfig,
@@ -14,6 +14,33 @@ data class ProjectConfig(
     fun enabledSourceIds(): Set<String> = sources.filterValues { it.enabled }.keys
 
     fun enabledGeneratorIds(): Set<String> = generators.filterValues { it.enabled }.keys
+
+    fun typeRegistryFqns(): Map<String, String> = typeRegistry.mapValues { it.value.fqn }
+}
+
+data class TypeRegistryEntry(
+    val fqn: String,
+    val converter: TypeRegistryConverter = TypeRegistryConverter.nested(),
+)
+
+data class TypeRegistryConverter(
+    val kind: TypeRegistryConverterKind,
+    val fqn: String? = null,
+) {
+    companion object {
+        fun none(): TypeRegistryConverter = TypeRegistryConverter(TypeRegistryConverterKind.NONE)
+
+        fun nested(): TypeRegistryConverter = TypeRegistryConverter(TypeRegistryConverterKind.NESTED)
+
+        fun explicit(fqn: String): TypeRegistryConverter =
+            TypeRegistryConverter(TypeRegistryConverterKind.EXPLICIT, fqn)
+    }
+}
+
+enum class TypeRegistryConverterKind {
+    NONE,
+    NESTED,
+    EXPLICIT,
 }
 
 enum class ProjectLayout {

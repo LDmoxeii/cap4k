@@ -2582,6 +2582,7 @@ class PebbleArtifactRendererTest {
                                 "columnName" to "id",
                                 "isId" to true,
                                 "converterTypeRef" to null,
+                                "converterClassRef" to null,
                             ),
                             mapOf(
                                 "name" to "status",
@@ -2590,6 +2591,7 @@ class PebbleArtifactRendererTest {
                                 "columnName" to "status",
                                 "isId" to false,
                                 "converterTypeRef" to "com.acme.demo.domain.shared.enums.Status",
+                                "converterClassRef" to "com.acme.demo.domain.shared.enums.Status.Converter",
                             ),
                         ),
                         "relationFields" to emptyList<Map<String, Any?>>(),

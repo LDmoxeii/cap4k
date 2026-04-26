@@ -107,6 +107,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "columnName" to jpa.columnName,
                             "isId" to jpa.isId,
                             "converterTypeRef" to jpa.converterTypeFqn,
+                            "converterClassRef" to jpa.converterClassFqn,
                             "generatedValueStrategy" to generatedValueStrategy,
                             "generatedValueGenerator" to generatedValueGenerator,
                             "genericGeneratorName" to genericGeneratorName,
@@ -140,7 +141,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         "tableName" to (entityJpa?.tableName ?: entity.tableName),
                     ),
                     "idField" to entity.idField,
-                    "hasConverterFields" to scalarFields.any { it["converterTypeRef"] != null },
+                    "hasConverterFields" to scalarFields.any { it["converterClassRef"] != null },
                     "hasGeneratedValueFields" to scalarFields.any {
                         it["isId"] == true && it["generatedValueStrategy"] == "IDENTITY"
                     },

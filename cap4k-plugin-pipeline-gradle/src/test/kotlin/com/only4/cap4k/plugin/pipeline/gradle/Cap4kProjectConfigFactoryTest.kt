@@ -2,6 +2,8 @@ package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverter
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -766,8 +768,12 @@ class Cap4kProjectConfigFactoryTest {
         registryFile.writeText(
             """
             {
-              "OrderId": "com.acme.order.OrderId",
-              "Customer": "com.acme.customer.Customer"
+              "OrderId": { "fqn": "com.acme.order.OrderId" },
+              "Customer": { "fqn": "com.acme.customer.Customer", "converter": false },
+              "External": {
+                "fqn": "com.acme.external.ExternalValue",
+                "converter": "com.acme.external.ExternalValueConverter"
+              }
             }
             """.trimIndent()
         )
@@ -783,8 +789,18 @@ class Cap4kProjectConfigFactoryTest {
 
         assertEquals(
             linkedMapOf(
-                "OrderId" to "com.acme.order.OrderId",
-                "Customer" to "com.acme.customer.Customer",
+                "OrderId" to TypeRegistryEntry(
+                    fqn = "com.acme.order.OrderId",
+                    converter = TypeRegistryConverter.nested(),
+                ),
+                "Customer" to TypeRegistryEntry(
+                    fqn = "com.acme.customer.Customer",
+                    converter = TypeRegistryConverter.none(),
+                ),
+                "External" to TypeRegistryEntry(
+                    fqn = "com.acme.external.ExternalValue",
+                    converter = TypeRegistryConverter.explicit("com.acme.external.ExternalValueConverter"),
+                ),
             ),
             config.typeRegistry
         )
@@ -843,7 +859,7 @@ class Cap4kProjectConfigFactoryTest {
         registryFile.writeText(
             """
             {
-              "bad.name": "com.acme.Bad"
+              "bad.name": { "fqn": "com.acme.Bad" }
             }
             """.trimIndent()
         )
@@ -871,8 +887,8 @@ class Cap4kProjectConfigFactoryTest {
         registryFile.writeText(
             """
             {
-              "OrderId": "com.acme.order.OrderId",
-              " OrderId ": "com.acme.order.LegacyOrderId"
+              "OrderId": { "fqn": "com.acme.order.OrderId" },
+              " OrderId ": { "fqn": "com.acme.order.LegacyOrderId" }
             }
             """.trimIndent()
         )
@@ -903,8 +919,8 @@ class Cap4kProjectConfigFactoryTest {
         registryFile.writeText(
             """
             {
-              "OrderId": "com.acme.order.OrderId",
-              "OrderId": "com.acme.order.LegacyOrderId"
+              "OrderId": { "fqn": "com.acme.order.OrderId" },
+              "OrderId": { "fqn": "com.acme.order.LegacyOrderId" }
             }
             """.trimIndent()
         )
@@ -924,7 +940,7 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `factory rejects registry values that are not fqns`() {
+    fun `factory rejects registry values that are not objects`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
         val registryFile = project.file("config/project-types.json")
@@ -932,7 +948,7 @@ class Cap4kProjectConfigFactoryTest {
         registryFile.writeText(
             """
             {
-              "Customer": "Customer"
+              "Customer": "com.acme.Customer"
             }
             """.trimIndent()
         )
@@ -949,7 +965,38 @@ class Cap4kProjectConfigFactoryTest {
         }
 
         assertEquals(
-            "types.registryFile value for Customer must be a fully qualified name.",
+            "types.registryFile value for Customer must be an object.",
+            error.message
+        )
+    }
+
+    @Test
+    fun `factory rejects registry fqns that are not fqns`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+        val registryFile = project.file("config/project-types.json")
+        registryFile.parentFile.mkdirs()
+        registryFile.writeText(
+            """
+            {
+              "Customer": { "fqn": "Customer" }
+            }
+            """.trimIndent()
+        )
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.types {
+            this.registryFile.set("config/project-types.json")
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals(
+            "types.registryFile value for Customer.fqn must be a fully qualified name.",
             error.message
         )
     }
@@ -963,7 +1010,7 @@ class Cap4kProjectConfigFactoryTest {
         registryFile.writeText(
             """
             {
-              "Customer": " com.acme.Customer "
+              "Customer": { "fqn": " com.acme.Customer " }
             }
             """.trimIndent()
         )
@@ -980,7 +1027,7 @@ class Cap4kProjectConfigFactoryTest {
         }
 
         assertEquals(
-            "types.registryFile value for Customer must be a fully qualified name.",
+            "types.registryFile value for Customer.fqn must be a fully qualified name.",
             error.message
         )
     }
@@ -997,7 +1044,7 @@ class Cap4kProjectConfigFactoryTest {
             registryFile.writeText(
                 """
                 {
-                  "Customer": "$malformedValue"
+                  "Customer": { "fqn": "$malformedValue" }
                 }
                 """.trimIndent()
             )
@@ -1014,7 +1061,7 @@ class Cap4kProjectConfigFactoryTest {
             }
 
             assertEquals(
-                "types.registryFile value for Customer must be a fully qualified name.",
+                "types.registryFile value for Customer.fqn must be a fully qualified name.",
                 error.message
             )
         }
@@ -1032,7 +1079,7 @@ class Cap4kProjectConfigFactoryTest {
             registryFile.writeText(
                 """
                 {
-                  "Customer": "$malformedValue"
+                  "Customer": { "fqn": "$malformedValue" }
                 }
                 """.trimIndent()
             )
@@ -1049,7 +1096,7 @@ class Cap4kProjectConfigFactoryTest {
             }
 
             assertEquals(
-                "types.registryFile value for Customer must be a fully qualified name.",
+                "types.registryFile value for Customer.fqn must be a fully qualified name.",
                 error.message
             )
         }
@@ -1064,7 +1111,7 @@ class Cap4kProjectConfigFactoryTest {
         registryFile.writeText(
             """
             {
-              "String": "com.acme.text.StringAlias"
+              "String": { "fqn": "com.acme.text.StringAlias" }
             }
             """.trimIndent()
         )

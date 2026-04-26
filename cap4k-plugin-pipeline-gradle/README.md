@@ -333,7 +333,7 @@ cap4k {
 
 ### 6.2 `types { }` — 项目级类型注册表
 
-当 design JSON 中使用短名类型（如 `"type": "UUID"`）时，框架默认只认识 Kotlin 基本类型。可以通过外部 JSON 注册额外的 SimpleName→FQN 映射：
+当 design JSON 或 db 注解中使用短名类型（如 `"type": "UUID"` / `@T=OrderId`）时，框架默认只认识 Kotlin 基本类型。可以通过外部 JSON 注册额外的 SimpleName→FQN 映射，并声明 JPA converter 语义：
 
 ```kotlin
 cap4k {
@@ -346,17 +346,24 @@ cap4k {
 ```json
 // codegen/type-registry.json
 {
-  "UUID": "java.util.UUID",
-  "LocalDateTime": "java.time.LocalDateTime",
-  "Status": "com.example.common.Status"
+  "UUID": { "fqn": "java.util.UUID", "converter": false },
+  "OrderId": { "fqn": "com.example.common.OrderId" },
+  "LegacyCode": {
+    "fqn": "com.example.common.LegacyCode",
+    "converter": "com.example.common.LegacyCodeConverter"
+  }
 }
 ```
 
 **约束**：
 - 键必须是简单名（不可含 `.`）
-- 值必须是合法 FQN（多段、每段合法 Java 标识符）
+- 值必须是对象，且 `fqn` 必须是合法 FQN（多段、每段合法 Java 标识符）
+- `converter` 可省略，默认 `nested`，即使用 `${fqn}.Converter`
+- `converter = false` 表示该类型不生成 `@Convert`
+- `converter = "com.example.XxxConverter"` 表示使用显式 converter 类
+- 旧的 `"UUID": "java.util.UUID"` 字符串写法不支持
 - 不可覆盖内置 Kotlin 类型（`String`, `Int`, `Long`, `Boolean`, `List`, `Map`, ... 见 `reservedTypeNames`）
-- 重复键会直接抛错
+- 重复键、与 `enum-manifest` 同名、与 `@E + @T` 本地枚举同名都会直接抛错
 
 ### 6.3 `sources { }`
 
@@ -634,7 +641,7 @@ type FieldModel = {
 ```
 
 - **manifestFile 模式**：清单必须是字符串数组，条目相对于 `projectDir`；不允许 `../` 逃逸，不允许重复，不允许指向不存在文件
-- 字段 `type` 如果是短名，会经过 `typeRegistry` 解析；未解析的短名保持原样（模板侧可能因此产出错误 import）
+- 字段 `type` 如果是短名，会经过 `typeRegistry` 解析；未解析的短名会 fail-fast，避免模板静默生成错误 import
 - 枚举边界：如果枚举是某个数据库列的本地声明，走 `db` source 的 `@T + @E` 注解；如果枚举是跨聚合复用、需要独立生成的项目级共享类型，走 `enum-manifest`。不要因为两者都是 JSON 文件就把共享枚举塞进 `design-json`。
 
 ### 8.2 `ksp-metadata` — 聚合元数据

@@ -32,6 +32,8 @@ import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.QueryVariant
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverter
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -1421,7 +1423,14 @@ class DefaultCanonicalAssemblerTest {
     @Test
     fun `assembler only assigns converter metadata to stable enum-backed fields`() {
         val result = DefaultCanonicalAssembler().assemble(
-            aggregateProjectConfig(),
+            aggregateProjectConfig().copy(
+                typeRegistry = mapOf(
+                    "SubmitPayload" to TypeRegistryEntry(
+                        fqn = "com.acme.demo.payload.SubmitPayload",
+                        converter = TypeRegistryConverter.none(),
+                    )
+                )
+            ),
             listOf(
                 DbSchemaSnapshot(
                     tables = listOf(
@@ -1484,6 +1493,96 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(
             "com.acme.demo.domain.aggregates.video_post.enums.Visibility",
             entityJpa.columns.single { it.fieldName == "visibility" }.converterTypeFqn
+        )
+    }
+
+    @Test
+    fun `assembler assigns converter metadata to registry backed type binding`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig().copy(
+                typeRegistry = mapOf(
+                    "UserType" to TypeRegistryEntry("com.acme.demo.domain.aggregates.user.enums.UserType"),
+                )
+            ),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "user_login_log",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "user_type",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "UserType",
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                )
+            )
+        )
+
+        val entityJpa = result.model.aggregateEntityJpa.single { it.entityName == "UserLoginLog" }
+
+        assertEquals(
+            "com.acme.demo.domain.aggregates.user.enums.UserType",
+            entityJpa.columns.single { it.fieldName == "userType" }.converterTypeFqn,
+        )
+    }
+
+    @Test
+    fun `assembler fails fast when shared enum and registry use the same type binding`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig().copy(
+                    typeRegistry = mapOf(
+                        "Status" to TypeRegistryEntry("com.acme.demo.domain.shared.enums.StatusAlias"),
+                    )
+                ),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot(
+                                        name = "status",
+                                        dbType = "INT",
+                                        kotlinType = "Int",
+                                        nullable = false,
+                                        typeBinding = "Status",
+                                    ),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            )
+                        )
+                    ),
+                    EnumManifestSnapshot(
+                        definitions = listOf(
+                            SharedEnumDefinition(
+                                typeName = "Status",
+                                packageName = "shared",
+                                generateTranslation = true,
+                                items = listOf(EnumItemModel(0, "DRAFT", "Draft")),
+                            )
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals(
+            "ambiguous type binding for Status: matches both shared enum and general type registry",
+            error.message,
         )
     }
 

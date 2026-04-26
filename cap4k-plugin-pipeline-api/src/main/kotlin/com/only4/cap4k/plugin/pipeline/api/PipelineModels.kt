@@ -210,6 +210,7 @@ data class AggregateColumnJpaModel(
     val columnName: String,
     val isId: Boolean,
     val converterTypeFqn: String? = null,
+    val converterClassFqn: String? = converterTypeFqn?.let { "$it.Converter" },
 )
 
 data class AggregateEntityJpaModel(

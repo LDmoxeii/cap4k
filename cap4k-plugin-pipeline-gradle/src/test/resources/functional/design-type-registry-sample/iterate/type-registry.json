@@ -1,3 +1,6 @@
 {
-  "VideoStatus": "com.acme.demo.domain.video.VideoStatus"
+  "VideoStatus": {
+    "fqn": "com.acme.demo.domain.video.VideoStatus",
+    "converter": false
+  }
 }

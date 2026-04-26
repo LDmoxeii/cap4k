@@ -8,6 +8,7 @@ import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -116,7 +117,7 @@ class DesignDomainEventArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        typeRegistry = mapOf("UUID" to "java.util.UUID"),
+        typeRegistry = mapOf("UUID" to TypeRegistryEntry("java.util.UUID")),
         generators = mapOf("design-domain-event" to GeneratorConfig(enabled = true)),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
     )
