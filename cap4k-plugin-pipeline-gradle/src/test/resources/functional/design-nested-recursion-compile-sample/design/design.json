@@ -1,0 +1,27 @@
+[
+  {
+    "tag": "api_payload",
+    "package": "video",
+    "name": "SyncVideoPostProcessStatus",
+    "desc": "sync video post process status",
+    "aggregates": [],
+    "requestFields": [
+      { "name": "fileList", "type": "List<FileItem>", "nullable": false },
+      { "name": "fileList[].fileIndex", "type": "Int", "nullable": false },
+      { "name": "fileList[].variants", "type": "List<VariantItem>", "nullable": false },
+      { "name": "fileList[].variants[].quality", "type": "String", "nullable": false, "defaultValue": "" },
+      { "name": "fileList[].variants[].width", "type": "Int", "nullable": false, "defaultValue": "0" },
+      { "name": "fileList[].variants[].children", "type": "List<VariantItem>", "nullable": false },
+      { "name": "itemList", "type": "List<Item>", "nullable": false },
+      { "name": "itemList[].requestValue", "type": "String", "nullable": false },
+      { "name": "externalItem", "type": "com.acme.shared.Item", "nullable": false }
+    ],
+    "responseFields": [
+      { "name": "categoryId", "type": "Long", "nullable": false },
+      { "name": "children", "type": "List<self>", "nullable": true },
+      { "name": "list", "type": "List<Item>", "nullable": false },
+      { "name": "list[].messageType", "type": "Int", "nullable": false },
+      { "name": "list[].count", "type": "Int", "nullable": false }
+    ]
+  }
+]

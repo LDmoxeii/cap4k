@@ -150,6 +150,44 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
+    fun `nested recursive design payload generation participates in adapter compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-nested-recursion-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-nested-recursion-compile-sample")
+
+        val generateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-adapter:compileKotlin")
+            .build()
+
+        val payloadFile = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/video/SyncVideoPostProcessStatus.kt",
+        )
+        val content = payloadFile.readText().replace("\r\n", "\n")
+
+        assertGeneratedFilesExist(
+            projectDir,
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/video/SyncVideoPostProcessStatus.kt",
+        )
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(content.contains("val fileList: List<FileItem>"))
+        assertTrue(content.contains("data class FileItem("))
+        assertTrue(content.contains("val variants: List<VariantItem>"))
+        assertTrue(content.contains("data class VariantItem("))
+        assertTrue(content.contains("val quality: String = \"\""))
+        assertTrue(content.contains("val width: Int = 0"))
+        assertTrue(content.contains("val children: List<VariantItem>"))
+        assertTrue(content.contains("val children: List<Response>?"))
+        assertTrue(content.contains("val list: List<Item>"))
+        assertTrue(content.contains("val messageType: Int"))
+        assertTrue(content.contains("val count: Int"))
+        assertTrue(content.contains("data class Item("))
+        assertTrue(content.contains("val externalItem: com.acme.shared.Item"))
+    }
+
+    @Test
     fun `domain event generation participates in domain and application compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-domain-event-compile-sample")
