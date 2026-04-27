@@ -345,23 +345,29 @@ Notes:
 Status:
 
 - existing bounded validator migration exists
-- expanded capability spec not written
+- expanded capability spec written
 - implementation plan not written
 
 Reference:
 
 - [design validator family migration design](specs/2026-04-15-cap4k-design-validator-family-migration-design.md)
+- [validator generation capability expansion design](specs/2026-04-27-cap4k-validator-generation-capability-expansion-design.md)
 
 Next action:
 
-- write a new spec for expanded validator semantics
+- review the spec
+- write an implementation plan when ready to start work
 
 Notes:
 
-- the current validator generator is intentionally minimal
-- the next version should discuss custom fields
-- it should distinguish field-level and class-level validation
-- it should define annotation parameters and generated validator body expectations
+- the current validator generator is intentionally minimal and fixed around `Long`
+- the next version should support structural validator declarations
+- first-slice generation should produce compiling skeletons only
+- class-level ordinary validators should use `ConstraintValidator<Annotation, Any>`
+- `message`, `targets`, `valueType`, and scalar custom parameters should be explicit
+- validator bodies should return `true`; business logic remains hand-written or template-overridden
+- trait/interface targets, automatic request attachment, and advanced parameter types are deferred
+- aggregate unique validators remain separate from ordinary design validators
 - it should not be mixed into analysis design projection normalization unless the model dependency is proven
 
 ### 5. irAnalysis restructuring analysis
