@@ -252,7 +252,7 @@ These items are recorded to preserve scheduling context. They are not implementa
 Recommended order:
 
 1. Contract-first query contract
-2. ddd-core Optional-to-null cleanup
+2. ddd-core nullability contract stabilization
 3. drawing-board validator tag gap
 4. validator generation capability expansion
 5. irAnalysis restructuring analysis
@@ -283,27 +283,32 @@ Notes:
 - `PageQuery`, `ListQuery`, `PageQueryParam`, and `ListQueryParam` should be removed
 - `PageRequest` should carry only `pageNum` and `pageSize` in the first iteration
 
-### 2. ddd-core Optional-to-null cleanup
+### 2. ddd-core nullability contract stabilization
 
 Status:
 
 - analysis material exists
-- spec not written
+- spec written
 - implementation plan not written
 
 Reference:
 
 - [ddd-core nullability analysis](../design/ddd-core-nullability/analysis.md)
+- [ddd-core nullability contract stabilization design](specs/2026-04-27-cap4k-ddd-core-nullability-contract-stabilization-design.md)
 
 Next action:
 
-- write a focused spec for `Optional<T>` to Kotlin `T?`
+- review the spec
+- write an implementation plan when ready to start work
 
 Notes:
 
-- only Finding 1 should be considered for the first cleanup slice
-- do not mix in `DomainServiceSupervisor.getService()` nullability
-- do not mix in `SagaProcessSupervisor.sendProcess()` nullability
+- this is broader than Optional cleanup
+- cap4k Kotlin public lookup APIs should remove Java `Optional<T>` exposure
+- normal lookup absence should use Kotlin `T?`
+- `DomainServiceSupervisor.getService()` should become non-null and fail fast
+- `SagaProcessSupervisor.sendProcess()` and `SagaHandler.execProcess()` should become non-null
+- stable nullable result accessors such as async request result and saga record result should remain nullable
 - do not mix in `Any` serialization-boundary cleanup
 - Spring Data repository boundaries may still use Java `Optional`
 - this should be separate from contract-first query contract implementation
@@ -391,7 +396,7 @@ Notes:
 - this should be treated as a persistence backend track, not as a quick refactor
 - the first slice should compare candidates and define a bounded PoC, not replace the current JPA implementation
 - likely evaluation dimensions include aggregate loading, dirty tracking, transactions, optimistic locking, relation handling, custom ID generation, query ergonomics, Kotlin support, Spring integration, testing, and migration risk
-- this has a large blast radius and should not be mixed into contract-first query, Optional cleanup, validator work, or irAnalysis work
+- this has a large blast radius and should not be mixed into contract-first query, nullability contract stabilization, validator work, or irAnalysis work
 - the safest route is probably a parallel backend implementation behind existing repository/unit-of-work contracts, then runtime verification against representative aggregate fixtures
 
 ## Support Track Docs
