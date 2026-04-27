@@ -256,6 +256,7 @@ Recommended order:
 3. drawing-board validator tag gap
 4. validator generation capability expansion
 5. irAnalysis restructuring analysis
+6. unit-of-work and repository backend comparison
 
 ### 1. Contract-first query contract
 
@@ -369,6 +370,29 @@ Notes:
 - first identify current inputs, outputs, consumers, and failure modes
 - if the validator tag gap can be solved without restructuring, keep restructuring deferred
 - this should not block smaller drawing-board or validator-generation slices unless evidence shows the current architecture cannot support them
+
+### 6. Unit-of-work and repository backend comparison
+
+Status:
+
+- candidate strategic work
+- backend choice not analyzed
+- spec not written
+- implementation plan not written
+
+Next action:
+
+- perform an analysis/PoC design before choosing a replacement or parallel implementation
+
+Notes:
+
+- current unit-of-work and repository implementations are JPA-based
+- JPA usage has exposed enough practical problems that a new backend comparison is justified
+- this should be treated as a persistence backend track, not as a quick refactor
+- the first slice should compare candidates and define a bounded PoC, not replace the current JPA implementation
+- likely evaluation dimensions include aggregate loading, dirty tracking, transactions, optimistic locking, relation handling, custom ID generation, query ergonomics, Kotlin support, Spring integration, testing, and migration risk
+- this has a large blast radius and should not be mixed into contract-first query, Optional cleanup, validator work, or irAnalysis work
+- the safest route is probably a parallel backend implementation behind existing repository/unit-of-work contracts, then runtime verification against representative aggregate fixtures
 
 ## Support Track Docs
 
