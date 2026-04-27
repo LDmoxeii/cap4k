@@ -11,6 +11,36 @@ import com.only4.cap4k.plugin.pipeline.generator.design.types.SymbolIdentity
 import java.util.ArrayDeque
 
 internal object DesignPayloadRenderModelFactory {
+    private val builtInTypeNames = setOf(
+        "Any",
+        "Array",
+        "Boolean",
+        "Byte",
+        "Char",
+        "Collection",
+        "Double",
+        "Float",
+        "Int",
+        "Iterable",
+        "List",
+        "Long",
+        "Map",
+        "MutableCollection",
+        "MutableIterable",
+        "MutableList",
+        "MutableMap",
+        "MutableSet",
+        "Nothing",
+        "Number",
+        "Sequence",
+        "Pair",
+        "Triple",
+        "Set",
+        "Short",
+        "String",
+        "Unit",
+    )
+
     private val collectionWrapperTypes = setOf(
         "Collection",
         "Iterable",
@@ -27,8 +57,8 @@ internal object DesignPayloadRenderModelFactory {
         typeRegistry: Map<String, String> = emptyMap(),
         siblingTypeNames: Set<String> = emptySet(),
     ): DesignRenderModel {
-        val requestNamespace = buildNamespace(interaction.requestFields, "request")
-        val responseNamespace = buildNamespace(interaction.responseFields, "response")
+        val requestNamespace = buildNamespace(interaction.requestFields, "request", rootTypeName = "Request")
+        val responseNamespace = buildNamespace(interaction.responseFields, "response", rootTypeName = "Response")
         return createRenderModel(
             packageName = packageName,
             typeName = interaction.typeName,
@@ -47,8 +77,8 @@ internal object DesignPayloadRenderModelFactory {
         payload: ApiPayloadModel,
         typeRegistry: Map<String, String> = emptyMap(),
     ): DesignRenderModel {
-        val requestNamespace = buildNamespace(payload.requestFields, "request")
-        val responseNamespace = buildNamespace(payload.responseFields, "response")
+        val requestNamespace = buildNamespace(payload.requestFields, "request", rootTypeName = "Request")
+        val responseNamespace = buildNamespace(payload.responseFields, "response", rootTypeName = "Response")
         return createRenderModel(
             packageName = packageName,
             typeName = payload.typeName,
@@ -66,8 +96,8 @@ internal object DesignPayloadRenderModelFactory {
         event: DomainEventModel,
         typeRegistry: Map<String, String> = emptyMap(),
     ): DesignRenderModel {
-        val requestNamespace = buildNamespace(event.fields, "request")
-        val responseNamespace = buildNamespace(emptyList(), "response")
+        val requestNamespace = buildNamespace(event.fields, "request", rootTypeName = null)
+        val responseNamespace = buildNamespace(emptyList(), "response", rootTypeName = null)
         return createRenderModel(
             packageName = packageName,
             typeName = event.typeName,
@@ -131,75 +161,43 @@ internal object DesignPayloadRenderModelFactory {
     private fun buildNamespace(
         fields: List<FieldModel>,
         namespace: String,
+        rootTypeName: String?,
     ): NamespaceModel {
-        val directFields = linkedMapOf<String, FieldModel>()
-        val directFieldDeclarations = linkedMapOf<String, MutableList<FieldModel>>()
-        val nestedGroups = linkedMapOf<String, NestedGroup>()
-        val nestedTypeNames = linkedSetOf<String>()
-        val nestedRootsByTypeName = linkedMapOf<String, String>()
+        val root = PayloadPathNode(name = "__root__", path = emptyList())
 
         fields.forEach { field ->
-            val parts = field.name.split('.')
-            if (parts.size == 1) {
-                directFields.putIfAbsent(field.name, field)
-                directFieldDeclarations.getOrPut(field.name) { mutableListOf() }.add(field)
-                return@forEach
+            val segments = parseFieldPath(field.name)
+            var current = root
+            segments.forEach { segment ->
+                val child = current.children.getOrPut(segment.name) {
+                    PayloadPathNode(name = segment.name, path = current.path + segment.name)
+                }
+                if (segment.list) {
+                    child.list = true
+                }
+                current = child
             }
 
-            require(parts.size == 2) {
-                "nested field paths must have exactly one level in $namespace namespace: ${field.name}"
+            if (isCollectionType(field.type)) {
+                current.list = true
             }
-
-            val rootName = parts[0]
-            val nestedTypeName = toNestedTypeName(rootName)
-            val previousRoot = nestedRootsByTypeName.putIfAbsent(nestedTypeName, rootName)
-            if (previousRoot != null && previousRoot != rootName) {
-                throw IllegalArgumentException("duplicate nested type name in $namespace namespace: $nestedTypeName")
-            }
-
-            val group = nestedGroups.getOrPut(rootName) {
-                NestedGroup(rootName = rootName, nestedTypeName = nestedTypeName)
-            }
-            if (group.nestedTypeName != nestedTypeName) {
-                throw IllegalArgumentException("duplicate nested type name in $namespace namespace: $nestedTypeName")
-            }
-
-            group.fields += RawFieldModel(
-                name = parts[1],
-                sourceName = field.name,
-                type = field.type,
-                nullable = field.nullable,
-                defaultValue = field.defaultValue,
-            )
+            current.explicitDeclarations += field
         }
 
-        nestedGroups.values.forEach { group ->
-            val directRootDeclarations = directFieldDeclarations[group.rootName].orEmpty()
-            val directRootField = when (directRootDeclarations.size) {
-                0 -> throw IllegalArgumentException(
-                    "missing compatible direct root field for nested type ${group.nestedTypeName} in $namespace namespace",
-                )
-                1 -> directRootDeclarations.single()
-                else -> throw IllegalArgumentException(
-                    "duplicate direct root declarations for ${group.rootName} in $namespace namespace",
-                )
-            }
-
-            if (!isCompatibleRootField(directRootField.type, group.nestedTypeName)) {
-                throw IllegalArgumentException(
-                    "direct root field ${group.rootName} in $namespace namespace must point to nested type ${group.nestedTypeName}",
-                )
-            }
-
-            nestedTypeNames += group.nestedTypeName
-        }
+        val nestedTypeNames = linkedSetOf<String>()
+        val nestedTypeNodes = mutableListOf<PayloadPathNode>()
+        collectNestedTypeNodes(root, namespace, nestedTypeNames, nestedTypeNodes)
 
         return NamespaceModel(
-            fields = directFields.values.map { it.toPreparedField(innerTypeNames = nestedTypeNames) },
-            nestedTypes = nestedGroups.values.map { group ->
+            fields = root.children.values.map { node ->
+                node.toPreparedField(namespace, nestedTypeNames, rootTypeName)
+            },
+            nestedTypes = nestedTypeNodes.map { node ->
                 PreparedNestedTypeModel(
-                    name = group.nestedTypeName,
-                    fields = group.fields.map { it.toPreparedField(innerTypeNames = nestedTypeNames) },
+                    name = requireNotNull(node.nestedTypeName),
+                    fields = node.children.values.map { child ->
+                        child.toPreparedField(namespace, nestedTypeNames, rootTypeName)
+                    },
                 )
             },
             nestedTypeNames = nestedTypeNames,
@@ -325,6 +323,148 @@ internal object DesignPayloadRenderModelFactory {
         }
     }
 
+    private fun parseFieldPath(path: String): List<FieldPathSegment> {
+        val parts = path.trim().split('.')
+        require(parts.isNotEmpty() && parts.none { it.isBlank() }) {
+            "blank or malformed nested field path: $path"
+        }
+
+        return parts.map { rawPart ->
+            val list = rawPart.endsWith("[]")
+            val name = rawPart.removeSuffix("[]")
+            require(name.isNotBlank() && !name.contains('[') && !name.contains(']')) {
+                "blank or malformed nested field path: $path"
+            }
+            FieldPathSegment(name = name, list = list)
+        }
+    }
+
+    private fun collectNestedTypeNodes(
+        node: PayloadPathNode,
+        namespace: String,
+        nestedTypeNames: MutableSet<String>,
+        nestedTypeNodes: MutableList<PayloadPathNode>,
+    ) {
+        node.children.values.forEach { child ->
+            if (child.children.isNotEmpty()) {
+                val nestedTypeName = validateNestedContainer(child, namespace)
+                if (!nestedTypeNames.add(nestedTypeName)) {
+                    throw IllegalArgumentException("duplicate nested type name in $namespace namespace: $nestedTypeName")
+                }
+                child.nestedTypeName = nestedTypeName
+                nestedTypeNodes += child
+                collectNestedTypeNodes(child, namespace, nestedTypeNames, nestedTypeNodes)
+            }
+        }
+    }
+
+    private fun validateNestedContainer(
+        node: PayloadPathNode,
+        namespace: String,
+    ): String {
+        val fallbackTypeName = toNestedTypeName(node.name)
+        val directField = when (node.explicitDeclarations.size) {
+            0 -> throw missingDirectContainerError(node, namespace, fallbackTypeName)
+            1 -> node.explicitDeclarations.single()
+            else -> throw duplicateDirectContainerError(node, namespace)
+        }
+
+        val nestedTypeName = nestedTypeNameFor(node)
+        if (!isCompatibleRootField(directField.type, nestedTypeName)) {
+            throw incompatibleDirectContainerError(node, namespace, nestedTypeName)
+        }
+
+        return nestedTypeName
+    }
+
+    private fun missingDirectContainerError(
+        node: PayloadPathNode,
+        namespace: String,
+        nestedTypeName: String,
+    ): IllegalArgumentException {
+        return if (node.path.size == 1) {
+            IllegalArgumentException(
+                "missing compatible direct root field for nested type $nestedTypeName in $namespace namespace",
+            )
+        } else {
+            IllegalArgumentException(
+                "missing compatible direct field for nested type $nestedTypeName at ${node.pathText} " +
+                    "in $namespace namespace",
+            )
+        }
+    }
+
+    private fun duplicateDirectContainerError(
+        node: PayloadPathNode,
+        namespace: String,
+    ): IllegalArgumentException {
+        return if (node.path.size == 1) {
+            IllegalArgumentException("duplicate direct root declarations for ${node.name} in $namespace namespace")
+        } else {
+            IllegalArgumentException("duplicate direct declarations for ${node.pathText} in $namespace namespace")
+        }
+    }
+
+    private fun incompatibleDirectContainerError(
+        node: PayloadPathNode,
+        namespace: String,
+        nestedTypeName: String,
+    ): IllegalArgumentException {
+        return if (node.path.size == 1) {
+            IllegalArgumentException(
+                "direct root field ${node.name} in $namespace namespace must point to nested type $nestedTypeName",
+            )
+        } else {
+            IllegalArgumentException(
+                "direct field ${node.pathText} in $namespace namespace must point to nested type $nestedTypeName",
+            )
+        }
+    }
+
+    private fun nestedTypeNameFor(node: PayloadPathNode): String {
+        val explicitType = node.explicitDeclarations.firstOrNull()?.type?.trim().orEmpty()
+        return nestedTypeCandidate(explicitType) ?: toNestedTypeName(node.name)
+    }
+
+    private fun nestedTypeCandidate(type: String): String? {
+        if (type.isBlank()) {
+            return null
+        }
+
+        val genericStart = type.indexOf('<')
+        if (genericStart < 0) {
+            return simpleNestedTypeCandidate(type)
+        }
+
+        val genericEnd = type.lastIndexOf('>')
+        if (genericEnd <= genericStart) {
+            return null
+        }
+
+        val rootType = simpleTypeName(type.substring(0, genericStart))
+        if (rootType !in collectionWrapperTypes) {
+            return simpleNestedTypeCandidate(type)
+        }
+
+        val arguments = splitGenericArguments(type.substring(genericStart + 1, genericEnd))
+        return arguments.singleOrNull()?.let(::simpleNestedTypeCandidate)
+    }
+
+    private fun simpleNestedTypeCandidate(type: String): String? {
+        val simpleName = simpleTypeName(type)
+        return simpleName.takeIf { it.isNotBlank() && it !in builtInTypeNames && it != "self" }
+    }
+
+    private fun isCollectionType(type: String): Boolean {
+        val trimmed = type.trim()
+        val genericStart = trimmed.indexOf('<')
+        if (genericStart < 0) {
+            return false
+        }
+
+        return simpleTypeName(trimmed.substring(0, genericStart)) in collectionWrapperTypes
+    }
+
     private fun toNestedTypeName(rawName: String): String {
         return rawName
             .split(Regex("[^A-Za-z0-9]+"))
@@ -350,7 +490,7 @@ internal object DesignPayloadRenderModelFactory {
             return false
         }
 
-        val rootType = trimmed.substring(0, genericStart).trim()
+        val rootType = simpleTypeName(trimmed.substring(0, genericStart))
         if (rootType !in collectionWrapperTypes) {
             return false
         }
@@ -382,41 +522,100 @@ internal object DesignPayloadRenderModelFactory {
         return result.filter { it.isNotEmpty() }
     }
 
-    private fun simpleTypeName(type: String): String = type.trim().substringAfterLast('.')
+    private fun simpleTypeName(type: String): String {
+        return type
+            .trim()
+            .removePrefix("out ")
+            .removePrefix("in ")
+            .removeSuffix("?")
+            .trim()
+            .substringAfterLast('.')
+    }
 
-    private fun FieldModel.toPreparedField(innerTypeNames: Set<String>): PreparedFieldModel {
+    private fun PayloadPathNode.toPreparedField(
+        namespace: String,
+        innerTypeNames: Set<String>,
+        rootTypeName: String?,
+    ): PreparedFieldModel {
+        val field = explicitDeclarations.firstOrNull()
+            ?: throw missingDirectContainerError(this, namespace, toNestedTypeName(name))
         return PreparedFieldModel(
             name = name,
-            sourceName = name,
-            nullable = nullable,
-            defaultValue = defaultValue,
-            resolvedType = DesignTypeResolver.resolve(
-                type = DesignTypeParser.parse(type),
+            sourceName = field.name,
+            nullable = field.nullable,
+            defaultValue = field.defaultValue,
+            resolvedType = resolveDesignType(
+                type = DesignTypeParser.parse(field.type),
                 innerTypeNames = innerTypeNames,
+                rootTypeName = rootTypeName,
+                namespace = namespace,
             ),
         )
     }
 
-    private fun RawFieldModel.toPreparedField(innerTypeNames: Set<String>): PreparedFieldModel {
-        return PreparedFieldModel(
-            name = name,
-            sourceName = sourceName,
-            nullable = nullable,
-            defaultValue = defaultValue,
-            resolvedType = DesignTypeResolver.resolve(
-                type = DesignTypeParser.parse(type),
-                innerTypeNames = innerTypeNames,
-            ),
+    private fun resolveDesignType(
+        type: DesignTypeModel,
+        innerTypeNames: Set<String>,
+        rootTypeName: String?,
+        namespace: String,
+    ): DesignResolvedTypeModel {
+        val isSelf = type.tokenText == "self"
+        val parsedRawText = if (isSelf) {
+            rootTypeName?.takeIf { it.isNotBlank() }
+                ?: throw IllegalArgumentException("self is not supported in $namespace namespace")
+        } else {
+            type.tokenText
+        }
+        val parsedSimpleName = parsedRawText.substringAfterLast('.')
+        val resolvesToInner = isSelf || parsedRawText in innerTypeNames || parsedSimpleName in innerTypeNames
+        val rawText = if (resolvesToInner) {
+            parsedSimpleName
+        } else {
+            parsedRawText
+        }
+        val simpleName = rawText.substringAfterLast('.')
+        val kind = when {
+            resolvesToInner -> DesignResolvedTypeKind.INNER
+            rawText in builtInTypeNames -> DesignResolvedTypeKind.BUILTIN
+            rawText.contains('.') -> DesignResolvedTypeKind.EXPLICIT_FQCN
+            else -> DesignResolvedTypeKind.UNRESOLVED
+        }
+
+        return DesignResolvedTypeModel(
+            kind = kind,
+            rawText = rawText,
+            simpleName = simpleName,
+            nullable = type.nullable,
+            arguments = type.arguments.map { argument ->
+                resolveDesignType(
+                    type = argument,
+                    innerTypeNames = innerTypeNames,
+                    rootTypeName = rootTypeName,
+                    namespace = namespace,
+                )
+            },
+            importCandidates = when (kind) {
+                DesignResolvedTypeKind.EXPLICIT_FQCN -> setOf(rawText)
+                else -> emptySet()
+            },
         )
     }
 
     private fun PreparedFieldModel.toRenderField(renderedType: String): DesignRenderFieldModel {
+        val rawDefaultValue = if (defaultValue != null &&
+            defaultValue.isEmpty() &&
+            renderedType.removeSuffix("?").trim() == "String"
+        ) {
+            "\"\""
+        } else {
+            defaultValue
+        }
         return DesignRenderFieldModel(
             name = name,
             renderedType = renderedType,
             nullable = nullable,
             defaultValue = DefaultValueFormatter.format(
-                rawDefaultValue = defaultValue,
+                rawDefaultValue = rawDefaultValue,
                 renderedType = renderedType,
                 nullable = nullable,
                 fieldName = sourceName,
@@ -481,17 +680,20 @@ internal object DesignPayloadRenderModelFactory {
         val fields: List<PreparedFieldModel>,
     )
 
-    private data class NestedGroup(
-        val rootName: String,
-        val nestedTypeName: String,
-        val fields: MutableList<RawFieldModel> = mutableListOf(),
+    private data class FieldPathSegment(
+        val name: String,
+        val list: Boolean,
     )
 
-    private data class RawFieldModel(
+    private data class PayloadPathNode(
         val name: String,
-        val sourceName: String,
-        val type: String,
-        val nullable: Boolean,
-        val defaultValue: String?,
-    )
+        val path: List<String>,
+        val children: LinkedHashMap<String, PayloadPathNode> = linkedMapOf(),
+        val explicitDeclarations: MutableList<FieldModel> = mutableListOf(),
+        var list: Boolean = false,
+        var nestedTypeName: String? = null,
+    ) {
+        val pathText: String
+            get() = path.joinToString(".")
+    }
 }
