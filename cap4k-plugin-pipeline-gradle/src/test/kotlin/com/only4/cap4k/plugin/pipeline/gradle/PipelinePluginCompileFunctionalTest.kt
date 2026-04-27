@@ -164,7 +164,7 @@ class PipelinePluginCompileFunctionalTest {
         val payloadFile = projectDir.resolve(
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/video/SyncVideoPostProcessStatus.kt",
         )
-        val content = payloadFile.readText().replace("\r\n", "\n")
+        val content = payloadFile.readText()
 
         assertGeneratedFilesExist(
             projectDir,
@@ -172,19 +172,64 @@ class PipelinePluginCompileFunctionalTest {
         )
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(content.contains("val fileList: List<FileItem>"))
-        assertTrue(content.contains("data class FileItem("))
-        assertTrue(content.contains("val variants: List<VariantItem>"))
-        assertTrue(content.contains("data class VariantItem("))
-        assertTrue(content.contains("val quality: String = \"\""))
-        assertTrue(content.contains("val width: Int = 0"))
-        assertTrue(content.contains("val children: List<VariantItem>"))
-        assertTrue(content.contains("val children: List<Response>?"))
-        assertTrue(content.contains("val list: List<Item>"))
-        assertTrue(content.contains("val messageType: Int"))
-        assertTrue(content.contains("val count: Int"))
-        assertTrue(content.contains("data class Item("))
-        assertTrue(content.contains("val externalItem: com.acme.shared.Item"))
+        assertContainsNormalized(
+            content,
+            """
+            data class Request(
+                val fileList: List<FileItem>,
+                val itemList: List<Item>,
+                val externalItem: com.acme.shared.Item
+            ) {
+            """.trimIndent(),
+        )
+        assertContainsNormalized(
+            content,
+            """
+            data class FileItem(
+                val fileIndex: Int,
+                val variants: List<VariantItem>
+            )
+            """.trimIndent(),
+        )
+        assertContainsNormalized(
+            content,
+            """
+            data class VariantItem(
+                val quality: String = "",
+                val width: Int = 0,
+                val children: List<VariantItem>
+            )
+            """.trimIndent(),
+        )
+        assertContainsNormalized(
+            content,
+            """
+            data class Item(
+                val requestValue: String
+            )
+                }
+            """.trimIndent(),
+        )
+        assertContainsNormalized(
+            content,
+            """
+            data class Response(
+                val categoryId: Long,
+                val children: List<Response>?,
+                val list: List<Item>
+            ) {
+            """.trimIndent(),
+        )
+        assertContainsNormalized(
+            content,
+            """
+            data class Item(
+                val messageType: Int,
+                val count: Int
+            )
+                }
+            """.trimIndent(),
+        )
     }
 
     @Test
@@ -841,6 +886,20 @@ class PipelinePluginCompileFunctionalTest {
             )
         }
     }
+
+    private fun assertContainsNormalized(content: String, expectedSnippet: String) {
+        val normalizedContent = content.normalizedSnippetText()
+        val normalizedSnippet = expectedSnippet.normalizedSnippetText()
+        assertTrue(
+            normalizedContent.contains(normalizedSnippet),
+            "Expected generated content to contain:\n$normalizedSnippet\n\nActual content:\n$normalizedContent",
+        )
+    }
+
+    private fun String.normalizedSnippetText(): String =
+        replace("\r\n", "\n")
+            .lines()
+            .joinToString("\n") { it.trimStart().trimEnd() }
 
     private fun disableHandlerGenerators(projectDir: Path) {
         val buildFile = projectDir.resolve("build.gradle.kts")
