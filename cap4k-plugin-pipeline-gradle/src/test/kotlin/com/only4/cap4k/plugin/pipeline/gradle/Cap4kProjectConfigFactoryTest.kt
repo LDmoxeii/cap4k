@@ -1539,6 +1539,51 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
+    fun `enabled db source requires password to be configured`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:test")
+                username.set("sa")
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("sources.db.password is required when db is enabled.", error.message)
+    }
+
+    @Test
+    fun `enabled db source accepts explicit blank password`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:test")
+                username.set("sa")
+                password.set("")
+            }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals("", config.sources.getValue("db").options["password"])
+    }
+
+    @Test
     fun `enabled ir analysis source requires input dirs`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)

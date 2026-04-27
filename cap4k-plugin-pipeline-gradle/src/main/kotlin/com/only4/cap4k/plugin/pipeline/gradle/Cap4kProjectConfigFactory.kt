@@ -225,7 +225,7 @@ class Cap4kProjectConfigFactory {
         if (states.dbEnabled) {
             val url = extension.sources.db.url.requiredWhenEnabled("sources.db.url", "db")
             val username = extension.sources.db.username.requiredWhenEnabled("sources.db.username", "db")
-            val password = extension.sources.db.password.requiredWhenEnabled("sources.db.password", "db")
+            val password = extension.sources.db.password.requiredRawWhenEnabled("sources.db.password", "db")
             val options = linkedMapOf<String, Any?>(
                 "url" to url,
                 "username" to username,
@@ -471,6 +471,9 @@ private fun Property<String>.required(path: String): String =
 
 private fun Property<String>.requiredWhenEnabled(path: String, blockName: String): String =
     optionalValue() ?: throw IllegalArgumentException("$path is required when $blockName is enabled.")
+
+private fun Property<String>.requiredRawWhenEnabled(path: String, blockName: String): String =
+    orNull ?: throw IllegalArgumentException("$path is required when $blockName is enabled.")
 
 private fun Property<String>.optionalValue(): String? =
     orNull?.trim()?.takeIf { it.isNotEmpty() }
