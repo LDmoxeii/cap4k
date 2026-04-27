@@ -93,6 +93,7 @@ This slice will not:
 - add a new normalization exporter between `drawingBoard` and `cap4kGenerate`
 - infer or generate arbitrary validator business logic
 - support validators bound to concrete generated request classes
+- project aggregate unique validators as ordinary design validators
 - introduce trait/interface-based validator targets
 - automatically attach validators to request fields or request classes
 - migrate old alias tags in `designJson`
@@ -124,6 +125,7 @@ data class DesignElement(
     val `package`: String,
     val name: String,
     val desc: String,
+    val message: String? = null,
     val aggregates: List<String> = emptyList(),
     val entity: String? = null,
     val persist: Boolean? = null,
@@ -343,6 +345,7 @@ The normalized validator design entry should support:
   "package": "danmuku",
   "name": "DanmukuDeletePermission",
   "desc": "校验弹幕删除权限",
+  "message": "无权限删除该弹幕",
   "targets": ["CLASS"],
   "valueType": "Any",
   "parameters": [
@@ -368,6 +371,7 @@ For a field-level validator:
   "package": "category",
   "name": "CategoryMustExist",
   "desc": "分类必须存在",
+  "message": "分类不存在",
   "targets": ["FIELD", "VALUE_PARAMETER"],
   "valueType": "Long",
   "parameters": []
@@ -376,6 +380,7 @@ For a field-level validator:
 
 Analysis projection should prefer the source annotation class simple name for `name`.
 User-authored `designJson` may still use the existing accepted spelling styles as long as canonical type-name normalization resolves to the same annotation class name.
+`message` is a first-class validator field, not a custom parameter.
 
 ### `targets`
 
@@ -483,6 +488,7 @@ data class ValidatorModel(
     val packageName: String,
     val typeName: String,
     val description: String,
+    val message: String,
     val targets: List<String>,
     val valueType: String,
     val parameters: List<ValidatorParameterModel> = emptyList(),
@@ -519,6 +525,7 @@ The collector should derive:
 - `package` from the package segment below `.application.validators`
 - `name` from the annotation class simple name
 - `desc` from KDoc only if a stable KDoc extraction mechanism already exists; otherwise empty string
+- `message` from the annotation `message` default value when it can be resolved
 - `targets` from `@Target(...)`
 - `valueType` from the second `ConstraintValidator` generic argument
 - `parameters` from annotation constructor parameters excluding `message`, `groups`, and `payload`
@@ -538,6 +545,30 @@ The collector should not emit a stable validator design element for:
 The analysis tooling may record diagnostics later, but this slice does not require a diagnostics file format change.
 
 The important contract is that unsupported validators do not become misleading stable generate input.
+
+### Aggregate Unique Validator Filtering
+
+Aggregate unique validators are not ordinary design validators.
+
+They are aggregate-derived artifacts and must remain on the aggregate generator line.
+
+The analysis projection should not emit them into `drawing_board_validator.json`.
+
+Recommended filtering rule:
+
+- skip validator annotations under the aggregate unique-validator package layout
+- for the current default layout, this means packages matching `application.validators.<aggregate>.unique`
+
+The implementation should not rely only on a `Unique` class-name prefix.
+
+Reason:
+
+- generated aggregate unique validators often use the same Bean Validation shape as ordinary validators
+- many of them are class-level `ConstraintValidator<Annotation, Any>`
+- class-name prefix filtering is weaker than package-layout filtering
+- users may have legitimate hand-written business validators whose names contain `Unique`
+
+If package-layout detection is ambiguous, the collector should skip rather than project a misleading ordinary validator.
 
 ## Drawing-Board Changes
 
@@ -572,6 +603,7 @@ If existing documentation or fixtures still mention old names such as `drawing_b
 
 The drawing-board template should render validator-specific fields only when present:
 
+- `message`
 - `targets`
 - `valueType`
 - `parameters`
@@ -582,6 +614,7 @@ For non-validator entries, those fields should be omitted to keep design JSON co
 
 `designJson` should parse the new validator fields:
 
+- `message`
 - `targets`
 - `valueType`
 - `parameters`
@@ -603,6 +636,7 @@ The validator generator should consume the expanded `ValidatorModel`.
 Template responsibilities:
 
 - render `@Target(...)` from `targets`
+- render the default `message` from the validator model
 - render custom annotation parameters
 - render `ConstraintValidator<Annotation, valueType>`
 - preserve standard Bean Validation parameters:
@@ -636,6 +670,7 @@ However, short-lived implementation bridges are acceptable if they keep existing
 Allowed temporary bridges:
 
 - parse old analysis tags in `DefaultCanonicalAssembler` while tests are migrated
+- default missing validator `message` to `校验未通过`
 - default missing validator `valueType` to `Long`
 - default missing validator `targets` to field/value-parameter targets
 
@@ -657,16 +692,20 @@ Add or update analysis compiler tests for:
 - domain-event projection uses `domain_event`
 - field-level validator projection emits:
   - `tag = "validator"`
+  - `message`
   - `targets = ["FIELD", "VALUE_PARAMETER"]`
   - `valueType = "Long"`
 - class-level `Any` validator projection emits:
+  - `message`
   - `targets = ["CLASS"]`
   - `valueType = "Any"`
   - custom field-name parameters
 - concrete request-type validator is not projected as stable input
+- aggregate unique validators are not projected as ordinary design validators
 
 Add or update source parsing tests for:
 
+- `message`
 - `targets`
 - `valueType`
 - `parameters`
@@ -762,6 +801,7 @@ Mitigation:
 - `design-elements.json` produced by analysis compiler uses standard new-pipeline tags for supported design families.
 - Supported validator annotations are projected as `tag = "validator"`.
 - Projected validators include `targets`, `valueType`, and supported custom annotation parameters.
+- Projected ordinary validators exclude aggregate unique validators.
 - Concrete request-type validators are not treated as supported stable input.
 - `cap4kAnalysisGenerate` can produce `drawing_board_validator.json`.
 - The generated validator drawing-board JSON can be fed into `cap4kGenerate` as design input.
