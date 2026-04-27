@@ -243,6 +243,133 @@ The following remain separate from the default mainline path:
 - project-specific unblock work
 - broader bootstrap flexibility beyond slot-based extension
 
+## Upcoming Backlog
+
+Date: 2026-04-27
+
+These items are recorded to preserve scheduling context. They are not implementation plans.
+
+Recommended order:
+
+1. Contract-first query contract
+2. ddd-core Optional-to-null cleanup
+3. drawing-board validator tag gap
+4. validator generation capability expansion
+5. irAnalysis restructuring analysis
+
+### 1. Contract-first query contract
+
+Status:
+
+- spec written
+- implementation plan not written
+- implementation not started
+
+Reference:
+
+- [contract-first query contract design](specs/2026-04-27-cap4k-contract-first-query-contract-design.md)
+
+Next action:
+
+- review the spec
+- write an implementation plan when ready to start work
+
+Notes:
+
+- this is a breaking API cleanup
+- default query generation should move to `Query<Request, Response>`
+- `Response` should mean complete response payload
+- `PageQuery`, `ListQuery`, `PageQueryParam`, and `ListQueryParam` should be removed
+- `PageRequest` should carry only `pageNum` and `pageSize` in the first iteration
+
+### 2. ddd-core Optional-to-null cleanup
+
+Status:
+
+- analysis material exists
+- spec not written
+- implementation plan not written
+
+Reference:
+
+- [ddd-core nullability analysis](../design/ddd-core-nullability/analysis.md)
+
+Next action:
+
+- write a focused spec for `Optional<T>` to Kotlin `T?`
+
+Notes:
+
+- only Finding 1 should be considered for the first cleanup slice
+- do not mix in `DomainServiceSupervisor.getService()` nullability
+- do not mix in `SagaProcessSupervisor.sendProcess()` nullability
+- do not mix in `Any` serialization-boundary cleanup
+- Spring Data repository boundaries may still use Java `Optional`
+- this should be separate from contract-first query contract implementation
+
+### 3. drawing-board validator tag gap
+
+Status:
+
+- suspected gap
+- not analyzed
+- spec not written
+- implementation plan not written
+
+Next action:
+
+- confirm whether `validator` is the only missing tag from `drawing_board_*.json`
+
+Notes:
+
+- this likely belongs to the analysis output / drawing-board export path
+- it should be smaller than a full irAnalysis restructuring
+- generated `drawing_board_*.json` should be usable as stable input for `cap4kGenerate`
+- do not add a normalization layer just to compensate for analysis output gaps
+
+### 4. Validator generation capability expansion
+
+Status:
+
+- existing bounded validator migration exists
+- expanded capability spec not written
+- implementation plan not written
+
+Reference:
+
+- [design validator family migration design](specs/2026-04-15-cap4k-design-validator-family-migration-design.md)
+
+Next action:
+
+- write a new spec for expanded validator semantics
+
+Notes:
+
+- the current validator generator is intentionally minimal
+- the next version should discuss custom fields
+- it should distinguish field-level and class-level validation
+- it should define annotation parameters and generated validator body expectations
+- it should not be mixed into the drawing-board validator tag gap unless the model dependency is proven
+
+### 5. irAnalysis restructuring analysis
+
+Status:
+
+- candidate work
+- need not confirmed
+- analysis not written
+
+Next action:
+
+- perform analysis before writing a spec
+
+Notes:
+
+- do not assume restructuring is required
+- first identify current inputs, outputs, consumers, and failure modes
+- if the validator tag gap can be solved without restructuring, keep restructuring deferred
+- this should not block smaller drawing-board or validator-generation slices unless evidence shows the current architecture cannot support them
+
 ## Support Track Docs
 
 Concrete support-track references:
