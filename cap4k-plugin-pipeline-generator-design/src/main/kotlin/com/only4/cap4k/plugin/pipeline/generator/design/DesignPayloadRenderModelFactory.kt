@@ -121,7 +121,6 @@ internal object DesignPayloadRenderModelFactory {
         typeRegistry: Map<String, String>,
         siblingRequestTypeNames: Set<String> = emptySet(),
     ): DesignRenderModel {
-        val innerTypeNames = requestNamespace.nestedTypeNames + responseNamespace.nestedTypeNames
         val symbolRegistry = buildSymbolRegistry(
             aggregateName = aggregateName,
             aggregatePackageName = aggregatePackageName,
@@ -129,11 +128,23 @@ internal object DesignPayloadRenderModelFactory {
             responseNamespace = responseNamespace,
             typeRegistry = typeRegistry,
         )
-        validateNamespaceTypes("request", requestNamespace, symbolRegistry, innerTypeNames, siblingRequestTypeNames)
-        validateNamespaceTypes("response", responseNamespace, symbolRegistry, innerTypeNames, siblingRequestTypeNames)
+        validateNamespaceTypes(
+            "request",
+            requestNamespace,
+            symbolRegistry,
+            requestNamespace.nestedTypeNames,
+            siblingRequestTypeNames,
+        )
+        validateNamespaceTypes(
+            "response",
+            responseNamespace,
+            symbolRegistry,
+            responseNamespace.nestedTypeNames,
+            siblingRequestTypeNames,
+        )
         val importPlan = DesignImportPlanner.plan(
             types = requestNamespace.resolvedTypes + responseNamespace.resolvedTypes,
-            innerTypeNames = innerTypeNames,
+            innerTypeNames = emptySet(),
             symbolRegistry = symbolRegistry,
         )
         val renderedTypes = ArrayDeque(importPlan.renderedTypes)
@@ -186,6 +197,7 @@ internal object DesignPayloadRenderModelFactory {
 
         val nestedTypeNames = linkedSetOf<String>()
         val nestedTypeNodes = mutableListOf<PayloadPathNode>()
+        validateDuplicateDeclarations(root, namespace)
         collectNestedTypeNodes(root, namespace, nestedTypeNames, nestedTypeNodes)
 
         return NamespaceModel(
@@ -355,6 +367,18 @@ internal object DesignPayloadRenderModelFactory {
                 nestedTypeNodes += child
                 collectNestedTypeNodes(child, namespace, nestedTypeNames, nestedTypeNodes)
             }
+        }
+    }
+
+    private fun validateDuplicateDeclarations(
+        node: PayloadPathNode,
+        namespace: String,
+    ) {
+        node.children.values.forEach { child ->
+            if (child.explicitDeclarations.size > 1) {
+                throw duplicateDirectContainerError(child, namespace)
+            }
+            validateDuplicateDeclarations(child, namespace)
         }
     }
 
@@ -566,10 +590,9 @@ internal object DesignPayloadRenderModelFactory {
         } else {
             type.tokenText
         }
-        val parsedSimpleName = parsedRawText.substringAfterLast('.')
-        val resolvesToInner = isSelf || parsedRawText in innerTypeNames || parsedSimpleName in innerTypeNames
+        val resolvesToInner = isSelf || parsedRawText in innerTypeNames
         val rawText = if (resolvesToInner) {
-            parsedSimpleName
+            parsedRawText.substringAfterLast('.')
         } else {
             parsedRawText
         }

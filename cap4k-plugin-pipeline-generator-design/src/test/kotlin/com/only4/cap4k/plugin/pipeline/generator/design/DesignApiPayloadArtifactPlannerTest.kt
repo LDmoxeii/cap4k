@@ -260,6 +260,104 @@ class DesignApiPayloadArtifactPlannerTest {
     }
 
     @Test
+    fun `api payload planner does not bind request fqcn to response local item`() {
+        val planner = DesignApiPayloadArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
+            model = CanonicalModel(
+                apiPayloads = listOf(
+                    ApiPayloadModel(
+                        packageName = "message",
+                        typeName = "ExternalItemPayload",
+                        description = "external item payload",
+                        requestFields = listOf(
+                            FieldModel("externalItem", "com.acme.shared.Item"),
+                        ),
+                        responseFields = listOf(
+                            FieldModel("list", "List<Item>"),
+                            FieldModel("list[].id", "Long"),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val payload = items.single()
+        assertEquals(
+            listOf(DesignRenderFieldModel(name = "externalItem", renderedType = "Item")),
+            payload.context["requestFields"],
+        )
+        assertEquals(listOf("com.acme.shared.Item"), payload.context["imports"])
+        assertEquals(
+            listOf(
+                DesignRenderNestedTypeModel(
+                    name = "Item",
+                    fields = listOf(DesignRenderFieldModel(name = "id", renderedType = "Long")),
+                ),
+            ),
+            payload.context["responseNestedTypes"],
+        )
+    }
+
+    @Test
+    fun `api payload planner does not resolve request short item from response local item`() {
+        val planner = DesignApiPayloadArtifactPlanner()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
+                model = CanonicalModel(
+                    apiPayloads = listOf(
+                        ApiPayloadModel(
+                            packageName = "message",
+                            typeName = "ExternalItemPayload",
+                            description = "external item payload",
+                            requestFields = listOf(
+                                FieldModel("externalItem", "Item"),
+                            ),
+                            responseFields = listOf(
+                                FieldModel("list", "List<Item>"),
+                                FieldModel("list[].id", "Long"),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertTrue(error.message.orEmpty().contains("failed to resolve type for field externalItem"))
+        assertTrue(error.message.orEmpty().contains("unknown short type: Item"))
+    }
+
+    @Test
+    fun `api payload planner fails when duplicate leaf path is declared`() {
+        val planner = DesignApiPayloadArtifactPlanner()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
+                model = CanonicalModel(
+                    apiPayloads = listOf(
+                        ApiPayloadModel(
+                            packageName = "account",
+                            typeName = "DuplicateAddressPayload",
+                            description = "duplicate address payload",
+                            requestFields = listOf(
+                                FieldModel("address", "Address"),
+                                FieldModel("address.city", "String"),
+                                FieldModel("address.city", "Int"),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertTrue(error.message.orEmpty().contains("duplicate direct declarations for address.city in request namespace"))
+    }
+
+    @Test
     fun `api payload planner ignores non api payload canonical slices`() {
         val planner = DesignApiPayloadArtifactPlanner()
 
