@@ -24,6 +24,45 @@ This slice works with the analysis design projection normalization spec:
 - design JSON can generate the same validator skeleton
 - aggregate unique validators remain on the aggregate generator line
 
+This slice should be planned together with analysis design projection normalization.
+The two specs share the same validator model fields:
+
+- `message`
+- `targets`
+- `valueType`
+- `parameters`
+
+The combined implementation plan should make the design/generation side work first, then make analysis projection emit the same input shape.
+
+## Role In The Combined Implementation Plan
+
+This spec should not become a standalone implementation plan if analysis projection work is being implemented in the same iteration.
+
+It should be part of:
+
+```text
+Cap4k Validator Projection And Generation Normalization
+```
+
+This spec owns the design/generation side of that plan:
+
+- `designJson` parsing and validation for expanded validator fields
+- canonical `ValidatorModel` and `ValidatorParameterModel`
+- validator render model
+- validator template rendering
+- compile-level validator generation fixtures
+
+The analysis projection spec owns the analysis/export side:
+
+- `DesignElement` / `DesignElementSnapshot` projection fields
+- `DesignElementCollector` validator extraction
+- source-ir-analysis parsing of projected validator fields
+- drawing-board validator JSON output
+- round-trip analysis export verification
+
+The implementation plan should avoid duplicating model work.
+The shared validator design model should be implemented once, then used by both source-generation and analysis-export paths.
+
 ## Why This Slice Exists
 
 The current pipeline validator generator was intentionally minimal.
@@ -672,6 +711,9 @@ The fixture only needs to prove generated source compiles.
 It does not need to prove business validation behavior.
 
 ## Recommended Implementation Order
+
+This order is local to the design/generation side.
+The final implementation plan should merge it with the analysis projection order and keep shared model work single-sourced.
 
 1. Expand API models for validator parameters.
 2. Expand `designJson` parsing and validation.

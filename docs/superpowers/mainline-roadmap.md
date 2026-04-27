@@ -253,10 +253,15 @@ Recommended order:
 
 1. Contract-first query contract
 2. ddd-core nullability contract stabilization
-3. analysis design projection normalization
-4. validator generation capability expansion
-5. irAnalysis restructuring analysis
-6. unit-of-work and repository backend comparison
+3. validator projection and generation normalization
+4. irAnalysis restructuring analysis
+5. unit-of-work and repository backend comparison
+
+The third item is a combined implementation track over:
+
+- analysis design projection normalization
+- validator generation capability expansion
+- the irAnalysis current-state analysis constraints
 
 ### 1. Contract-first query contract
 
@@ -327,8 +332,8 @@ Reference:
 
 Next action:
 
-- review the spec
-- write an implementation plan when ready to start work
+- review the spec together with validator generation capability expansion
+- write one combined implementation plan when ready to start work
 
 Notes:
 
@@ -339,6 +344,7 @@ Notes:
 - this should still be smaller than a full irAnalysis restructuring
 - generated `drawing_board_*.json` should be usable as stable input for `cap4kGenerate`
 - do not add a normalization layer just to compensate for analysis output gaps
+- should be implemented in the same plan as validator generation capability expansion because both share the validator design model
 
 ### 4. Validator generation capability expansion
 
@@ -355,8 +361,8 @@ Reference:
 
 Next action:
 
-- review the spec
-- write an implementation plan when ready to start work
+- review the spec together with analysis design projection normalization
+- write one combined implementation plan when ready to start work
 
 Notes:
 
@@ -368,7 +374,7 @@ Notes:
 - validator bodies should return `true`; business logic remains hand-written or template-overridden
 - trait/interface targets, automatic request attachment, and advanced parameter types are deferred
 - aggregate unique validators remain separate from ordinary design validators
-- it should not be mixed into analysis design projection normalization unless the model dependency is proven
+- should be implemented in the same plan as analysis design projection normalization because both share the validator design model
 
 ### 5. irAnalysis restructuring analysis
 

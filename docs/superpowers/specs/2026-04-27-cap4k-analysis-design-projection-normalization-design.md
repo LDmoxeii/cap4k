@@ -125,7 +125,6 @@ data class DesignElement(
     val `package`: String,
     val name: String,
     val desc: String,
-    val message: String? = null,
     val aggregates: List<String> = emptyList(),
     val entity: String? = null,
     val persist: Boolean? = null,
@@ -137,7 +136,7 @@ data class DesignElement(
 This generic shape is useful for command/query/client/payload/domain-event families, but it cannot currently express validator-specific structure.
 
 The pipeline API mirrors the same projection with `DesignElementSnapshot`.
-It also lacks validator fields such as `targets`, `valueType`, or annotation parameters.
+It also lacks validator fields such as `message`, `targets`, `valueType`, or annotation parameters.
 
 ### Analysis Compiler Collection
 
@@ -445,6 +444,44 @@ The primary target for this slice is string field-name parameters such as:
 The projection does not interpret these fields semantically.
 It only preserves the annotation contract.
 
+## Role In The Combined Implementation Plan
+
+This spec should not become a standalone implementation plan.
+
+It should be implemented together with validator generation capability expansion in one combined plan:
+
+```text
+Cap4k Validator Projection And Generation Normalization
+```
+
+This spec owns the analysis/export side of that plan:
+
+- analysis-core projection model fields needed by validator projection
+- analysis-compiler projected tag normalization
+- analysis-compiler ordinary validator projection
+- aggregate unique validator filtering during projection
+- source-ir-analysis parsing of the expanded design projection fields
+- drawing-board `validator` output
+- round-trip verification from analysis output back into `designJson`
+
+The validator generation capability spec owns the design/generation side:
+
+- `designJson` validator input parsing
+- canonical `ValidatorModel`
+- validator render model
+- validator template output
+- compile-level validator generation fixtures
+
+The irAnalysis current-state analysis is a constraint document for the plan.
+It says the combined plan should not rewrite `nodes.json`, `rels.json`, flow traversal, or the analysis task family.
+
+Therefore the implementation plan should be one plan with two connected work streams:
+
+- **generation-first stream**: make expanded validator design input compile
+- **projection-after stream**: make analysis export produce that same input
+
+The streams are connected by the shared validator design model.
+
 ## Source And Canonical Model Changes
 
 The model should evolve in one line, not through parallel old/new models.
@@ -457,6 +494,7 @@ data class DesignElement(
     val `package`: String,
     val name: String,
     val desc: String,
+    val message: String? = null,
     val aggregates: List<String> = emptyList(),
     val entity: String? = null,
     val persist: Boolean? = null,
@@ -740,18 +778,20 @@ Full business validator body behavior is not required in this slice.
 
 ## Recommended Implementation Order
 
-1. Expand API and analysis-core projection models.
-2. Expand `designJson` parsing for validator fields.
-3. Expand canonical `ValidatorModel` and validator assembler logic.
-4. Update validator render model and preset template.
-5. Normalize analysis compiler projected tags to new standard tags.
-6. Add validator collection in `DesignElementCollector`.
-7. Add validator support to drawing-board canonical filtering and planner output.
-8. Add tests from the smallest unit outward.
-9. Update docs and fixtures that still describe old drawing-board tag names.
+This order is local to the analysis/export side.
+The final implementation plan should merge it with the validator-generation order and run shared model work first.
 
-This order keeps generator input parsing ahead of analysis output.
-That matters because the exported validator drawing-board JSON should be immediately consumable once analysis starts producing it.
+1. Expand shared API and analysis-core projection models with the validator fields required by the combined plan.
+2. Normalize analysis compiler projected tags to new standard tags.
+3. Add ordinary validator collection in `DesignElementCollector`.
+4. Filter aggregate unique validators out of ordinary validator projection.
+5. Expand `IrAnalysisSourceProvider` parsing for projected validator fields.
+6. Add validator support to drawing-board canonical filtering and planner output.
+7. Add analysis/source/drawing-board tests from the smallest unit outward.
+8. Update docs and fixtures that still describe old drawing-board tag names.
+
+The combined implementation plan should still make generator input parsing work before analysis starts producing `drawing_board_validator.json`.
+That matters because exported drawing-board JSON should be immediately consumable once analysis starts producing it.
 
 ## Risks
 

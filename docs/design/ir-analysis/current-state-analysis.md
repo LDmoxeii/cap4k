@@ -444,6 +444,42 @@ Instead:
 
 This keeps the work incremental and avoids destabilizing the already-working flow path.
 
+## Role In The Combined Implementation Plan
+
+This analysis is not an implementation spec.
+
+It should be used as a constraint document for one combined plan:
+
+```text
+Cap4k Validator Projection And Generation Normalization
+```
+
+That plan should combine:
+
+- analysis design projection normalization
+- validator generation capability expansion
+
+This analysis contributes the following constraints:
+
+- do not rewrite `nodes.json`
+- do not rewrite `rels.json`
+- do not restructure flow traversal
+- do not merge analysis export back into `cap4kGenerate`
+- keep multi-module analysis merge in `IrAnalysisSourceProvider`
+- keep compiler output module-local
+- treat `design-elements.json` as the design projection artifact
+
+The plan should include verification that graph output remains stable while design projection changes.
+
+Recommended combined execution shape:
+
+1. Add the shared validator design model fields.
+2. Make `designJson -> designValidator -> generated Kotlin` work with those fields.
+3. Make `analysis-compiler -> design-elements.json` emit the same fields.
+4. Make `ir-analysis source -> drawing-board` preserve those fields.
+5. Prove round-trip: generated or hand-written validator source -> `drawing_board_validator.json` -> `cap4kGenerate`.
+6. Re-run flow/source-ir tests to confirm graph output was not disturbed.
+
 ## Residual Risks
 
 ### Risk: `DesignElement` Keeps Growing
