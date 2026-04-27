@@ -253,7 +253,7 @@ Recommended order:
 
 1. Contract-first query contract
 2. ddd-core nullability contract stabilization
-3. drawing-board validator tag gap
+3. analysis design projection normalization
 4. validator generation capability expansion
 5. irAnalysis restructuring analysis
 6. unit-of-work and repository backend comparison
@@ -313,23 +313,30 @@ Notes:
 - Spring Data repository boundaries may still use Java `Optional`
 - this should be separate from contract-first query contract implementation
 
-### 3. drawing-board validator tag gap
+### 3. analysis design projection normalization
 
 Status:
 
-- suspected gap
-- not analyzed
-- spec not written
+- analyzed
+- spec written
 - implementation plan not written
+
+Reference:
+
+- [analysis design projection normalization design](specs/2026-04-27-cap4k-analysis-design-projection-normalization-design.md)
 
 Next action:
 
-- confirm whether `validator` is the only missing tag from `drawing_board_*.json`
+- review the spec
+- write an implementation plan when ready to start work
 
 Notes:
 
-- this likely belongs to the analysis output / drawing-board export path
-- it should be smaller than a full irAnalysis restructuring
+- this is broader than simply adding `validator` to drawing-board output
+- `design-elements.json` is an analysis-side design projection and should speak the new pipeline tag language
+- `validator` should be projected only for supported structural validator contracts
+- concrete request-type validators are treated as migration defects, not as a new pipeline contract
+- this should still be smaller than a full irAnalysis restructuring
 - generated `drawing_board_*.json` should be usable as stable input for `cap4kGenerate`
 - do not add a normalization layer just to compensate for analysis output gaps
 
@@ -355,7 +362,7 @@ Notes:
 - the next version should discuss custom fields
 - it should distinguish field-level and class-level validation
 - it should define annotation parameters and generated validator body expectations
-- it should not be mixed into the drawing-board validator tag gap unless the model dependency is proven
+- it should not be mixed into analysis design projection normalization unless the model dependency is proven
 
 ### 5. irAnalysis restructuring analysis
 
@@ -373,7 +380,7 @@ Notes:
 
 - do not assume restructuring is required
 - first identify current inputs, outputs, consumers, and failure modes
-- if the validator tag gap can be solved without restructuring, keep restructuring deferred
+- if analysis design projection normalization can be solved without restructuring, keep restructuring deferred
 - this should not block smaller drawing-board or validator-generation slices unless evidence shows the current architecture cannot support them
 
 ### 6. Unit-of-work and repository backend comparison
