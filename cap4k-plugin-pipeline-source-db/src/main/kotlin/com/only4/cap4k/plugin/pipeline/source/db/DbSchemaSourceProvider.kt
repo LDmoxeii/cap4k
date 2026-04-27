@@ -28,7 +28,12 @@ class DbSchemaSourceProvider : SourceProvider {
 
         DriverManager.getConnection(url, username, password).use { connection ->
             val metadata = connection.metaData
-            val discoveredTables = metadata.getTables(null, schema, "%", arrayOf("TABLE")).use { tableRows ->
+            val scope = resolveJdbcMetadataScope(
+                url = url,
+                configuredSchema = schema,
+                connectionCatalog = connection.catalog,
+            )
+            val discoveredTables = metadata.getTables(scope.catalog, scope.schemaPattern, "%", arrayOf("TABLE")).use { tableRows ->
                 buildList {
                     while (tableRows.next()) {
                         add(tableRows.getString("TABLE_NAME"))
@@ -51,7 +56,7 @@ class DbSchemaSourceProvider : SourceProvider {
             val filteredTables = selectedTables.filterNot { it in excludeTables }
             val tableResults = filteredTables
                 .asSequence()
-                .map { readTable(metadata, schema, it) }
+                .map { readTable(metadata, scope, it) }
                 .toList()
             val tables = tableResults
                 .filterNot { it.ignored }
@@ -69,14 +74,14 @@ class DbSchemaSourceProvider : SourceProvider {
 
     private fun readTable(
         metadata: DatabaseMetaData,
-        schema: String?,
+        scope: JdbcMetadataScope,
         tableName: String,
     ): ReadTableResult {
-        val tableComment = metadata.getTables(null, schema, tableName, arrayOf("TABLE")).use { rows ->
+        val tableComment = metadata.getTables(scope.catalog, scope.schemaPattern, tableName, arrayOf("TABLE")).use { rows ->
             if (rows.next()) rows.getString("REMARKS") ?: "" else ""
         }
         val tableMetadata = tableAnnotationParser.parse(tableComment)
-        val primaryKey = metadata.getPrimaryKeys(null, schema, tableName).use { rows ->
+        val primaryKey = metadata.getPrimaryKeys(scope.catalog, scope.schemaPattern, tableName).use { rows ->
             buildList {
                 while (rows.next()) {
                     add(rows.getString("COLUMN_NAME"))
@@ -84,7 +89,7 @@ class DbSchemaSourceProvider : SourceProvider {
             }
         }
         val primaryKeySet = primaryKey.toSet()
-        val columns = metadata.getColumns(null, schema, tableName, "%").use { rows ->
+        val columns = metadata.getColumns(scope.catalog, scope.schemaPattern, tableName, "%").use { rows ->
             buildList {
                 while (rows.next()) {
                     val name = rows.getString("COLUMN_NAME")
@@ -115,7 +120,7 @@ class DbSchemaSourceProvider : SourceProvider {
                 }
             }
         }
-        val uniqueConstraints = metadata.getIndexInfo(null, schema, tableName, true, false).use { rows ->
+        val uniqueConstraints = metadata.getIndexInfo(scope.catalog, scope.schemaPattern, tableName, true, false).use { rows ->
             data class IndexedConstraintColumn(
                 val name: String,
                 val ordinalPosition: Int,
@@ -227,3 +232,30 @@ private data class ReadTableResult(
     val table: DbTableSnapshot,
     val ignored: Boolean,
 )
+
+internal data class JdbcMetadataScope(
+    val catalog: String?,
+    val schemaPattern: String?,
+)
+
+internal fun resolveJdbcMetadataScope(
+    url: String,
+    configuredSchema: String?,
+    connectionCatalog: String?,
+): JdbcMetadataScope {
+    val schema = configuredSchema?.ifBlank { null }
+    val catalog = connectionCatalog?.ifBlank { null }
+    return when {
+        url.startsWith("jdbc:mysql:", ignoreCase = true) ||
+            url.startsWith("jdbc:mariadb:", ignoreCase = true) ->
+            JdbcMetadataScope(
+                catalog = schema ?: catalog,
+                schemaPattern = null,
+            )
+
+        else -> JdbcMetadataScope(
+            catalog = null,
+            schemaPattern = schema,
+        )
+    }
+}

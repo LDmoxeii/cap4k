@@ -16,6 +16,44 @@ import org.junit.jupiter.api.Test
 class DbSchemaSourceProviderTest {
 
     @Test
+    fun `metadata scope treats mysql database name as catalog`() {
+        val mysqlScope = resolveJdbcMetadataScope(
+            url = "jdbc:mysql://127.0.0.1:3306/only_danmuku",
+            configuredSchema = "only_danmuku",
+            connectionCatalog = "ignored_catalog",
+        )
+        val mariadbScope = resolveJdbcMetadataScope(
+            url = "jdbc:mariadb://127.0.0.1:3306/only_danmuku",
+            configuredSchema = "only_danmuku",
+            connectionCatalog = "ignored_catalog",
+        )
+
+        assertEquals("only_danmuku", mysqlScope.catalog)
+        assertEquals(null, mysqlScope.schemaPattern)
+        assertEquals("only_danmuku", mariadbScope.catalog)
+        assertEquals(null, mariadbScope.schemaPattern)
+    }
+
+    @Test
+    fun `metadata scope keeps schema pattern for schema based databases`() {
+        val h2Scope = resolveJdbcMetadataScope(
+            url = "jdbc:h2:mem:cap4k-db-source-scope;MODE=MySQL",
+            configuredSchema = "PUBLIC",
+            connectionCatalog = "CAP4K",
+        )
+        val postgresScope = resolveJdbcMetadataScope(
+            url = "jdbc:postgresql://127.0.0.1:5432/only_danmuku",
+            configuredSchema = "public",
+            connectionCatalog = "only_danmuku",
+        )
+
+        assertEquals(null, h2Scope.catalog)
+        assertEquals("PUBLIC", h2Scope.schemaPattern)
+        assertEquals(null, postgresScope.catalog)
+        assertEquals("public", postgresScope.schemaPattern)
+    }
+
+    @Test
     fun `db source omits tables marked ignored from selected schema snapshot`() {
         val url = "jdbc:h2:mem:cap4k-db-source-ignored-table;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
