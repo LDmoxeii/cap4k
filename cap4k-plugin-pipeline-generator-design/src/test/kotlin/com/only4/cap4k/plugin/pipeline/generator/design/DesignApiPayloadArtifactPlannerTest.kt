@@ -92,6 +92,174 @@ class DesignApiPayloadArtifactPlannerTest {
     }
 
     @Test
+    fun `api payload planner supports multi-level nested request hierarchy`() {
+        val planner = DesignApiPayloadArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
+            model = CanonicalModel(
+                apiPayloads = listOf(
+                    ApiPayloadModel(
+                        packageName = "video",
+                        typeName = "SyncVideoPostProcessStatus",
+                        description = "sync video post process status",
+                        requestFields = listOf(
+                            FieldModel("fileList", "List<FileItem>"),
+                            FieldModel("fileList[].fileIndex", "Int"),
+                            FieldModel("fileList[].variants", "List<VariantItem>"),
+                            FieldModel("fileList[].variants[].quality", "String", defaultValue = ""),
+                            FieldModel("fileList[].variants[].width", "Int", defaultValue = "0"),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val payload = items.single()
+        assertEquals(
+            listOf(DesignRenderFieldModel(name = "fileList", renderedType = "List<FileItem>")),
+            payload.context["requestFields"],
+        )
+        assertEquals(
+            listOf(
+                DesignRenderNestedTypeModel(
+                    name = "FileItem",
+                    fields = listOf(
+                        DesignRenderFieldModel(name = "fileIndex", renderedType = "Int"),
+                        DesignRenderFieldModel(name = "variants", renderedType = "List<VariantItem>"),
+                    ),
+                ),
+                DesignRenderNestedTypeModel(
+                    name = "VariantItem",
+                    fields = listOf(
+                        DesignRenderFieldModel(name = "quality", renderedType = "String", defaultValue = "\"\""),
+                        DesignRenderFieldModel(name = "width", renderedType = "Int", defaultValue = "0"),
+                    ),
+                ),
+            ),
+            payload.context["requestNestedTypes"],
+        )
+    }
+
+    @Test
+    fun `api payload planner resolves self as response root type`() {
+        val planner = DesignApiPayloadArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
+            model = CanonicalModel(
+                apiPayloads = listOf(
+                    ApiPayloadModel(
+                        packageName = "category",
+                        typeName = "GetCategoryTree",
+                        description = "get category tree",
+                        responseFields = listOf(
+                            FieldModel("categoryId", "Long"),
+                            FieldModel("children", "List<self>", nullable = true),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val payload = items.single()
+        assertEquals(
+            listOf(
+                DesignRenderFieldModel(name = "categoryId", renderedType = "Long"),
+                DesignRenderFieldModel(name = "children", renderedType = "List<Response>?", nullable = true),
+            ),
+            payload.context["responseFields"],
+        )
+    }
+
+    @Test
+    fun `api payload planner supports explicit nested type recursion`() {
+        val planner = DesignApiPayloadArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
+            model = CanonicalModel(
+                apiPayloads = listOf(
+                    ApiPayloadModel(
+                        packageName = "video",
+                        typeName = "RecursiveVariantPayload",
+                        description = "recursive variant payload",
+                        requestFields = listOf(
+                            FieldModel("variants", "List<VariantItem>"),
+                            FieldModel("variants[].quality", "String"),
+                            FieldModel("variants[].children", "List<VariantItem>"),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val payload = items.single()
+        assertEquals(
+            listOf(
+                DesignRenderNestedTypeModel(
+                    name = "VariantItem",
+                    fields = listOf(
+                        DesignRenderFieldModel(name = "quality", renderedType = "String"),
+                        DesignRenderFieldModel(name = "children", renderedType = "List<VariantItem>"),
+                    ),
+                ),
+            ),
+            payload.context["requestNestedTypes"],
+        )
+    }
+
+    @Test
+    fun `api payload planner keeps request and response nested item namespaces isolated`() {
+        val planner = DesignApiPayloadArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
+            model = CanonicalModel(
+                apiPayloads = listOf(
+                    ApiPayloadModel(
+                        packageName = "message",
+                        typeName = "MessageGroupPayload",
+                        description = "message group payload",
+                        requestFields = listOf(
+                            FieldModel("list", "List<Item>"),
+                            FieldModel("list[].requestValue", "String"),
+                        ),
+                        responseFields = listOf(
+                            FieldModel("list", "List<Item>"),
+                            FieldModel("list[].messageType", "Int"),
+                            FieldModel("list[].count", "Int"),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val payload = items.single()
+        assertEquals(
+            listOf(
+                DesignRenderNestedTypeModel(
+                    name = "Item",
+                    fields = listOf(DesignRenderFieldModel(name = "requestValue", renderedType = "String")),
+                ),
+            ),
+            payload.context["requestNestedTypes"],
+        )
+        assertEquals(
+            listOf(
+                DesignRenderNestedTypeModel(
+                    name = "Item",
+                    fields = listOf(
+                        DesignRenderFieldModel(name = "messageType", renderedType = "Int"),
+                        DesignRenderFieldModel(name = "count", renderedType = "Int"),
+                    ),
+                ),
+            ),
+            payload.context["responseNestedTypes"],
+        )
+    }
+
+    @Test
     fun `api payload planner ignores non api payload canonical slices`() {
         val planner = DesignApiPayloadArtifactPlanner()
 
