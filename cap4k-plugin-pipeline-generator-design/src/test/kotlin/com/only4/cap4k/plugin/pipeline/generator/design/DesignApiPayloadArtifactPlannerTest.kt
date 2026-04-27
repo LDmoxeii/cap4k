@@ -301,6 +301,48 @@ class DesignApiPayloadArtifactPlannerTest {
     }
 
     @Test
+    fun `api payload planner renders same namespace fqcn when local item collides`() {
+        val planner = DesignApiPayloadArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
+            model = CanonicalModel(
+                apiPayloads = listOf(
+                    ApiPayloadModel(
+                        packageName = "message",
+                        typeName = "RequestItemCollisionPayload",
+                        description = "request item collision payload",
+                        requestFields = listOf(
+                            FieldModel("list", "List<Item>"),
+                            FieldModel("list[].id", "Long"),
+                            FieldModel("externalItem", "com.acme.shared.Item"),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val payload = items.single()
+        assertEquals(
+            listOf(
+                DesignRenderFieldModel(name = "list", renderedType = "List<Item>"),
+                DesignRenderFieldModel(name = "externalItem", renderedType = "com.acme.shared.Item"),
+            ),
+            payload.context["requestFields"],
+        )
+        assertEquals(emptyList<String>(), payload.context["imports"])
+        assertEquals(
+            listOf(
+                DesignRenderNestedTypeModel(
+                    name = "Item",
+                    fields = listOf(DesignRenderFieldModel(name = "id", renderedType = "Long")),
+                ),
+            ),
+            payload.context["requestNestedTypes"],
+        )
+    }
+
+    @Test
     fun `api payload planner does not resolve request short item from response local item`() {
         val planner = DesignApiPayloadArtifactPlanner()
 

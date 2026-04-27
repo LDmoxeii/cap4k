@@ -142,16 +142,22 @@ internal object DesignPayloadRenderModelFactory {
             responseNamespace.nestedTypeNames,
             siblingRequestTypeNames,
         )
-        val importPlan = DesignImportPlanner.plan(
-            types = requestNamespace.resolvedTypes + responseNamespace.resolvedTypes,
-            innerTypeNames = emptySet(),
+        val requestImportPlan = DesignImportPlanner.plan(
+            types = requestNamespace.resolvedTypes,
+            innerTypeNames = requestNamespace.nestedTypeNames,
             symbolRegistry = symbolRegistry,
         )
-        val renderedTypes = ArrayDeque(importPlan.renderedTypes)
-        val requestFields = renderFields(requestNamespace.fields, renderedTypes)
-        val requestNestedTypes = renderNestedTypes(requestNamespace.nestedTypes, renderedTypes)
-        val responseFields = renderFields(responseNamespace.fields, renderedTypes)
-        val responseNestedTypes = renderNestedTypes(responseNamespace.nestedTypes, renderedTypes)
+        val responseImportPlan = DesignImportPlanner.plan(
+            types = responseNamespace.resolvedTypes,
+            innerTypeNames = responseNamespace.nestedTypeNames,
+            symbolRegistry = symbolRegistry,
+        )
+        val requestRenderedTypes = ArrayDeque(requestImportPlan.renderedTypes)
+        val responseRenderedTypes = ArrayDeque(responseImportPlan.renderedTypes)
+        val requestFields = renderFields(requestNamespace.fields, requestRenderedTypes)
+        val requestNestedTypes = renderNestedTypes(requestNamespace.nestedTypes, requestRenderedTypes)
+        val responseFields = renderFields(responseNamespace.fields, responseRenderedTypes)
+        val responseNestedTypes = renderNestedTypes(responseNamespace.nestedTypes, responseRenderedTypes)
 
         return DesignRenderModel(
             packageName = packageName,
@@ -161,7 +167,7 @@ internal object DesignPayloadRenderModelFactory {
             descriptionCommentText = description.toKDocCommentText(),
             descriptionKotlinStringLiteral = description.toKotlinStringLiteral(),
             aggregateName = aggregateName,
-            imports = importPlan.imports,
+            imports = (requestImportPlan.imports + responseImportPlan.imports).distinct().sorted(),
             requestFields = requestFields,
             responseFields = responseFields,
             requestNestedTypes = requestNestedTypes,
