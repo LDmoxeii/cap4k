@@ -375,17 +375,23 @@ Notes:
 Status:
 
 - candidate work
-- need not confirmed
-- analysis not written
+- broad restructuring need not confirmed
+- analysis written
+
+Reference:
+
+- [irAnalysis current-state analysis](../design/ir-analysis/current-state-analysis.md)
 
 Next action:
 
-- perform analysis before writing a spec
+- do not open a broad restructuring implementation track yet
+- revisit only after analysis design projection normalization and validator generation expansion are implemented
 
 Notes:
 
-- do not assume restructuring is required
-- first identify current inputs, outputs, consumers, and failure modes
+- current evidence does not justify a broad irAnalysis rewrite
+- `nodes.json` and `rels.json` are graph artifacts and should remain stable
+- `design-elements.json` is a design projection and should be normalized under the new pipeline language
 - if analysis design projection normalization can be solved without restructuring, keep restructuring deferred
 - this should not block smaller drawing-board or validator-generation slices unless evidence shows the current architecture cannot support them
 
