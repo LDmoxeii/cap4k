@@ -207,6 +207,12 @@ The next explicit framework slice is:
 
 - aggregate persistence runtime verification hardening
 
+Status:
+
+- spec written
+- implementation plan intentionally deferred until execution
+- implementation not started
+
 Scope:
 
 - build on the now-stable bounded persistence line rather than reopening source semantics or adding new persistence features
@@ -245,9 +251,17 @@ The following remain separate from the default mainline path:
 
 ## Upcoming Backlog
 
-Date: 2026-04-27
+Date: 2026-04-28
 
 These items are recorded to preserve scheduling context. They are not implementation plans.
+
+Plan freshness rule:
+
+- A missing implementation plan is usually intentional for backlog items.
+- Keep future work at `analysis-only` or `spec-only` until the work is actually selected for execution.
+- Before writing a plan, re-read the current spec against the current `master` branch and update the spec if the repository has moved.
+- Write the implementation plan only after that review, so the plan is timely and executable.
+- The validator projection and generation normalization track is the current exception because a combined plan was explicitly requested before execution.
 
 Recommended order:
 
@@ -267,8 +281,8 @@ The third item is a combined implementation track over:
 
 Status:
 
-- spec written
-- implementation plan not written
+- spec-only by design
+- implementation plan intentionally deferred until execution
 - implementation not started
 
 Reference:
@@ -277,8 +291,9 @@ Reference:
 
 Next action:
 
-- review the spec
-- write an implementation plan when ready to start work
+- when this item is selected for execution, re-review the spec against current `master`
+- update the spec first if query, payload, or ddd-core contracts have moved
+- write the implementation plan only after that review
 
 Notes:
 
@@ -293,8 +308,9 @@ Notes:
 Status:
 
 - analysis material exists
-- spec written
-- implementation plan not written
+- spec-only by design
+- implementation plan intentionally deferred until execution
+- implementation not started
 
 Reference:
 
@@ -303,8 +319,9 @@ Reference:
 
 Next action:
 
-- review the spec
-- write an implementation plan when ready to start work
+- when this item is selected for execution, re-review the spec against current `master`
+- update the spec first if repository, aggregate, domain-service, or saga APIs have moved
+- write the implementation plan only after that review
 
 Notes:
 
@@ -324,7 +341,8 @@ Status:
 
 - analyzed
 - spec written
-- implementation plan not written
+- combined implementation plan written as an explicit exception to the freshness rule
+- implementation not started
 
 Reference:
 
@@ -332,8 +350,9 @@ Reference:
 
 Next action:
 
-- review the spec together with validator generation capability expansion
-- write one combined implementation plan when ready to start work
+- before execution, re-review this spec together with validator generation capability expansion
+- update the spec or plan first if analysis projection, drawing-board, or validator model code has moved
+- execute through the combined validator projection and generation normalization plan after review
 
 Notes:
 
@@ -352,7 +371,8 @@ Status:
 
 - existing bounded validator migration exists
 - expanded capability spec written
-- implementation plan not written
+- combined implementation plan written as an explicit exception to the freshness rule
+- implementation not started
 
 Reference:
 
@@ -361,8 +381,9 @@ Reference:
 
 Next action:
 
-- review the spec together with analysis design projection normalization
-- write one combined implementation plan when ready to start work
+- before execution, re-review this spec together with analysis design projection normalization
+- update the spec or plan first if validator generator, renderer, or template contracts have moved
+- execute through the combined validator projection and generation normalization plan after review
 
 Notes:
 
@@ -413,6 +434,8 @@ Status:
 Next action:
 
 - perform an analysis/PoC design before choosing a replacement or parallel implementation
+- keep this track at analysis/spec level until a backend comparison direction is approved
+- do not write an implementation plan before the comparison spec exists and has been reviewed
 
 Notes:
 
