@@ -1009,7 +1009,7 @@ class PipelinePluginFunctionalTest {
             """
             [
               {
-                "tag": "cmd",
+                "tag": "command",
                 "package": "video.publish",
                 "name": "StartVideoProcessing",
                 "desc": "start video processing",
@@ -1020,7 +1020,7 @@ class PipelinePluginFunctionalTest {
                 "responseFields": []
               },
               {
-                "tag": "qry",
+                "tag": "query",
                 "package": "video.publish",
                 "name": "VideoPostProcessingFileSpec",
                 "desc": "video processing file spec",
