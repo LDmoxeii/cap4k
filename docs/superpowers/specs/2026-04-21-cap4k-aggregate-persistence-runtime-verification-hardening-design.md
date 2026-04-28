@@ -53,6 +53,50 @@ Required reproduction:
 - unit-of-work must treat the preassigned-ID aggregate as new, not route it to a failing `merge`
 - no preliminary insert/query workaround is allowed
 
+### 1.1 ID Strategy Scope
+
+Application-side ID generation must not become a project-global single strategy.
+
+The desired cap4k contract is a scoped ID strategy registry:
+
+- the project may define a default ID strategy
+- each aggregate root may override the default strategy
+- each owned entity may override the aggregate strategy when needed
+- multiple strategies may coexist in one project
+- database-side strategies and application-side strategies must be distinguishable
+
+Example strategy matrix:
+
+| Scope | Strategy | Preassignable |
+| --- | --- | --- |
+| project default | `snowflake-long` | yes |
+| `Category` aggregate | `snowflake-long` | yes |
+| `UploadTask` aggregate | `uuid7` | yes |
+| `AuditLog` aggregate | `database-identity` | no |
+
+This means `Snowflake` and `UUID7` are both valid application-side strategies. They can coexist in the same application as long as each aggregate/entity resolves to one concrete strategy.
+
+Preassignment is strategy-dependent:
+
+- application-side strategies such as Snowflake and UUID7 support preassignment
+- database-side strategies such as identity columns do not support preassignment
+- a call site that requests early ID allocation for a database-side strategy should fail fast or be rejected by configuration validation
+
+The implementation plan should avoid a single global `IdGenerator` abstraction that hides this distinction. It should model at least:
+
+- strategy identity
+- generated ID JVM type
+- whether the strategy is application-side or database-side
+- whether the strategy supports preassignment
+- aggregate/entity strategy resolution order
+
+The expected resolution order is:
+
+1. entity-level override
+2. aggregate-root-level override
+3. project default
+4. framework default, only if explicitly accepted by the implementation plan
+
 ### 2. Aggregate Loading Boundary and Lazy Relation Behavior
 
 The real issue is not simply whether `FetchType.LAZY` or `FetchType.EAGER` appears in generated code.
@@ -151,6 +195,8 @@ Cons:
 Recommended direction for the spec:
 
 - treat Snowflake-style IDs as application-side IDs
+- allow more than one application-side strategy, such as Snowflake and UUID7, in the same project
+- resolve ID strategy per aggregate/entity rather than through a hidden project-global singleton
 - do not model this as database identity generation
 - do not rely on plain JPA `@GeneratedValue` to accept preassigned IDs
 - decide between Option A and Option B only after the reproduction test exposes the current failure mode
@@ -197,6 +243,9 @@ This slice is complete when:
 
 - the three real-project persistence defects are represented as focused runtime fixtures or explicitly classified as non-defects
 - preassignable application-side ID behavior has an explicit cap4k contract
+- ID strategy resolution supports project default plus aggregate/entity overrides
+- application-side and database-side ID strategies are distinguishable in the contract
+- the same project can use at least Snowflake-style and UUID7-style application-side strategies without forcing a global singleton
 - unit-of-work behavior does not misclassify preassigned-ID new aggregates
 - aggregate load behavior is explained by transaction/repository boundaries rather than accidental eager loading
 - three-level aggregate save/update/delete behavior is either supported with tests or documented as unsupported with a clear reason

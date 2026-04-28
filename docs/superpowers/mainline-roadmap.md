@@ -218,6 +218,7 @@ Scope:
 - build on the now-stable bounded persistence line rather than starting with a backend replacement
 - reproduce the real `only-danmuku` JPA aggregate defects inside representative runtime fixtures
 - make preassignable application-side IDs an explicit contract candidate, not a vague "generated or manual" switch
+- keep ID generation strategy scoped by project default plus aggregate/entity override, not a project-global singleton
 - verify repository/unit-of-work transaction boundaries for aggregate child access before defaulting to eager loading
 - verify three-level aggregate whole-save, update, and orphan-removal behavior before classifying it as unsupported
 - fix in place only when a focused reproduction proves a cap4k bug or an approved contract gap
