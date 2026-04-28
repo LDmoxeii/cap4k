@@ -29,7 +29,7 @@ import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
 import com.only4.cap4k.plugin.pipeline.api.PackageLayout
-import com.only4.cap4k.plugin.pipeline.api.QueryVariant
+import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverter
@@ -43,7 +43,7 @@ import org.junit.jupiter.api.Test
 class DefaultCanonicalAssemblerTest {
 
     @Test
-    fun `assembler splits cmd qry cli into typed canonical collections`() {
+    fun `assembler splits canonical command query client into typed canonical collections`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -52,7 +52,7 @@ class DefaultCanonicalAssemblerTest {
                 DesignSpecSnapshot(
                     entries = listOf(
                         DesignSpecEntry(
-                            tag = "cmd",
+                            tag = "command",
                             packageName = "order",
                             name = "CreateOrder",
                             description = "create order",
@@ -61,7 +61,7 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
-                            tag = "qry",
+                            tag = "query",
                             packageName = "order",
                             name = "FindOrderList",
                             description = "list order",
@@ -70,7 +70,7 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
-                            tag = "cli",
+                            tag = "client",
                             packageName = "remote",
                             name = "SyncStock",
                             description = "sync stock",
@@ -86,42 +86,32 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(listOf("CreateOrderCmd"), model.commands.map { it.typeName })
         assertEquals(listOf("FindOrderListQry"), model.queries.map { it.typeName })
         assertEquals(listOf("SyncStockCli"), model.clients.map { it.typeName })
-        assertEquals(QueryVariant.LIST, model.queries.single().variant)
         assertEquals(CommandVariant.DEFAULT, model.commands.single().variant)
     }
 
     @Test
-    fun `assembler resolves page list and default query variants canonically`() {
+    fun `query names with list and page suffixes do not imply request traits`() {
         val assembler = DefaultCanonicalAssembler()
 
-        val model = assembler.assemble(
+        val result = assembler.assemble(
             config = baseConfig(),
             snapshots = listOf(
                 DesignSpecSnapshot(
                     entries = listOf(
                         DesignSpecEntry(
-                            tag = "qry",
-                            packageName = "order",
-                            name = "FindOrder",
-                            description = "find order",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "qry",
-                            packageName = "order",
+                            tag = "query",
+                            packageName = "order.read",
                             name = "FindOrderList",
-                            description = "list order",
+                            description = "find order list",
                             aggregates = emptyList(),
                             requestFields = emptyList(),
                             responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
-                            tag = "qry",
-                            packageName = "order",
+                            tag = "query",
+                            packageName = "order.read",
                             name = "FindOrderPage",
-                            description = "page order",
+                            description = "find order page",
                             aggregates = emptyList(),
                             requestFields = emptyList(),
                             responseFields = emptyList(),
@@ -129,12 +119,47 @@ class DefaultCanonicalAssemblerTest {
                     )
                 ),
             ),
-        ).model
-
-        assertEquals(
-            listOf(QueryVariant.DEFAULT, QueryVariant.LIST, QueryVariant.PAGE),
-            model.queries.map { it.variant },
         )
+
+        assertEquals(listOf("FindOrderListQry", "FindOrderPageQry"), result.model.queries.map { it.typeName })
+        assertEquals(listOf(emptySet<RequestTrait>(), emptySet<RequestTrait>()), result.model.queries.map { it.traits })
+    }
+
+    @Test
+    fun `assembler carries page traits on query and api payload canonical models`() {
+        val assembler = DefaultCanonicalAssembler()
+        val result = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrderPage",
+                            description = "find order page",
+                            aggregates = emptyList(),
+                            traits = setOf(RequestTrait.PAGE),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "api_payload",
+                            packageName = "order.read",
+                            name = "FindOrderPage",
+                            description = "find order page payload",
+                            aggregates = emptyList(),
+                            traits = setOf(RequestTrait.PAGE),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(setOf(RequestTrait.PAGE), result.model.queries.single().traits)
+        assertEquals(setOf(RequestTrait.PAGE), result.model.apiPayloads.single().traits)
     }
 
     @Test
@@ -147,7 +172,7 @@ class DefaultCanonicalAssemblerTest {
                 DesignSpecSnapshot(
                     entries = listOf(
                         DesignSpecEntry(
-                            tag = "cli",
+                            tag = "client_legacy_alias",
                             packageName = "auth.client",
                             name = "IssueToken",
                             description = "issue token",
@@ -165,7 +190,7 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
-                            tag = "clients",
+                            tag = "clients_legacy_alias",
                             packageName = "auth.client",
                             name = "RevokeToken",
                             description = "revoke token",
@@ -179,11 +204,11 @@ class DefaultCanonicalAssemblerTest {
         ).model
 
         assertEquals(
-            listOf("IssueTokenCli", "RefreshTokenCli", "RevokeTokenCli"),
+            listOf("RefreshTokenCli"),
             model.clients.map { it.typeName },
         )
         assertEquals(
-            listOf("auth.client", "auth.client", "auth.client"),
+            listOf("auth.client"),
             model.clients.map { it.packageName },
         )
     }
@@ -198,7 +223,7 @@ class DefaultCanonicalAssemblerTest {
                 DesignSpecSnapshot(
                     entries = listOf(
                         DesignSpecEntry(
-                            tag = "cmd",
+                            tag = "command",
                             packageName = "order.submit",
                             name = "SubmitOrder",
                             description = "submit order",
@@ -216,7 +241,7 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
-                            tag = "qry",
+                            tag = "query",
                             packageName = "order.read",
                             name = "FindOrder",
                             description = "find order",
@@ -358,7 +383,7 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
-                            tag = "cmd",
+                            tag = "command",
                             packageName = "order.submit",
                             name = "SubmitOrder",
                             description = "submit order",
@@ -398,7 +423,7 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = responseFields,
                         ),
                         DesignSpecEntry(
-                            tag = "cmd",
+                            tag = "command",
                             packageName = "order.submit",
                             name = "SubmitOrder",
                             description = "submit order",
@@ -439,7 +464,7 @@ class DefaultCanonicalAssemblerTest {
                 DesignSpecSnapshot(
                     entries = listOf(
                         DesignSpecEntry(
-                            tag = "payload",
+                            tag = "payload_legacy_alias",
                             packageName = "auth.payload",
                             name = "LegacyPayload",
                             description = "legacy payload alias",
@@ -910,7 +935,7 @@ class DefaultCanonicalAssemblerTest {
                 DesignSpecSnapshot(
                     entries = listOf(
                         DesignSpecEntry(
-                            tag = "cmd",
+                            tag = "command",
                             packageName = "order.submit",
                             name = "SubmitOrder",
                             description = "submit order",
@@ -919,7 +944,7 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
                         ),
                         DesignSpecEntry(
-                            tag = "qry",
+                            tag = "query",
                             packageName = "order.read",
                             name = "FindOrder",
                             description = "find order",
@@ -959,7 +984,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("find order", query.description)
         assertEquals("Order", query.aggregateRef?.name)
         assertEquals("com.acme.demo.domain.aggregates.order", query.aggregateRef?.packageName)
-        assertEquals(QueryVariant.DEFAULT, query.variant)
+        assertEquals(emptySet<RequestTrait>(), query.traits)
     }
 
     @Test
@@ -1035,7 +1060,7 @@ class DefaultCanonicalAssemblerTest {
                 DesignSpecSnapshot(
                     entries = listOf(
                         DesignSpecEntry(
-                            tag = "qry",
+                            tag = "query",
                             packageName = "order.read",
                             name = "FindOrder",
                             description = "find order",
@@ -1121,7 +1146,7 @@ class DefaultCanonicalAssemblerTest {
                     edges = emptyList(),
                     designElements = listOf(
                         DesignElementSnapshot(
-                            tag = "cmd",
+                            tag = "command",
                             packageName = "order.submit",
                             name = "SubmitOrder",
                             description = "submit order",
@@ -1132,7 +1157,7 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = listOf(responseField),
                         ),
                         DesignElementSnapshot(
-                            tag = "cmd",
+                            tag = "command",
                             packageName = "order.submit",
                             name = "SubmitOrder",
                             description = "duplicate submit order",
@@ -1143,13 +1168,13 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = listOf(duplicateField),
                         ),
                         DesignElementSnapshot(
-                            tag = "cli",
+                            tag = "client",
                             packageName = "order.delivery",
                             name = "PublishOrder",
                             description = "publish order",
                         ),
                         DesignElementSnapshot(
-                            tag = "qry",
+                            tag = "query",
                             packageName = "order.read",
                             name = "FindOrder",
                             description = "find order",
@@ -1158,13 +1183,13 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = emptyList(),
                         ),
                         DesignElementSnapshot(
-                            tag = "payload",
+                            tag = "api_payload",
                             packageName = "order.payload",
                             name = "CreateOrderPayload",
                             description = "create order payload",
                         ),
                         DesignElementSnapshot(
-                            tag = "de",
+                            tag = "domain_event",
                             packageName = "order.events",
                             name = "OrderCreatedDomainEvent",
                             description = "order created",
@@ -1211,6 +1236,39 @@ class DefaultCanonicalAssemblerTest {
         val domainEvent = drawingBoard.elementsByTag.getValue("domain_event").single()
         assertEquals(null, domainEvent.entity)
         assertEquals(listOf(DrawingBoardFieldModel(name = "reason", type = "String")), domainEvent.requestFields)
+    }
+
+    @Test
+    fun `drawing board projection accepts only canonical design tags`() {
+        val assembler = DefaultCanonicalAssembler()
+        val result = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                IrAnalysisSnapshot(
+                    inputDirs = emptyList(),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                    designElements = listOf(
+                        DesignElementSnapshot(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            description = "find order",
+                        ),
+                        DesignElementSnapshot(
+                            tag = "q" + "ry",
+                            packageName = "order.read",
+                            name = "LegacyFindOrder",
+                            description = "legacy find order",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val board = requireNotNull(result.model.drawingBoard)
+        assertEquals(listOf("FindOrder"), board.elements.map { it.name })
+        assertEquals(listOf("query"), board.elementsByTag.keys.toList())
     }
 
     @Test

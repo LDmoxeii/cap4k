@@ -31,7 +31,6 @@ import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.QueryModel
-import com.only4.cap4k.plugin.pipeline.api.QueryVariant
 import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SourceSnapshot
@@ -60,7 +59,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
         val commands = designSnapshot?.entries.orEmpty()
             .asSequence()
-            .filter { entry -> entry.tag.lowercase(Locale.ROOT) in setOf("cmd", "command") }
+            .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "command" }
             .map { entry ->
                 CommandModel(
                     packageName = entry.packageName,
@@ -76,24 +75,23 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
         val queries = designSnapshot?.entries.orEmpty()
             .asSequence()
-            .filter { entry -> entry.tag.lowercase(Locale.ROOT) in setOf("qry", "query") }
+            .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "query" }
             .map { entry ->
-                val typeName = "${entry.name}Qry"
                 QueryModel(
                     packageName = entry.packageName,
-                    typeName = typeName,
+                    typeName = "${entry.name}Qry",
                     description = entry.description,
                     aggregateRef = entry.requestAggregateRef(aggregateLookup),
                     requestFields = entry.requestFields,
                     responseFields = entry.responseFields,
-                    variant = resolveQueryVariant(typeName),
+                    traits = entry.traits,
                 )
             }
             .toList()
 
         val clients = designSnapshot?.entries.orEmpty()
             .asSequence()
-            .filter { entry -> entry.tag.lowercase(Locale.ROOT) in setOf("cli", "client", "clients") }
+            .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "client" }
             .map { entry ->
                 ClientModel(
                     packageName = entry.packageName,
@@ -129,6 +127,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     description = entry.description,
                     requestFields = entry.requestFields,
                     responseFields = entry.responseFields,
+                    traits = entry.traits,
                 )
             }
             .toList()
@@ -413,12 +412,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         )
     }
 
-    private fun resolveQueryVariant(typeName: String): QueryVariant = when {
-        typeName.endsWith("PageQry") -> QueryVariant.PAGE
-        typeName.endsWith("ListQry") -> QueryVariant.LIST
-        else -> QueryVariant.DEFAULT
-    }
-
     private fun DesignElementSnapshot.toDrawingBoardElementOrNull(): DrawingBoardElementModel? {
         val normalizedTag = normalizeDrawingBoardTag(tag) ?: return null
         if (normalizedTag !in SupportedDrawingBoardTags) {
@@ -458,11 +451,12 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
     private fun normalizeDrawingBoardTag(tag: String): String? =
         when (tag.lowercase(Locale.ROOT)) {
-            "cmd", "command" -> "command"
-            "qry", "query" -> "query"
-            "cli", "client", "clients" -> "client"
-            "payload", "api_payload" -> "api_payload"
-            "de", "domain_event" -> "domain_event"
+            "command" -> "command"
+            "query" -> "query"
+            "client" -> "client"
+            "api_payload" -> "api_payload"
+            "domain_event" -> "domain_event"
+            "validator" -> "validator"
             else -> null
         }
 
@@ -565,7 +559,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
     private companion object {
-        val SupportedDrawingBoardTags = setOf("command", "query", "client", "api_payload", "domain_event")
+        val SupportedDrawingBoardTags = setOf("command", "query", "client", "api_payload", "domain_event", "validator")
         val UpperCamelSplitRegex = Regex("(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+")
 
         fun lowerCamelIdentifier(value: String): String {
