@@ -275,8 +275,9 @@ Recommended order after the current next mainline:
 1. Contract-first query contract
 2. ddd-core nullability contract stabilization
 3. validator projection and generation normalization
-4. irAnalysis restructuring analysis
-5. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
+4. generated source output and entity behavior split
+5. irAnalysis restructuring analysis
+6. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
 
 The third item is a combined implementation track over:
 
@@ -404,7 +405,41 @@ Notes:
 - aggregate unique validators remain separate from ordinary design validators
 - should be implemented in the same plan as analysis design projection normalization because both share the validator design model
 
-### 5. irAnalysis restructuring analysis
+### 5. Generated source output and entity behavior split
+
+Status:
+
+- candidate generator-architecture work
+- spec written
+- implementation plan not written
+- implementation not started
+
+Next action:
+
+- review the dedicated spec before implementation planning
+- first define the generated-source output contract and source-set integration
+- then define the aggregate entity template contract needed before entities can safely move to generated sources
+- do not implement this as a simple exporter-root switch
+
+Reference:
+
+- [generated source output and entity behavior split design](specs/2026-04-28-cap4k-generated-source-output-and-entity-behavior-split-design.md)
+
+Notes:
+
+- some generated artifacts are pure derived code and should not necessarily live under checked-in `src/main/kotlin`
+- candidate generated-source artifacts include schema `S*` classes, standard repositories, generated enums, enum translations, converters, aggregate unique queries, aggregate unique query handlers, aggregate unique validators, and eventually pure entity mapping classes
+- user-owned artifacts such as handlers, validator bodies, subscribers, controllers, and behavior files should stay checked in
+- moving entity files to generated sources requires first restoring the old plugin's mutable entity shape
+- entity templates should generate regular `class` declarations, not `data class`
+- constructor parameters should initialize body fields rather than becoming immutable primary-constructor properties
+- scalar fields should use `var field = field` with bounded setters such as `internal set`
+- owned collections should remain behavior-friendly, typically `MutableList<T>` with `mutableListOf()`
+- behavior should be separated into checked-in files such as `<AggregateRootName>Behavior.kt`, generated once with a skip/keep-existing policy
+- a generated empty behavior file is useful only as a scaffold; the generated entity contract must make that behavior file able to mutate aggregate state safely
+- Gradle integration must register generated Kotlin source directories per module so IDE import and `compileKotlin` see the generated files consistently
+
+### 6. irAnalysis restructuring analysis
 
 Status:
 
@@ -429,7 +464,7 @@ Notes:
 - if analysis design projection normalization can be solved without restructuring, keep restructuring deferred
 - this should not block smaller drawing-board or validator-generation slices unless evidence shows the current architecture cannot support them
 
-### 6. Unit-of-work and repository backend comparison
+### 7. Unit-of-work and repository backend comparison
 
 Status:
 

@@ -112,9 +112,47 @@ Required reproduction:
 
 The fixture should not blindly encode `EAGER` as the framework answer. If eager loading is needed for a specific aggregate shape, that must be a deliberate capability decision.
 
+### 2.1 Request Execution Policy and Command Transaction Boundary
+
+`RequestSupervisor` is a unified dispatch entrypoint, but it must not imply one unified transaction policy for every request family.
+
+Current cap4k shape:
+
+- `Mediator.requests`, `Mediator.commands`, and `Mediator.queries` all point to the same `RequestSupervisor`
+- `DefaultRequestSupervisor` only special-cases `SagaParam`
+- non-Saga requests are all resolved to a `RequestHandler` and executed through `handler.exec(request)`
+- generated or hand-written CLI requests currently have no stable framework marker and often appear only as plain `RequestParam` plus plain `RequestHandler`
+
+This is architecturally different from NetCorePal's command-only unit-of-work behavior. Therefore, the lazy-loading fix must not be implemented by wrapping the whole `RequestSupervisor.send()` path in a transaction.
+
+The desired cap4k policy is family-specific:
+
+- command requests enter the command transaction boundary by default
+- query requests do not automatically share command transaction semantics
+- CLI/distributed-client requests do not automatically enter a database transaction
+- saga requests remain owned by `SagaSupervisor`
+- saga child steps use the policy of the child request they execute
+- plain `RequestHandler` remains non-transactional unless explicitly classified
+
+The immediate runtime hardening work should focus on command-boundary transaction behavior only. Query read-only transactions, saga retry transaction policy, and client request transaction policy are separate decisions.
+
+Missing marker to record:
+
+- CLI/distributed-client requests need their own explicit marker or typed contract in a later design
+- without that marker, the runtime cannot distinguish client calls from generic request handlers safely
+- until that exists, CLI requests must not be accidentally included in command transaction behavior
+
 ### 3. Three-Level Aggregate Whole-Save Behavior
 
 `only-danmuku` has aggregate structures like root -> child -> grandchild. The suspected defect is that whole-save/cascade behavior may fail or produce incorrect persistence effects.
+
+The contract under test is aggregate-root whole-save:
+
+- application code submits only the aggregate root to the unit of work
+- owned child and grandchild entities are persisted through the aggregate relation mapping
+- application code should not need child repositories
+- application code should not need to call `uow.persist(child)` or `uow.persist(grandchild)` for owned entities
+- the repository surface remains aggregate-root oriented
 
 Required reproduction:
 
@@ -125,6 +163,50 @@ Required reproduction:
 - verify database state after flush/transaction commit
 
 This should be a runtime behavior test, not a renderer assertion.
+
+The reproduction must separate three different concerns:
+
+1. JPA database behavior:
+   - `cascade = [CascadeType.ALL]` persists new child and grandchild rows when only the root is persisted
+   - managed collection mutation updates existing child and grandchild rows
+   - `orphanRemoval = true` deletes or soft-deletes removed child and grandchild rows according to the mapping
+   - foreign keys from child to root and grandchild to child are valid after flush
+
+2. Transaction and managed-state behavior:
+   - loaded aggregate graphs must be modified inside the intended command transaction boundary
+   - failures caused by detached entities or closed persistence contexts must be classified as transaction-boundary defects, not cascade defects
+   - the test must distinguish load-modify-save behavior from create-and-save behavior
+
+3. Unit-of-work post-processing visibility:
+   - database correctness does not automatically mean cap4k interceptors see every cascaded entity
+   - `postEntitiesPersisted` currently receives the explicit unit-of-work set plus any framework-tracked processing set
+   - cascaded child and grandchild entities may not appear in that set unless cap4k deliberately captures them
+   - whether inline persist listeners and domain-event release should include cascaded child/grandchild entities is a separate contract decision
+
+Required test matrix:
+
+- create root with two children and two grandchildren per child, then verify all rows and foreign keys
+- load root, update a child scalar field and a grandchild scalar field, then verify database state
+- remove one grandchild from a managed child collection, then verify orphan-removal behavior
+- remove one child from the managed root collection, then verify child and descendant cleanup behavior
+- clear and re-add a grandchild collection separately from replacing the collection instance
+- if `@SQLDelete`/`@Where` are involved, verify both ORM-visible results and native SQL rows
+
+The implementation plan must not start by re-enabling broad persistence-context scanning in `JpaUnitOfWork`.
+
+Specifically:
+
+- blindly adding all `persistenceContextEntities()` to `postEntitiesPersisted` can include unrelated managed entities
+- it cannot accurately classify created, updated, and deleted entities without additional dirty-state analysis
+- it may trigger inline listeners or domain-event release for entities that were only read
+- it should be considered only after a failing test proves post-processing visibility is the actual missing contract
+
+Likely classification outcomes:
+
+- if create-only three-level save fails, inspect generated relation mapping first
+- if create works but load-modify-save fails, inspect command transaction boundary and managed-state continuity first
+- if database state is correct but listeners/events miss descendants, define a separate cascaded-entity visibility contract
+- if replacing collection instances fails while mutating managed collections works, document or enforce the supported collection mutation pattern
 
 ## Fixture Strategy
 
