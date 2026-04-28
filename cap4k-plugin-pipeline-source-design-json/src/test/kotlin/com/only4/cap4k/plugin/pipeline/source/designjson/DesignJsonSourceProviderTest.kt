@@ -4,6 +4,7 @@ import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
+import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import java.io.File
@@ -21,7 +22,7 @@ class DesignJsonSourceProviderTest {
     lateinit var tempDir: Path
 
     @Test
-    fun `loads command and query entries from configured files`() {
+    fun `loads canonical command and query entries from configured files`() {
         val fixture = File("src/test/resources/fixtures/design/design.json").path
         val config = ProjectConfig(
             basePackage = "com.only4.cap4k",
@@ -45,7 +46,7 @@ class DesignJsonSourceProviderTest {
         val snapshot = provider.collect(config) as DesignSpecSnapshot
 
         assertEquals(2, snapshot.entries.size)
-        assertEquals("cmd", snapshot.entries.first().tag)
+        assertEquals("command", snapshot.entries.first().tag)
         assertEquals("order.submit", snapshot.entries.first().packageName)
         assertEquals("submit order command", snapshot.entries.first().description)
         assertEquals(listOf("Order"), snapshot.entries.first().aggregates)
@@ -55,6 +56,7 @@ class DesignJsonSourceProviderTest {
         assertEquals(1, snapshot.entries.first().responseFields.size)
         assertEquals("accepted", snapshot.entries.first().responseFields.first().name)
         assertEquals("Boolean", snapshot.entries.first().responseFields.first().type)
+        assertEquals("query", snapshot.entries.last().tag)
         assertEquals("FindOrder", snapshot.entries.last().name)
         assertEquals("orderId", snapshot.entries.last().requestFields.first().name)
         assertEquals("Long", snapshot.entries.last().requestFields.first().type)
@@ -68,7 +70,7 @@ class DesignJsonSourceProviderTest {
         val content = """
             [
               {
-                "tag": "cmd",
+                "tag": "command",
                 "package": "order.submit",
                 "name": "CreateOrder",
                 "desc": "中文描述",
@@ -250,6 +252,168 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
+    fun `reads page traits for query and api payload entries`() {
+        val tempFile = tempDir.resolve("page-traits.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "query",
+                    "package": "order.read",
+                    "name": "FindOrderPage",
+                    "desc": "find order page",
+                    "traits": ["page"],
+                    "requestFields": [],
+                    "responseFields": [
+                      { "name": "page", "type": "com.only4.cap4k.ddd.core.share.PageData<Item>" },
+                      { "name": "page.list[].orderId", "type": "Long" }
+                    ]
+                  },
+                  {
+                    "tag": "api_payload",
+                    "package": "order.read",
+                    "name": "FindOrderPage",
+                    "desc": "find order page payload",
+                    "traits": ["PAGE"],
+                    "requestFields": [],
+                    "responseFields": [
+                      { "name": "page", "type": "com.only4.cap4k.ddd.core.share.PageData<Item>" },
+                      { "name": "page.list[].orderId", "type": "Long" }
+                    ]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
+
+        assertEquals(setOf(RequestTrait.PAGE), snapshot.entries[0].traits)
+        assertEquals(setOf(RequestTrait.PAGE), snapshot.entries[1].traits)
+    }
+
+    @Test
+    fun `rejects legacy design tag aliases`() {
+        val legacyTags = listOf("cmd", "qry", "cli", "clients", "payload", "de", "query_list", "query_page")
+
+        legacyTags.forEach { legacyTag ->
+            val tempFile = tempDir.resolve("legacy-${legacyTag}.json")
+            Files.writeString(
+                tempFile,
+                """
+                    [
+                      {
+                        "tag": "$legacyTag",
+                        "package": "order.read",
+                        "name": "LegacyTag",
+                        "desc": "legacy tag",
+                        "requestFields": [],
+                        "responseFields": []
+                      }
+                    ]
+                """.trimIndent(),
+                StandardCharsets.UTF_8,
+            )
+
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+            }
+
+            assertEquals("unsupported design tag for LegacyTag: $legacyTag", error.message)
+        }
+    }
+
+    @Test
+    fun `rejects unknown request trait`() {
+        val tempFile = tempDir.resolve("unknown-trait.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "query",
+                    "package": "order.read",
+                    "name": "FindOrder",
+                    "desc": "find order",
+                    "traits": ["cursor"],
+                    "requestFields": [],
+                    "responseFields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals("design entry FindOrder has unsupported trait: cursor", error.message)
+    }
+
+    @Test
+    fun `rejects request traits on unsupported tags`() {
+        val tempFile = tempDir.resolve("trait-on-command.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "command",
+                    "package": "order.submit",
+                    "name": "SubmitOrder",
+                    "desc": "submit order",
+                    "traits": ["page"],
+                    "requestFields": [],
+                    "responseFields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals("design entry SubmitOrder cannot use request traits on tag: command", error.message)
+    }
+
+    @Test
+    fun `rejects self in design field types`() {
+        val tempFile = tempDir.resolve("self-recursion.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "api_payload",
+                    "package": "category",
+                    "name": "GetCategoryTree",
+                    "desc": "get category tree",
+                    "requestFields": [],
+                    "responseFields": [
+                      { "name": "nodes", "type": "List<Node>" },
+                      { "name": "nodes[].children", "type": "List<self>" }
+                    ]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals(
+            "design entry GetCategoryTree field nodes[].children must use an explicit type name instead of self",
+            error.message,
+        )
+    }
+
+    @Test
     fun `declares utf8 charset when reading design files`() {
         val sourceFile = File(
             "src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProvider.kt",
@@ -270,7 +434,7 @@ class DesignJsonSourceProviderTest {
             """
                 [
                   {
-                    "tag": "cmd",
+                    "tag": "command",
                     "package": "order.submit",
                     "name": "SubmitOrder",
                     "desc": "submit order",
@@ -288,7 +452,7 @@ class DesignJsonSourceProviderTest {
             """
                 [
                   {
-                    "tag": "qry",
+                    "tag": "query",
                     "package": "order.query",
                     "name": "FindOrder",
                     "desc": "find order",
@@ -352,7 +516,7 @@ class DesignJsonSourceProviderTest {
             """
                 [
                   {
-                    "tag": "cmd",
+                    "tag": "command",
                     "package": "order.submit",
                     "name": "SubmitOrder",
                     "desc": "submit order",
@@ -448,7 +612,7 @@ class DesignJsonSourceProviderTest {
             """
                 [
                   {
-                    "tag": "cmd",
+                    "tag": "command",
                     "package": "order.submit",
                     "name": "Outside",
                     "desc": "outside",
@@ -542,4 +706,23 @@ class DesignJsonSourceProviderTest {
 
         assertTrue(error.message?.contains("blank design manifest entry") == true)
     }
+
+    private fun configFor(vararg files: String): ProjectConfig =
+        ProjectConfig(
+            basePackage = "com.only4.cap4k",
+            layout = ProjectLayout.SINGLE_MODULE,
+            modules = emptyMap(),
+            sources = mapOf(
+                "design-json" to SourceConfig(
+                    enabled = true,
+                    options = mapOf("files" to files.toList()),
+                ),
+            ),
+            generators = emptyMap(),
+            templates = TemplateConfig(
+                preset = "default",
+                overrideDirs = emptyList(),
+                conflictPolicy = ConflictPolicy.SKIP,
+            ),
+        )
 }

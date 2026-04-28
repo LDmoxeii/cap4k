@@ -1,17 +1,30 @@
 package com.only4.cap4k.plugin.pipeline.source.designjson
 
 import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import java.io.File
 import java.util.Locale
 
 class DesignJsonSourceProvider : SourceProvider {
     override val id: String = "design-json"
+
+    private val supportedTags = setOf(
+        "command",
+        "query",
+        "client",
+        "api_payload",
+        "domain_event",
+        "validator",
+    )
+    private val requestTraitTags = setOf("query", "api_payload")
+    private val selfToken = Regex("""(?<![A-Za-z0-9_.])self(?![A-Za-z0-9_])""", RegexOption.IGNORE_CASE)
 
     override fun collect(config: ProjectConfig): DesignSpecSnapshot {
         val options = config.sources[id]?.options ?: emptyMap()
@@ -83,10 +96,14 @@ class DesignJsonSourceProvider : SourceProvider {
         val array = file.reader(Charsets.UTF_8).use { JsonParser.parseReader(it).asJsonArray }
         return array.map { element ->
             val obj = element.asJsonObject
-            val tag = obj["tag"].asString
+            val rawTag = obj["tag"].asString
             val name = obj["name"].asString
+            val tag = parseTag(rawTag, name)
             val requestFields = parseFields(obj["requestFields"]?.asJsonArray)
+            val responseFields = parseFields(obj["responseFields"]?.asJsonArray)
+            val traits = parseTraits(obj, tag, name)
             validateReservedFields(tag, name, requestFields)
+            validateNoSelfTypes(name, requestFields + responseFields)
             DesignSpecEntry(
                 tag = tag,
                 packageName = readPackageName(obj["package"]?.asString, tag),
@@ -94,8 +111,46 @@ class DesignJsonSourceProvider : SourceProvider {
                 description = obj["desc"]?.asString ?: "",
                 aggregates = obj["aggregates"]?.asJsonArray?.map { it.asString } ?: emptyList(),
                 persist = obj["persist"]?.asBoolean,
+                traits = traits,
                 requestFields = requestFields,
-                responseFields = parseFields(obj["responseFields"]?.asJsonArray),
+                responseFields = responseFields,
+            )
+        }
+    }
+
+    private fun parseTag(rawTag: String, name: String): String {
+        val tag = rawTag.trim().lowercase(Locale.ROOT)
+        require(tag in supportedTags) {
+            "unsupported design tag for $name: $rawTag"
+        }
+        return tag
+    }
+
+    private fun parseTraits(obj: JsonObject, tag: String, name: String): Set<RequestTrait> {
+        val rawTraits = obj["traits"]
+            ?.asJsonArray
+            ?.map { it.asString.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?: emptyList()
+
+        val traits = rawTraits.map { rawTrait ->
+            val normalized = rawTrait.uppercase(Locale.ROOT)
+            runCatching { RequestTrait.valueOf(normalized) }.getOrElse {
+                throw IllegalArgumentException("design entry $name has unsupported trait: $rawTrait")
+            }
+        }.toSet()
+
+        require(traits.isEmpty() || tag in requestTraitTags) {
+            "design entry $name cannot use request traits on tag: $tag"
+        }
+
+        return traits
+    }
+
+    private fun validateNoSelfTypes(name: String, fields: List<FieldModel>) {
+        fields.firstOrNull { field -> selfToken.containsMatchIn(field.type) }?.let { field ->
+            throw IllegalArgumentException(
+                "design entry $name field ${field.name} must use an explicit type name instead of self",
             )
         }
     }
