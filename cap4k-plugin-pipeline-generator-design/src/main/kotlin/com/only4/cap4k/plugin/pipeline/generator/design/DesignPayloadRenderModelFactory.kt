@@ -369,19 +369,19 @@ internal object DesignPayloadRenderModelFactory {
         nestedTypeNodes: MutableList<PayloadPathNode>,
     ) {
         node.children.values.forEach { child ->
-            if (child.children.isNotEmpty()) {
-                if (isPageDataType(child.explicitDeclarations.singleOrNull()?.type)) {
-                    val pageEnvelopeItemTypeName = validatePageEnvelopeItemTypeName(child, namespace)
-                    collectPageEnvelopeItemNode(
-                        pageNode = child,
-                        itemTypeName = pageEnvelopeItemTypeName,
-                        namespace = namespace,
-                        nestedTypeNames = nestedTypeNames,
-                        nestedTypeNodes = nestedTypeNodes,
-                    )
-                    return@forEach
-                }
+            if (isPageDataType(child.explicitDeclarations.singleOrNull()?.type)) {
+                val pageEnvelopeItemTypeName = validatePageEnvelopeItemTypeName(child, namespace)
+                collectPageEnvelopeItemNode(
+                    pageNode = child,
+                    itemTypeName = pageEnvelopeItemTypeName,
+                    namespace = namespace,
+                    nestedTypeNames = nestedTypeNames,
+                    nestedTypeNodes = nestedTypeNodes,
+                )
+                return@forEach
+            }
 
+            if (child.children.isNotEmpty()) {
                 val nestedTypeName = validateNestedContainer(child, namespace)
                 if (!nestedTypeNames.add(nestedTypeName)) {
                     throw IllegalArgumentException("duplicate nested type name in $namespace namespace: $nestedTypeName")
