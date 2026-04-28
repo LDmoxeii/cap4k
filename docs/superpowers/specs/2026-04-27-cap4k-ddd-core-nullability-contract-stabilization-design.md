@@ -1,7 +1,8 @@
 # cap4k ddd-core Nullability Contract Stabilization Design
 
 > Date: 2026-04-27
-> Status: Draft for review
+> Status: Current-master reviewed; approved for implementation planning
+> Current-master review: 2026-04-28
 > Scope: ddd-core public nullability contract, repository/aggregate lookup return types, domain service lookup, saga sub-process result semantics
 > Out of scope: serialization-boundary generic typing, `Any` payload/result refactors, Spring Data repository API changes
 
@@ -10,6 +11,7 @@
 The existing `docs/design/ddd-core-nullability/analysis.md` documents a full scan of nullability and `java.util.Optional` usage across the project.
 
 That analysis was created because the original ddd-core APIs were designed before the framework had a stable Kotlin nullability policy.
+It is historical reference material, not the current implementation plan. In current `master`, the contract-first query contract has already removed the old `ListQuery` / `PageQuery` API family and left `Query<PARAM, RESULT>` plus `PageRequest(pageNum, pageSize)`. Those historical query-family inventory entries do not belong to this stabilization slice.
 
 There are two related problems:
 
@@ -259,7 +261,7 @@ fun <DOMAIN_SERVICE> getService(
 Target:
 
 ```kotlin
-fun <DOMAIN_SERVICE> getService(
+fun <DOMAIN_SERVICE : Any> getService(
     domainServiceClass: Class<DOMAIN_SERVICE>
 ): DOMAIN_SERVICE
 ```
@@ -278,6 +280,7 @@ Expected failure cases:
 - Spring bean is missing
 - resolved bean does not carry `@DomainService` through its class hierarchy
 - Spring lookup throws due to ambiguous or invalid bean state
+- interface-only `@DomainService` remains insufficient; the resolved implementation class or one of its superclasses must carry the annotation
 
 Expected behavior:
 
@@ -298,6 +301,13 @@ Bean is not a domain service: com.acme.MyService
 ```
 
 Exact exception type can be decided during implementation. `IllegalStateException` is acceptable unless a project-specific domain exception is more appropriate.
+
+Implementation decision for this slice:
+
+- the public generic bound should be `DOMAIN_SERVICE : Any`, so Kotlin callers cannot ask for a nullable service type
+- missing bean or Spring lookup failure should throw `IllegalStateException("Domain service not found: <fqcn>", cause)`
+- resolved bean without implementation-class or superclass `@DomainService` should throw `IllegalStateException("Bean is not a domain service: <fqcn>")`
+- valid inherited class annotations and Spring proxy instances should keep working
 
 ### SagaProcessSupervisor.sendProcess
 
@@ -469,6 +479,12 @@ internally when adapting Java APIs.
 
 But cap4k Kotlin public APIs should not expose Java `Optional<T>`.
 
+Current-master boundary note:
+
+- `ddd-application-request-jpa`, `ddd-domain-event-jpa`, `ddd-distributed-saga-jpa`, and `ddd-integration-event-http-jpa` use Spring Data `Optional` at repository boundaries; those usages are intentionally retained.
+- `ddd-integration-event-http-jpa` may keep its Spring Data `findOne()` Optional handling because it is not implementing the cap4k `Repository` lookup contract.
+- `ddd-domain-repo-jpa` and `ddd-domain-repo-jpa-querydsl` must adapt Spring Data / QueryDSL Optional values before returning through cap4k repository APIs.
+
 ## Call-Site Migration Rules
 
 Repository and aggregate lookup call sites should move from Java Optional style to Kotlin nullable style.
@@ -542,9 +558,12 @@ The following are explicitly deferred:
 - `EventRecord.init(payload: Any, ...)` generic typing
 - serializer boundary redesign
 - `RequestParam<RESULT : Any>` change
+- contract-first query contract changes
+- old `ListQuery` / `PageQuery` historical cleanup
 - renaming `AggregateSupervisor.getById` / `removeById`
 - adding `findById` / `getRequiredById`
 - changing Spring Data repository method signatures
+- legacy `cap4k-plugin-codegen` cleanup
 
 ## Affected Areas
 
@@ -571,6 +590,10 @@ Expected implementation impact:
 - `ddd-domain-repo-jpa-querydsl`
   - `AbstractQuerydslRepository`
   - related tests
+
+- current-master Spring Data boundary modules
+  - no public contract changes required
+  - compile/test only if implementation changes expose incompatible signatures
 
 - tests
   - update Optional assertions
@@ -611,6 +634,7 @@ Verification:
 - `:ddd-core:test` passes.
 - `:ddd-domain-repo-jpa:test` passes.
 - `:ddd-domain-repo-jpa-querydsl:test` passes.
+- If downstream Spring Data boundary modules are touched by compilation fallout, run their targeted tests as well. Otherwise, leave their Optional boundary behavior unchanged.
 
 ## Risks
 

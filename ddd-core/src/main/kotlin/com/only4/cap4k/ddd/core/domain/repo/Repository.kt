@@ -3,7 +3,6 @@ package com.only4.cap4k.ddd.core.domain.repo
 import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
-import java.util.*
 
 
 /**
@@ -69,7 +68,7 @@ interface Repository<ENTITY : Any> {
      * @param persist
      * @return
      */
-    fun findOne(predicate: Predicate<ENTITY>, persist: Boolean = true): Optional<ENTITY>
+    fun findOne(predicate: Predicate<ENTITY>, persist: Boolean = true): ENTITY?
 
     /**
      * 根据条件获取实体
@@ -83,7 +82,7 @@ interface Repository<ENTITY : Any> {
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
         persist: Boolean = true
-    ): Optional<ENTITY>
+    ): ENTITY?
 
     /**
      * 根据条件获取实体列表
@@ -95,7 +94,7 @@ interface Repository<ENTITY : Any> {
     fun findFirst(
         predicate: Predicate<ENTITY>,
         vararg orders: OrderInfo
-    ): Optional<ENTITY> {
+    ): ENTITY? {
         return findFirst(predicate, orders.toList())
     }
 

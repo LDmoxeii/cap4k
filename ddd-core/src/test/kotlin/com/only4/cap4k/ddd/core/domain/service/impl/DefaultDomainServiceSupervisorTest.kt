@@ -42,49 +42,56 @@ class DefaultDomainServiceSupervisorTest {
         }
 
         @Test
-        @DisplayName("应该对没有@DomainService注解的服务返回null")
-        fun `should return null for service without DomainService annotation`() {
+        @DisplayName("应该对没有@DomainService注解的服务抛出异常")
+        fun `should throw for service without DomainService annotation`() {
             // given
             val serviceInstance = TestServiceWithoutAnnotation()
             every { mockApplicationContext.getBean(TestServiceWithoutAnnotation::class.java) } returns serviceInstance
 
             // when
-            val result = supervisor.getService(TestServiceWithoutAnnotation::class.java)
+            val ex = assertThrows<IllegalStateException> {
+                supervisor.getService(TestServiceWithoutAnnotation::class.java)
+            }
 
             // then
-            assertNull(result)
+            assertEquals("Bean is not a domain service: ${TestServiceWithoutAnnotation::class.java.name}", ex.message)
             verify { mockApplicationContext.getBean(TestServiceWithoutAnnotation::class.java) }
         }
 
         @Test
-        @DisplayName("当Spring容器中找不到Bean时应该返回null")
-        fun `should return null when bean not found in Spring context`() {
+        @DisplayName("当Spring容器中找不到Bean时应该抛出异常")
+        fun `should throw when bean not found in Spring context`() {
             // given
             every { mockApplicationContext.getBean(NonExistentService::class.java) } throws NoSuchBeanDefinitionException(
                 "Bean not found"
             )
 
             // when
-            val result = supervisor.getService(NonExistentService::class.java)
+            val ex = assertThrows<IllegalStateException> {
+                supervisor.getService(NonExistentService::class.java)
+            }
 
             // then
-            assertNull(result)
+            assertEquals("Domain service not found: ${NonExistentService::class.java.name}", ex.message)
             verify { mockApplicationContext.getBean(NonExistentService::class.java) }
         }
 
         @Test
-        @DisplayName("当ApplicationContext抛出其他异常时应该返回null")
-        fun `should return null when ApplicationContext throws other exceptions`() {
+        @DisplayName("当ApplicationContext抛出其他异常时应该抛出异常")
+        fun `should throw when ApplicationContext throws other exceptions`() {
             // given
             every { mockApplicationContext.getBean(TestDomainServiceWithAnnotation::class.java) } throws RuntimeException(
                 "Unexpected error"
             )
 
             // when
-            val result = supervisor.getService(TestDomainServiceWithAnnotation::class.java)
+            val ex = assertThrows<IllegalStateException> {
+                supervisor.getService(TestDomainServiceWithAnnotation::class.java)
+            }
 
             // then
-            assertNull(result)
+            assertEquals("Domain service not found: ${TestDomainServiceWithAnnotation::class.java.name}", ex.message)
+            assertEquals("Unexpected error", ex.cause?.message)
             verify { mockApplicationContext.getBean(TestDomainServiceWithAnnotation::class.java) }
         }
 
@@ -144,17 +151,22 @@ class DefaultDomainServiceSupervisorTest {
     inner class AnnotationCheckTests {
 
         @Test
-        @DisplayName("应该检查实际类的注解而不是接口的注解")
-        fun `should check annotation on actual class not interface`() {
+        @DisplayName("应该拒绝只有接口带注解但实现类没有注解的服务")
+        fun `should reject interface annotation without implementation annotation`() {
             // given - 接口有注解，但实现类没有
             val serviceInstance = TestServiceImplementationWithoutAnnotation()
             every { mockApplicationContext.getBean(TestServiceImplementationWithoutAnnotation::class.java) } returns serviceInstance
 
             // when
-            val result = supervisor.getService(TestServiceImplementationWithoutAnnotation::class.java)
+            val ex = assertThrows<IllegalStateException> {
+                supervisor.getService(TestServiceImplementationWithoutAnnotation::class.java)
+            }
 
             // then
-            assertNull(result)
+            assertEquals(
+                "Bean is not a domain service: ${TestServiceImplementationWithoutAnnotation::class.java.name}",
+                ex.message
+            )
             verify { mockApplicationContext.getBean(TestServiceImplementationWithoutAnnotation::class.java) }
         }
 

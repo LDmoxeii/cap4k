@@ -212,7 +212,6 @@ class AbstractQuerydslRepositoryTest {
         assertEquals(1L, repository.count(predicate))
 
         val foundEntity = repository.findOne(predicate, true)
-        assertTrue(foundEntity.isPresent)
-        assertEquals(testEntity, foundEntity.get())
+        assertEquals(testEntity, foundEntity)
     }
 }

@@ -13,7 +13,6 @@ import com.only4.cap4k.ddd.domain.repo.JpaPredicate
 import io.mockk.*
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
-import java.util.*
 
 class DefaultRepositorySupervisorTest {
 
@@ -77,17 +76,16 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
-    @DisplayName("查找单个实体应该返回Optional实体")
-    fun `findOne should return optional entity`() {
+    @DisplayName("查找单个实体应该返回实体")
+    fun `findOne should return nullable entity`() {
         val predicate = TestPredicate()
         val expectedEntity = TestEntity(1L, "test")
-        val optional = Optional.of(expectedEntity)
 
-        every { mockRepository.findOne(predicate, false) } returns optional
+        every { mockRepository.findOne(predicate, false) } returns expectedEntity
 
         val result = supervisor.findOne(predicate, false)
 
-        assertEquals(optional, result)
+        assertEquals(expectedEntity, result)
         verify { mockRepository.findOne(predicate, false) }
     }
 
@@ -96,13 +94,12 @@ class DefaultRepositorySupervisorTest {
     fun `findOne with persist should call unitOfWork persist when entity present`() {
         val predicate = TestPredicate()
         val expectedEntity = TestEntity(1L, "test")
-        val optional = Optional.of(expectedEntity)
 
-        every { mockRepository.findOne(predicate, true) } returns optional
+        every { mockRepository.findOne(predicate, true) } returns expectedEntity
 
         val result = supervisor.findOne(predicate, true)
 
-        assertEquals(optional, result)
+        assertEquals(expectedEntity, result)
         verify { mockRepository.findOne(predicate, true) }
         verify { mockUnitOfWork.persist(expectedEntity) }
     }
@@ -323,13 +320,13 @@ class DefaultRepositorySupervisorTest {
             override fun findOne(
                 predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
                 persist: Boolean
-            ): Optional<TestEntity> = Optional.empty()
+            ): TestEntity? = null
 
             override fun findFirst(
                 predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
                 orders: Collection<OrderInfo>,
                 persist: Boolean
-            ): Optional<TestEntity> = Optional.empty()
+            ): TestEntity? = null
 
             override fun findPage(
                 predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,

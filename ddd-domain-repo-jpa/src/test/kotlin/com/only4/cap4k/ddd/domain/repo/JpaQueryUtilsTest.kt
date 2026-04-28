@@ -155,8 +155,8 @@ class JpaQueryUtilsTest {
     }
 
     @Test
-    @DisplayName("queryFirst在存在结果时应返回包含第一条记录的Optional")
-    fun `queryFirst should return Optional with first result when results exist`() {
+    @DisplayName("queryFirst在存在结果时应返回第一条记录")
+    fun `queryFirst should return first result when results exist`() {
         val expectedEntities = listOf(
             TestEntity(1L, "First Entity"),
             TestEntity(2L, "Second Entity")
@@ -171,15 +171,14 @@ class JpaQueryUtilsTest {
 
         val result = JpaQueryUtils.queryFirst(TestEntity::class.java, TestEntity::class.java, queryBuilder)
 
-        assertTrue(result.isPresent)
-        assertEquals(expectedEntities[0], result.get())
+        assertEquals(expectedEntities[0], result)
         verify { mockTypedQuery.firstResult = 0 }
         verify { mockTypedQuery.maxResults = 1 }
     }
 
     @Test
-    @DisplayName("queryFirst在没有找到结果时应返回空Optional")
-    fun `queryFirst should return empty Optional when no results found`() {
+    @DisplayName("queryFirst在没有找到结果时应返回null")
+    fun `queryFirst should return null when no results found`() {
         every { mockTypedQuery.setFirstResult(0) } returns mockTypedQuery
         every { mockTypedQuery.setMaxResults(1) } returns mockTypedQuery
         every { mockTypedQuery.resultList } returns emptyList()
@@ -190,7 +189,7 @@ class JpaQueryUtilsTest {
 
         val result = JpaQueryUtils.queryFirst(TestEntity::class.java, TestEntity::class.java, queryBuilder)
 
-        assertFalse(result.isPresent)
+        assertEquals(null, result)
         verify { mockTypedQuery.firstResult = 0 }
         verify { mockTypedQuery.maxResults = 1 }
     }

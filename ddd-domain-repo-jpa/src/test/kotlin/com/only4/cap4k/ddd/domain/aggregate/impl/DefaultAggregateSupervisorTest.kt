@@ -12,7 +12,6 @@ import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicateSupport
 import io.mockk.*
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
-import java.util.*
 
 class DefaultAggregateSupervisorTest {
 
@@ -193,61 +192,59 @@ class DefaultAggregateSupervisorTest {
     }
 
     @Test
-    @DisplayName("查找单个聚合存在时应该返回包装的Optional聚合")
-    fun `findOne should return wrapped optional aggregate when entity exists`() {
+    @DisplayName("查找单个聚合存在时应该返回包装聚合")
+    fun `findOne should return wrapped nullable aggregate when entity exists`() {
         val predicate = mockk<AggregatePredicate<TestAggregate, TestEntity>>()
         val entity = TestEntity(1L, "test", 10)
 
         every { JpaAggregatePredicateSupport.reflectAggregateClass(any<AggregatePredicate<TestAggregate, TestEntity>>()) } returns TestAggregate::class.java
         every { JpaAggregatePredicateSupport.getPredicate(any<AggregatePredicate<TestAggregate, TestEntity>>()) } returns mockk()
-        every { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), false) } returns Optional.of(entity)
+        every { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), false) } returns entity
 
         val result = supervisor.findOne(predicate, false)
 
-        assertTrue(result.isPresent)
-        assertEquals(1L, result.get().getId())
-        assertEquals("test", result.get().getName())
+        assertTrue(result != null)
+        assertEquals(1L, result!!.getId())
+        assertEquals("test", result.getName())
         verify { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), false) }
     }
 
     @Test
-    @DisplayName("查找单个聚合不存在时应该返回空Optional")
-    fun `findOne should return empty optional when entity does not exist`() {
+    @DisplayName("查找单个聚合不存在时应该返回null")
+    fun `findOne should return null when entity does not exist`() {
         val predicate = mockk<AggregatePredicate<TestAggregate, TestEntity>>()
 
         every { JpaAggregatePredicateSupport.reflectAggregateClass(any<AggregatePredicate<TestAggregate, TestEntity>>()) } returns TestAggregate::class.java
         every { JpaAggregatePredicateSupport.getPredicate(any<AggregatePredicate<TestAggregate, TestEntity>>()) } returns mockk()
-        every { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), false) } returns Optional.empty()
+        every { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), false) } returns null
 
         val result = supervisor.findOne(predicate, false)
 
-        assertFalse(result.isPresent)
+        assertEquals(null, result)
         verify { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), false) }
     }
 
     @Test
-    @DisplayName("查找第一个聚合存在时应该返回包装的Optional聚合")
-    fun `findFirst should return wrapped optional aggregate when entity exists`() {
+    @DisplayName("查找第一个聚合存在时应该返回包装聚合")
+    fun `findFirst should return wrapped nullable aggregate when entity exists`() {
         val predicate = mockk<AggregatePredicate<TestAggregate, TestEntity>>()
         val orders = listOf(OrderInfo.desc("id"))
         val entity = TestEntity(1L, "test", 10)
 
         every { JpaAggregatePredicateSupport.reflectAggregateClass(any<AggregatePredicate<TestAggregate, TestEntity>>()) } returns TestAggregate::class.java
         every { JpaAggregatePredicateSupport.getPredicate(any<AggregatePredicate<TestAggregate, TestEntity>>()) } returns mockk()
-        every { mockRepositorySupervisor.findFirst(any<Predicate<TestEntity>>(), orders, true) } returns Optional.of(
-            entity
-        )
+        every { mockRepositorySupervisor.findFirst(any<Predicate<TestEntity>>(), orders, true) } returns entity
 
         val result = supervisor.findFirst(predicate, orders, true)
 
-        assertTrue(result.isPresent)
-        assertEquals(1L, result.get().getId())
+        assertTrue(result != null)
+        assertEquals(1L, result!!.getId())
         verify { mockRepositorySupervisor.findFirst(any<Predicate<TestEntity>>(), orders, true) }
     }
 
     @Test
-    @DisplayName("查找第一个聚合不存在时应该返回空Optional")
-    fun `findFirst should return empty optional when entity does not exist`() {
+    @DisplayName("查找第一个聚合不存在时应该返回null")
+    fun `findFirst should return null when entity does not exist`() {
         val predicate = mockk<AggregatePredicate<TestAggregate, TestEntity>>()
         val orders = listOf(OrderInfo.asc("name"))
 
@@ -259,11 +256,11 @@ class DefaultAggregateSupervisorTest {
                 orders,
                 false
             )
-        } returns Optional.empty()
+        } returns null
 
         val result = supervisor.findFirst(predicate, orders, false)
 
-        assertFalse(result.isPresent)
+        assertEquals(null, result)
         verify { mockRepositorySupervisor.findFirst(any<Predicate<TestEntity>>(), orders, false) }
     }
 
@@ -426,7 +423,7 @@ class DefaultAggregateSupervisorTest {
 
         every { JpaAggregatePredicateSupport.reflectAggregateClass(any<AggregatePredicate<NonInstantiableAggregate, TestEntity>>()) } returns NonInstantiableAggregate::class.java
         every { JpaAggregatePredicateSupport.getPredicate(any<AggregatePredicate<NonInstantiableAggregate, TestEntity>>()) } returns mockk()
-        every { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), false) } returns Optional.of(entity)
+        every { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), false) } returns entity
 
         assertThrows<RuntimeException> {
             supervisor.findOne(predicate, false)
@@ -455,12 +452,12 @@ class DefaultAggregateSupervisorTest {
 
         every { JpaAggregatePredicateSupport.reflectAggregateClass(predicate) } returns AnotherAggregate::class.java
         every { JpaAggregatePredicateSupport.getPredicate(any<AggregatePredicate<AnotherAggregate, TestEntity>>()) } returns mockk()
-        every { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), false) } returns Optional.of(entity)
+        every { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), false) } returns entity
 
         val result = supervisor.findOne(predicate, false)
 
-        assertTrue(result.isPresent)
-        assertEquals(1L, result.get().getEntityId())
+        assertTrue(result != null)
+        assertEquals(1L, result!!.getEntityId())
     }
 
     @Test
@@ -505,11 +502,11 @@ class DefaultAggregateSupervisorTest {
 
         every { JpaAggregatePredicateSupport.reflectAggregateClass(any<AggregatePredicate<TestAggregate, TestEntity>>()) } returns TestAggregate::class.java
         every { JpaAggregatePredicateSupport.getPredicate(any<AggregatePredicate<TestAggregate, TestEntity>>()) } returns mockk()
-        every { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), true) } returns Optional.of(entity)
+        every { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), true) } returns entity
 
         val result = supervisor.findOne(predicate, true)
 
-        assertTrue(result.isPresent)
+        assertTrue(result != null)
         verify { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), true) }
     }
 }

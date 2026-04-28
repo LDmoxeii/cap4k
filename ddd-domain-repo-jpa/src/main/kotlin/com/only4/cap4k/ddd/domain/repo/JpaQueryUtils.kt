@@ -6,7 +6,6 @@ import jakarta.persistence.criteria.CriteriaBuilder
 import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.Root
 import org.slf4j.LoggerFactory
-import java.util.*
 import kotlin.properties.Delegates
 
 /**
@@ -78,7 +77,7 @@ object JpaQueryUtils {
         resultClass: Class<R>,
         fromEntityClass: Class<F>,
         queryBuilder: QueryBuilder<R, F>
-    ): Optional<R> {
+    ): R? {
         val criteriaBuilder = entityManager.criteriaBuilder
         val criteriaQuery = criteriaBuilder.createQuery(resultClass)
         val root = criteriaQuery.from(fromEntityClass)
@@ -87,7 +86,7 @@ object JpaQueryUtils {
             .setFirstResult(0)
             .setMaxResults(1)
             .resultList
-        return results.stream().findFirst()
+        return results.firstOrNull()
     }
 
     /**

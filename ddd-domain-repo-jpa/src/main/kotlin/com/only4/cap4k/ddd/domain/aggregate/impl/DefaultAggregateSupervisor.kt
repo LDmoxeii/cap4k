@@ -9,7 +9,6 @@ import com.only4.cap4k.ddd.core.share.PageParam
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
 import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicateSupport
-import java.util.*
 
 /**
  * 默认聚合管理器
@@ -103,30 +102,22 @@ class DefaultAggregateSupervisor(
     override fun <AGGREGATE : Aggregate<*>> findOne(
         predicate: AggregatePredicate<AGGREGATE, *>,
         persist: Boolean
-    ): Optional<AGGREGATE> {
+    ): AGGREGATE? {
         val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(predicate)
         val pred = JpaAggregatePredicateSupport.getPredicate(predicate)
-        val entity = repositorySupervisor.findOne(pred, persist)
-        return if (entity.isPresent) {
-            Optional.of(newInstance(clazz, entity.get()))
-        } else {
-            Optional.empty()
-        }
+        return repositorySupervisor.findOne(pred, persist)
+            ?.let { entity -> newInstance(clazz, entity) }
     }
 
     override fun <AGGREGATE : Aggregate<*>> findFirst(
         predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo>,
         persist: Boolean
-    ): Optional<AGGREGATE> {
+    ): AGGREGATE? {
         val clazz = JpaAggregatePredicateSupport.reflectAggregateClass(predicate)
         val pred = JpaAggregatePredicateSupport.getPredicate(predicate)
-        val entity = repositorySupervisor.findFirst(pred, orders, persist)
-        return if (entity.isPresent) {
-            Optional.of(newInstance(clazz, entity.get()))
-        } else {
-            Optional.empty()
-        }
+        return repositorySupervisor.findFirst(pred, orders, persist)
+            ?.let { entity -> newInstance(clazz, entity) }
     }
 
     override fun <AGGREGATE : Aggregate<*>> findPage(

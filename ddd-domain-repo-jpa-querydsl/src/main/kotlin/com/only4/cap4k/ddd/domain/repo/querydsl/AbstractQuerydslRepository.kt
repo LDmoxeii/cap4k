@@ -12,7 +12,6 @@ import jakarta.annotation.PostConstruct
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
 import org.springframework.data.querydsl.QuerydslPredicateExecutor
-import java.util.*
 
 /**
  * 基于querydsl的仓储抽象类
@@ -69,10 +68,11 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
         }.toList()
     }
 
-    override fun findOne(predicate: Predicate<ENTITY>, persist: Boolean): Optional<ENTITY> {
+    override fun findOne(predicate: Predicate<ENTITY>, persist: Boolean): ENTITY? {
         val entity = querydslPredicateExecutor.findOne(QuerydslPredicateSupport.resumePredicate(predicate))
-        if (!persist) {
-            entity.ifPresent(entityManager::detach)
+            .orElse(null)
+        if (!persist && entity != null) {
+            entityManager.detach(entity)
         }
         return entity
     }
@@ -81,7 +81,7 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean
-    ): Optional<ENTITY> {
+    ): ENTITY? {
         val pageParam = PageParam.limit(1)
         orders.forEach { order ->
             pageParam.orderBy(order.field, order.desc)
@@ -90,9 +90,9 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
             QuerydslPredicateSupport.resumePredicate(predicate),
             QuerydslPredicateSupport.resumePageable(predicate, pageParam)
         )
-        val entity = entities.content.firstOrNull()?.let { Optional.of(it) } ?: Optional.empty()
-        if (!persist) {
-            entity.ifPresent(entityManager::detach)
+        val entity = entities.content.firstOrNull()
+        if (!persist && entity != null) {
+            entityManager.detach(entity)
         }
         return entity
     }

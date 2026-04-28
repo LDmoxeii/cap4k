@@ -21,6 +21,6 @@ interface SagaHandler<REQUEST : SagaParam<RESPONSE>, RESPONSE : Any> : RequestHa
     fun <SUB_REQUEST : RequestParam<SUB_RESPONSE>, SUB_RESPONSE : Any> execProcess(
         subCode: String,
         request: SUB_REQUEST
-    ): SUB_RESPONSE? = SagaProcessSupervisor.instance.sendProcess(subCode, request)
+    ): SUB_RESPONSE = SagaProcessSupervisor.instance.sendProcess(subCode, request)
 
 }

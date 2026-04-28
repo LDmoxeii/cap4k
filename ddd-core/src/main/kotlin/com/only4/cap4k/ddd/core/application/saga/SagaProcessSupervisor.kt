@@ -31,5 +31,5 @@ interface SagaProcessSupervisor {
     fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> sendProcess(
         processCode: String,
         request: REQUEST
-    ): RESPONSE?
+    ): RESPONSE
 }

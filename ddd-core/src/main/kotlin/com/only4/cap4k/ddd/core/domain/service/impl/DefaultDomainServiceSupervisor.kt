@@ -14,18 +14,18 @@ class DefaultDomainServiceSupervisor(
     private val applicationContext: ApplicationContext
 ) : DomainServiceSupervisor {
 
-    override fun <DOMAIN_SERVICE> getService(domainServiceClass: Class<DOMAIN_SERVICE>): DOMAIN_SERVICE? {
-        return try {
-            val domainService = applicationContext.getBean(domainServiceClass)!!
-
-            // 使用takeIf确保只有带@DomainService注解的服务才被返回（包括继承的注解）
-            domainService.takeIf {
-                hasAnnotationRecursively(it.javaClass, DomainService::class.java)
-            }
+    override fun <DOMAIN_SERVICE : Any> getService(domainServiceClass: Class<DOMAIN_SERVICE>): DOMAIN_SERVICE {
+        val domainService = try {
+            applicationContext.getBean(domainServiceClass)
         } catch (e: Exception) {
-            // 如果Spring容器中找不到Bean，返回null
-            null
+            throw IllegalStateException("Domain service not found: ${domainServiceClass.name}", e)
         }
+
+        if (!hasAnnotationRecursively(domainService.javaClass, DomainService::class.java)) {
+            throw IllegalStateException("Bean is not a domain service: ${domainService.javaClass.name}")
+        }
+
+        return domainService
     }
 
     /**

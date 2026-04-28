@@ -192,13 +192,14 @@ open class DefaultSagaSupervisor(
     override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> sendProcess(
         processCode: String,
         request: REQUEST
-    ): RESPONSE? {
+    ): RESPONSE {
         val sagaRecord = SAGA_RECORD_THREAD_LOCAL.get()
             ?: throw IllegalStateException("No SagaRecord found in thread local")
 
         // 如果子流程已经执行过，直接返回结果
         if (sagaRecord.isSagaProcessExecuted(processCode)) {
-            return sagaRecord.getSagaProcessResult(processCode)
+            return sagaRecord.getSagaProcessResult<RESPONSE>(processCode)
+                ?: throw IllegalStateException("Saga process result missing: $processCode")
         }
 
         val now = LocalDateTime.now()

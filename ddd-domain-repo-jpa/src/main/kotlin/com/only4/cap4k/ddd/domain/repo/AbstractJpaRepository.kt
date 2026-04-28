@@ -12,7 +12,6 @@ import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor
-import java.util.*
 
 /**
  * 基于Jpa的仓储抽象类
@@ -98,21 +97,21 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
         return entities
     }
 
-    override fun findOne(predicate: Predicate<ENTITY>, persist: Boolean): Optional<ENTITY> {
+    override fun findOne(predicate: Predicate<ENTITY>, persist: Boolean): ENTITY? {
         val entity = when {
             JpaPredicateSupport.resumeId<ENTITY, ID>(predicate) != null -> {
-                jpaRepository.findById(JpaPredicateSupport.resumeId(predicate)!!)
+                jpaRepository.findById(JpaPredicateSupport.resumeId(predicate)!!).orElse(null)
             }
 
             JpaPredicateSupport.resumeSpecification(predicate) != null -> {
-                jpaSpecificationExecutor.findOne(JpaPredicateSupport.resumeSpecification(predicate)!!)
+                jpaSpecificationExecutor.findOne(JpaPredicateSupport.resumeSpecification(predicate)!!).orElse(null)
             }
 
-            else -> Optional.empty()
+            else -> null
         }
 
-        if (!persist) {
-            entity.ifPresent(entityManager::detach)
+        if (!persist && entity != null) {
+            entityManager.detach(entity)
         }
         return entity
     }
@@ -121,10 +120,10 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean
-    ): Optional<ENTITY> {
+    ): ENTITY? {
         val entity = when {
             JpaPredicateSupport.resumeId<ENTITY, ID>(predicate) != null -> {
-                jpaRepository.findById(JpaPredicateSupport.resumeId(predicate)!!)
+                jpaRepository.findById(JpaPredicateSupport.resumeId(predicate)!!).orElse(null)
             }
 
             JpaPredicateSupport.resumeSpecification(predicate) != null -> {
@@ -134,14 +133,14 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
                 jpaSpecificationExecutor.findAll(
                     JpaPredicateSupport.resumeSpecification(predicate)!!,
                     toSpringData(page)
-                ).stream().findFirst()
+                ).content.firstOrNull()
             }
 
-            else -> Optional.empty()
+            else -> null
         }
 
-        if (!persist) {
-            entity.ifPresent(entityManager::detach)
+        if (!persist && entity != null) {
+            entityManager.detach(entity)
         }
         return entity
     }

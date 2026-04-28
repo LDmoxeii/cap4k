@@ -3,7 +3,6 @@ package com.only4.cap4k.ddd.core.domain.repo
 import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
-import java.util.*
 
 /**
  * 仓储管理器
@@ -45,7 +44,7 @@ interface RepositorySupervisor {
     /**
      * 根据条件获取单个实体
      */
-    fun <ENTITY : Any> findOne(predicate: Predicate<ENTITY>, persist: Boolean = true): Optional<ENTITY>
+    fun <ENTITY : Any> findOne(predicate: Predicate<ENTITY>, persist: Boolean = true): ENTITY?
 
     /**
      * 根据条件获取实体
@@ -54,12 +53,12 @@ interface RepositorySupervisor {
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
         persist: Boolean = true
-    ): Optional<ENTITY>
+    ): ENTITY?
 
     /**
      * 根据条件获取实体
      */
-    fun <ENTITY: Any> findFirst(predicate: Predicate<ENTITY>, vararg orders: OrderInfo): Optional<ENTITY> =
+    fun <ENTITY: Any> findFirst(predicate: Predicate<ENTITY>, vararg orders: OrderInfo): ENTITY? =
         findFirst(predicate, orders.toList())
 
     /**

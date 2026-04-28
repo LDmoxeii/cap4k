@@ -100,7 +100,7 @@ class AbstractJpaRepositoryTest {
 
         val result = repository.findOne(predicate, true)
 
-        assertEquals(optional, result)
+        assertEquals(entity, result)
         verify { mockJpaRepository.findById(1L) }
         verify(exactly = 0) { mockEntityManager.detach(any()) }
     }
@@ -118,7 +118,7 @@ class AbstractJpaRepositoryTest {
 
         val result = repository.findOne(predicate, false)
 
-        assertEquals(optional, result)
+        assertEquals(entity, result)
         verify { mockJpaRepository.findById(1L) }
         verify { mockEntityManager.detach(entity) }
     }
@@ -137,13 +137,13 @@ class AbstractJpaRepositoryTest {
 
         val result = repository.findOne(predicate, true)
 
-        assertEquals(optional, result)
+        assertEquals(entity, result)
         verify { mockJpaSpecificationExecutor.findOne(specification) }
     }
 
     @Test
-    @DisplayName("使用未知谓词查找单个实体应该返回空Optional")
-    fun `findOne with unknown predicate should return empty optional`() {
+    @DisplayName("使用未知谓词查找单个实体应该返回null")
+    fun `findOne with unknown predicate should return null`() {
         val predicate = mockk<Predicate<TestEntity>>()
 
         every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
@@ -151,7 +151,7 @@ class AbstractJpaRepositoryTest {
 
         val result = repository.findOne(predicate, true)
 
-        assertTrue(result.isEmpty)
+        assertNull(result)
     }
 
     @Test
@@ -168,7 +168,7 @@ class AbstractJpaRepositoryTest {
 
         val result = repository.findFirst(predicate, orders, true)
 
-        assertEquals(optional, result)
+        assertEquals(entity, result)
         verify { mockJpaRepository.findById(1L) }
     }
 
@@ -192,8 +192,7 @@ class AbstractJpaRepositoryTest {
 
         val result = repository.findFirst(predicate, orders, true)
 
-        assertTrue(result.isPresent)
-        assertEquals(entity, result.get())
+        assertEquals(entity, result)
         verify { mockJpaSpecificationExecutor.findAll(specification, any<PageRequest>()) }
     }
 

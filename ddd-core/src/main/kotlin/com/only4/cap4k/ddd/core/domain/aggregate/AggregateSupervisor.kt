@@ -3,7 +3,6 @@ package com.only4.cap4k.ddd.core.domain.aggregate
 import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
-import java.util.*
 
 /**
  * 聚合管理器
@@ -78,7 +77,7 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> findOne(
         predicate: AggregatePredicate<AGGREGATE, *>,
         persist: Boolean = true
-    ): Optional<AGGREGATE>
+    ): AGGREGATE?
 
     /**
      * 根据条件获取实体
@@ -87,7 +86,7 @@ interface AggregateSupervisor {
         predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo> = emptyList(),
         persist: Boolean = true
-    ): Optional<AGGREGATE>
+    ): AGGREGATE?
 
     /**
      * 根据条件获取实体
@@ -95,7 +94,7 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> findFirst(
         predicate: AggregatePredicate<AGGREGATE, ENTITY>,
         vararg orders: OrderInfo
-    ): Optional<AGGREGATE> =
+    ): AGGREGATE? =
         findFirst(predicate, orders.toList())
 
     /**

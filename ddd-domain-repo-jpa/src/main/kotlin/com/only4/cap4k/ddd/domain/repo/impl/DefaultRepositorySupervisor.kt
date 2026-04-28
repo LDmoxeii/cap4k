@@ -12,7 +12,6 @@ import com.only4.cap4k.ddd.core.share.PageParam.Companion.limit
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
 import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicateSupport
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -127,17 +126,17 @@ class DefaultRepositorySupervisor(
     override fun <ENTITY : Any> findOne(
         predicate: Predicate<ENTITY>,
         persist: Boolean
-    ): Optional<ENTITY> = repo(reflectEntityClass<ENTITY>(predicate), predicate)
+    ): ENTITY? = repo(reflectEntityClass<ENTITY>(predicate), predicate)
         .findOne(predicate, persist)
-        .also { if (persist) it.ifPresent(unitOfWork::persist) }
+        ?.also { if (persist) unitOfWork.persist(it) }
 
     override fun <ENTITY : Any> findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean
-    ): Optional<ENTITY> = repo(reflectEntityClass<ENTITY>(predicate), predicate)
+    ): ENTITY? = repo(reflectEntityClass<ENTITY>(predicate), predicate)
         .findFirst(predicate, orders, persist)
-        .also { if (persist) it.ifPresent(unitOfWork::persist) }
+        ?.also { if (persist) unitOfWork.persist(it) }
 
     override fun <ENTITY : Any> findPage(
         predicate: Predicate<ENTITY>,

@@ -14,7 +14,6 @@ import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
 import org.springframework.transaction.annotation.Propagation
 import java.time.LocalDateTime
-import java.util.*
 
 /**
  * 默认中介者
@@ -39,14 +38,14 @@ class DefaultMediator : Mediator {
     override fun <ENTITY: Any> find(predicate: Predicate<ENTITY>, pageParam: PageParam, persist: Boolean): List<ENTITY> =
         RepositorySupervisor.instance.find(predicate, pageParam, persist)
 
-    override fun <ENTITY: Any> findOne(predicate: Predicate<ENTITY>, persist: Boolean): Optional<ENTITY> =
+    override fun <ENTITY: Any> findOne(predicate: Predicate<ENTITY>, persist: Boolean): ENTITY? =
         RepositorySupervisor.instance.findOne(predicate, persist)
 
     override fun <ENTITY: Any> findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean
-    ): Optional<ENTITY> =
+    ): ENTITY? =
         RepositorySupervisor.instance.findFirst(predicate, orders, persist)
 
     override fun <ENTITY: Any> findPage(
@@ -69,7 +68,7 @@ class DefaultMediator : Mediator {
         RepositorySupervisor.instance.exists(predicate)
 
     // DomainServiceSupervisor methods
-    override fun <DOMAIN_SERVICE> getService(domainServiceClass: Class<DOMAIN_SERVICE>): DOMAIN_SERVICE? =
+    override fun <DOMAIN_SERVICE : Any> getService(domainServiceClass: Class<DOMAIN_SERVICE>): DOMAIN_SERVICE =
         DomainServiceSupervisor.instance.getService(domainServiceClass)
 
     // UnitOfWork methods
@@ -148,14 +147,14 @@ class DefaultMediator : Mediator {
     override fun <AGGREGATE : Aggregate<*>> findOne(
         predicate: AggregatePredicate<AGGREGATE, *>,
         persist: Boolean
-    ): Optional<AGGREGATE> =
+    ): AGGREGATE? =
         AggregateSupervisor.instance.findOne(predicate, persist)
 
     override fun <AGGREGATE : Aggregate<*>> findFirst(
         predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo>,
         persist: Boolean
-    ): Optional<AGGREGATE> =
+    ): AGGREGATE? =
         AggregateSupervisor.instance.findFirst(predicate, orders, persist)
 
     override fun <AGGREGATE : Aggregate<*>> findPage(

@@ -1,9 +1,13 @@
 package com.only4.cap4k.ddd.core.application.saga.impl
 
+import com.only4.cap4k.ddd.core.application.RequestHandler
+import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.saga.SagaHandler
 import com.only4.cap4k.ddd.core.application.saga.SagaParam
+import com.only4.cap4k.ddd.core.application.saga.SagaProcessSupervisor
 import com.only4.cap4k.ddd.core.application.saga.SagaRecord
 import com.only4.cap4k.ddd.core.application.saga.SagaRecordRepository
+import com.only4.cap4k.ddd.core.application.saga.SagaSupervisorSupport
 import io.mockk.*
 import jakarta.validation.ConstraintViolation
 import jakarta.validation.ConstraintViolationException
@@ -35,6 +39,7 @@ class DefaultSagaSupervisorTest {
 
     // 测试数据类
     data class TestSagaParam(val data: String) : SagaParam<String>
+    data class TestSubRequest(val data: String) : RequestParam<String>
 
     @BeforeEach
     fun setUp() {
@@ -70,12 +75,25 @@ class DefaultSagaSupervisorTest {
         every { mockSagaRecord.param } returns testParam
         every { mockSagaRecord.nextTryTime } returns LocalDateTime.now().plusMinutes(5)
         every { mockSagaRecord.scheduleTime } returns LocalDateTime.now().plusMinutes(1)
+
+        SagaSupervisorSupport.configure(supervisor as SagaProcessSupervisor)
     }
 
     @AfterEach
     fun tearDown() {
         clearAllMocks()
     }
+
+    private fun newSupervisor(vararg handlers: RequestHandler<*, *>): DefaultSagaSupervisor =
+        DefaultSagaSupervisor(
+            requestHandlers = handlers.toList(),
+            requestInterceptors = emptyList(),
+            validator = mockValidator,
+            sagaRecordRepository = mockSagaRecordRepository,
+            svcName = testSvcName,
+            threadPoolSize = testThreadPoolSize,
+            threadFactoryClassName = ""
+        )
 
     @Test
     @DisplayName("验证懒加载初始化是否正确触发")
@@ -166,6 +184,40 @@ class DefaultSagaSupervisorTest {
         assertEquals(expectedResult, result)
         verify { mockSagaRecordRepository.getById(sagaId) }
         verify { mockSagaRecord.getResult<String>() }
+    }
+
+    @Test
+    @DisplayName("已执行的Saga子流程应该返回缓存结果")
+    fun `send returns cached saga process result when process already executed`() {
+        val handler = object : SagaHandler<TestSagaParam, String> {
+            override fun exec(request: TestSagaParam): String = execProcess("sub", TestSubRequest("cached"))
+        }
+        val testSupervisor = newSupervisor(handler)
+        every { mockSagaRecord.isSagaProcessExecuted("sub") } returns true
+        every { mockSagaRecord.getSagaProcessResult<String>("sub") } returns "cached-result"
+
+        val result = testSupervisor.send(testParam)
+
+        assertEquals("cached-result", result)
+        verify { mockSagaRecord.getSagaProcessResult<String>("sub") }
+    }
+
+    @Test
+    @DisplayName("已执行的Saga子流程缺少缓存结果时应该抛出异常")
+    fun `send throws when executed saga process cached result is missing`() {
+        val handler = object : SagaHandler<TestSagaParam, String> {
+            override fun exec(request: TestSagaParam): String = execProcess("sub", TestSubRequest("missing"))
+        }
+        val testSupervisor = newSupervisor(handler)
+        every { mockSagaRecord.isSagaProcessExecuted("sub") } returns true
+        every { mockSagaRecord.getSagaProcessResult<String>("sub") } returns null
+
+        val ex = assertThrows<IllegalStateException> {
+            testSupervisor.send(testParam)
+        }
+
+        assertEquals("Saga process result missing: sub", ex.message)
+        verify { mockSagaRecord.getSagaProcessResult<String>("sub") }
     }
 
     @Test
