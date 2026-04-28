@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.codegen.pebble
 
 import com.only4.cap4k.plugin.codegen.pebble.PebbleTemplateRenderer.renderString
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -34,7 +35,7 @@ class DesignTemplateAutoImportTest {
     }
 
     @Test
-    fun `query page handler imports query type and page data via use`() {
+    fun `query page handler imports query type via use`() {
         val template = loadTemplate("query_page_handler.kt.peb")
         val context = mapOf(
             "basePackage" to "com.example",
@@ -51,9 +52,34 @@ class DesignTemplateAutoImportTest {
 
         val rendered = renderString(template, context)
         assertTrue(rendered.contains("import com.example.app.GetThingsPageQry"))
-        assertTrue(rendered.contains("import com.only4.cap4k.ddd.core.application.query.PageQuery"))
-        assertTrue(rendered.contains("import com.only4.cap4k.ddd.core.share.PageData"))
+        assertTrue(rendered.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
+        assertFalse(rendered.contains("import com.only4.cap4k.ddd.core.application.query.PageQuery"))
+        assertFalse(rendered.contains("import com.only4.cap4k.ddd.core.share.PageData"))
         assertTrue(rendered.contains("import org.springframework.stereotype.Service"))
+    }
+
+    @Test
+    fun `query page template imports page request and request param via use`() {
+        val template = loadTemplate("query_page.kt.peb")
+        val context = mapOf(
+            "basePackage" to "com.example",
+            "templatePackage" to "",
+            "package" to "",
+            "date" to "2026-01-21",
+            "Query" to "GetThingsPageQry",
+            "Comment" to "desc",
+            "requestFields" to emptyList<Map<String, String>>(),
+            "responseFields" to emptyList<Map<String, String>>(),
+            "nestedTypes" to emptyList<Map<String, String>>(),
+            "typeMapping" to emptyMap<String, String>()
+        )
+
+        val rendered = renderString(template, context)
+        assertTrue(rendered.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(rendered.contains("import com.only4.cap4k.ddd.core.application.query.PageRequest"))
+        assertTrue(rendered.contains("override val pageNum: Int = 1"))
+        assertTrue(rendered.contains("override val pageSize: Int = 10"))
+        assertTrue(rendered.contains(") : PageRequest, RequestParam<Response>"))
     }
 
     @Test
