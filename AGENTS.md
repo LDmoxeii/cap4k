@@ -27,6 +27,7 @@ The stable direction is:
 - Symbol identity and explicit FQN remain the source of truth for imports.
 - `use()` is design-template-only and must remain a thin explicit-import helper.
 - Bootstrap or arch-template migration, when implemented, must remain a separate capability rather than widening design-template helper authority.
+- `cap4k-plugin-codegen` is the legacy plugin and is no longer maintained. Do not add compatibility work, new features, or cleanup churn there unless the user explicitly asks to delete or quarantine it; prefer documenting any residual legacy references as out of scope.
 
 ## Work Classification
 

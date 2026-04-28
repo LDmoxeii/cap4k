@@ -255,6 +255,18 @@ The following remain separate from the default mainline path:
 - real-project integration boundary work
 - project-specific unblock work
 - broader bootstrap flexibility beyond slot-based extension
+- legacy `cap4k-plugin-codegen` maintenance; it is frozen and should only be touched for explicit deletion/quarantine work
+
+## Legacy Plugin Decision
+
+`cap4k-plugin-codegen` is the old monolithic plugin and is no longer a maintained capability.
+
+Decision:
+
+- do not add compatibility work, new features, or behavior-preserving cleanup there
+- do not treat legacy template names or suffix routing inside that plugin as mainline pipeline obligations
+- plan a separate deletion/quarantine cleanup when there is time
+- prefer the fixed-stage pipeline for all ongoing generator work
 
 ## Upcoming Backlog
 
