@@ -325,6 +325,40 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
+    fun `rejects non-canonical design tags exactly`() {
+        val cases = listOf(
+            Triple("Query", "FindOrder", "unsupported design tag for FindOrder: Query"),
+            Triple(" command ", "SubmitOrder", "unsupported design tag for SubmitOrder:  command "),
+        )
+
+        cases.forEach { (tag, name, expectedMessage) ->
+            val tempFile = tempDir.resolve("non-canonical-${name}.json")
+            Files.writeString(
+                tempFile,
+                """
+                    [
+                      {
+                        "tag": "$tag",
+                        "package": "order",
+                        "name": "$name",
+                        "desc": "non canonical tag",
+                        "requestFields": [],
+                        "responseFields": []
+                      }
+                    ]
+                """.trimIndent(),
+                StandardCharsets.UTF_8,
+            )
+
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+            }
+
+            assertEquals(expectedMessage, error.message)
+        }
+    }
+
+    @Test
     fun `rejects unknown request trait`() {
         val tempFile = tempDir.resolve("unknown-trait.json")
         Files.writeString(
@@ -381,6 +415,34 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
+    fun `rejects unsupported request traits on unsupported tags before parsing trait values`() {
+        val tempFile = tempDir.resolve("unsupported-trait-on-command.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "command",
+                    "package": "order.submit",
+                    "name": "SubmitOrder",
+                    "desc": "submit order",
+                    "traits": ["cursor"],
+                    "requestFields": [],
+                    "responseFields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals("design entry SubmitOrder cannot use request traits on tag: command", error.message)
+    }
+
+    @Test
     fun `rejects self in design field types`() {
         val tempFile = tempDir.resolve("self-recursion.json")
         Files.writeString(
@@ -411,6 +473,75 @@ class DesignJsonSourceProviderTest {
             "design entry GetCategoryTree field nodes[].children must use an explicit type name instead of self",
             error.message,
         )
+    }
+
+    @Test
+    fun `rejects self in generic design field types regardless of case`() {
+        val cases = listOf(
+            "Map<String, Self>",
+            "SELF",
+        )
+
+        cases.forEachIndexed { index, type ->
+            val tempFile = tempDir.resolve("self-recursion-${index}.json")
+            Files.writeString(
+                tempFile,
+                """
+                    [
+                      {
+                        "tag": "api_payload",
+                        "package": "category",
+                        "name": "GetCategoryTree",
+                        "desc": "get category tree",
+                        "requestFields": [],
+                        "responseFields": [
+                          { "name": "nodes", "type": "$type" }
+                        ]
+                      }
+                    ]
+                """.trimIndent(),
+                StandardCharsets.UTF_8,
+            )
+
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+            }
+
+            assertEquals(
+                "design entry GetCategoryTree field nodes must use an explicit type name instead of self",
+                error.message,
+            )
+        }
+    }
+
+    @Test
+    fun `allows self text embedded in explicit design field type names`() {
+        val tempFile = tempDir.resolve("embedded-self-names.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "api_payload",
+                    "package": "category",
+                    "name": "GetCategoryTree",
+                    "desc": "get category tree",
+                    "requestFields": [
+                      { "name": "owner", "type": "myself" }
+                    ],
+                    "responseFields": [
+                      { "name": "image", "type": "Selfie" }
+                    ]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
+
+        assertEquals("myself", snapshot.entries.single().requestFields.single().type)
+        assertEquals("Selfie", snapshot.entries.single().responseFields.single().type)
     }
 
     @Test

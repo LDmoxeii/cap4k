@@ -119,11 +119,10 @@ class DesignJsonSourceProvider : SourceProvider {
     }
 
     private fun parseTag(rawTag: String, name: String): String {
-        val tag = rawTag.trim().lowercase(Locale.ROOT)
-        require(tag in supportedTags) {
+        require(rawTag in supportedTags) {
             "unsupported design tag for $name: $rawTag"
         }
-        return tag
+        return rawTag
     }
 
     private fun parseTraits(obj: JsonObject, tag: String, name: String): Set<RequestTrait> {
@@ -133,16 +132,16 @@ class DesignJsonSourceProvider : SourceProvider {
             ?.filter { it.isNotEmpty() }
             ?: emptyList()
 
+        require(rawTraits.isEmpty() || tag in requestTraitTags) {
+            "design entry $name cannot use request traits on tag: $tag"
+        }
+
         val traits = rawTraits.map { rawTrait ->
             val normalized = rawTrait.uppercase(Locale.ROOT)
             runCatching { RequestTrait.valueOf(normalized) }.getOrElse {
                 throw IllegalArgumentException("design entry $name has unsupported trait: $rawTrait")
             }
         }.toSet()
-
-        require(traits.isEmpty() || tag in requestTraitTags) {
-            "design entry $name cannot use request traits on tag: $tag"
-        }
 
         return traits
     }
