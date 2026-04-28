@@ -6,8 +6,6 @@ import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.command.NoneResultCommandParam
-import com.only4.cap4k.ddd.core.application.query.ListQuery
-import com.only4.cap4k.ddd.core.application.query.PageQuery
 import com.only4.cap4k.ddd.core.application.query.Query
 import com.only4.cap4k.ddd.core.application.saga.*
 import com.only4.cap4k.ddd.core.share.DomainException
@@ -72,7 +70,7 @@ open class DefaultSagaSupervisor(
                     handler, 0,
                     RequestHandler::class.java,
                     Command::class.java, NoneResultCommandParam::class.java,
-                    Query::class.java, ListQuery::class.java, PageQuery::class.java,
+                    Query::class.java,
                     SagaHandler::class.java
                 )
                 put(requestPayloadClass, handler)
