@@ -947,8 +947,6 @@ class PebbleArtifactRendererTest {
             "design/query.kt.peb",
             "design/command.kt.peb",
             "design/client.kt.peb",
-            "design/query_list.kt.peb",
-            "design/query_page.kt.peb",
             "design/api_payload.kt.peb",
         )
         val commonRequestFields = listOf(
@@ -1301,8 +1299,8 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `bounded query presets render list and page request contracts`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-bounded-query-contracts")
+    fun `renders query page request with complete response envelope`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-page-contract")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -1315,141 +1313,28 @@ class PebbleArtifactRendererTest {
                 ArtifactPlanItem(
                     generatorId = "design-command",
                     moduleRole = "application",
-                    templateId = "design/query_list.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderListQry.kt",
-                    context = mapOf(
-                        "packageName" to "com.acme.demo.application.queries",
-                        "typeName" to "FindOrderListQry",
-                        "imports" to listOf(
-                            "java.util.UUID",
-                        ),
-                        "requestFields" to listOf(
-                            mapOf("name" to "listCursorId", "renderedType" to "UUID", "nullable" to false),
-                            mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false),
-                        ),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to listOf(
-                            mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false),
-                        ),
-                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
-                    ),
-                    conflictPolicy = ConflictPolicy.SKIP
-                ),
-                ArtifactPlanItem(
-                    generatorId = "design-command",
-                    moduleRole = "application",
-                    templateId = "design/query_page.kt.peb",
+                    templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderPageQry.kt",
                     context = mapOf(
                         "packageName" to "com.acme.demo.application.queries",
                         "typeName" to "FindOrderPageQry",
                         "imports" to listOf(
-                            "java.time.LocalDateTime",
+                            "com.only4.cap4k.ddd.core.share.PageData",
                         ),
+                        "pageRequest" to true,
                         "requestFields" to listOf(
-                            mapOf("name" to "createdAfter", "renderedType" to "LocalDateTime", "nullable" to false),
-                            mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false),
+                            mapOf("name" to "keyword", "renderedType" to "String?", "nullable" to true),
                         ),
                         "requestNestedTypes" to emptyList<Map<String, Any?>>(),
                         "responseFields" to listOf(
-                            mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false),
-                        ),
-                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
-                    ),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            ),
-            config = ProjectConfig(
-                basePackage = "com.acme.demo",
-                layout = ProjectLayout.MULTI_MODULE,
-                modules = emptyMap(),
-                sources = emptyMap(),
-                generators = emptyMap(),
-                templates = TemplateConfig(
-                    preset = "ddd-default",
-                    overrideDirs = listOf(overrideDir.toString()),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            )
-        )
-
-        val listContent = rendered[0].content
-        assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.ListQueryParam"))
-        assertTrue(listContent.contains("data class Request("))
-        assertTrue(listContent.contains(") : ListQueryParam<Response>"))
-        assertTrue(listContent.contains("val listCursorId: UUID"))
-        assertFalse(listContent.contains("import com.foo.Status"))
-        assertFalse(listContent.contains("import com.bar.Status"))
-        assertTrue(listContent.contains("val requestStatus: com.foo.Status"))
-        assertTrue(listContent.contains("val responseStatus: com.bar.Status"))
-
-        val pageContent = rendered[1].content
-        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.PageQueryParam"))
-        assertTrue(pageContent.contains("data class Request("))
-        assertTrue(pageContent.contains(") : PageQueryParam<Response>()"))
-        assertTrue(pageContent.contains("val createdAfter: LocalDateTime"))
-        assertFalse(pageContent.contains("import com.foo.Status"))
-        assertFalse(pageContent.contains("import com.bar.Status"))
-        assertTrue(pageContent.contains("val requestStatus: com.foo.Status"))
-        assertTrue(pageContent.contains("val responseStatus: com.bar.Status"))
-    }
-
-    @Test
-    fun `bounded query presets render empty request contracts and nested types`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-bounded-query-empty")
-        val renderer = PebbleArtifactRenderer(
-            templateResolver = PresetTemplateResolver(
-                preset = "ddd-default",
-                overrideDirs = listOf(overrideDir.toString())
-            )
-        )
-
-        val rendered = renderer.render(
-            planItems = listOf(
-                ArtifactPlanItem(
-                    generatorId = "design-command",
-                    moduleRole = "application",
-                    templateId = "design/query_list.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderListQry.kt",
-                    context = mapOf(
-                        "packageName" to "com.acme.demo.application.queries",
-                        "typeName" to "FindOrderListQry",
-                        "imports" to emptyList<String>(),
-                        "requestFields" to emptyList<Map<String, Any?>>(),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
-                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
-                    ),
-                    conflictPolicy = ConflictPolicy.SKIP
-                ),
-                ArtifactPlanItem(
-                    generatorId = "design-command",
-                    moduleRole = "application",
-                    templateId = "design/query_page.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderPageQry.kt",
-                    context = mapOf(
-                        "packageName" to "com.acme.demo.application.queries",
-                        "typeName" to "FindOrderPageQry",
-                        "imports" to emptyList<String>(),
-                        "requestFields" to listOf(
-                            mapOf("name" to "createdAfter", "renderedType" to "LocalDateTime", "nullable" to false),
-                        ),
-                        "requestNestedTypes" to listOf(
-                            mapOf(
-                                "name" to "Criteria",
-                                "fields" to listOf(
-                                    mapOf("name" to "origin", "renderedType" to "String", "nullable" to false),
-                                ),
-                            ),
-                        ),
-                        "responseFields" to listOf(
-                            mapOf("name" to "items", "renderedType" to "List<Item>", "nullable" to false),
+                            mapOf("name" to "page", "renderedType" to "PageData<Item>", "nullable" to false),
                         ),
                         "responseNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Item",
                                 "fields" to listOf(
-                                    mapOf("name" to "id", "renderedType" to "Long", "nullable" to false),
+                                    mapOf("name" to "orderId", "renderedType" to "Long", "nullable" to false),
+                                    mapOf("name" to "title", "renderedType" to "String", "nullable" to false),
                                 ),
                             ),
                         ),
@@ -1471,21 +1356,102 @@ class PebbleArtifactRendererTest {
             )
         )
 
-        val listContent = rendered[0].content
-        assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.ListQueryParam"))
-        assertTrue(listContent.contains("class Request : ListQueryParam<Response>"))
-        assertTrue(listContent.contains("data object Response"))
-
-        val pageContent = rendered[1].content
-        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.PageQueryParam"))
+        val pageContent = rendered.single().content
+        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.PageRequest"))
+        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
         assertTrue(pageContent.contains("data class Request("))
-        assertTrue(pageContent.contains(") : PageQueryParam<Response>()"))
-        assertTrue(pageContent.contains("data class Criteria("))
-        assertTrue(pageContent.contains("val origin: String"))
-        assertTrue(pageContent.contains("data class Response("))
-        assertTrue(pageContent.contains("val items: List<Item>"))
+        assertTrue(pageContent.contains("override val pageNum: Int = 1"))
+        assertTrue(pageContent.contains("override val pageSize: Int = 10"))
+        assertTrue(pageContent.contains("val keyword: String?"))
+        assertTrue(
+            Regex(
+                "override val pageNum: Int = 1,\\n\\s*" +
+                    "override val pageSize: Int = 10,\\n\\s*" +
+                    "val keyword: String?"
+            ).containsMatchIn(pageContent.normalizedLineEndings()),
+            pageContent
+        )
+        assertTrue(pageContent.contains(") : PageRequest, RequestParam<Response>"))
+        assertTrue(pageContent.contains("val page: PageData<Item>"))
         assertTrue(pageContent.contains("data class Item("))
-        assertTrue(pageContent.contains("val id: Long"))
+        assertTrue(pageContent.contains("val orderId: Long"))
+        assertTrue(pageContent.contains("val title: String"))
+    }
+
+    @Test
+    fun `renders api payload page request without request param`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-api-payload-page")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-api-payload",
+                    moduleRole = "adapter",
+                    templateId = "design/api_payload.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/payload/FindOrderPage.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.adapter.payload",
+                        "typeName" to "FindOrderPage",
+                        "imports" to listOf("com.only4.cap4k.ddd.core.share.PageData"),
+                        "pageRequest" to true,
+                        "requestFields" to listOf(
+                            mapOf("name" to "keyword", "renderedType" to "String?", "nullable" to true),
+                        ),
+                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "responseFields" to listOf(
+                            mapOf("name" to "page", "renderedType" to "PageData<Item>", "nullable" to false),
+                        ),
+                        "responseNestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Item",
+                                "fields" to listOf(
+                                    mapOf("name" to "orderId", "renderedType" to "Long", "nullable" to false),
+                                ),
+                            ),
+                        ),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.query.PageRequest"))
+        assertTrue(content.contains("data class Request("))
+        assertTrue(content.contains("override val pageNum: Int = 1"))
+        assertTrue(content.contains("override val pageSize: Int = 10"))
+        assertTrue(content.contains("val keyword: String?"))
+        assertTrue(
+            Regex(
+                "override val pageNum: Int = 1,\\n\\s*" +
+                    "override val pageSize: Int = 10,\\n\\s*" +
+                    "val keyword: String?"
+            ).containsMatchIn(content.normalizedLineEndings()),
+            content
+        )
+        assertTrue(content.contains(") : PageRequest"))
+        assertFalse(content.contains("RequestParam<Response>"))
+        assertTrue(content.contains("val page: PageData<Item>"))
+        assertTrue(content.contains("data class Item("))
+        assertTrue(content.contains("val orderId: Long"))
     }
 
     @Test
@@ -4479,8 +4445,8 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `bounded query handler presets render list and page contracts`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-bounded-query-handler-contracts")
+    fun `query handler preset renders unified contracts for collection shaped responses`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-handler-unified-contracts")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -4493,7 +4459,7 @@ class PebbleArtifactRendererTest {
                 ArtifactPlanItem(
                     generatorId = "design-query-handler",
                     moduleRole = "adapter",
-                    templateId = "design/query_list_handler.kt.peb",
+                    templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt",
                     context = mapOf(
                         "packageName" to "com.acme.demo.adapter.queries.order.read",
@@ -4510,7 +4476,7 @@ class PebbleArtifactRendererTest {
                 ArtifactPlanItem(
                     generatorId = "design-query-handler",
                     moduleRole = "adapter",
-                    templateId = "design/query_page_handler.kt.peb",
+                    templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt",
                     context = mapOf(
                         "packageName" to "com.acme.demo.adapter.queries.order.read",
@@ -4541,34 +4507,33 @@ class PebbleArtifactRendererTest {
 
         val listContent = rendered[0].content
         assertTrue(listContent.normalizedLineEndings().contains("package com.acme.demo.adapter.queries.order.read\n\nimport"))
-        assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.ListQuery"))
+        assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
         assertTrue(listContent.contains("import com.acme.demo.application.queries.order.read.FindOrderListQry"))
-        assertTrue(listContent.contains("class FindOrderListQryHandler : ListQuery<FindOrderListQry.Request, FindOrderListQry.Response>"))
-        assertTrue(listContent.contains("override fun exec(request: FindOrderListQry.Request): List<FindOrderListQry.Response>"))
-        assertTrue(listContent.contains("return listOf("))
+        assertTrue(listContent.contains("class FindOrderListQryHandler : Query<FindOrderListQry.Request, FindOrderListQry.Response>"))
+        assertTrue(listContent.contains("override fun exec(request: FindOrderListQry.Request): FindOrderListQry.Response"))
+        assertTrue(listContent.contains("return FindOrderListQry.Response("))
         assertTrue(listContent.contains("responseStatus = TODO(\"set responseStatus\")"))
         assertTrue(
             listContent.normalizedLineEndings().contains(
-                "            FindOrderListQry.Response(\n" +
-                    "                responseStatus = TODO(\"set responseStatus\")\n" +
-                    "            )"
+                "        return FindOrderListQry.Response(\n" +
+                    "            responseStatus = TODO(\"set responseStatus\")\n" +
+                    "        )"
             )
         )
 
         val pageContent = rendered[1].content
         assertTrue(pageContent.normalizedLineEndings().contains("package com.acme.demo.adapter.queries.order.read\n\nimport"))
-        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.share.PageData"))
-        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.PageQuery"))
+        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
         assertTrue(pageContent.contains("import com.acme.demo.application.queries.order.read.FindOrderPageQry"))
-        assertTrue(pageContent.contains("class FindOrderPageQryHandler : PageQuery<FindOrderPageQry.Request, FindOrderPageQry.Response>"))
-        assertTrue(pageContent.contains("override fun exec(request: FindOrderPageQry.Request): PageData<FindOrderPageQry.Response>"))
-        assertTrue(pageContent.contains("return PageData.create(request, 1L, listOf("))
+        assertTrue(pageContent.contains("class FindOrderPageQryHandler : Query<FindOrderPageQry.Request, FindOrderPageQry.Response>"))
+        assertTrue(pageContent.contains("override fun exec(request: FindOrderPageQry.Request): FindOrderPageQry.Response"))
+        assertTrue(pageContent.contains("return FindOrderPageQry.Response("))
         assertTrue(pageContent.contains("responseStatus = TODO(\"set responseStatus\")"))
         assertTrue(
             pageContent.normalizedLineEndings().contains(
-                "            FindOrderPageQry.Response(\n" +
-                    "                responseStatus = TODO(\"set responseStatus\")\n" +
-                    "            )"
+                "        return FindOrderPageQry.Response(\n" +
+                    "            responseStatus = TODO(\"set responseStatus\")\n" +
+                    "        )"
             )
         )
     }
@@ -4603,7 +4568,7 @@ class PebbleArtifactRendererTest {
                 ArtifactPlanItem(
                     generatorId = "design-query-handler",
                     moduleRole = "adapter",
-                    templateId = "design/query_list_handler.kt.peb",
+                    templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt",
                     context = mapOf(
                         "packageName" to "com.acme.demo.adapter.queries.order.read",
@@ -4618,7 +4583,7 @@ class PebbleArtifactRendererTest {
                 ArtifactPlanItem(
                     generatorId = "design-query-handler",
                     moduleRole = "adapter",
-                    templateId = "design/query_page_handler.kt.peb",
+                    templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt",
                     context = mapOf(
                         "packageName" to "com.acme.demo.adapter.queries.order.read",
@@ -4650,10 +4615,12 @@ class PebbleArtifactRendererTest {
         assertFalse(defaultContent.contains("return FindOrderQry.Response("))
 
         val listContent = rendered[1].content
-        assertTrue(listContent.contains("return emptyList()"))
+        assertTrue(listContent.contains("return FindOrderListQry.Response"))
+        assertFalse(listContent.contains("return FindOrderListQry.Response("))
 
         val pageContent = rendered[2].content
-        assertTrue(pageContent.contains("return PageData.empty(pageSize = request.pageSize, pageNum = request.pageNum)"))
+        assertTrue(pageContent.contains("return FindOrderPageQry.Response"))
+        assertFalse(pageContent.contains("return FindOrderPageQry.Response("))
     }
 
     @Test

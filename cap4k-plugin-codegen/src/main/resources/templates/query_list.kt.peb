@@ -1,6 +1,6 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
 
-{{ use("com.only4.cap4k.ddd.core.application.query.ListQueryParam") -}}
+{{ use("com.only4.cap4k.ddd.core.application.RequestParam") -}}
 {{ imports() }}
 
 /**
@@ -16,9 +16,9 @@ object {{ Query }} {
 {%- for field in requestFields %}
         val {{ field.name }}: {{ type(field.type) }}{% if field.defaultValue is defined %} = {{ field.defaultValue }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
-    ) : ListQueryParam<Response>
+    ) : RequestParam<Response>
 {%- else %}
-    class Request : ListQueryParam<Response>
+    class Request : RequestParam<Response>
 {%- endif %}
 {% if responseFields|length > 0 %}
     data class Response(

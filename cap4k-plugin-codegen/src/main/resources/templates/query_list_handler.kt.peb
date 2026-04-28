@@ -1,7 +1,7 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
 
 {{ use("org.springframework.stereotype.Service") -}}
-{{ use("com.only4.cap4k.ddd.core.application.query.ListQuery") -}}
+{{ use("com.only4.cap4k.ddd.core.application.query.Query") -}}
 {{ use(QueryType) -}}
 {{ imports() }}
 
@@ -14,7 +14,7 @@ package {{ basePackage }}{{ templatePackage }}{{ package }}
  */
 @Service
 class {{ QueryHandler }}(
-) : ListQuery<{{ Query }}.Request, {{ Query }}.Response> {
+) : Query<{{ Query }}.Request, {{ Query }}.Response> {
 
     override fun exec(request: {{ Query }}.Request): {{ Query }}.Response {
 

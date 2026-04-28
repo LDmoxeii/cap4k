@@ -1,4 +1,4 @@
-import com.only4.cap4k.ddd.core.application.ListQueryParam
+import com.only4.cap4k.ddd.core.application.RequestParam
 
 object $ {Query }
 
@@ -6,7 +6,7 @@ object $ {Query }
 
     class Request(
 
-    ) : ListQueryParam<Response>
+    ) : RequestParam<Response>
 
     class Response(
     )

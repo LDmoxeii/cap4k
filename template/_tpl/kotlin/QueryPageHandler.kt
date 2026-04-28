@@ -1,12 +1,16 @@
-import com.only4.cap4k.ddd.core.application.query.PageQuery
+import com.only4.cap4k.ddd.core.application.query.Query
 import org.springframework.stereotype.Service
 
 @Service
 class $ {Query }Handler(
-) : PageQuery<${ Query }.Request, ${ Query }.Response> {
+) : Query<${ Query }.Request, ${ Query }.Response> {
 
     override fun exec(request: $ {
         Query
-    }.Request): PageData<${ Query }.Response > {
+    }.Request): ${ Query }.Response {
+
+        return $ { Query }.Response(
+
+        )
     }
 }

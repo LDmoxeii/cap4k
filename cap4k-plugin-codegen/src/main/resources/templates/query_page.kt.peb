@@ -1,6 +1,7 @@
 package {{ basePackage }}{{ templatePackage }}{{ package }}
 
-{{ use("com.only4.cap4k.ddd.core.application.query.PageQueryParam") -}}
+{{ use("com.only4.cap4k.ddd.core.application.RequestParam") -}}
+{{ use("com.only4.cap4k.ddd.core.application.query.PageRequest") -}}
 {{ imports() }}
 
 /**
@@ -13,12 +14,17 @@ package {{ basePackage }}{{ templatePackage }}{{ package }}
 object {{ Query }} {
 {% if requestFields|length > 0 %}
     data class Request(
+        override val pageNum: Int = 1,
+        override val pageSize: Int = 10{% if requestFields|length > 0 %},{% endif %}
 {%- for field in requestFields %}
         val {{ field.name }}: {{ type(field.type) }}{% if field.defaultValue is defined %} = {{ field.defaultValue }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
-    ) : PageQueryParam<Response>()
+    ) : PageRequest, RequestParam<Response>
 {%- else %}
-    class Request : PageQueryParam<Response>()
+    data class Request(
+        override val pageNum: Int = 1,
+        override val pageSize: Int = 10
+    ) : PageRequest, RequestParam<Response>
 {%- endif %}
 {% if responseFields|length > 0 %}
     data class Response(

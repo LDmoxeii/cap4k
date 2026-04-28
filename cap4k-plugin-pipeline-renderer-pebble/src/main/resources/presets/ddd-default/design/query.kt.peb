@@ -1,4 +1,7 @@
 {{ use("com.only4.cap4k.ddd.core.application.RequestParam") -}}
+{% if pageRequest %}
+{{ use("com.only4.cap4k.ddd.core.application.query.PageRequest") -}}
+{% endif %}
 package {{ packageName }}
 
 {% for import in imports(imports) -%}
@@ -6,13 +9,17 @@ import {{ import }}
 {% endfor %}
 object {{ typeName }} {
 
-{% if requestFields.size > 0 %}
+{% if requestFields.size > 0 or pageRequest %}
 {% if requestNestedTypes.size > 0 %}
     data class Request(
+{%- if pageRequest %}
+        override val pageNum: Int = 1,
+        override val pageSize: Int = 10{% if requestFields.size > 0 %},{% endif %}
+{% endif -%}
 {%- for field in requestFields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
-    ) : RequestParam<Response> {
+    ) : {% if pageRequest %}PageRequest, {% endif %}RequestParam<Response> {
 {%- for nestedType in requestNestedTypes %}
         data class {{ nestedType.name }}(
 {%- for field in nestedType.fields %}
@@ -23,10 +30,14 @@ object {{ typeName }} {
     }
 {% else %}
     data class Request(
+{%- if pageRequest %}
+        override val pageNum: Int = 1,
+        override val pageSize: Int = 10{% if requestFields.size > 0 %},{% endif %}
+{% endif -%}
 {%- for field in requestFields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
-    ) : RequestParam<Response>
+    ) : {% if pageRequest %}PageRequest, {% endif %}RequestParam<Response>
 {% endif %}
 {% else %}
     class Request : RequestParam<Response>
