@@ -1,281 +1,215 @@
-# Cap4k Aggregate Persistence Runtime Verification Hardening Design
+# Cap4k Aggregate JPA Runtime Defect Reproduction Design
 
 ## Purpose
 
-This slice hardens the aggregate persistence line by proving selected generated aggregate persistence output works beyond text rendering and Kotlin compilation.
+This slice replaces the earlier narrow "runtime verification hardening" idea with a more honest target:
 
-The goal is not to add new generator behavior. The goal is to introduce a bounded runtime verification gate for persistence behavior that is already accepted on the mainline:
+- reproduce the JPA aggregate persistence defects exposed by `only-danmuku`
+- classify whether each defect is a cap4k bug, a JPA mapping choice, or an unsupported persistence contract
+- fix in place where the current JPA-backed runtime can support the desired contract safely
+- defer backend replacement unless reproduction proves the current JPA path cannot support the contract without unacceptable complexity
 
-- identity id generation
-- explicit custom `@GenericGenerator` id generation
-- `@Version`
-- scalar `@Column(insertable/updatable)` controls
-- `@DynamicInsert`
-- `@DynamicUpdate`
-- `@SQLDelete`
-- `@Where`
-
-The verification target is a generated representative aggregate project. The test should run the pipeline, compile the generated domain module, then execute a small Hibernate/JPA runtime smoke program against the generated entities.
+This is not a backend comparison slice. The first priority is to make the current JPA implementation accountable with focused runtime fixtures.
 
 ## Current Context
 
-The aggregate persistence mainline is complete through bounded generic-generator parity. Current coverage proves:
+The aggregate generator can now emit a broad set of bounded persistence annotations and relation mappings. Compile-level verification is not enough:
 
-- source carriage for explicit DB comment metadata
-- canonical enrichment and planner render models
-- renderer output for the bounded persistence annotations
-- functional generation assertions
-- Kotlin compile-level viability
+- generated entities can compile while Hibernate boot fails
+- relation mappings can boot while aggregate save/load behavior is wrong
+- application-side ID generation can compile while unit-of-work new/existing detection routes persistence incorrectly
 
-The remaining gap is runtime validity. A generated entity can compile while still failing Hibernate boot or runtime mapping because of invalid annotation combinations, unsupported generated-value wiring, bad soft-delete SQL, or provider-specific metadata shape.
+The real defects should be reproduced inside `cap4k` before opening a larger persistence backend track.
 
-This slice closes that gap with a small runtime verification harness. It intentionally does not become a real-project integration track.
+## Real-Project Defects To Reproduce
 
-## Design Principles
+### 1. Preassignable Application-Side IDs
 
-- Runtime verification must test generated output, not mock render contexts.
-- The fixture should be small and representative, not a real application.
-- Hibernate/JPA boot and metadata smoke is the primary goal.
-- CRUD smoke should stay minimal and focused on the highest-risk accepted behavior.
-- Custom `@GenericGenerator` persist behavior is only required if a tiny fixture-side generator implementation can support it without expanding the slice.
-- No new persistence semantics should be introduced.
-- No relation-side runtime verification should be introduced in this slice.
+The requirement is not "default generated ID or manual ID" as two separate entity modes.
 
-## Verification Level
+The requirement is:
 
-This slice should verify three levels.
+- an entity may declare an application-side default ID generator, such as Snowflake
+- normal creation may omit the ID and let the framework assign one
+- selected business flows may obtain an ID before database insert
+- that preassigned ID must be used for the later insert
+- the flow must not require insert-then-query just to learn the ID
 
-### Level 1: Generated Project Boot Smoke
+This should be modeled as a preassignable application-side ID policy.
 
-The runtime fixture must:
+JPA distinction:
 
-- run `cap4kGenerate`
-- compile the generated domain module
-- start a Hibernate `SessionFactory` or JPA `EntityManagerFactory`
-- register generated aggregate entity classes
-- fail if generated persistence annotations are not accepted by the provider
+- plain assigned identifiers are standard ORM usage: application sets the ID before `persist`
+- `@GeneratedValue` means the persistence provider owns generation at persist time
+- combining `@GeneratedValue` with arbitrary user-preassigned IDs is not a portable JPA contract
+- Hibernate can support this with a custom identifier generator or with a framework-level ID allocator, but cap4k must make the contract explicit
 
-This is the minimum success gate.
+The runtime fixture must prove the desired cap4k contract, not rely on accidental provider behavior.
 
-### Level 2: Minimal Runtime Behavior Smoke
+Required reproduction:
 
-The runtime smoke should exercise a very small number of behaviors:
+- insert aggregate with ID omitted; framework/provider assigns ID
+- insert aggregate with ID already set; persisted row keeps that ID
+- unit-of-work must treat the preassigned-ID aggregate as new, not route it to a failing `merge`
+- no preliminary insert/query workaround is allowed
 
-- insert and query an identity-id entity
-- insert and update a versioned entity
-- remove a soft-delete entity and verify normal queries are filtered by `@Where`
-- verify the row remains physically present and the soft-delete marker changed
+### 2. Aggregate Loading Boundary and Lazy Relation Behavior
 
-The runtime smoke should avoid broad repository, transaction manager, Spring Boot, or business-invariant testing.
+The real issue is not simply whether `FetchType.LAZY` or `FetchType.EAGER` appears in generated code.
 
-### Level 3: Custom Generic Generator Boot, Optional Persist
+The issue is whether cap4k's repository/unit-of-work contract can support aggregate use without forcing every aggregate relation to be eagerly loaded forever.
 
-The custom generator path must at least be part of Hibernate boot metadata:
+Required reproduction:
 
-- generated entity has `@GeneratedValue(generator = "...")`
-- generated entity has `@GenericGenerator(name = "...", strategy = "...")`
-- Hibernate accepts the mapping during boot
+- load an aggregate through the repository in a normal application transaction
+- access owned children inside the transaction
+- verify the unit-of-work registration and transaction boundary are sufficient
+- identify whether failures are caused by missing transaction scope, detached entities, generated relation mapping, or repository API shape
 
-Persisting an entity through the custom generator path is a stretch goal, not a hard requirement, unless the fixture can provide a tiny and stable generator implementation without pulling in larger runtime plumbing.
+The fixture should not blindly encode `EAGER` as the framework answer. If eager loading is needed for a specific aggregate shape, that must be a deliberate capability decision.
+
+### 3. Three-Level Aggregate Whole-Save Behavior
+
+`only-danmuku` has aggregate structures like root -> child -> grandchild. The suspected defect is that whole-save/cascade behavior may fail or produce incorrect persistence effects.
+
+Required reproduction:
+
+- create a root aggregate with child and grandchild entities
+- persist through the cap4k unit-of-work/repository path
+- update nested children and grandchildren
+- remove nested children/grandchildren where orphan removal is configured
+- verify database state after flush/transaction commit
+
+This should be a runtime behavior test, not a renderer assertion.
 
 ## Fixture Strategy
 
-This slice should introduce a dedicated runtime-capable aggregate fixture rather than mutating the existing compile fixtures into mixed-purpose test assets.
+Introduce a dedicated runtime fixture instead of mutating compile-only fixtures.
 
 Recommended fixture:
 
-- `aggregate-persistence-runtime-sample`
+- `aggregate-jpa-runtime-defect-sample`
 
-The fixture should reuse the same overall aggregate project shape already used by compile fixtures:
+The fixture should be intentionally small but structurally representative:
 
-- root project with `cap4k` plugin
-- `demo-domain`
-- `demo-application`
-- `demo-adapter`
-- DB source enabled against fixture-local H2
-- aggregate generator enabled
+- H2-backed database
+- generated aggregate entities
+- a tiny runtime smoke entrypoint or Gradle task
+- direct Spring/JPA or direct Hibernate boot only if that is the lowest-friction way to exercise the cap4k runtime path
 
-The runtime fixture should be based on the current aggregate persistence compile fixtures, but with a separate purpose:
+The fixture should prefer cap4k's real repository/unit-of-work path when validating behavior. Direct Hibernate boot is useful only for isolating mapping validity.
 
-- compile fixtures remain compile-only quality gates
-- runtime fixture becomes the runtime boot/smoke gate
+## ID Contract Design Options
 
-## Runtime Harness
+The implementation plan must choose one explicit ID strategy after reproducing the defect.
 
-The runtime harness should use a small executable smoke entrypoint inside the generated sample instead of adding Spring Boot test infrastructure.
+### Option A: Framework-Level ID Allocator
 
-Recommended shape:
+The framework exposes an application-side ID allocation path. Factories or command handlers can request an ID before constructing the aggregate, and generated entities use assigned IDs rather than relying on provider generation.
 
-- add a small runtime smoke source under the fixture, for example `demo-domain/src/testFixtures` or a bounded runtime source folder already compiled by the fixture build
-- expose a simple Gradle task that runs a small main entrypoint after generation and compilation
-- the smoke entrypoint should bootstrap Hibernate/JPA directly, using a minimal programmatic Hibernate configuration such as `org.hibernate.cfg.Configuration` or `HibernatePersistenceConfiguration`
+Pros:
 
-The smoke entrypoint should:
+- matches the business requirement most directly
+- ID is available before persistence
+- avoids ambiguous `@GeneratedValue` semantics
+- is portable across JPA providers
 
-1. build a Hibernate `SessionFactory` or JPA `EntityManagerFactory`
-2. point to the fixture-local H2 datasource
-3. register the generated aggregate entities
-4. execute the bounded runtime smoke steps
-5. exit with failure on the first runtime contract break
+Cons:
 
-This keeps the runtime verification focused on generated persistence mappings rather than on application framework wiring.
+- changes the framework contract around generated IDs
+- requires generator/runtime integration beyond annotation output
 
-## Representative Entities
+### Option B: Hibernate Assigned-Or-Generated Identifier Generator
 
-The fixture should stay small. Two entities are enough.
+Generated mappings keep a Hibernate-specific generator that returns the existing ID if present and otherwise generates one.
 
-### `VideoPost`
+Pros:
 
-This entity should represent the higher-risk bounded persistence behavior:
+- preserves the old annotation style more closely
+- can keep normal "omit ID" creation ergonomic
 
-- explicit custom `@GenericGenerator` path or, if persist smoke is not feasible, at least custom generator boot metadata
-- `@Version`
-- `@DynamicInsert`
-- `@DynamicUpdate`
-- `@SQLDelete`
-- `@Where`
+Cons:
 
-### `AuditLog`
+- Hibernate-specific
+- easy to misunderstand as portable JPA
+- still needs unit-of-work new-entity detection to treat preassigned IDs as new
 
-This entity should remain on the default bounded identity path:
+### Option C: Pure JPA Assigned IDs
 
-- `@GeneratedValue(strategy = GenerationType.IDENTITY)`
-- no custom generator annotations
+Generated entities do not use `@GeneratedValue` for application-side IDs. The framework always assigns IDs before persist.
 
-This proves custom and default paths coexist in the same generated project.
+Pros:
 
-## Runtime Assertions
+- portable and simple at the ORM layer
+- no provider-specific generator behavior
 
-### Required Assertions
+Cons:
 
-The runtime smoke must prove:
+- no provider-side default generation path
+- requires cap4k to supply IDs consistently before persistence
 
-1. Hibernate/JPA boot succeeds with generated aggregate entities.
-2. Identity-path entity insert succeeds and the entity can be queried back.
-3. Versioned entity update succeeds through the normal optimistic-locking mapping path.
-4. Soft-delete entity remove path uses bounded generated annotations without runtime mapping failure.
-5. After soft delete:
-   - normal entity query is filtered by `@Where`
-   - the physical row still exists
-   - the soft-delete marker column is updated
+Recommended direction for the spec:
 
-### Custom Generator Assertions
-
-`@GenericGenerator` should be treated as legacy-compatibility parity, not as a new recommended API surface. Hibernate 6 documentation describes newer identifier generator APIs as superseding `@GenericGenerator`, while older custom `IdentifierGenerator` implementations remain compatible. This slice keeps `@GenericGenerator` only because old CAP4K output used it.
-
-Hard requirement:
-
-- custom-generator entity participates in provider boot successfully
-
-Conditional stretch:
-
-- persist custom-generator entity
-- flush succeeds
-- generated id is present
-
-This conditional runtime assertion is allowed only if the fixture-side generator implementation remains tiny and stable.
+- treat Snowflake-style IDs as application-side IDs
+- do not model this as database identity generation
+- do not rely on plain JPA `@GeneratedValue` to accept preassigned IDs
+- decide between Option A and Option B only after the reproduction test exposes the current failure mode
 
 ## Boundaries
 
-This slice is intentionally not:
+This slice is not:
 
-- a new persistence feature slice
-- a relation runtime verification slice
-- a Spring Boot integration test slice
-- a repository behavior slice
-- a real-project support slice
+- a full persistence backend comparison
+- a Jimmer/MyBatis/JOOQ replacement decision
+- a relation model redesign
+- a query generator change
+- a design-json change
+- a broad real-project integration workaround
 
-It does not add:
-
-- sequence or table strategy recovery
-- generator parameter bags
-- split generator name and strategy inputs
-- relation runtime semantics
-- `ManyToMany`
-- `mappedBy`
-- `@JoinTable`
-- full provider-specific runtime coverage beyond the already accepted bounded annotations
-
-## Implementation Shape
-
-The implementation should be a test/harness slice, not a generator behavior slice.
-
-Expected implementation areas:
-
-1. Runtime fixture
-   - add `aggregate-persistence-runtime-sample`
-   - include a small H2-backed runtime setup
-   - include a small smoke entrypoint or task
-
-2. Functional test
-   - add a Gradle functional test that copies the runtime fixture
-   - runs `cap4kGenerate`
-   - runs the runtime smoke task
-   - asserts the task succeeds
-
-3. Generated output checks
-   - keep a small set of file assertions for the important generated annotation shapes
-   - do not duplicate the full renderer test suite in the functional test
-
-4. Optional tiny custom generator implementation
-   - only if needed and small
-   - it must live inside the fixture
-   - it must not become a new framework contract
-
-No production generator code should change unless runtime verification exposes an actual generated-output defect. If a defect is found, the fix must stay within the already accepted persistence behavior and should not add new semantics.
+This slice may change production code only when a failing runtime reproduction proves a cap4k bug or an explicitly approved contract gap.
 
 ## Testing Strategy
 
-The primary new test should live with the Gradle functional tests because it verifies generated-project behavior.
+The implementation should follow reproduction-first discipline:
 
-Recommended test name:
+1. create a minimal fixture that reproduces one defect
+2. run the fixture and capture the failure
+3. fix only the proven failure
+4. keep the regression fixture as the support contract
 
-- `aggregate persistence runtime smoke validates generated Hibernate mappings`
+Focused tests should live with the Gradle functional/runtime verification tests.
 
-The test should run a bounded command sequence equivalent to:
-
-1. copy runtime fixture
-2. run `cap4kGenerate`
-3. run fixture runtime smoke task
-
-The verification command for this slice should include:
+Expected verification shape:
 
 ```powershell
-./gradlew :cap4k-plugin-pipeline-gradle:test --tests "com.only4.cap4k.plugin.pipeline.gradle.PipelinePluginPersistenceRuntimeFunctionalTest"
+./gradlew :cap4k-plugin-pipeline-gradle:test --tests "*AggregateJpaRuntime*"
 ```
 
-If a new test class is not introduced, the equivalent focused test in the existing functional test class is acceptable. The implementation plan should choose the lowest-friction option that keeps runtime tests discoverable.
+The exact class name can be chosen by the implementation plan, but the test names should mention the defect being proved:
 
-The final focused regression should include:
-
-```powershell
-./gradlew :cap4k-plugin-pipeline-gradle:test
-```
-
-If fixture dependency or runtime setup touches shared compile helper infrastructure, include the affected focused module tests as well.
+- preassignable application-side id persists as new aggregate
+- repository load keeps aggregate children usable inside transaction
+- three-level aggregate cascades save and orphan removal correctly
 
 ## Success Criteria
 
 This slice is complete when:
 
-- a generated aggregate runtime fixture boots Hibernate/JPA with generated entities
-- identity id path persists and queries successfully
-- version mapping participates in a basic update path
-- soft-delete mapping updates the marker and `@Where` filters normal queries
-- custom generic-generator mapping participates in provider boot
-- custom generic-generator persist is either covered by a tiny fixture generator or explicitly left as a documented residual risk
-- no new persistence semantics are introduced
-- focused Gradle functional regression passes
+- the three real-project persistence defects are represented as focused runtime fixtures or explicitly classified as non-defects
+- preassignable application-side ID behavior has an explicit cap4k contract
+- unit-of-work behavior does not misclassify preassigned-ID new aggregates
+- aggregate load behavior is explained by transaction/repository boundaries rather than accidental eager loading
+- three-level aggregate save/update/delete behavior is either supported with tests or documented as unsupported with a clear reason
+- backend replacement remains deferred unless the reproduction evidence justifies it
 
 ## Residual Risk
 
 This slice still does not prove:
 
-- real application transaction manager behavior
-- Spring Boot autoconfiguration
-- repository behavior
-- production database dialects
-- concurrency conflict handling for optimistic locking
-- full Hibernate provider behavior matrix
+- production MySQL dialect behavior
+- every relation shape
+- concurrency and optimistic-lock conflict behavior
+- full Spring Boot application wiring
+- alternative persistence backend viability
 
-Those are outside the current mainline. They belong to later support-track or explicitly activated integration work.
+Those belong to later support-track or backend-comparison work.

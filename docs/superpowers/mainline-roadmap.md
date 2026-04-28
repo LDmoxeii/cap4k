@@ -205,7 +205,7 @@ The bounded aggregate persistence-control line is complete through generic-gener
 
 The next explicit framework slice is:
 
-- aggregate persistence runtime verification hardening
+- aggregate JPA runtime defect reproduction and in-place repair
 
 Status:
 
@@ -215,19 +215,25 @@ Status:
 
 Scope:
 
-- build on the now-stable bounded persistence line rather than reopening source semantics or adding new persistence features
-- keep the work inside representative aggregate runtime fixtures and verification harnesses
-- focus on proving that the current bounded persistence output boots and behaves coherently at runtime, especially around custom id generators, identity ids, version fields, and bounded provider-specific entity behavior
-- extend verification beyond Kotlin compilation into bounded runtime persistence smoke checks
-- keep the slice bounded to runtime verification hardening for already-accepted persistence behavior, not new persistence semantics
+- build on the now-stable bounded persistence line rather than starting with a backend replacement
+- reproduce the real `only-danmuku` JPA aggregate defects inside representative runtime fixtures
+- make preassignable application-side IDs an explicit contract candidate, not a vague "generated or manual" switch
+- verify repository/unit-of-work transaction boundaries for aggregate child access before defaulting to eager loading
+- verify three-level aggregate whole-save, update, and orphan-removal behavior before classifying it as unsupported
+- fix in place only when a focused reproduction proves a cap4k bug or an approved contract gap
+
+Reference:
+
+- [aggregate JPA runtime defect reproduction design](specs/2026-04-21-cap4k-aggregate-persistence-runtime-verification-hardening-design.md)
 
 Non-goals:
 
 - do not restore mutable shared runtime type maps between generators
 - do not widen this slice into relation re-architecture, user-code-preservation parity, or general source-semantic recovery
 - do not broaden bootstrap beyond the current bounded contract
-- do not silently expand into sequence/table strategy recovery, generator registry redesign, or full provider-specific recovery
-- do not turn runtime verification hardening into general real-project integration support
+- do not silently expand into sequence/table strategy recovery, generator registry redesign, or full provider-specific recovery beyond the reproduced defect
+- do not turn runtime defect reproduction into general real-project integration support
+- do not start a Jimmer/MyBatis/JOOQ backend comparison before the JPA defects are reproduced and classified
 - do not silently reactivate `mappedBy`, `@JoinTable`, or `ManyToMany`; those remain explicitly later-priority work
 - do not turn exploratory parity notes into a general rewrite of the current pipeline architecture
 
@@ -263,13 +269,13 @@ Plan freshness rule:
 - Write the implementation plan only after that review, so the plan is timely and executable.
 - The validator projection and generation normalization track is the current exception because a combined plan was explicitly requested before execution.
 
-Recommended order:
+Recommended order after the current next mainline:
 
 1. Contract-first query contract
 2. ddd-core nullability contract stabilization
 3. validator projection and generation normalization
 4. irAnalysis restructuring analysis
-5. unit-of-work and repository backend comparison
+5. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
 
 The third item is a combined implementation track over:
 
@@ -430,20 +436,22 @@ Status:
 - backend choice not analyzed
 - spec not written
 - implementation plan not written
+- deferred until aggregate JPA runtime defects are reproduced and classified
 
 Next action:
 
-- perform an analysis/PoC design before choosing a replacement or parallel implementation
+- first execute or re-review the aggregate JPA runtime defect reproduction slice
+- perform an analysis/PoC design only if the reproduction evidence shows the current JPA path cannot support the approved contracts safely
 - keep this track at analysis/spec level until a backend comparison direction is approved
 - do not write an implementation plan before the comparison spec exists and has been reviewed
 
 Notes:
 
 - current unit-of-work and repository implementations are JPA-based
-- JPA usage has exposed enough practical problems that a new backend comparison is justified
-- this should be treated as a persistence backend track, not as a quick refactor
+- JPA usage has exposed enough practical problems to justify runtime reproduction first, not immediate replacement
+- this should be treated as a persistence backend track only after in-place JPA repair has been evaluated
 - the first slice should compare candidates and define a bounded PoC, not replace the current JPA implementation
-- likely evaluation dimensions include aggregate loading, dirty tracking, transactions, optimistic locking, relation handling, custom ID generation, query ergonomics, Kotlin support, Spring integration, testing, and migration risk
+- likely evaluation dimensions include aggregate loading, dirty tracking, transactions, optimistic locking, relation handling, preassignable application-side ID generation, query ergonomics, Kotlin support, Spring integration, testing, and migration risk
 - this has a large blast radius and should not be mixed into contract-first query, nullability contract stabilization, validator work, or irAnalysis work
 - the safest route is probably a parallel backend implementation behind existing repository/unit-of-work contracts, then runtime verification against representative aggregate fixtures
 
