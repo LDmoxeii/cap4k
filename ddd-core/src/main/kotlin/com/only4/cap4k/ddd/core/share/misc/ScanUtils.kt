@@ -28,6 +28,8 @@ private val METADATA_READER_FACTORY: MetadataReaderFactory = SimpleMetadataReade
  */
 @Throws(Exception::class)
 fun scanClass(scanPath: String, concrete: Boolean): Set<Class<*>> {
+    require(scanPath.isNotBlank()) { "scanPath must not be blank" }
+
     val path = ClassUtils.convertClassNameToResourcePath(scanPath)
     val packageSearchPath = "${ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX}$path/**/*.class"
 

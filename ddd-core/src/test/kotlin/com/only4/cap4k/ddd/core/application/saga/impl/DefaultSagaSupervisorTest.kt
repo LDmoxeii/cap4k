@@ -200,8 +200,8 @@ class DefaultSagaSupervisorTest {
     fun `test resume method handles continuous retry`() {
         // 准备 - 模拟需要多次重试的场景
         val minNextTryTime = LocalDateTime.now().plusMinutes(10)
-        val nextTryTime1 = LocalDateTime.now().plusMinutes(15) // 大于minNextTryTime
-        val nextTryTime2 = LocalDateTime.now().plusMinutes(12) // 仍大于minNextTryTime
+        val nextTryTime1 = minNextTryTime.minusMinutes(5)
+        val nextTryTime2 = minNextTryTime.minusMinutes(2)
         val finalNextTryTime = minNextTryTime // 等于minNextTryTime，跳出循环
 
         // 重新配置mock

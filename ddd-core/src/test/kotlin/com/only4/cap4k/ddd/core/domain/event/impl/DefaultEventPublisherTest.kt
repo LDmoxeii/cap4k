@@ -288,6 +288,7 @@ class DefaultEventPublisherTest {
             every { eventRecord.nextTryTime } returns LocalDateTime.now().plusMinutes(1) // 设置为大于minNextTryTime的时间
             every { eventRecord.isValid } returns true
             every { eventRecord.isDelivered } returns true
+            every { eventRecord.isDelivering } returns true
             every { eventRecord.beginDelivery(any()) } returns true
 
             // when

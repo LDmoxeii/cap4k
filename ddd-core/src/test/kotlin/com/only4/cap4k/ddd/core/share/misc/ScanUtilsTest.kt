@@ -129,7 +129,7 @@ class ScanUtilsTest {
         val emptyPackage = ""
 
         // 当传入空包路径时
-        val exception = assertThrows(ExceptionInInitializerError::class.java) {
+        val exception = assertThrows(IllegalArgumentException::class.java) {
             scanClass(emptyPackage, false)
         }
 
