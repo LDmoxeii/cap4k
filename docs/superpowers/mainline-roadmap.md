@@ -289,9 +289,9 @@ The third item is a combined implementation track over:
 
 Status:
 
-- spec-only by design
-- implementation plan intentionally deferred until execution
-- implementation not started
+- implementation complete
+- verified through pipeline API, design-json source, canonical assembly, design generator, Pebble renderer, codegen template tests, and Gradle functional / compile-functional tests
+- full `:ddd-core:test` is blocked by pre-existing failures also reproduced on the original `master` workspace
 
 Reference:
 
@@ -299,9 +299,7 @@ Reference:
 
 Next action:
 
-- when this item is selected for execution, re-review the spec against current `master`
-- update the spec first if query, payload, or ddd-core contracts have moved
-- write the implementation plan only after that review
+- continue with ddd-core nullability contract stabilization as the next independent mainline slice
 
 Notes:
 
