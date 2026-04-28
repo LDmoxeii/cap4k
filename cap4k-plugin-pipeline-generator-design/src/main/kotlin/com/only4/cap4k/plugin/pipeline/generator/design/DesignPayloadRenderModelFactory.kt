@@ -370,8 +370,8 @@ internal object DesignPayloadRenderModelFactory {
     ) {
         node.children.values.forEach { child ->
             if (child.children.isNotEmpty()) {
-                val pageEnvelopeItemTypeName = pageEnvelopeItemTypeName(child)
-                if (pageEnvelopeItemTypeName != null) {
+                if (isPageDataType(child.explicitDeclarations.singleOrNull()?.type)) {
+                    val pageEnvelopeItemTypeName = validatePageEnvelopeItemTypeName(child, namespace)
                     collectPageEnvelopeItemNode(
                         pageNode = child,
                         itemTypeName = pageEnvelopeItemTypeName,
@@ -412,25 +412,47 @@ internal object DesignPayloadRenderModelFactory {
         collectNestedTypeNodes(listNode, namespace, nestedTypeNames, nestedTypeNodes)
     }
 
-    private fun pageEnvelopeItemTypeName(node: PayloadPathNode): String? {
-        val directFieldType = node.explicitDeclarations.singleOrNull()?.type?.trim().orEmpty()
-        if (directFieldType.isBlank()) {
-            return null
+    private fun validatePageEnvelopeItemTypeName(
+        node: PayloadPathNode,
+        namespace: String,
+    ): String {
+        if (node.path.size != 1 || node.name != "page") {
+            throw IllegalArgumentException(
+                "PageData envelope in $namespace namespace is only supported for root field page",
+            )
         }
+        if (node.children.keys != setOf("list")) {
+            throw IllegalArgumentException(
+                "PageData field page in $namespace namespace must declare nested item fields only under list[]",
+            )
+        }
+        val listNode = node.children["list"]
+        if (listNode == null || !listNode.list || listNode.children.isEmpty()) {
+            throw IllegalArgumentException(
+                "PageData field page in $namespace namespace must declare nested item fields only under list[]",
+            )
+        }
+
+        val directFieldType = node.explicitDeclarations.singleOrNull()?.type?.trim().orEmpty()
         val genericStart = directFieldType.indexOf('<')
         val genericEnd = directFieldType.lastIndexOf('>')
-        if (genericStart < 0 || genericEnd <= genericStart) {
-            return null
-        }
-        if (simpleTypeName(directFieldType.substring(0, genericStart)) != "PageData") {
-            return null
-        }
-        val listNode = node.children["list"] ?: return null
-        if (!listNode.list || listNode.children.isEmpty()) {
-            return null
+        require(genericStart >= 0 && genericEnd > genericStart) {
+            "PageData field page in $namespace namespace must declare nested item fields only under list[]"
         }
         val arguments = splitGenericArguments(directFieldType.substring(genericStart + 1, genericEnd))
         return arguments.singleOrNull()?.let(::simpleNestedTypeCandidate)
+            ?: throw IllegalArgumentException(
+                "PageData field page in $namespace namespace must declare nested item fields only under list[]",
+            )
+    }
+
+    private fun isPageDataType(type: String?): Boolean {
+        val trimmed = type?.trim().orEmpty()
+        val genericStart = trimmed.indexOf('<')
+        if (genericStart < 0) {
+            return false
+        }
+        return simpleTypeName(trimmed.substring(0, genericStart)) == "PageData"
     }
 
     private fun validateDuplicateDeclarations(
