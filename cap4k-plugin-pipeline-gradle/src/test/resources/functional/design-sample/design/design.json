@@ -1,6 +1,6 @@
 [
   {
-    "tag": "cmd",
+    "tag": "command",
     "package": "order.submit",
     "name": "SubmitOrder",
     "desc": "submit order command",
@@ -28,7 +28,7 @@
     ]
   },
   {
-    "tag": "qry",
+    "tag": "query",
     "package": "order.read",
     "name": "FindOrder",
     "desc": "find order query",
@@ -48,28 +48,26 @@
     ]
   },
   {
-    "tag": "qry",
+    "tag": "query",
     "package": "order.read",
     "name": "FindOrderList",
-    "desc": "find order list query",
+    "desc": "find orders query",
     "aggregates": ["Order"],
-    "requestFields": [
-      { "name": "customerId", "type": "Long" },
-      { "name": "listCursorId", "type": "java.util.UUID" },
-      { "name": "requestStatus", "type": "com.foo.Status" }
-    ],
+    "requestFields": [],
     "responseFields": [
-      { "name": "responseStatus", "type": "com.bar.Status" },
-      { "name": "summary", "type": "Summary", "nullable": true },
-      { "name": "summary.updatedAt", "type": "java.time.LocalDateTime" },
-      { "name": "summary.summaryId", "type": "java.util.UUID" }
+      { "name": "items", "type": "List<Item>" },
+      { "name": "items[].responseStatus", "type": "com.bar.Status" },
+      { "name": "items[].summary", "type": "Summary", "nullable": true },
+      { "name": "items[].summary.updatedAt", "type": "java.time.LocalDateTime" },
+      { "name": "items[].summary.summaryId", "type": "java.util.UUID" }
     ]
   },
   {
-    "tag": "qry",
+    "tag": "query",
     "package": "order.read",
     "name": "FindOrderPage",
-    "desc": "find order page query",
+    "desc": "find orders query",
+    "traits": ["page"],
     "aggregates": ["Order"],
     "requestFields": [
       { "name": "keyword", "type": "String" },
@@ -77,14 +75,15 @@
       { "name": "requestStatus", "type": "com.foo.Status" }
     ],
     "responseFields": [
-      { "name": "responseStatus", "type": "com.bar.Status" },
-      { "name": "snapshot", "type": "Snapshot", "nullable": true },
-      { "name": "snapshot.publishedAt", "type": "java.time.LocalDateTime" },
-      { "name": "snapshot.snapshotId", "type": "java.util.UUID" }
+      { "name": "page", "type": "com.only4.cap4k.ddd.core.share.PageData<Item>" },
+      { "name": "page.list[].responseStatus", "type": "com.bar.Status" },
+      { "name": "page.list[].snapshot", "type": "Snapshot", "nullable": true },
+      { "name": "page.list[].snapshot.publishedAt", "type": "java.time.LocalDateTime" },
+      { "name": "page.list[].snapshot.snapshotId", "type": "java.util.UUID" }
     ]
   },
   {
-    "tag": "cli",
+    "tag": "client",
     "package": "authorize",
     "name": "IssueToken",
     "desc": "issue token client",

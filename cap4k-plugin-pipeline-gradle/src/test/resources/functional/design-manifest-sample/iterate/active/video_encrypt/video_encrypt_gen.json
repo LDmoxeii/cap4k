@@ -1,6 +1,6 @@
 [
   {
-    "tag": "cmd",
+    "tag": "command",
     "package": "video.encrypt",
     "name": "GenerateVideoHlsKey",
     "desc": "generate key",

@@ -1,6 +1,6 @@
 [
   {
-    "tag": "cmd",
+    "tag": "command",
     "package": "video.post",
     "name": "InvalidVideoPost",
     "desc": "invalid video post command",

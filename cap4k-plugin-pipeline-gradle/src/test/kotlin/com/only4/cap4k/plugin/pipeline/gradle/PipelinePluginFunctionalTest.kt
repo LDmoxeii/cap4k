@@ -38,8 +38,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/command.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/query.kt.peb\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"design/query_list.kt.peb\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"design/query_page.kt.peb\""))
+        assertFalse(planFile.readText().contains("\"templateId\": \"design/query_" + "list.kt.peb\""))
+        assertFalse(planFile.readText().contains("\"templateId\": \"design/query_" + "page.kt.peb\""))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -117,7 +117,7 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kGenerate renders list and page query variants from repository config`() {
+    fun `cap4kGenerate renders contract first list and page query envelopes`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-generate-list-page")
         copyFixture(projectDir)
 
@@ -144,37 +144,43 @@ class PipelinePluginFunctionalTest {
         assertTrue(listQueryFile.toFile().exists())
         assertTrue(pageQueryFile.toFile().exists())
 
-        assertTrue(listQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.ListQueryParam"))
+        assertTrue(listQueryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
         assertFalse(listQueryContent.contains("import com.foo.Status"))
-        assertFalse(listQueryContent.contains("import com.bar.Status"))
-        assertTrue(listQueryContent.contains("data class Request("))
-        assertTrue(listQueryContent.contains(") : ListQueryParam<Response>"))
-        assertTrue(listQueryContent.contains("val customerId: Long"))
-        assertTrue(listQueryContent.contains("val listCursorId: UUID"))
-        assertTrue(listQueryContent.contains("val requestStatus: com.foo.Status"))
+        assertTrue(listQueryContent.contains("class Request : RequestParam<Response>"))
         assertTrue(listQueryContent.contains("data class Response("))
-        assertTrue(listQueryContent.contains("val responseStatus: com.bar.Status"))
+        assertTrue(listQueryContent.contains("val items: List<Item>"))
+        assertTrue(listQueryContent.contains("data class Item("))
+        assertTrue(listQueryContent.contains("val responseStatus: Status"))
         assertTrue(listQueryContent.contains("val summary: Summary?"))
         assertFalse(listQueryContent.contains("val summary: Summary??"))
         assertTrue(listQueryContent.contains("data class Summary("))
         assertTrue(listQueryContent.contains("val updatedAt: LocalDateTime"))
         assertTrue(listQueryContent.contains("val summaryId: UUID"))
+        assertFalse(listQueryContent.contains("List" + "QueryParam"))
+        assertFalse(listQueryContent.contains("List" + "Query<"))
 
-        assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.PageQueryParam"))
+        assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.PageRequest"))
+        assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.share.PageData"))
         assertFalse(pageQueryContent.contains("import com.foo.Status"))
-        assertFalse(pageQueryContent.contains("import com.bar.Status"))
         assertTrue(pageQueryContent.contains("data class Request("))
-        assertTrue(pageQueryContent.contains(") : PageQueryParam<Response>()"))
+        assertTrue(pageQueryContent.contains("override val pageNum: Int = 1"))
+        assertTrue(pageQueryContent.contains("override val pageSize: Int"))
+        assertTrue(pageQueryContent.contains(") : PageRequest, RequestParam<Response>"))
         assertTrue(pageQueryContent.contains("val keyword: String"))
         assertTrue(pageQueryContent.contains("val createdAfter: LocalDateTime"))
         assertTrue(pageQueryContent.contains("val requestStatus: com.foo.Status"))
         assertTrue(pageQueryContent.contains("data class Response("))
+        assertTrue(pageQueryContent.contains("val page: PageData<Item>"))
+        assertTrue(pageQueryContent.contains("data class Item("))
         assertTrue(pageQueryContent.contains("val responseStatus: com.bar.Status"))
         assertTrue(pageQueryContent.contains("val snapshot: Snapshot?"))
         assertFalse(pageQueryContent.contains("val snapshot: Snapshot??"))
         assertTrue(pageQueryContent.contains("data class Snapshot("))
         assertTrue(pageQueryContent.contains("val publishedAt: LocalDateTime"))
         assertTrue(pageQueryContent.contains("val snapshotId: UUID"))
+        assertFalse(pageQueryContent.contains("Page" + "QueryParam"))
+        assertFalse(pageQueryContent.contains("Page" + "Query<"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -225,7 +231,7 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kGenerate supports override list and page query templates`() {
+    fun `cap4kGenerate supports unified query template override for all query names`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-list-page-override")
         copyFixture(projectDir)
 
@@ -261,36 +267,39 @@ class PipelinePluginFunctionalTest {
         val pageQueryFile = projectDir.resolve(
             "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt"
         )
+        val defaultQueryFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt"
+        )
+        val defaultQueryContent = defaultQueryFile.readText()
         val listQueryContent = listQueryFile.readText()
         val pageQueryContent = pageQueryFile.readText()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(defaultQueryFile.toFile().exists())
         assertTrue(listQueryFile.toFile().exists())
         assertTrue(pageQueryFile.toFile().exists())
 
-        assertTrue(listQueryContent.contains("// override: representative list query migration template"))
-        assertTrue(listQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.ListQueryParam"))
-        assertTrue(listQueryContent.contains("data class Request("))
-        assertTrue(listQueryContent.contains(") : ListQueryParam<Response>"))
+        assertTrue(defaultQueryContent.contains("// override: representative default query migration template"))
+        assertTrue(listQueryContent.contains("// override: representative default query migration template"))
+        assertTrue(pageQueryContent.contains("// override: representative default query migration template"))
+        assertTrue(listQueryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(listQueryContent.contains("class Request : RequestParam<Response>"))
         assertFalse(listQueryContent.contains("import com.foo.Status"))
-        assertFalse(listQueryContent.contains("import com.bar.Status"))
-        assertTrue(listQueryContent.contains("val customerId: Long"))
-        assertTrue(listQueryContent.contains("val listCursorId: UUID"))
-        assertTrue(listQueryContent.contains("val requestStatus: com.foo.Status"))
-        assertTrue(listQueryContent.contains("val responseStatus: com.bar.Status"))
+        assertTrue(listQueryContent.contains("val items: List<Item>"))
+        assertTrue(listQueryContent.contains("val responseStatus: Status"))
         assertTrue(listQueryContent.contains("data class Summary("))
         assertTrue(listQueryContent.contains("val updatedAt: LocalDateTime"))
         assertTrue(listQueryContent.contains("val summaryId: UUID"))
 
-        assertTrue(pageQueryContent.contains("// override: representative page query migration template"))
-        assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.PageQueryParam"))
+        assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.share.PageData"))
         assertTrue(pageQueryContent.contains("data class Request("))
-        assertTrue(pageQueryContent.contains(") : PageQueryParam<Response>()"))
+        assertTrue(pageQueryContent.contains(") : RequestParam<Response>"))
         assertFalse(pageQueryContent.contains("import com.foo.Status"))
-        assertFalse(pageQueryContent.contains("import com.bar.Status"))
         assertTrue(pageQueryContent.contains("val keyword: String"))
         assertTrue(pageQueryContent.contains("val createdAfter: LocalDateTime"))
         assertTrue(pageQueryContent.contains("val requestStatus: com.foo.Status"))
+        assertTrue(pageQueryContent.contains("val page: PageData<Item>"))
         assertTrue(pageQueryContent.contains("val responseStatus: com.bar.Status"))
         assertTrue(pageQueryContent.contains("data class Snapshot("))
         assertTrue(pageQueryContent.contains("val publishedAt: LocalDateTime"))
@@ -425,8 +434,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.exists())
         assertTrue(content.contains("\"templateId\": \"design/query_handler.kt.peb\""))
-        assertTrue(content.contains("\"templateId\": \"design/query_list_handler.kt.peb\""))
-        assertTrue(content.contains("\"templateId\": \"design/query_page_handler.kt.peb\""))
+        assertFalse(content.contains("\"templateId\": \"design/query_" + "list_handler.kt.peb\""))
+        assertFalse(content.contains("\"templateId\": \"design/query_" + "page_handler.kt.peb\""))
         assertTrue(content.contains("demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt"))
         assertTrue(content.contains("demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderListQry.kt"))
         assertTrue(content.contains("demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt"))
@@ -437,7 +446,7 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kGenerate renders query handler variants into adapter module`() {
+    fun `cap4kGenerate renders query handlers with the unified query contract`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-query-handler-generate")
         copyFixture(projectDir, "design-sample")
 
@@ -508,32 +517,38 @@ class PipelinePluginFunctionalTest {
         assertTrue(defaultContent.contains("responseStatus = TODO(\"set responseStatus\")"))
         assertTrue(defaultContent.contains("snapshot = TODO(\"set snapshot\")"))
 
-        assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.ListQuery"))
+        assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
         assertTrue(listContent.contains("import com.acme.demo.application.queries.order.read.FindOrderListQry"))
-        assertTrue(listContent.contains("class FindOrderListQryHandler : ListQuery<FindOrderListQry.Request, FindOrderListQry.Response>"))
-        assertTrue(listContent.contains("override fun exec(request: FindOrderListQry.Request): List<FindOrderListQry.Response>"))
-        assertTrue(listContent.contains("return listOf("))
-        assertTrue(listContent.contains("responseStatus = TODO(\"set responseStatus\")"))
-        assertTrue(listContent.contains("summary = TODO(\"set summary\")"))
+        assertTrue(listContent.contains("class FindOrderListQryHandler : Query<FindOrderListQry.Request, FindOrderListQry.Response>"))
+        assertTrue(listContent.contains(" : Query<"))
+        assertTrue(listContent.contains(".Request, "))
+        assertTrue(listContent.contains(".Response>"))
+        assertTrue(listContent.contains("items = TODO(\"set items\")"))
+        assertFalse(listContent.contains("List" + "Query<"))
+        assertFalse(listContent.contains("Page" + "Query<"))
+        assertFalse(listContent.contains("List<FindOrder" + "ListQry.Response>"))
+        assertFalse(listContent.contains("PageData<FindOrder" + "PageQry.Response>"))
 
-        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.PageQuery"))
-        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.share.PageData"))
+        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
         assertTrue(pageContent.contains("import com.acme.demo.application.queries.order.read.FindOrderPageQry"))
-        assertTrue(pageContent.contains("class FindOrderPageQryHandler : PageQuery<FindOrderPageQry.Request, FindOrderPageQry.Response>"))
-        assertTrue(pageContent.contains("override fun exec(request: FindOrderPageQry.Request): PageData<FindOrderPageQry.Response>"))
-        assertTrue(pageContent.contains("return PageData.create(request, 1L, listOf("))
-        assertTrue(pageContent.contains("responseStatus = TODO(\"set responseStatus\")"))
-        assertTrue(pageContent.contains("snapshot = TODO(\"set snapshot\")"))
+        assertTrue(pageContent.contains("class FindOrderPageQryHandler : Query<FindOrderPageQry.Request, FindOrderPageQry.Response>"))
+        assertTrue(pageContent.contains(" : Query<"))
+        assertTrue(pageContent.contains(".Request, "))
+        assertTrue(pageContent.contains(".Response>"))
+        assertTrue(pageContent.contains("page = TODO(\"set page\")"))
+        assertFalse(pageContent.contains("List" + "Query<"))
+        assertFalse(pageContent.contains("Page" + "Query<"))
+        assertFalse(pageContent.contains("List<FindOrder" + "ListQry.Response>"))
+        assertFalse(pageContent.contains("PageData<FindOrder" + "PageQry.Response>"))
 
         assertTrue(defaultQueryContent.contains("object FindOrderQry"))
         assertTrue(defaultQueryContent.contains("data class Request("))
         assertTrue(defaultQueryContent.contains(") : RequestParam<Response>"))
         assertTrue(listQueryContent.contains("object FindOrderListQry"))
-        assertTrue(listQueryContent.contains("data class Request("))
-        assertTrue(listQueryContent.contains(") : ListQueryParam<Response>"))
+        assertTrue(listQueryContent.contains("class Request : RequestParam<Response>"))
         assertTrue(pageQueryContent.contains("object FindOrderPageQry"))
         assertTrue(pageQueryContent.contains("data class Request("))
-        assertTrue(pageQueryContent.contains(") : PageQueryParam<Response>()"))
+        assertTrue(pageQueryContent.contains(") : PageRequest, RequestParam<Response>"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -605,12 +620,10 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(defaultContent.contains("// override: representative default query handler migration template"))
-        assertTrue(listContent.contains("// override: representative list query handler migration template"))
-        assertTrue(pageContent.contains("// override: representative page query handler migration template"))
-        assertTrue(listContent.contains("override fun exec(request: FindOrderListQry.Request): List<FindOrderListQry.Response>"))
-        assertTrue(listContent.contains("return listOf("))
-        assertTrue(pageContent.contains("override fun exec(request: FindOrderPageQry.Request): PageData<FindOrderPageQry.Response>"))
-        assertTrue(pageContent.contains("return PageData.create(request, 1L, listOf("))
+        assertTrue(listContent.contains("// override: representative default query handler migration template"))
+        assertTrue(pageContent.contains("// override: representative default query handler migration template"))
+        assertTrue(listContent.contains("class FindOrderListQryHandler : Query<FindOrderListQry.Request, FindOrderListQry.Response>"))
+        assertTrue(pageContent.contains("class FindOrderPageQryHandler : Query<FindOrderPageQry.Request, FindOrderPageQry.Response>"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -960,8 +973,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(listQueryFile.toFile().exists())
         assertTrue(pageQueryFile.toFile().exists())
         assertTrue(defaultQueryContent.contains(") : RequestParam<Response>"))
-        assertTrue(listQueryContent.contains(") : ListQueryParam<Response>"))
-        assertTrue(pageQueryContent.contains(") : PageQueryParam<Response>()"))
+        assertTrue(listQueryContent.contains("class Request : RequestParam<Response>"))
+        assertTrue(pageQueryContent.contains(") : PageRequest, RequestParam<Response>"))
     }
 
     @OptIn(ExperimentalPathApi::class)

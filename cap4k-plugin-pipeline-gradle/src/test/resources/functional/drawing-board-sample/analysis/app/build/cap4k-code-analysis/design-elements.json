@@ -1,6 +1,6 @@
 [
   {
-    "tag": "cli",
+    "tag": "client",
     "package": "orders.api",
     "name": "FetchOrder",
     "desc": "fetch order",
@@ -23,7 +23,7 @@
     ]
   },
   {
-    "tag": "cmd",
+    "tag": "command",
     "package": "orders.api",
     "name": "SubmitOrder",
     "desc": "submit order",
@@ -43,7 +43,7 @@
     "responseFields": []
   },
   {
-    "tag": "de",
+    "tag": "domain_event",
     "package": "orders.events",
     "name": "OrderCreated",
     "desc": "order created",

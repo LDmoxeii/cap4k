@@ -27,26 +27,29 @@
     "tag": "query",
     "package": "order.read",
     "name": "FindOrderList",
-    "desc": "find order list",
+    "desc": "find orders",
     "aggregates": ["Order"],
     "requestFields": [
       { "name": "customerId", "type": "Long" }
     ],
     "responseFields": [
-      { "name": "count", "type": "Int" }
+      { "name": "items", "type": "List<Item>" },
+      { "name": "items[].count", "type": "Int" }
     ]
   },
   {
     "tag": "query",
     "package": "order.read",
     "name": "FindOrderPage",
-    "desc": "find order page",
+    "desc": "find orders",
+    "traits": ["page"],
     "aggregates": ["Order"],
     "requestFields": [
       { "name": "keyword", "type": "String" }
     ],
     "responseFields": [
-      { "name": "total", "type": "Long" }
+      { "name": "page", "type": "com.only4.cap4k.ddd.core.share.PageData<Item>" },
+      { "name": "page.list[].total", "type": "Long" }
     ]
   },
   {

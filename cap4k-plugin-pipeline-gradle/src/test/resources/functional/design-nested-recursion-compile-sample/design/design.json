@@ -17,8 +17,9 @@
       { "name": "externalItem", "type": "com.acme.shared.Item", "nullable": false }
     ],
     "responseFields": [
-      { "name": "categoryId", "type": "Long", "nullable": false },
-      { "name": "children", "type": "List<self>", "nullable": true },
+      { "name": "nodes", "type": "List<Node>", "nullable": false },
+      { "name": "nodes[].categoryId", "type": "Long", "nullable": false },
+      { "name": "nodes[].children", "type": "List<Node>", "nullable": false },
       { "name": "list", "type": "List<Item>", "nullable": false },
       { "name": "list[].messageType", "type": "Int", "nullable": false },
       { "name": "list[].count", "type": "Int", "nullable": false }

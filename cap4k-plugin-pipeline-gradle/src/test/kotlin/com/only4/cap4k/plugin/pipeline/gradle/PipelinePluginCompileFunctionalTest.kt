@@ -85,6 +85,15 @@ class PipelinePluginCompileFunctionalTest {
             "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt",
         )
+        val listQueryContent = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderListQry.kt",
+        ).readText()
+        val pageQueryContent = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt",
+        ).readText()
+        assertTrue(listQueryContent.contains("val items: List<Item>"))
+        assertTrue(pageQueryContent.contains(") : PageRequest, RequestParam<Response>"))
+        assertTrue(pageQueryContent.contains("val page: PageData<Item>"))
     }
 
     @Test
@@ -214,10 +223,18 @@ class PipelinePluginCompileFunctionalTest {
             content,
             """
             data class Response(
-                val categoryId: Long,
-                val children: List<Response>?,
+                val nodes: List<Node>,
                 val list: List<Item>
             ) {
+            """.trimIndent(),
+        )
+        assertContainsNormalized(
+            content,
+            """
+            data class Node(
+                val categoryId: Long,
+                val children: List<Node>
+            )
             """.trimIndent(),
         )
         assertContainsNormalized(
