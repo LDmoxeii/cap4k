@@ -298,6 +298,63 @@ class DesignApiPayloadArtifactPlannerTest {
     }
 
     @Test
+    fun `api payload planner rejects raw standalone page data root field without list item paths`() {
+        val planner = DesignApiPayloadArtifactPlanner()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
+                model = CanonicalModel(
+                    apiPayloads = listOf(
+                        ApiPayloadModel(
+                            packageName = "order",
+                            typeName = "FindOrderPagePayload",
+                            description = "find order page payload",
+                            responseFields = listOf(
+                                FieldModel("page", "com.only4.cap4k.ddd.core.share.PageData"),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "PageData field page in response namespace must declare nested item fields only under list[]",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `api payload planner rejects page data envelope in request namespace`() {
+        val planner = DesignApiPayloadArtifactPlanner()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
+                model = CanonicalModel(
+                    apiPayloads = listOf(
+                        ApiPayloadModel(
+                            packageName = "order",
+                            typeName = "FindOrderPagePayload",
+                            description = "find order page payload",
+                            requestFields = listOf(
+                                FieldModel("page", "com.only4.cap4k.ddd.core.share.PageData<Item>"),
+                                FieldModel("page.list[].id", "Long"),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "PageData envelope in request namespace is only supported in response fields",
+            error.message,
+        )
+    }
+
+    @Test
     fun `api payload planner rejects unsupported page data envelope children`() {
         val planner = DesignApiPayloadArtifactPlanner()
 

@@ -416,6 +416,11 @@ internal object DesignPayloadRenderModelFactory {
         node: PayloadPathNode,
         namespace: String,
     ): String {
+        if (namespace != "response") {
+            throw IllegalArgumentException(
+                "PageData envelope in $namespace namespace is only supported in response fields",
+            )
+        }
         if (node.path.size != 1 || node.name != "page") {
             throw IllegalArgumentException(
                 "PageData envelope in $namespace namespace is only supported for root field page",
@@ -448,11 +453,8 @@ internal object DesignPayloadRenderModelFactory {
 
     private fun isPageDataType(type: String?): Boolean {
         val trimmed = type?.trim().orEmpty()
-        val genericStart = trimmed.indexOf('<')
-        if (genericStart < 0) {
-            return false
-        }
-        return simpleTypeName(trimmed.substring(0, genericStart)) == "PageData"
+        val rootType = trimmed.substringBefore('<')
+        return simpleTypeName(rootType) == "PageData"
     }
 
     private fun validateDuplicateDeclarations(
