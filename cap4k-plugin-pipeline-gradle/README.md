@@ -258,7 +258,7 @@ cat build/cap4k/plan.json
 ```json
 [
   {
-    "tag": "cmd",
+    "tag": "command",
     "package": "order.submit",
     "name": "SubmitOrder",
     "desc": "提交订单命令",
@@ -286,13 +286,13 @@ cat build/cap4k/plan.json
 ]
 ```
 
-**支持的 `tag`**（大小写不敏感）：
+**支持的 `tag`**（精确匹配）：
 
 | tag | Generator | Canonical 模型 |
 |-----|------|----------|
-| `cmd`, `command` | design-command | `CommandModel`（类名 `{Name}Cmd`，当前 `CommandVariant.DEFAULT`） |
-| `qry`, `query` | design-query | `QueryModel`（类名 `{Name}Qry`，`QueryVariant.DEFAULT/LIST/PAGE`） |
-| `cli`, `client`, `clients` | design-client | `ClientModel`（类名 `{Name}Cli`） |
+| `command` | design-command | `CommandModel`（类名 `{Name}Cmd`，当前 `CommandVariant.DEFAULT`） |
+| `query` | design-query | `QueryModel`（类名 `{Name}Qry`，由显式 `traits` 表达请求特征） |
+| `client` | design-client | `ClientModel`（类名 `{Name}Cli`） |
 | `validator` | design-validator | 类名 `{UpperCamel}`（规范化驼峰） |
 | `api_payload` | design-api-payload | 类名 `{UpperCamel}` |
 | `domain_event` | design-domain-event | 类名不以 `Evt`/`Event` 结尾时自动追加 `DomainEvent` |
@@ -716,7 +716,7 @@ CREATE TABLE order_line (
 ### 8.4 `enum-manifest` — 共享枚举
 
 - 实现：`EnumManifestSourceProvider`
-- 定位：项目级共享枚举字典 source。它描述可跨聚合复用的枚举类型及其条目，不描述一次设计交互，也不参与 `cmd/qry/cli/validator/api_payload/domain_event` 这些 design tag 的语义分流。
+- 定位：项目级共享枚举字典 source。它描述可跨聚合复用的枚举类型及其条目，不描述一次设计交互，也不参与 `command/query/client/validator/api_payload/domain_event` 这些 design tag 的语义分流。
 - 结构：每个定义一个 `SharedEnumDefinition { typeName, packageName, generateTranslation, items[] }`
 - 归属：仅喂给 `model.sharedEnums`，由 `aggregate` 生成器的 `SharedEnumArtifactPlanner` 产出（模板 `aggregate/enum.kt.peb`）；当 `generateTranslation = true` 且 `generators.aggregate.artifacts.enumTranslation = true` 时额外由 `EnumTranslationArtifactPlanner` 产出翻译器（模板 `aggregate/enum_translation.kt.peb`）
 - 为什么不并入 `design-json`：两者生命周期和消费方不同。`design-json` 面向设计交互产物，最终进入 `commands/queries/clients/validators/apiPayloads/domainEvents` 等切片；`enum-manifest` 面向项目级共享字典，最终只进入 `sharedEnums`，并由 aggregate 族生成共享 enum 与可选翻译器。把它合进 `design-json` 只会让 tag 语义变宽、让设计输入承担字典职责，收益不明显。
@@ -748,7 +748,8 @@ Generator 统一约束：
 - id：`design-command`、`design-query`
 - 模块：application
 - 产物：`{application}/src/main/kotlin/{basePackage}/application/{commands|queries}/{package}/{TypeName}.kt`
-- 模板：`design/command.kt.peb`, `design/query.kt.peb`, `design/query_list.kt.peb`, `design/query_page.kt.peb`（`QueryModel.variant` 选择查询模板）
+- 模板：`design/command.kt.peb`, `design/query.kt.peb`
+- 查询统一使用 `Query<Request, Response>`；list/page/tree 是 `Response` 内部字段，page 请求通过显式 `PAGE` trait 渲染 `PageRequest`。
 - 类名规则：`{Name}Cmd` / `{Name}Qry`
 
 ### 9.2 `design-query-handler`
@@ -756,7 +757,7 @@ Generator 统一约束：
 - id：`design-query-handler`
 - 模块：adapter
 - 与 `design-query` 1:1 配套
-- 模板：`design/query_handler.kt.peb`, `design/query_list_handler.kt.peb`, `design/query_page_handler.kt.peb`
+- 模板：`design/query_handler.kt.peb`
 
 ### 9.3 `design-client` / `design-client-handler`
 
@@ -835,7 +836,7 @@ Generator 统一约束：
 - 模块：project
 - 输入来自 `ir-analysis.design-elements`，输出是可直接作为 `sources.designJson.files` 使用的稳定 design-json contract。
 - 输出 tag：`client`, `command`, `query`, `api_payload`, `domain_event`（其他会被忽略）
-- 旧 analysis tag 会在 pipeline 层投影：`cli -> client`, `cmd -> command`, `qry -> query`, `payload -> api_payload`, `de -> domain_event`。
+- 输入 tag 必须已经是 canonical 值：`client`, `command`, `query`, `api_payload`, `domain_event`；旧 alias 不再在 pipeline 层投影。
 - `domain_event` 的 `entity` 参数由 `aggregates[0]` 派生，drawing-board 输出不会携带顶层 `entity` 或 `requestFields.entity`。
 - 模板：`drawing-board/document.json.peb`
 
@@ -849,9 +850,9 @@ Generator 统一约束：
 
 ```kotlin
 data class CanonicalModel(
-    val commands: List<CommandModel> = emptyList(),           // 来自 design-json 的 cmd
-    val queries: List<QueryModel> = emptyList(),              // 来自 design-json 的 qry
-    val clients: List<ClientModel> = emptyList(),             // 来自 design-json 的 cli
+    val commands: List<CommandModel> = emptyList(),           // 来自 design-json 的 command
+    val queries: List<QueryModel> = emptyList(),              // 来自 design-json 的 query
+    val clients: List<ClientModel> = emptyList(),             // 来自 design-json 的 client
     val validators: List<ValidatorModel> = emptyList(),       // tag=validator
     val domainEvents: List<DomainEventModel> = emptyList(),   // tag=domain_event
     val schemas: List<SchemaModel> = emptyList(),             // 来自 db
@@ -885,11 +886,7 @@ presets/
 │   ├── design/
 │   │   ├── command.kt.peb
 │   │   ├── query.kt.peb
-│   │   ├── query_list.kt.peb
-│   │   ├── query_page.kt.peb
 │   │   ├── query_handler.kt.peb
-│   │   ├── query_list_handler.kt.peb
-│   │   ├── query_page_handler.kt.peb
 │   │   ├── client.kt.peb
 │   │   ├── client_handler.kt.peb
 │   │   ├── validator.kt.peb
@@ -1003,7 +1000,7 @@ cap4k {
 
 | 模板 | context 关键字段 |
 |------|------------------|
-| `design/command.kt.peb` / `query*.kt.peb` | `packageName`, `typeName`, `description*`, `imports`, `requestFields`, `requestNestedTypes`, `responseFields`, `responseNestedTypes` |
+| `design/command.kt.peb` / `design/query.kt.peb` | `packageName`, `typeName`, `description*`, `imports`, `requestFields`, `requestNestedTypes`, `responseFields`, `responseNestedTypes`, `pageRequest` |
 | `design/*_handler.kt.peb` | 同上 + `requestTypeName`, `aggregateName` 等（见 `DesignQueryHandlerRenderModels`） |
 | `design/validator.kt.peb` | `packageName`, `typeName`, `description*`, `valueType`, `imports` |
 | `design/api_payload.kt.peb` | `packageName`, `typeName`, `description*`, `imports`, `requestFields/nestedTypes`, `responseFields/nestedTypes` |
@@ -1417,7 +1414,7 @@ override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPl
 
 | Fixture | 用途 |
 |---------|------|
-| `design-sample` | 全量 design 族（cmd/qry/cli + handlers）+ override 模板 |
+| `design-sample` | 全量 design 族（command/query/client + handlers）+ override 模板 |
 | `design-validator-sample` | validator 家族最小样例 |
 | `design-api-payload-sample` | api_payload + 嵌套字段 |
 | `design-domain-event-sample` | domain_event + handler + KSP 元数据 |
@@ -1480,8 +1477,8 @@ assertTrue(result.output.contains("BUILD SUCCESSFUL"))
 | Generator id | 模块 role | 主模板 | 输出位置模板 |
 |--------------|-----------|--------|-------------|
 | `design-command` | application | `design/command.kt.peb` | `{application}/src/main/kotlin/{pkg}/application/commands/{sub}/{Name}Cmd.kt` |
-| `design-query` | application | `design/query*.kt.peb` | `{application}/src/main/kotlin/{pkg}/application/queries/{sub}/{Name}Qry.kt` |
-| `design-query-handler` | adapter | `design/query*_handler.kt.peb` | `{adapter}/src/main/kotlin/{pkg}/adapter/application/query/{sub}/{Name}QryHandler.kt` |
+| `design-query` | application | `design/query.kt.peb` | `{application}/src/main/kotlin/{pkg}/application/queries/{sub}/{Name}Qry.kt` |
+| `design-query-handler` | adapter | `design/query_handler.kt.peb` | `{adapter}/src/main/kotlin/{pkg}/adapter/application/query/{sub}/{Name}QryHandler.kt` |
 | `design-client` | application | `design/client.kt.peb` | `{application}/src/main/kotlin/{pkg}/application/clients/{sub}/{Name}Cli.kt` |
 | `design-client-handler` | adapter | `design/client_handler.kt.peb` | `{adapter}/src/main/kotlin/{pkg}/adapter/application/client/{sub}/{Name}CliHandler.kt` |
 | `design-validator` | application | `design/validator.kt.peb` | `{application}/src/main/kotlin/{pkg}/application/validators/{sub}/{UpperCamel}.kt` |
@@ -1507,9 +1504,9 @@ assertTrue(result.output.contains("BUILD SUCCESSFUL"))
 
 | design tag | request 类名 | handler 类名 |
 |-----------|-------------|-------------|
-| `cmd` | `{Name}Cmd` | — |
-| `qry` | `{Name}Qry` | `{Name}QryHandler`（按响应形态自动选 plain/list/page） |
-| `cli` | `{Name}Cli` | `{Name}CliHandler` |
+| `command` | `{Name}Cmd` | — |
+| `query` | `{Name}Qry` | `{Name}QryHandler` |
+| `client` | `{Name}Cli` | `{Name}CliHandler` |
 | `validator` | `{UpperCamel}` | — |
 | `api_payload` | `{UpperCamel}` | — |
 | `domain_event` | `{Name}DomainEvent`（如需） | `{Name}DomainEventSubscriber` |
