@@ -199,6 +199,8 @@ But generated API payloads and generated application query requests must not inh
 Introduce a lightweight interface for pagination-shaped request contracts:
 
 ```kotlin
+package com.only4.cap4k.ddd.core.application.query
+
 interface PageRequest {
     val pageNum: Int
     val pageSize: Int
@@ -388,44 +390,37 @@ New design input should use one query concept:
   "name": "GetVideoPage",
   "traits": ["page"],
   "requestFields": [
-    { "name": "keyword", "type": "String?", "nullable": true }
+    { "name": "keyword", "type": "String", "nullable": true }
   ],
   "responseFields": [
     { "name": "page", "type": "PageData<Item>" },
-    {
-      "name": "item",
-      "type": "Item",
-      "children": [
-        { "name": "videoId", "type": "Long" },
-        { "name": "title", "type": "String" }
-      ]
-    }
+    { "name": "page.list[].videoId", "type": "Long" },
+    { "name": "page.list[].title", "type": "String" }
   ]
 }
 ```
 
-`query_list` and `query_page` are not first-class canonical concepts after this change.
+`query_list`, `query_page`, and old aliases such as `qry` are not accepted source tags in this slice.
 
-Accepted source compatibility during migration is allowed only as a parser-level alias if needed, but the canonical model must not preserve separate list/page variants.
+There is no parser-level compatibility bridge in this implementation. If a project still has old list/page query inputs, it must rewrite them to the strict `tag = "query"` response-envelope shape before generation.
+
+Query names such as `FindOrderList` or `FindOrderPage` may remain as names, but names do not imply list/page semantics. The only page signal is the explicit `PAGE` trait.
 
 ### Nested Type Definition
 
-The existing field-children nested model should remain the only nested type definition style.
+The existing dotted-field nested model should remain the only nested type definition style.
 
 Do not introduce a second `nestedTypes` source input format for this iteration.
 
 Example:
 
 ```json
-{
-  "name": "nodes",
-  "type": "List<Node>",
-  "children": [
-    { "name": "categoryId", "type": "Long" },
-    { "name": "categoryName", "type": "String" },
-    { "name": "children", "type": "List<self>" }
-  ]
-}
+[
+  { "name": "nodes", "type": "List<Node>" },
+  { "name": "nodes[].categoryId", "type": "Long" },
+  { "name": "nodes[].categoryName", "type": "String" },
+  { "name": "nodes[].children", "type": "List<Node>" }
+]
 ```
 
 The renderer should convert this into:
@@ -441,6 +436,8 @@ data class Node(
     val children: List<Node>
 )
 ```
+
+Do not use `self` to express `Response` recursion or nested local recursion in this slice. Tree shapes should name the nested type explicitly, as in `List<Node>`.
 
 ### Page Trait Source Representation
 
@@ -462,20 +459,32 @@ Do not introduce arbitrary request super type strings in this iteration.
 
 Do not include sorting in `page` trait.
 
+### Design Entry Trait Scope
+
+`traits` is a design-entry field, but each trait is valid only for specific tags.
+
+The first implementation supports only:
+
+- `PAGE` on `query`
+- `PAGE` on `api_payload`
+
+Any trait on `command`, `client`, `domain_event`, or `validator` must fail fast. Unknown traits must also fail fast.
+
 ## Canonical Model Changes
 
-`QueryModel` should no longer need `QueryVariant` for generated semantics.
+`QueryVariant` should be removed rather than left as an unused compatibility branch.
 
-Current conceptual shape:
+Current shape:
 
 ```kotlin
-data class QueryModel(
-    val variant: QueryVariant,
-    ...
-)
+enum class QueryVariant {
+    DEFAULT,
+    LIST,
+    PAGE,
+}
 ```
 
-Target conceptual shape:
+Target query shape:
 
 ```kotlin
 data class QueryModel(
@@ -488,6 +497,23 @@ data class QueryModel(
 )
 ```
 
+`DesignSpecEntry` should carry parsed traits as a typed field so source validation can reject unsupported tag/trait combinations before canonical assembly.
+
+Target entry shape:
+
+```kotlin
+data class DesignSpecEntry(
+    val tag: String,
+    val packageName: String,
+    val name: String,
+    val description: String,
+    val traits: Set<RequestTrait> = emptySet(),
+    ...
+)
+```
+
+`ApiPayloadModel` should also carry `traits` so the same `PAGE` trait can render `PageRequest` for API payload requests without coupling API payloads to `RequestParam<Response>`.
+
 `RequestTrait` can be a small enum for now:
 
 ```kotlin
@@ -496,9 +522,17 @@ enum class RequestTrait {
 }
 ```
 
-The exact internal name is flexible, but the semantics must be explicit and typed. Do not encode traits as raw inheritance strings.
+The exact internal name is flexible, but the semantics must be explicit and typed. Do not encode traits as raw inheritance strings and do not infer traits from type names.
 
 Canonical query no longer answers "single/list/page query variant". It answers:
+
+```text
+What is the request shape?
+What is the response shape?
+What traits does the request carry?
+```
+
+Canonical API payload similarly answers:
 
 ```text
 What is the request shape?
@@ -523,6 +557,8 @@ After:
 
 - query template
 - query handler template
+
+`DesignQueryTemplateIds.kt` and other variant-to-template indirection should be removed. `DesignQueryArtifactPlanner` always plans `design/query.kt.peb`; `DesignQueryHandlerArtifactPlanner` always plans `design/query_handler.kt.peb`.
 
 The handler always implements:
 
@@ -660,16 +696,16 @@ But default templates only define generated payload/query structures and handler
 
 This is a breaking cleanup. Compatibility is not required for existing generated output.
 
-Allowed migration aids:
+Allowed migration aid:
 
-- Parser-level aliases may temporarily accept old source tags such as `query_list` and `query_page` only if implementation tests or dogfood migration need a short-lived bridge.
-- If aliases are kept temporarily, they must normalize into the unified canonical query model.
-- Temporary aliases must not be documented as the new stable input format.
-- Tests may use old inputs only to verify normalization.
+- Repository-owned design JSON and fixture inputs may be edited directly to the new strict contract before verification.
 
 Not allowed:
 
-- Keeping `QueryVariant` as a semantic branch in canonical generation.
+- Keeping `QueryVariant` as a semantic branch or physical enum.
+- Accepting old query source tags such as `qry`, `query_list`, or `query_page`.
+- Inferring page/list semantics from names such as `FindOrderPage` or `FindOrderList`.
+- Automatically wrapping old item-shaped response fields into `items`, `nodes`, or `page`.
 - Generating `ListQuery` or `PageQuery`.
 - Generating `ListQueryParam` or `PageQueryParam`.
 - Generating `List<Response>` as a query handler return type.
@@ -694,32 +730,33 @@ Expected implementation impact:
   - keep `Query` as the single query marker
 
 - pipeline API:
-  - remove `QueryVariant` from canonical generation semantics
-  - if a physical enum remains temporarily during refactoring, completion criteria still require no generator/template/provider branch to depend on it
-  - add query request traits, at least `PAGE`
+  - remove `QueryVariant`
+  - add typed design-entry traits, at least `PAGE`
+  - carry `PAGE` traits on query and API payload canonical models
+  - reject unsupported tag/trait combinations during source parsing
   - ensure query model does not encode item-container semantics
 
 - design source assembly:
-  - normalize query-like entries into a single query model
+  - accept `query` as the only query tag
   - attach `PAGE` trait from source if requested
-  - ensure old list/page tags do not leak into canonical generation
+  - ensure old aliases and name suffixes do not leak into canonical generation
 
 - design generator providers:
-  - collapse query/list/page provider behavior where possible
+  - collapse query/list/page provider behavior completely
   - generate one query artifact shape
   - generate one query handler artifact shape
 
 - Pebble templates:
-  - delete or stop using `query_list.kt.peb`
-  - delete or stop using `query_page.kt.peb`
-  - delete or stop using `query_list_handler.kt.peb`
-  - delete or stop using `query_page_handler.kt.peb`
+  - delete `query_list.kt.peb`
+  - delete `query_page.kt.peb`
+  - delete `query_list_handler.kt.peb`
+  - delete `query_page_handler.kt.peb`
   - update `query.kt.peb`
   - update `query_handler.kt.peb`
   - update `api_payload.kt.peb` for `PageRequest` trait
 
 - legacy codegen templates:
-  - update or remove old query list/page templates if they are still built/tested
+  - update or remove old query list/page override templates if they are still built/tested
   - at minimum, prevent tests from asserting removed core APIs
 
 - tests:
@@ -766,7 +803,12 @@ Design model:
 
 - Unified query source can express single/list/page/tree shapes.
 - Page semantics are represented by request trait, not by handler return wrapper.
-- Existing nested recursion support remains compatible with response envelopes.
+- `QueryVariant` no longer exists.
+- `query`, `api_payload`, and their canonical models carry typed traits.
+- `PAGE` is accepted only for `query` and `api_payload`.
+- Old query tags, unknown traits, and unsupported tag/trait combinations fail fast.
+- Nested output uses dotted field paths and explicit nested type names.
+- `self` is not used to express recursive `Response` or nested local recursion in this slice.
 
 Verification:
 
@@ -811,13 +853,19 @@ This is accepted for this iteration. The new pipeline has no compatibility requi
 
 ### Risk: Old Design Tags Keep Reintroducing Old Semantics
 
-If old `query_list` / `query_page` tags remain canonical variants, templates may drift back to item-container semantics.
+If old `qry`, `query_list`, or `query_page` tags are accepted as aliases, templates may drift back to item-container semantics.
 
 Mitigation:
 
-- Normalize old tags at source/parser boundary if needed.
-- Do not preserve variants in canonical model.
+- Reject old query tags instead of normalizing them.
+- Delete `QueryVariant` and variant template routing.
 - Add tests that assert generated handlers use `Query<Request, Response>`.
+
+### Risk: Manual Input Migration Is Noisy
+
+Projects with old item-shaped list/page inputs must rewrite response envelopes explicitly.
+
+This is accepted. Automatic wrapping would guess field names and item types, which would preserve the old ambiguity under a new contract.
 
 ## Explicitly Deferred
 
@@ -852,7 +900,7 @@ complete response payload
 The default way to express list/page/tree is:
 
 ```text
-fields inside Response
+dotted field paths inside Response
 ```
 
 The default way to express pagination request shape is:
@@ -869,5 +917,7 @@ PageQuery<Request, Item>
 ListQueryParam<Item>
 PageQueryParam<Item>
 ```
+
+`QueryVariant`, query name suffix inference, and old query tag aliases are also removed.
 
 This is a deliberate breaking change to keep generated contracts simple, explicit, and stable.
