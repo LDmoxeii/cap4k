@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 class PipelineModelsTest {
 
     @Test
-    fun `canonical model stores commands queries and clients separately`() {
+    fun `canonical model stores commands queries api payloads and clients separately`() {
         val model = CanonicalModel(
             commands = listOf(
                 CommandModel(
@@ -27,15 +27,23 @@ class PipelineModelsTest {
             queries = listOf(
                 QueryModel(
                     packageName = "orders",
-                    typeName = "ListOrderQry",
-                    description = "list order",
+                    typeName = "FindOrderPageQry",
+                    description = "find order page",
                     aggregateRef = AggregateRef(
                         name = "Order",
                         packageName = "com.acme.demo.domain.aggregates.order",
                     ),
                     requestFields = emptyList(),
                     responseFields = emptyList(),
-                    variant = QueryVariant.LIST,
+                    traits = setOf(RequestTrait.PAGE),
+                )
+            ),
+            apiPayloads = listOf(
+                ApiPayloadModel(
+                    packageName = "orders",
+                    typeName = "FindOrderPage",
+                    description = "find order page payload",
+                    traits = setOf(RequestTrait.PAGE),
                 )
             ),
             clients = listOf(
@@ -51,7 +59,8 @@ class PipelineModelsTest {
         )
 
         assertEquals(1, model.commands.size)
-        assertEquals(1, model.queries.size)
+        assertEquals(setOf(RequestTrait.PAGE), model.queries.single().traits)
+        assertEquals(setOf(RequestTrait.PAGE), model.apiPayloads.single().traits)
         assertEquals(1, model.clients.size)
     }
 

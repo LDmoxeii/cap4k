@@ -52,6 +52,7 @@ data class DesignSpecEntry(
     val description: String,
     val aggregates: List<String>,
     val persist: Boolean? = null,
+    val traits: Set<RequestTrait> = emptySet(),
     val requestFields: List<FieldModel>,
     val responseFields: List<FieldModel>,
 )
@@ -334,9 +335,7 @@ enum class CommandVariant {
     VOID,
 }
 
-enum class QueryVariant {
-    DEFAULT,
-    LIST,
+enum class RequestTrait {
     PAGE,
 }
 
@@ -357,7 +356,7 @@ data class QueryModel(
     override val aggregateRef: AggregateRef? = null,
     override val requestFields: List<FieldModel> = emptyList(),
     override val responseFields: List<FieldModel> = emptyList(),
-    val variant: QueryVariant,
+    val traits: Set<RequestTrait> = emptySet(),
 ) : DesignInteractionModel
 
 data class ClientModel(
@@ -387,6 +386,7 @@ data class ApiPayloadModel(
     val description: String,
     val requestFields: List<FieldModel> = emptyList(),
     val responseFields: List<FieldModel> = emptyList(),
+    val traits: Set<RequestTrait> = emptySet(),
 )
 
 data class DomainEventModel(
