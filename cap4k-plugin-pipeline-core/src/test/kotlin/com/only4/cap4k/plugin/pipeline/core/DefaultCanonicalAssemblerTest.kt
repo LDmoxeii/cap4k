@@ -1026,6 +1026,148 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `design spec assembly ignores non exact canonical tags and historical aliases`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val model = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "COMMAND",
+                            packageName = "order.submit",
+                            name = "UpperCommand",
+                            description = "upper command",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "Query",
+                            packageName = "order.read",
+                            name = "MixedQuery",
+                            description = "mixed query",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "Client",
+                            packageName = "order.remote",
+                            name = "MixedClient",
+                            description = "mixed client",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "API_PAYLOAD",
+                            packageName = "order.payload",
+                            name = "UpperPayload",
+                            description = "upper payload",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "Validator",
+                            packageName = "order.validator",
+                            name = "MixedValidator",
+                            description = "mixed validator",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "DOMAIN_EVENT",
+                            packageName = "order.events",
+                            name = "UpperDomainEvent",
+                            description = "upper domain event",
+                            aggregates = listOf("Order"),
+                            persist = true,
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "cmd",
+                            packageName = "order.submit",
+                            name = "LegacyCommand",
+                            description = "legacy command",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "qry",
+                            packageName = "order.read",
+                            name = "LegacyQuery",
+                            description = "legacy query",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "cli",
+                            packageName = "order.remote",
+                            name = "LegacyClient",
+                            description = "legacy client",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "clients",
+                            packageName = "order.remote",
+                            name = "LegacyClients",
+                            description = "legacy clients",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "payload",
+                            packageName = "order.payload",
+                            name = "LegacyPayload",
+                            description = "legacy payload",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                        DesignSpecEntry(
+                            tag = "de",
+                            packageName = "order.events",
+                            name = "LegacyDomainEvent",
+                            description = "legacy domain event",
+                            aggregates = listOf("Order"),
+                            persist = true,
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                        ),
+                    )
+                ),
+                KspMetadataSnapshot(
+                    aggregates = listOf(
+                        AggregateMetadataRecord(
+                            aggregateName = "Order",
+                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
+                            rootPackageName = "com.acme.demo.domain.aggregates.order",
+                            rootClassName = "Order",
+                        )
+                    )
+                ),
+            ),
+        ).model
+
+        assertEquals(emptyList<String>(), model.commands.map { it.typeName })
+        assertEquals(emptyList<String>(), model.queries.map { it.typeName })
+        assertEquals(emptyList<String>(), model.clients.map { it.typeName })
+        assertEquals(emptyList<String>(), model.apiPayloads.map { it.typeName })
+        assertEquals(emptyList<String>(), model.validators.map { it.typeName })
+        assertEquals(emptyList<String>(), model.domainEvents.map { it.typeName })
+    }
+
+    @Test
     fun `returns empty model when design snapshot is missing`() {
         val assembler = DefaultCanonicalAssembler()
 
@@ -1199,6 +1341,12 @@ class DefaultCanonicalAssemblerTest {
                             requestFields = listOf(entityField, reasonField),
                         ),
                         DesignElementSnapshot(
+                            tag = "validator",
+                            packageName = "order.validator",
+                            name = "SubmitOrderValidator",
+                            description = "submit order validator",
+                        ),
+                        DesignElementSnapshot(
                             tag = "evt",
                             packageName = "order.events",
                             name = "OrderCreated",
@@ -1210,7 +1358,7 @@ class DefaultCanonicalAssemblerTest {
         ).model
 
         val drawingBoard = model.drawingBoard
-        assertEquals(5, drawingBoard!!.elements.size)
+        assertEquals(6, drawingBoard!!.elements.size)
         assertEquals(
             DrawingBoardElementModel(
                 tag = "command",
@@ -1226,7 +1374,7 @@ class DefaultCanonicalAssemblerTest {
             drawingBoard.elements.first(),
         )
         assertEquals(
-            listOf("command", "client", "query", "api_payload", "domain_event"),
+            listOf("command", "client", "query", "api_payload", "domain_event", "validator"),
             drawingBoard.elementsByTag.keys.toList(),
         )
         assertEquals(1, drawingBoard.elementsByTag.getValue("command").size)
@@ -1236,6 +1384,7 @@ class DefaultCanonicalAssemblerTest {
         val domainEvent = drawingBoard.elementsByTag.getValue("domain_event").single()
         assertEquals(null, domainEvent.entity)
         assertEquals(listOf(DrawingBoardFieldModel(name = "reason", type = "String")), domainEvent.requestFields)
+        assertEquals("SubmitOrderValidator", drawingBoard.elementsByTag.getValue("validator").single().name)
     }
 
     @Test

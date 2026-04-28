@@ -59,7 +59,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
         val commands = designSnapshot?.entries.orEmpty()
             .asSequence()
-            .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "command" }
+            .filter { entry -> entry.tag == "command" }
             .map { entry ->
                 CommandModel(
                     packageName = entry.packageName,
@@ -75,7 +75,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
         val queries = designSnapshot?.entries.orEmpty()
             .asSequence()
-            .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "query" }
+            .filter { entry -> entry.tag == "query" }
             .map { entry ->
                 QueryModel(
                     packageName = entry.packageName,
@@ -91,7 +91,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
         val clients = designSnapshot?.entries.orEmpty()
             .asSequence()
-            .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "client" }
+            .filter { entry -> entry.tag == "client" }
             .map { entry ->
                 ClientModel(
                     packageName = entry.packageName,
@@ -106,7 +106,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
         val validators = designSnapshot?.entries.orEmpty()
             .asSequence()
-            .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "validator" }
+            .filter { entry -> entry.tag == "validator" }
             .map { entry ->
                 ValidatorModel(
                     packageName = entry.packageName,
@@ -119,7 +119,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
         val apiPayloads = designSnapshot?.entries.orEmpty()
             .asSequence()
-            .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "api_payload" }
+            .filter { entry -> entry.tag == "api_payload" }
             .map { entry ->
                 ApiPayloadModel(
                     packageName = entry.packageName,
@@ -264,7 +264,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             )
         val domainEvents = designSnapshot?.entries.orEmpty()
             .asSequence()
-            .filter { entry -> entry.tag.lowercase(Locale.ROOT) == "domain_event" }
+            .filter { entry -> entry.tag == "domain_event" }
             .map { entry ->
                 val aggregateName = resolveDomainEventAggregateName(entry)
                 val aggregate = resolveDomainEventAggregateMetadata(
