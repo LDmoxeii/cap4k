@@ -14,4 +14,6 @@ object OptionsKeys {
     const val REPOSITORY_SUPERVISOR_FQ = "cap4k.codeanalysis.repositorySupervisorFq"
     const val AGG_FACTORY_SUPERVISOR_FQ = "cap4k.codeanalysis.aggregateFactorySupervisorFq"
     const val REQUEST_PARAM_FQ = "cap4k.codeanalysis.requestParamFq"
+    const val CONSTRAINT_ANNOTATION_FQ = "cap4k.codeanalysis.constraintAnnotationFq"
+    const val CONSTRAINT_VALIDATOR_FQ = "cap4k.codeanalysis.constraintValidatorFq"
 }

@@ -8,14 +8,18 @@ package com.only4.cap4k.plugin.codeanalysis.compiler
 
 import com.only4.cap4k.plugin.codeanalysis.core.model.DesignElement
 import com.only4.cap4k.plugin.codeanalysis.core.model.DesignField
+import com.only4.cap4k.plugin.codeanalysis.core.model.DesignParameter
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.expressions.IrGetEnumValue
+import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.IrTypeProjection
 import org.jetbrains.kotlin.ir.types.isNullable
 import org.jetbrains.kotlin.ir.util.fqNameWhenAvailable
 import org.jetbrains.kotlin.ir.util.hasAnnotation
@@ -37,6 +41,8 @@ class DesignElementCollector(
     private val requestParamFq = FqName(options.requestParamFq)
     private val domainEventAnnFq = FqName(options.domainEventAnnFq)
     private val aggregateAnnFq = FqName(options.aggregateAnnFq)
+    private val constraintAnnFq = FqName(options.constraintAnnFq)
+    private val constraintValidatorFq = FqName(options.constraintValidatorFq)
 
     fun collect(moduleFragment: IrModuleFragment): List<DesignElement> {
         moduleFragment.files.forEach { it.acceptVoid(this) }
@@ -58,6 +64,8 @@ class DesignElementCollector(
                     collectPayloadElement(declaration, fqcn)
                 declaration.hasAnnotation(domainEventAnnFq) || declaration.readAggregateInfo(aggregateAnnFq)?.type == AGG_TYPE_DOMAIN_EVENT ->
                     collectDomainEventElement(declaration, fqcn)
+                declaration.kind == ClassKind.ANNOTATION_CLASS && declaration.hasAnnotation(constraintAnnFq) ->
+                    collectValidatorElement(declaration, fqcn)
             }
         }
         super.visitClass(declaration)
@@ -112,7 +120,7 @@ class DesignElementCollector(
         val aggregates = if (aggInfo?.type == AGG_TYPE_FACTORY_PAYLOAD) listOf(aggInfo.aggregateName) else emptyList()
         addElement(
             DesignElement(
-                tag = "payload",
+                tag = "api_payload",
                 `package` = pkg,
                 name = name,
                 desc = "",
@@ -135,7 +143,7 @@ class DesignElementCollector(
         val requestFields = collectFields(declaration, nestedTypes)
         addElement(
             DesignElement(
-                tag = "de",
+                tag = "domain_event",
                 `package` = pkg,
                 name = declaration.name.asString(),
                 desc = "",
@@ -144,6 +152,39 @@ class DesignElementCollector(
                 persist = persist,
                 requestFields = requestFields,
                 responseFields = emptyList()
+            )
+        )
+    }
+
+    private fun collectValidatorElement(declaration: IrClass, fqcn: String) {
+        if (isAggregateUniqueValidator(fqcn)) {
+            return
+        }
+        val valueType = resolveConstraintValidatorValueType(declaration) ?: return
+        if (valueType !in SupportedValidatorValueTypes) {
+            return
+        }
+        val rawTargets = readAnnotationTargets(declaration)
+        if (rawTargets.isEmpty() || rawTargets.any { it !in SupportedValidatorTargets }) {
+            return
+        }
+        val targets = rawTargets
+            .distinct()
+            .sortedBy { target -> ValidatorTargetOrder[target] ?: Int.MAX_VALUE }
+        if ("CLASS" in targets && valueType != "Any") {
+            return
+        }
+        val parameters = collectValidatorParameters(declaration) ?: return
+        addElement(
+            DesignElement(
+                tag = "validator",
+                `package` = extractPackage(fqcn, ".application.validators"),
+                name = declaration.name.asString(),
+                desc = "",
+                message = readAnnotationConstructorDefault(declaration, "message") ?: "校验未通过",
+                targets = targets,
+                valueType = valueType,
+                parameters = parameters,
             )
         )
     }
@@ -198,6 +239,59 @@ class DesignElementCollector(
         val fqcn = klass.fqNameWhenAvailable?.asString() ?: return null
         val nestedClass = nestedTypes[fqcn] ?: return null
         return NestedType(nestedClass, elementType != null)
+    }
+
+    private fun resolveConstraintValidatorValueType(annotationClass: IrClass): String? {
+        val nestedValidator = findNestedClass(annotationClass, "Validator") ?: return null
+        val annotationName = annotationClass.name.asString()
+        val matchingSuperType = nestedValidator.superTypes
+            .mapNotNull { it as? IrSimpleType }
+            .firstOrNull { type ->
+                val owner = type.classifier?.owner as? IrClass ?: return@firstOrNull false
+                owner.fqNameWhenAvailable == constraintValidatorFq
+            } ?: return null
+        val annotationType = matchingSuperType.arguments.getOrNull(0)?.typeOrNull ?: return null
+        val valueType = matchingSuperType.arguments.getOrNull(1)?.typeOrNull ?: return null
+        if (typeFormatter.format(annotationType) != annotationName) {
+            return null
+        }
+        return typeFormatter.format(valueType).removeSuffix("?")
+    }
+
+    private fun collectValidatorParameters(annotationClass: IrClass): List<DesignParameter>? {
+        val ctor = annotationClass.primaryConstructor ?: return emptyList()
+        val parameters = mutableListOf<DesignParameter>()
+        ctor.valueParameters.forEach { parameter ->
+            val name = parameter.name.asString()
+            if (name in StandardValidatorParameterNames) {
+                return@forEach
+            }
+            val type = typeFormatter.format(parameter.type).removeSuffix("?")
+            if (type !in SupportedValidatorParameterTypes) {
+                return null
+            }
+            parameters += DesignParameter(
+                name = name,
+                type = type,
+                nullable = parameter.type.isNullable(),
+                defaultValue = resolveDefaultValue(parameter),
+            )
+        }
+        return parameters
+    }
+
+    private fun readAnnotationTargets(annotationClass: IrClass): List<String> {
+        val targetAnnotation = annotationClass.annotations.firstOrNull {
+            it.symbol.owner.parentAsClass.fqNameWhenAvailable?.asString() == "kotlin.annotation.Target"
+        } ?: return emptyList()
+        return targetAnnotation.getEnumVarargArg("allowedTargets")
+    }
+
+    private fun readAnnotationConstructorDefault(annotationClass: IrClass, parameterName: String): String? {
+        val ctor = annotationClass.primaryConstructor ?: return null
+        return ctor.valueParameters
+            .firstOrNull { it.name.asString() == parameterName }
+            ?.let { resolveDefaultValue(it) }
     }
 
     private fun resolveDefaultValue(param: IrValueParameter): String? {
@@ -271,6 +365,12 @@ class DesignElementCollector(
         elements.putIfAbsent(key, element)
     }
 
+    private fun isAggregateUniqueValidator(fqcn: String): Boolean {
+        val packageName = fqcn.substringBeforeLast(".", "")
+        return packageName.contains(".application.validators.") &&
+            (packageName.endsWith(".unique") || packageName.contains(".unique."))
+    }
+
     private fun IrClass.isOrImplements(fqName: FqName, visited: MutableSet<IrClass> = mutableSetOf()): Boolean {
         val currentFq = fqNameWhenAvailable
         if (currentFq == fqName) return true
@@ -311,6 +411,19 @@ class DesignElementCollector(
         return arg.value as? Boolean
     }
 
+    private fun IrConstructorCall.getEnumVarargArg(name: String): List<String> {
+        val idx = symbol.owner.valueParameterIndex(name)
+        if (idx < 0) return emptyList()
+        val arg = getValueArgument(idx) ?: return emptyList()
+        return when (arg) {
+            is IrVararg -> arg.elements.mapNotNull { element ->
+                (element as? IrGetEnumValue)?.symbol?.owner?.name?.asString()
+            }
+            is IrGetEnumValue -> listOf(arg.symbol.owner.name.asString())
+            else -> emptyList()
+        }
+    }
+
     private fun org.jetbrains.kotlin.ir.declarations.IrFunction.valueParameterIndex(name: String): Int {
         var idx = 0
         for (param in valueParameters) {
@@ -334,11 +447,19 @@ class DesignElementCollector(
         val tag: String,
         val packageMarker: String
     ) {
-        COMMAND("cmd", ".commands"),
-        QUERY("qry", ".queries"),
-        CLI("cli", ".distributed.clients")
+        COMMAND("command", ".commands"),
+        QUERY("query", ".queries"),
+        CLI("client", ".distributed.clients")
     }
+
+    private val org.jetbrains.kotlin.ir.types.IrTypeArgument.typeOrNull: IrType?
+        get() = (this as? IrTypeProjection)?.type
 }
 
 private const val AGG_TYPE_FACTORY_PAYLOAD = "factory-payload"
 private const val AGG_TYPE_DOMAIN_EVENT = "domain-event"
+private val SupportedValidatorTargets = setOf("CLASS", "FIELD", "VALUE_PARAMETER")
+private val ValidatorTargetOrder = mapOf("CLASS" to 0, "FIELD" to 1, "VALUE_PARAMETER" to 2)
+private val SupportedValidatorValueTypes = setOf("Any", "String", "Long", "Int", "Boolean")
+private val SupportedValidatorParameterTypes = setOf("String", "Int", "Long", "Boolean")
+private val StandardValidatorParameterNames = setOf("message", "groups", "payload")

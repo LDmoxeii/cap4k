@@ -1,6 +1,6 @@
 # Cap4k Mainline Roadmap
 
-Date: 2026-04-17
+Date: 2026-04-28
 
 ## Purpose
 
@@ -203,40 +203,38 @@ The bounded aggregate relation line is complete through inverse relation read-on
 
 The bounded aggregate persistence-control line is complete through generic-generator parity.
 
+The contract-first query contract and ddd-core nullability contract stabilization cleanup slices are complete.
+
+The validator projection and generation normalization slice is complete.
+
 The next explicit framework slice is:
 
-- aggregate JPA runtime defect reproduction and in-place repair
+- generated source output and entity behavior split
 
 Status:
 
 - spec written
-- implementation plan intentionally deferred until execution
+- implementation plan not written
 - implementation not started
 
 Scope:
 
-- build on the now-stable bounded persistence line rather than starting with a backend replacement
-- reproduce the real `only-danmuku` JPA aggregate defects inside representative runtime fixtures
-- make preassignable application-side IDs an explicit contract candidate, not a vague "generated or manual" switch
-- keep ID generation strategy scoped by project default plus aggregate/entity override, not a project-global singleton
-- verify repository/unit-of-work transaction boundaries for aggregate child access before defaulting to eager loading
-- verify three-level aggregate whole-save, update, and orphan-removal behavior before classifying it as unsupported
-- fix in place only when a focused reproduction proves a cap4k bug or an approved contract gap
+- review the dedicated spec before implementation planning
+- first define the generated-source output contract and source-set integration
+- then define the aggregate entity template contract needed before entities can safely move to generated sources
+- do not implement this as a simple exporter-root switch
 
 Reference:
 
-- [aggregate JPA runtime defect reproduction design](specs/2026-04-21-cap4k-aggregate-persistence-runtime-verification-hardening-design.md)
+- [generated source output and entity behavior split design](specs/2026-04-28-cap4k-generated-source-output-and-entity-behavior-split-design.md)
 
 Non-goals:
 
-- do not restore mutable shared runtime type maps between generators
-- do not widen this slice into relation re-architecture, user-code-preservation parity, or general source-semantic recovery
-- do not broaden bootstrap beyond the current bounded contract
-- do not silently expand into sequence/table strategy recovery, generator registry redesign, or full provider-specific recovery beyond the reproduced defect
-- do not turn runtime defect reproduction into general real-project integration support
-- do not start a Jimmer/MyBatis/JOOQ backend comparison before the JPA defects are reproduced and classified
-- do not silently reactivate `mappedBy`, `@JoinTable`, or `ManyToMany`; those remain explicitly later-priority work
-- do not turn exploratory parity notes into a general rewrite of the current pipeline architecture
+- do not implement this as a simple exporter-root switch
+- do not move user-owned handlers, validator bodies, subscribers, controllers, or behavior files into generated sources
+- do not change aggregate entity mutability or behavior-file contracts before the dedicated template contract is defined
+- do not silently mix this with broad irAnalysis restructuring or real-project integration work
+- do not touch legacy `cap4k-plugin-codegen`
 
 ## Bootstrap Decision
 
@@ -282,28 +280,30 @@ Plan freshness rule:
 - Write the implementation plan only after that review, so the plan is timely and executable.
 - The validator projection and generation normalization track is the current exception because a combined plan was explicitly requested before execution.
 
-Recommended order after the current next mainline:
+Recommended order from the current mainline handoff:
 
-1. Contract-first query contract
-2. ddd-core nullability contract stabilization
-3. validator projection and generation normalization
-4. generated source output and entity behavior split
-5. irAnalysis restructuring analysis
-6. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
+1. generated source output and entity behavior split
+2. irAnalysis restructuring analysis
+3. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
 
-The third item is a combined implementation track over:
+The completed validator projection item was a combined implementation track over:
 
 - analysis design projection normalization
 - validator generation capability expansion
 - the irAnalysis current-state analysis constraints
 
-### 1. Contract-first query contract
+Recently completed cleanup slices:
+
+- contract-first query contract
+- ddd-core nullability contract stabilization
+- validator projection and generation normalization
+
+### Completed: Contract-first query contract
 
 Status:
 
 - implementation complete
 - verified through pipeline API, design-json source, canonical assembly, design generator, Pebble renderer, codegen template tests, and Gradle functional / compile-functional tests
-- full `:ddd-core:test` is blocked by pre-existing failures also reproduced on the original `master` workspace
 
 Reference:
 
@@ -311,7 +311,7 @@ Reference:
 
 Next action:
 
-- continue with ddd-core nullability contract stabilization as the next independent mainline slice
+- no direct follow-up; continue from the current recommended order
 
 Notes:
 
@@ -321,25 +321,26 @@ Notes:
 - `PageQuery`, `ListQuery`, `PageQueryParam`, and `ListQueryParam` should be removed
 - `PageRequest` should carry only `pageNum` and `pageSize` in the first iteration
 
-### 2. ddd-core nullability contract stabilization
+### Completed: ddd-core nullability contract stabilization
 
 Status:
 
 - analysis material exists
-- spec-only by design
-- implementation plan intentionally deferred until execution
-- implementation not started
+- spec updated against current `master`
+- implementation plan written and executed
+- implementation complete
+- verified with `:ddd-core:test`, `:ddd-domain-repo-jpa:test`, and `:ddd-domain-repo-jpa-querydsl:test`
+- committed as `a175a2cb Stabilize ddd-core nullability contracts`
 
 Reference:
 
 - [ddd-core nullability analysis](../design/ddd-core-nullability/analysis.md)
 - [ddd-core nullability contract stabilization design](specs/2026-04-27-cap4k-ddd-core-nullability-contract-stabilization-design.md)
+- [ddd-core nullability implementation plan](plans/2026-04-28-cap4k-ddd-core-nullability-contract-stabilization.md)
 
 Next action:
 
-- when this item is selected for execution, re-review the spec against current `master`
-- update the spec first if repository, aggregate, domain-service, or saga APIs have moved
-- write the implementation plan only after that review
+- no direct follow-up; continue with validator projection and generation normalization
 
 Notes:
 
@@ -351,26 +352,26 @@ Notes:
 - stable nullable result accessors such as async request result and saga record result should remain nullable
 - do not mix in `Any` serialization-boundary cleanup
 - Spring Data repository boundaries may still use Java `Optional`
-- this should be separate from contract-first query contract implementation
+- this was kept separate from contract-first query contract implementation
 
-### 3. analysis design projection normalization
+### Completed: analysis design projection normalization
 
 Status:
 
 - analyzed
 - spec written
 - combined implementation plan written as an explicit exception to the freshness rule
-- implementation not started
+- implementation complete
+- verified through analysis compiler projection tests, source-ir parsing tests, drawing-board planner/core tests, and validator drawing-board round-trip functional coverage
 
 Reference:
 
 - [analysis design projection normalization design](specs/2026-04-27-cap4k-analysis-design-projection-normalization-design.md)
+- [validator projection and generation normalization plan](plans/2026-04-27-cap4k-validator-projection-and-generation-normalization.md)
 
 Next action:
 
-- before execution, re-review this spec together with validator generation capability expansion
-- update the spec or plan first if analysis projection, drawing-board, or validator model code has moved
-- execute through the combined validator projection and generation normalization plan after review
+- no direct follow-up; continue from the current recommended order
 
 Notes:
 
@@ -383,25 +384,25 @@ Notes:
 - do not add a normalization layer just to compensate for analysis output gaps
 - should be implemented in the same plan as validator generation capability expansion because both share the validator design model
 
-### 4. Validator generation capability expansion
+### Completed: Validator generation capability expansion
 
 Status:
 
 - existing bounded validator migration exists
 - expanded capability spec written
 - combined implementation plan written as an explicit exception to the freshness rule
-- implementation not started
+- implementation complete
+- verified through design-json parsing tests, canonical validator assembly tests, validator planner/render model tests, and compile-functional coverage for expanded validator skeletons
 
 Reference:
 
 - [design validator family migration design](specs/2026-04-15-cap4k-design-validator-family-migration-design.md)
 - [validator generation capability expansion design](specs/2026-04-27-cap4k-validator-generation-capability-expansion-design.md)
+- [validator projection and generation normalization plan](plans/2026-04-27-cap4k-validator-projection-and-generation-normalization.md)
 
 Next action:
 
-- before execution, re-review this spec together with analysis design projection normalization
-- update the spec or plan first if validator generator, renderer, or template contracts have moved
-- execute through the combined validator projection and generation normalization plan after review
+- no direct follow-up; continue from the current recommended order
 
 Notes:
 
@@ -415,7 +416,7 @@ Notes:
 - aggregate unique validators remain separate from ordinary design validators
 - should be implemented in the same plan as analysis design projection normalization because both share the validator design model
 
-### 5. Generated source output and entity behavior split
+### 1. Generated source output and entity behavior split
 
 Status:
 
@@ -449,7 +450,7 @@ Notes:
 - a generated empty behavior file is useful only as a scaffold; the generated entity contract must make that behavior file able to mutate aggregate state safely
 - Gradle integration must register generated Kotlin source directories per module so IDE import and `compileKotlin` see the generated files consistently
 
-### 6. irAnalysis restructuring analysis
+### 2. irAnalysis restructuring analysis
 
 Status:
 
@@ -474,7 +475,7 @@ Notes:
 - if analysis design projection normalization can be solved without restructuring, keep restructuring deferred
 - this should not block smaller drawing-board or validator-generation slices unless evidence shows the current architecture cannot support them
 
-### 7. Unit-of-work and repository backend comparison
+### 3. Unit-of-work and repository backend comparison
 
 Status:
 

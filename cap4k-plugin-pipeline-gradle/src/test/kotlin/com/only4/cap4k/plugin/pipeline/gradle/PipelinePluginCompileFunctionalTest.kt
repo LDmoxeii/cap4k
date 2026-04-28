@@ -54,6 +54,34 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
+    fun `expanded validator generation compiles class and field skeletons`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-expanded")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-validator-expanded-sample")
+
+        val (generateResult, compileResult) = FunctionalFixtureSupport.generateThenCompile(
+            projectDir,
+            ":demo-application:compileKotlin",
+        )
+        val classValidator = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/danmuku/DanmukuDeletePermission.kt"
+        ).readText()
+        val fieldValidator = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/category/CategoryMustExist.kt"
+        ).readText()
+
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(classValidator.contains("@Target(AnnotationTarget.CLASS)"))
+        assertTrue(classValidator.contains("val message: String = \"no delete \\${'$'}permission\""))
+        assertTrue(classValidator.contains("val danmukuIdField: String = \"danmukuId\""))
+        assertTrue(classValidator.contains("val operatorIdField: String = \"operator\\${'$'}id\""))
+        assertTrue(classValidator.contains("ConstraintValidator<DanmukuDeletePermission, Any>"))
+        assertTrue(classValidator.contains("override fun isValid(value: Any?, context: ConstraintValidatorContext): Boolean = true"))
+        assertTrue(fieldValidator.contains("@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)"))
+        assertTrue(fieldValidator.contains("ConstraintValidator<CategoryMustExist, Long>"))
+    }
+
+    @Test
     fun `request and query variants compile in the application module`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-compile-sample")

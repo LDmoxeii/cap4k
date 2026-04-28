@@ -138,38 +138,229 @@ class DesignElementExtractionTest {
         val outputDir = compileWithCap4kPlugin(sources)
         val json = outputDir.resolve("design-elements.json").toFile().readText()
         val objects = extractTopLevelObjects(json)
-        assertTrue(json.contains("\"tag\":\"cmd\""))
+        assertTrue(json.contains("\"tag\":\"command\""))
         assertTrue(json.contains("\"name\":\"IssueToken\""))
         assertTrue(json.contains("\"name\":\"SubmitOrder\""))
         assertTrue(json.contains("\"cmdValue\""))
         assertTrue(json.contains("\"cmdResult\""))
-        assertTrue(json.contains("\"tag\":\"qry\""))
+        assertTrue(json.contains("\"tag\":\"query\""))
         assertTrue(json.contains("\"name\":\"AutoLogin\""))
         assertTrue(json.contains("\"sessionToken\""))
-        assertTrue(json.contains("\"tag\":\"cli\""))
+        assertTrue(json.contains("\"tag\":\"client\""))
         assertTrue(json.contains("\"name\":\"CaptchaGen\""))
         assertTrue(json.contains("\"cliAccount\""))
         assertTrue(json.contains("\"captchaId\""))
+        assertTrue(json.contains("\"tag\":\"api_payload\""))
         assertTrue(json.contains("\"account.accountNumber\""))
-        assertTrue(json.contains("\"tag\":\"de\""))
+        assertTrue(json.contains("\"tag\":\"domain_event\""))
         assertTrue(json.contains("\"name\":\"UserCreated\""))
         assertTrue(json.contains("\"entity\":\"User\""))
         assertTrue(json.contains("\"persist\":true"))
-        val autoLogin = findObject(objects, "qry", "AutoLogin")
+        val autoLogin = findObject(objects, "query", "AutoLogin")
         assertTrue(autoLogin.contains("\"requestFields\":[]"))
-        val fireAndForget = findObject(objects, "cmd", "FireAndForget")
+        val fireAndForget = findObject(objects, "command", "FireAndForget")
         assertTrue(fireAndForget.contains("\"responseFields\":[]"))
-        val topCmd = findObject(objects, "cmd", "Top")
+        val topCmd = findObject(objects, "command", "Top")
         assertTrue(topCmd.contains("\"package\":\"\""))
-        val topQry = findObject(objects, "qry", "Top")
+        val topQry = findObject(objects, "query", "Top")
         assertTrue(topQry.contains("\"package\":\"\""))
-        val topCli = findObject(objects, "cli", "Top")
+        val topCli = findObject(objects, "client", "Top")
         assertTrue(topCli.contains("\"package\":\"\""))
-        val userCreated = findObject(objects, "de", "UserCreated")
+        val userCreated = findObject(objects, "domain_event", "UserCreated")
         assertTrue(userCreated.contains("\"package\":\"user\""))
         assertTrue(userCreated.contains("\"responseFields\":[]"))
         assertFalse(json.contains("\"package\":\"account.BatchSaveAccountList.Converter\""))
         assertFalse(json.contains("\"name\":\"companion\""))
+    }
+
+    @Test
+    fun `emits supported ordinary validators and skips unique or concrete request validators`() {
+        val sources = listOf(
+            SourceFile.kotlin(
+                "ValidationStubs.kt",
+                """
+                    package jakarta.validation
+                    import kotlin.reflect.KClass
+                    annotation class Constraint(val validatedBy: Array<KClass<*>>)
+                    interface ConstraintValidator<A : Annotation, T> {
+                        fun isValid(value: T?, context: ConstraintValidatorContext): Boolean
+                    }
+                    interface ConstraintValidatorContext
+                    interface Payload
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "CategoryMustExist.kt",
+                """
+                    package demo.application.validators.category
+                    import jakarta.validation.Constraint
+                    import jakarta.validation.ConstraintValidator
+                    import jakarta.validation.ConstraintValidatorContext
+                    import jakarta.validation.Payload
+                    import kotlin.reflect.KClass
+
+                    @Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)
+                    @Retention(AnnotationRetention.RUNTIME)
+                    @Constraint(validatedBy = [CategoryMustExist.Validator::class])
+                    annotation class CategoryMustExist(
+                        val message: String = "category missing",
+                        val groups: Array<KClass<*>> = [],
+                        val payload: Array<KClass<out Payload>> = [],
+                    ) {
+                        class Validator : ConstraintValidator<CategoryMustExist, Long> {
+                            override fun isValid(value: Long?, context: ConstraintValidatorContext): Boolean = true
+                        }
+                    }
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "DanmukuDeletePermission.kt",
+                """
+                    package demo.application.validators.danmuku
+                    import jakarta.validation.Constraint
+                    import jakarta.validation.ConstraintValidator
+                    import jakarta.validation.ConstraintValidatorContext
+                    import jakarta.validation.Payload
+                    import kotlin.reflect.KClass
+
+                    @Target(AnnotationTarget.CLASS)
+                    @Retention(AnnotationRetention.RUNTIME)
+                    @Constraint(validatedBy = [DanmukuDeletePermission.Validator::class])
+                    annotation class DanmukuDeletePermission(
+                        val message: String = "no delete permission",
+                        val groups: Array<KClass<*>> = [],
+                        val payload: Array<KClass<out Payload>> = [],
+                        val danmukuIdField: String = "danmukuId",
+                        val operatorIdField: String = "operatorId",
+                    ) {
+                        class Validator : ConstraintValidator<DanmukuDeletePermission, Any> {
+                            override fun isValid(value: Any?, context: ConstraintValidatorContext): Boolean = true
+                        }
+                    }
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "UniqueUserMessageMessageKey.kt",
+                """
+                    package demo.application.validators.user_message.unique
+                    import jakarta.validation.Constraint
+                    import jakarta.validation.ConstraintValidator
+                    import jakarta.validation.ConstraintValidatorContext
+                    import jakarta.validation.Payload
+                    import kotlin.reflect.KClass
+
+                    @Target(AnnotationTarget.CLASS)
+                    @Retention(AnnotationRetention.RUNTIME)
+                    @Constraint(validatedBy = [UniqueUserMessageMessageKey.Validator::class])
+                    annotation class UniqueUserMessageMessageKey(
+                        val message: String = "duplicate",
+                        val groups: Array<KClass<*>> = [],
+                        val payload: Array<KClass<out Payload>> = [],
+                    ) {
+                        class Validator : ConstraintValidator<UniqueUserMessageMessageKey, Any> {
+                            override fun isValid(value: Any?, context: ConstraintValidatorContext): Boolean = true
+                        }
+                    }
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "VideoDeletePermission.kt",
+                """
+                    package demo.application.validators.video
+                    import jakarta.validation.Constraint
+                    import jakarta.validation.ConstraintValidator
+                    import jakarta.validation.ConstraintValidatorContext
+                    import jakarta.validation.Payload
+                    import kotlin.reflect.KClass
+
+                    object DeleteVideoPostCmd {
+                        data class Request(val videoId: Long)
+                    }
+
+                    @Target(AnnotationTarget.CLASS)
+                    @Retention(AnnotationRetention.RUNTIME)
+                    @Constraint(validatedBy = [VideoDeletePermission.Validator::class])
+                    annotation class VideoDeletePermission(
+                        val message: String = "no delete permission",
+                        val groups: Array<KClass<*>> = [],
+                        val payload: Array<KClass<out Payload>> = [],
+                    ) {
+                        class Validator : ConstraintValidator<VideoDeletePermission, DeleteVideoPostCmd.Request> {
+                            override fun isValid(value: DeleteVideoPostCmd.Request?, context: ConstraintValidatorContext): Boolean = true
+                        }
+                    }
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "MixedUnsupportedTarget.kt",
+                """
+                    package demo.application.validators.mixed
+                    import jakarta.validation.Constraint
+                    import jakarta.validation.ConstraintValidator
+                    import jakarta.validation.ConstraintValidatorContext
+                    import jakarta.validation.Payload
+                    import kotlin.reflect.KClass
+
+                    @Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY)
+                    @Retention(AnnotationRetention.RUNTIME)
+                    @Constraint(validatedBy = [MixedUnsupportedTarget.Validator::class])
+                    annotation class MixedUnsupportedTarget(
+                        val message: String = "mixed unsupported target",
+                        val groups: Array<KClass<*>> = [],
+                        val payload: Array<KClass<out Payload>> = [],
+                    ) {
+                        class Validator : ConstraintValidator<MixedUnsupportedTarget, Long> {
+                            override fun isValid(value: Long?, context: ConstraintValidatorContext): Boolean = true
+                        }
+                    }
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "ClassScalarValidator.kt",
+                """
+                    package demo.application.validators.classscalar
+                    import jakarta.validation.Constraint
+                    import jakarta.validation.ConstraintValidator
+                    import jakarta.validation.ConstraintValidatorContext
+                    import jakarta.validation.Payload
+                    import kotlin.reflect.KClass
+
+                    @Target(AnnotationTarget.CLASS)
+                    @Retention(AnnotationRetention.RUNTIME)
+                    @Constraint(validatedBy = [ClassScalarValidator.Validator::class])
+                    annotation class ClassScalarValidator(
+                        val message: String = "class scalar",
+                        val groups: Array<KClass<*>> = [],
+                        val payload: Array<KClass<out Payload>> = [],
+                    ) {
+                        class Validator : ConstraintValidator<ClassScalarValidator, Long> {
+                            override fun isValid(value: Long?, context: ConstraintValidatorContext): Boolean = true
+                        }
+                    }
+                """.trimIndent()
+            )
+        )
+
+        val outputDir = compileWithCap4kPlugin(sources)
+        val json = outputDir.resolve("design-elements.json").toFile().readText()
+        val objects = extractTopLevelObjects(json)
+        val category = findObject(objects, "validator", "CategoryMustExist")
+        val danmuku = findObject(objects, "validator", "DanmukuDeletePermission")
+
+        assertTrue(category.contains("\"package\":\"category\""))
+        assertTrue(category.contains("\"message\":\"category missing\""))
+        assertTrue(category.contains("\"targets\":[\"FIELD\",\"VALUE_PARAMETER\"]"))
+        assertTrue(category.contains("\"valueType\":\"Long\""))
+        assertTrue(danmuku.contains("\"package\":\"danmuku\""))
+        assertTrue(danmuku.contains("\"message\":\"no delete permission\""))
+        assertTrue(danmuku.contains("\"targets\":[\"CLASS\"]"))
+        assertTrue(danmuku.contains("\"valueType\":\"Any\""))
+        assertTrue(danmuku.contains("\"name\":\"danmukuIdField\""))
+        assertTrue(danmuku.contains("\"defaultValue\":\"danmukuId\""))
+        assertFalse(json.contains("UniqueUserMessageMessageKey"))
+        assertFalse(json.contains("VideoDeletePermission"))
+        assertFalse(json.contains("MixedUnsupportedTarget"))
+        assertFalse(json.contains("ClassScalarValidator"))
     }
 
     private fun extractTopLevelObjects(json: String): List<String> {

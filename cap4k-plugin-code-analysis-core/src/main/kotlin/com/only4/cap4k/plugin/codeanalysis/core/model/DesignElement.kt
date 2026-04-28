@@ -9,12 +9,23 @@ data class DesignElement(
     val entity: String? = null,
     val persist: Boolean? = null,
     val requestFields: List<DesignField> = emptyList(),
-    val responseFields: List<DesignField> = emptyList()
+    val responseFields: List<DesignField> = emptyList(),
+    val message: String? = null,
+    val targets: List<String> = emptyList(),
+    val valueType: String? = null,
+    val parameters: List<DesignParameter> = emptyList(),
 )
 
 data class DesignField(
     val name: String,
     val type: String,
     val nullable: Boolean = false,
-    val defaultValue: String? = null
+    val defaultValue: String? = null,
+)
+
+data class DesignParameter(
+    val name: String,
+    val type: String,
+    val nullable: Boolean = false,
+    val defaultValue: String? = null,
 )

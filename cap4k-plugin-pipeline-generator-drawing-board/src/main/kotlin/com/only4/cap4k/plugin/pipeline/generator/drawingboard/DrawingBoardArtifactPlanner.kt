@@ -41,6 +41,6 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
     }
 
     private companion object {
-        val supportedTags = listOf("command", "query", "client", "api_payload", "domain_event")
+        val supportedTags = listOf("command", "query", "client", "api_payload", "domain_event", "validator")
     }
 }

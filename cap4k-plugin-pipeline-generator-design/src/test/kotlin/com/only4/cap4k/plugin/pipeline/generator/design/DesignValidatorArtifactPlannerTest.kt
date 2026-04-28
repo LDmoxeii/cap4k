@@ -8,6 +8,7 @@ import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.api.ValidatorParameterModel
 import com.only4.cap4k.plugin.pipeline.api.ValidatorModel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -28,7 +29,16 @@ class DesignValidatorArtifactPlannerTest {
                         packageName = "authorize",
                         typeName = "IssueToken",
                         description = "issue */ token validator",
-                        valueType = "Long",
+                        message = "token rejected ${'$'}reason",
+                        targets = listOf("CLASS"),
+                        valueType = "Any",
+                        parameters = listOf(
+                            ValidatorParameterModel(
+                                name = "userIdField",
+                                type = "String",
+                                defaultValue = "user${'$'}id",
+                            )
+                        ),
                     ),
                 ),
             ),
@@ -45,7 +55,13 @@ class DesignValidatorArtifactPlannerTest {
         assertEquals("IssueToken", validator.context["typeName"])
         assertEquals("issue */ token validator", validator.context["description"])
         assertEquals("issue * / token validator", validator.context["descriptionCommentText"])
-        assertEquals("Long", validator.context["valueType"])
+        assertEquals("token rejected ${'$'}reason", validator.context["message"])
+        assertEquals("\"token rejected \\${'$'}reason\"", validator.context["messageLiteral"])
+        assertEquals(listOf("CLASS"), validator.context["targets"])
+        assertEquals("Any", validator.context["valueType"])
+        val parameter = (validator.context["parameters"] as List<*>).single() as DesignValidatorParameterRenderModel
+        assertEquals("userIdField", parameter.name)
+        assertEquals("\"user\\${'$'}id\"", parameter.defaultValueLiteral)
         assertEquals(emptyList<String>(), validator.context["imports"])
     }
 
@@ -83,6 +99,8 @@ class DesignValidatorArtifactPlannerTest {
                             packageName = "authorize",
                             typeName = "IssueToken",
                             description = "issue token validator",
+                            message = "校验未通过",
+                            targets = listOf("FIELD", "VALUE_PARAMETER"),
                             valueType = "Long",
                         ),
                     ),

@@ -18,6 +18,8 @@ data class Cap4kOptions(
     val repositorySupervisorFq: String = "com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor",
     val aggregateFactorySupervisorFq: String = "com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor",
     val requestParamFq: String = "com.only4.cap4k.ddd.core.application.RequestParam",
+    val constraintAnnFq: String = "jakarta.validation.Constraint",
+    val constraintValidatorFq: String = "jakarta.validation.ConstraintValidator",
 ) {
     companion object {
         fun fromSystemProperties(): Cap4kOptions = Cap4kOptions(
@@ -45,6 +47,10 @@ data class Cap4kOptions(
                 ?: "com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor",
             requestParamFq = System.getProperty(OptionsKeys.REQUEST_PARAM_FQ)
                 ?: "com.only4.cap4k.ddd.core.application.RequestParam",
+            constraintAnnFq = System.getProperty(OptionsKeys.CONSTRAINT_ANNOTATION_FQ)
+                ?: "jakarta.validation.Constraint",
+            constraintValidatorFq = System.getProperty(OptionsKeys.CONSTRAINT_VALIDATOR_FQ)
+                ?: "jakarta.validation.ConstraintValidator",
         )
     }
 }

@@ -8,6 +8,23 @@
 
 **Tech Stack:** Kotlin, Gradle, JUnit 5, Gradle TestKit, Pebble templates, Gson, Kotlin compiler IR plugin.
 
+## Freshness Review Against 2026-04-28 `master`
+
+Current `master` already includes some nearby changes that this plan must preserve:
+
+- `DesignSpecEntry` now carries `traits: Set<RequestTrait> = emptySet()` for query/api-payload contracts. Any validator model expansion must keep that field and must not regress page-trait parsing or canonical assembly.
+- `DesignJsonSourceProvider` already accepts canonical `validator` tags and rejects legacy design tag aliases. This plan should add validator structural fields to that path, not re-open alias parsing.
+- `DefaultCanonicalAssembler` already recognizes canonical `validator` as a drawing-board tag, but does not preserve validator structural fields yet. The drawing-board work should extend the existing canonical-only path instead of restoring old analysis tag normalization in the assembler.
+- `DefaultCanonicalAssemblerTest` already has a drawing-board validator smoke assertion. Update it to assert `message`, `targets`, `valueType`, and `parameters` rather than adding a duplicate validator-only case.
+- Pre-existing working-tree edits in `AGENTS.md` and `docs/superpowers/mainline-roadmap.md` are handoff documentation changes. Do not include `AGENTS.md` in validator implementation commits. Only update `mainline-roadmap.md` at the final documentation step and preserve the existing handoff edits.
+
+Plan deltas:
+
+- The specs remain current. No spec edit is required before implementation.
+- The implementation plan is refreshed by this section and by preserving `traits` in the Task 1 `DesignSpecEntry` snippet below.
+- Execute the plan task-by-task with focused red/green tests, but treat already-implemented partial support as context to extend rather than undo.
+- Keep commits scoped by task when practical; if local verification cadence makes fewer commits more practical, still keep the diff grouped by the plan tasks and never commit unrelated pre-existing changes.
+
 ---
 
 ## Source Specs And Constraints
@@ -117,6 +134,7 @@ data class DesignSpecEntry(
     val description: String,
     val aggregates: List<String>,
     val persist: Boolean? = null,
+    val traits: Set<RequestTrait> = emptySet(),
     val requestFields: List<FieldModel>,
     val responseFields: List<FieldModel>,
     val message: String? = null,

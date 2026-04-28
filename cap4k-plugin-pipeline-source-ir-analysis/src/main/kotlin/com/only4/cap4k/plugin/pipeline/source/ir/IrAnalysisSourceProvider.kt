@@ -9,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.IrEdgeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrNodeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
+import com.only4.cap4k.plugin.pipeline.api.ValidatorParameterModel
 import java.io.File
 
 class IrAnalysisSourceProvider : SourceProvider {
@@ -106,6 +107,10 @@ class IrAnalysisSourceProvider : SourceProvider {
                 persist = obj.booleanValue("persist"),
                 requestFields = parseDesignFields(obj.jsonArrayOrEmpty("requestFields")),
                 responseFields = parseDesignFields(obj.jsonArrayOrEmpty("responseFields")),
+                message = obj.stringValue("message"),
+                targets = obj.stringList("targets"),
+                valueType = obj.stringValue("valueType"),
+                parameters = parseValidatorParameters(obj.jsonArrayOrEmpty("parameters")),
             )
         }
     }
@@ -121,6 +126,25 @@ class IrAnalysisSourceProvider : SourceProvider {
                 return@mapNotNull null
             }
             DesignFieldSnapshot(
+                name = name,
+                type = obj.stringValue("type").orEmpty().trim(),
+                nullable = obj.booleanValue("nullable") ?: false,
+                defaultValue = obj.stringValue("defaultValue"),
+            )
+        }
+    }
+
+    private fun parseValidatorParameters(array: com.google.gson.JsonArray?): List<ValidatorParameterModel> {
+        if (array == null) {
+            return emptyList()
+        }
+        return array.mapNotNull { element ->
+            val obj = element.asJsonObjectOrNull() ?: return@mapNotNull null
+            val name = obj.stringValue("name").orEmpty().trim()
+            if (name.isEmpty()) {
+                return@mapNotNull null
+            }
+            ValidatorParameterModel(
                 name = name,
                 type = obj.stringValue("type").orEmpty().trim(),
                 nullable = obj.booleanValue("nullable") ?: false,

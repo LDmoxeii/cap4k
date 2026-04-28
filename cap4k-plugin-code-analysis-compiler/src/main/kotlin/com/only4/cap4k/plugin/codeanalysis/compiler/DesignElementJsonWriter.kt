@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.codeanalysis.compiler
 
 import com.only4.cap4k.plugin.codeanalysis.core.model.DesignElement
 import com.only4.cap4k.plugin.codeanalysis.core.model.DesignField
+import com.only4.cap4k.plugin.codeanalysis.core.model.DesignParameter
 
 class DesignElementJsonWriter {
     fun write(elements: List<DesignElement>): String {
@@ -24,6 +25,20 @@ class DesignElementJsonWriter {
                 }
                 element.persist?.let { value ->
                     append(",\"persist\":").append(value)
+                }
+                element.message?.let { value ->
+                    append(",\"message\":\"").append(escape(value)).append("\"")
+                }
+                if (element.targets.isNotEmpty()) {
+                    append(",\"targets\":")
+                    appendStringList(element.targets)
+                }
+                element.valueType?.let { value ->
+                    append(",\"valueType\":\"").append(escape(value)).append("\"")
+                }
+                if (element.parameters.isNotEmpty()) {
+                    append(",\"parameters\":")
+                    appendParameterList(element.parameters)
                 }
                 append(",\"requestFields\":")
                 appendFieldList(element.requestFields)
@@ -52,6 +67,23 @@ class DesignElementJsonWriter {
         append(']')
     }
 
+    private fun StringBuilder.appendParameterList(parameters: List<DesignParameter>) {
+        append('[')
+        var firstParameter = true
+        parameters.forEach { parameter ->
+            if (!firstParameter) append(',') else firstParameter = false
+            append("{\"name\":\"").append(escape(parameter.name)).append("\",")
+            append("\"type\":\"").append(escape(parameter.type)).append("\",")
+            append("\"nullable\":").append(parameter.nullable)
+            val defaultValue = parameter.defaultValue
+            if (defaultValue != null) {
+                append(",\"defaultValue\":\"").append(escape(defaultValue)).append("\"")
+            }
+            append('}')
+        }
+        append(']')
+    }
+
     private fun StringBuilder.appendStringList(values: List<String>) {
         append('[')
         var firstValue = true
@@ -63,9 +95,26 @@ class DesignElementJsonWriter {
     }
 
     private fun escape(value: String): String {
-        return value
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", " ")
+        return buildString {
+            value.forEach { character ->
+                when (character) {
+                    '\\' -> append("\\\\")
+                    '"' -> append("\\\"")
+                    '\b' -> append("\\b")
+                    '\u000C' -> append("\\f")
+                    '\n' -> append("\\n")
+                    '\r' -> append("\\r")
+                    '\t' -> append("\\t")
+                    else -> {
+                        if (character.code in 0x00..0x1F) {
+                            append("\\u")
+                            append(character.code.toString(16).padStart(4, '0'))
+                        } else {
+                            append(character)
+                        }
+                    }
+                }
+            }
+        }
     }
 }

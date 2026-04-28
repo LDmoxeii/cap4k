@@ -5280,7 +5280,17 @@ class PebbleArtifactRendererTest {
                         "typeName" to "IssueToken",
                         "description" to "issue */ token validator",
                         "descriptionCommentText" to "issue * / token validator",
+                        "message" to "token rejected ${'$'}reason",
+                        "messageLiteral" to "\"token rejected \\${'$'}reason\"",
+                        "targets" to listOf("FIELD", "VALUE_PARAMETER"),
                         "valueType" to "Long",
+                        "parameters" to listOf(
+                            mapOf(
+                                "name" to "userIdField",
+                                "type" to "String",
+                                "defaultValueLiteral" to "\"user\\${'$'}id\"",
+                            ),
+                        ),
                         "imports" to listOf("java.util.UUID"),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
@@ -5306,10 +5316,12 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("* issue * / token validator"))
         assertFalse(content.contains("* issue */ token validator"))
         assertTrue(content.contains("@Constraint"))
+        assertTrue(content.contains("@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)"))
         assertTrue(content.contains("annotation class IssueToken("))
-        assertTrue(content.contains("val message: String"))
+        assertTrue(content.contains("val message: String = \"token rejected \\${'$'}reason\""))
         assertTrue(content.contains("val groups: Array<KClass<*>>"))
         assertTrue(content.contains("val payload: Array<KClass<out Payload>>"))
+        assertTrue(content.contains("val userIdField: String = \"user\\${'$'}id\""))
         assertTrue(content.contains("class Validator : ConstraintValidator<IssueToken, Long>"))
         assertTrue(content.contains("override fun isValid(value: Long?, context: ConstraintValidatorContext): Boolean = true"))
     }

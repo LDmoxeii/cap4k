@@ -631,6 +631,8 @@ class DesignApiPayloadArtifactPlannerTest {
                         packageName = "account",
                         typeName = "SaveAccount",
                         description = "save account validator",
+                        message = "校验未通过",
+                        targets = listOf("FIELD", "VALUE_PARAMETER"),
                         valueType = "Long",
                     ),
                 ),

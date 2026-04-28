@@ -1,0 +1,33 @@
+[
+  {
+    "tag": "validator",
+    "package": "danmuku",
+    "name": "DanmukuDeletePermission",
+    "desc": "delete permission validator",
+    "message": "no delete $permission",
+    "targets": ["CLASS"],
+    "valueType": "Any",
+    "parameters": [
+      {
+        "name": "danmukuIdField",
+        "type": "String",
+        "defaultValue": "danmukuId"
+      },
+      {
+        "name": "operatorIdField",
+        "type": "String",
+        "defaultValue": "operator$id"
+      }
+    ]
+  },
+  {
+    "tag": "validator",
+    "package": "category",
+    "name": "CategoryMustExist",
+    "desc": "category must exist validator",
+    "message": "category missing",
+    "targets": ["FIELD", "VALUE_PARAMETER"],
+    "valueType": "Long",
+    "parameters": []
+  }
+]

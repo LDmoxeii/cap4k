@@ -55,9 +55,20 @@ data class DesignSpecEntry(
     val traits: Set<RequestTrait> = emptySet(),
     val requestFields: List<FieldModel>,
     val responseFields: List<FieldModel>,
+    val message: String? = null,
+    val targets: List<String> = emptyList(),
+    val valueType: String? = null,
+    val parameters: List<ValidatorParameterModel> = emptyList(),
 )
 
 data class DesignFieldSnapshot(
+    val name: String,
+    val type: String,
+    val nullable: Boolean = false,
+    val defaultValue: String? = null,
+)
+
+data class ValidatorParameterModel(
     val name: String,
     val type: String,
     val nullable: Boolean = false,
@@ -74,6 +85,10 @@ data class DesignElementSnapshot(
     val persist: Boolean? = null,
     val requestFields: List<DesignFieldSnapshot> = emptyList(),
     val responseFields: List<DesignFieldSnapshot> = emptyList(),
+    val message: String? = null,
+    val targets: List<String> = emptyList(),
+    val valueType: String? = null,
+    val parameters: List<ValidatorParameterModel> = emptyList(),
 )
 
 data class AggregateMetadataRecord(
@@ -290,6 +305,10 @@ data class DrawingBoardElementModel(
     val persist: Boolean? = null,
     val requestFields: List<DrawingBoardFieldModel> = emptyList(),
     val responseFields: List<DrawingBoardFieldModel> = emptyList(),
+    val message: String? = null,
+    val targets: List<String> = emptyList(),
+    val valueType: String? = null,
+    val parameters: List<ValidatorParameterModel> = emptyList(),
 ) {
     val designJsonRequestFields: List<DrawingBoardFieldModel>
         get() = if (tag == "domain_event") {
@@ -377,7 +396,10 @@ data class ValidatorModel(
     val packageName: String,
     val typeName: String,
     val description: String,
+    val message: String,
+    val targets: List<String>,
     val valueType: String,
+    val parameters: List<ValidatorParameterModel> = emptyList(),
 )
 
 data class ApiPayloadModel(

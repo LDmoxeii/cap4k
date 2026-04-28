@@ -771,6 +771,32 @@ Generator 统一约束：
 - 模块：application
 - 模板：`design/validator.kt.peb`
 - 规范化：`UpperCamel`（下划线/空格拆分再大写首字符）
+- 普通 validator 只生成注解骨架；生成的 `Validator.isValid(...)` 固定返回 `true`，业务逻辑应手写或通过模板覆盖。
+- 支持的 `targets`：`CLASS`, `FIELD`, `VALUE_PARAMETER`
+- 支持的 `valueType`：`Any`, `String`, `Long`, `Int`, `Boolean`
+- 自定义注解参数支持 `String`, `Int`, `Long`, `Boolean`；`message`, `groups`, `payload` 是 Bean Validation 标准字段，不能声明为自定义参数。
+- aggregate unique validator 属于 aggregate 生成族，不属于普通 `design-validator` 输入。
+
+示例：
+
+```json
+{
+  "tag": "validator",
+  "package": "danmuku",
+  "name": "DanmukuDeletePermission",
+  "desc": "校验弹幕删除权限",
+  "message": "无权限删除该弹幕",
+  "targets": ["CLASS"],
+  "valueType": "Any",
+  "parameters": [
+    {
+      "name": "danmukuIdField",
+      "type": "String",
+      "defaultValue": "danmukuId"
+    }
+  ]
+}
+```
 
 ### 9.5 `design-api-payload`
 
@@ -835,9 +861,12 @@ Generator 统一约束：
 - id：`drawing-board`
 - 模块：project
 - 输入来自 `ir-analysis.design-elements`，输出是可直接作为 `sources.designJson.files` 使用的稳定 design-json contract。
-- 输出 tag：`client`, `command`, `query`, `api_payload`, `domain_event`（其他会被忽略）
-- 输入 tag 必须已经是 canonical 值：`client`, `command`, `query`, `api_payload`, `domain_event`；旧 alias 不再在 pipeline 层投影。
+- `cap4kAnalysisGenerate` 可在分析输入包含受支持的普通 Bean Validation 注解时输出 `drawing_board_validator.json`。
+- `nodes.json` / `rels.json` 仍是分析图产物；`design-elements.json` 是设计投影产物。
+- 输出 tag：`command`, `query`, `client`, `api_payload`, `domain_event`, `validator`（其他会被忽略）
+- 输入 tag 必须已经是 canonical 值：`command`, `query`, `client`, `api_payload`, `domain_event`, `validator`；旧 alias 不再在 pipeline 层投影。
 - `domain_event` 的 `entity` 参数由 `aggregates[0]` 派生，drawing-board 输出不会携带顶层 `entity` 或 `requestFields.entity`。
+- `validator` 输出使用同一套 `designJson` contract，可直接作为 `cap4kGenerate` 的普通 validator 输入。
 - 模板：`drawing-board/document.json.peb`
 
 ---
@@ -1002,7 +1031,7 @@ cap4k {
 |------|------------------|
 | `design/command.kt.peb` / `design/query.kt.peb` | `packageName`, `typeName`, `description*`, `imports`, `requestFields`, `requestNestedTypes`, `responseFields`, `responseNestedTypes`, `pageRequest` |
 | `design/*_handler.kt.peb` | 同上 + `requestTypeName`, `aggregateName` 等（见 `DesignQueryHandlerRenderModels`） |
-| `design/validator.kt.peb` | `packageName`, `typeName`, `description*`, `valueType`, `imports` |
+| `design/validator.kt.peb` | `packageName`, `typeName`, `description*`, `message`, `targets`, `valueType`, `parameters`, `imports` |
 | `design/api_payload.kt.peb` | `packageName`, `typeName`, `description*`, `imports`, `requestFields/nestedTypes`, `responseFields/nestedTypes` |
 | `design/domain_event.kt.peb` | `packageName`, `typeName`, `descriptionCommentText`, `descriptionKotlinStringLiteral`, `aggregateName`, `aggregateType`, `persist`, `imports`, `fields`, `nestedTypes` |
 | `design/domain_event_handler.kt.peb` | 同上 + `domainEventTypeName` |

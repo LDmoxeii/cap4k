@@ -108,11 +108,19 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             .asSequence()
             .filter { entry -> entry.tag == "validator" }
             .map { entry ->
+                val targets = normalizeValidatorTargets(entry.targets)
+                val valueType = entry.valueType ?: if ("CLASS" in targets) "Any" else "Long"
+                require("CLASS" !in targets || valueType == "Any") {
+                    "validator ${entry.name} cannot target CLASS with valueType: $valueType"
+                }
                 ValidatorModel(
                     packageName = entry.packageName,
                     typeName = entry.name.normalizeValidatorTypeName(),
                     description = entry.description,
-                    valueType = "Long",
+                    message = entry.message ?: "校验未通过",
+                    targets = targets,
+                    valueType = valueType,
+                    parameters = entry.parameters,
                 )
             }
             .toList()
@@ -430,6 +438,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             aggregates = aggregates,
             entity = if (normalizedTag == "domain_event") null else entity,
             persist = persist,
+            message = message,
+            targets = targets,
+            valueType = valueType,
+            parameters = parameters,
             requestFields = normalizedRequestFields.map { field ->
                 DrawingBoardFieldModel(
                     name = field.name,
@@ -466,6 +478,13 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
     private fun String.normalizeValidatorTypeName(): String {
         return normalizeUpperCamelTypeName()
+    }
+
+    private fun normalizeValidatorTargets(targets: List<String>): List<String> {
+        val normalizedTargets = targets.ifEmpty { listOf("FIELD", "VALUE_PARAMETER") }
+        return normalizedTargets
+            .distinct()
+            .sortedBy { ValidatorTargetOrder[it] ?: Int.MAX_VALUE }
     }
 
     private fun String.normalizeUpperCamelTypeName(): String {
@@ -560,6 +579,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
     private companion object {
         val SupportedDrawingBoardTags = setOf("command", "query", "client", "api_payload", "domain_event", "validator")
+        val ValidatorTargetOrder = mapOf("CLASS" to 0, "FIELD" to 1, "VALUE_PARAMETER" to 2)
         val UpperCamelSplitRegex = Regex("(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+")
 
         fun lowerCamelIdentifier(value: String): String {

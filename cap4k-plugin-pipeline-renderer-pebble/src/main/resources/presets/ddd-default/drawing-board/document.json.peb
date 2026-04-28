@@ -11,6 +11,25 @@
 {%- endif %}
 {%- if element.persist is not null %},
     "persist": {{ element.persist }}
+{%- endif %}
+{%- if element.message is not null %},
+    "message": {{ element.message | json | raw }}
+{%- endif %}
+{%- if element.targets|length > 0 %},
+    "targets": [{% for target in element.targets %}{{ target | json | raw }}{% if not loop.last %}, {% endif %}{% endfor %}]
+{%- endif %}
+{%- if element.valueType is not null %},
+    "valueType": {{ element.valueType | json | raw }}
+{%- endif %}
+{%- if element.parameters|length > 0 %},
+    "parameters": [{% for parameter in element.parameters %}
+      {
+        "name": {{ parameter.name | json | raw }},
+        "type": {{ parameter.type | json | raw }},
+        "nullable": {{ parameter.nullable }}{% if parameter.defaultValue is not null %},
+        "defaultValue": {{ parameter.defaultValue | json | raw }}{% endif %}
+      }{% if not loop.last %}, {% endif %}{% endfor %}
+    ]
 {%- endif %},
     "requestFields": [{% for field in element.designJsonRequestFields %}
       {

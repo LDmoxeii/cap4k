@@ -6,6 +6,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.api.ValidatorParameterModel
 import java.nio.file.Files
 import kotlin.io.path.writeText
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -85,7 +86,7 @@ class IrAnalysisSourceProviderTest {
               null,
               "not-an-object",
               {
-                "tag": "cmd",
+                "tag": "command",
                 "package": "orders",
                 "name": "SubmitOrder",
                 "desc": "submit order",
@@ -101,11 +102,28 @@ class IrAnalysisSourceProviderTest {
                 ]
               },
               {
-                "tag": "de",
+                "tag": "domain_event",
                 "package": "",
                 "name": "OrderCreated",
                 "entity": "Order",
                 "persist": true
+              },
+              {
+                "tag": "validator",
+                "package": "danmuku",
+                "name": "DanmukuDeletePermission",
+                "desc": "delete permission",
+                "message": "no delete permission",
+                "targets": ["CLASS"],
+                "valueType": "Any",
+                "parameters": [
+                  {
+                    "name": "danmukuIdField",
+                    "type": "String",
+                    "nullable": false,
+                    "defaultValue": "danmukuId"
+                  }
+                ]
               },
               {
                 "tag": " ",
@@ -119,8 +137,8 @@ class IrAnalysisSourceProviderTest {
 
         val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString())) as IrAnalysisSnapshot
 
-        assertEquals(2, snapshot.designElements.size)
-        assertEquals("cmd", snapshot.designElements.first().tag)
+        assertEquals(3, snapshot.designElements.size)
+        assertEquals("command", snapshot.designElements.first().tag)
         assertEquals("orders", snapshot.designElements.first().packageName)
         assertEquals("SubmitOrder", snapshot.designElements.first().name)
         assertEquals("submit order", snapshot.designElements.first().description)
@@ -133,14 +151,32 @@ class IrAnalysisSourceProviderTest {
         assertEquals(1, snapshot.designElements.first().responseFields.size)
         assertEquals("accepted", snapshot.designElements.first().responseFields.first().name)
         assertEquals("Boolean", snapshot.designElements.first().responseFields.first().type)
-        assertEquals("", snapshot.designElements.last().packageName)
-        assertEquals("OrderCreated", snapshot.designElements.last().name)
-        assertEquals("", snapshot.designElements.last().description)
-        assertTrue(snapshot.designElements.last().aggregates.isEmpty())
-        assertTrue(snapshot.designElements.last().requestFields.isEmpty())
-        assertTrue(snapshot.designElements.last().responseFields.isEmpty())
-        assertEquals("Order", snapshot.designElements.last().entity)
-        assertEquals(true, snapshot.designElements.last().persist)
+        val domainEvent = snapshot.designElements.single { it.tag == "domain_event" }
+        assertEquals("", domainEvent.packageName)
+        assertEquals("OrderCreated", domainEvent.name)
+        assertEquals("", domainEvent.description)
+        assertTrue(domainEvent.aggregates.isEmpty())
+        assertTrue(domainEvent.requestFields.isEmpty())
+        assertTrue(domainEvent.responseFields.isEmpty())
+        assertEquals("Order", domainEvent.entity)
+        assertEquals(true, domainEvent.persist)
+        val validator = snapshot.designElements.single { it.tag == "validator" }
+        assertEquals("danmuku", validator.packageName)
+        assertEquals("DanmukuDeletePermission", validator.name)
+        assertEquals("no delete permission", validator.message)
+        assertEquals(listOf("CLASS"), validator.targets)
+        assertEquals("Any", validator.valueType)
+        assertEquals(
+            listOf(
+                ValidatorParameterModel(
+                    name = "danmukuIdField",
+                    type = "String",
+                    nullable = false,
+                    defaultValue = "danmukuId",
+                )
+            ),
+            validator.parameters,
+        )
     }
 
     @Test
@@ -153,7 +189,7 @@ class IrAnalysisSourceProviderTest {
             """
             [
               {
-                "tag": "cmd",
+                "tag": "command",
                 "package": "orders",
                 "name": "SubmitOrder",
                 "desc": "submit order",

@@ -11,14 +11,17 @@ import {{ import }}
 /**
  * {{ descriptionCommentText | raw }}
  */
-@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)
+@Target({% for target in targets %}AnnotationTarget.{{ target }}{% if not loop.last %}, {% endif %}{% endfor %})
 @Retention(AnnotationRetention.RUNTIME)
 @Constraint(validatedBy = [{{ typeName }}.Validator::class])
 @MustBeDocumented
 annotation class {{ typeName }}(
-    val message: String = "校验未通过",
+    val message: String = {{ messageLiteral | raw }},
     val groups: Array<KClass<*>> = [],
-    val payload: Array<KClass<out Payload>> = [],
+    val payload: Array<KClass<out Payload>> = []{% if parameters|length > 0 %},{% endif %}
+{% for parameter in parameters %}
+    val {{ parameter.name }}: {{ parameter.type }}{% if parameter.defaultValueLiteral is not null %} = {{ parameter.defaultValueLiteral | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{% endfor %}
 ) {
     class Validator : ConstraintValidator<{{ typeName }}, {{ valueType }}> {
         override fun isValid(value: {{ valueType }}?, context: ConstraintValidatorContext): Boolean = true

@@ -1961,6 +1961,49 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kAnalysisGenerate validator drawing board can feed cap4kGenerate`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-analysis-validator-roundtrip")
+        copyCompileFixture(projectDir, "analysis-validator-roundtrip-sample")
+
+        val analysisResult = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kAnalysisGenerate")
+            .build()
+
+        val drawingBoardValidator = projectDir.resolve("design/drawing_board_validator.json")
+        val drawingBoardContent = drawingBoardValidator.readText()
+
+        val generateResult = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+        val compileResult = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments(":demo-application:compileKotlin")
+            .build()
+
+        val generatedValidator = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/validators/danmuku/DanmukuDeletePermission.kt"
+        )
+        val generatedContent = generatedValidator.readText()
+
+        assertTrue(analysisResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(drawingBoardValidator.toFile().exists())
+        assertTrue(drawingBoardContent.contains("\"tag\": \"validator\""))
+        assertTrue(drawingBoardContent.contains("\"targets\": [\"CLASS\"]"))
+        assertTrue(drawingBoardContent.contains("\"valueType\": \"Any\""))
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedContent.contains("annotation class DanmukuDeletePermission"))
+        assertTrue(generatedContent.contains("ConstraintValidator<DanmukuDeletePermission, Any>"))
+        assertTrue(generatedContent.contains("val danmukuIdField: String = \"danmukuId\""))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kAnalysisPlan depends on compileKotlin when flow input is produced during compilation`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-flow-compile")
         copyFixture(projectDir, "flow-compile-sample")

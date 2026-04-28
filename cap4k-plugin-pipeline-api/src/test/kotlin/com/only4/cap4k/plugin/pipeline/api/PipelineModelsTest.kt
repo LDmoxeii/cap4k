@@ -267,6 +267,8 @@ class PipelineModelsTest {
             packageName = "auth.validator",
             typeName = "IssueToken",
             description = "issue token validator",
+            message = "校验未通过",
+            targets = listOf("FIELD", "VALUE_PARAMETER"),
             valueType = "Long",
         )
 
@@ -299,6 +301,8 @@ class PipelineModelsTest {
             packageName = "auth.validator",
             typeName = "IssueToken",
             description = "issue token validator",
+            message = "校验未通过",
+            targets = listOf("FIELD", "VALUE_PARAMETER"),
             valueType = "Long",
         )
         val schema = SchemaModel(

@@ -294,6 +294,247 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
+    fun `reads expanded validator structural fields`() {
+        val tempFile = tempDir.resolve("validator-expanded.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "validator",
+                    "package": "danmuku",
+                    "name": "DanmukuDeletePermission",
+                    "desc": "delete permission",
+                    "message": "no permission",
+                    "targets": ["CLASS"],
+                    "valueType": "Any",
+                    "parameters": [
+                      { "name": "danmukuIdField", "type": "String", "defaultValue": "danmukuId" },
+                      { "name": "operatorIdField", "type": "String", "defaultValue": "operatorId" }
+                    ]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
+        val entry = snapshot.entries.single()
+
+        assertEquals("validator", entry.tag)
+        assertEquals("danmuku", entry.packageName)
+        assertEquals("DanmukuDeletePermission", entry.name)
+        assertEquals("delete permission", entry.description)
+        assertEquals("no permission", entry.message)
+        assertEquals(listOf("CLASS"), entry.targets)
+        assertEquals("Any", entry.valueType)
+        assertEquals(2, entry.parameters.size)
+        assertEquals("danmukuIdField", entry.parameters.first().name)
+        assertEquals("String", entry.parameters.first().type)
+        assertEquals(false, entry.parameters.first().nullable)
+        assertEquals("danmukuId", entry.parameters.first().defaultValue)
+    }
+
+    @Test
+    fun `defaults validator message targets and value type`() {
+        val tempFile = tempDir.resolve("validator-defaults.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "validator",
+                    "package": "category",
+                    "name": "CategoryMustExist",
+                    "desc": "category must exist"
+                  },
+                  {
+                    "tag": "validator",
+                    "package": "danmuku",
+                    "name": "DanmukuDeletePermission",
+                    "desc": "delete permission",
+                    "targets": ["CLASS"]
+                  },
+                  {
+                    "tag": "validator",
+                    "package": "shared",
+                    "name": "SharedAnyValidator",
+                    "desc": "shared validator",
+                    "targets": ["FIELD", "CLASS"]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val entries = (DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot).entries
+
+        assertEquals("校验未通过", entries.first().message)
+        assertEquals(listOf("FIELD", "VALUE_PARAMETER"), entries.first().targets)
+        assertEquals("Long", entries.first().valueType)
+        assertEquals("Any", entries[1].valueType)
+        assertEquals(listOf("CLASS", "FIELD"), entries[2].targets)
+        assertEquals("Any", entries[2].valueType)
+    }
+
+    @Test
+    fun `rejects invalid validator target`() {
+        val tempFile = tempDir.resolve("validator-invalid-target.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "validator",
+                    "package": "category",
+                    "name": "CategoryMustExist",
+                    "desc": "category must exist",
+                    "targets": ["METHOD"]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals("validator CategoryMustExist has unsupported target: METHOD", error.message)
+    }
+
+    @Test
+    fun `rejects invalid validator value type`() {
+        val tempFile = tempDir.resolve("validator-invalid-type.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "validator",
+                    "package": "video",
+                    "name": "VideoDeletePermission",
+                    "desc": "video delete permission",
+                    "targets": ["CLASS"],
+                    "valueType": "DeleteVideoPostCmd.Request"
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals(
+            "validator VideoDeletePermission has unsupported valueType: DeleteVideoPostCmd.Request",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `rejects class target with scalar validator value type`() {
+        val tempFile = tempDir.resolve("validator-class-scalar-type.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "validator",
+                    "package": "shared",
+                    "name": "SharedValidator",
+                    "desc": "shared validator",
+                    "targets": ["CLASS", "FIELD"],
+                    "valueType": "Long"
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals("validator SharedValidator cannot target CLASS with valueType: Long", error.message)
+    }
+
+    @Test
+    fun `rejects invalid validator parameters`() {
+        val cases = listOf(
+            Triple(
+                "reserved",
+                """{ "name": "message", "type": "String" }""",
+                "validator DanmukuDeletePermission parameter name is reserved: message",
+            ),
+            Triple(
+                "nullable",
+                """{ "name": "operatorIdField", "type": "String", "nullable": true }""",
+                "validator DanmukuDeletePermission parameter operatorIdField cannot be nullable",
+            ),
+            Triple(
+                "unsupported-type",
+                """{ "name": "roles", "type": "Array<String>" }""",
+                "validator DanmukuDeletePermission parameter roles has unsupported type: Array<String>",
+            ),
+            Triple(
+                "invalid-name",
+                """{ "name": "operator-id", "type": "String" }""",
+                "validator DanmukuDeletePermission parameter name is not a valid Kotlin identifier: operator-id",
+            ),
+            Triple(
+                "keyword-name",
+                """{ "name": "class", "type": "String" }""",
+                "validator DanmukuDeletePermission parameter name is not a valid Kotlin identifier: class",
+            ),
+            Triple(
+                "invalid-int-default",
+                """{ "name": "retryCount", "type": "Int", "defaultValue": "abc" }""",
+                "validator DanmukuDeletePermission parameter retryCount has invalid Int defaultValue: abc",
+            ),
+            Triple(
+                "invalid-boolean-default",
+                """{ "name": "enabled", "type": "Boolean", "defaultValue": "yes" }""",
+                "validator DanmukuDeletePermission parameter enabled has invalid Boolean defaultValue: yes",
+            ),
+            Triple(
+                "expression-default",
+                """{ "name": "maxCount", "type": "Long", "defaultValue": "SomeObject.VALUE" }""",
+                "validator DanmukuDeletePermission parameter maxCount has invalid Long defaultValue: SomeObject.VALUE",
+            ),
+        )
+
+        cases.forEach { (suffix, parameter, expectedMessage) ->
+            val tempFile = tempDir.resolve("validator-invalid-parameter-$suffix.json")
+            Files.writeString(
+                tempFile,
+                """
+                    [
+                      {
+                        "tag": "validator",
+                        "package": "danmuku",
+                        "name": "DanmukuDeletePermission",
+                        "desc": "delete permission",
+                        "targets": ["CLASS"],
+                        "parameters": [
+                          $parameter
+                        ]
+                      }
+                    ]
+                """.trimIndent(),
+                StandardCharsets.UTF_8,
+            )
+
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+            }
+
+            assertEquals(expectedMessage, error.message)
+        }
+    }
+
+    @Test
     fun `rejects legacy design tag aliases`() {
         val legacyTags = listOf("cmd", "qry", "cli", "clients", "payload", "de", "query_list", "query_page")
 

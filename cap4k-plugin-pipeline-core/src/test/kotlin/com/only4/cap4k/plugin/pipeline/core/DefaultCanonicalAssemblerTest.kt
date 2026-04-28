@@ -34,6 +34,7 @@ import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverter
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
+import com.only4.cap4k.plugin.pipeline.api.ValidatorParameterModel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -285,7 +286,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `validator entries assemble into validators slice with normalized naming and fixed value type`() {
+    fun `validator entries assemble into validators slice with expanded structural fields`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -301,6 +302,16 @@ class DefaultCanonicalAssemblerTest {
                             aggregates = emptyList(),
                             requestFields = emptyList(),
                             responseFields = emptyList(),
+                            message = "issue token rejected",
+                            targets = listOf("CLASS"),
+                            valueType = "Any",
+                            parameters = listOf(
+                                ValidatorParameterModel(
+                                    name = "userIdField",
+                                    type = "String",
+                                    defaultValue = "userId",
+                                )
+                            ),
                         ),
                         DesignSpecEntry(
                             tag = "validator",
@@ -358,7 +369,13 @@ class DefaultCanonicalAssemblerTest {
             model.validators.map { it.typeName },
         )
         assertEquals(listOf("auth.validator", "auth.validator", "auth.validator"), model.validators.map { it.packageName })
-        assertEquals(listOf("Long", "Long", "Long"), model.validators.map { it.valueType })
+        assertEquals(listOf("Any", "Long", "Long"), model.validators.map { it.valueType })
+        assertEquals("issue token rejected", model.validators.first().message)
+        assertEquals(listOf("CLASS"), model.validators.first().targets)
+        assertEquals("Any", model.validators.first().valueType)
+        assertEquals("userIdField", model.validators.first().parameters.single().name)
+        assertEquals("校验未通过", model.validators[1].message)
+        assertEquals(listOf("FIELD", "VALUE_PARAMETER"), model.validators[1].targets)
         assertEquals(emptyList<String>(), model.commands.map { it.typeName })
         assertEquals(emptyList<String>(), model.queries.map { it.typeName })
         assertEquals(emptyList<String>(), model.clients.map { it.typeName })
@@ -1345,6 +1362,16 @@ class DefaultCanonicalAssemblerTest {
                             packageName = "order.validator",
                             name = "SubmitOrderValidator",
                             description = "submit order validator",
+                            message = "submit order rejected",
+                            targets = listOf("CLASS"),
+                            valueType = "Any",
+                            parameters = listOf(
+                                ValidatorParameterModel(
+                                    name = "orderIdField",
+                                    type = "String",
+                                    defaultValue = "orderId",
+                                )
+                            ),
                         ),
                         DesignElementSnapshot(
                             tag = "evt",
@@ -1384,7 +1411,12 @@ class DefaultCanonicalAssemblerTest {
         val domainEvent = drawingBoard.elementsByTag.getValue("domain_event").single()
         assertEquals(null, domainEvent.entity)
         assertEquals(listOf(DrawingBoardFieldModel(name = "reason", type = "String")), domainEvent.requestFields)
-        assertEquals("SubmitOrderValidator", drawingBoard.elementsByTag.getValue("validator").single().name)
+        val validator = drawingBoard.elementsByTag.getValue("validator").single()
+        assertEquals("SubmitOrderValidator", validator.name)
+        assertEquals("submit order rejected", validator.message)
+        assertEquals(listOf("CLASS"), validator.targets)
+        assertEquals("Any", validator.valueType)
+        assertEquals("orderIdField", validator.parameters.single().name)
     }
 
     @Test
