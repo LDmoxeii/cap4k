@@ -104,6 +104,12 @@ Pebble renderer:
 - Modify `cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt`
   - Removes old variant template assertions and adds page trait rendering assertions.
 
+Legacy template cleanup:
+
+- Modify old query shortcut templates under `cap4k-plugin-codegen/src/main/resources/templates/`.
+- Modify old query shortcut skeletons under `template/_tpl/kotlin/`.
+- These files are not part of the new pipeline design generator, but deleting ddd-core shortcut APIs means they must not keep emitting `ListQuery`, `PageQuery`, `ListQueryParam`, or `PageQueryParam`.
+
 Functional fixtures and tests:
 
 - Modify `cap4k-plugin-pipeline-gradle/src/test/resources/functional/design-sample/design/design.json`
@@ -1562,6 +1568,14 @@ git commit -m "feat: collapse query generator variants"
 - Delete: `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/query_page.kt.peb`
 - Delete: `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/query_list_handler.kt.peb`
 - Delete: `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/query_page_handler.kt.peb`
+- Modify: `cap4k-plugin-codegen/src/main/resources/templates/query_list.kt.peb`
+- Modify: `cap4k-plugin-codegen/src/main/resources/templates/query_page.kt.peb`
+- Modify: `cap4k-plugin-codegen/src/main/resources/templates/query_list_handler.kt.peb`
+- Modify: `cap4k-plugin-codegen/src/main/resources/templates/query_page_handler.kt.peb`
+- Modify: `template/_tpl/kotlin/QueryList.kt`
+- Modify: `template/_tpl/kotlin/QueryPage.kt`
+- Modify: `template/_tpl/kotlin/QueryListHandler.kt`
+- Modify: `template/_tpl/kotlin/QueryPageHandler.kt`
 - Modify: `cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt`
 
 - [ ] **Step 1: Update preset coverage test**
@@ -1832,7 +1846,32 @@ rg "query_list|query_page|ListQuery|PageQuery|ListQueryParam|PageQueryParam" cap
 
 Expected: no matches.
 
-- [ ] **Step 10: Commit template cleanup**
+- [ ] **Step 10: Remove or update legacy codegen shortcut templates**
+
+Run:
+
+```powershell
+rg -n "ListQuery|PageQuery|ListQueryParam|PageQueryParam" cap4k-plugin-codegen/src/main/resources template/_tpl
+```
+
+For every match, rewrite the old template or skeleton to the same strict contract shape used by the default pipeline templates:
+
+```kotlin
+RequestParam<Response>
+Query<Request, Response>
+```
+
+For page request templates, add `PageRequest` plus `override val pageNum: Int = 1` and `override val pageSize: Int = 10`. Do not generate `PageData<Response>` or `List<Response>` handler return types from these legacy templates.
+
+After editing, run:
+
+```powershell
+rg "ListQuery|PageQuery|ListQueryParam|PageQueryParam" cap4k-plugin-codegen/src/main/resources template/_tpl
+```
+
+Expected: no matches.
+
+- [ ] **Step 11: Commit template cleanup**
 
 Run:
 
@@ -1840,6 +1879,8 @@ Run:
 git add cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/query.kt.peb
 git add cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/api_payload.kt.peb
 git add cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt
+git add cap4k-plugin-codegen/src/main/resources/templates
+git add template/_tpl/kotlin
 git rm cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/query_list.kt.peb
 git rm cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/query_page.kt.peb
 git rm cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/query_list_handler.kt.peb
@@ -2225,7 +2266,7 @@ Expected: both commands report BUILD SUCCESSFUL. If an agent tool runs these com
 Run:
 
 ```powershell
-rg "QueryVariant|ListQuery|PageQuery|ListQueryParam|PageQueryParam|query_list|query_page" ddd-core/src/main cap4k-plugin-pipeline-api/src cap4k-plugin-pipeline-core/src/main cap4k-plugin-pipeline-generator-design/src/main cap4k-plugin-pipeline-renderer-pebble/src/main cap4k-plugin-pipeline-gradle/src/test/resources
+rg "QueryVariant|ListQuery|PageQuery|ListQueryParam|PageQueryParam|query_list|query_page" ddd-core/src/main cap4k-plugin-pipeline-api/src cap4k-plugin-pipeline-core/src/main cap4k-plugin-pipeline-generator-design/src/main cap4k-plugin-pipeline-renderer-pebble/src/main cap4k-plugin-codegen/src/main/resources template/_tpl cap4k-plugin-pipeline-gradle/src/test/resources
 rg '"tag": "(cmd|qry|cli|clients|payload|de|query_list|query_page)"' cap4k-plugin-pipeline-gradle/src/test/resources cap4k-plugin-pipeline-source-design-json/src/test/resources
 rg "List<Response>|PageData<Response>|List<self>|List<FindOrderListQry.Response>|PageData<FindOrderPageQry.Response>" cap4k-plugin-pipeline-gradle/src/test cap4k-plugin-pipeline-renderer-pebble/src/test cap4k-plugin-pipeline-generator-design/src/test
 ```
