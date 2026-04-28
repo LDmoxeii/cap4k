@@ -12,7 +12,6 @@ import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.QueryModel
-import com.only4.cap4k.plugin.pipeline.api.QueryVariant
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -159,7 +158,6 @@ class DesignCommandArtifactPlannerTest {
         typeName = typeName,
         description = "find order",
         aggregateRef = AggregateRef("Order", "com.acme.demo.domain.aggregates.order"),
-        variant = QueryVariant.DEFAULT,
     )
 
     private fun projectConfig(

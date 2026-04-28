@@ -22,7 +22,7 @@ class DesignQueryHandlerArtifactPlanner : GeneratorProvider {
                 ArtifactPlanItem(
                     generatorId = id,
                     moduleRole = "adapter",
-                    templateId = query.variant.handlerTemplateId,
+                    templateId = "design/query_handler.kt.peb",
                     outputPath = artifactLayout.kotlinSourcePath(adapterRoot, packageName, "${query.typeName}Handler"),
                     context = DesignQueryHandlerRenderModelFactory.create(
                         packageName = packageName,

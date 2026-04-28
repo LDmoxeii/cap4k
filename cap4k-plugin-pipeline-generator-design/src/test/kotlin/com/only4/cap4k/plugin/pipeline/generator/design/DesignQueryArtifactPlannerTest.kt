@@ -7,7 +7,7 @@ import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.QueryModel
-import com.only4.cap4k.plugin.pipeline.api.QueryVariant
+import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -16,22 +16,22 @@ import org.junit.jupiter.api.Test
 class DesignQueryArtifactPlannerTest {
 
     @Test
-    fun `designQuery plans query templates from canonical variants`() {
+    fun `designQuery plans all queries with query template`() {
         val planner = DesignQueryArtifactPlanner()
 
         val items = planner.plan(
             config = projectConfig(modules = mapOf("application" to "demo-application")),
             model = CanonicalModel(
                 queries = listOf(
-                    queryModel(typeName = "FindOrderQry", variant = QueryVariant.DEFAULT),
-                    queryModel(typeName = "FindOrderListQry", variant = QueryVariant.LIST),
-                    queryModel(typeName = "FindOrderPageQry", variant = QueryVariant.PAGE),
+                    queryModel(typeName = "FindOrderQry"),
+                    queryModel(typeName = "FindOrderListQry"),
+                    queryModel(typeName = "FindOrderPageQry", traits = setOf(RequestTrait.PAGE)),
                 ),
             ),
         )
 
         assertEquals(
-            listOf("design/query.kt.peb", "design/query_list.kt.peb", "design/query_page.kt.peb"),
+            listOf("design/query.kt.peb", "design/query.kt.peb", "design/query.kt.peb"),
             items.map { it.templateId },
         )
         assertEquals(
@@ -48,22 +48,49 @@ class DesignQueryArtifactPlannerTest {
     }
 
     @Test
-    fun `does not guess query template from type name`() {
+    fun `sets pageRequest context only from page trait`() {
         val planner = DesignQueryArtifactPlanner()
 
         val items = planner.plan(
             config = projectConfig(modules = mapOf("application" to "demo-application")),
             model = CanonicalModel(
                 queries = listOf(
-                    queryModel(typeName = "FindOrderPageQry", variant = QueryVariant.DEFAULT),
-                    queryModel(typeName = "FindOrderQry", variant = QueryVariant.PAGE),
+                    queryModel(typeName = "FindOrderQry"),
+                    queryModel(
+                        typeName = "FindOrderPageQry",
+                        traits = setOf(RequestTrait.PAGE),
+                    ),
                 ),
             ),
         )
 
         assertEquals(
-            listOf("design/query.kt.peb", "design/query_page.kt.peb"),
+            listOf(false, true),
+            items.map { it.context["pageRequest"] },
+        )
+    }
+
+    @Test
+    fun `list and page suffixes do not affect template selection or pageRequest`() {
+        val planner = DesignQueryArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("application" to "demo-application")),
+            model = CanonicalModel(
+                queries = listOf(
+                    queryModel(typeName = "FindOrderListQry"),
+                    queryModel(typeName = "FindOrderPageQry"),
+                ),
+            ),
+        )
+
+        assertEquals(
+            listOf("design/query.kt.peb", "design/query.kt.peb"),
             items.map { it.templateId },
+        )
+        assertEquals(
+            listOf(false, false),
+            items.map { it.context["pageRequest"] },
         )
     }
 
@@ -83,13 +110,13 @@ class DesignQueryArtifactPlannerTest {
 
     private fun queryModel(
         typeName: String = "FindOrderQry",
-        variant: QueryVariant = QueryVariant.DEFAULT,
+        traits: Set<RequestTrait> = emptySet(),
     ) = QueryModel(
         packageName = "order.read",
         typeName = typeName,
         description = "find order",
         aggregateRef = AggregateRef("Order", "com.acme.demo.domain.aggregates.order"),
-        variant = variant,
+        traits = traits,
     )
 
     private fun projectConfig(modules: Map<String, String>) = ProjectConfig(

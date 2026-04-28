@@ -9,7 +9,6 @@ import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.QueryModel
-import com.only4.cap4k.plugin.pipeline.api.QueryVariant
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -19,7 +18,7 @@ import org.junit.jupiter.api.Test
 class DesignQueryHandlerArtifactPlannerTest {
 
     @Test
-    fun `plans bounded query handler variants into adapter module paths`() {
+    fun `plans bounded query handlers into adapter module paths`() {
         val planner = DesignQueryHandlerArtifactPlanner()
 
         val items = planner.plan(
@@ -35,7 +34,6 @@ class DesignQueryHandlerArtifactPlannerTest {
                         packageName = "order.read",
                         typeName = "FindOrderQry",
                         description = "find order",
-                        variant = QueryVariant.DEFAULT,
                         responseFields = listOf(
                             FieldModel("responseStatus", "com.bar.Status"),
                             FieldModel("snapshot", "Snapshot", nullable = true),
@@ -46,7 +44,6 @@ class DesignQueryHandlerArtifactPlannerTest {
                         packageName = "order.read",
                         typeName = "FindOrderListQry",
                         description = "find order list",
-                        variant = QueryVariant.LIST,
                         responseFields = listOf(
                             FieldModel("responseStatus", "com.bar.Status"),
                         ),
@@ -55,7 +52,6 @@ class DesignQueryHandlerArtifactPlannerTest {
                         packageName = "order.read",
                         typeName = "FindOrderPageQry",
                         description = "find order page",
-                        variant = QueryVariant.PAGE,
                         responseFields = listOf(
                             FieldModel("responseStatus", "com.bar.Status"),
                         ),
@@ -67,8 +63,8 @@ class DesignQueryHandlerArtifactPlannerTest {
         assertEquals(
             listOf(
                 "design/query_handler.kt.peb",
-                "design/query_list_handler.kt.peb",
-                "design/query_page_handler.kt.peb",
+                "design/query_handler.kt.peb",
+                "design/query_handler.kt.peb",
             ),
             items.map { it.templateId },
         )
@@ -124,7 +120,6 @@ class DesignQueryHandlerArtifactPlannerTest {
                         packageName = "order.read",
                         typeName = "FindOrderQry",
                         description = "find order",
-                        variant = QueryVariant.DEFAULT,
                     ),
                 ),
             ),
@@ -147,7 +142,7 @@ class DesignQueryHandlerArtifactPlannerTest {
     }
 
     @Test
-    fun `keeps default handler template when page or list are not suffix variants`() {
+    fun `keeps handler template selection unaffected by page or list suffixes`() {
         val planner = DesignQueryHandlerArtifactPlanner()
 
         val items = planner.plan(
@@ -163,13 +158,11 @@ class DesignQueryHandlerArtifactPlannerTest {
                         packageName = "order.read",
                         typeName = "FindOrderPageableQry",
                         description = "pageable",
-                        variant = QueryVariant.DEFAULT,
                     ),
                     QueryModel(
                         packageName = "order.read",
                         typeName = "FindOrderListingQry",
                         description = "listing",
-                        variant = QueryVariant.DEFAULT,
                     ),
                 ),
             ),
@@ -191,7 +184,6 @@ class DesignQueryHandlerArtifactPlannerTest {
                             packageName = "order.read",
                             typeName = "FindOrderQry",
                             description = "find order",
-                            variant = QueryVariant.DEFAULT,
                         ),
                     ),
                 ),

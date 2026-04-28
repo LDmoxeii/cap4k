@@ -29,6 +29,7 @@ internal data class DesignRenderModel(
     val responseFields: List<DesignRenderFieldModel>,
     val requestNestedTypes: List<DesignRenderNestedTypeModel>,
     val responseNestedTypes: List<DesignRenderNestedTypeModel>,
+    val pageRequest: Boolean = false,
 ) {
     fun toContextMap(): Map<String, Any?> = mapOf(
         "packageName" to packageName,
@@ -43,5 +44,6 @@ internal data class DesignRenderModel(
         "responseFields" to responseFields,
         "requestNestedTypes" to requestNestedTypes,
         "responseNestedTypes" to responseNestedTypes,
+        "pageRequest" to pageRequest,
     )
 }

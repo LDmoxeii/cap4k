@@ -9,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
+import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.ValidatorModel
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -142,7 +143,33 @@ class DesignApiPayloadArtifactPlannerTest {
     }
 
     @Test
-    fun `api payload planner resolves self as response root type`() {
+    fun `api payload planner fails when self is used as response root type`() {
+        val planner = DesignApiPayloadArtifactPlanner()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
+                model = CanonicalModel(
+                    apiPayloads = listOf(
+                        ApiPayloadModel(
+                            packageName = "category",
+                            typeName = "GetCategoryTree",
+                            description = "get category tree",
+                            responseFields = listOf(
+                                FieldModel("categoryId", "Long"),
+                                FieldModel("children", "List<self>", nullable = true),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertTrue(error.message.orEmpty().contains("self"))
+    }
+
+    @Test
+    fun `api payload planner supports explicit page envelope item paths`() {
         val planner = DesignApiPayloadArtifactPlanner()
 
         val items = planner.plan(
@@ -150,12 +177,14 @@ class DesignApiPayloadArtifactPlannerTest {
             model = CanonicalModel(
                 apiPayloads = listOf(
                     ApiPayloadModel(
-                        packageName = "category",
-                        typeName = "GetCategoryTree",
-                        description = "get category tree",
+                        packageName = "order",
+                        typeName = "FindOrderPagePayload",
+                        description = "find order page payload",
+                        traits = setOf(RequestTrait.PAGE),
                         responseFields = listOf(
-                            FieldModel("categoryId", "Long"),
-                            FieldModel("children", "List<self>", nullable = true),
+                            FieldModel("page", "com.only4.cap4k.ddd.core.share.PageData<Item>"),
+                            FieldModel("page.list[].orderId", "Long"),
+                            FieldModel("page.list[].title", "String"),
                         ),
                     ),
                 ),
@@ -163,13 +192,24 @@ class DesignApiPayloadArtifactPlannerTest {
         )
 
         val payload = items.single()
+        assertEquals(true, payload.context["pageRequest"])
         assertEquals(
-            listOf(
-                DesignRenderFieldModel(name = "categoryId", renderedType = "Long"),
-                DesignRenderFieldModel(name = "children", renderedType = "List<Response>?", nullable = true),
-            ),
+            listOf(DesignRenderFieldModel(name = "page", renderedType = "PageData<Item>")),
             payload.context["responseFields"],
         )
+        assertEquals(
+            listOf(
+                DesignRenderNestedTypeModel(
+                    "Item",
+                    fields = listOf(
+                        DesignRenderFieldModel(name = "orderId", renderedType = "Long"),
+                        DesignRenderFieldModel(name = "title", renderedType = "String"),
+                    ),
+                ),
+            ),
+            payload.context["responseNestedTypes"],
+        )
+        assertEquals(listOf("com.only4.cap4k.ddd.core.share.PageData"), payload.context["imports"])
     }
 
     @Test

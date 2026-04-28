@@ -4,6 +4,8 @@ import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
 import com.only4.cap4k.plugin.pipeline.api.DesignInteractionModel
 import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
+import com.only4.cap4k.plugin.pipeline.api.QueryModel
+import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver.UnknownShortTypeFailure
@@ -57,8 +59,8 @@ internal object DesignPayloadRenderModelFactory {
         typeRegistry: Map<String, String> = emptyMap(),
         siblingTypeNames: Set<String> = emptySet(),
     ): DesignRenderModel {
-        val requestNamespace = buildNamespace(interaction.requestFields, "request", rootTypeName = "Request")
-        val responseNamespace = buildNamespace(interaction.responseFields, "response", rootTypeName = "Response")
+        val requestNamespace = buildNamespace(interaction.requestFields, "request")
+        val responseNamespace = buildNamespace(interaction.responseFields, "response")
         return createRenderModel(
             packageName = packageName,
             typeName = interaction.typeName,
@@ -69,6 +71,7 @@ internal object DesignPayloadRenderModelFactory {
             responseNamespace = responseNamespace,
             typeRegistry = typeRegistry,
             siblingRequestTypeNames = siblingTypeNames,
+            pageRequest = interaction is QueryModel && RequestTrait.PAGE in interaction.traits,
         )
     }
 
@@ -77,8 +80,8 @@ internal object DesignPayloadRenderModelFactory {
         payload: ApiPayloadModel,
         typeRegistry: Map<String, String> = emptyMap(),
     ): DesignRenderModel {
-        val requestNamespace = buildNamespace(payload.requestFields, "request", rootTypeName = "Request")
-        val responseNamespace = buildNamespace(payload.responseFields, "response", rootTypeName = "Response")
+        val requestNamespace = buildNamespace(payload.requestFields, "request")
+        val responseNamespace = buildNamespace(payload.responseFields, "response")
         return createRenderModel(
             packageName = packageName,
             typeName = payload.typeName,
@@ -88,6 +91,7 @@ internal object DesignPayloadRenderModelFactory {
             requestNamespace = requestNamespace,
             responseNamespace = responseNamespace,
             typeRegistry = typeRegistry,
+            pageRequest = RequestTrait.PAGE in payload.traits,
         )
     }
 
@@ -96,8 +100,8 @@ internal object DesignPayloadRenderModelFactory {
         event: DomainEventModel,
         typeRegistry: Map<String, String> = emptyMap(),
     ): DesignRenderModel {
-        val requestNamespace = buildNamespace(event.fields, "request", rootTypeName = null)
-        val responseNamespace = buildNamespace(emptyList(), "response", rootTypeName = null)
+        val requestNamespace = buildNamespace(event.fields, "request")
+        val responseNamespace = buildNamespace(emptyList(), "response")
         return createRenderModel(
             packageName = packageName,
             typeName = event.typeName,
@@ -120,6 +124,7 @@ internal object DesignPayloadRenderModelFactory {
         responseNamespace: NamespaceModel,
         typeRegistry: Map<String, String>,
         siblingRequestTypeNames: Set<String> = emptySet(),
+        pageRequest: Boolean = false,
     ): DesignRenderModel {
         val symbolRegistry = buildSymbolRegistry(
             aggregateName = aggregateName,
@@ -172,13 +177,13 @@ internal object DesignPayloadRenderModelFactory {
             responseFields = responseFields,
             requestNestedTypes = requestNestedTypes,
             responseNestedTypes = responseNestedTypes,
+            pageRequest = pageRequest,
         )
     }
 
     private fun buildNamespace(
         fields: List<FieldModel>,
         namespace: String,
-        rootTypeName: String?,
     ): NamespaceModel {
         val root = PayloadPathNode(name = "__root__", path = emptyList())
 
@@ -208,13 +213,13 @@ internal object DesignPayloadRenderModelFactory {
 
         return NamespaceModel(
             fields = root.children.values.map { node ->
-                node.toPreparedField(namespace, nestedTypeNames, rootTypeName)
+                node.toPreparedField(namespace, nestedTypeNames)
             },
             nestedTypes = nestedTypeNodes.map { node ->
                 PreparedNestedTypeModel(
                     name = requireNotNull(node.nestedTypeName),
                     fields = node.children.values.map { child ->
-                        child.toPreparedField(namespace, nestedTypeNames, rootTypeName)
+                        child.toPreparedField(namespace, nestedTypeNames)
                     },
                 )
             },
@@ -365,6 +370,18 @@ internal object DesignPayloadRenderModelFactory {
     ) {
         node.children.values.forEach { child ->
             if (child.children.isNotEmpty()) {
+                val pageEnvelopeItemTypeName = pageEnvelopeItemTypeName(child)
+                if (pageEnvelopeItemTypeName != null) {
+                    collectPageEnvelopeItemNode(
+                        pageNode = child,
+                        itemTypeName = pageEnvelopeItemTypeName,
+                        namespace = namespace,
+                        nestedTypeNames = nestedTypeNames,
+                        nestedTypeNodes = nestedTypeNodes,
+                    )
+                    return@forEach
+                }
+
                 val nestedTypeName = validateNestedContainer(child, namespace)
                 if (!nestedTypeNames.add(nestedTypeName)) {
                     throw IllegalArgumentException("duplicate nested type name in $namespace namespace: $nestedTypeName")
@@ -374,6 +391,46 @@ internal object DesignPayloadRenderModelFactory {
                 collectNestedTypeNodes(child, namespace, nestedTypeNames, nestedTypeNodes)
             }
         }
+    }
+
+    private fun collectPageEnvelopeItemNode(
+        pageNode: PayloadPathNode,
+        itemTypeName: String,
+        namespace: String,
+        nestedTypeNames: MutableSet<String>,
+        nestedTypeNodes: MutableList<PayloadPathNode>,
+    ) {
+        val listNode = pageNode.children["list"] ?: return
+        if (listNode.children.isEmpty()) {
+            return
+        }
+        if (!nestedTypeNames.add(itemTypeName)) {
+            throw IllegalArgumentException("duplicate nested type name in $namespace namespace: $itemTypeName")
+        }
+        listNode.nestedTypeName = itemTypeName
+        nestedTypeNodes += listNode
+        collectNestedTypeNodes(listNode, namespace, nestedTypeNames, nestedTypeNodes)
+    }
+
+    private fun pageEnvelopeItemTypeName(node: PayloadPathNode): String? {
+        val directFieldType = node.explicitDeclarations.singleOrNull()?.type?.trim().orEmpty()
+        if (directFieldType.isBlank()) {
+            return null
+        }
+        val genericStart = directFieldType.indexOf('<')
+        val genericEnd = directFieldType.lastIndexOf('>')
+        if (genericStart < 0 || genericEnd <= genericStart) {
+            return null
+        }
+        if (simpleTypeName(directFieldType.substring(0, genericStart)) != "PageData") {
+            return null
+        }
+        val listNode = node.children["list"] ?: return null
+        if (!listNode.list || listNode.children.isEmpty()) {
+            return null
+        }
+        val arguments = splitGenericArguments(directFieldType.substring(genericStart + 1, genericEnd))
+        return arguments.singleOrNull()?.let(::simpleNestedTypeCandidate)
     }
 
     private fun validateDuplicateDeclarations(
@@ -565,7 +622,6 @@ internal object DesignPayloadRenderModelFactory {
     private fun PayloadPathNode.toPreparedField(
         namespace: String,
         innerTypeNames: Set<String>,
-        rootTypeName: String?,
     ): PreparedFieldModel {
         val field = explicitDeclarations.firstOrNull()
             ?: throw missingDirectContainerError(this, namespace, toNestedTypeName(name))
@@ -577,7 +633,6 @@ internal object DesignPayloadRenderModelFactory {
             resolvedType = resolveDesignType(
                 type = DesignTypeParser.parse(field.type),
                 innerTypeNames = innerTypeNames,
-                rootTypeName = rootTypeName,
                 namespace = namespace,
             ),
         )
@@ -586,17 +641,10 @@ internal object DesignPayloadRenderModelFactory {
     private fun resolveDesignType(
         type: DesignTypeModel,
         innerTypeNames: Set<String>,
-        rootTypeName: String?,
         namespace: String,
     ): DesignResolvedTypeModel {
-        val isSelf = type.tokenText == "self"
-        val parsedRawText = if (isSelf) {
-            rootTypeName?.takeIf { it.isNotBlank() }
-                ?: throw IllegalArgumentException("self is not supported in $namespace namespace")
-        } else {
-            type.tokenText
-        }
-        val resolvesToInner = isSelf || parsedRawText in innerTypeNames
+        val parsedRawText = type.tokenText
+        val resolvesToInner = parsedRawText in innerTypeNames
         val rawText = if (resolvesToInner) {
             parsedRawText.substringAfterLast('.')
         } else {
@@ -619,7 +667,6 @@ internal object DesignPayloadRenderModelFactory {
                 resolveDesignType(
                     type = argument,
                     innerTypeNames = innerTypeNames,
-                    rootTypeName = rootTypeName,
                     namespace = namespace,
                 )
             },

@@ -23,7 +23,7 @@ class DesignQueryArtifactPlanner : GeneratorProvider {
             ArtifactPlanItem(
                 generatorId = id,
                 moduleRole = "application",
-                templateId = query.variant.requestTemplateId,
+                templateId = "design/query.kt.peb",
                 outputPath = artifactLayout.kotlinSourcePath(applicationRoot, packageName, query.typeName),
                 context = DesignPayloadRenderModelFactory.create(
                     packageName = packageName,
