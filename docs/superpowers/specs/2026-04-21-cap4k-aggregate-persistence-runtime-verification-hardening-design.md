@@ -123,9 +123,9 @@ Current cap4k shape:
 - non-Saga requests are all resolved to a `RequestHandler` and executed through `handler.exec(request)`
 - generated or hand-written CLI requests currently have no stable framework marker and often appear only as plain `RequestParam` plus plain `RequestHandler`
 
-This is architecturally different from NetCorePal's command-only unit-of-work behavior. Therefore, the lazy-loading fix must not be implemented by wrapping the whole `RequestSupervisor.send()` path in a transaction.
+This is architecturally different from NetCorePal's command-only unit-of-work behavior. Therefore, the lazy-loading fix must not be implemented by blindly wrapping the whole `RequestSupervisor.send()` path in a transaction.
 
-The desired cap4k policy is family-specific:
+The durable cap4k policy should remain family-specific:
 
 - command requests enter the command transaction boundary by default
 - query requests do not automatically share command transaction semantics
@@ -134,13 +134,52 @@ The desired cap4k policy is family-specific:
 - saga child steps use the policy of the child request they execute
 - plain `RequestHandler` remains non-transactional unless explicitly classified
 
-The immediate runtime hardening work should focus on command-boundary transaction behavior only. Query read-only transactions, saga retry transaction policy, and client request transaction policy are separate decisions.
+However, command-boundary transaction expansion is not selected as the immediate fix for the current lazy aggregate defect. The fixture proves it can solve the lazy-access symptom, but implementing it correctly also requires reworking `JpaUnitOfWork.save()` commit/after-transaction semantics, domain-event timing, integration-event timing, and interceptor timing. That blast radius is too large if the only approved motivation is avoiding lazy-loading failure.
+
+The immediate aggregate runtime repair direction should therefore prefer:
+
+- safer generated relation mapping, especially removing `CascadeType.REFRESH` from default parent-child cascades
+- an explicit aggregate load-plan contract through the existing mediator/supervisor APIs
+- preserving command transaction-boundary expansion as a later architecture slice, only after `UnitOfWork` commit semantics are deliberately redesigned
 
 Missing marker to record:
 
 - CLI/distributed-client requests need their own explicit marker or typed contract in a later design
 - without that marker, the runtime cannot distinguish client calls from generic request handlers safely
 - until that exists, CLI requests must not be accidentally included in command transaction behavior
+
+### 2.2 Aggregate Load Plans Through the Mediator
+
+`FetchType.EAGER` is a global mapping policy, not a use-case loading policy. `FetchType.LAZY` avoids global over-fetching, but it leaks persistence-context requirements into application code when the repository API cannot express the intended aggregate graph.
+
+The current mediator/supervisor API has only:
+
+- predicate
+- `persist`
+
+That can express whether the loaded entity should be registered into `UnitOfWork`, but it cannot express how much of the aggregate graph this use case needs.
+
+The preferred design direction is to keep the mediator/supervisor abstraction and add an explicit load-plan dimension rather than bypassing it with direct `JpaRepository`, `EntityManager`, or hand-written fetch joins.
+
+First-slice load-plan vocabulary should stay small:
+
+- `DEFAULT`: current repository behavior
+- `MINIMAL`: load only the root shape needed for read-only checks
+- `WHOLE_AGGREGATE`: load the aggregate root and owned aggregate entities needed for command mutation
+
+Example intended shape:
+
+```kotlin
+AggregateSupervisor.instance.findOne(
+    predicate = Video.byId(id),
+    persist = true,
+    loadPlan = AggregateLoadPlan.WHOLE_AGGREGATE
+)
+```
+
+The JPA implementation may translate `WHOLE_AGGREGATE` into `EntityGraph`, fetch joins, or explicit initialization. That translation is provider-specific and should stay below the mediator/supervisor contract.
+
+This keeps use-case loading explicit without making entity mappings globally eager and without requiring command-wide transaction expansion as the first repair.
 
 ### 3. Three-Level Aggregate Whole-Save Behavior
 
@@ -229,11 +268,21 @@ The fixture should prefer cap4k's real repository/unit-of-work path when validat
 
 2026-04-29 H2 fixture: `AggregateJpaRuntimeDefectReproductionTest` under `cap4k-ddd-starter` currently supports the omitted-ID Snowflake-style Hibernate generator path, but classifies the preassigned-ID path as a known defect. A repair plan must preserve this fixture and replace the preassigned-ID characterization with the desired contract assertion after the ID strategy/new-entity decision is implemented.
 
-2026-04-29 H2 fixture: the same fixture classifies command handler repository load plus lazy child access through the current `RequestSupervisor` path as a known defect with `spring.jpa.open-in-view=false` and `hibernate.enable_lazy_load_no_trans=false`. The controlled transaction contrast test passes, so a repair plan should focus on command transaction boundary design rather than relation eager loading.
+2026-04-29 H2 fixture: the same fixture classifies command handler repository load plus lazy child access through the current `RequestSupervisor` path as a known defect with `spring.jpa.open-in-view=false` and `hibernate.enable_lazy_load_no_trans=false`. The controlled transaction contrast test passes, proving the failure is persistence-context boundary related rather than a cascade-save defect.
+
+2026-04-29 H2 fixture: the fixture also verifies the exact request path under an expanded transaction scope. Wrapping `RequestSupervisor.instance.send(CountRuntimeRootChildrenRequest(...))` in a transaction allows the command handler to load the aggregate through `RepositorySupervisor`, access lazy children, and return the expected child count. This proves the lazy command defect is addressable by expanding the command/request transaction boundary around handler execution, independently of whether the implementation uses declarative or programmatic transaction mechanics.
+
+This proof does not make command-wide transaction expansion the next implementation step. The current preferred route is to keep this fixture as evidence, then first repair generated mapping safety and add an explicit aggregate load-plan dimension through the mediator/supervisor APIs. Command-wide transaction expansion should remain deferred until a separate unit-of-work commit semantics design decides how `afterTransaction`, domain events, integration events, and interceptors bind to the real transaction commit.
 
 2026-04-29 H2 fixture: the same fixture currently supports root-only three-level create, generated parent-id binding from A to multiple B rows and from each B to multiple C rows, managed child/grandchild scalar updates, grandchild orphan removal, child orphan removal, and clear/re-add mutation using managed collections. No repair task should be opened for this behavior unless a real-project fixture contradicts it.
 
-2026-04-29 H2 fixture: the same fixture classifies the `A -> B -> C` model with child-to-parent and grandchild-to-child `EAGER` reverse `ManyToOne` navigation as a known defect. This separates pure root-to-descendant cascade support from the reverse-navigation problem seen in `Video -> VideoFile -> VideoFileVariant`; a repair plan should make aggregate-internal reverse entity navigation explicit opt-in or change its default fetch/mapping policy.
+2026-04-29 H2 fixture: the same fixture supports direct child-to-parent `EAGER` reverse `ManyToOne` navigation when loading the child row, but classifies the chained `C -> B -> A` navigation in an `A -> B -> C` model as a known defect. This separates pure root-to-descendant cascade support and direct reverse navigation from the nested reverse-navigation problem seen in `Video -> VideoFile -> VideoFileVariant`; a repair plan should make aggregate-internal reverse entity navigation explicit opt-in or change its default fetch/mapping policy.
+
+The nested reverse-navigation failure is not a lazy-loading or transaction-isolation defect. The reproduced failure happens during `JpaUnitOfWork.save()`: after `entityManager.flush()`, the unit of work calls `entityManager.refresh(root)` for the newly persisted root. Since `CascadeType.ALL` includes refresh, Hibernate walks `Root -> Child -> Grandchild`; because the reverse `ManyToOne` mappings are eager, read-only navigations over the same join columns, it then re-enters `Grandchild -> Child -> Root`. The direct `Root -> Child -> Root` cycle is supported, but the deeper `Root -> Child -> Grandchild -> Child -> Root` refresh graph currently produces `FetchNotFoundException` for the root id.
+
+The intended use case for inverse parent navigation is aggregate rehydration after repository whole-load: domain logic may need to move from a child entity back to its parent inside the already loaded aggregate graph. That use case does not require `CascadeType.REFRESH`. Therefore a repair plan should prefer removing refresh from generated parent-child cascade policy, for example by replacing `CascadeType.ALL` with the explicit persistence cascades actually required for whole-save (`PERSIST`, `MERGE`, `REMOVE`) and keeping refresh out of the default aggregate entity template.
+
+Transaction-boundary expansion remains a separate design topic. The lazy aggregate access fixture proves the current command path has a transaction-boundary problem, but the nested reverse-navigation fixture proves a different mapping/refresh problem. A future repair plan should not conflate these two defects: changing command transaction scope may be valid, but it should not be used as the fix for cascade-refresh inverse navigation failures.
 
 ## ID Contract Design Options
 
@@ -339,7 +388,7 @@ This slice is complete when:
 - application-side and database-side ID strategies are distinguishable in the contract
 - the same project can use at least Snowflake-style and UUID7-style application-side strategies without forcing a global singleton
 - unit-of-work behavior does not misclassify preassigned-ID new aggregates
-- aggregate load behavior is explained by transaction/repository boundaries rather than accidental eager loading
+- aggregate load behavior is explained by explicit repository load plans, mapping safety, and transaction boundaries rather than accidental eager loading
 - three-level aggregate save/update/delete behavior is either supported with tests or documented as unsupported with a clear reason
 - backend replacement remains deferred unless the reproduction evidence justifies it
 

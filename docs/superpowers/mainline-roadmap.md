@@ -241,6 +241,13 @@ Non-goals:
 
 No new default mainline implementation slice has been selected yet; remaining candidates are tracked in the backlog below.
 
+Current persistence decision:
+
+- command-wide transaction expansion is deferred
+- the lazy aggregate fixture proves an expanded request/command transaction can solve lazy access, but that alone does not justify changing `RequestSupervisor` and `JpaUnitOfWork.save()` semantics
+- the next aggregate persistence repair, if selected, should first address generated JPA mapping safety and explicit aggregate load plans through the existing mediator/supervisor APIs
+- command transaction-boundary expansion should become its own architecture slice only if the work also redesigns real commit/after-transaction semantics for unit-of-work interceptors, domain events, and integration events
+
 ## Bootstrap Decision
 
 The bootstrap direction is:
@@ -287,8 +294,9 @@ Plan freshness rule:
 
 Remaining recommended order from the current mainline handoff:
 
-1. irAnalysis restructuring analysis
-2. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
+1. aggregate JPA mapping safety and load-plan semantics, if aggregate persistence work is selected next
+2. irAnalysis restructuring analysis
+3. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
 
 The completed validator projection item was a combined implementation track over:
 
@@ -455,7 +463,37 @@ Notes:
 - a generated empty behavior file is useful only as a scaffold; the generated entity contract must make that behavior file able to mutate aggregate state safely
 - Gradle integration must register generated Kotlin source directories per module so IDE import and `compileKotlin` see the generated files consistently
 
-### 2. irAnalysis restructuring analysis
+### 2. Aggregate JPA mapping safety and load-plan semantics
+
+Status:
+
+- candidate work
+- spec needs review/update before implementation planning
+- runtime evidence exists in `AggregateJpaRuntimeDefectReproductionTest`
+- command-wide transaction expansion explicitly deferred
+
+Reference:
+
+- [aggregate JPA runtime defect reproduction design](specs/2026-04-21-cap4k-aggregate-persistence-runtime-verification-hardening-design.md)
+
+Next action:
+
+- update or split a focused spec before implementation
+- first repair generated relation mapping safety, especially avoiding default `CascadeType.REFRESH` through `CascadeType.ALL`
+- introduce an explicit aggregate load-plan dimension through `AggregateSupervisor` / `RepositorySupervisor` rather than bypassing the mediator with direct JPA access
+- keep command transaction-boundary expansion as a later architecture slice unless the unit-of-work commit/after-transaction semantics are redesigned in the same work
+
+Notes:
+
+- `FetchType.EAGER` is a global mapping policy, not a use-case loading policy
+- use-case loading should be explicit, for example `DEFAULT`, `MINIMAL`, and `WHOLE_AGGREGATE`
+- JPA may implement whole-aggregate loading with `EntityGraph`, fetch joins, or explicit initialization, but that provider detail should stay below the mediator/supervisor contract
+- `persist=true` should continue to mean "register this loaded entity into UnitOfWork"; it should not secretly decide load depth or transaction scope
+- `persist=false` remains meaningful inside commands because a handler may perform read-only lookups that should not be saved
+- command-wide transaction expansion has test evidence, but its blast radius includes `JpaUnitOfWork.save()`, real commit timing, `afterTransaction`, domain events, integration events, and interceptors
+- do not choose a persistence backend replacement just to solve this lazy-loading symptom
+
+### 3. irAnalysis restructuring analysis
 
 Status:
 
@@ -470,7 +508,7 @@ Reference:
 Next action:
 
 - do not open a broad restructuring implementation track yet
-- revisit only after analysis design projection normalization and validator generation expansion are implemented
+- revisit only if new analysis evidence proves the current graph/projection split cannot support planned generator inputs
 
 Notes:
 
@@ -480,7 +518,7 @@ Notes:
 - if analysis design projection normalization can be solved without restructuring, keep restructuring deferred
 - this should not block smaller drawing-board or validator-generation slices unless evidence shows the current architecture cannot support them
 
-### 3. Unit-of-work and repository backend comparison
+### 4. Unit-of-work and repository backend comparison
 
 Status:
 

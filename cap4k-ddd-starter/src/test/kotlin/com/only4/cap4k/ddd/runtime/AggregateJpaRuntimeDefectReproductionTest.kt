@@ -104,6 +104,9 @@ class AggregateJpaRuntimeDefectReproductionTest {
     private lateinit var rootJpaRepository: RuntimeRootJpaRepository
 
     @Autowired
+    private lateinit var reverseChildJpaRepository: RuntimeReverseChildJpaRepository
+
+    @Autowired
     private lateinit var reverseGrandchildJpaRepository: RuntimeReverseGrandchildJpaRepository
 
     @Autowired
@@ -196,6 +199,21 @@ class AggregateJpaRuntimeDefectReproductionTest {
     }
 
     @Test
+    @DisplayName("transactional request scope can access lazy aggregate children")
+    fun transactionalRequestScopeCanAccessLazyAggregateChildren() {
+        val root = saveRoot(RuntimeRoot(name = "lazy-transactional-request").apply {
+            children.add(RuntimeChild(name = "lazy-transactional-request-child"))
+        })
+        JpaUnitOfWork.reset()
+
+        val response = requireNotNull(TransactionTemplate(transactionManager).execute {
+            RequestSupervisor.instance.send(CountRuntimeRootChildrenRequest(root.id))
+        })
+
+        assertEquals(1, response.childCount)
+    }
+
+    @Test
     @DisplayName("controlled transaction can access lazy aggregate children")
     fun controlledTransactionCanAccessLazyAggregateChildren() {
         val root = saveRoot(RuntimeRoot(name = "lazy-controlled").apply {
@@ -274,6 +292,56 @@ class AggregateJpaRuntimeDefectReproductionTest {
         assertSupported(classification)
     }
 
+    @Test
+    @DisplayName("reverse eager navigation from child to parent is supported")
+    fun reverseEagerNavigationFromChildToParentIsSupported() {
+        val classification = classifyRuntimeBehavior(
+            label = "direct reverse eager child to parent navigation",
+            desiredContract = {
+                val root = saveReverseRoot(
+                    RuntimeReverseRoot(name = "reverse-child-parent").apply {
+                        children.add(RuntimeReverseChild(name = "reverse-child-parent-child"))
+                    }
+                )
+                assertNotEquals(0L, root.id)
+
+                val childIds = queryLongs(
+                    "select `id` from `runtime_reverse_child` where `root_id` = ? order by `name`",
+                    root.id
+                )
+                assertEquals(1, childIds.size)
+                JpaUnitOfWork.reset()
+
+                val loadedChild = reverseChildJpaRepository.findById(childIds.single()).orElseThrow()
+                val loadedRoot = loadedChild.root ?: error("Reverse child should resolve its parent root")
+
+                assertEquals(root.id, loadedRoot.id)
+            },
+            knownDefect = { failure ->
+                failure.hasCause<jakarta.persistence.PersistenceException>() ||
+                    failure.hasCause<HibernateException>() ||
+                    failure is AssertionError
+            }
+        )
+
+        assertSupported(classification)
+    }
+
+    /*
+     * This is not a lazy-loading or isolation problem. The failure happens while
+     * JpaUnitOfWork.save() refreshes the newly persisted root after flush().
+     *
+     * Direct Root -> Child -> Root eager reverse navigation is supported by the
+     * contrast test above. The known defect starts with the nested refresh graph:
+     *
+     * Root -> Child -> Grandchild -> Child -> Root
+     *
+     * The forward one-to-many collections own the join columns, while the reverse
+     * many-to-one associations are read-only eager navigations over those same
+     * columns. CascadeType.ALL includes refresh, so refreshing the new root walks
+     * the nested eager cycle and Hibernate reports FetchNotFoundException for the
+     * root id while resolving that graph.
+     */
     @Test
     @DisplayName("reverse eager navigation on nested entities is a known defect")
     fun reverseEagerNavigationOnNestedEntitiesIsKnownDefect() {
@@ -643,6 +711,8 @@ open class RuntimeReverseGrandchild(id: Long = 0L, name: String = "") {
 interface RuntimeRootJpaRepository :
     JpaRepository<RuntimeRoot, Long>,
     JpaSpecificationExecutor<RuntimeRoot>
+
+interface RuntimeReverseChildJpaRepository : JpaRepository<RuntimeReverseChild, Long>
 
 interface RuntimeReverseGrandchildJpaRepository : JpaRepository<RuntimeReverseGrandchild, Long>
 
