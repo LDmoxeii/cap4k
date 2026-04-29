@@ -83,6 +83,7 @@ data class DesignElementSnapshot(
     val aggregates: List<String> = emptyList(),
     val entity: String? = null,
     val persist: Boolean? = null,
+    val traits: Set<RequestTrait> = emptySet(),
     val requestFields: List<DesignFieldSnapshot> = emptyList(),
     val responseFields: List<DesignFieldSnapshot> = emptyList(),
     val message: String? = null,
@@ -303,6 +304,7 @@ data class DrawingBoardElementModel(
     val aggregates: List<String> = emptyList(),
     val entity: String? = null,
     val persist: Boolean? = null,
+    val traits: Set<RequestTrait> = emptySet(),
     val requestFields: List<DrawingBoardFieldModel> = emptyList(),
     val responseFields: List<DrawingBoardFieldModel> = emptyList(),
     val message: String? = null,
@@ -316,6 +318,9 @@ data class DrawingBoardElementModel(
         } else {
             requestFields
         }
+
+    val designJsonTraits: List<String>
+        get() = traits.map { it.name.lowercase() }
 }
 
 data class DrawingBoardModel(

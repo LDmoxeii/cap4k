@@ -43,6 +43,40 @@
     "responseFields": []
   },
   {
+    "tag": "query",
+    "package": "orders.read",
+    "name": "FindOrderPage",
+    "desc": "find order page",
+    "traits": [
+      "page"
+    ],
+    "requestFields": [],
+    "responseFields": [
+      {
+        "name": "page",
+        "type": "PageData<Item>",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "tag": "api_payload",
+    "package": "orders.read",
+    "name": "FindOrderPage",
+    "desc": "find order page payload",
+    "traits": [
+      "page"
+    ],
+    "requestFields": [],
+    "responseFields": [
+      {
+        "name": "page",
+        "type": "PageData<Item>",
+        "nullable": false
+      }
+    ]
+  },
+  {
     "tag": "domain_event",
     "package": "orders.events",
     "name": "OrderCreated",

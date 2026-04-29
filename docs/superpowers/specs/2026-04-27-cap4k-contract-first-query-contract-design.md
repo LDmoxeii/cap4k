@@ -1,7 +1,7 @@
 # cap4k Contract-First Query Contract Design
 
 > Date: 2026-04-27
-> Status: Draft for review
+> Status: Implemented; completion follows `docs/superpowers/mainline-roadmap.md` and the committed verification suite
 > Scope: ddd-core query contract, pipeline design query generation, default design templates, design input normalization guidance
 > Out of scope: repository Optional/nullability cleanup, controller generation, API Result wrapper generation, mapper generation
 

@@ -385,7 +385,7 @@ Notes:
 - `validator` should be projected only for supported structural validator contracts
 - concrete request-type validators are treated as migration defects, not as a new pipeline contract
 - this should still be smaller than a full irAnalysis restructuring
-- generated `drawing_board_*.json` is intended as generate-ready design input for supported projections; PAGE query and `api_payload` round-trip completeness still has a known analysis projection gap
+- generated `drawing_board_*.json` is intended as generate-ready design input for supported projections; PAGE query and `api_payload` traits are now preserved through analysis projection and drawing-board export
 - do not add a normalization layer just to compensate for analysis output gaps
 - should be implemented in the same plan as validator generation capability expansion because both share the validator design model
 

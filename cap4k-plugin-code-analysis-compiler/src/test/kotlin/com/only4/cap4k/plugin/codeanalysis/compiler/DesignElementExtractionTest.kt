@@ -14,6 +14,16 @@ class DesignElementExtractionTest {
                 "package com.only4.cap4k.ddd.core.application; interface RequestParam<T>"
             ),
             SourceFile.kotlin(
+                "PageRequest.kt",
+                """
+                    package com.only4.cap4k.ddd.core.application.query
+                    interface PageRequest {
+                        val pageNum: Int
+                        val pageSize: Int
+                    }
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
                 "DomainEvent.kt",
                 """
                     package com.only4.cap4k.ddd.core.domain.event.annotation
@@ -92,6 +102,21 @@ class DesignElementExtractionTest {
                 """.trimIndent()
             ),
             SourceFile.kotlin(
+                "FindOrderPageQry.kt",
+                """
+                    package demo.application.queries.orders
+                    object FindOrderPageQry {
+                        data class Request(
+                            override val pageNum: Int = 1,
+                            override val pageSize: Int = 10,
+                            val keyword: String? = null,
+                        ) : com.only4.cap4k.ddd.core.application.query.PageRequest,
+                            com.only4.cap4k.ddd.core.application.RequestParam<Response>
+                        data class Response(val page: String)
+                    }
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
                 "TopCli.kt",
                 """
                     package demo.application.distributed.clients
@@ -125,11 +150,25 @@ class DesignElementExtractionTest {
                     package demo.adapter.portal.api.payload.account
                     object BatchSaveAccountList {
                         data class Request(val globalId: String, val account: AccountInfo)
-                        data class Item(val result: Boolean)
+                        data class Response(val result: Boolean)
                         data class AccountInfo(val accountNumber: String)
                         interface Converter {
                             companion object
                         }
+                    }
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "GetOrderPage.kt",
+                """
+                    package demo.adapter.portal.api.payload.order
+                    object GetOrderPage {
+                        data class Request(
+                            override val pageNum: Int = 1,
+                            override val pageSize: Int = 10,
+                            val keyword: String? = null,
+                        ) : com.only4.cap4k.ddd.core.application.query.PageRequest
+                        data class Response(val page: String)
                     }
                 """.trimIndent()
             )
@@ -152,6 +191,9 @@ class DesignElementExtractionTest {
         assertTrue(json.contains("\"captchaId\""))
         assertTrue(json.contains("\"tag\":\"api_payload\""))
         assertTrue(json.contains("\"account.accountNumber\""))
+        assertTrue(json.contains("\"name\":\"FindOrderPage\""))
+        assertTrue(findObject(objects, "query", "FindOrderPage").contains("\"traits\":[\"page\"]"))
+        assertTrue(findObject(objects, "api_payload", "getOrderPage").contains("\"traits\":[\"page\"]"))
         assertTrue(json.contains("\"tag\":\"domain_event\""))
         assertTrue(json.contains("\"name\":\"UserCreated\""))
         assertTrue(json.contains("\"entity\":\"User\""))
@@ -361,6 +403,30 @@ class DesignElementExtractionTest {
         assertFalse(json.contains("VideoDeletePermission"))
         assertFalse(json.contains("MixedUnsupportedTarget"))
         assertFalse(json.contains("ClassScalarValidator"))
+    }
+
+    @Test
+    fun `rejects legacy api payload Item response projection`() {
+        val sources = listOf(
+            SourceFile.kotlin(
+                "LegacyPayload.kt",
+                """
+                    package demo.adapter.portal.api.payload.legacy
+                    object LegacyPayload {
+                        data class Request(val id: Long)
+                        data class Item(val result: Boolean)
+                    }
+                """.trimIndent()
+            )
+        )
+
+        val messages = compileWithCap4kPluginExpectingFailure(sources)
+
+        assertTrue(
+            messages.contains(
+                "api_payload legacyPayload must define nested Response; legacy nested Item is not supported by analysis projection.",
+            ),
+        )
     }
 
     private fun extractTopLevelObjects(json: String): List<String> {

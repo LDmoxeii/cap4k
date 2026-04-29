@@ -8,9 +8,11 @@ import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrEdgeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrNodeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import com.only4.cap4k.plugin.pipeline.api.ValidatorParameterModel
 import java.io.File
+import java.util.Locale
 
 class IrAnalysisSourceProvider : SourceProvider {
     override val id: String = "ir-analysis"
@@ -105,6 +107,7 @@ class IrAnalysisSourceProvider : SourceProvider {
                 aggregates = obj.stringList("aggregates"),
                 entity = obj.stringValue("entity"),
                 persist = obj.booleanValue("persist"),
+                traits = parseTraits(obj, tag),
                 requestFields = parseDesignFields(obj.jsonArrayOrEmpty("requestFields")),
                 responseFields = parseDesignFields(obj.jsonArrayOrEmpty("responseFields")),
                 message = obj.stringValue("message"),
@@ -132,6 +135,22 @@ class IrAnalysisSourceProvider : SourceProvider {
                 defaultValue = obj.stringValue("defaultValue"),
             )
         }
+    }
+
+    private fun parseTraits(obj: com.google.gson.JsonObject, tag: String): Set<RequestTrait> {
+        val rawTraits = obj.stringList("traits")
+        if (rawTraits.isEmpty()) {
+            return emptySet()
+        }
+        require(tag in RequestTraitTags) {
+            "ir-analysis design element $tag cannot use request traits"
+        }
+        return rawTraits.map { rawTrait ->
+            val normalized = rawTrait.uppercase(Locale.ROOT)
+            runCatching { RequestTrait.valueOf(normalized) }.getOrElse {
+                throw IllegalArgumentException("ir-analysis design element $tag has unsupported trait: $rawTrait")
+            }
+        }.toSet()
     }
 
     private fun parseValidatorParameters(array: com.google.gson.JsonArray?): List<ValidatorParameterModel> {
@@ -219,3 +238,5 @@ private data class DesignElementKey(
     val packageName: String,
     val name: String,
 )
+
+private val RequestTraitTags = setOf("query", "api_payload")

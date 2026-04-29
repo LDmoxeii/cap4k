@@ -4,6 +4,7 @@ import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
+import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.ValidatorParameterModel
@@ -126,6 +127,15 @@ class IrAnalysisSourceProviderTest {
                 ]
               },
               {
+                "tag": "query",
+                "package": "orders",
+                "name": "FindOrderPage",
+                "desc": "find order page",
+                "traits": ["page"],
+                "requestFields": [],
+                "responseFields": []
+              },
+              {
                 "tag": " ",
                 "package": "ignored",
                 "name": "Ignored",
@@ -137,7 +147,7 @@ class IrAnalysisSourceProviderTest {
 
         val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString())) as IrAnalysisSnapshot
 
-        assertEquals(3, snapshot.designElements.size)
+        assertEquals(4, snapshot.designElements.size)
         assertEquals("command", snapshot.designElements.first().tag)
         assertEquals("orders", snapshot.designElements.first().packageName)
         assertEquals("SubmitOrder", snapshot.designElements.first().name)
@@ -151,6 +161,8 @@ class IrAnalysisSourceProviderTest {
         assertEquals(1, snapshot.designElements.first().responseFields.size)
         assertEquals("accepted", snapshot.designElements.first().responseFields.first().name)
         assertEquals("Boolean", snapshot.designElements.first().responseFields.first().type)
+        val pageQuery = snapshot.designElements.single { it.name == "FindOrderPage" }
+        assertEquals(setOf(RequestTrait.PAGE), pageQuery.traits)
         val domainEvent = snapshot.designElements.single { it.tag == "domain_event" }
         assertEquals("", domainEvent.packageName)
         assertEquals("OrderCreated", domainEvent.name)

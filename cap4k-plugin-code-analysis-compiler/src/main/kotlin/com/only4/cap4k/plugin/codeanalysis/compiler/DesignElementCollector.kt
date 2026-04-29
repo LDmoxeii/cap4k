@@ -39,6 +39,7 @@ class DesignElementCollector(
     private val typeFormatter = IrTypeFormatter()
 
     private val requestParamFq = FqName(options.requestParamFq)
+    private val pageRequestFq = FqName(options.pageRequestFq)
     private val domainEventAnnFq = FqName(options.domainEventAnnFq)
     private val aggregateAnnFq = FqName(options.aggregateAnnFq)
     private val constraintAnnFq = FqName(options.constraintAnnFq)
@@ -89,7 +90,8 @@ class DesignElementCollector(
         val name = stripSuffix(declaration.name.asString(), kind)
         val pkg = extractPackage(fqcn, kind.packageMarker)
         val nestedTypes = collectNestedTypes(declaration)
-        val responseClass = findNestedClass(declaration, "Response") ?: findNestedClass(declaration, "Item")
+        val responseClass = findNestedClass(declaration, "Response")
+        rejectLegacyItemResponse(declaration, responseClass, kind.tag, name)
         val requestFields = requestClass?.let { collectFields(it, nestedTypes) }.orEmpty()
         val responseFields = responseClass?.let { collectFields(it, nestedTypes) }.orEmpty()
         val aggregates = requestAggregates[requestFqcn].orEmpty()
@@ -102,6 +104,7 @@ class DesignElementCollector(
                 aggregates = aggregates,
                 entity = null,
                 persist = null,
+                traits = requestTraitsFor(kind.tag, requestClass),
                 requestFields = requestFields,
                 responseFields = responseFields
             )
@@ -113,7 +116,8 @@ class DesignElementCollector(
         val pkg = extractPackage(fqcn, ".adapter.portal.api.payload")
         val nestedTypes = collectNestedTypes(declaration)
         val requestClass = findNestedClass(declaration, "Request")
-        val responseClass = findNestedClass(declaration, "Item")
+        val responseClass = findNestedClass(declaration, "Response")
+        rejectLegacyItemResponse(declaration, responseClass, "api_payload", name)
         val requestFields = requestClass?.let { collectFields(it, nestedTypes) }.orEmpty()
         val responseFields = responseClass?.let { collectFields(it, nestedTypes) }.orEmpty()
         val aggInfo = declaration.readAggregateInfo(aggregateAnnFq)
@@ -127,6 +131,7 @@ class DesignElementCollector(
                 aggregates = aggregates,
                 entity = null,
                 persist = null,
+                traits = requestTraitsFor("api_payload", requestClass),
                 requestFields = requestFields,
                 responseFields = responseFields
             )
@@ -192,6 +197,30 @@ class DesignElementCollector(
     private fun collectFields(rootClass: IrClass, nestedTypes: Map<String, IrClass>): List<DesignField> {
         val visited = mutableSetOf<String>()
         return collectFieldsRecursive(rootClass, nestedTypes, null, visited)
+    }
+
+    private fun requestTraitsFor(tag: String, requestClass: IrClass?): List<String> {
+        if (tag !in RequestTraitTags || requestClass == null) {
+            return emptyList()
+        }
+        return if (requestClass.isOrImplements(pageRequestFq)) {
+            listOf("page")
+        } else {
+            emptyList()
+        }
+    }
+
+    private fun rejectLegacyItemResponse(
+        declaration: IrClass,
+        responseClass: IrClass?,
+        tag: String,
+        name: String,
+    ) {
+        if (responseClass == null && findNestedClass(declaration, "Item") != null) {
+            throw IllegalArgumentException(
+                "$tag $name must define nested Response; legacy nested Item is not supported by analysis projection.",
+            )
+        }
     }
 
     private fun collectFieldsRecursive(
@@ -458,6 +487,7 @@ class DesignElementCollector(
 
 private const val AGG_TYPE_FACTORY_PAYLOAD = "factory-payload"
 private const val AGG_TYPE_DOMAIN_EVENT = "domain-event"
+private val RequestTraitTags = setOf("query", "api_payload")
 private val SupportedValidatorTargets = setOf("CLASS", "FIELD", "VALUE_PARAMETER")
 private val ValidatorTargetOrder = mapOf("CLASS" to 0, "FIELD" to 1, "VALUE_PARAMETER" to 2)
 private val SupportedValidatorValueTypes = setOf("Any", "String", "Long", "Int", "Boolean")

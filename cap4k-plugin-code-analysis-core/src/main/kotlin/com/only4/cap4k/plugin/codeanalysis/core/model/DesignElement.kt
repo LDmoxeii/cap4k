@@ -8,6 +8,7 @@ data class DesignElement(
     val aggregates: List<String> = emptyList(),
     val entity: String? = null,
     val persist: Boolean? = null,
+    val traits: List<String> = emptyList(),
     val requestFields: List<DesignField> = emptyList(),
     val responseFields: List<DesignField> = emptyList(),
     val message: String? = null,

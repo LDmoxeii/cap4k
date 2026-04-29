@@ -18,6 +18,7 @@ data class Cap4kOptions(
     val repositorySupervisorFq: String = "com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor",
     val aggregateFactorySupervisorFq: String = "com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor",
     val requestParamFq: String = "com.only4.cap4k.ddd.core.application.RequestParam",
+    val pageRequestFq: String = "com.only4.cap4k.ddd.core.application.query.PageRequest",
     val constraintAnnFq: String = "jakarta.validation.Constraint",
     val constraintValidatorFq: String = "jakarta.validation.ConstraintValidator",
 ) {
@@ -47,6 +48,8 @@ data class Cap4kOptions(
                 ?: "com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor",
             requestParamFq = System.getProperty(OptionsKeys.REQUEST_PARAM_FQ)
                 ?: "com.only4.cap4k.ddd.core.application.RequestParam",
+            pageRequestFq = System.getProperty(OptionsKeys.PAGE_REQUEST_FQ)
+                ?: "com.only4.cap4k.ddd.core.application.query.PageRequest",
             constraintAnnFq = System.getProperty(OptionsKeys.CONSTRAINT_ANNOTATION_FQ)
                 ?: "jakarta.validation.Constraint",
             constraintValidatorFq = System.getProperty(OptionsKeys.CONSTRAINT_VALIDATOR_FQ)

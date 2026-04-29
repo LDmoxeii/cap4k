@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Execution status:** Implemented. This document is a historical execution plan only; unchecked checklist items below are not current TODOs. Use `docs/superpowers/mainline-roadmap.md` for current status and next work.
+
 **Goal:** Make ordinary validator design input, generated validator skeletons, analysis design projection, and drawing-board validator JSON use one stable contract.
 
 **Architecture:** Implement one shared validator contract through the existing pipeline stages: `designJson -> CanonicalModel.validators -> designValidator -> generated Kotlin`, then make `analysis-compiler -> design-elements.json -> source-ir-analysis -> drawing-board` emit the same contract. Keep `nodes.json`, `rels.json`, flow traversal, and analysis task separation unchanged.

@@ -66,6 +66,39 @@ fun compileWithCap4kPlugin(sources: List<SourceFile>): Path {
     return outputDir
 }
 
+fun compileWithCap4kPluginExpectingFailure(sources: List<SourceFile>): String {
+    val workingDir = java.nio.file.Files.createTempDirectory("cap4k-compile-failure").toFile()
+    System.clearProperty("cap4k.test.plugin.registrar")
+    System.clearProperty("cap4k.test.ir")
+    val compilation = KotlinCompilation().apply {
+        this.sources = sources
+        this.workingDir = workingDir
+        inheritClassPath = true
+        supportsK2 = true
+        compilerPluginRegistrars = listOf(
+            Cap4kCodeAnalysisCompilerRegistrar(),
+            ProbeRegistrar()
+        )
+        pluginClasspaths = resolvePluginClasspaths()
+        messageOutputStream = System.out
+    }
+    val originalOutput = System.getProperty(OptionsKeys.OUTPUT_DIR)
+    try {
+        System.setProperty(OptionsKeys.OUTPUT_DIR, workingDir.absolutePath)
+        val result = compilation.compile()
+        check(result.exitCode != KotlinCompilation.ExitCode.OK) {
+            "Expected compiler plugin invocation to fail, but compilation succeeded."
+        }
+        return result.messages
+    } finally {
+        if (originalOutput == null) {
+            System.clearProperty(OptionsKeys.OUTPUT_DIR)
+        } else {
+            System.setProperty(OptionsKeys.OUTPUT_DIR, originalOutput)
+        }
+    }
+}
+
 private fun resolvePluginClasspaths(): List<File> {
     val compilerJar = resolveJarFrom(
         listOf(

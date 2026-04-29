@@ -438,6 +438,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             aggregates = aggregates,
             entity = if (normalizedTag == "domain_event") null else entity,
             persist = persist,
+            traits = traits,
             message = message,
             targets = targets,
             valueType = valueType,

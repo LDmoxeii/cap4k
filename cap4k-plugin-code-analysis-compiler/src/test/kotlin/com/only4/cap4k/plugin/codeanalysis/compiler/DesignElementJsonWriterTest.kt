@@ -18,6 +18,7 @@ class DesignElementJsonWriterTest {
                 aggregates = emptyList(),
                 entity = null,
                 persist = true,
+                traits = listOf("page"),
                 requestFields = listOf(
                     DesignField("globalId", "String", false, "0"),
                     DesignField("account.accountNumber", "String", false, null)
@@ -31,6 +32,7 @@ class DesignElementJsonWriterTest {
         assertTrue(json.contains("\"defaultValue\":\"0\""))
         assertTrue(json.contains("\"nullable\":false"))
         assertTrue(json.contains("\"persist\":true"))
+        assertTrue(json.contains("\"traits\":[\"page\"]"))
         assertTrue(json.contains("\"account.accountNumber\""))
     }
 

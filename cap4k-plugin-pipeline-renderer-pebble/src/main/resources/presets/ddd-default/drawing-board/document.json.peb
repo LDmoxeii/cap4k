@@ -12,6 +12,9 @@
 {%- if element.persist is not null %},
     "persist": {{ element.persist }}
 {%- endif %}
+{%- if element.designJsonTraits|length > 0 %},
+    "traits": [{% for trait in element.designJsonTraits %}{{ trait | json | raw }}{% if not loop.last %}, {% endif %}{% endfor %}]
+{%- endif %}
 {%- if element.message is not null %},
     "message": {{ element.message | json | raw }}
 {%- endif %}

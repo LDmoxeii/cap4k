@@ -26,6 +26,10 @@ class DesignElementJsonWriter {
                 element.persist?.let { value ->
                     append(",\"persist\":").append(value)
                 }
+                if (element.traits.isNotEmpty()) {
+                    append(",\"traits\":")
+                    appendStringList(element.traits)
+                }
                 element.message?.let { value ->
                     append(",\"message\":\"").append(escape(value)).append("\"")
                 }

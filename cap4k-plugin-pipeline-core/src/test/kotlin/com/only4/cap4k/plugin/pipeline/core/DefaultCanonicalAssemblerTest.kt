@@ -1338,6 +1338,7 @@ class DefaultCanonicalAssemblerTest {
                             name = "FindOrder",
                             description = "find order",
                             aggregates = listOf("Order"),
+                            traits = setOf(RequestTrait.PAGE),
                             requestFields = emptyList(),
                             responseFields = emptyList(),
                         ),
@@ -1346,6 +1347,7 @@ class DefaultCanonicalAssemblerTest {
                             packageName = "order.payload",
                             name = "CreateOrderPayload",
                             description = "create order payload",
+                            traits = setOf(RequestTrait.PAGE),
                         ),
                         DesignElementSnapshot(
                             tag = "domain_event",
@@ -1405,8 +1407,12 @@ class DefaultCanonicalAssemblerTest {
             drawingBoard.elementsByTag.keys.toList(),
         )
         assertEquals(1, drawingBoard.elementsByTag.getValue("command").size)
-        assertEquals("FindOrder", drawingBoard.elementsByTag.getValue("query").single().name)
-        assertEquals("CreateOrderPayload", drawingBoard.elementsByTag.getValue("api_payload").single().name)
+        val query = drawingBoard.elementsByTag.getValue("query").single()
+        assertEquals("FindOrder", query.name)
+        assertEquals(setOf(RequestTrait.PAGE), query.traits)
+        val apiPayload = drawingBoard.elementsByTag.getValue("api_payload").single()
+        assertEquals("CreateOrderPayload", apiPayload.name)
+        assertEquals(setOf(RequestTrait.PAGE), apiPayload.traits)
 
         val domainEvent = drawingBoard.elementsByTag.getValue("domain_event").single()
         assertEquals(null, domainEvent.entity)

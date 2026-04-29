@@ -1,7 +1,7 @@
 # Cap4k Validator Generation Capability Expansion Design
 
 Date: 2026-04-27
-Status: Draft for review
+Status: Implemented; completion follows `docs/superpowers/mainline-roadmap.md` and the committed verification suite
 
 ## Summary
 
