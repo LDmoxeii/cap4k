@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
 import com.only4.cap4k.plugin.pipeline.api.CommandVariant
+import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
@@ -2447,7 +2448,10 @@ class DefaultCanonicalAssemblerTest {
         )
 
         val oneToMany = result.model.aggregateRelations.first { it.relationType == AggregateRelationType.ONE_TO_MANY }
-        assertEquals(true, oneToMany.cascadeAll)
+        assertEquals(
+            listOf(AggregateCascadeType.PERSIST, AggregateCascadeType.MERGE, AggregateCascadeType.REMOVE),
+            oneToMany.cascadeTypes,
+        )
         assertEquals(true, oneToMany.orphanRemoval)
         assertEquals(false, oneToMany.joinColumnNullable)
     }
@@ -2651,7 +2655,11 @@ class DefaultCanonicalAssemblerTest {
                     joinColumn = "video_post_id",
                     fetchType = AggregateFetchType.LAZY,
                     nullable = false,
-                    cascadeAll = true,
+                    cascadeTypes = listOf(
+                        AggregateCascadeType.PERSIST,
+                        AggregateCascadeType.MERGE,
+                        AggregateCascadeType.REMOVE,
+                    ),
                     orphanRemoval = true,
                     joinColumnNullable = false,
                 ),
@@ -2819,7 +2827,11 @@ class DefaultCanonicalAssemblerTest {
                         joinColumn = "video_post_id",
                         fetchType = AggregateFetchType.LAZY,
                         nullable = false,
-                        cascadeAll = true,
+                        cascadeTypes = listOf(
+                            AggregateCascadeType.PERSIST,
+                            AggregateCascadeType.MERGE,
+                            AggregateCascadeType.REMOVE,
+                        ),
                         orphanRemoval = true,
                         joinColumnNullable = false,
                     ),
@@ -2833,7 +2845,11 @@ class DefaultCanonicalAssemblerTest {
                         joinColumn = "video_post_archive_id",
                         fetchType = AggregateFetchType.LAZY,
                         nullable = false,
-                        cascadeAll = true,
+                        cascadeTypes = listOf(
+                            AggregateCascadeType.PERSIST,
+                            AggregateCascadeType.MERGE,
+                            AggregateCascadeType.REMOVE,
+                        ),
                         orphanRemoval = true,
                         joinColumnNullable = false,
                     ),
@@ -3187,12 +3203,12 @@ class DefaultCanonicalAssemblerTest {
         )
 
         val manyToOne = result.model.aggregateRelations.first { it.relationType == AggregateRelationType.MANY_TO_ONE }
-        assertEquals(false, manyToOne.cascadeAll)
+        assertEquals(emptyList<AggregateCascadeType>(), manyToOne.cascadeTypes)
         assertEquals(false, manyToOne.orphanRemoval)
         assertEquals(false, manyToOne.joinColumnNullable)
 
         val oneToOne = result.model.aggregateRelations.first { it.relationType == AggregateRelationType.ONE_TO_ONE }
-        assertEquals(false, oneToOne.cascadeAll)
+        assertEquals(emptyList<AggregateCascadeType>(), oneToOne.cascadeTypes)
         assertEquals(false, oneToOne.orphanRemoval)
         assertEquals(true, oneToOne.joinColumnNullable)
     }

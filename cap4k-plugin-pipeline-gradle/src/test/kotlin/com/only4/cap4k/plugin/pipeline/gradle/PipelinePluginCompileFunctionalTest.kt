@@ -437,9 +437,10 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(generatedRootEntity.contains("@JoinColumn(name = \"cover_profile_id\", nullable = true)"))
         assertTrue(
             generatedRootEntity.contains(
-                "@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)"
+                "@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE], orphanRemoval = true)"
             )
         )
+        assertFalse(generatedRootEntity.contains("CascadeType.ALL"))
         assertTrue(generatedRootEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
         assertFalse(generatedRootEntity.contains("mappedBy ="))
         assertTrue(generatedChildEntity.contains("@ManyToOne(fetch = FetchType.LAZY)"))

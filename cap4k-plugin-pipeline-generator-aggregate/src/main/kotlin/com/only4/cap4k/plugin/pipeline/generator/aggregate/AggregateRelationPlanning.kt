@@ -55,7 +55,7 @@ internal object AggregateRelationPlanning {
                 "fetchType" to relation.fetchType.name,
                 "joinColumn" to relation.joinColumn,
                 "nullable" to relation.nullable,
-                "cascadeAll" to relation.cascadeAll,
+                "cascadeTypes" to relation.cascadeTypes.map { it.name },
                 "orphanRemoval" to relation.orphanRemoval,
                 "joinColumnNullable" to relation.joinColumnNullable,
             )
@@ -79,7 +79,7 @@ internal object AggregateRelationPlanning {
                 "readOnly" to true,
                 "insertable" to relation.insertable,
                 "updatable" to relation.updatable,
-                "cascadeAll" to false,
+                "cascadeTypes" to emptyList<String>(),
                 "orphanRemoval" to false,
                 "joinColumnNullable" to null,
             )
@@ -102,12 +102,12 @@ internal object AggregateRelationPlanning {
             }
             .distinct()
         val relationTypes = (entityRelations.map { it.relationType } + entityInverseRelations.map { it.relationType }).toSet()
-        val hasCascadeAll = entityRelations.any { it.cascadeAll }
+        val hasCascadeTypes = entityRelations.any { it.cascadeTypes.isNotEmpty() }
         val jpaImports = buildList {
             if (relationTypes.isNotEmpty()) {
                 add("jakarta.persistence.FetchType")
                 add("jakarta.persistence.JoinColumn")
-                if (hasCascadeAll) {
+                if (hasCascadeTypes) {
                     add("jakarta.persistence.CascadeType")
                 }
             }

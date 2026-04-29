@@ -180,6 +180,12 @@ enum class AggregateFetchType {
     EAGER,
 }
 
+enum class AggregateCascadeType {
+    PERSIST,
+    MERGE,
+    REMOVE,
+}
+
 data class AggregateRelationModel(
     val ownerEntityName: String,
     val ownerEntityPackageName: String,
@@ -190,7 +196,7 @@ data class AggregateRelationModel(
     val joinColumn: String,
     val fetchType: AggregateFetchType,
     val nullable: Boolean,
-    val cascadeAll: Boolean = false,
+    val cascadeTypes: List<AggregateCascadeType> = emptyList(),
     val orphanRemoval: Boolean = false,
     val joinColumnNullable: Boolean? = null,
 )

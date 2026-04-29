@@ -87,7 +87,7 @@ class {{ typeName }}(
 {% else %}    lateinit var {{ relation.name }}: {{ relation.targetTypeRef }}
         internal set
 {% endif %}
-{% elseif relation.relationType == "ONE_TO_MANY" %}    @OneToMany(fetch = FetchType.{{ relation.fetchType }}{% if relation.cascadeAll %}, cascade = [CascadeType.ALL]{% endif %}, orphanRemoval = {{ relation.orphanRemoval }})
+{% elseif relation.relationType == "ONE_TO_MANY" %}    @OneToMany(fetch = FetchType.{{ relation.fetchType }}{% if relation.cascadeTypes|length > 0 %}, cascade = [{% for cascadeType in relation.cascadeTypes %}CascadeType.{{ cascadeType }}{% if not loop.last %}, {% endif %}{% endfor %}]{% endif %}, orphanRemoval = {{ relation.orphanRemoval }})
     @JoinColumn(name = "{{ relation.joinColumn }}", nullable = {{ relation.joinColumnNullable }})
     val {{ relation.name }}: MutableList<{{ relation.targetTypeRef }}> = mutableListOf()
 {% endif %}

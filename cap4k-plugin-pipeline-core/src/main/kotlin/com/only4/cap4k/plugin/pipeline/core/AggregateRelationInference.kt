@@ -1,5 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.core
 
+import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
@@ -113,7 +114,11 @@ internal object AggregateRelationInference {
                     joinColumn = joinColumn,
                     fetchType = AggregateFetchType.LAZY,
                     nullable = false,
-                    cascadeAll = true,
+                    cascadeTypes = listOf(
+                        AggregateCascadeType.PERSIST,
+                        AggregateCascadeType.MERGE,
+                        AggregateCascadeType.REMOVE,
+                    ),
                     orphanRemoval = true,
                     joinColumnNullable = false,
                 )
@@ -145,7 +150,6 @@ internal object AggregateRelationInference {
                         joinColumn = column.name,
                         fetchType = if (column.lazy == true) AggregateFetchType.LAZY else AggregateFetchType.EAGER,
                         nullable = column.nullable,
-                        cascadeAll = false,
                         orphanRemoval = false,
                         joinColumnNullable = column.nullable,
                     )

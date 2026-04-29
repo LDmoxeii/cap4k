@@ -171,7 +171,7 @@ class PebbleArtifactRendererTest {
                         "name" to "children",
                         "targetTypeRef" to "Category",
                         "fetchType" to "LAZY",
-                        "cascadeAll" to true,
+                        "cascadeTypes" to listOf("PERSIST", "MERGE", "REMOVE"),
                         "orphanRemoval" to true,
                         "joinColumn" to "parent_id",
                         "joinColumnNullable" to false,
@@ -2088,7 +2088,7 @@ class PebbleArtifactRendererTest {
                                 "relationType" to "ONE_TO_MANY",
                                 "fetchType" to "LAZY",
                                 "joinColumn" to "video_post_id",
-                                "cascadeAll" to true,
+                                "cascadeTypes" to listOf("PERSIST", "MERGE", "REMOVE"),
                                 "orphanRemoval" to true,
                                 "joinColumnNullable" to false,
                             )
@@ -2139,7 +2139,8 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@OneToOne(fetch = FetchType.LAZY)"))
         assertTrue(bodySection.contains("@JoinColumn(name = \"cover_profile_id\", nullable = true)"))
         assertTrue(bodySection.contains("var coverProfile: CoverProfile? = null"))
-        assertTrue(content.contains("@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)"))
+        assertTrue(content.contains("@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE], orphanRemoval = true)"))
+        assertFalse(content.contains("CascadeType.ALL"))
         assertTrue(content.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
         assertFalse(content.contains("mappedBy ="))
         assertTrue(bodySection.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
@@ -2403,7 +2404,7 @@ class PebbleArtifactRendererTest {
                                 "relationType" to "ONE_TO_MANY",
                                 "fetchType" to "LAZY",
                                 "joinColumn" to "video_post_id",
-                                "cascadeAll" to false,
+                                "cascadeTypes" to emptyList<String>(),
                                 "orphanRemoval" to false,
                                 "joinColumnNullable" to false,
                             )
@@ -2430,7 +2431,7 @@ class PebbleArtifactRendererTest {
 
         assertFalse(content.contains("import jakarta.persistence.CascadeType"))
         assertTrue(content.contains("@OneToMany(fetch = FetchType.LAZY, orphanRemoval = false)"))
-        assertFalse(content.contains("cascade = [CascadeType.ALL]"))
+        assertFalse(content.contains("cascade = [CascadeType."))
         assertTrue(content.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
     }
 

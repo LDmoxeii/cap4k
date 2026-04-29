@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.generator.aggregate
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateColumnJpaModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateEntityJpaModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
 import com.only4.cap4k.plugin.pipeline.api.AggregateInverseRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdGeneratorControl
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl
@@ -1483,7 +1484,11 @@ class AggregateArtifactPlannerTest {
                         joinColumn = "video_post_id",
                         fetchType = AggregateFetchType.LAZY,
                         nullable = false,
-                        cascadeAll = true,
+                        cascadeTypes = listOf(
+                            AggregateCascadeType.PERSIST,
+                            AggregateCascadeType.MERGE,
+                            AggregateCascadeType.REMOVE,
+                        ),
                         orphanRemoval = true,
                         joinColumnNullable = false,
                     ),
@@ -1501,13 +1506,19 @@ class AggregateArtifactPlannerTest {
         val coverProfile = relationFields.single { it["name"] == "coverProfile" }
         val items = relationFields.single { it["name"] == "items" }
 
-        assertEquals(false, author["cascadeAll"])
+        assertEquals(emptyList<String>(), author["cascadeTypes"])
+        assertFalse(author.containsKey("cascadeAll"))
         assertEquals(false, author["orphanRemoval"])
         assertEquals(false, author["joinColumnNullable"])
-        assertEquals(false, coverProfile["cascadeAll"])
+        assertEquals(emptyList<String>(), coverProfile["cascadeTypes"])
+        assertFalse(coverProfile.containsKey("cascadeAll"))
         assertEquals(false, coverProfile["orphanRemoval"])
         assertEquals(true, coverProfile["joinColumnNullable"])
-        assertEquals(true, items["cascadeAll"])
+        assertEquals(
+            listOf("PERSIST", "MERGE", "REMOVE"),
+            items["cascadeTypes"]
+        )
+        assertFalse(items.containsKey("cascadeAll"))
         assertEquals(true, items["orphanRemoval"])
         assertEquals(false, items["joinColumnNullable"])
         assertTrue(jpaImports.contains("jakarta.persistence.CascadeType"))
@@ -1573,16 +1584,18 @@ class AggregateArtifactPlannerTest {
         val coverProfile = relationFields.single { it["name"] == "coverProfile" }
 
         assertTrue(author.containsKey("joinColumnNullable"))
-        assertTrue(author.containsKey("cascadeAll"))
+        assertTrue(author.containsKey("cascadeTypes"))
+        assertFalse(author.containsKey("cascadeAll"))
         assertTrue(author.containsKey("orphanRemoval"))
         assertEquals(false, author["joinColumnNullable"])
-        assertEquals(false, author["cascadeAll"])
+        assertEquals(emptyList<String>(), author["cascadeTypes"])
         assertEquals(false, author["orphanRemoval"])
         assertTrue(coverProfile.containsKey("joinColumnNullable"))
-        assertTrue(coverProfile.containsKey("cascadeAll"))
+        assertTrue(coverProfile.containsKey("cascadeTypes"))
+        assertFalse(coverProfile.containsKey("cascadeAll"))
         assertTrue(coverProfile.containsKey("orphanRemoval"))
         assertEquals(true, coverProfile["joinColumnNullable"])
-        assertEquals(false, coverProfile["cascadeAll"])
+        assertEquals(emptyList<String>(), coverProfile["cascadeTypes"])
         assertEquals(false, coverProfile["orphanRemoval"])
         assertEquals(false, jpaImports.contains("jakarta.persistence.CascadeType"))
     }
