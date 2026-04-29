@@ -207,7 +207,7 @@ The contract-first query contract and ddd-core nullability contract stabilizatio
 
 The validator projection and generation normalization slice is complete.
 
-The most recent explicit framework slice is:
+The generated-source output slice is complete:
 
 - generated source output and entity behavior split
 
@@ -239,14 +239,38 @@ Non-goals:
 - do not silently mix this with broad irAnalysis restructuring or real-project integration work
 - do not touch legacy `cap4k-plugin-codegen`
 
+The most recent explicit framework slice is:
+
+- aggregate JPA mapping safety and load-plan semantics
+
+Status:
+
+- implementation complete
+- verified through pipeline API/core/aggregate/renderer tests, JPA repository tests, aggregate runtime fixture, and aggregate Gradle plugin compile-functional tests
+- generated parent-child aggregate mappings now avoid `CascadeType.ALL` and render explicit `PERSIST`, `MERGE`, and `REMOVE`
+- `AggregateLoadPlan` is propagated through `Repository`, `RepositorySupervisor`, `AggregateSupervisor`, `DefaultMediator`, and JPA repository implementations
+- JPA `WHOLE_AGGREGATE` initializes owned `@OneToMany` graphs below the repository boundary
+- command-wide transaction expansion remains deferred
+
+Reference:
+
+- [aggregate JPA runtime defect reproduction design](specs/2026-04-21-cap4k-aggregate-persistence-runtime-verification-hardening-design.md)
+- [aggregate JPA mapping safety and load-plan semantics implementation plan](plans/2026-04-29-cap4k-aggregate-jpa-mapping-safety-and-load-plan-semantics.md)
+
+Notes:
+
+- `persist=true` still means "register this loaded entity into UnitOfWork"; it does not choose load depth
+- use-case load depth is explicit through `AggregateLoadPlan`
+- JPA whole-load uses a repository-level read-only transaction for initialization; it does not wrap the whole command/request path
+- Querydsl repositories currently accept the public load-plan parameter but do not implement whole-aggregate provider behavior
+
 No new default mainline implementation slice has been selected yet; remaining candidates are tracked in the backlog below.
 
 Current persistence decision:
 
-- command-wide transaction expansion is deferred
-- the lazy aggregate fixture proves an expanded request/command transaction can solve lazy access, but that alone does not justify changing `RequestSupervisor` and `JpaUnitOfWork.save()` semantics
-- the next aggregate persistence repair, if selected, should first address generated JPA mapping safety and explicit aggregate load plans through the existing mediator/supervisor APIs
-- command transaction-boundary expansion should become its own architecture slice only if the work also redesigns real commit/after-transaction semantics for unit-of-work interceptors, domain events, and integration events
+- command-wide transaction expansion remains deferred
+- the lazy aggregate fixture still proves an expanded request/command transaction can solve lazy access, but the implemented repair uses explicit repository load plans instead
+- future command transaction-boundary expansion should become its own architecture slice only if the work also redesigns real commit/after-transaction semantics for unit-of-work interceptors, domain events, and integration events
 
 ## Bootstrap Decision
 
@@ -467,27 +491,27 @@ Notes:
 
 Status:
 
-- candidate work
-- spec needs review/update before implementation planning
-- runtime evidence exists in `AggregateJpaRuntimeDefectReproductionTest`
+- implementation complete
+- runtime evidence and repair coverage exist in `AggregateJpaRuntimeDefectReproductionTest`
+- generator and runtime repair merged
 - command-wide transaction expansion explicitly deferred
 
 Reference:
 
 - [aggregate JPA runtime defect reproduction design](specs/2026-04-21-cap4k-aggregate-persistence-runtime-verification-hardening-design.md)
+- [aggregate JPA mapping safety and load-plan semantics implementation plan](plans/2026-04-29-cap4k-aggregate-jpa-mapping-safety-and-load-plan-semantics.md)
 
 Next action:
 
-- update or split a focused spec before implementation
-- first repair generated relation mapping safety, especially avoiding default `CascadeType.REFRESH` through `CascadeType.ALL`
-- introduce an explicit aggregate load-plan dimension through `AggregateSupervisor` / `RepositorySupervisor` rather than bypassing the mediator with direct JPA access
 - keep command transaction-boundary expansion as a later architecture slice unless the unit-of-work commit/after-transaction semantics are redesigned in the same work
+- do not open a persistence backend replacement just for the lazy-loading symptom
+- revisit Querydsl provider-specific whole-load semantics only if a real use case needs it
 
 Notes:
 
 - `FetchType.EAGER` is a global mapping policy, not a use-case loading policy
-- use-case loading should be explicit, for example `DEFAULT`, `MINIMAL`, and `WHOLE_AGGREGATE`
-- JPA may implement whole-aggregate loading with `EntityGraph`, fetch joins, or explicit initialization, but that provider detail should stay below the mediator/supervisor contract
+- use-case loading is explicit through `AggregateLoadPlan.DEFAULT`, `AggregateLoadPlan.MINIMAL`, and `AggregateLoadPlan.WHOLE_AGGREGATE`
+- JPA implements whole-aggregate loading with explicit owned `@OneToMany` initialization below the repository boundary
 - `persist=true` should continue to mean "register this loaded entity into UnitOfWork"; it should not secretly decide load depth or transaction scope
 - `persist=false` remains meaningful inside commands because a handler may perform read-only lookups that should not be saved
 - command-wide transaction expansion has test evidence, but its blast radius includes `JpaUnitOfWork.save()`, real commit timing, `afterTransaction`, domain events, integration events, and interceptors

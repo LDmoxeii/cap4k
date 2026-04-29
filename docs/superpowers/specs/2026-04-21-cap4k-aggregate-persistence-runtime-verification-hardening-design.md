@@ -284,6 +284,12 @@ The intended use case for inverse parent navigation is aggregate rehydration aft
 
 Transaction-boundary expansion remains a separate design topic. The lazy aggregate access fixture proves the current command path has a transaction-boundary problem, but the nested reverse-navigation fixture proves a different mapping/refresh problem. A future repair plan should not conflate these two defects: changing command transaction scope may be valid, but it should not be used as the fix for cascade-refresh inverse navigation failures.
 
+2026-04-29 implementation result: generated parent-child aggregate cascades no longer use `CascadeType.ALL`; they render explicit `PERSIST`, `MERGE`, and `REMOVE`, excluding `REFRESH`. The runtime fixture keeps the old `CascadeType.ALL` nested inverse eager graph as a known-defect contrast and adds a safe-cascade graph that persists successfully without triggering refresh-based `FetchNotFoundException`.
+
+2026-04-29 implementation result: repository and aggregate read APIs now carry `AggregateLoadPlan`. `WHOLE_AGGREGATE` initializes owned `@OneToMany` aggregate collections below the JPA repository boundary, allowing command handlers to request a usable aggregate graph without requiring command-wide transaction expansion or global eager mappings.
+
+2026-04-29 implementation note: JPA `WHOLE_AGGREGATE` initialization requires the JPA repository read method itself to have a read-only transaction boundary; otherwise Spring Data's internal repository call returns a detached proxy before explicit initialization can run. This does not expand the full command/request transaction scope and does not change `JpaUnitOfWork.save()` commit semantics.
+
 ## ID Contract Design Options
 
 The implementation plan must choose one explicit ID strategy after reproducing the defect.
