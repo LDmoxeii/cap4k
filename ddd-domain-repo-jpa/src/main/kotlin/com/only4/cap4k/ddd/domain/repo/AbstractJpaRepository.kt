@@ -10,9 +10,12 @@ import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import com.only4.cap4k.ddd.domain.repo.impl.DefaultRepositorySupervisor
 import jakarta.annotation.PostConstruct
 import jakarta.persistence.EntityManager
+import jakarta.persistence.OneToMany
 import jakarta.persistence.PersistenceContext
+import org.hibernate.Hibernate
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor
+import org.springframework.transaction.annotation.Transactional
 
 /**
  * 基于Jpa的仓储抽象类
@@ -43,6 +46,7 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
 
     override fun supportPredicateClass(): Class<*> = JpaPredicate::class.java
 
+    @Transactional(readOnly = true)
     override fun find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
@@ -69,12 +73,15 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
             else -> emptyList()
         }
 
+        applyLoadPlan(entities, loadPlan)
+
         if (!persist && entities.isNotEmpty()) {
             entities.forEach { entityManager.detach(it) }
         }
         return entities
     }
 
+    @Transactional(readOnly = true)
     override fun find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
@@ -102,12 +109,15 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
             else -> emptyList()
         }
 
+        applyLoadPlan(entities, loadPlan)
+
         if (!persist && entities.isNotEmpty()) {
             entities.forEach(entityManager::detach)
         }
         return entities
     }
 
+    @Transactional(readOnly = true)
     override fun findOne(
         predicate: Predicate<ENTITY>,
         persist: Boolean,
@@ -125,12 +135,15 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
             else -> null
         }
 
+        entity?.let { applyLoadPlan(it, loadPlan) }
+
         if (!persist && entity != null) {
             entityManager.detach(entity)
         }
         return entity
     }
 
+    @Transactional(readOnly = true)
     override fun findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
@@ -155,12 +168,15 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
             else -> null
         }
 
+        entity?.let { applyLoadPlan(it, loadPlan) }
+
         if (!persist && entity != null) {
             entityManager.detach(entity)
         }
         return entity
     }
 
+    @Transactional(readOnly = true)
     override fun findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
@@ -191,11 +207,49 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
             else -> PageData.empty(pageParam.pageSize)
         }
 
+        applyLoadPlan(pageData.list, loadPlan)
+
         if (!persist && pageData.list.isNotEmpty()) {
             pageData.list.forEach(entityManager::detach)
         }
         return pageData
     }
+
+    private fun applyLoadPlan(entities: Iterable<ENTITY>, loadPlan: AggregateLoadPlan) {
+        if (loadPlan != AggregateLoadPlan.WHOLE_AGGREGATE) return
+        val visited = mutableSetOf<Int>()
+        entities.forEach { entity -> initializeOwnedCollections(entity, visited) }
+    }
+
+    private fun applyLoadPlan(entity: ENTITY, loadPlan: AggregateLoadPlan) {
+        if (loadPlan != AggregateLoadPlan.WHOLE_AGGREGATE) return
+        initializeOwnedCollections(entity, mutableSetOf())
+    }
+
+    private fun initializeOwnedCollections(entity: Any, visited: MutableSet<Int>) {
+        val identity = System.identityHashCode(entity)
+        if (!visited.add(identity)) return
+
+        for (field in persistentFields(Hibernate.getClass(entity))) {
+            val oneToMany = field.getAnnotation(OneToMany::class.java) ?: continue
+            if (!oneToMany.orphanRemoval && oneToMany.cascade.isEmpty()) continue
+
+            field.isAccessible = true
+            val value = field.get(entity) ?: continue
+            Hibernate.initialize(value)
+
+            if (value is Iterable<*>) {
+                value.filterNotNull().forEach { child -> initializeOwnedCollections(child, visited) }
+            }
+        }
+    }
+
+    private fun persistentFields(type: Class<*>): Sequence<java.lang.reflect.Field> =
+        generateSequence(type) { current ->
+            current.superclass?.takeIf { it != Any::class.java }
+        }.flatMap { current ->
+            current.declaredFields.asSequence()
+        }
 
     override fun count(predicate: Predicate<ENTITY>): Long {
         return when {

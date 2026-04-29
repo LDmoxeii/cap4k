@@ -5,6 +5,7 @@ import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.command.Command
+import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.domain.distributed.SnowflakeIdentifierGenerator
 import com.only4.cap4k.ddd.domain.distributed.snowflake.SnowflakeIdGenerator
@@ -212,6 +213,19 @@ class AggregateJpaRuntimeDefectReproductionTest {
         val response = requireNotNull(TransactionTemplate(transactionManager).execute {
             RequestSupervisor.instance.send(CountRuntimeRootChildrenRequest(root.id))
         })
+
+        assertEquals(1, response.childCount)
+    }
+
+    @Test
+    @DisplayName("whole aggregate load plan can access lazy aggregate children without request transaction")
+    fun wholeAggregateLoadPlanCanAccessLazyAggregateChildrenWithoutRequestTransaction() {
+        val root = saveRoot(RuntimeRoot(name = "lazy-whole-load").apply {
+            children.add(RuntimeChild(name = "lazy-whole-load-child"))
+        })
+        JpaUnitOfWork.reset()
+
+        val response = RequestSupervisor.instance.send(CountRuntimeRootChildrenWholeLoadRequest(root.id))
 
         assertEquals(1, response.childCount)
     }
@@ -838,11 +852,29 @@ data class CountRuntimeRootChildrenResponse(
     val childCount: Int
 )
 
+data class CountRuntimeRootChildrenWholeLoadRequest(
+    val rootId: Long
+) : RequestParam<CountRuntimeRootChildrenResponse>
+
 @Component
 class CountRuntimeRootChildrenCommand : Command<CountRuntimeRootChildrenRequest, CountRuntimeRootChildrenResponse> {
     override fun exec(request: CountRuntimeRootChildrenRequest): CountRuntimeRootChildrenResponse {
         val root = RepositorySupervisor.instance.findOne(
             JpaPredicate.byId(RuntimeRoot::class.java, request.rootId)
+        ) ?: error("RuntimeRoot not found: ${request.rootId}")
+
+        return CountRuntimeRootChildrenResponse(root.children.size)
+    }
+}
+
+@Component
+class CountRuntimeRootChildrenWholeLoadCommand :
+    Command<CountRuntimeRootChildrenWholeLoadRequest, CountRuntimeRootChildrenResponse> {
+    override fun exec(request: CountRuntimeRootChildrenWholeLoadRequest): CountRuntimeRootChildrenResponse {
+        val root = RepositorySupervisor.instance.findOne(
+            JpaPredicate.byId(RuntimeRoot::class.java, request.rootId),
+            persist = true,
+            loadPlan = AggregateLoadPlan.WHOLE_AGGREGATE
         ) ?: error("RuntimeRoot not found: ${request.rootId}")
 
         return CountRuntimeRootChildrenResponse(root.children.size)
