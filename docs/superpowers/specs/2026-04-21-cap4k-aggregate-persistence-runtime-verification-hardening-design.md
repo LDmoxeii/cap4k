@@ -225,6 +225,14 @@ The fixture should be intentionally small but structurally representative:
 
 The fixture should prefer cap4k's real repository/unit-of-work path when validating behavior. Direct Hibernate boot is useful only for isolating mapping validity.
 
+## Runtime Reproduction Notes
+
+2026-04-29 H2 fixture: `AggregateJpaRuntimeDefectReproductionTest` under `cap4k-ddd-starter` currently supports the omitted-ID Snowflake-style Hibernate generator path, but classifies the preassigned-ID path as a known defect. A repair plan must preserve this fixture and replace the preassigned-ID characterization with the desired contract assertion after the ID strategy/new-entity decision is implemented.
+
+2026-04-29 H2 fixture: the same fixture classifies command handler repository load plus lazy child access through the current `RequestSupervisor` path as a known defect with `spring.jpa.open-in-view=false` and `hibernate.enable_lazy_load_no_trans=false`. The controlled transaction contrast test passes, so a repair plan should focus on command transaction boundary design rather than relation eager loading.
+
+2026-04-29 H2 fixture: the same fixture currently supports root-only three-level create, managed child/grandchild scalar updates, grandchild orphan removal, child orphan removal, and clear/re-add mutation using managed collections. No repair task should be opened for this behavior unless a real-project fixture contradicts it.
+
 ## ID Contract Design Options
 
 The implementation plan must choose one explicit ID strategy after reproducing the defect.
