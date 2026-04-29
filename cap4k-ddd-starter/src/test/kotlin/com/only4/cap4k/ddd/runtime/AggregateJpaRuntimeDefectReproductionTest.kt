@@ -114,6 +114,9 @@ class AggregateJpaRuntimeDefectReproductionTest {
 
     @BeforeEach
     fun cleanDatabase() {
+        jdbcTemplate.update("delete from `runtime_safe_reverse_grandchild`")
+        jdbcTemplate.update("delete from `runtime_safe_reverse_child`")
+        jdbcTemplate.update("delete from `runtime_safe_reverse_root`")
         jdbcTemplate.update("delete from `runtime_reverse_grandchild`")
         jdbcTemplate.update("delete from `runtime_reverse_child`")
         jdbcTemplate.update("delete from `runtime_reverse_root`")
@@ -374,6 +377,28 @@ class AggregateJpaRuntimeDefectReproductionTest {
     }
 
     @Test
+    @DisplayName("safe cascades support nested inverse eager navigation")
+    fun safeCascadesSupportNestedInverseEagerNavigation() {
+        val classification = classifyRuntimeBehavior(
+            label = "safe cascade nested reverse eager navigation",
+            desiredContract = {
+                val root = saveSafeReverseRoot(newThreeLevelSafeReverseRoot("safe-reverse-eager"))
+                assertNotEquals(0L, root.id)
+                assertEquals(1, countRows("select count(*) from `runtime_safe_reverse_root`"))
+                assertEquals(2, countRows("select count(*) from `runtime_safe_reverse_child`"))
+                assertEquals(4, countRows("select count(*) from `runtime_safe_reverse_grandchild`"))
+            },
+            knownDefect = { failure ->
+                failure.hasCause<jakarta.persistence.PersistenceException>() ||
+                    failure.hasCause<HibernateException>() ||
+                    failure is AssertionError
+            }
+        )
+
+        assertSupported(classification)
+    }
+
+    @Test
     @DisplayName("managed three-level graph updates child and grandchild scalar fields")
     fun managedThreeLevelGraphUpdatesChildAndGrandchildScalarFields() {
         val root = saveRoot(newThreeLevelRoot("update-graph"))
@@ -520,6 +545,12 @@ class AggregateJpaRuntimeDefectReproductionTest {
         return root
     }
 
+    private fun saveSafeReverseRoot(root: RuntimeSafeReverseRoot): RuntimeSafeReverseRoot {
+        unitOfWork.persist(root)
+        unitOfWork.save()
+        return root
+    }
+
     private fun countRows(sql: String): Int =
         requireNotNull(jdbcTemplate.queryForObject(sql, Int::class.java))
 
@@ -547,6 +578,18 @@ class AggregateJpaRuntimeDefectReproductionTest {
             children.add(RuntimeReverseChild(name = "$name-child-b").apply {
                 grandchildren.add(RuntimeReverseGrandchild(name = "$name-grandchild-b1"))
                 grandchildren.add(RuntimeReverseGrandchild(name = "$name-grandchild-b2"))
+            })
+        }
+
+    private fun newThreeLevelSafeReverseRoot(name: String): RuntimeSafeReverseRoot =
+        RuntimeSafeReverseRoot(name = name).apply {
+            children.add(RuntimeSafeReverseChild(name = "$name-child-a").apply {
+                grandchildren.add(RuntimeSafeReverseGrandchild(name = "$name-grandchild-a1"))
+                grandchildren.add(RuntimeSafeReverseGrandchild(name = "$name-grandchild-a2"))
+            })
+            children.add(RuntimeSafeReverseChild(name = "$name-child-b").apply {
+                grandchildren.add(RuntimeSafeReverseGrandchild(name = "$name-grandchild-b1"))
+                grandchildren.add(RuntimeSafeReverseGrandchild(name = "$name-grandchild-b2"))
             })
         }
 
@@ -696,6 +739,72 @@ open class RuntimeReverseGrandchild(id: Long = 0L, name: String = "") {
     @ManyToOne(cascade = [], fetch = FetchType.EAGER)
     @JoinColumn(name = "`child_id`", nullable = false, insertable = false, updatable = false)
     open var child: RuntimeReverseChild? = null
+
+    @Id
+    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
+    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
+    @Column(name = "`id`", insertable = false, updatable = false)
+    open var id: Long = id
+        protected set
+
+    @Column(name = "`name`", nullable = false)
+    open var name: String = name
+}
+
+@Entity
+@Table(name = "`runtime_safe_reverse_root`")
+open class RuntimeSafeReverseRoot(id: Long = 0L, name: String = "") {
+    @OneToMany(
+        cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE],
+        fetch = FetchType.EAGER,
+        orphanRemoval = true
+    )
+    @JoinColumn(name = "`root_id`", nullable = false)
+    open var children: MutableList<RuntimeSafeReverseChild> = mutableListOf()
+
+    @Id
+    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
+    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
+    @Column(name = "`id`", insertable = false, updatable = false)
+    open var id: Long = id
+        protected set
+
+    @Column(name = "`name`", nullable = false)
+    open var name: String = name
+}
+
+@Entity
+@Table(name = "`runtime_safe_reverse_child`")
+open class RuntimeSafeReverseChild(id: Long = 0L, name: String = "") {
+    @ManyToOne(cascade = [], fetch = FetchType.EAGER)
+    @JoinColumn(name = "`root_id`", nullable = false, insertable = false, updatable = false)
+    open var root: RuntimeSafeReverseRoot? = null
+
+    @OneToMany(
+        cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE],
+        fetch = FetchType.EAGER,
+        orphanRemoval = true
+    )
+    @JoinColumn(name = "`child_id`", nullable = false)
+    open var grandchildren: MutableList<RuntimeSafeReverseGrandchild> = mutableListOf()
+
+    @Id
+    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
+    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
+    @Column(name = "`id`", insertable = false, updatable = false)
+    open var id: Long = id
+        protected set
+
+    @Column(name = "`name`", nullable = false)
+    open var name: String = name
+}
+
+@Entity
+@Table(name = "`runtime_safe_reverse_grandchild`")
+open class RuntimeSafeReverseGrandchild(id: Long = 0L, name: String = "") {
+    @ManyToOne(cascade = [], fetch = FetchType.EAGER)
+    @JoinColumn(name = "`child_id`", nullable = false, insertable = false, updatable = false)
+    open var child: RuntimeSafeReverseChild? = null
 
     @Id
     @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
