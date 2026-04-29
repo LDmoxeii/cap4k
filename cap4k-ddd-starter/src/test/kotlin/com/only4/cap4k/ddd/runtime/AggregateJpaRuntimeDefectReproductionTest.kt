@@ -17,6 +17,7 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 import org.hibernate.HibernateException
@@ -103,10 +104,16 @@ class AggregateJpaRuntimeDefectReproductionTest {
     private lateinit var rootJpaRepository: RuntimeRootJpaRepository
 
     @Autowired
+    private lateinit var reverseGrandchildJpaRepository: RuntimeReverseGrandchildJpaRepository
+
+    @Autowired
     private lateinit var transactionManager: PlatformTransactionManager
 
     @BeforeEach
     fun cleanDatabase() {
+        jdbcTemplate.update("delete from `runtime_reverse_grandchild`")
+        jdbcTemplate.update("delete from `runtime_reverse_child`")
+        jdbcTemplate.update("delete from `runtime_reverse_root`")
         jdbcTemplate.update("delete from `runtime_grandchild`")
         jdbcTemplate.update("delete from `runtime_child`")
         jdbcTemplate.update("delete from `runtime_root`")
@@ -224,6 +231,78 @@ class AggregateJpaRuntimeDefectReproductionTest {
         )
 
         assertSupported(classification)
+    }
+
+    @Test
+    @DisplayName("root-only save binds generated parent ids to nested descendants")
+    fun rootOnlySaveBindsGeneratedParentIdsToNestedDescendants() {
+        val classification = classifyRuntimeBehavior(
+            label = "three-level generated parent id binding",
+            desiredContract = {
+                val root = saveRoot(newThreeLevelRoot("generated-parent-binding"))
+                assertNotEquals(0L, root.id)
+
+                val childIds = queryLongs(
+                    "select `id` from `runtime_child` where `root_id` = ? order by `name`",
+                    root.id
+                )
+                assertEquals(2, childIds.size)
+                assertTrue(childIds.all { it != 0L }, "Every child should receive a generated id")
+                assertEquals(2, countRows("select count(*) from `runtime_child` where `root_id` = ${root.id}"))
+
+                childIds.forEach { childId ->
+                    assertEquals(
+                        2,
+                        countRows("select count(*) from `runtime_grandchild` where `child_id` = $childId"),
+                        "Every child should own two grandchildren through its generated id"
+                    )
+                }
+                assertEquals(
+                    4,
+                    countRows(
+                        "select count(*) from `runtime_grandchild` where `child_id` in (${childIds.joinToString()})"
+                    )
+                )
+            },
+            knownDefect = { failure ->
+                failure.hasCause<jakarta.persistence.PersistenceException>() ||
+                    failure.hasCause<HibernateException>() ||
+                    failure is AssertionError
+            }
+        )
+
+        assertSupported(classification)
+    }
+
+    @Test
+    @DisplayName("reverse eager navigation on nested entities is a known defect")
+    fun reverseEagerNavigationOnNestedEntitiesIsKnownDefect() {
+        val classification = classifyRuntimeBehavior(
+            label = "three-level reverse eager navigation",
+            desiredContract = {
+                val root = saveReverseRoot(newThreeLevelReverseRoot("reverse-eager"))
+                assertNotEquals(0L, root.id)
+
+                val grandchildIds = queryLongs(
+                    "select `id` from `runtime_reverse_grandchild` order by `name`"
+                )
+                assertEquals(4, grandchildIds.size)
+                JpaUnitOfWork.reset()
+
+                val loadedGrandchild = reverseGrandchildJpaRepository.findById(grandchildIds.first()).orElseThrow()
+                val loadedChild = loadedGrandchild.child ?: error("Reverse grandchild should resolve its parent child")
+                val loadedRoot = loadedChild.root ?: error("Reverse child should resolve its parent root")
+
+                assertEquals(root.id, loadedRoot.id)
+            },
+            knownDefect = { failure ->
+                failure.hasCause<jakarta.persistence.PersistenceException>() ||
+                    failure.hasCause<HibernateException>() ||
+                    failure is AssertionError
+            }
+        )
+
+        assertKnownDefect(classification)
     }
 
     @Test
@@ -367,8 +446,17 @@ class AggregateJpaRuntimeDefectReproductionTest {
         return root
     }
 
+    private fun saveReverseRoot(root: RuntimeReverseRoot): RuntimeReverseRoot {
+        unitOfWork.persist(root)
+        unitOfWork.save()
+        return root
+    }
+
     private fun countRows(sql: String): Int =
         requireNotNull(jdbcTemplate.queryForObject(sql, Int::class.java))
+
+    private fun queryLongs(sql: String, vararg args: Any): List<Long> =
+        jdbcTemplate.queryForList(sql, Long::class.java, *args).map { it.toLong() }
 
     private fun newThreeLevelRoot(name: String): RuntimeRoot =
         RuntimeRoot(name = name).apply {
@@ -379,6 +467,18 @@ class AggregateJpaRuntimeDefectReproductionTest {
             children.add(RuntimeChild(name = "$name-child-b").apply {
                 grandchildren.add(RuntimeGrandchild(name = "$name-grandchild-b1"))
                 grandchildren.add(RuntimeGrandchild(name = "$name-grandchild-b2"))
+            })
+        }
+
+    private fun newThreeLevelReverseRoot(name: String): RuntimeReverseRoot =
+        RuntimeReverseRoot(name = name).apply {
+            children.add(RuntimeReverseChild(name = "$name-child-a").apply {
+                grandchildren.add(RuntimeReverseGrandchild(name = "$name-grandchild-a1"))
+                grandchildren.add(RuntimeReverseGrandchild(name = "$name-grandchild-a2"))
+            })
+            children.add(RuntimeReverseChild(name = "$name-child-b").apply {
+                grandchildren.add(RuntimeReverseGrandchild(name = "$name-grandchild-b1"))
+                grandchildren.add(RuntimeReverseGrandchild(name = "$name-grandchild-b2"))
             })
         }
 
@@ -482,9 +582,69 @@ open class RuntimeGrandchild(id: Long = 0L, name: String = "") {
     open var name: String = name
 }
 
+@Entity
+@Table(name = "`runtime_reverse_root`")
+open class RuntimeReverseRoot(id: Long = 0L, name: String = "") {
+    @OneToMany(cascade = [CascadeType.ALL], fetch = FetchType.EAGER, orphanRemoval = true)
+    @JoinColumn(name = "`root_id`", nullable = false)
+    open var children: MutableList<RuntimeReverseChild> = mutableListOf()
+
+    @Id
+    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
+    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
+    @Column(name = "`id`", insertable = false, updatable = false)
+    open var id: Long = id
+        protected set
+
+    @Column(name = "`name`", nullable = false)
+    open var name: String = name
+}
+
+@Entity
+@Table(name = "`runtime_reverse_child`")
+open class RuntimeReverseChild(id: Long = 0L, name: String = "") {
+    @ManyToOne(cascade = [], fetch = FetchType.EAGER)
+    @JoinColumn(name = "`root_id`", nullable = false, insertable = false, updatable = false)
+    open var root: RuntimeReverseRoot? = null
+
+    @OneToMany(cascade = [CascadeType.ALL], fetch = FetchType.EAGER, orphanRemoval = true)
+    @JoinColumn(name = "`child_id`", nullable = false)
+    open var grandchildren: MutableList<RuntimeReverseGrandchild> = mutableListOf()
+
+    @Id
+    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
+    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
+    @Column(name = "`id`", insertable = false, updatable = false)
+    open var id: Long = id
+        protected set
+
+    @Column(name = "`name`", nullable = false)
+    open var name: String = name
+}
+
+@Entity
+@Table(name = "`runtime_reverse_grandchild`")
+open class RuntimeReverseGrandchild(id: Long = 0L, name: String = "") {
+    @ManyToOne(cascade = [], fetch = FetchType.EAGER)
+    @JoinColumn(name = "`child_id`", nullable = false, insertable = false, updatable = false)
+    open var child: RuntimeReverseChild? = null
+
+    @Id
+    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
+    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
+    @Column(name = "`id`", insertable = false, updatable = false)
+    open var id: Long = id
+        protected set
+
+    @Column(name = "`name`", nullable = false)
+    open var name: String = name
+}
+
 interface RuntimeRootJpaRepository :
     JpaRepository<RuntimeRoot, Long>,
     JpaSpecificationExecutor<RuntimeRoot>
+
+interface RuntimeReverseGrandchildJpaRepository : JpaRepository<RuntimeReverseGrandchild, Long>
 
 @Repository
 class RuntimeRootRepository(

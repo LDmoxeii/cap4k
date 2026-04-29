@@ -231,7 +231,9 @@ The fixture should prefer cap4k's real repository/unit-of-work path when validat
 
 2026-04-29 H2 fixture: the same fixture classifies command handler repository load plus lazy child access through the current `RequestSupervisor` path as a known defect with `spring.jpa.open-in-view=false` and `hibernate.enable_lazy_load_no_trans=false`. The controlled transaction contrast test passes, so a repair plan should focus on command transaction boundary design rather than relation eager loading.
 
-2026-04-29 H2 fixture: the same fixture currently supports root-only three-level create, managed child/grandchild scalar updates, grandchild orphan removal, child orphan removal, and clear/re-add mutation using managed collections. No repair task should be opened for this behavior unless a real-project fixture contradicts it.
+2026-04-29 H2 fixture: the same fixture currently supports root-only three-level create, generated parent-id binding from A to multiple B rows and from each B to multiple C rows, managed child/grandchild scalar updates, grandchild orphan removal, child orphan removal, and clear/re-add mutation using managed collections. No repair task should be opened for this behavior unless a real-project fixture contradicts it.
+
+2026-04-29 H2 fixture: the same fixture classifies the `A -> B -> C` model with child-to-parent and grandchild-to-child `EAGER` reverse `ManyToOne` navigation as a known defect. This separates pure root-to-descendant cascade support from the reverse-navigation problem seen in `Video -> VideoFile -> VideoFileVariant`; a repair plan should make aggregate-internal reverse entity navigation explicit opt-in or change its default fetch/mapping policy.
 
 ## ID Contract Design Options
 
