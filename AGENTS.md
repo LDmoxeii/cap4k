@@ -45,16 +45,21 @@ There are three kinds of work in this repo now:
 
 ## Current Planning Handoff
 
-Before starting a concrete implementation plan, read the roadmap's current recommended order and the referenced specs. The active planning queue is intentionally spec-first:
+Before starting a concrete implementation plan, read the roadmap's current recommended order and the referenced specs. The active planning queue is intentionally spec-first.
+
+Recently completed:
 
 - contract-first query contract
 - ddd-core nullability contract stabilization
 - validator projection and generation normalization
+
+Current active planning queue:
+
 - generated source output and entity behavior split
 - irAnalysis restructuring analysis, only if smaller projection fixes are not enough
 - unit-of-work and repository backend comparison, only if focused JPA runtime reproductions justify it
 
-Do not execute an old historical plan just because it exists. Re-read the relevant spec, update it if the user's latest decisions changed the boundary, and then write a fresh implementation plan.
+Do not execute an old historical plan just because it exists. Re-read the relevant spec and plan against current `master`, update them if the repository or user's latest decisions changed the boundary, and then execute from the refreshed plan.
 
 Recent durable decisions to preserve:
 

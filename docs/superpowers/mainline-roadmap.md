@@ -1,6 +1,6 @@
 # Cap4k Mainline Roadmap
 
-Date: 2026-04-28
+Date: 2026-04-29
 
 ## Purpose
 
@@ -268,7 +268,7 @@ Decision:
 
 ## Upcoming Backlog
 
-Date: 2026-04-28
+Date: 2026-04-29
 
 These items are recorded to preserve scheduling context. They are not implementation plans.
 
@@ -278,7 +278,7 @@ Plan freshness rule:
 - Keep future work at `analysis-only` or `spec-only` until the work is actually selected for execution.
 - Before writing a plan, re-read the current spec against the current `master` branch and update the spec if the repository has moved.
 - Write the implementation plan only after that review, so the plan is timely and executable.
-- The validator projection and generation normalization track is the current exception because a combined plan was explicitly requested before execution.
+- The validator projection and generation normalization track was the exception because a combined plan was explicitly requested before execution.
 
 Recommended order from the current mainline handoff:
 
@@ -340,7 +340,7 @@ Reference:
 
 Next action:
 
-- no direct follow-up; continue with validator projection and generation normalization
+- no direct follow-up; continue from the current recommended order
 
 Notes:
 
