@@ -1,5 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.core
 
+import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.PipelineResult
 import com.only4.cap4k.plugin.pipeline.api.PipelineRunner
@@ -13,6 +14,7 @@ class DefaultPipelineRunner(
     private val assembler: CanonicalAssembler,
     private val renderer: ArtifactRenderer,
     private val exporter: ArtifactExporter,
+    private val includePlanItem: (ArtifactPlanItem) -> Boolean = { true },
 ) : PipelineRunner {
     override fun run(config: ProjectConfig): PipelineResult {
         val enabledGeneratorIds = config.generators.asSequence()
@@ -37,6 +39,7 @@ class DefaultPipelineRunner(
         val planItems = generators
             .filter { config.generators[it.id]?.enabled == true }
             .flatMap { it.plan(config, model) }
+            .filter(includePlanItem)
 
         val renderedArtifacts = renderer.render(planItems, config)
         val writtenPaths = exporter.export(renderedArtifacts)

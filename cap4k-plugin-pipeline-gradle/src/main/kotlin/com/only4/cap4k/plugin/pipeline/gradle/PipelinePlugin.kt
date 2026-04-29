@@ -105,7 +105,11 @@ class PipelinePlugin : Plugin<Project> {
             if (inferredSourceDependencies.isNotEmpty()) {
                 planTask.configure { task -> task.dependsOn(inferredSourceDependencies) }
                 generateTask.configure { task -> task.dependsOn(inferredSourceDependencies) }
-                generateSourcesTask.configure { task -> task.dependsOn(inferredSourceDependencies) }
+            }
+            val generatedSourceConfig = generatedSourceTaskConfig(config)
+            val inferredGeneratedSourceDependencies = inferSourceDependencies(project, generatedSourceConfig)
+            if (inferredGeneratedSourceDependencies.isNotEmpty()) {
+                generateSourcesTask.configure { task -> task.dependsOn(inferredGeneratedSourceDependencies) }
             }
             registerGeneratedKotlinSourceSets(project.rootProject, config)
             wireGeneratedSourceCompilation(project.rootProject, config, generateSourcesTask)
@@ -137,6 +141,8 @@ private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "design-domain-event-handler",
     "aggregate",
 )
+private val GENERATED_SOURCE_TASK_SOURCE_IDS = setOf("db", "enum-manifest")
+private val GENERATED_SOURCE_TASK_GENERATOR_IDS = setOf("aggregate")
 private val ANALYSIS_TASK_SOURCE_IDS = setOf("ir-analysis")
 private val ANALYSIS_TASK_GENERATOR_IDS = setOf("flow", "drawing-board")
 
@@ -167,6 +173,12 @@ internal fun sourceTaskConfig(config: ProjectConfig): ProjectConfig =
     config.copy(
         sources = config.sources.filterKeys { it in SOURCE_TASK_SOURCE_IDS },
         generators = config.generators.filterKeys { it in SOURCE_TASK_GENERATOR_IDS },
+    )
+
+internal fun generatedSourceTaskConfig(config: ProjectConfig): ProjectConfig =
+    config.copy(
+        sources = config.sources.filterKeys { it in GENERATED_SOURCE_TASK_SOURCE_IDS },
+        generators = config.generators.filterKeys { it in GENERATED_SOURCE_TASK_GENERATOR_IDS },
     )
 
 internal fun analysisTaskConfig(config: ProjectConfig): ProjectConfig =
@@ -400,6 +412,11 @@ internal fun buildSourceRunner(
             }
         } else {
             NoopArtifactExporter()
+        },
+        includePlanItem = if (generatedSourcesOnly) {
+            { item -> item.outputKind == ArtifactOutputKind.GENERATED_SOURCE }
+        } else {
+            { true }
         },
     )
 }

@@ -164,6 +164,63 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `generated source task config keeps only aggregate generation inputs`() {
+        val config = projectConfig(
+            sources = mapOf(
+                "db" to SourceConfig(enabled = true),
+                "enum-manifest" to SourceConfig(enabled = true),
+                "design-json" to SourceConfig(enabled = true),
+                "ksp-metadata" to SourceConfig(enabled = true),
+                "ir-analysis" to SourceConfig(enabled = true),
+            ),
+            generators = mapOf(
+                "aggregate" to GeneratorConfig(enabled = true),
+                "design-query" to GeneratorConfig(enabled = true),
+                "design-query-handler" to GeneratorConfig(enabled = true),
+                "drawing-board" to GeneratorConfig(enabled = true),
+                "flow" to GeneratorConfig(enabled = true),
+            ),
+        )
+
+        val generatedConfig = generatedSourceTaskConfig(config)
+
+        assertEquals(setOf("db", "enum-manifest"), generatedConfig.sources.keys)
+        assertEquals(setOf("aggregate"), generatedConfig.generators.keys)
+    }
+
+    @Test
+    fun `generated source dependency inference ignores design ksp metadata`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-generated-source-ksp-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("domain")
+            .withProjectDir(rootProjectDir.resolve("domain"))
+            .withParent(rootProject)
+            .build()
+        domainProject.tasks.register("kspKotlin")
+
+        val config = projectConfig(
+            sources = mapOf(
+                "db" to SourceConfig(enabled = true),
+                "ksp-metadata" to SourceConfig(
+                    enabled = true,
+                    options = mapOf("inputDir" to domainProject.layout.buildDirectory.dir("generated/ksp/main").get().asFile.absolutePath),
+                ),
+            ),
+            generators = mapOf(
+                "aggregate" to GeneratorConfig(enabled = true),
+                "design-query" to GeneratorConfig(enabled = true),
+            ),
+        )
+
+        val dependencies = inferSourceDependencies(rootProject, generatedSourceTaskConfig(config))
+
+        assertEquals(emptyList<String>(), dependencies.map { it.path })
+    }
+
+    @Test
     fun `generated kotlin source root is module local`() {
         val config = projectConfig(
             modules = mapOf("domain" to "demo-domain"),

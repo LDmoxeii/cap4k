@@ -1402,6 +1402,115 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kGenerateSources filters checked in aggregate artifacts before rendering`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-generated-sources-render-filter")
+        copyFixture(projectDir, "aggregate-minimal-sample")
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText() +
+                """
+
+                cap4k {
+                    templates {
+                        overrideDirs.from("codegen/templates")
+                    }
+                }
+                """.trimIndent()
+        )
+        val brokenBehaviorTemplate = projectDir.resolve("codegen/templates/aggregate/behavior.kt.peb")
+        Files.createDirectories(brokenBehaviorTemplate.parent)
+        brokenBehaviorTemplate.writeText("{{ use() }}")
+
+        val generatedEntityFile = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
+        )
+        val behaviorFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt"
+        )
+
+        val result = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerateSources")
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedEntityFile.toFile().exists())
+        assertFalse(behaviorFile.toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerateSources does not depend on design ksp metadata`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-generated-sources-no-ksp")
+        copyFixture(projectDir, "aggregate-minimal-sample")
+        val designFile = projectDir.resolve("design/design.json")
+        Files.createDirectories(designFile.parent)
+        designFile.writeText(
+            """
+            [
+              {
+                "tag": "query",
+                "package": "video_post.read",
+                "name": "FindVideoPost",
+                "requestFields": [
+                  { "name": "id", "type": "Long" }
+                ],
+                "responseFields": [
+                  { "name": "title", "type": "String" }
+                ]
+              }
+            ]
+            """.trimIndent()
+        )
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText() +
+                """
+
+                val generatedKspMetadataDir = project(":demo-domain").layout.buildDirectory
+                    .dir("generated/ksp/main/resources/metadata")
+                    .get()
+                    .asFile
+                    .absolutePath
+                    .replace("\\", "/")
+
+                project(":demo-domain") {
+                    tasks.register("kspKotlin") {
+                        doLast {
+                            throw org.gradle.api.GradleException("cap4kGenerateSources must not run kspKotlin")
+                        }
+                    }
+                }
+
+                cap4k {
+                    sources {
+                        designJson {
+                            enabled.set(true)
+                            files.from("design/design.json")
+                        }
+                        kspMetadata {
+                            enabled.set(true)
+                            inputDir.set(generatedKspMetadataDir)
+                        }
+                    }
+                    generators {
+                        designQuery {
+                            enabled.set(true)
+                        }
+                    }
+                }
+                """.trimIndent()
+        )
+
+        val result = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerateSources")
+            .build()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertFalse(result.output.contains("cap4kGenerateSources must not run kspKotlin"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kGenerate emits representative aggregate relation artifacts`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-relation")
         copyFixture(projectDir, "aggregate-relation-sample")
