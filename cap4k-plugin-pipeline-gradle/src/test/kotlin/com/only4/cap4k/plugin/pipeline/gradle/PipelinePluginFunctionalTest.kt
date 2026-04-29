@@ -1587,9 +1587,10 @@ class PipelinePluginFunctionalTest {
         assertTrue(rootEntityContent.contains("import jakarta.persistence.CascadeType"))
         assertTrue(
             rootEntityContent.contains(
-                "@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)"
+                "@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE], orphanRemoval = true)"
             )
         )
+        assertFalse(rootEntityContent.contains("CascadeType.ALL"))
         assertTrue(rootEntityContent.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
         assertTrue(rootEntityContent.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
         assertTrue(rootEntityContent.contains("@ManyToOne(fetch = FetchType.LAZY)"))
@@ -1642,9 +1643,10 @@ class PipelinePluginFunctionalTest {
         assertTrue(childEntityFile.toFile().exists())
         assertTrue(
             rootEntityContent.contains(
-                "@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)"
+                "@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE], orphanRemoval = true)"
             )
         )
+        assertFalse(rootEntityContent.contains("CascadeType.ALL"))
         assertTrue(rootEntityContent.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
         assertTrue(rootEntityContent.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
         assertTrue(childEntityContent.contains("@Column(name = \"video_post_id\")"))

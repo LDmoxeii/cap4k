@@ -30,9 +30,18 @@ interface Repository<ENTITY : Any> {
     fun find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true,
-        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
+        persist: Boolean = true
     ): List<ENTITY>
+
+    fun find(
+        predicate: Predicate<ENTITY>,
+        orders: Collection<OrderInfo> = emptyList(),
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan
+    ): List<ENTITY> {
+        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
+        return find(predicate, orders, persist)
+    }
 
     /**
      * 根据条件获取实体列表
@@ -59,9 +68,18 @@ interface Repository<ENTITY : Any> {
     fun find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean = true,
-        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
+        persist: Boolean = true
     ): List<ENTITY>
+
+    fun find(
+        predicate: Predicate<ENTITY>,
+        pageParam: PageParam,
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan
+    ): List<ENTITY> {
+        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
+        return find(predicate, pageParam, persist)
+    }
 
     /**
      * 根据条件获取实体
@@ -72,9 +90,17 @@ interface Repository<ENTITY : Any> {
      */
     fun findOne(
         predicate: Predicate<ENTITY>,
-        persist: Boolean = true,
-        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
+        persist: Boolean = true
     ): ENTITY?
+
+    fun findOne(
+        predicate: Predicate<ENTITY>,
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan
+    ): ENTITY? {
+        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
+        return findOne(predicate, persist)
+    }
 
     /**
      * 根据条件获取实体
@@ -87,9 +113,18 @@ interface Repository<ENTITY : Any> {
     fun findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true,
-        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
+        persist: Boolean = true
     ): ENTITY?
+
+    fun findFirst(
+        predicate: Predicate<ENTITY>,
+        orders: Collection<OrderInfo> = emptyList(),
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan
+    ): ENTITY? {
+        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
+        return findFirst(predicate, orders, persist)
+    }
 
     /**
      * 根据条件获取实体列表
@@ -116,9 +151,18 @@ interface Repository<ENTITY : Any> {
     fun findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean = true,
-        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
+        persist: Boolean = true
     ): PageData<ENTITY>
+
+    fun findPage(
+        predicate: Predicate<ENTITY>,
+        pageParam: PageParam,
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan
+    ): PageData<ENTITY> {
+        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
+        return findPage(predicate, pageParam, persist)
+    }
 
     /**
      * 根据条件获取实体计数
@@ -135,4 +179,12 @@ interface Repository<ENTITY : Any> {
      * @return
      */
     fun exists(predicate: Predicate<ENTITY>): Boolean
+
+    private fun rejectUnsupportedCompatibilityLoadPlan(loadPlan: AggregateLoadPlan) {
+        if (loadPlan == AggregateLoadPlan.WHOLE_AGGREGATE) {
+            throw UnsupportedOperationException(
+                "AggregateLoadPlan.WHOLE_AGGREGATE requires repository-specific support"
+            )
+        }
+    }
 }

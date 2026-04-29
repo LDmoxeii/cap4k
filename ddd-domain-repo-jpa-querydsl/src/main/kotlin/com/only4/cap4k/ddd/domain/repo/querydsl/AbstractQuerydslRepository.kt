@@ -45,9 +45,17 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
     override fun find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
+        persist: Boolean
+    ): List<ENTITY> =
+        find(predicate, orders, persist, AggregateLoadPlan.DEFAULT)
+
+    override fun find(
+        predicate: Predicate<ENTITY>,
+        orders: Collection<OrderInfo>,
         persist: Boolean,
         loadPlan: AggregateLoadPlan
     ): List<ENTITY> {
+        requireSupportedLoadPlan(loadPlan)
         val entities = querydslPredicateExecutor.findAll(
             QuerydslPredicateSupport.resumePredicate(predicate),
             QuerydslPredicateSupport.resumeSort(predicate, orders)
@@ -63,9 +71,17 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
     override fun find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
+        persist: Boolean
+    ): List<ENTITY> =
+        find(predicate, pageParam, persist, AggregateLoadPlan.DEFAULT)
+
+    override fun find(
+        predicate: Predicate<ENTITY>,
+        pageParam: PageParam,
         persist: Boolean,
         loadPlan: AggregateLoadPlan
     ): List<ENTITY> {
+        requireSupportedLoadPlan(loadPlan)
         val entities = querydslPredicateExecutor.findAll(
             QuerydslPredicateSupport.resumePredicate(predicate),
             QuerydslPredicateSupport.resumePageable(predicate, pageParam)
@@ -81,9 +97,16 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
 
     override fun findOne(
         predicate: Predicate<ENTITY>,
+        persist: Boolean
+    ): ENTITY? =
+        findOne(predicate, persist, AggregateLoadPlan.DEFAULT)
+
+    override fun findOne(
+        predicate: Predicate<ENTITY>,
         persist: Boolean,
         loadPlan: AggregateLoadPlan
     ): ENTITY? {
+        requireSupportedLoadPlan(loadPlan)
         val entity = querydslPredicateExecutor.findOne(QuerydslPredicateSupport.resumePredicate(predicate))
             .orElse(null)
         if (!persist && entity != null) {
@@ -95,9 +118,17 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
     override fun findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
+        persist: Boolean
+    ): ENTITY? =
+        findFirst(predicate, orders, persist, AggregateLoadPlan.DEFAULT)
+
+    override fun findFirst(
+        predicate: Predicate<ENTITY>,
+        orders: Collection<OrderInfo>,
         persist: Boolean,
         loadPlan: AggregateLoadPlan
     ): ENTITY? {
+        requireSupportedLoadPlan(loadPlan)
         val pageParam = PageParam.limit(1)
         orders.forEach { order ->
             pageParam.orderBy(order.field, order.desc)
@@ -116,9 +147,17 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
     override fun findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
+        persist: Boolean
+    ): PageData<ENTITY> =
+        findPage(predicate, pageParam, persist, AggregateLoadPlan.DEFAULT)
+
+    override fun findPage(
+        predicate: Predicate<ENTITY>,
+        pageParam: PageParam,
         persist: Boolean,
         loadPlan: AggregateLoadPlan
     ): PageData<ENTITY> {
+        requireSupportedLoadPlan(loadPlan)
         val entities = querydslPredicateExecutor.findAll(
             QuerydslPredicateSupport.resumePredicate(predicate),
             QuerydslPredicateSupport.resumePageable(predicate, pageParam)
@@ -134,4 +173,10 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
 
     override fun exists(predicate: Predicate<ENTITY>): Boolean =
         querydslPredicateExecutor.exists(QuerydslPredicateSupport.resumePredicate(predicate))
+
+    private fun requireSupportedLoadPlan(loadPlan: AggregateLoadPlan) {
+        require(loadPlan != AggregateLoadPlan.WHOLE_AGGREGATE) {
+            "AggregateLoadPlan.WHOLE_AGGREGATE is not supported by Querydsl repositories"
+        }
+    }
 }

@@ -1,6 +1,10 @@
 package com.only4.cap4k.ddd.domain.repo.querydsl
 
+import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
+import com.only4.cap4k.ddd.core.share.PageParam
+import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -51,6 +55,31 @@ class AbstractQuerydslRepositoryTest {
         val result = repository.supportPredicateClass()
 
         assertEquals(QuerydslPredicate::class.java, result)
+    }
+
+    @Test
+    @DisplayName("WHOLE_AGGREGATE load plan 应该快速失败")
+    fun `should fail fast when whole aggregate load plan is requested`() {
+        val repository = TestQuerydslRepository(mockk(relaxed = true))
+        val predicate = QuerydslPredicate.of(TestEntity::class.java)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            repository.find(predicate, emptyList(), true, AggregateLoadPlan.WHOLE_AGGREGATE)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            repository.find(predicate, PageParam.limit(1), true, AggregateLoadPlan.WHOLE_AGGREGATE)
+        }
+        val exception = assertThrows(IllegalArgumentException::class.java) {
+            repository.findOne(predicate, true, AggregateLoadPlan.WHOLE_AGGREGATE)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            repository.findFirst(predicate, emptyList(), true, AggregateLoadPlan.WHOLE_AGGREGATE)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            repository.findPage(predicate, PageParam.limit(1), true, AggregateLoadPlan.WHOLE_AGGREGATE)
+        }
+
+        assertTrue(exception.message!!.contains("WHOLE_AGGREGATE is not supported"))
     }
 
     @Test

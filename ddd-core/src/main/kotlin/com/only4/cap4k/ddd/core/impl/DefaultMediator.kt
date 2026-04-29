@@ -33,9 +33,23 @@ class DefaultMediator : Mediator {
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean,
+    ): List<ENTITY> =
+        RepositorySupervisor.instance.find(predicate, orders, persist)
+
+    override fun <ENTITY: Any> find(
+        predicate: Predicate<ENTITY>,
+        orders: Collection<OrderInfo>,
+        persist: Boolean,
         loadPlan: AggregateLoadPlan,
     ): List<ENTITY> =
         RepositorySupervisor.instance.find(predicate, orders, persist, loadPlan)
+
+    override fun <ENTITY: Any> find(
+        predicate: Predicate<ENTITY>,
+        pageParam: PageParam,
+        persist: Boolean,
+    ): List<ENTITY> =
+        RepositorySupervisor.instance.find(predicate, pageParam, persist)
 
     override fun <ENTITY: Any> find(
         predicate: Predicate<ENTITY>,
@@ -48,6 +62,12 @@ class DefaultMediator : Mediator {
     override fun <ENTITY: Any> findOne(
         predicate: Predicate<ENTITY>,
         persist: Boolean,
+    ): ENTITY? =
+        RepositorySupervisor.instance.findOne(predicate, persist)
+
+    override fun <ENTITY: Any> findOne(
+        predicate: Predicate<ENTITY>,
+        persist: Boolean,
         loadPlan: AggregateLoadPlan,
     ): ENTITY? =
         RepositorySupervisor.instance.findOne(predicate, persist, loadPlan)
@@ -56,9 +76,23 @@ class DefaultMediator : Mediator {
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean,
+    ): ENTITY? =
+        RepositorySupervisor.instance.findFirst(predicate, orders, persist)
+
+    override fun <ENTITY: Any> findFirst(
+        predicate: Predicate<ENTITY>,
+        orders: Collection<OrderInfo>,
+        persist: Boolean,
         loadPlan: AggregateLoadPlan,
     ): ENTITY? =
         RepositorySupervisor.instance.findFirst(predicate, orders, persist, loadPlan)
+
+    override fun <ENTITY: Any> findPage(
+        predicate: Predicate<ENTITY>,
+        pageParam: PageParam,
+        persist: Boolean,
+    ): PageData<ENTITY> =
+        RepositorySupervisor.instance.findPage(predicate, pageParam, persist)
 
     override fun <ENTITY: Any> findPage(
         predicate: Predicate<ENTITY>,
@@ -140,9 +174,22 @@ class DefaultMediator : Mediator {
     override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getByIds(
         ids: Iterable<Id<AGGREGATE, *>>,
         persist: Boolean,
+    ): List<AGGREGATE> =
+        AggregateSupervisor.instance.getByIds(ids, persist)
+
+    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getByIds(
+        ids: Iterable<Id<AGGREGATE, *>>,
+        persist: Boolean,
         loadPlan: AggregateLoadPlan,
     ): List<AGGREGATE> =
         AggregateSupervisor.instance.getByIds(ids, persist, loadPlan)
+
+    override fun <AGGREGATE : Aggregate<*>> find(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        orders: Collection<OrderInfo>,
+        persist: Boolean,
+    ): List<AGGREGATE> =
+        AggregateSupervisor.instance.find(predicate, orders, persist)
 
     override fun <AGGREGATE : Aggregate<*>> find(
         predicate: AggregatePredicate<AGGREGATE, *>,
@@ -156,9 +203,22 @@ class DefaultMediator : Mediator {
         predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
         persist: Boolean,
+    ): List<AGGREGATE> =
+        AggregateSupervisor.instance.find(predicate, pageParam, persist)
+
+    override fun <AGGREGATE : Aggregate<*>> find(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        pageParam: PageParam,
+        persist: Boolean,
         loadPlan: AggregateLoadPlan,
     ): List<AGGREGATE> =
         AggregateSupervisor.instance.find(predicate, pageParam, persist, loadPlan)
+
+    override fun <AGGREGATE : Aggregate<*>> findOne(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        persist: Boolean,
+    ): AGGREGATE? =
+        AggregateSupervisor.instance.findOne(predicate, persist)
 
     override fun <AGGREGATE : Aggregate<*>> findOne(
         predicate: AggregatePredicate<AGGREGATE, *>,
@@ -171,9 +231,23 @@ class DefaultMediator : Mediator {
         predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo>,
         persist: Boolean,
+    ): AGGREGATE? =
+        AggregateSupervisor.instance.findFirst(predicate, orders, persist)
+
+    override fun <AGGREGATE : Aggregate<*>> findFirst(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        orders: Collection<OrderInfo>,
+        persist: Boolean,
         loadPlan: AggregateLoadPlan,
     ): AGGREGATE? =
         AggregateSupervisor.instance.findFirst(predicate, orders, persist, loadPlan)
+
+    override fun <AGGREGATE : Aggregate<*>> findPage(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        pageParam: PageParam,
+        persist: Boolean,
+    ): PageData<AGGREGATE> =
+        AggregateSupervisor.instance.findPage(predicate, pageParam, persist)
 
     override fun <AGGREGATE : Aggregate<*>> findPage(
         predicate: AggregatePredicate<AGGREGATE, *>,

@@ -50,6 +50,14 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
     override fun find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
+        persist: Boolean
+    ): List<ENTITY> =
+        find(predicate, orders, persist, AggregateLoadPlan.DEFAULT)
+
+    @Transactional(readOnly = true)
+    override fun find(
+        predicate: Predicate<ENTITY>,
+        orders: Collection<OrderInfo>,
         persist: Boolean,
         loadPlan: AggregateLoadPlan
     ): List<ENTITY> {
@@ -80,6 +88,14 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
         }
         return entities
     }
+
+    @Transactional(readOnly = true)
+    override fun find(
+        predicate: Predicate<ENTITY>,
+        pageParam: PageParam,
+        persist: Boolean
+    ): List<ENTITY> =
+        find(predicate, pageParam, persist, AggregateLoadPlan.DEFAULT)
 
     @Transactional(readOnly = true)
     override fun find(
@@ -120,6 +136,13 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
     @Transactional(readOnly = true)
     override fun findOne(
         predicate: Predicate<ENTITY>,
+        persist: Boolean
+    ): ENTITY? =
+        findOne(predicate, persist, AggregateLoadPlan.DEFAULT)
+
+    @Transactional(readOnly = true)
+    override fun findOne(
+        predicate: Predicate<ENTITY>,
         persist: Boolean,
         loadPlan: AggregateLoadPlan
     ): ENTITY? {
@@ -142,6 +165,14 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
         }
         return entity
     }
+
+    @Transactional(readOnly = true)
+    override fun findFirst(
+        predicate: Predicate<ENTITY>,
+        orders: Collection<OrderInfo>,
+        persist: Boolean
+    ): ENTITY? =
+        findFirst(predicate, orders, persist, AggregateLoadPlan.DEFAULT)
 
     @Transactional(readOnly = true)
     override fun findFirst(
@@ -175,6 +206,14 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
         }
         return entity
     }
+
+    @Transactional(readOnly = true)
+    override fun findPage(
+        predicate: Predicate<ENTITY>,
+        pageParam: PageParam,
+        persist: Boolean
+    ): PageData<ENTITY> =
+        findPage(predicate, pageParam, persist, AggregateLoadPlan.DEFAULT)
 
     @Transactional(readOnly = true)
     override fun findPage(

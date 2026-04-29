@@ -352,35 +352,30 @@ class DefaultRepositorySupervisorTest {
             override fun find(
                 predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
                 orders: Collection<OrderInfo>,
-                persist: Boolean,
-                loadPlan: AggregateLoadPlan
+                persist: Boolean
             ): List<TestEntity> = emptyList()
 
             override fun find(
                 predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
                 pageParam: PageParam,
-                persist: Boolean,
-                loadPlan: AggregateLoadPlan
+                persist: Boolean
             ): List<TestEntity> = emptyList()
 
             override fun findOne(
                 predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
-                persist: Boolean,
-                loadPlan: AggregateLoadPlan
+                persist: Boolean
             ): TestEntity? = null
 
             override fun findFirst(
                 predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
                 orders: Collection<OrderInfo>,
-                persist: Boolean,
-                loadPlan: AggregateLoadPlan
+                persist: Boolean
             ): TestEntity? = null
 
             override fun findPage(
                 predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
                 pageParam: PageParam,
-                persist: Boolean,
-                loadPlan: AggregateLoadPlan
+                persist: Boolean
             ): PageData<TestEntity> = PageData.create(PageParam.of(1, 10), 0L, emptyList())
 
             override fun count(predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>): Long = 0
@@ -388,6 +383,13 @@ class DefaultRepositorySupervisorTest {
         }
 
         DefaultRepositorySupervisor.registerRepositoryEntityClassReflector(NewRepositoryType::class.java) { TestEntity::class.java }
+
+        val compatibilityOnlyRepository = NewRepositoryType()
+        assertEquals(null, compatibilityOnlyRepository.findOne(TestPredicate(), true, AggregateLoadPlan.MINIMAL))
+        val exception = assertThrows(UnsupportedOperationException::class.java) {
+            compatibilityOnlyRepository.findOne(TestPredicate(), true, AggregateLoadPlan.WHOLE_AGGREGATE)
+        }
+        assertTrue(exception.message!!.contains("WHOLE_AGGREGATE"))
 
         // 验证注册器正确注册了反射器
         val reflectors =

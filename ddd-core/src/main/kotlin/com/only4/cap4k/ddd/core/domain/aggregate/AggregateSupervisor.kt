@@ -27,10 +27,21 @@ interface AggregateSupervisor {
      */
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getById(
         id: Id<AGGREGATE, *>,
-        persist: Boolean = true,
-        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
+        persist: Boolean = true
     ): AGGREGATE? =
-        getByIds(listOf(id), persist, loadPlan).firstOrNull()
+        getByIds(listOf(id), persist).firstOrNull()
+
+    /**
+     * 根据id获取聚合
+     */
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getById(
+        id: Id<AGGREGATE, *>,
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan
+    ): AGGREGATE? {
+        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
+        return getByIds(listOf(id), persist).firstOrNull()
+    }
 
     /**
      * 根据id获取聚合
@@ -43,9 +54,20 @@ interface AggregateSupervisor {
      */
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getByIds(
         ids: Iterable<Id<AGGREGATE, *>>,
-        persist: Boolean = true,
-        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
+        persist: Boolean = true
     ): List<AGGREGATE>
+
+    /**
+     * 根据id获取聚合
+     */
+    fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getByIds(
+        ids: Iterable<Id<AGGREGATE, *>>,
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan
+    ): List<AGGREGATE> {
+        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
+        return getByIds(ids, persist)
+    }
 
     /**
      * 根据条件获取聚合列表
@@ -62,8 +84,29 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> find(
         predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo> = emptyList(),
+        persist: Boolean = true
+    ): List<AGGREGATE>
+
+    /**
+     * 根据条件获取聚合列表
+     */
+    fun <AGGREGATE : Aggregate<*>> find(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        orders: Collection<OrderInfo> = emptyList(),
         persist: Boolean = true,
-        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
+        loadPlan: AggregateLoadPlan
+    ): List<AGGREGATE> {
+        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
+        return find(predicate, orders, persist)
+    }
+
+    /**
+     * 根据条件获取聚合列表
+     */
+    fun <AGGREGATE : Aggregate<*>> find(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        pageParam: PageParam,
+        persist: Boolean = true
     ): List<AGGREGATE>
 
     /**
@@ -73,8 +116,19 @@ interface AggregateSupervisor {
         predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
         persist: Boolean = true,
-        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
-    ): List<AGGREGATE>
+        loadPlan: AggregateLoadPlan
+    ): List<AGGREGATE> {
+        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
+        return find(predicate, pageParam, persist)
+    }
+
+    /**
+     * 根据条件获取单个实体
+     */
+    fun <AGGREGATE : Aggregate<*>> findOne(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        persist: Boolean = true
+    ): AGGREGATE?
 
     /**
      * 根据条件获取单个实体
@@ -82,7 +136,19 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> findOne(
         predicate: AggregatePredicate<AGGREGATE, *>,
         persist: Boolean = true,
-        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
+        loadPlan: AggregateLoadPlan
+    ): AGGREGATE? {
+        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
+        return findOne(predicate, persist)
+    }
+
+    /**
+     * 根据条件获取实体
+     */
+    fun <AGGREGATE : Aggregate<*>> findFirst(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        orders: Collection<OrderInfo> = emptyList(),
+        persist: Boolean = true
     ): AGGREGATE?
 
     /**
@@ -92,8 +158,11 @@ interface AggregateSupervisor {
         predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo> = emptyList(),
         persist: Boolean = true,
-        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
-    ): AGGREGATE?
+        loadPlan: AggregateLoadPlan
+    ): AGGREGATE? {
+        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
+        return findFirst(predicate, orders, persist)
+    }
 
     /**
      * 根据条件获取实体
@@ -110,9 +179,21 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> findPage(
         predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
-        persist: Boolean = true,
-        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
+        persist: Boolean = true
     ): PageData<AGGREGATE>
+
+    /**
+     * 根据条件获取实体分页列表
+     */
+    fun <AGGREGATE : Aggregate<*>> findPage(
+        predicate: AggregatePredicate<AGGREGATE, *>,
+        pageParam: PageParam,
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan
+    ): PageData<AGGREGATE> {
+        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
+        return findPage(predicate, pageParam, persist)
+    }
 
     /**
      * 根据id删除聚合
@@ -153,4 +234,12 @@ interface AggregateSupervisor {
      * 根据条件判断实体是否存在
      */
     fun <AGGREGATE : Aggregate<*>> exists(predicate: AggregatePredicate<AGGREGATE, *>): Boolean
+
+    private fun rejectUnsupportedCompatibilityLoadPlan(loadPlan: AggregateLoadPlan) {
+        if (loadPlan == AggregateLoadPlan.WHOLE_AGGREGATE) {
+            throw UnsupportedOperationException(
+                "AggregateLoadPlan.WHOLE_AGGREGATE requires aggregate-supervisor-specific support"
+            )
+        }
+    }
 }

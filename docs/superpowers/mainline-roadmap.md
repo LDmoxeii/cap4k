@@ -250,6 +250,7 @@ Status:
 - generated parent-child aggregate mappings now avoid `CascadeType.ALL` and render explicit `PERSIST`, `MERGE`, and `REMOVE`
 - `AggregateLoadPlan` is propagated through `Repository`, `RepositorySupervisor`, `AggregateSupervisor`, `DefaultMediator`, and JPA repository implementations
 - JPA `WHOLE_AGGREGATE` initializes owned `@OneToMany` graphs below the repository boundary
+- compatibility-only repository/supervisor implementations may fall back for `DEFAULT` and `MINIMAL`, but fail fast for `WHOLE_AGGREGATE`
 - command-wide transaction expansion remains deferred
 
 Reference:
@@ -262,7 +263,7 @@ Notes:
 - `persist=true` still means "register this loaded entity into UnitOfWork"; it does not choose load depth
 - use-case load depth is explicit through `AggregateLoadPlan`
 - JPA whole-load uses a repository-level read-only transaction for initialization; it does not wrap the whole command/request path
-- Querydsl repositories currently accept the public load-plan parameter but do not implement whole-aggregate provider behavior
+- Querydsl repositories accept the public load-plan parameter but fail fast for `WHOLE_AGGREGATE` until provider-specific whole-load behavior is designed
 
 No new default mainline implementation slice has been selected yet; remaining candidates are tracked in the backlog below.
 

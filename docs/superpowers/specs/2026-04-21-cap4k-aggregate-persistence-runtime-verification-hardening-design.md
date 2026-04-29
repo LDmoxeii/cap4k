@@ -290,6 +290,10 @@ Transaction-boundary expansion remains a separate design topic. The lazy aggrega
 
 2026-04-29 implementation note: JPA `WHOLE_AGGREGATE` initialization requires the JPA repository read method itself to have a read-only transaction boundary; otherwise Spring Data's internal repository call returns a detached proxy before explicit initialization can run. This does not expand the full command/request transaction scope and does not change `JpaUnitOfWork.save()` commit semantics.
 
+2026-04-29 implementation note: public read APIs keep the old signatures and expose `AggregateLoadPlan` as additive overloads. Compatibility-only implementations may fall back to old behavior for `DEFAULT` and `MINIMAL`, but must fail fast for `WHOLE_AGGREGATE` unless they explicitly override the load-plan overload.
+
+2026-04-29 implementation note: Querydsl repositories keep the same public load-plan signature but fail fast for `WHOLE_AGGREGATE`, because provider-specific whole-load semantics have not been designed for the Querydsl path.
+
 ## ID Contract Design Options
 
 The implementation plan must choose one explicit ID strategy after reproducing the defect.
