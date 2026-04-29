@@ -30,7 +30,8 @@ interface Repository<ENTITY : Any> {
     fun find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): List<ENTITY>
 
     /**
@@ -58,7 +59,8 @@ interface Repository<ENTITY : Any> {
     fun find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): List<ENTITY>
 
     /**
@@ -68,7 +70,11 @@ interface Repository<ENTITY : Any> {
      * @param persist
      * @return
      */
-    fun findOne(predicate: Predicate<ENTITY>, persist: Boolean = true): ENTITY?
+    fun findOne(
+        predicate: Predicate<ENTITY>,
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
+    ): ENTITY?
 
     /**
      * 根据条件获取实体
@@ -81,7 +87,8 @@ interface Repository<ENTITY : Any> {
     fun findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): ENTITY?
 
     /**
@@ -109,7 +116,8 @@ interface Repository<ENTITY : Any> {
     fun findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): PageData<ENTITY>
 
     /**

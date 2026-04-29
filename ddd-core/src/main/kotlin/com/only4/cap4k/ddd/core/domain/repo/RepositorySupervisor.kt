@@ -29,7 +29,8 @@ interface RepositorySupervisor {
     fun <ENTITY: Any> find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): List<ENTITY>
 
     /**
@@ -38,13 +39,18 @@ interface RepositorySupervisor {
     fun <ENTITY: Any> find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): List<ENTITY>
 
     /**
      * 根据条件获取单个实体
      */
-    fun <ENTITY : Any> findOne(predicate: Predicate<ENTITY>, persist: Boolean = true): ENTITY?
+    fun <ENTITY : Any> findOne(
+        predicate: Predicate<ENTITY>,
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
+    ): ENTITY?
 
     /**
      * 根据条件获取实体
@@ -52,7 +58,8 @@ interface RepositorySupervisor {
     fun <ENTITY: Any> findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): ENTITY?
 
     /**
@@ -67,7 +74,8 @@ interface RepositorySupervisor {
     fun <ENTITY: Any> findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): PageData<ENTITY>
 
     /**

@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.domain.repo.impl
 
 import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import com.only4.cap4k.ddd.core.domain.repo.Repository
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
@@ -109,42 +110,47 @@ class DefaultRepositorySupervisor(
     override fun <ENTITY : Any> find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
-        persist: Boolean
+        persist: Boolean,
+        loadPlan: AggregateLoadPlan,
     ): List<ENTITY> =
-        repo(reflectEntityClass<ENTITY>(predicate), predicate).find(predicate, orders, persist)
+        repo(reflectEntityClass<ENTITY>(predicate), predicate).find(predicate, orders, persist, loadPlan)
             .also { if (persist) it.forEach(unitOfWork::persist) }
 
 
     override fun <ENTITY : Any> find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean
+        persist: Boolean,
+        loadPlan: AggregateLoadPlan,
     ): List<ENTITY> = repo(reflectEntityClass<ENTITY>(predicate), predicate)
-        .find(predicate, pageParam, persist)
+        .find(predicate, pageParam, persist, loadPlan)
         .also { if (persist) it.forEach(unitOfWork::persist) }
 
     override fun <ENTITY : Any> findOne(
         predicate: Predicate<ENTITY>,
-        persist: Boolean
+        persist: Boolean,
+        loadPlan: AggregateLoadPlan,
     ): ENTITY? = repo(reflectEntityClass<ENTITY>(predicate), predicate)
-        .findOne(predicate, persist)
+        .findOne(predicate, persist, loadPlan)
         ?.also { if (persist) unitOfWork.persist(it) }
 
     override fun <ENTITY : Any> findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
-        persist: Boolean
+        persist: Boolean,
+        loadPlan: AggregateLoadPlan,
     ): ENTITY? = repo(reflectEntityClass<ENTITY>(predicate), predicate)
-        .findFirst(predicate, orders, persist)
+        .findFirst(predicate, orders, persist, loadPlan)
         ?.also { if (persist) unitOfWork.persist(it) }
 
     override fun <ENTITY : Any> findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean
+        persist: Boolean,
+        loadPlan: AggregateLoadPlan,
     ): PageData<ENTITY> =
         repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .findPage(predicate, pageParam, persist)
+            .findPage(predicate, pageParam, persist, loadPlan)
             .apply { if (persist) list.forEach(unitOfWork::persist) }
 
     override fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>): List<ENTITY> =

@@ -2,6 +2,7 @@ package com.only4.cap4k.ddd.domain.aggregate.impl
 
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.domain.aggregate.*
+import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.core.share.OrderInfo
@@ -207,6 +208,34 @@ class DefaultAggregateSupervisorTest {
         assertEquals(1L, result!!.getId())
         assertEquals("test", result.getName())
         verify { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), false) }
+    }
+
+    @Test
+    @DisplayName("findOne should pass aggregate load plan to repository supervisor")
+    fun `findOne should pass aggregate load plan to repository supervisor`() {
+        val predicate = mockk<AggregatePredicate<TestAggregate, TestEntity>>()
+        val entity = TestEntity(1L, "test", 10)
+
+        every {
+            JpaAggregatePredicateSupport.reflectAggregateClass(any<AggregatePredicate<TestAggregate, TestEntity>>())
+        } returns TestAggregate::class.java
+        every {
+            JpaAggregatePredicateSupport.getPredicate(any<AggregatePredicate<TestAggregate, TestEntity>>())
+        } returns mockk()
+        every {
+            mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), true, AggregateLoadPlan.WHOLE_AGGREGATE)
+        } returns entity
+
+        val result = supervisor.findOne(
+            predicate = predicate,
+            persist = true,
+            loadPlan = AggregateLoadPlan.WHOLE_AGGREGATE
+        )
+
+        assertTrue(result != null)
+        verify {
+            mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), true, AggregateLoadPlan.WHOLE_AGGREGATE)
+        }
     }
 
     @Test

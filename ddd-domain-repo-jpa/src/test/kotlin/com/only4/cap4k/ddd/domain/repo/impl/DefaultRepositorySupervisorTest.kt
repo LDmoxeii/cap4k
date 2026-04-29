@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.domain.repo.impl
 
 import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import com.only4.cap4k.ddd.core.domain.repo.Repository
 import com.only4.cap4k.ddd.core.share.DomainException
@@ -102,6 +103,49 @@ class DefaultRepositorySupervisorTest {
         assertEquals(expectedEntity, result)
         verify { mockRepository.findOne(predicate, true) }
         verify { mockUnitOfWork.persist(expectedEntity) }
+    }
+
+    @Test
+    @DisplayName("findOne should pass aggregate load plan to repository")
+    fun `findOne should pass aggregate load plan to repository`() {
+        val predicate = TestPredicate()
+        val expectedEntity = TestEntity(1L, "test")
+
+        every {
+            mockRepository.findOne(predicate, true, AggregateLoadPlan.WHOLE_AGGREGATE)
+        } returns expectedEntity
+
+        val result = supervisor.findOne(
+            predicate = predicate,
+            persist = true,
+            loadPlan = AggregateLoadPlan.WHOLE_AGGREGATE
+        )
+
+        assertEquals(expectedEntity, result)
+        verify { mockRepository.findOne(predicate, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
+        verify { mockUnitOfWork.persist(expectedEntity) }
+    }
+
+    @Test
+    @DisplayName("find should pass aggregate load plan to repository")
+    fun `find should pass aggregate load plan to repository`() {
+        val predicate = TestPredicate()
+        val expectedEntities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
+
+        every {
+            mockRepository.find(predicate, emptyList(), true, AggregateLoadPlan.WHOLE_AGGREGATE)
+        } returns expectedEntities
+
+        val result = supervisor.find(
+            predicate = predicate,
+            orders = emptyList(),
+            persist = true,
+            loadPlan = AggregateLoadPlan.WHOLE_AGGREGATE
+        )
+
+        assertEquals(expectedEntities, result)
+        verify { mockRepository.find(predicate, emptyList(), true, AggregateLoadPlan.WHOLE_AGGREGATE) }
+        expectedEntities.forEach { entity -> verify { mockUnitOfWork.persist(entity) } }
     }
 
     @Test
@@ -308,30 +352,35 @@ class DefaultRepositorySupervisorTest {
             override fun find(
                 predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
                 orders: Collection<OrderInfo>,
-                persist: Boolean
+                persist: Boolean,
+                loadPlan: AggregateLoadPlan
             ): List<TestEntity> = emptyList()
 
             override fun find(
                 predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
                 pageParam: PageParam,
-                persist: Boolean
+                persist: Boolean,
+                loadPlan: AggregateLoadPlan
             ): List<TestEntity> = emptyList()
 
             override fun findOne(
                 predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
-                persist: Boolean
+                persist: Boolean,
+                loadPlan: AggregateLoadPlan
             ): TestEntity? = null
 
             override fun findFirst(
                 predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
                 orders: Collection<OrderInfo>,
-                persist: Boolean
+                persist: Boolean,
+                loadPlan: AggregateLoadPlan
             ): TestEntity? = null
 
             override fun findPage(
                 predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
                 pageParam: PageParam,
-                persist: Boolean
+                persist: Boolean,
+                loadPlan: AggregateLoadPlan
             ): PageData<TestEntity> = PageData.create(PageParam.of(1, 10), 0L, emptyList())
 
             override fun count(predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>): Long = 0

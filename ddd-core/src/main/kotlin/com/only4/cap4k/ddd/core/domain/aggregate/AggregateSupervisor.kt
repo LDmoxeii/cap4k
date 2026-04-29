@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.aggregate
 
+import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
@@ -26,9 +27,10 @@ interface AggregateSupervisor {
      */
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getById(
         id: Id<AGGREGATE, *>,
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): AGGREGATE? =
-        getByIds(listOf(id), persist).firstOrNull()
+        getByIds(listOf(id), persist, loadPlan).firstOrNull()
 
     /**
      * 根据id获取聚合
@@ -41,7 +43,8 @@ interface AggregateSupervisor {
      */
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getByIds(
         ids: Iterable<Id<AGGREGATE, *>>,
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): List<AGGREGATE>
 
     /**
@@ -59,7 +62,8 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> find(
         predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): List<AGGREGATE>
 
     /**
@@ -68,7 +72,8 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> find(
         predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): List<AGGREGATE>
 
     /**
@@ -76,7 +81,8 @@ interface AggregateSupervisor {
      */
     fun <AGGREGATE : Aggregate<*>> findOne(
         predicate: AggregatePredicate<AGGREGATE, *>,
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): AGGREGATE?
 
     /**
@@ -85,7 +91,8 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> findFirst(
         predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): AGGREGATE?
 
     /**
@@ -103,7 +110,8 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> findPage(
         predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
-        persist: Boolean = true
+        persist: Boolean = true,
+        loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT,
     ): PageData<AGGREGATE>
 
     /**
