@@ -1,13 +1,16 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
+import com.google.gson.GsonBuilder
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
+import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.BootstrapRunner
 import com.only4.cap4k.plugin.pipeline.api.BootstrapConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineRunner
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.core.DefaultCanonicalAssembler
 import com.only4.cap4k.plugin.pipeline.core.DefaultBootstrapRunner
 import com.only4.cap4k.plugin.pipeline.core.DefaultPipelineRunner
@@ -37,6 +40,7 @@ import com.only4.cap4k.plugin.pipeline.source.designjson.DesignJsonSourceProvide
 import com.only4.cap4k.plugin.pipeline.source.enummanifest.EnumManifestSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ir.IrAnalysisSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ksp.KspMetadataSourceProvider
+import org.gradle.api.file.FileCollection
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -44,6 +48,7 @@ import org.gradle.api.Task
 import org.gradle.api.tasks.TaskProvider
 import java.io.File
 import java.nio.file.Path
+import java.security.MessageDigest
 
 class PipelinePlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -223,6 +228,25 @@ internal fun generatedKotlinSourceRoot(config: ProjectConfig, moduleRole: String
         .generatedKotlinSourceRoot(moduleRoot)
 }
 
+internal fun resolvedGeneratedKotlinSourceRoot(
+    rootProject: Project,
+    config: ProjectConfig,
+    moduleRole: String,
+): String? =
+    generatedKotlinSourceDirectory(rootProject, config, moduleRole)
+        ?.toRootRelativeSlash(rootProject)
+
+internal fun generatedSourceOutputDirectories(rootProject: Project, config: ProjectConfig): List<File> =
+    generatedSourceModuleRoles(config).mapNotNull { role ->
+        generatedKotlinSourceDirectory(rootProject, config, role)
+    }
+
+private fun generatedKotlinSourceDirectory(rootProject: Project, config: ProjectConfig, moduleRole: String): File? {
+    val modulePath = config.modules[moduleRole] ?: return null
+    val moduleProject = resolveModuleProject(rootProject, modulePath) ?: return null
+    return moduleProject.layout.buildDirectory.dir("generated/cap4k/main/kotlin").get().asFile
+}
+
 internal fun registerGeneratedKotlinSourceSets(rootProject: Project, config: ProjectConfig) {
     generatedSourceModuleRoles(config).forEach { role ->
         val modulePath = config.modules[role] ?: return@forEach
@@ -247,7 +271,7 @@ private fun registerGeneratedKotlinSourceDir(moduleProject: Project) {
         val srcDir = kotlinSourceDirectorySet.javaClass.methods
             .firstOrNull { method -> method.name == "srcDir" && method.parameterCount == 1 }
             ?: return@configure
-        srcDir.invoke(kotlinSourceDirectorySet, moduleProject.layout.projectDirectory.dir("build/generated/cap4k/main/kotlin"))
+        srcDir.invoke(kotlinSourceDirectorySet, moduleProject.layout.buildDirectory.dir("generated/cap4k/main/kotlin"))
     }
 }
 
@@ -369,6 +393,161 @@ private fun Any?.asStringList(): List<String> =
 private fun String.toNormalizedPath(): Path =
     Path.of(this).toAbsolutePath().normalize()
 
+internal fun generatedSourceTaskInputSnapshot(rootProject: Project, config: ProjectConfig): String {
+    val generatedRoots = generatedSourceModuleRoles(config)
+        .sorted()
+        .associateWith { role -> resolvedGeneratedKotlinSourceRoot(rootProject, config, role).orEmpty() }
+    return GsonBuilder()
+        .serializeNulls()
+        .create()
+        .toJson(
+            linkedMapOf(
+                "basePackage" to config.basePackage,
+                "modules" to config.modules.toSortedMap(),
+                "typeRegistry" to config.typeRegistry.toSortedMap(),
+                "sources" to linkedMapOf(
+                    "db" to sanitizedDbSourceSnapshot(config.sources["db"]),
+                    "enumManifest" to sanitizedSourceSnapshot(config.sources["enum-manifest"]),
+                ),
+                "generators" to linkedMapOf(
+                    "aggregate" to sanitizedGeneratorSnapshot(config.generators["aggregate"]),
+                ),
+                "artifactLayout" to config.artifactLayout,
+                "templates" to linkedMapOf(
+                    "preset" to config.templates.preset,
+                    "overrideDirs" to config.templates.overrideDirs,
+                    "conflictPolicy" to config.templates.conflictPolicy,
+                ),
+                "generatedSourceRoots" to generatedRoots,
+            )
+        )
+}
+
+private fun sanitizedDbSourceSnapshot(source: SourceConfig?): Map<String, Any?>? {
+    if (source == null || !source.enabled) {
+        return null
+    }
+    val options = source.options
+    val snapshot = linkedMapOf<String, Any?>("enabled" to true)
+    listOf("url", "username", "schema", "includeTables", "excludeTables").forEach { key ->
+        if (options.containsKey(key)) {
+            snapshot[key] = options[key]
+        }
+    }
+    options["password"]?.toString()?.let { password ->
+        snapshot["passwordHash"] = sha256Hex(password)
+    }
+    return snapshot
+}
+
+private fun sanitizedSourceSnapshot(source: SourceConfig?): Map<String, Any?>? {
+    if (source == null || !source.enabled) {
+        return null
+    }
+    return linkedMapOf(
+        "enabled" to true,
+        "options" to source.options.toSortedMap(),
+    )
+}
+
+private fun sanitizedGeneratorSnapshot(generator: GeneratorConfig?): Map<String, Any?>? {
+    if (generator == null || !generator.enabled) {
+        return null
+    }
+    return linkedMapOf(
+        "enabled" to true,
+        "options" to generator.options.toSortedMap(),
+    )
+}
+
+private fun sha256Hex(value: String): String =
+    MessageDigest.getInstance("SHA-256")
+        .digest(value.toByteArray(Charsets.UTF_8))
+        .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+
+internal fun generatedSourceTaskInputFiles(
+    project: Project,
+    extension: Cap4kExtension,
+    config: ProjectConfig,
+): FileCollection {
+    val inputs = mutableListOf<Any>()
+    config.sources["enum-manifest"]
+        ?.options
+        ?.get("files")
+        .asStringList()
+        .mapTo(inputs) { project.file(it) }
+    extension.types.registryFile.orNull?.let { registryFile ->
+        inputs += project.file(registryFile)
+    }
+    config.sources["db"]
+        ?.options
+        ?.get("url")
+        ?.toString()
+        ?.let { dbUrl -> inputs.addAll(dbRunScriptInputFiles(project, dbUrl)) }
+    config.templates.overrideDirs
+        .map { project.file(it) }
+        .filter { it.exists() }
+        .mapTo(inputs) { overrideDir -> project.fileTree(overrideDir) }
+    return project.files(inputs)
+}
+
+internal fun generatedSourceTaskHasUntrackedLiveDbInput(project: Project, config: ProjectConfig): Boolean {
+    val dbSource = config.sources["db"] ?: return false
+    if (!dbSource.enabled) {
+        return false
+    }
+    val dbUrl = dbSource.options["url"]?.toString().orEmpty()
+    return dbRunScriptInputFiles(project, dbUrl).isEmpty()
+}
+
+private fun dbRunScriptInputFiles(project: Project, dbUrl: String): List<File> {
+    val runScriptPattern = Regex("""(?i)RUNSCRIPT\s+FROM\s+'([^']+)'""")
+    return runScriptPattern.findAll(dbUrl)
+        .map { match -> project.file(match.groupValues[1]) }
+        .filter { file -> file.exists() }
+        .toList()
+}
+
+private fun rebaseGeneratedSourcePlanItem(
+    rootProject: Project,
+    config: ProjectConfig,
+    item: ArtifactPlanItem,
+): ArtifactPlanItem {
+    if (item.outputKind != ArtifactOutputKind.GENERATED_SOURCE) {
+        return item
+    }
+    val moduleRoot = config.modules[item.moduleRole] ?: return item
+    val plannedRoot = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
+        .generatedKotlinSourceRoot(moduleRoot)
+        .toSlashPath()
+    val resolvedRoot = resolvedGeneratedKotlinSourceRoot(rootProject, config, item.moduleRole)
+        ?: return item
+    val normalizedOutputPath = item.outputPath.toSlashPath()
+    if (normalizedOutputPath != plannedRoot && !normalizedOutputPath.startsWith("$plannedRoot/")) {
+        return item.copy(resolvedOutputRoot = resolvedRoot)
+    }
+    val suffix = normalizedOutputPath.removePrefix(plannedRoot).trimStart('/')
+    val rebasedOutputPath = listOf(resolvedRoot, suffix)
+        .filter { it.isNotBlank() }
+        .joinToString("/")
+    return item.copy(
+        outputPath = rebasedOutputPath,
+        resolvedOutputRoot = resolvedRoot,
+    )
+}
+
+private fun File.toRootRelativeSlash(rootProject: Project): String {
+    val rootPath = rootProject.projectDir.canonicalFile.toPath().normalize()
+    val filePath = canonicalFile.toPath().normalize()
+    require(filePath.startsWith(rootPath)) {
+        "Generated source root must stay under the root project directory: $filePath"
+    }
+    return rootPath.relativize(filePath).toString().toSlashPath()
+}
+
+private fun String.toSlashPath(): String =
+    replace('\\', '/').trim('/')
+
 internal fun buildSourceRunner(
     project: Project,
     config: ProjectConfig,
@@ -413,6 +592,7 @@ internal fun buildSourceRunner(
         } else {
             NoopArtifactExporter()
         },
+        transformPlanItem = { item -> rebaseGeneratedSourcePlanItem(project.rootProject, config, item) },
         includePlanItem = if (generatedSourcesOnly) {
             { item -> item.outputKind == ArtifactOutputKind.GENERATED_SOURCE }
         } else {

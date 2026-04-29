@@ -458,6 +458,21 @@ class PipelinePluginCompileFunctionalTest {
 
     @Test
     fun `aggregate behavior source compiles against generated entities when module build dir is customized`() {
+        val planProjectDir = Files.createTempDirectory("pipeline-functional-aggregate-custom-build-dir-plan")
+        FunctionalFixtureSupport.copyCompileFixture(planProjectDir, "aggregate-relation-compile-sample")
+        val planDomainBuildFile = planProjectDir.resolve("demo-domain/build.gradle.kts")
+        planDomainBuildFile.writeText(
+            planDomainBuildFile.readText() +
+                "\nlayout.buildDirectory.set(layout.projectDirectory.dir(\"out/build\"))\n"
+        )
+        val planResult = FunctionalFixtureSupport
+            .runner(planProjectDir, "cap4kPlan")
+            .build()
+        val planJson = planProjectDir.resolve("build/cap4k/plan.json").readText()
+        assertTrue(planResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planJson.contains("demo-domain/out/build/generated/cap4k/main/kotlin"))
+        assertFalse(planJson.contains("demo-domain/build/generated/cap4k/main/kotlin"))
+
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-custom-build-dir-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
         val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts")
@@ -489,16 +504,23 @@ class PipelinePluginCompileFunctionalTest {
 
         assertGeneratedFilesExist(
             projectDir,
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"),
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt"),
+            "demo-domain/out/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+            "demo-domain/out/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt",
         )
         assertFalse(
             projectDir.resolve(
-                "demo-domain/out/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
             ).toFile().exists()
         )
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+
+        val secondCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .build()
+
+        assertEquals(TaskOutcome.UP_TO_DATE, secondCompileResult.task(":cap4kGenerateSources")?.outcome)
+        assertTrue(secondCompileResult.output.contains("BUILD SUCCESSFUL"))
     }
 
     @Test

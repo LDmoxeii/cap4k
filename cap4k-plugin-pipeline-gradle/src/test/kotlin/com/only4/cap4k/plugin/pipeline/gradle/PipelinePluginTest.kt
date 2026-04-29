@@ -10,6 +10,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import com.only4.cap4k.plugin.pipeline.core.BootstrapFilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleBootstrapRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
@@ -232,6 +233,200 @@ class PipelinePluginTest {
             "demo-domain/build/generated/cap4k/main/kotlin",
             generatedKotlinSourceRoot(config, "domain"),
         )
+    }
+
+    @Test
+    fun `cap4kGenerateSources declares generated source output directories`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-generated-source-outputs")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        ProjectBuilder.builder()
+            .withName("demo-application")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-application"))
+            .build()
+        val adapterProject = ProjectBuilder.builder()
+            .withName("demo-adapter")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-adapter"))
+            .build()
+        rootProject.pluginManager.apply(PipelinePlugin::class.java)
+        configureValidAggregateGeneration(rootProject.extensions.getByType(Cap4kExtension::class.java))
+
+        val task = rootProject.tasks.named("cap4kGenerateSources", Cap4kGenerateSourcesTask::class.java).get()
+
+        assertEquals(
+            setOf(
+                domainProject.layout.buildDirectory.dir("generated/cap4k/main/kotlin").get().asFile.canonicalFile,
+                adapterProject.layout.buildDirectory.dir("generated/cap4k/main/kotlin").get().asFile.canonicalFile,
+            ),
+            task.outputs.files.files.map { it.canonicalFile }.toSet(),
+        )
+    }
+
+    @Test
+    fun `cap4kGenerateSources declares bounded file inputs`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-generated-source-inputs")
+        val enumManifest = rootProjectDir.resolve("enums.json").apply { writeText("[]") }
+        val typeRegistry = rootProjectDir.resolve("types.json").apply { writeText("{}") }
+        val schemaFile = rootProjectDir.resolve("schema.sql").apply { writeText("create table demo(id bigint);") }
+        val templateOverride = rootProjectDir.resolve("codegen/templates").apply { mkdirs() }
+        val templateFile = templateOverride.resolve("aggregate/entity.kt.peb").apply {
+            parentFile.mkdirs()
+            writeText("template")
+        }
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        ProjectBuilder.builder()
+            .withName("demo-application")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-application"))
+            .build()
+        ProjectBuilder.builder()
+            .withName("demo-adapter")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-adapter"))
+            .build()
+        rootProject.pluginManager.apply(PipelinePlugin::class.java)
+        val extension = rootProject.extensions.getByType(Cap4kExtension::class.java)
+        configureValidAggregateGeneration(extension)
+        extension.sources.db.url.set(
+            "jdbc:h2:file:./build/h2/demo;MODE=MySQL;INIT=RUNSCRIPT FROM '${schemaFile.absolutePath.replace("\\", "/")}'"
+        )
+        extension.types.registryFile.set(typeRegistry.name)
+        extension.sources.enumManifest.enabled.set(true)
+        extension.sources.enumManifest.files.from(enumManifest)
+        extension.templates.overrideDirs.from(templateOverride)
+
+        val task = rootProject.tasks.named("cap4kGenerateSources", Cap4kGenerateSourcesTask::class.java).get()
+        val inputFiles = task.inputs.files.files.map { it.canonicalFile }.toSet()
+
+        assertTrue(inputFiles.contains(enumManifest.canonicalFile))
+        assertTrue(inputFiles.contains(typeRegistry.canonicalFile))
+        assertTrue(inputFiles.contains(schemaFile.canonicalFile))
+        assertTrue(inputFiles.contains(templateFile.canonicalFile))
+        assertFalse(inputFiles.contains(rootProjectDir.canonicalFile))
+    }
+
+    @Test
+    fun `generated source input snapshot hashes db password`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-generated-source-snapshot")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        ProjectBuilder.builder()
+            .withName("demo-application")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-application"))
+            .build()
+        ProjectBuilder.builder()
+            .withName("demo-adapter")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-adapter"))
+            .build()
+        val config = projectConfig(
+            modules = mapOf(
+                "domain" to "demo-domain",
+                "application" to "demo-application",
+                "adapter" to "demo-adapter",
+            ),
+            sources = mapOf(
+                "db" to SourceConfig(
+                    enabled = true,
+                    options = mapOf(
+                        "url" to "jdbc:mysql://localhost:3306/demo",
+                        "username" to "cap4k",
+                        "password" to "secret",
+                        "schema" to "public",
+                        "includeTables" to listOf("video_post"),
+                        "excludeTables" to listOf("audit_log"),
+                    ),
+                ),
+                "enum-manifest" to SourceConfig(
+                    enabled = true,
+                    options = mapOf("files" to listOf("enums.json")),
+                ),
+            ),
+            generators = mapOf(
+                "aggregate" to GeneratorConfig(
+                    enabled = true,
+                    options = mapOf(
+                        "unsupportedTablePolicy" to "FAIL",
+                        "artifact.unique" to true,
+                    ),
+                )
+            ),
+        ).copy(
+            typeRegistry = mapOf("Money" to TypeRegistryEntry("com.acme.Money")),
+        )
+
+        val snapshot = generatedSourceTaskInputSnapshot(rootProject, config)
+
+        assertFalse(snapshot.contains("secret"))
+        assertTrue(snapshot.contains("passwordHash"))
+        assertTrue(snapshot.contains("jdbc:mysql://localhost:3306/demo"))
+        assertTrue(snapshot.contains("cap4k"))
+        assertTrue(snapshot.contains("video_post"))
+        assertTrue(snapshot.contains("com.acme.Money"))
+        assertTrue(snapshot.contains("artifact.unique"))
+        assertTrue(snapshot.contains("demo-domain/build/generated/cap4k/main/kotlin"))
+    }
+
+    @Test
+    fun `generated source task detects live db without tracked schema input`() {
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(tempProjectDir("pipeline-plugin-generated-source-live-db"))
+            .build()
+        val config = projectConfig(
+            sources = mapOf(
+                "db" to SourceConfig(
+                    enabled = true,
+                    options = mapOf("url" to "jdbc:mysql://localhost:3306/demo"),
+                ),
+            ),
+            generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+        )
+
+        assertTrue(generatedSourceTaskHasUntrackedLiveDbInput(rootProject, config))
+    }
+
+    @Test
+    fun `generated source task treats db runscript as tracked input`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-generated-source-script-db")
+        val schemaFile = rootProjectDir.resolve("schema.sql").apply { writeText("create table demo(id bigint);") }
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val config = projectConfig(
+            sources = mapOf(
+                "db" to SourceConfig(
+                    enabled = true,
+                    options = mapOf(
+                        "url" to "jdbc:h2:file:./build/h2/demo;INIT=RUNSCRIPT FROM '${schemaFile.absolutePath.replace("\\", "/")}'"
+                    ),
+                ),
+            ),
+            generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+        )
+
+        assertFalse(generatedSourceTaskHasUntrackedLiveDbInput(rootProject, config))
     }
 
     @Test
@@ -676,6 +871,28 @@ class PipelinePluginTest {
             }
             templates {
                 preset.set("ddd-default-bootstrap")
+            }
+        }
+    }
+
+    private fun configureValidAggregateGeneration(extension: Cap4kExtension) {
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:demo")
+                username.set("sa")
+                password.set("")
+            }
+        }
+        extension.generators {
+            aggregate {
+                enabled.set(true)
             }
         }
     }

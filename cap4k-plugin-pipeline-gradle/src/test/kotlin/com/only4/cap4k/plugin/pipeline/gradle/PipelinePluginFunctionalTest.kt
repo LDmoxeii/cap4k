@@ -4,6 +4,7 @@ import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.gradle.FunctionalFixtureSupport.copyCompileFixture
 import com.only4.cap4k.plugin.pipeline.gradle.FunctionalFixtureSupport.copyFixture
 import org.gradle.testkit.runner.GradleRunner
+import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -1507,6 +1508,50 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertFalse(result.output.contains("cap4kGenerateSources must not run kspKotlin"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerateSources does not become up to date for live db input`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-generated-sources-live-db")
+        copyFixture(projectDir, "aggregate-minimal-sample")
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText() +
+                """
+
+                cap4k {
+                    sources {
+                        db {
+                            url.set("jdbc:mysql://localhost:3306/demo")
+                            username.set("cap4k")
+                            password.set("secret")
+                        }
+                    }
+                }
+
+                tasks.named("cap4kGenerateSources") {
+                    setActions(emptyList())
+                    doLast {
+                        outputs.files.files.forEachIndexed { index, outputDir ->
+                            outputDir.mkdirs()
+                            outputDir.resolve("live-db-up-to-date-${'$'}index.marker").writeText("ran")
+                        }
+                    }
+                }
+                """.trimIndent()
+        )
+
+        val firstResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerateSources")
+            .build()
+        val secondResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerateSources")
+            .build()
+
+        assertEquals(TaskOutcome.SUCCESS, firstResult.task(":cap4kGenerateSources")?.outcome)
+        assertEquals(TaskOutcome.SUCCESS, secondResult.task(":cap4kGenerateSources")?.outcome)
+        assertFalse(secondResult.output.contains(":cap4kGenerateSources UP-TO-DATE"))
     }
 
     @OptIn(ExperimentalPathApi::class)

@@ -14,6 +14,7 @@ class DefaultPipelineRunner(
     private val assembler: CanonicalAssembler,
     private val renderer: ArtifactRenderer,
     private val exporter: ArtifactExporter,
+    private val transformPlanItem: (ArtifactPlanItem) -> ArtifactPlanItem = { it },
     private val includePlanItem: (ArtifactPlanItem) -> Boolean = { true },
 ) : PipelineRunner {
     override fun run(config: ProjectConfig): PipelineResult {
@@ -39,6 +40,7 @@ class DefaultPipelineRunner(
         val planItems = generators
             .filter { config.generators[it.id]?.enabled == true }
             .flatMap { it.plan(config, model) }
+            .map(transformPlanItem)
             .filter(includePlanItem)
 
         val renderedArtifacts = renderer.render(planItems, config)
