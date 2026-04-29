@@ -11,6 +11,7 @@ class AggregateArtifactPlanner : GeneratorProvider {
     private val delegates: List<AggregateArtifactFamilyPlanner> = listOf(
         SchemaArtifactPlanner(),
         EntityArtifactPlanner(),
+        BehaviorArtifactPlanner(),
         RepositoryArtifactPlanner(),
         FactoryArtifactPlanner(),
         SpecificationArtifactPlanner(),

@@ -7,7 +7,6 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
 internal class SpecificationArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        val domainRoot = requireRelativeModule(config, "domain")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
 
@@ -16,11 +15,13 @@ internal class SpecificationArtifactPlanner : AggregateArtifactFamilyPlanner {
             val packageName = artifactLayout.aggregateSpecificationPackage(entity.packageName)
             val typeName = "${entity.name}Specification"
 
-            ArtifactPlanItem(
-                generatorId = "aggregate",
+            checkedInKotlinArtifact(
+                config = config,
+                artifactLayout = artifactLayout,
                 moduleRole = "domain",
                 templateId = "aggregate/specification.kt.peb",
-                outputPath = artifactLayout.kotlinSourcePath(domainRoot, packageName, typeName),
+                packageName = packageName,
+                typeName = typeName,
                 context = mapOf(
                     "packageName" to packageName,
                     "typeName" to typeName,
@@ -29,7 +30,6 @@ internal class SpecificationArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "aggregateName" to entity.name,
                     "comment" to entity.comment,
                 ),
-                conflictPolicy = config.templates.conflictPolicy,
             )
         }
     }

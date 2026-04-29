@@ -9,17 +9,18 @@ internal class SharedEnumArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry)
-        val domainRoot = requireRelativeModule(config, "domain")
         return model.sharedEnums.map { shared ->
             val enumTypeFqn = planning.resolveFieldType(shared.typeName, emptyList())
             val packageName = enumTypeFqn.substringBeforeLast('.', missingDelimiterValue = "")
             val typeName = enumTypeFqn.substringAfterLast('.')
 
-            ArtifactPlanItem(
-                generatorId = "aggregate",
+            generatedKotlinArtifact(
+                config = config,
+                artifactLayout = artifactLayout,
                 moduleRole = "domain",
                 templateId = "aggregate/enum.kt.peb",
-                outputPath = artifactLayout.kotlinSourcePath(domainRoot, packageName, typeName),
+                packageName = packageName,
+                typeName = typeName,
                 context = mapOf(
                     "packageName" to packageName,
                     "typeName" to typeName,
@@ -31,7 +32,6 @@ internal class SharedEnumArtifactPlanner : AggregateArtifactFamilyPlanner {
                         )
                     },
                 ),
-                conflictPolicy = config.templates.conflictPolicy,
             )
         }
     }

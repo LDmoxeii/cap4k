@@ -14,7 +14,6 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
     }
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        val domainRoot = requireRelativeModule(config, "domain")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val selection = AggregateArtifactSelection.from(config)
         val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
@@ -48,11 +47,13 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                 )
             }
 
-            ArtifactPlanItem(
-                generatorId = "aggregate",
+            generatedKotlinArtifact(
+                config = config,
+                artifactLayout = artifactLayout,
                 moduleRole = "domain",
                 templateId = "aggregate/schema.kt.peb",
-                outputPath = artifactLayout.kotlinSourcePath(domainRoot, schema.packageName, schema.name),
+                packageName = schema.packageName,
+                typeName = schema.name,
                 context = mapOf(
                     "packageName" to schema.packageName,
                     "typeName" to schema.name,
@@ -67,7 +68,6 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "repositorySupportQuerydsl" to false,
                     "fields" to fields,
                 ),
-                conflictPolicy = config.templates.conflictPolicy,
             )
         }
     }

@@ -52,10 +52,10 @@ Recently completed:
 - contract-first query contract
 - ddd-core nullability contract stabilization
 - validator projection and generation normalization
+- generated source output and entity behavior split
 
 Current active planning queue:
 
-- generated source output and entity behavior split
 - irAnalysis restructuring analysis, only if smaller projection fixes are not enough
 - unit-of-work and repository backend comparison, only if focused JPA runtime reproductions justify it
 

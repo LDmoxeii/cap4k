@@ -470,6 +470,12 @@ data class CanonicalAssemblyResult(
     val diagnostics: PipelineDiagnostics? = null,
 )
 
+enum class ArtifactOutputKind {
+    CHECKED_IN_SOURCE,
+    GENERATED_SOURCE,
+    OUTPUT_ARTIFACT,
+}
+
 data class ArtifactPlanItem(
     val generatorId: String,
     val moduleRole: String,
@@ -477,12 +483,16 @@ data class ArtifactPlanItem(
     val outputPath: String,
     val context: Map<String, Any?> = emptyMap(),
     val conflictPolicy: ConflictPolicy,
+    val outputKind: ArtifactOutputKind = ArtifactOutputKind.CHECKED_IN_SOURCE,
+    val resolvedOutputRoot: String = "",
 )
 
 data class RenderedArtifact(
     val outputPath: String,
     val content: String,
     val conflictPolicy: ConflictPolicy,
+    val outputKind: ArtifactOutputKind = ArtifactOutputKind.CHECKED_IN_SOURCE,
+    val resolvedOutputRoot: String = "",
 )
 
 data class PlanReport(

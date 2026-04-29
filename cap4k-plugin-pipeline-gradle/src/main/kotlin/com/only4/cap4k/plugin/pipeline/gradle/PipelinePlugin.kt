@@ -1,5 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
+import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.BootstrapRunner
@@ -11,6 +13,7 @@ import com.only4.cap4k.plugin.pipeline.core.DefaultBootstrapRunner
 import com.only4.cap4k.plugin.pipeline.core.DefaultPipelineRunner
 import com.only4.cap4k.plugin.pipeline.core.BootstrapFilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.BootstrapRootStateGuard
+import com.only4.cap4k.plugin.pipeline.core.FilteringArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.FilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.NoopArtifactExporter
 import com.only4.cap4k.plugin.pipeline.bootstrap.DddMultiModuleBootstrapPresetProvider
@@ -34,9 +37,11 @@ import com.only4.cap4k.plugin.pipeline.source.designjson.DesignJsonSourceProvide
 import com.only4.cap4k.plugin.pipeline.source.enummanifest.EnumManifestSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ir.IrAnalysisSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ksp.KspMetadataSourceProvider
+import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.api.tasks.TaskProvider
 import java.io.File
 import java.nio.file.Path
 
@@ -71,6 +76,12 @@ class PipelinePlugin : Plugin<Project> {
             task.extension = extension
             task.configFactory = configFactory
         }
+        val generateSourcesTask = project.tasks.register("cap4kGenerateSources", Cap4kGenerateSourcesTask::class.java) { task ->
+            task.group = "cap4k"
+            task.description = "Generates build-owned Kotlin sources from the Cap4k pipeline."
+            task.extension = extension
+            task.configFactory = configFactory
+        }
         val analysisPlanTask = project.tasks.register("cap4kAnalysisPlan", Cap4kAnalysisPlanTask::class.java) { task ->
             task.group = "cap4k"
             task.description = "Plans Cap4k analysis export artifacts."
@@ -94,7 +105,10 @@ class PipelinePlugin : Plugin<Project> {
             if (inferredSourceDependencies.isNotEmpty()) {
                 planTask.configure { task -> task.dependsOn(inferredSourceDependencies) }
                 generateTask.configure { task -> task.dependsOn(inferredSourceDependencies) }
+                generateSourcesTask.configure { task -> task.dependsOn(inferredSourceDependencies) }
             }
+            registerGeneratedKotlinSourceSets(project.rootProject, config)
+            wireGeneratedSourceCompilation(project.rootProject, config, generateSourcesTask)
             val inferredAnalysisDependencies = inferAnalysisDependencies(project, config)
             if (inferredAnalysisDependencies.isNotEmpty()) {
                 analysisPlanTask.configure { task -> task.dependsOn(inferredAnalysisDependencies) }
@@ -173,6 +187,69 @@ internal fun ensureAggregateDomainJpaDependency(project: Project, config: Projec
     }
     if (!hasDependency) {
         domainProject.dependencies.add("implementation", JAKARTA_PERSISTENCE_COORDINATE)
+    }
+}
+
+internal fun generatedSourceModuleRoles(config: ProjectConfig): Set<String> {
+    val aggregate = config.generators["aggregate"] ?: return emptySet()
+    if (!aggregate.enabled) {
+        return emptySet()
+    }
+
+    val roles = linkedSetOf("domain", "adapter")
+    if (aggregate.options["artifact.unique"] as? Boolean == true) {
+        roles += "application"
+    }
+    return roles.filterTo(linkedSetOf()) { role -> role in config.modules }
+}
+
+internal fun generatedKotlinSourceRoot(config: ProjectConfig, moduleRole: String): String {
+    val moduleRoot = requireNotNull(config.modules[moduleRole]) {
+        "$moduleRole module is required"
+    }
+    return ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
+        .generatedKotlinSourceRoot(moduleRoot)
+}
+
+internal fun registerGeneratedKotlinSourceSets(rootProject: Project, config: ProjectConfig) {
+    generatedSourceModuleRoles(config).forEach { role ->
+        val modulePath = config.modules[role] ?: return@forEach
+        val moduleProject = resolveModuleProject(rootProject, modulePath) ?: return@forEach
+        moduleProject.plugins.withId("org.jetbrains.kotlin.jvm") {
+            registerGeneratedKotlinSourceDir(moduleProject)
+        }
+    }
+}
+
+private fun registerGeneratedKotlinSourceDir(moduleProject: Project) {
+    val kotlinExtension = moduleProject.extensions.findByName("kotlin") ?: return
+    val sourceSets = kotlinExtension.javaClass.methods
+        .singleOrNull { method -> method.name == "getSourceSets" && method.parameterCount == 0 }
+        ?.invoke(kotlinExtension) as? NamedDomainObjectContainer<*>
+        ?: return
+    sourceSets.named("main").configure { sourceSet ->
+        val kotlinSourceDirectorySet = sourceSet.javaClass.methods
+            .singleOrNull { method -> method.name == "getKotlin" && method.parameterCount == 0 }
+            ?.invoke(sourceSet)
+            ?: return@configure
+        val srcDir = kotlinSourceDirectorySet.javaClass.methods
+            .firstOrNull { method -> method.name == "srcDir" && method.parameterCount == 1 }
+            ?: return@configure
+        srcDir.invoke(kotlinSourceDirectorySet, moduleProject.layout.projectDirectory.dir("build/generated/cap4k/main/kotlin"))
+    }
+}
+
+internal fun wireGeneratedSourceCompilation(
+    rootProject: Project,
+    config: ProjectConfig,
+    generateSourcesTask: TaskProvider<out Task>,
+) {
+    generatedSourceModuleRoles(config).forEach { role ->
+        val modulePath = config.modules[role] ?: return@forEach
+        val moduleProject = resolveModuleProject(rootProject, modulePath) ?: return@forEach
+        moduleProject.tasks.matching { it.name == "compileKotlin" }.configureEach { task ->
+            task.dependsOn(generateSourcesTask)
+        }
     }
 }
 
@@ -280,7 +357,12 @@ private fun Any?.asStringList(): List<String> =
 private fun String.toNormalizedPath(): Path =
     Path.of(this).toAbsolutePath().normalize()
 
-internal fun buildSourceRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner {
+internal fun buildSourceRunner(
+    project: Project,
+    config: ProjectConfig,
+    exportEnabled: Boolean,
+    generatedSourcesOnly: Boolean = false,
+): PipelineRunner {
     return DefaultPipelineRunner(
         sources = listOf(
             DbSchemaSourceProvider(),
@@ -308,7 +390,14 @@ internal fun buildSourceRunner(project: Project, config: ProjectConfig, exportEn
             )
         ),
         exporter = if (exportEnabled) {
-            FilesystemArtifactExporter(project.projectDir.toPath())
+            val filesystemExporter = FilesystemArtifactExporter(project.projectDir.toPath())
+            if (generatedSourcesOnly) {
+                FilteringArtifactExporter(filesystemExporter) { artifact ->
+                    artifact.outputKind == ArtifactOutputKind.GENERATED_SOURCE
+                }
+            } else {
+                filesystemExporter
+            }
         } else {
             NoopArtifactExporter()
         },
@@ -338,6 +427,9 @@ internal fun buildAnalysisRunner(project: Project, config: ProjectConfig, export
         },
     )
 }
+
+internal fun buildGeneratedSourceRunner(project: Project, config: ProjectConfig): PipelineRunner =
+    buildSourceRunner(project, config, exportEnabled = true, generatedSourcesOnly = true)
 
 internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner =
     buildSourceRunner(project, config, exportEnabled)

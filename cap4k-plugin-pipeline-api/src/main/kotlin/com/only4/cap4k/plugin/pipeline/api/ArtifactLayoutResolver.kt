@@ -87,8 +87,20 @@ class ArtifactLayoutResolver(
 
     fun kotlinSourcePath(moduleRoot: String, packageName: String, typeName: String): String =
         joinPath(
-            moduleRoot,
-            "src/main/kotlin",
+            kotlinSourceRoot(moduleRoot),
+            packageName.replace('.', '/'),
+            "$typeName.kt",
+        )
+
+    fun kotlinSourceRoot(moduleRoot: String): String =
+        joinPath(moduleRoot, "src/main/kotlin")
+
+    fun generatedKotlinSourceRoot(moduleRoot: String): String =
+        joinPath(moduleRoot, "build/generated/cap4k/main/kotlin")
+
+    fun generatedKotlinSourcePath(moduleRoot: String, packageName: String, typeName: String): String =
+        joinPath(
+            generatedKotlinSourceRoot(moduleRoot),
             packageName.replace('.', '/'),
             "$typeName.kt",
         )

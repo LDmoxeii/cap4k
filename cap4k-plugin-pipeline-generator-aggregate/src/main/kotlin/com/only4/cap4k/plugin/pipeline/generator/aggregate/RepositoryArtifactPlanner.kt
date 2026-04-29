@@ -8,7 +8,6 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
 internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        val adapterRoot = requireRelativeModule(config, "adapter")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val entitiesByName = model.entities
             .groupBy { it.name }
@@ -19,11 +18,13 @@ internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 entityName = repository.entityName,
                 entities = entitiesByName[repository.entityName].orEmpty(),
             )
-            ArtifactPlanItem(
-                generatorId = "aggregate",
+            generatedKotlinArtifact(
+                config = config,
+                artifactLayout = artifactLayout,
                 moduleRole = "adapter",
                 templateId = "aggregate/repository.kt.peb",
-                outputPath = artifactLayout.kotlinSourcePath(adapterRoot, repository.packageName, repository.name),
+                packageName = repository.packageName,
+                typeName = repository.name,
                 context = mapOf(
                     "packageName" to repository.packageName,
                     "typeName" to repository.name,
@@ -33,7 +34,6 @@ internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "idType" to repository.idType,
                     "supportQuerydsl" to false,
                 ),
-                conflictPolicy = config.templates.conflictPolicy,
             )
         }
     }

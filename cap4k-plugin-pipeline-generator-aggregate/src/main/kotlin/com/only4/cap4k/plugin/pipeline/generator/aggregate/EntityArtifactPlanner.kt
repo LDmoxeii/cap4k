@@ -8,7 +8,6 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
 internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        val domainRoot = requireRelativeModule(config, "domain")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry)
 
@@ -101,7 +100,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "name" to field.name,
                             "type" to fieldType,
                             "nullable" to field.nullable,
-                            "defaultValue" to field.defaultValue,
+                            "defaultValue" to kotlinConstructorDefaultValue(field.defaultValue, fieldType),
                             "typeBinding" to field.typeBinding,
                             "enumItems" to field.enumItems,
                             "columnName" to jpa.columnName,
@@ -126,11 +125,13 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         )
                     }
                 }
-            ArtifactPlanItem(
-                generatorId = "aggregate",
+            generatedKotlinArtifact(
+                config = config,
+                artifactLayout = artifactLayout,
                 moduleRole = "domain",
                 templateId = "aggregate/entity.kt.peb",
-                outputPath = artifactLayout.kotlinSourcePath(domainRoot, entity.packageName, entity.name),
+                packageName = entity.packageName,
+                typeName = entity.name,
                 context = mapOf(
                     "packageName" to entity.packageName,
                     "typeName" to entity.name,
@@ -157,7 +158,6 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "scalarFields" to scalarFields,
                     "relationFields" to relationPlan.relationFields,
                 ),
-                conflictPolicy = config.templates.conflictPolicy,
             )
         }
     }
@@ -172,5 +172,81 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             "update \"$tableName\" set \"$softDeleteColumn\" = 1 where \"$idColumnName\" = ? and \"$versionColumnName\" = ?"
         } else {
             "update \"$tableName\" set \"$softDeleteColumn\" = 1 where \"$idColumnName\" = ?"
+        }
+
+    private fun kotlinConstructorDefaultValue(rawDefaultValue: String?, fieldType: String): String? {
+        val normalized = rawDefaultValue?.trim()?.trimSurroundingParentheses()?.trim() ?: return null
+        val shortType = fieldType.substringAfterLast('.').removeSuffix("?")
+        return when (shortType) {
+            "Boolean" -> when {
+                normalized.equals("true", ignoreCase = true) || normalized == "1" -> "true"
+                normalized.equals("false", ignoreCase = true) || normalized == "0" -> "false"
+                else -> null
+            }
+            "String" -> normalized.unquoteSqlString()?.let { quoteKotlinString(it) }
+            "Byte",
+            "Short",
+            "Int",
+            "Long",
+            -> normalized.takeIf { it.matches(Regex("""[-+]?\d+""")) }
+            "Float" -> normalizedFloatingLiteral(normalized, suffix = "f")
+            "Double" -> normalizedFloatingLiteral(normalized)
+            else -> null
+        }
+    }
+
+    private fun normalizedFloatingLiteral(rawValue: String, suffix: String? = null): String? {
+        val value = if (suffix != null && rawValue.endsWith(suffix, ignoreCase = true)) {
+            rawValue.dropLast(suffix.length)
+        } else {
+            rawValue
+        }
+        if (!value.matches(Regex("""[-+]?(\d+(\.\d*)?|\.\d+)"""))) {
+            return null
+        }
+        val sign = value.takeIf { it.startsWith("-") || it.startsWith("+") }?.take(1).orEmpty()
+        val unsigned = value.removePrefix("-").removePrefix("+")
+        val withLeadingDigit = if (unsigned.startsWith(".")) {
+            "0$unsigned"
+        } else {
+            unsigned
+        }
+        val normalized = if (withLeadingDigit.endsWith(".")) {
+            "${withLeadingDigit}0"
+        } else {
+            withLeadingDigit
+        }
+        return sign + normalized + (suffix ?: "")
+    }
+
+    private fun String.trimSurroundingParentheses(): String {
+        var value = this
+        while (value.length >= 2 && value.first() == '(' && value.last() == ')') {
+            value = value.substring(1, value.lastIndex).trim()
+        }
+        return value
+    }
+
+    private fun String.unquoteSqlString(): String? =
+        when {
+            length >= 2 && first() == '\'' && last() == '\'' -> substring(1, lastIndex).replace("''", "'")
+            length >= 2 && first() == '"' && last() == '"' -> substring(1, lastIndex).replace("\"\"", "\"")
+            else -> null
+        }
+
+    private fun quoteKotlinString(value: String): String =
+        buildString {
+            append('"')
+            value.forEach { char ->
+                when (char) {
+                    '\\' -> append("\\\\")
+                    '"' -> append("\\\"")
+                    '\n' -> append("\\n")
+                    '\r' -> append("\\r")
+                    '\t' -> append("\\t")
+                    else -> append(char)
+                }
+            }
+            append('"')
         }
 }

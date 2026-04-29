@@ -8,6 +8,50 @@ import org.junit.jupiter.api.Test
 class PipelineModelsTest {
 
     @Test
+    fun `artifact plan item defaults to checked in source ownership`() {
+        val item = ArtifactPlanItem(
+            generatorId = "aggregate",
+            moduleRole = "domain",
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/Category.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, item.outputKind)
+        assertEquals("", item.resolvedOutputRoot)
+    }
+
+    @Test
+    fun `artifact plan item can carry generated source ownership`() {
+        val item = ArtifactPlanItem(
+            generatorId = "aggregate",
+            moduleRole = "domain",
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/Category.kt",
+            conflictPolicy = ConflictPolicy.OVERWRITE,
+            outputKind = ArtifactOutputKind.GENERATED_SOURCE,
+            resolvedOutputRoot = "demo-domain/build/generated/cap4k/main/kotlin",
+        )
+
+        assertEquals(ArtifactOutputKind.GENERATED_SOURCE, item.outputKind)
+        assertEquals("demo-domain/build/generated/cap4k/main/kotlin", item.resolvedOutputRoot)
+    }
+
+    @Test
+    fun `rendered artifact can carry output ownership`() {
+        val artifact = RenderedArtifact(
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/Category.kt",
+            content = "class Category",
+            conflictPolicy = ConflictPolicy.SKIP,
+            outputKind = ArtifactOutputKind.GENERATED_SOURCE,
+            resolvedOutputRoot = "demo-domain/build/generated/cap4k/main/kotlin",
+        )
+
+        assertEquals(ArtifactOutputKind.GENERATED_SOURCE, artifact.outputKind)
+        assertEquals("demo-domain/build/generated/cap4k/main/kotlin", artifact.resolvedOutputRoot)
+    }
+
+    @Test
     fun `canonical model stores commands queries api payloads and clients separately`() {
         val model = CanonicalModel(
             commands = listOf(

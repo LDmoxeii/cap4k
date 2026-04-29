@@ -1,8 +1,10 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
+import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.gradle.FunctionalFixtureSupport.copyCompileFixture
 import com.only4.cap4k.plugin.pipeline.gradle.FunctionalFixtureSupport.copyFixture
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -1138,14 +1140,23 @@ class PipelinePluginFunctionalTest {
         val wrapperFile = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/AggVideoPost.kt"
         )
+        val behaviorFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt"
+        )
         val uniqueQueryFile = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt"
+            generatedSource(
+                "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt"
+            )
         )
         val uniqueQueryHandlerFile = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt"
+            generatedSource(
+                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt"
+            )
         )
         val uniqueValidatorFile = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostSlug.kt"
+            generatedSource(
+                "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostSlug.kt"
+            )
         )
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
@@ -1153,24 +1164,25 @@ class PipelinePluginFunctionalTest {
         assertTrue(
             File(
                 projectDir.toFile(),
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt"
+                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt")
             ).exists()
         )
         assertTrue(
             File(
                 projectDir.toFile(),
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
             ).exists()
         )
         assertTrue(
             File(
                 projectDir.toFile(),
-                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt"
+                generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt")
             ).exists()
         )
         assertTrue(factoryFile.toFile().exists())
         assertTrue(specificationFile.toFile().exists())
         assertTrue(wrapperFile.toFile().exists())
+        assertTrue(behaviorFile.toFile().exists())
         assertTrue(uniqueQueryFile.toFile().exists())
         assertTrue(uniqueQueryHandlerFile.toFile().exists())
         assertTrue(uniqueValidatorFile.toFile().exists())
@@ -1197,6 +1209,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(specificationContent.contains("return Result.pass()"))
         assertTrue(wrapperContent.contains("import com.acme.demo.domain.aggregates.video_post.factory.VideoPostFactory"))
         assertTrue(wrapperContent.contains("class AggVideoPost("))
+        assertTrue(behaviorFile.readText().contains("Place behavior for VideoPost and its owned entities here."))
         assertTrue(wrapperContent.contains("payload: VideoPostFactory.Payload? = null"))
         assertTrue(wrapperContent.contains(") : Aggregate.Default<VideoPost>(payload)"))
         assertTrue(wrapperContent.contains("val id by lazy { root.id }"))
@@ -1231,6 +1244,25 @@ class PipelinePluginFunctionalTest {
                 "import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry"
             )
         )
+        val planContent = planFile.readText()
+        assertPlanItemMetadata(
+            planContent = planContent,
+            templateId = "aggregate/entity.kt.peb",
+            outputPathSuffix = generatedSource(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+            ),
+            outputKind = "GENERATED_SOURCE",
+            resolvedOutputRoot = "demo-domain/build/generated/cap4k/main/kotlin",
+            conflictPolicy = "OVERWRITE",
+        )
+        assertPlanItemMetadata(
+            planContent = planContent,
+            templateId = "aggregate/behavior.kt.peb",
+            outputPathSuffix = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt",
+            outputKind = "CHECKED_IN_SOURCE",
+            resolvedOutputRoot = "demo-domain/src/main/kotlin",
+            conflictPolicy = "SKIP",
+        )
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1247,13 +1279,14 @@ class PipelinePluginFunctionalTest {
 
         val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
         val schemaFile = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt"
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt")
         )
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planContent.contains("\"templateId\": \"aggregate/entity.kt.peb\""))
         assertTrue(planContent.contains("\"templateId\": \"aggregate/schema.kt.peb\""))
         assertTrue(planContent.contains("\"templateId\": \"aggregate/repository.kt.peb\""))
+        assertTrue(planContent.contains("\"templateId\": \"aggregate/behavior.kt.peb\""))
         assertFalse(planContent.contains("\"templateId\": \"aggregate/factory.kt.peb\""))
         assertFalse(planContent.contains("\"templateId\": \"aggregate/specification.kt.peb\""))
         assertFalse(planContent.contains("\"templateId\": \"aggregate/wrapper.kt.peb\""))
@@ -1264,13 +1297,18 @@ class PipelinePluginFunctionalTest {
         assertFalse(planContent.contains("\"templateId\": \"aggregate/schema_base.kt.peb\""))
         assertTrue(
             projectDir.resolve(
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
             ).toFile().exists()
         )
         assertTrue(schemaFile.toFile().exists())
         assertTrue(
             projectDir.resolve(
-                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt"
+                generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt")
+            ).toFile().exists()
+        )
+        assertTrue(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt"
             ).toFile().exists()
         )
         assertFalse(
@@ -1290,7 +1328,9 @@ class PipelinePluginFunctionalTest {
         )
         assertFalse(
             projectDir.resolve(
-                "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt"
+                generatedSource(
+                    "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt"
+                )
             ).toFile().exists()
         )
         assertFalse(
@@ -1306,6 +1346,62 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kGenerateSources writes only generated source and cap4kGenerate preserves behavior scaffold`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-generated-sources")
+        copyFixture(projectDir, "aggregate-minimal-sample")
+
+        val generatedEntityFile = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
+        )
+        val generatedSchemaFile = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt")
+        )
+        val generatedRepositoryFile = projectDir.resolve(
+            generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt")
+        )
+        val behaviorFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt"
+        )
+
+        val generateSourcesResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerateSources")
+            .build()
+
+        assertTrue(generateSourcesResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedEntityFile.toFile().exists())
+        assertTrue(generatedSchemaFile.toFile().exists())
+        assertTrue(generatedRepositoryFile.toFile().exists())
+        assertFalse(behaviorFile.toFile().exists())
+
+        generatedEntityFile.writeText("sentinel")
+
+        val secondGenerateSourcesResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerateSources")
+            .build()
+
+        assertTrue(secondGenerateSourcesResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedEntityFile.readText().contains("class VideoPost("))
+        assertFalse(generatedEntityFile.readText().contains("sentinel"))
+        assertFalse(behaviorFile.toFile().exists())
+
+        val generateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
+
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(behaviorFile.toFile().exists())
+        behaviorFile.writeText("sentinel behavior")
+
+        val secondGenerateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
+
+        assertTrue(secondGenerateResult.output.contains("BUILD SUCCESSFUL"))
+        assertEquals("sentinel behavior", behaviorFile.readText())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kGenerate emits representative aggregate relation artifacts`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-relation")
         copyFixture(projectDir, "aggregate-relation-sample")
@@ -1315,10 +1411,10 @@ class PipelinePluginFunctionalTest {
             .build()
 
         val rootEntityFile = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
         )
         val childEntityFile = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt"
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt")
         )
         val rootEntityContent = rootEntityFile.readText()
         val childEntityContent = childEntityFile.readText()
@@ -1326,6 +1422,11 @@ class PipelinePluginFunctionalTest {
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(rootEntityFile.toFile().exists())
         assertTrue(childEntityFile.toFile().exists())
+        assertFalse(
+            projectDir.resolve("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
+                .toFile()
+                .exists()
+        )
         assertTrue(rootEntityContent.contains("title: String"))
         assertTrue(rootEntityContent.contains("class VideoPost("))
         assertFalse(rootEntityContent.contains("data class VideoPost("))
@@ -1336,7 +1437,7 @@ class PipelinePluginFunctionalTest {
             )
         )
         assertTrue(rootEntityContent.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
-        assertTrue(rootEntityContent.contains("var items: List<VideoPostItem> = emptyList()"))
+        assertTrue(rootEntityContent.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
         assertTrue(rootEntityContent.contains("@ManyToOne(fetch = FetchType.LAZY)"))
         assertTrue(rootEntityContent.contains("@JoinColumn(name = \"author_id\", nullable = false)"))
         assertTrue(rootEntityContent.contains("lateinit var author: UserProfile"))
@@ -1374,10 +1475,10 @@ class PipelinePluginFunctionalTest {
             .build()
 
         val rootEntityFile = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
         )
         val childEntityFile = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt"
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt")
         )
         val rootEntityContent = rootEntityFile.readText()
         val childEntityContent = childEntityFile.readText()
@@ -1391,9 +1492,9 @@ class PipelinePluginFunctionalTest {
             )
         )
         assertTrue(rootEntityContent.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
-        assertTrue(rootEntityContent.contains("var items: List<VideoPostItem> = emptyList()"))
+        assertTrue(rootEntityContent.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
         assertTrue(childEntityContent.contains("@Column(name = \"video_post_id\")"))
-        assertTrue(childEntityContent.contains("val videoPostId: Long"))
+        assertTrue(childEntityContent.contains("var videoPostId: Long = videoPostId"))
         assertTrue(childEntityContent.contains("@ManyToOne(fetch = FetchType.LAZY)"))
         assertTrue(
             childEntityContent.contains(
@@ -1422,7 +1523,7 @@ class PipelinePluginFunctionalTest {
             .build()
 
         val generatedEntity = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
         ).readText()
 
         assertTrue(domainBuildFile == "// Functional fixture module.")
@@ -1451,10 +1552,10 @@ class PipelinePluginFunctionalTest {
             .build()
 
         val generatedVideoPost = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
         ).readText()
         val generatedAuditLog = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/audit_log/AuditLog.kt"
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/audit_log/AuditLog.kt")
         ).readText()
 
         assertTrue(domainBuildFile == "// Functional fixture module.")
@@ -1504,10 +1605,10 @@ class PipelinePluginFunctionalTest {
             .withArguments("cap4kGenerate")
             .build()
         val generatedVideoPost = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
         ).readText()
         val generatedAuditLog = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/audit_log/AuditLog.kt"
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/audit_log/AuditLog.kt")
         ).readText()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
@@ -1549,13 +1650,19 @@ class PipelinePluginFunctionalTest {
 
         val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
         val compositeQueryFile = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostTenantIdSlugQry.kt"
+            generatedSource(
+                "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostTenantIdSlugQry.kt"
+            )
         )
         val compositeQueryHandlerFile = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostTenantIdSlugQryHandler.kt"
+            generatedSource(
+                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostTenantIdSlugQryHandler.kt"
+            )
         )
         val compositeValidatorFile = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostTenantIdSlug.kt"
+            generatedSource(
+                "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostTenantIdSlug.kt"
+            )
         )
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
@@ -1591,7 +1698,7 @@ class PipelinePluginFunctionalTest {
             .build()
         val planFile = projectDir.resolve("build/cap4k/plan.json")
         val generatedEntity = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
         ).readText()
 
         assertTrue(planResult.output.contains("BUILD SUCCESSFUL"))
@@ -1601,22 +1708,26 @@ class PipelinePluginFunctionalTest {
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/enum_translation.kt.peb\""))
         assertTrue(
             projectDir.resolve(
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt"
+                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt")
             ).toFile().exists()
         )
         assertTrue(
             projectDir.resolve(
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"
+                generatedSource(
+                    "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"
+                )
             ).toFile().exists()
         )
         assertTrue(
             projectDir.resolve(
-                "demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/shared/StatusTranslation.kt"
+                generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/shared/StatusTranslation.kt")
             ).toFile().exists()
         )
         assertTrue(
             projectDir.resolve(
-                "demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/video_post/VideoPostVisibilityTranslation.kt"
+                generatedSource(
+                    "demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/video_post/VideoPostVisibilityTranslation.kt"
+                )
             ).toFile().exists()
         )
         assertTrue(generatedEntity.contains("@Entity"))
@@ -1631,18 +1742,20 @@ class PipelinePluginFunctionalTest {
         )
         assertTrue(
             projectDir.resolve(
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt"
+                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt")
             ).readText().contains("@jakarta.persistence.Converter(autoApply = false)")
         )
         assertTrue(
             projectDir.resolve(
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"
+                generatedSource(
+                    "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"
+                )
             ).readText().contains("@jakarta.persistence.Converter(autoApply = false)")
         )
         assertFalse(generatedEntity.contains("@GeneratedValue"))
         assertFalse(generatedEntity.contains("@Version"))
         assertFalse(generatedEntity.contains("@DynamicInsert"))
-        assertTrue(generatedEntity.contains("val status: com.acme.demo.domain.shared.enums.Status"))
+        assertTrue(generatedEntity.contains("var status: com.acme.demo.domain.shared.enums.Status = status"))
         assertFalse(generatedEntity.contains("class Status("))
     }
 
@@ -1666,7 +1779,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(planJson.contains("\"reason\": \"composite_primary_key\""))
         assertTrue(
             projectDir.resolve(
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
             ).toFile().exists()
         )
     }
@@ -2767,22 +2880,26 @@ class PipelinePluginFunctionalTest {
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
 
         val repositoryFile = projectDir.generatedFile(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/UserMessageRepository.kt"
+            generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/UserMessageRepository.kt")
         )
         val entityFile = projectDir.generatedFile(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_message/UserMessage.kt"
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_message/UserMessage.kt")
         )
         val schemaBaseFile = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/Schema.kt"
         )
         val schemaFile = projectDir.generatedFile(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/user_message/SUserMessage.kt"
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/user_message/SUserMessage.kt")
         )
         val uniqueValidatorFile = projectDir.generatedFile(
-            "demo-application/src/main/kotlin/com/acme/demo/application/validators/user_message/unique/UniqueUserMessageMessageKey.kt"
+            generatedSource(
+                "demo-application/src/main/kotlin/com/acme/demo/application/validators/user_message/unique/UniqueUserMessageMessageKey.kt"
+            )
         )
         val uniqueHandlerFile = projectDir.generatedFile(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/user_message/unique/UniqueUserMessageMessageKeyQryHandler.kt"
+            generatedSource(
+                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/user_message/unique/UniqueUserMessageMessageKeyQryHandler.kt"
+            )
         )
         val queryFile = projectDir.generatedFile(
             "demo-application/src/main/kotlin/com/acme/demo/application/queries/message/read/FindUserMessageQry.kt"
@@ -2828,7 +2945,7 @@ class PipelinePluginFunctionalTest {
         assertFalse(schemaBaseFile.toFile().exists(), "Schema runtime must be provided by the framework module.")
 
         val entityContent = entityFile.readText()
-        assertTrue(entityContent.contains("val messageKey: String"))
+        assertTrue(entityContent.contains("var messageKey: String = messageKey"))
         assertTrue(entityContent.contains("@Column(name = \"message_key\")"))
         assertFalse(entityContent.contains("val message_key"))
 
@@ -2937,6 +3054,31 @@ class PipelinePluginFunctionalTest {
         assertTrue(file.toFile().exists(), "Expected generated file to exist: $relativePath")
         return file
     }
+
+    private fun assertPlanItemMetadata(
+        planContent: String,
+        templateId: String,
+        outputPathSuffix: String,
+        outputKind: String,
+        resolvedOutputRoot: String,
+        conflictPolicy: String,
+    ) {
+        val item = JsonParser.parseString(planContent)
+            .asJsonObject
+            .getAsJsonArray("items")
+            .map { it.asJsonObject }
+            .single {
+                it.get("templateId").asString == templateId &&
+                    it.get("outputPath").asString.endsWith(outputPathSuffix)
+            }
+
+        assertEquals(outputKind, item.get("outputKind").asString)
+        assertEquals(resolvedOutputRoot, item.get("resolvedOutputRoot").asString)
+        assertEquals(conflictPolicy, item.get("conflictPolicy").asString)
+    }
+
+    private fun generatedSource(relativePath: String): String =
+        relativePath.replace("/src/main/kotlin/", "/build/generated/cap4k/main/kotlin/")
 
     private fun assertNoFormattingRegression(file: Path) {
         val content = file.readText()

@@ -207,34 +207,39 @@ The contract-first query contract and ddd-core nullability contract stabilizatio
 
 The validator projection and generation normalization slice is complete.
 
-The next explicit framework slice is:
+The most recent explicit framework slice is:
 
 - generated source output and entity behavior split
 
 Status:
 
-- spec written
-- implementation plan not written
-- implementation not started
+- spec updated
+- implementation plan written
+- implementation complete
+- verified through targeted pipeline API/core/aggregate/renderer tests and Gradle plugin unit, functional, and compile-functional tests
+- reviewed with required subagent boundary and code-quality passes
 
 Scope:
 
-- review the dedicated spec before implementation planning
-- first define the generated-source output contract and source-set integration
-- then define the aggregate entity template contract needed before entities can safely move to generated sources
-- do not implement this as a simple exporter-root switch
+- generated-source output contract and module-local source-set integration are implemented
+- aggregate entity files now use build-generated output together with the behavior-safe template contract
+- aggregate behavior scaffolds remain checked-in source with skip semantics
+- implementation avoided a simple exporter-root switch
 
 Reference:
 
 - [generated source output and entity behavior split design](specs/2026-04-28-cap4k-generated-source-output-and-entity-behavior-split-design.md)
+- [generated source output and entity behavior split implementation plan](plans/2026-04-29-cap4k-generated-source-output-and-entity-behavior-split.md)
 
 Non-goals:
 
 - do not implement this as a simple exporter-root switch
 - do not move user-owned handlers, validator bodies, subscribers, controllers, or behavior files into generated sources
-- do not change aggregate entity mutability or behavior-file contracts before the dedicated template contract is defined
+- do not further change aggregate entity mutability or behavior-file contracts beyond the behavior-safe template contract defined in this slice
 - do not silently mix this with broad irAnalysis restructuring or real-project integration work
 - do not touch legacy `cap4k-plugin-codegen`
+
+No new default mainline implementation slice has been selected yet; remaining candidates are tracked in the backlog below.
 
 ## Bootstrap Decision
 
@@ -280,11 +285,10 @@ Plan freshness rule:
 - Write the implementation plan only after that review, so the plan is timely and executable.
 - The validator projection and generation normalization track was the exception because a combined plan was explicitly requested before execution.
 
-Recommended order from the current mainline handoff:
+Remaining recommended order from the current mainline handoff:
 
-1. generated source output and entity behavior split
-2. irAnalysis restructuring analysis
-3. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
+1. irAnalysis restructuring analysis
+2. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
 
 The completed validator projection item was a combined implementation track over:
 
@@ -292,11 +296,12 @@ The completed validator projection item was a combined implementation track over
 - validator generation capability expansion
 - the irAnalysis current-state analysis constraints
 
-Recently completed cleanup slices:
+Recently completed mainline slices:
 
 - contract-first query contract
 - ddd-core nullability contract stabilization
 - validator projection and generation normalization
+- generated source output and entity behavior split
 
 ### Completed: Contract-first query contract
 
@@ -380,7 +385,7 @@ Notes:
 - `validator` should be projected only for supported structural validator contracts
 - concrete request-type validators are treated as migration defects, not as a new pipeline contract
 - this should still be smaller than a full irAnalysis restructuring
-- generated `drawing_board_*.json` should be usable as stable input for `cap4kGenerate`
+- generated `drawing_board_*.json` is intended as generate-ready design input for supported projections; PAGE query and `api_payload` round-trip completeness still has a known analysis projection gap
 - do not add a normalization layer just to compensate for analysis output gaps
 - should be implemented in the same plan as validator generation capability expansion because both share the validator design model
 
@@ -420,28 +425,28 @@ Notes:
 
 Status:
 
-- candidate generator-architecture work
-- spec written
-- implementation plan not written
-- implementation not started
+- implementation complete
+- spec updated
+- implementation plan written
+- implementation complete
+- verified through targeted pipeline API/core/aggregate/renderer tests and Gradle plugin unit, functional, and compile-functional tests
+- reviewed with required subagent boundary and code-quality passes
 
 Next action:
 
-- review the dedicated spec before implementation planning
-- first define the generated-source output contract and source-set integration
-- then define the aggregate entity template contract needed before entities can safely move to generated sources
-- do not implement this as a simple exporter-root switch
+- no direct follow-up; keep broader irAnalysis restructuring and repository backend work deferred
 
 Reference:
 
 - [generated source output and entity behavior split design](specs/2026-04-28-cap4k-generated-source-output-and-entity-behavior-split-design.md)
+- [generated source output and entity behavior split implementation plan](plans/2026-04-29-cap4k-generated-source-output-and-entity-behavior-split.md)
 
 Notes:
 
 - some generated artifacts are pure derived code and should not necessarily live under checked-in `src/main/kotlin`
-- candidate generated-source artifacts include schema `S*` classes, standard repositories, generated enums, enum translations, converters, aggregate unique queries, aggregate unique query handlers, aggregate unique validators, and eventually pure entity mapping classes
+- generated-source artifacts now include aggregate entity files, schema `S*` classes, standard repositories, generated enums, enum translations, converters, aggregate unique queries, aggregate unique query handlers, and aggregate unique validators
 - user-owned artifacts such as handlers, validator bodies, subscribers, controllers, and behavior files should stay checked in
-- moving entity files to generated sources requires first restoring the old plugin's mutable entity shape
+- entity files moved to generated sources after restoring the old plugin's mutable entity shape
 - entity templates should generate regular `class` declarations, not `data class`
 - constructor parameters should initialize body fields rather than becoming immutable primary-constructor properties
 - scalar fields should use `var field = field` with bounded setters such as `internal set`

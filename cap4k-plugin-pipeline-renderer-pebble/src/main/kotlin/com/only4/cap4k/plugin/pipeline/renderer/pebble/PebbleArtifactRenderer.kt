@@ -43,7 +43,9 @@ class PebbleArtifactRenderer(
             return RenderedArtifact(
                 outputPath = item.outputPath,
                 content = sanitizeRenderedContent(item.outputPath, writer.toString()),
-                conflictPolicy = item.conflictPolicy
+                conflictPolicy = item.conflictPolicy,
+                outputKind = item.outputKind,
+                resolvedOutputRoot = item.resolvedOutputRoot,
             )
         } finally {
             sessionState.remove()

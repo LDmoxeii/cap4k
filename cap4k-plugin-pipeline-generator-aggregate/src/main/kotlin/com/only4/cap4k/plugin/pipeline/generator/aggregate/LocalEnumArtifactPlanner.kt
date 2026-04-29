@@ -10,7 +10,6 @@ internal class LocalEnumArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry)
-        val domainRoot = requireRelativeModule(config, "domain")
         val candidates = linkedMapOf<LocalEnumCandidateKey, LocalEnumCandidate>()
         model.entities.forEach { entity ->
             entity.fields.forEach { field ->
@@ -26,11 +25,13 @@ internal class LocalEnumArtifactPlanner : AggregateArtifactFamilyPlanner {
             val packageName = enumTypeFqn.substringBeforeLast('.', missingDelimiterValue = "")
             val typeName = enumTypeFqn.substringAfterLast('.')
 
-            ArtifactPlanItem(
-                generatorId = "aggregate",
+            generatedKotlinArtifact(
+                config = config,
+                artifactLayout = artifactLayout,
                 moduleRole = "domain",
                 templateId = "aggregate/enum.kt.peb",
-                outputPath = artifactLayout.kotlinSourcePath(domainRoot, packageName, typeName),
+                packageName = packageName,
+                typeName = typeName,
                 context = mapOf(
                     "packageName" to packageName,
                     "typeName" to typeName,
@@ -42,7 +43,6 @@ internal class LocalEnumArtifactPlanner : AggregateArtifactFamilyPlanner {
                         )
                     },
                 ),
-                conflictPolicy = config.templates.conflictPolicy,
             )
         }
     }

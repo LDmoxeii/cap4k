@@ -12,17 +12,18 @@ internal class UniqueQueryArtifactPlanner : AggregateArtifactFamilyPlanner {
         }.filter { (_, selections) -> selections.isNotEmpty() }
         if (plannedSelections.isEmpty()) return emptyList()
 
-        val applicationRoot = requireRelativeModule(config, "application")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         return plannedSelections.flatMap { (entity, selections) ->
             val packageKey = aggregatePackageKey(config, entity.packageName)
             val packageName = artifactLayout.aggregateUniqueQueryPackage(packageKey)
             selections.map { selection ->
-                ArtifactPlanItem(
-                    generatorId = "aggregate",
+                generatedKotlinArtifact(
+                    config = config,
+                    artifactLayout = artifactLayout,
                     moduleRole = "application",
                     templateId = "aggregate/unique_query.kt.peb",
-                    outputPath = artifactLayout.kotlinSourcePath(applicationRoot, packageName, selection.queryTypeName),
+                    packageName = packageName,
+                    typeName = selection.queryTypeName,
                     context = mapOf(
                         "packageName" to packageName,
                         "typeName" to selection.queryTypeName,
@@ -31,7 +32,6 @@ internal class UniqueQueryArtifactPlanner : AggregateArtifactFamilyPlanner {
                         "idType" to selection.idType,
                         "excludeIdParamName" to selection.excludeIdParamName,
                     ),
-                    conflictPolicy = config.templates.conflictPolicy,
                 )
             }
         }

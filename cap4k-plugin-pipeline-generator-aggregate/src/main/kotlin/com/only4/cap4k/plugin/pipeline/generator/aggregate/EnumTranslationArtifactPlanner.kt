@@ -10,7 +10,6 @@ internal class EnumTranslationArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry)
-        val adapterRoot = requireRelativeModule(config, "adapter")
         val sharedTranslations = model.sharedEnums
             .filter { it.generateTranslation }
             .map { shared ->
@@ -52,15 +51,13 @@ internal class EnumTranslationArtifactPlanner : AggregateArtifactFamilyPlanner {
             val typeKey = translationTypeKey(translation.ownerScope, translation.enumTypeName)
             val translationTypeConst = "${typeKey.uppercase()}_CODE_TO_DESC"
             val translationTypeValue = "${typeKey}_code_to_desc"
-            ArtifactPlanItem(
-                generatorId = "aggregate",
+            generatedKotlinArtifact(
+                config = config,
+                artifactLayout = artifactLayout,
                 moduleRole = "adapter",
                 templateId = "aggregate/enum_translation.kt.peb",
-                outputPath = artifactLayout.kotlinSourcePath(
-                    adapterRoot,
-                    translation.packageName,
-                    "${translation.enumTypeName}Translation",
-                ),
+                packageName = translation.packageName,
+                typeName = "${translation.enumTypeName}Translation",
                 context = mapOf(
                     "packageName" to translation.packageName,
                     "typeName" to "${translation.enumTypeName}Translation",
@@ -69,7 +66,6 @@ internal class EnumTranslationArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "translationTypeConst" to translationTypeConst,
                     "translationTypeValue" to translationTypeValue,
                 ),
-                conflictPolicy = config.templates.conflictPolicy,
             )
         }
     }

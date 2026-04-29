@@ -9,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
+import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
@@ -90,6 +91,147 @@ class AggregateArtifactPlannerTest {
         assertFalse(plan.any { it.templateId == "aggregate/unique_query_handler.kt.peb" })
         assertFalse(plan.any { it.templateId == "aggregate/unique_validator.kt.peb" })
         assertFalse(plan.any { it.templateId == "aggregate/enum_translation.kt.peb" })
+    }
+
+    @Test
+    fun `aggregate planner classifies pure derived families as generated source`() {
+        val enumItems = listOf(
+            EnumItemModel(value = 1, name = "PUBLIC", description = "public"),
+            EnumItemModel(value = 2, name = "PRIVATE", description = "private"),
+        )
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("slug", "String", columnName = "slug"),
+                FieldModel("visibility", "Int", typeBinding = "VideoPostVisibility", enumItems = enumItems, columnName = "visibility"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            uniqueConstraints = listOf(listOf("slug")),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                schemas = listOf(
+                    SchemaModel(
+                        name = "SVideoPost",
+                        packageName = "com.acme.demo.domain._share.meta.video_post",
+                        entityName = "VideoPost",
+                        comment = "video post",
+                        fields = entity.fields,
+                    )
+                ),
+                repositories = listOf(
+                    RepositoryModel(
+                        name = "VideoPostRepository",
+                        packageName = "com.acme.demo.adapter.domain.repositories",
+                        entityName = "VideoPost",
+                        idType = "Long",
+                    )
+                ),
+                sharedEnums = listOf(
+                    SharedEnumDefinition(
+                        typeName = "SharedStatus",
+                        packageName = "shared",
+                        generateTranslation = true,
+                        items = enumItems,
+                    )
+                ),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            )
+        )
+
+        val generatedItems = listOf(
+            plan.single { it.templateId == "aggregate/entity.kt.peb" },
+            plan.single { it.templateId == "aggregate/schema.kt.peb" },
+            plan.single { it.templateId == "aggregate/repository.kt.peb" },
+            plan.single { it.templateId == "aggregate/unique_query.kt.peb" },
+            plan.single { it.templateId == "aggregate/unique_query_handler.kt.peb" },
+            plan.single { it.templateId == "aggregate/unique_validator.kt.peb" },
+            plan.single { it.templateId == "aggregate/enum_translation.kt.peb" && it.context["typeName"] == "SharedStatusTranslation" },
+            plan.single { it.templateId == "aggregate/enum_translation.kt.peb" && it.context["typeName"] == "VideoPostVisibilityTranslation" },
+            plan.single { it.templateId == "aggregate/enum.kt.peb" && it.context["typeName"] == "SharedStatus" },
+            plan.single { it.templateId == "aggregate/enum.kt.peb" && it.context["typeName"] == "VideoPostVisibility" },
+        )
+
+        generatedItems.forEach { item ->
+            assertEquals(ArtifactOutputKind.GENERATED_SOURCE, item.outputKind, item.templateId)
+            assertEquals(ConflictPolicy.OVERWRITE, item.conflictPolicy, item.templateId)
+            assertTrue(item.outputPath.contains("/build/generated/cap4k/main/kotlin/"), item.outputPath)
+            assertTrue(item.resolvedOutputRoot.endsWith("build/generated/cap4k/main/kotlin"), item.resolvedOutputRoot)
+        }
+        assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, plan.single { it.templateId == "aggregate/factory.kt.peb" }.outputKind)
+        assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, plan.single { it.templateId == "aggregate/specification.kt.peb" }.outputKind)
+        assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, plan.single { it.templateId == "aggregate/wrapper.kt.peb" }.outputKind)
+    }
+
+    @Test
+    fun `aggregate planner emits checked in behavior scaffold per aggregate root only`() {
+        val root = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            aggregateRoot = true,
+        )
+        val child = EntityModel(
+            name = "VideoFile",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_file",
+            comment = "video file",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            aggregateRoot = false,
+            parentEntityName = "VideoPost",
+        )
+
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(root, child),
+                schemas = listOf(
+                    SchemaModel(
+                        name = "SVideoPost",
+                        packageName = "com.acme.demo.domain._share.meta.video_post",
+                        entityName = "VideoPost",
+                        comment = "video post",
+                        fields = root.fields,
+                    ),
+                    SchemaModel(
+                        name = "SVideoFile",
+                        packageName = "com.acme.demo.domain._share.meta.video_post",
+                        entityName = "VideoFile",
+                        comment = "video file",
+                        fields = child.fields,
+                    ),
+                ),
+                repositories = listOf(
+                    RepositoryModel(
+                        name = "VideoPostRepository",
+                        packageName = "com.acme.demo.adapter.domain.repositories",
+                        entityName = "VideoPost",
+                        idType = "Long",
+                    )
+                ),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(root), defaultAggregateEntityJpa(child)),
+            )
+        )
+
+        val behavior = plan.single { it.templateId == "aggregate/behavior.kt.peb" }
+
+        assertEquals("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt", behavior.outputPath)
+        assertEquals("demo-domain/src/main/kotlin", behavior.resolvedOutputRoot)
+        assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, behavior.outputKind)
+        assertEquals(ConflictPolicy.SKIP, behavior.conflictPolicy)
+        assertEquals("com.acme.demo.domain.aggregates.video_post", behavior.context["packageName"])
+        assertEquals("VideoPost", behavior.context["rootName"])
+        assertFalse(plan.any { it.outputPath.endsWith("VideoFileBehavior.kt") })
     }
 
     @Test
@@ -206,7 +348,7 @@ class AggregateArtifactPlannerTest {
 
         assertFalse(plan.any { it.templateId == "aggregate/schema_base.kt.peb" })
         assertEquals(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/model/user_message/UserMessage.kt",
+            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/model/user_message/UserMessage.kt",
             entityItem.outputPath,
         )
         assertEquals(
@@ -218,7 +360,7 @@ class AggregateArtifactPlannerTest {
             specification.outputPath,
         )
         assertEquals(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/persistence/repositories/UserMessageRepository.kt",
+            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/persistence/repositories/UserMessageRepository.kt",
             repositoryItem.outputPath,
         )
         assertEquals("com.only4.cap4k.ddd.domain.repo.schema", schemaItem.context["schemaRuntimePackage"])
@@ -231,15 +373,15 @@ class AggregateArtifactPlannerTest {
         )
         assertEquals("com.acme.demo.adapter.persistence.repositories", repositoryItem.context["packageName"])
         assertEquals(
-            "demo-application/src/main/kotlin/com/acme/demo/application/readmodels/user_message/unique/UniqueUserMessageTenantIdSlugQry.kt",
+            "demo-application/build/generated/cap4k/main/kotlin/com/acme/demo/application/readmodels/user_message/unique/UniqueUserMessageTenantIdSlugQry.kt",
             uniqueQuery.outputPath,
         )
         assertEquals(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/readmodels/user_message/unique/UniqueUserMessageTenantIdSlugQryHandler.kt",
+            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/readmodels/user_message/unique/UniqueUserMessageTenantIdSlugQryHandler.kt",
             uniqueQueryHandler.outputPath,
         )
         assertEquals(
-            "demo-application/src/main/kotlin/com/acme/demo/application/rules/user_message/unique/UniqueUserMessageTenantIdSlug.kt",
+            "demo-application/build/generated/cap4k/main/kotlin/com/acme/demo/application/rules/user_message/unique/UniqueUserMessageTenantIdSlug.kt",
             uniqueValidator.outputPath,
         )
         assertEquals("com.acme.demo.application.readmodels.user_message.unique", uniqueQuery.context["packageName"])
@@ -1006,6 +1148,42 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner normalizes database defaults into Kotlin constructor defaults`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("published", "Boolean", defaultValue = "FALSE"),
+                FieldModel("score", "Float", defaultValue = "0.5"),
+                FieldModel("sortWeight", "Float", defaultValue = "1."),
+                FieldModel("ratio", "Double", defaultValue = ".25"),
+                FieldModel("priority", "Long", defaultValue = "1.0"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            )
+        )
+
+        val entityArtifact = plan.single { it.outputPath.endsWith("/VideoPost.kt") }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityArtifact.context["scalarFields"] as List<Map<String, Any?>>
+
+        assertEquals("false", scalarFields.single { it["name"] == "published" }["defaultValue"])
+        assertEquals("0.5f", scalarFields.single { it["name"] == "score" }["defaultValue"])
+        assertEquals("1.0f", scalarFields.single { it["name"] == "sortWeight" }["defaultValue"])
+        assertEquals("0.25", scalarFields.single { it["name"] == "ratio" }["defaultValue"])
+        assertEquals(null, scalarFields.single { it["name"] == "priority" }["defaultValue"])
+    }
+
+    @Test
     fun `entity planner exposes provider specific persistence contract`() {
         val entity = EntityModel(
             name = "VideoPost",
@@ -1467,10 +1645,10 @@ class AggregateArtifactPlannerTest {
 
         val planItems = AggregateArtifactPlanner().plan(config, model)
 
-        assertEquals(6, planItems.size)
+        assertEquals(7, planItems.size)
         assertFalse(planItems.any { it.templateId == "aggregate/schema_base.kt.peb" })
         assertEquals(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt",
+            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt",
             planItems.first { it.templateId == "aggregate/schema.kt.peb" }.outputPath,
         )
         assertEquals(
@@ -1490,7 +1668,7 @@ class AggregateArtifactPlannerTest {
             planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context["schemaRuntimePackage"],
         )
         assertEquals(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
             planItems.first { it.templateId == "aggregate/entity.kt.peb" }.outputPath,
         )
         val entityContext = planItems.first { it.templateId == "aggregate/entity.kt.peb" }.context
@@ -1505,7 +1683,7 @@ class AggregateArtifactPlannerTest {
             entityContext["idField"],
         )
         assertEquals(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt",
+            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt",
             planItems.first { it.templateId == "aggregate/repository.kt.peb" }.outputPath,
         )
         val repositoryContext = planItems.first { it.templateId == "aggregate/repository.kt.peb" }.context
@@ -1608,10 +1786,10 @@ class AggregateArtifactPlannerTest {
         val planItems = AggregateArtifactPlanner().plan(aggregateConfig(), model)
 
         assertTrue(planItems.any {
-            it.outputPath == "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video/VideoFile.kt"
+            it.outputPath == "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/video/VideoFile.kt"
         })
         assertTrue(planItems.any {
-            it.outputPath == "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video/SVideoFile.kt"
+            it.outputPath == "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/_share/meta/video/SVideoFile.kt"
         })
         assertFalse(planItems.any { it.outputPath.endsWith("/VideoFileRepository.kt") })
         assertFalse(planItems.any { it.outputPath.endsWith("/VideoFileFactory.kt") })
@@ -1690,15 +1868,15 @@ class AggregateArtifactPlannerTest {
         val handler = planItems.single { it.context["typeName"] == "UniqueVideoFileVideoIdQryHandler" }
         val validator = planItems.single { it.context["typeName"] == "UniqueVideoFileVideoId" }
         assertEquals(
-            "demo-application/src/main/kotlin/com/acme/demo/application/queries/video/unique/UniqueVideoFileVideoIdQry.kt",
+            "demo-application/build/generated/cap4k/main/kotlin/com/acme/demo/application/queries/video/unique/UniqueVideoFileVideoIdQry.kt",
             query.outputPath,
         )
         assertEquals(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video/unique/UniqueVideoFileVideoIdQryHandler.kt",
+            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/queries/video/unique/UniqueVideoFileVideoIdQryHandler.kt",
             handler.outputPath,
         )
         assertEquals(
-            "demo-application/src/main/kotlin/com/acme/demo/application/validators/video/unique/UniqueVideoFileVideoId.kt",
+            "demo-application/build/generated/cap4k/main/kotlin/com/acme/demo/application/validators/video/unique/UniqueVideoFileVideoId.kt",
             validator.outputPath,
         )
         assertEquals(null, handler.context["repositoryTypeName"])
@@ -1776,15 +1954,15 @@ class AggregateArtifactPlannerTest {
         val validator = planItems.first { it.templateId == "aggregate/unique_validator.kt.peb" }
 
         assertEquals(
-            "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt",
+            "demo-application/build/generated/cap4k/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt",
             query.outputPath,
         )
         assertEquals(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt",
+            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt",
             handler.outputPath,
         )
         assertEquals(
-            "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostSlug.kt",
+            "demo-application/build/generated/cap4k/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostSlug.kt",
             validator.outputPath,
         )
 
@@ -2066,22 +2244,22 @@ class AggregateArtifactPlannerTest {
         val schemaFields = schemaPlan.context.getValue("fields") as List<Map<String, Any?>>
 
         assertEquals(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/catalog/shared/types/Status.kt",
+            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/catalog/shared/types/Status.kt",
             sharedEnum.outputPath,
         )
         assertEquals("com.acme.demo.domain.catalog.shared.types", sharedEnum.context["packageName"])
         assertEquals(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/model/video_post/enums/Visibility.kt",
+            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/model/video_post/enums/Visibility.kt",
             localEnum.outputPath,
         )
         assertEquals("com.acme.demo.domain.model.video_post.enums", localEnum.context["packageName"])
         assertEquals(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/enum_text/shared/StatusTranslation.kt",
+            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/enum_text/shared/StatusTranslation.kt",
             sharedTranslation.outputPath,
         )
         assertEquals("com.acme.demo.adapter.enum_text.shared", sharedTranslation.context["packageName"])
         assertEquals(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/enum_text/video_post/VisibilityTranslation.kt",
+            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/enum_text/video_post/VisibilityTranslation.kt",
             localTranslation.outputPath,
         )
         assertEquals("com.acme.demo.adapter.enum_text.video_post", localTranslation.context["packageName"])
@@ -2211,12 +2389,12 @@ class AggregateArtifactPlannerTest {
         val translationPlan = items.single { it.templateId == "aggregate/enum_translation.kt.peb" }
 
         assertEquals(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt",
+            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt",
             enumPlan.outputPath,
         )
         assertEquals("com.acme.demo.domain.shared.enums", enumPlan.context["packageName"])
         assertEquals(
-            "demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/shared/StatusTranslation.kt",
+            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/domain/translation/shared/StatusTranslation.kt",
             translationPlan.outputPath,
         )
         assertEquals("com.acme.demo.domain.translation.shared", translationPlan.context["packageName"])

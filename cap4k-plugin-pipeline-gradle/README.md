@@ -141,8 +141,12 @@ data class ArtifactPlanItem(
     val outputPath: String,     // 相对工程根的产物路径
     val context: Map<String, Any?>,
     val conflictPolicy: ConflictPolicy,
+    val outputKind: ArtifactOutputKind = ArtifactOutputKind.CHECKED_IN_SOURCE,
+    val resolvedOutputRoot: String = "",
 )
 ```
+
+`outputKind` 表达文件归属：`CHECKED_IN_SOURCE` 表示写入 `src/main/kotlin` 的一次性脚手架或普通源码，`GENERATED_SOURCE` 表示写入模块本地 `build/generated/cap4k/main/kotlin` 的可覆盖派生产物，`OUTPUT_ARTIFACT` 表示 JSON/report 等非源码产物。`resolvedOutputRoot` 让 `cap4kPlan` 能直接展示该 artifact 实际归属的输出根。
 
 ### 3.3 渲染契约（`cap4k-plugin-pipeline-renderer-api`）
 
@@ -596,6 +600,7 @@ cap4k {
 |--------|------|------|---------|
 | `cap4kPlan` | 规划**源码生成**计划（design / aggregate 家族） | `build/cap4k/plan.json`（含 `items` 与 `diagnostics`） | 否 |
 | `cap4kGenerate` | 执行**源码生成**流水线（design / aggregate 家族） | 生成到 `outputPath` 指向的位置 | 是 |
+| `cap4kGenerateSources` | 执行预编译 generated-source 子集 | 只写入 `outputKind=GENERATED_SOURCE` 的模块本地 `build/generated/cap4k/main/kotlin` | 是 |
 | `cap4kAnalysisPlan` | 规划**分析导出**计划（flow / drawing-board 家族） | `build/cap4k/analysis-plan.json`（含 `items` 与 `diagnostics`） | 否 |
 | `cap4kAnalysisGenerate` | 执行**分析导出**流水线（flow / drawing-board 家族） | 生成到 `layout.flow.outputRoot` / `layout.drawingBoard.outputRoot` 指向的位置 | 是 |
 | `cap4kBootstrapPlan` | 规划 Bootstrap 骨架 | `build/cap4k/bootstrap-plan.json` | 否 |
@@ -605,6 +610,8 @@ cap4k {
 
 - `cap4kPlan` / `cap4kGenerate`（源码任务族）：
   当启用了 `design-command`、`design-query` 或 `design-domain-event` 且启用 `ksp-metadata`，并且 `ksp-metadata.inputDir` 落在某个子工程的 `build/` 下 → 自动 `dependsOn(":{proj}:kspKotlin")`
+- `cap4kGenerateSources`（预编译 generated-source 任务）：
+  只导出 artifact ownership 为 `GENERATED_SOURCE` 的源码；启用 aggregate 时会把相关子模块自己的 `build/generated/cap4k/main/kotlin` 注册到 Kotlin `main` source set，并让受影响子模块的 `compileKotlin` 依赖根任务 `cap4kGenerateSources`，不依赖完整 `cap4kGenerate`
 - `cap4kAnalysisPlan` / `cap4kAnalysisGenerate`（分析任务族）：
   当启用了 `flow` 或 `drawing-board` 且启用 `ir-analysis`，并且 `ir-analysis.inputDirs` 落在某个子工程的 `build/` 下 → 自动 `dependsOn(":{proj}:compileKotlin")`
 
@@ -740,7 +747,7 @@ CREATE TABLE order_line (
 
 Generator 统一约束：
 - `override val id: String` 与 `ProjectConfig.generators` 的键一一对应
-- `plan(config, model)` 返回 `List<ArtifactPlanItem>`，每项指定 `templateId` + `outputPath` + `context`
+- `plan(config, model)` 返回 `List<ArtifactPlanItem>`，每项指定 `templateId` + `outputPath` + `context`，并通过 `outputKind` 表达 artifact ownership
 - **不在生成器里直接写文件**（交给 exporter）
 
 ### 9.1 `design-command` / `design-query` — 命令/查询请求类
@@ -825,9 +832,10 @@ Generator 统一约束：
 
 - id：`aggregate`
 - 模块：domain + application + adapter
-- 是一个**复合生成器**，内部依次委派 12 个 family planner：
+- 是一个**复合生成器**，内部依次委派多个 family planner：
   - `SchemaArtifactPlanner` → `aggregate/schema.kt.peb`
   - `EntityArtifactPlanner` → `aggregate/entity.kt.peb`
+  - `BehaviorArtifactPlanner` → `aggregate/behavior.kt.peb`
   - `RepositoryArtifactPlanner` → `aggregate/repository.kt.peb`
   - `FactoryArtifactPlanner` → `aggregate/factory.kt.peb`
   - `SpecificationArtifactPlanner` → `aggregate/specification.kt.peb`
@@ -843,9 +851,14 @@ Generator 统一约束：
   - `artifacts.enumTranslation` → `enum-translation`
 - `schema` 使用框架运行时 `com.only4.cap4k.ddd.domain.repo.schema`，不会再生成项目级 `{basePackage}/domain/_share/meta/Schema.kt`
 - 目录约定：
-  - `{domain}/src/main/kotlin/{basePackage}/domain/aggregates/{segment}/...`
-  - `{domain}/src/main/kotlin/{basePackage}/domain/_share/meta/{segment}/{Schema}.kt`
-  - `{adapter}/src/main/kotlin/{basePackage}/adapter/domain/repositories/{Repo}.kt`
+  - generated source：`{module}/build/generated/cap4k/main/kotlin/...`
+  - checked-in scaffold/source：`{module}/src/main/kotlin/...`
+  - entity/schema/shared enum/local enum 写入 domain 模块 generated source
+  - repository/enum translation 写入 adapter 模块 generated source
+  - aggregate unique query/handler/validator 写入 application/adapter 模块 generated source
+  - behavior scaffold 写入 domain 模块 `src/main/kotlin`，每个聚合根一个 `<RootName>Behavior.kt`，首次生成后由用户维护
+  - factory/specification/wrapper 仍保持 checked-in source
+- 聚合 entity 模板生成 regular `class`，构造参数只作为初始化输入；持久化标量字段在类体里用 `var ... = ...` + `internal set`，owned collection 用 `MutableList<T>` + `mutableListOf()`，业务行为放到 checked-in behavior 文件或用户自建源码中
 - 表名 → segment 规则见 `AggregateNaming`
 
 ### 9.9 `flow`
@@ -860,7 +873,7 @@ Generator 统一约束：
 
 - id：`drawing-board`
 - 模块：project
-- 输入来自 `ir-analysis.design-elements`，输出是可直接作为 `sources.designJson.files` 使用的稳定 design-json contract。
+- 输入来自 `ir-analysis.design-elements`，输出是受支持 design 元素的 design-json 投影；当前不要把它视为完整覆盖 PAGE query 或 `api_payload` round-trip 语义的稳定输入。
 - `cap4kAnalysisGenerate` 可在分析输入包含受支持的普通 Bean Validation 注解时输出 `drawing_board_validator.json`。
 - `nodes.json` / `rels.json` 仍是分析图产物；`design-elements.json` 是设计投影产物。
 - 输出 tag：`command`, `query`, `client`, `api_payload`, `domain_event`, `validator`（其他会被忽略）
@@ -923,7 +936,7 @@ presets/
 │   │   ├── domain_event.kt.peb
 │   │   └── domain_event_handler.kt.peb
 │   ├── aggregate/
-│   │   ├── entity.kt.peb, schema.kt.peb, repository.kt.peb
+│   │   ├── entity.kt.peb, behavior.kt.peb, schema.kt.peb, repository.kt.peb
 │   │   ├── factory.kt.peb, specification.kt.peb, wrapper.kt.peb
 │   │   ├── unique_query.kt.peb, unique_query_handler.kt.peb, unique_validator.kt.peb
 │   │   └── enum.kt.peb, enum_translation.kt.peb
@@ -1418,6 +1431,7 @@ interface ArtifactExporter {
 运行 `./gradlew cap4kPlan` 后查看 `build/cap4k/plan.json`：
 
 - `items[]` 每项代表一个待生成文件
+- `items[].outputKind` 与 `items[].resolvedOutputRoot` 可用来区分 checked-in source、generated source 和非源码产物
 - `diagnostics.aggregate.unsupportedTables` 暴露表结构问题（即使 policy=SKIP 也会记录）
 - 当 plan 中某个期望的 item 缺失 → 八成是 Canonical 侧过滤掉了（tag 未匹配、aggregates 不合法等）；去 `DefaultCanonicalAssembler` 对应分支排查
 

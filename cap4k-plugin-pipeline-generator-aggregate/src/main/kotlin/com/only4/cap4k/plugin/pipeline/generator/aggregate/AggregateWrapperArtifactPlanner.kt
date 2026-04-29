@@ -7,7 +7,6 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
 internal class AggregateWrapperArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        val domainRoot = requireRelativeModule(config, "domain")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
 
@@ -15,11 +14,13 @@ internal class AggregateWrapperArtifactPlanner : AggregateArtifactFamilyPlanner 
             val typeName = "Agg${entity.name}"
             val packageName = artifactLayout.aggregateWrapperPackage(entity.packageName)
 
-            ArtifactPlanItem(
-                generatorId = "aggregate",
+            checkedInKotlinArtifact(
+                config = config,
+                artifactLayout = artifactLayout,
                 moduleRole = "domain",
                 templateId = "aggregate/wrapper.kt.peb",
-                outputPath = artifactLayout.kotlinSourcePath(domainRoot, packageName, typeName),
+                packageName = packageName,
+                typeName = typeName,
                 context = mapOf(
                     "packageName" to packageName,
                     "typeName" to typeName,
@@ -30,7 +31,6 @@ internal class AggregateWrapperArtifactPlanner : AggregateArtifactFamilyPlanner 
                     "idType" to entity.idField.type,
                     "comment" to entity.comment,
                 ),
-                conflictPolicy = config.templates.conflictPolicy,
             )
         }
     }

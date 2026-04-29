@@ -86,9 +86,22 @@ class ArtifactLayoutResolverTest {
 
     @Test
     fun `resolves source and resource paths`() {
+        assertEquals("demo-domain/src/main/kotlin", resolver.kotlinSourceRoot("demo-domain"))
+        assertEquals(
+            "demo-domain/build/generated/cap4k/main/kotlin",
+            resolver.generatedKotlinSourceRoot("demo-domain"),
+        )
         assertEquals(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_message/UserMessage.kt",
             resolver.kotlinSourcePath(
+                moduleRoot = "demo-domain",
+                packageName = "com.acme.demo.domain.aggregates.user_message",
+                typeName = "UserMessage",
+            ),
+        )
+        assertEquals(
+            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/user_message/UserMessage.kt",
+            resolver.generatedKotlinSourcePath(
                 moduleRoot = "demo-domain",
                 packageName = "com.acme.demo.domain.aggregates.user_message",
                 typeName = "UserMessage",

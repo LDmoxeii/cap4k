@@ -1,0 +1,8 @@
+package {{ packageName }}
+
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+/**
+ * Place behavior for {{ rootName }} and its owned entities here.
+ */

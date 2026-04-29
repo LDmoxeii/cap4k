@@ -39,6 +39,173 @@ class PebbleArtifactRendererTest {
 
     private fun String.normalizedLineEndings(): String = replace("\r\n", "\n")
 
+    private fun renderTemplate(
+        templateId: String,
+        outputPath: String,
+        context: Map<String, Any?>,
+    ): String =
+        PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver("ddd-default", emptyList())
+        ).render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "test",
+                    moduleRole = "domain",
+                    templateId = templateId,
+                    outputPath = outputPath,
+                    context = context,
+                    conflictPolicy = ConflictPolicy.SKIP,
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            ),
+        ).single().content
+
+    @Test
+    fun `renderer preserves artifact output ownership metadata`() {
+        val overrideDir = Files.createTempDirectory("cap4k-renderer-output-kind")
+        val overrideAggregateDir = Files.createDirectories(overrideDir.resolve("aggregate"))
+        overrideAggregateDir.resolve("behavior.kt.peb").writeText(
+            "package {{ packageName }}\n"
+        )
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString()),
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "aggregate",
+                    moduleRole = "domain",
+                    templateId = "aggregate/behavior.kt.peb",
+                    outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/Category.kt",
+                    context = mapOf("packageName" to "com.acme.demo"),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                    outputKind = ArtifactOutputKind.GENERATED_SOURCE,
+                    resolvedOutputRoot = "demo-domain/build/generated/cap4k/main/kotlin",
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                )
+            )
+        )
+
+        assertEquals(ArtifactOutputKind.GENERATED_SOURCE, rendered.single().outputKind)
+        assertEquals("demo-domain/build/generated/cap4k/main/kotlin", rendered.single().resolvedOutputRoot)
+    }
+
+    @Test
+    fun `aggregate entity template renders behavior safe mutable class shape`() {
+        val content = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/category/Category.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.category",
+                "typeName" to "Category",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to "category",
+                ),
+                "hasConverterFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasGenericGeneratorFields" to false,
+                "hasVersionFields" to false,
+                "dynamicInsert" to false,
+                "dynamicUpdate" to false,
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "jpaImports" to listOf(
+                    "jakarta.persistence.CascadeType",
+                    "jakarta.persistence.FetchType",
+                    "jakarta.persistence.JoinColumn",
+                    "jakarta.persistence.OneToMany",
+                ),
+                "imports" to emptyList<String>(),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "type" to "Long",
+                        "nullable" to false,
+                        "defaultValue" to "0L",
+                        "columnName" to "id",
+                        "isId" to true,
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "converterClassRef" to null,
+                    ),
+                    mapOf(
+                        "name" to "name",
+                        "type" to "String",
+                        "nullable" to false,
+                        "defaultValue" to "\"\"",
+                        "columnName" to "name",
+                        "isId" to false,
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "converterClassRef" to null,
+                    ),
+                ),
+                "relationFields" to listOf(
+                    mapOf(
+                        "relationType" to "ONE_TO_MANY",
+                        "name" to "children",
+                        "targetTypeRef" to "Category",
+                        "fetchType" to "LAZY",
+                        "cascadeAll" to true,
+                        "orphanRemoval" to true,
+                        "joinColumn" to "parent_id",
+                        "joinColumnNullable" to false,
+                    )
+                ),
+            ),
+        )
+
+        assertTrue(content.contains("class Category("))
+        assertFalse(content.contains("data class Category("))
+        assertFalse(content.contains("val name: String"))
+        assertTrue(content.contains("name: String = \"\""))
+        assertTrue(content.contains("@Column(name = \"name\")\n    var name: String = name\n        internal set"))
+        assertTrue(content.contains("val children: MutableList<Category> = mutableListOf()"))
+        assertFalse(content.contains("managed-begin"))
+    }
+
+    @Test
+    fun `aggregate behavior template renders checked in scaffold without generated business body`() {
+        val content = renderTemplate(
+            templateId = "aggregate/behavior.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/category/CategoryBehavior.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.category",
+                "rootName" to "Category",
+            ),
+        )
+
+        assertTrue(content.startsWith("package com.acme.demo.domain.aggregates.category"))
+        assertTrue(content.contains("Place behavior for Category"))
+        assertFalse(content.contains("fun Category."))
+        assertFalse(content.contains("managed-begin"))
+    }
+
     @Test
     fun `renderer normalizes kotlin artifact whitespace without mutating template semantics`() {
         val overrideDir = Files.createTempDirectory("cap4k-renderer-kotlin-hygiene")
@@ -1757,8 +1924,10 @@ class PebbleArtifactRendererTest {
         assertTrue(schemaContent.contains("class SOrder("))
         assertTrue(schemaContent.contains("fun specify(builder: PredicateBuilder<SOrder>): Specification<Order>"))
         assertTrue(schemaContent.contains("val orderNo: Field<String>"))
-        assertTrue(entityContent.contains("data class Order("))
-        assertTrue(entityContent.contains("val orderNo: String?"))
+        assertTrue(entityContent.contains("class Order("))
+        assertFalse(entityContent.contains("data class Order("))
+        assertTrue(entityContent.contains("orderNo: String?"))
+        assertTrue(entityContent.contains("var orderNo: String? = orderNo"))
         assertFalse(entityContent.contains("jakarta.persistence"))
         assertTrue(repositoryContent.contains("@Repository"))
         assertTrue(repositoryContent.contains("interface OrderRepository : JpaRepository<Order, Long>, JpaSpecificationExecutor<Order>"))
@@ -1959,7 +2128,8 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("class VideoPost("))
         assertFalse(content.contains("data class VideoPost("))
         assertTrue(content.contains(") {"))
-        assertTrue(constructorSection.contains("val id: Long"))
+        assertTrue(constructorSection.contains("id: Long"))
+        assertFalse(constructorSection.contains("val id: Long"))
         assertFalse(constructorSection.contains("author"))
         assertFalse(constructorSection.contains("coverProfile"))
         assertFalse(constructorSection.contains("items"))
@@ -1972,7 +2142,7 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)"))
         assertTrue(content.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
         assertFalse(content.contains("mappedBy ="))
-        assertTrue(bodySection.contains("var items: List<VideoPostItem> = emptyList()"))
+        assertTrue(bodySection.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
     }
 
     @Test
@@ -2065,7 +2235,7 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
 
         assertTrue(content.contains("@Column(name = \"video_post_id\")"))
-        assertTrue(content.contains("val videoPostId: Long"))
+        assertTrue(content.contains("var videoPostId: Long = videoPostId"))
         assertTrue(content.contains("@ManyToOne(fetch = FetchType.LAZY)"))
         assertTrue(
             content.contains(
@@ -2590,8 +2760,8 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@Column(name = \"status\")"))
         assertTrue(content.contains("import jakarta.persistence.Convert"))
         assertTrue(content.contains("@Convert(converter = com.acme.demo.domain.shared.enums.Status.Converter::class)"))
-        assertTrue(content.contains("data class VideoPost("))
-        assertFalse(content.contains("\nclass VideoPost("))
+        assertTrue(content.contains("class VideoPost("))
+        assertFalse(content.contains("data class VideoPost("))
         assertFalse(content.contains("@GeneratedValue"))
         assertFalse(content.contains("@Version"))
         assertFalse(content.contains("@DynamicInsert"))

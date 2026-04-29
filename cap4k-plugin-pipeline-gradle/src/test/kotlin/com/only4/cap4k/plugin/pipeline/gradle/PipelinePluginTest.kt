@@ -99,6 +99,7 @@ class PipelinePluginTest {
 
         assertNotNull(project.tasks.findByName("cap4kPlan"))
         assertNotNull(project.tasks.findByName("cap4kGenerate"))
+        assertNotNull(project.tasks.findByName("cap4kGenerateSources"))
         assertNotNull(project.tasks.findByName("cap4kAnalysisPlan"))
         assertNotNull(project.tasks.findByName("cap4kAnalysisGenerate"))
     }
@@ -110,6 +111,70 @@ class PipelinePluginTest {
 
         assertTrue(project.tasks.named("cap4kAnalysisPlan").get() is Cap4kAnalysisPlanTask)
         assertTrue(project.tasks.named("cap4kAnalysisGenerate").get() is Cap4kAnalysisGenerateTask)
+    }
+
+    @Test
+    fun `generated source module roles are limited to aggregate generated source families`() {
+        assertEquals(
+            setOf("domain", "adapter"),
+            generatedSourceModuleRoles(
+                projectConfig(
+                    modules = mapOf("domain" to "demo-domain", "application" to "demo-application", "adapter" to "demo-adapter"),
+                    sources = mapOf("db" to SourceConfig(enabled = true)),
+                    generators = mapOf(
+                        "aggregate" to GeneratorConfig(
+                            enabled = true,
+                            options = mapOf(
+                                "artifact.unique" to false,
+                                "artifact.enumTranslation" to false,
+                            ),
+                        )
+                    ),
+                )
+            )
+        )
+        assertEquals(
+            setOf("domain", "application", "adapter"),
+            generatedSourceModuleRoles(
+                projectConfig(
+                    modules = mapOf("domain" to "demo-domain", "application" to "demo-application", "adapter" to "demo-adapter"),
+                    sources = mapOf("db" to SourceConfig(enabled = true)),
+                    generators = mapOf(
+                        "aggregate" to GeneratorConfig(
+                            enabled = true,
+                            options = mapOf(
+                                "artifact.unique" to true,
+                                "artifact.enumTranslation" to false,
+                            ),
+                        )
+                    ),
+                )
+            )
+        )
+        assertEquals(
+            emptySet<String>(),
+            generatedSourceModuleRoles(
+                projectConfig(
+                    modules = mapOf("application" to "demo-application"),
+                    sources = mapOf("design-json" to SourceConfig(enabled = true)),
+                    generators = mapOf("design-query" to GeneratorConfig(enabled = true)),
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `generated kotlin source root is module local`() {
+        val config = projectConfig(
+            modules = mapOf("domain" to "demo-domain"),
+            sources = mapOf("db" to SourceConfig(enabled = true)),
+            generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+        )
+
+        assertEquals(
+            "demo-domain/build/generated/cap4k/main/kotlin",
+            generatedKotlinSourceRoot(config, "domain"),
+        )
     }
 
     @Test

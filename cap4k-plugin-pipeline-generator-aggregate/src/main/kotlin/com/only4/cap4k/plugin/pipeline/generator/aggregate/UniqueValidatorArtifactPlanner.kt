@@ -12,7 +12,6 @@ internal class UniqueValidatorArtifactPlanner : AggregateArtifactFamilyPlanner {
         }.filter { (_, selections) -> selections.isNotEmpty() }
         if (plannedSelections.isEmpty()) return emptyList()
 
-        val applicationRoot = requireRelativeModule(config, "application")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         return plannedSelections.flatMap { (entity, selections) ->
             val packageKey = aggregatePackageKey(config, entity.packageName)
@@ -30,11 +29,13 @@ internal class UniqueValidatorArtifactPlanner : AggregateArtifactFamilyPlanner {
                         "varName" to "${field.name}Property",
                     )
                 }
-                ArtifactPlanItem(
-                    generatorId = "aggregate",
+                generatedKotlinArtifact(
+                    config = config,
+                    artifactLayout = artifactLayout,
                     moduleRole = "application",
                     templateId = "aggregate/unique_validator.kt.peb",
-                    outputPath = artifactLayout.kotlinSourcePath(applicationRoot, packageName, selection.validatorTypeName),
+                    packageName = packageName,
+                    typeName = selection.validatorTypeName,
                     context = mapOf(
                         "packageName" to packageName,
                         "typeName" to selection.validatorTypeName,
@@ -54,7 +55,6 @@ internal class UniqueValidatorArtifactPlanner : AggregateArtifactFamilyPlanner {
                         "entityIdVar" to "${entityCamel}IdProperty",
                         "entityName" to entity.name,
                     ),
-                    conflictPolicy = config.templates.conflictPolicy,
                 )
             }
         }
