@@ -72,7 +72,7 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
     val aggregateSharedEnum: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention(packageRoot = "domain", packageSuffix = "enums", defaultPackage = "shared")
     val aggregateEnumTranslation: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
-        .convention("domain.translation")
+        .convention("adapter.domain.translation")
     val aggregateUniqueQuery: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention(packageRoot = "application.queries", packageSuffix = "unique")
     val aggregateUniqueQueryHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)

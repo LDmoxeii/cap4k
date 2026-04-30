@@ -53,6 +53,7 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals("domain.aggregates", extension.layout.aggregate.packageRoot.get())
         assertEquals("domain._share.meta", extension.layout.aggregateSchema.packageRoot.get())
         assertEquals("adapter.domain.repositories", extension.layout.aggregateRepository.packageRoot.get())
+        assertEquals("adapter.domain.translation", extension.layout.aggregateEnumTranslation.packageRoot.get())
         assertEquals("flows", extension.layout.flow.outputRoot.get())
         assertEquals("design", extension.layout.drawingBoard.outputRoot.get())
         assertEquals("domain.aggregates", extension.layout.designDomainEvent.packageRoot.get())

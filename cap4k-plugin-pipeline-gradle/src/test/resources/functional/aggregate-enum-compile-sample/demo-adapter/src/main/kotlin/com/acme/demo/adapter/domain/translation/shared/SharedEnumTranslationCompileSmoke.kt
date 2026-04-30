@@ -1,4 +1,4 @@
-package com.acme.demo.domain.translation.shared
+package com.acme.demo.adapter.domain.translation.shared
 
 class SharedEnumTranslationCompileSmoke(
     private val translation: StatusTranslation,

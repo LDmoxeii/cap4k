@@ -1876,13 +1876,13 @@ class PipelinePluginFunctionalTest {
         )
         assertTrue(
             projectDir.resolve(
-                generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/shared/StatusTranslation.kt")
+                generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/translation/shared/StatusTranslation.kt")
             ).toFile().exists()
         )
         assertTrue(
             projectDir.resolve(
                 generatedSource(
-                    "demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/video_post/VideoPostVisibilityTranslation.kt"
+                    "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/translation/video_post/VideoPostVisibilityTranslation.kt"
                 )
             ).toFile().exists()
         )

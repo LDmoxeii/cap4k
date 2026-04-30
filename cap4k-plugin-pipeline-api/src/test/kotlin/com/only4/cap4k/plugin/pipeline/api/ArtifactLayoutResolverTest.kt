@@ -16,7 +16,7 @@ class ArtifactLayoutResolverTest {
         assertEquals("com.acme.demo.adapter.domain.repositories", resolver.aggregateRepositoryPackage())
         assertEquals("com.acme.demo.domain.shared.enums", resolver.aggregateSharedEnumPackage(""))
         assertEquals("com.acme.demo.domain.quality.enums", resolver.aggregateSharedEnumPackage("quality"))
-        assertEquals("com.acme.demo.domain.translation.shared", resolver.aggregateEnumTranslationPackage("shared"))
+        assertEquals("com.acme.demo.adapter.domain.translation.shared", resolver.aggregateEnumTranslationPackage("shared"))
         assertEquals("com.acme.demo.application.queries.user_message.unique", resolver.aggregateUniqueQueryPackage("user_message"))
         assertEquals("com.acme.demo.adapter.queries.user_message.unique", resolver.aggregateUniqueQueryHandlerPackage("user_message"))
         assertEquals("com.acme.demo.application.validators.user_message.unique", resolver.aggregateUniqueValidatorPackage("user_message"))

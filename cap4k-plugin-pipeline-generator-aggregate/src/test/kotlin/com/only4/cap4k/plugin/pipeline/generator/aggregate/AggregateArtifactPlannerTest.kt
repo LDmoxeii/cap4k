@@ -2141,15 +2141,15 @@ class AggregateArtifactPlannerTest {
 
         assertTrue(items.any { it.templateId == "aggregate/enum.kt.peb" && it.outputPath.endsWith("/domain/shared/enums/Status.kt") })
         assertTrue(items.any { it.templateId == "aggregate/enum.kt.peb" && it.outputPath.endsWith("/domain/aggregates/video_post/enums/VideoPostVisibility.kt") })
-        assertTrue(items.any { it.templateId == "aggregate/enum_translation.kt.peb" && it.outputPath.endsWith("/domain/translation/shared/StatusTranslation.kt") })
-        assertTrue(items.any { it.templateId == "aggregate/enum_translation.kt.peb" && it.outputPath.endsWith("/domain/translation/video_post/VideoPostVisibilityTranslation.kt") })
+        assertTrue(items.any { it.templateId == "aggregate/enum_translation.kt.peb" && it.outputPath.endsWith("/adapter/domain/translation/shared/StatusTranslation.kt") })
+        assertTrue(items.any { it.templateId == "aggregate/enum_translation.kt.peb" && it.outputPath.endsWith("/adapter/domain/translation/video_post/VideoPostVisibilityTranslation.kt") })
         val sharedTranslationPlan = items.single {
             it.templateId == "aggregate/enum_translation.kt.peb" &&
-                it.outputPath.endsWith("/domain/translation/shared/StatusTranslation.kt")
+                it.outputPath.endsWith("/adapter/domain/translation/shared/StatusTranslation.kt")
         }
         val localTranslationPlan = items.single {
             it.templateId == "aggregate/enum_translation.kt.peb" &&
-                it.outputPath.endsWith("/domain/translation/video_post/VideoPostVisibilityTranslation.kt")
+                it.outputPath.endsWith("/adapter/domain/translation/video_post/VideoPostVisibilityTranslation.kt")
         }
 
         val entityPlan = items.single { it.templateId == "aggregate/entity.kt.peb" }
@@ -2356,11 +2356,11 @@ class AggregateArtifactPlannerTest {
         val items = planner.plan(config, model)
         val videoTranslation = items.single {
             it.templateId == "aggregate/enum_translation.kt.peb" &&
-                it.outputPath.endsWith("/domain/translation/video_post/VisibilityTranslation.kt")
+                it.outputPath.endsWith("/adapter/domain/translation/video_post/VisibilityTranslation.kt")
         }
         val articleTranslation = items.single {
             it.templateId == "aggregate/enum_translation.kt.peb" &&
-                it.outputPath.endsWith("/domain/translation/article_post/VisibilityTranslation.kt")
+                it.outputPath.endsWith("/adapter/domain/translation/article_post/VisibilityTranslation.kt")
         }
 
         assertNotEquals(
@@ -2407,10 +2407,10 @@ class AggregateArtifactPlannerTest {
         )
         assertEquals("com.acme.demo.domain.shared.enums", enumPlan.context["packageName"])
         assertEquals(
-            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/domain/translation/shared/StatusTranslation.kt",
+            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/domain/translation/shared/StatusTranslation.kt",
             translationPlan.outputPath,
         )
-        assertEquals("com.acme.demo.domain.translation.shared", translationPlan.context["packageName"])
+        assertEquals("com.acme.demo.adapter.domain.translation.shared", translationPlan.context["packageName"])
     }
 
     @Test

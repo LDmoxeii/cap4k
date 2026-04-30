@@ -3166,9 +3166,9 @@ class PebbleArtifactRendererTest {
                     generatorId = "aggregate",
                     moduleRole = "adapter",
                     templateId = "aggregate/enum_translation.kt.peb",
-                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/shared/StatusTranslation.kt",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/translation/shared/StatusTranslation.kt",
                     context = mapOf(
-                        "packageName" to "com.acme.demo.domain.translation.shared",
+                        "packageName" to "com.acme.demo.adapter.domain.translation.shared",
                         "typeName" to "StatusTranslation",
                         "enumTypeName" to "Status",
                         "enumTypeFqn" to "com.acme.demo.domain.shared.enums.Status",
@@ -3195,7 +3195,7 @@ class PebbleArtifactRendererTest {
 
         val enumContent = rendered.single { it.outputPath.endsWith("/domain/shared/enums/Status.kt") }.content
         val translationContent = rendered.single {
-            it.outputPath.endsWith("/domain/translation/shared/StatusTranslation.kt")
+            it.outputPath.endsWith("/adapter/domain/translation/shared/StatusTranslation.kt")
         }.content
 
         assertTrue(enumContent.contains("enum class Status("))

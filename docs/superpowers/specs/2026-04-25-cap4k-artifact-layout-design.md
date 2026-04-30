@@ -195,7 +195,7 @@ cap4k {
         }
 
         aggregateEnumTranslation {
-            packageRoot.set("domain.translation")
+            packageRoot.set("adapter.domain.translation")
         }
 
         aggregateUniqueQuery {
@@ -492,12 +492,12 @@ basePackage.domain.quality.enums.<EnumName>
 
 Explicit fully qualified enum packages remain source-owned and are not rewritten by layout.
 
-Enum translation is generated in the adapter module but keeps the existing package convention under `domain.translation`.
+Enum translation is generated in the adapter module and defaults to an adapter-owned package convention under `adapter.domain.translation`.
 
 Default:
 
 ```text
-aggregateEnumTranslation -> basePackage.domain.translation.<scope>.<EnumName>Translation
+aggregateEnumTranslation -> basePackage.adapter.domain.translation.<scope>.<EnumName>Translation
 ```
 
 The `<scope>` is `shared` for shared enum translations and the aggregate table segment for local enum translations.
@@ -801,7 +801,7 @@ data class ArtifactPackageLayoutConfig(
         defaultPackage = "shared",
         packageSuffix = "enums",
     ),
-    val aggregateEnumTranslation: PackageLayout = PackageLayout("domain.translation"),
+    val aggregateEnumTranslation: PackageLayout = PackageLayout("adapter.domain.translation"),
     val aggregateUniqueQuery: PackageLayout = PackageLayout(
         packageRoot = "application.queries",
         packageSuffix = "unique",

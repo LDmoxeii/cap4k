@@ -754,8 +754,8 @@ class PipelinePluginCompileFunctionalTest {
 
         assertGeneratedFilesExist(
             projectDir,
-            generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/shared/StatusTranslation.kt"),
-            generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/domain/translation/video_post/VideoPostVisibilityTranslation.kt"),
+            generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/translation/shared/StatusTranslation.kt"),
+            generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/translation/video_post/VideoPostVisibilityTranslation.kt"),
         )
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
