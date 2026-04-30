@@ -4,7 +4,8 @@
 {{ use("jakarta.validation.Payload") -}}
 {{ use("kotlin.reflect.KClass") -}}
 package {{ packageName }}
-{% for import in imports(imports) %}
+
+{% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
 
@@ -18,12 +19,12 @@ import {{ import }}
 annotation class {{ typeName }}(
     val message: String = {{ messageLiteral | raw }},
     val groups: Array<KClass<*>> = [],
-    val payload: Array<KClass<out Payload>> = []{% if parameters|length > 0 %},{% endif %}
-{% for parameter in parameters %}
-    val {{ parameter.name }}: {{ parameter.type }}{% if parameter.defaultValueLiteral is not null %} = {{ parameter.defaultValueLiteral | raw }}{% endif %}{% if not loop.last %},{% endif %}
-{% endfor %}
+    val payload: Array<KClass<out Payload>> = []{% if parameters|length > 0 %},
+{% for parameter in parameters %}    val {{ parameter.name }}: {{ parameter.type }}{% if parameter.defaultValueLiteral is not null %} = {{ parameter.defaultValueLiteral | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{% endfor %}) {
+{% else %}
 ) {
-    class Validator : ConstraintValidator<{{ typeName }}, {{ valueType }}> {
+{% endif %}{{ "    " }}class Validator : ConstraintValidator<{{ typeName }}, {{ valueType }}> {
         override fun isValid(value: {{ valueType }}?, context: ConstraintValidatorContext): Boolean = true
     }
 }

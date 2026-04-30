@@ -5484,8 +5484,10 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
+        val normalizedContent = content.replace("\r\n", "\n")
         assertTrue(content.contains("package com.acme.demo.application.validators.authorize"))
         assertTrue(content.contains("import java.util.UUID"))
+        assertFalse(Regex("^import .+\n\nimport ", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
         assertTrue(content.contains("* issue * / token validator"))
         assertFalse(content.contains("* issue */ token validator"))
         assertTrue(content.contains("@Constraint"))
@@ -5494,8 +5496,12 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("val message: String = \"token rejected \\${'$'}reason\""))
         assertTrue(content.contains("val groups: Array<KClass<*>>"))
         assertTrue(content.contains("val payload: Array<KClass<out Payload>>"))
-        assertTrue(content.contains("val userIdField: String = \"user\\${'$'}id\""))
+        assertTrue(content.contains("    val userIdField: String = \"user\\${'$'}id\""))
+        assertFalse(Regex("^val userIdField", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
+        assertFalse(Regex("^    val .+\n\n    val ", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
         assertTrue(content.contains("class Validator : ConstraintValidator<IssueToken, Long>"))
+        assertTrue(content.contains("    class Validator : ConstraintValidator<IssueToken, Long>"))
+        assertFalse(Regex("^class Validator", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
         assertTrue(content.contains("override fun isValid(value: Long?, context: ConstraintValidatorContext): Boolean = true"))
     }
 
