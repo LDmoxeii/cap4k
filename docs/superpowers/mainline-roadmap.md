@@ -250,7 +250,8 @@ Status:
 - generated parent-child aggregate mappings now avoid `CascadeType.ALL` and render explicit `PERSIST`, `MERGE`, and `REMOVE`
 - `AggregateLoadPlan` is propagated through `Repository`, `RepositorySupervisor`, `AggregateSupervisor`, `DefaultMediator`, and JPA repository implementations
 - JPA `WHOLE_AGGREGATE` initializes owned `@OneToMany` graphs below the repository boundary
-- compatibility-only repository/supervisor implementations may fall back for `DEFAULT` and `MINIMAL`, but fail fast for `WHOLE_AGGREGATE`
+- `AggregateLoadPlan.DEFAULT` has been removed; public load depth is now limited to explicit `MINIMAL` and `WHOLE_AGGREGATE`
+- no-plan JPA and Querydsl repository reads default to `WHOLE_AGGREGATE`; performance-sensitive callers must request `MINIMAL`
 - command-wide transaction expansion remains deferred
 
 Reference:
@@ -263,14 +264,14 @@ Notes:
 - `persist=true` still means "register this loaded entity into UnitOfWork"; it does not choose load depth
 - use-case load depth is explicit through `AggregateLoadPlan`
 - JPA whole-load uses a repository-level read-only transaction for initialization; it does not wrap the whole command/request path
-- Querydsl repositories accept the public load-plan parameter but fail fast for `WHOLE_AGGREGATE` until provider-specific whole-load behavior is designed
+- Querydsl repositories accept the same public load-plan parameter and initialize owned collections for `WHOLE_AGGREGATE`
 
 No new default mainline implementation slice has been selected yet; remaining candidates are tracked in the backlog below.
 
 Current persistence decision:
 
 - command-wide transaction expansion remains deferred
-- the lazy aggregate fixture still proves an expanded request/command transaction can solve lazy access, but the implemented repair uses explicit repository load plans instead
+- the lazy aggregate fixture now passes through the normal command path because no-plan repository reads default to `WHOLE_AGGREGATE`; the expanded request/command transaction test remains only as contrast evidence
 - future command transaction-boundary expansion should become its own architecture slice only if the work also redesigns real commit/after-transaction semantics for unit-of-work interceptors, domain events, and integration events
 
 ## Bootstrap Decision
@@ -506,12 +507,12 @@ Next action:
 
 - keep command transaction-boundary expansion as a later architecture slice unless the unit-of-work commit/after-transaction semantics are redesigned in the same work
 - do not open a persistence backend replacement just for the lazy-loading symptom
-- revisit Querydsl provider-specific whole-load semantics only if a real use case needs it
+- keep JPA and Querydsl repository load-plan semantics aligned unless a real backend limitation forces an explicit split
 
 Notes:
 
 - `FetchType.EAGER` is a global mapping policy, not a use-case loading policy
-- use-case loading is explicit through `AggregateLoadPlan.DEFAULT`, `AggregateLoadPlan.MINIMAL`, and `AggregateLoadPlan.WHOLE_AGGREGATE`
+- use-case loading is explicit through `AggregateLoadPlan.MINIMAL` and `AggregateLoadPlan.WHOLE_AGGREGATE`; there is no `DEFAULT` enum value
 - JPA implements whole-aggregate loading with explicit owned `@OneToMany` initialization below the repository boundary
 - `persist=true` should continue to mean "register this loaded entity into UnitOfWork"; it should not secretly decide load depth or transaction scope
 - `persist=false` remains meaningful inside commands because a handler may perform read-only lookups that should not be saved

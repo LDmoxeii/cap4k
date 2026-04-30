@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Post-implementation amendment, 2026-04-30:** this plan is historical. The implemented public `AggregateLoadPlan` values are now only `MINIMAL` and `WHOLE_AGGREGATE`; `DEFAULT` was removed because it encoded migration history rather than domain intent. No-plan JPA and Querydsl repository reads default to `WHOLE_AGGREGATE`.
+
 **Goal:** Remove unsafe generated aggregate refresh cascades and add an explicit aggregate load-plan path through the existing mediator/supervisor APIs without implementing command-wide transaction expansion.
 
 **Architecture:** The generator must stop emitting `CascadeType.ALL` for owned aggregate collections and instead emit explicit persistence cascades that exclude `REFRESH`. The runtime API must carry a small `AggregateLoadPlan` enum through `AggregateSupervisor`, `RepositorySupervisor`, `Repository`, and JPA repository implementations. JPA `WHOLE_AGGREGATE` loading should initialize owned `@OneToMany` graphs below the repository boundary so use cases can request whole aggregate loading without making entity mappings globally eager or bypassing the mediator.
@@ -17,7 +19,7 @@ Implement this slice only:
 - Generated aggregate `ONE_TO_MANY` relations use explicit cascades: `PERSIST`, `MERGE`, `REMOVE`.
 - Generated aggregate `ONE_TO_MANY` relations no longer use `CascadeType.ALL`.
 - Existing inverse/read-only parent navigation remains generated, but this slice does not make it eager by default.
-- Add `AggregateLoadPlan.DEFAULT`, `AggregateLoadPlan.MINIMAL`, and `AggregateLoadPlan.WHOLE_AGGREGATE`.
+- Add explicit aggregate load-plan semantics. Current implemented values are `AggregateLoadPlan.MINIMAL` and `AggregateLoadPlan.WHOLE_AGGREGATE`.
 - Propagate `AggregateLoadPlan` through mediator/supervisor/repository calls.
 - Implement JPA `WHOLE_AGGREGATE` as owned-collection initialization inside `AbstractJpaRepository`.
 - Keep `persist=true` as "register the loaded entity into `UnitOfWork`"; do not make it imply load depth or transaction scope.
@@ -463,11 +465,6 @@ package com.only4.cap4k.ddd.core.domain.repo
  */
 enum class AggregateLoadPlan {
     /**
-     * Existing repository behavior.
-     */
-    DEFAULT,
-
-    /**
      * Root-only read intent. Implementations must not force owned collections to load.
      */
     MINIMAL,
@@ -481,41 +478,43 @@ enum class AggregateLoadPlan {
 
 - [ ] **Step 2: Update `Repository` read method signatures**
 
-In `Repository.kt`, add `loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT` to all read methods that currently accept `persist`:
+In `Repository.kt`, add explicit load-plan overloads to all read methods that currently accept `persist`. Do not expose a `DEFAULT` enum value; no-plan overloads remain separate API-entry conventions.
 
 ```kotlin
 fun find(
     predicate: Predicate<ENTITY>,
     orders: Collection<OrderInfo> = emptyList(),
+    persist: Boolean = true
+): List<ENTITY>
+
+fun find(
+    predicate: Predicate<ENTITY>,
+    orders: Collection<OrderInfo> = emptyList(),
     persist: Boolean = true,
-    loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT
+    loadPlan: AggregateLoadPlan
 ): List<ENTITY>
 
 fun find(
     predicate: Predicate<ENTITY>,
     pageParam: PageParam,
-    persist: Boolean = true,
-    loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT
+    persist: Boolean = true
 ): List<ENTITY>
 
 fun findOne(
     predicate: Predicate<ENTITY>,
-    persist: Boolean = true,
-    loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT
+    persist: Boolean = true
 ): ENTITY?
 
 fun findFirst(
     predicate: Predicate<ENTITY>,
     orders: Collection<OrderInfo> = emptyList(),
-    persist: Boolean = true,
-    loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT
+    persist: Boolean = true
 ): ENTITY?
 
 fun findPage(
     predicate: Predicate<ENTITY>,
     pageParam: PageParam,
-    persist: Boolean = true,
-    loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT
+    persist: Boolean = true
 ): PageData<ENTITY>
 ```
 
@@ -543,27 +542,27 @@ In `AggregateSupervisor.kt`, import `AggregateLoadPlan` and add `loadPlan` to ag
 fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getById(
     id: Id<AGGREGATE, *>,
     persist: Boolean = true,
-    loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT
+    loadPlan: AggregateLoadPlan
 ): AGGREGATE? =
     getByIds(listOf(id), persist, loadPlan).firstOrNull()
 
 fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getByIds(
     ids: Iterable<Id<AGGREGATE, *>>,
     persist: Boolean = true,
-    loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT
+    loadPlan: AggregateLoadPlan
 ): List<AGGREGATE>
 
 fun <AGGREGATE : Aggregate<*>> find(
     predicate: AggregatePredicate<AGGREGATE, *>,
     orders: Collection<OrderInfo> = emptyList(),
     persist: Boolean = true,
-    loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT
+    loadPlan: AggregateLoadPlan
 ): List<AGGREGATE>
 
 fun <AGGREGATE : Aggregate<*>> findOne(
     predicate: AggregatePredicate<AGGREGATE, *>,
     persist: Boolean = true,
-    loadPlan: AggregateLoadPlan = AggregateLoadPlan.DEFAULT
+    loadPlan: AggregateLoadPlan
 ): AGGREGATE?
 ```
 
@@ -1118,6 +1117,6 @@ Placeholder scan:
 Type consistency:
 
 - Public enum name is consistently `AggregateLoadPlan`.
-- Public values are consistently `DEFAULT`, `MINIMAL`, and `WHOLE_AGGREGATE`.
+- Public values are consistently `MINIMAL` and `WHOLE_AGGREGATE`; there is no `DEFAULT` enum value.
 - Generator cascade enum name is consistently `AggregateCascadeType`.
 - Generator render model field name is consistently `cascadeTypes`.

@@ -2,9 +2,8 @@ package com.only4.cap4k.ddd.domain.repo.querydsl
 
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.share.PageParam
-import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -58,29 +57,60 @@ class AbstractQuerydslRepositoryTest {
     }
 
     @Test
-    @DisplayName("WHOLE_AGGREGATE load plan 应该快速失败")
-    fun `should fail fast when whole aggregate load plan is requested`() {
-        val repository = TestQuerydslRepository(mockk(relaxed = true))
+    @DisplayName("WHOLE_AGGREGATE load plan 应该被支持")
+    fun `should support whole aggregate load plan`() {
+        val repository = TestQuerydslRepository(emptyExecutor())
         val predicate = QuerydslPredicate.of(TestEntity::class.java)
 
-        assertThrows(IllegalArgumentException::class.java) {
+        assertDoesNotThrow {
             repository.find(predicate, emptyList(), true, AggregateLoadPlan.WHOLE_AGGREGATE)
         }
-        assertThrows(IllegalArgumentException::class.java) {
+        assertDoesNotThrow {
             repository.find(predicate, PageParam.limit(1), true, AggregateLoadPlan.WHOLE_AGGREGATE)
         }
-        val exception = assertThrows(IllegalArgumentException::class.java) {
+        assertDoesNotThrow {
             repository.findOne(predicate, true, AggregateLoadPlan.WHOLE_AGGREGATE)
         }
-        assertThrows(IllegalArgumentException::class.java) {
+        assertDoesNotThrow {
             repository.findFirst(predicate, emptyList(), true, AggregateLoadPlan.WHOLE_AGGREGATE)
         }
-        assertThrows(IllegalArgumentException::class.java) {
+        assertDoesNotThrow {
             repository.findPage(predicate, PageParam.limit(1), true, AggregateLoadPlan.WHOLE_AGGREGATE)
         }
-
-        assertTrue(exception.message!!.contains("WHOLE_AGGREGATE is not supported"))
     }
+
+    private fun emptyExecutor(): QuerydslPredicateExecutor<TestEntity> =
+        object : QuerydslPredicateExecutor<TestEntity> {
+            override fun findOne(predicate: com.querydsl.core.types.Predicate?) = java.util.Optional.empty<TestEntity>()
+            override fun findAll(predicate: com.querydsl.core.types.Predicate?) = emptyList<TestEntity>()
+            override fun findAll(
+                predicate: com.querydsl.core.types.Predicate?,
+                sort: org.springframework.data.domain.Sort?
+            ) = emptyList<TestEntity>()
+
+            override fun findAll(
+                predicate: com.querydsl.core.types.Predicate?,
+                pageable: org.springframework.data.domain.Pageable?
+            ) = org.springframework.data.domain.PageImpl(
+                emptyList<TestEntity>(),
+                pageable ?: org.springframework.data.domain.PageRequest.of(0, 1),
+                0
+            )
+
+            override fun findAll(vararg orders: com.querydsl.core.types.OrderSpecifier<*>?) = emptyList<TestEntity>()
+            override fun findAll(
+                predicate: com.querydsl.core.types.Predicate?,
+                vararg orders: com.querydsl.core.types.OrderSpecifier<*>?
+            ) = emptyList<TestEntity>()
+
+            override fun <S : TestEntity, R : Any> findBy(
+                predicate: com.querydsl.core.types.Predicate?,
+                queryFunction: java.util.function.Function<org.springframework.data.repository.query.FluentQuery.FetchableFluentQuery<S>, R>
+            ): R = throw UnsupportedOperationException()
+
+            override fun count(predicate: com.querydsl.core.types.Predicate?) = 0L
+            override fun exists(predicate: com.querydsl.core.types.Predicate?) = false
+        }
 
     @Test
     @DisplayName("应该能够处理基本的仓储操作")

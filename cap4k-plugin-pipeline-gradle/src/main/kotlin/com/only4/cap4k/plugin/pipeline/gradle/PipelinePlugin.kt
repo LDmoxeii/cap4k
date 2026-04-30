@@ -283,11 +283,13 @@ internal fun wireGeneratedSourceCompilation(
     generatedSourceModuleRoles(config).forEach { role ->
         val modulePath = config.modules[role] ?: return@forEach
         val moduleProject = resolveModuleProject(rootProject, modulePath) ?: return@forEach
-        moduleProject.tasks.matching { it.name == "compileKotlin" }.configureEach { task ->
+        moduleProject.tasks.matching { it.name in GENERATED_SOURCE_CONSUMER_TASK_NAMES }.configureEach { task ->
             task.dependsOn(generateSourcesTask)
         }
     }
 }
+
+private val GENERATED_SOURCE_CONSUMER_TASK_NAMES = setOf("compileKotlin", "kspKotlin")
 
 internal fun inferDependencies(project: Project, config: ProjectConfig): List<Task> {
     val mergedDependencies = linkedSetOf<Task>()

@@ -611,7 +611,7 @@ cap4k {
 - `cap4kPlan` / `cap4kGenerate`（源码任务族）：
   当启用了 `design-command`、`design-query` 或 `design-domain-event` 且启用 `ksp-metadata`，并且 `ksp-metadata.inputDir` 落在某个子工程的 `build/` 下 → 自动 `dependsOn(":{proj}:kspKotlin")`
 - `cap4kGenerateSources`（预编译 generated-source 任务）：
-  只导出 artifact ownership 为 `GENERATED_SOURCE` 的源码；启用 aggregate 时会把相关子模块自己的 `build/generated/cap4k/main/kotlin` 注册到 Kotlin `main` source set，并让受影响子模块的 `compileKotlin` 依赖根任务 `cap4kGenerateSources`，不依赖完整 `cap4kGenerate`
+  只导出 artifact ownership 为 `GENERATED_SOURCE` 的源码；启用 aggregate 时会把相关子模块自己的 `build/generated/cap4k/main/kotlin` 注册到 Kotlin `main` source set，并让受影响子模块的 `compileKotlin` / `kspKotlin` 依赖根任务 `cap4kGenerateSources`，不依赖完整 `cap4kGenerate`
 - `cap4kAnalysisPlan` / `cap4kAnalysisGenerate`（分析任务族）：
   当启用了 `flow` 或 `drawing-board` 且启用 `ir-analysis`，并且 `ir-analysis.inputDirs` 落在某个子工程的 `build/` 下 → 自动 `dependsOn(":{proj}:compileKotlin")`
 

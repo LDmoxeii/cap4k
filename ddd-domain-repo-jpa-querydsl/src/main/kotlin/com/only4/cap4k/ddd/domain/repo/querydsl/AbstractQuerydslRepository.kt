@@ -7,12 +7,14 @@ import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
+import com.only4.cap4k.ddd.domain.repo.JpaAggregateLoadPlanSupport
 import com.only4.cap4k.ddd.domain.repo.fromSpringData
 import com.only4.cap4k.ddd.domain.repo.impl.DefaultRepositorySupervisor
 import jakarta.annotation.PostConstruct
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
 import org.springframework.data.querydsl.QuerydslPredicateExecutor
+import org.springframework.transaction.annotation.Transactional
 
 /**
  * 基于querydsl的仓储抽象类
@@ -47,19 +49,20 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
         orders: Collection<OrderInfo>,
         persist: Boolean
     ): List<ENTITY> =
-        find(predicate, orders, persist, AggregateLoadPlan.DEFAULT)
+        find(predicate, orders, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
 
+    @Transactional(readOnly = true)
     override fun find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean,
         loadPlan: AggregateLoadPlan
     ): List<ENTITY> {
-        requireSupportedLoadPlan(loadPlan)
         val entities = querydslPredicateExecutor.findAll(
             QuerydslPredicateSupport.resumePredicate(predicate),
             QuerydslPredicateSupport.resumeSort(predicate, orders)
         )
+        JpaAggregateLoadPlanSupport.apply(entities, loadPlan)
         return entities.map { entity ->
             if (!persist) {
                 entityManager.detach(entity)
@@ -73,19 +76,20 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
         pageParam: PageParam,
         persist: Boolean
     ): List<ENTITY> =
-        find(predicate, pageParam, persist, AggregateLoadPlan.DEFAULT)
+        find(predicate, pageParam, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
 
+    @Transactional(readOnly = true)
     override fun find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
         persist: Boolean,
         loadPlan: AggregateLoadPlan
     ): List<ENTITY> {
-        requireSupportedLoadPlan(loadPlan)
         val entities = querydslPredicateExecutor.findAll(
             QuerydslPredicateSupport.resumePredicate(predicate),
             QuerydslPredicateSupport.resumePageable(predicate, pageParam)
         )
+        JpaAggregateLoadPlanSupport.apply(entities, loadPlan)
         return entities.map { entity ->
             entity.apply {
                 if (!persist) {
@@ -99,16 +103,17 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
         predicate: Predicate<ENTITY>,
         persist: Boolean
     ): ENTITY? =
-        findOne(predicate, persist, AggregateLoadPlan.DEFAULT)
+        findOne(predicate, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
 
+    @Transactional(readOnly = true)
     override fun findOne(
         predicate: Predicate<ENTITY>,
         persist: Boolean,
         loadPlan: AggregateLoadPlan
     ): ENTITY? {
-        requireSupportedLoadPlan(loadPlan)
         val entity = querydslPredicateExecutor.findOne(QuerydslPredicateSupport.resumePredicate(predicate))
             .orElse(null)
+        entity?.let { JpaAggregateLoadPlanSupport.apply(it, loadPlan) }
         if (!persist && entity != null) {
             entityManager.detach(entity)
         }
@@ -120,15 +125,15 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
         orders: Collection<OrderInfo>,
         persist: Boolean
     ): ENTITY? =
-        findFirst(predicate, orders, persist, AggregateLoadPlan.DEFAULT)
+        findFirst(predicate, orders, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
 
+    @Transactional(readOnly = true)
     override fun findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean,
         loadPlan: AggregateLoadPlan
     ): ENTITY? {
-        requireSupportedLoadPlan(loadPlan)
         val pageParam = PageParam.limit(1)
         orders.forEach { order ->
             pageParam.orderBy(order.field, order.desc)
@@ -138,6 +143,7 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
             QuerydslPredicateSupport.resumePageable(predicate, pageParam)
         )
         val entity = entities.content.firstOrNull()
+        entity?.let { JpaAggregateLoadPlanSupport.apply(it, loadPlan) }
         if (!persist && entity != null) {
             entityManager.detach(entity)
         }
@@ -149,19 +155,20 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
         pageParam: PageParam,
         persist: Boolean
     ): PageData<ENTITY> =
-        findPage(predicate, pageParam, persist, AggregateLoadPlan.DEFAULT)
+        findPage(predicate, pageParam, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
 
+    @Transactional(readOnly = true)
     override fun findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
         persist: Boolean,
         loadPlan: AggregateLoadPlan
     ): PageData<ENTITY> {
-        requireSupportedLoadPlan(loadPlan)
         val entities = querydslPredicateExecutor.findAll(
             QuerydslPredicateSupport.resumePredicate(predicate),
             QuerydslPredicateSupport.resumePageable(predicate, pageParam)
         )
+        JpaAggregateLoadPlanSupport.apply(entities, loadPlan)
         if (!persist) {
             entities.forEach(entityManager::detach)
         }
@@ -174,9 +181,4 @@ open class AbstractQuerydslRepository<ENTITY : Any>(
     override fun exists(predicate: Predicate<ENTITY>): Boolean =
         querydslPredicateExecutor.exists(QuerydslPredicateSupport.resumePredicate(predicate))
 
-    private fun requireSupportedLoadPlan(loadPlan: AggregateLoadPlan) {
-        require(loadPlan != AggregateLoadPlan.WHOLE_AGGREGATE) {
-            "AggregateLoadPlan.WHOLE_AGGREGATE is not supported by Querydsl repositories"
-        }
-    }
 }

@@ -181,6 +181,8 @@ class PebbleArtifactRendererTest {
         )
 
         assertTrue(content.contains("class Category("))
+        assertTrue(content.normalizedLineEndings().contains("class Category(\n    id: Long = 0L,"))
+        assertFalse(content.normalizedLineEndings().contains("class Category(\nid: Long = 0L,"))
         assertFalse(content.contains("data class Category("))
         assertFalse(content.contains("val name: String"))
         assertTrue(content.contains("name: String = \"\""))

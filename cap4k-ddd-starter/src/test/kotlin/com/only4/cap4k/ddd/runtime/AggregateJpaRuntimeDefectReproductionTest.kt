@@ -22,7 +22,6 @@ import jakarta.persistence.ManyToOne
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 import org.hibernate.HibernateException
-import org.hibernate.LazyInitializationException
 import org.hibernate.PersistentObjectException
 import org.hibernate.annotations.GenericGenerator
 import org.hibernate.id.IdentifierGenerationException
@@ -187,19 +186,9 @@ class AggregateJpaRuntimeDefectReproductionTest {
         })
         JpaUnitOfWork.reset()
 
-        val classification = classifyRuntimeBehavior(
-            label = "command handler lazy aggregate access",
-            desiredContract = {
-                val response = RequestSupervisor.instance.send(CountRuntimeRootChildrenRequest(root.id))
-                assertEquals(1, response.childCount)
-            },
-            knownDefect = { failure ->
-                failure.hasCause<LazyInitializationException>() ||
-                    failure is AssertionError
-            }
-        )
+        val response = RequestSupervisor.instance.send(CountRuntimeRootChildrenRequest(root.id))
 
-        assertKnownDefect(classification)
+        assertEquals(1, response.childCount)
     }
 
     @Test

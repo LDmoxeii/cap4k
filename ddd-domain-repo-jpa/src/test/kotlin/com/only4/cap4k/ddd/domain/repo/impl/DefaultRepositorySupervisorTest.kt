@@ -68,12 +68,14 @@ class DefaultRepositorySupervisorTest {
         val predicate = TestPredicate()
         val expectedEntities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
 
-        every { mockRepository.find(predicate, any<Collection<OrderInfo>>(), false) } returns expectedEntities
+        every {
+            mockRepository.find(predicate, any<Collection<OrderInfo>>(), false, AggregateLoadPlan.WHOLE_AGGREGATE)
+        } returns expectedEntities
 
         val result = supervisor.find(predicate, emptyList(), false)
 
         assertEquals(expectedEntities, result)
-        verify { mockRepository.find(predicate, any<Collection<OrderInfo>>(), false) }
+        verify { mockRepository.find(predicate, any<Collection<OrderInfo>>(), false, AggregateLoadPlan.WHOLE_AGGREGATE) }
     }
 
     @Test
@@ -82,12 +84,12 @@ class DefaultRepositorySupervisorTest {
         val predicate = TestPredicate()
         val expectedEntity = TestEntity(1L, "test")
 
-        every { mockRepository.findOne(predicate, false) } returns expectedEntity
+        every { mockRepository.findOne(predicate, false, AggregateLoadPlan.WHOLE_AGGREGATE) } returns expectedEntity
 
         val result = supervisor.findOne(predicate, false)
 
         assertEquals(expectedEntity, result)
-        verify { mockRepository.findOne(predicate, false) }
+        verify { mockRepository.findOne(predicate, false, AggregateLoadPlan.WHOLE_AGGREGATE) }
     }
 
     @Test
@@ -96,12 +98,12 @@ class DefaultRepositorySupervisorTest {
         val predicate = TestPredicate()
         val expectedEntity = TestEntity(1L, "test")
 
-        every { mockRepository.findOne(predicate, true) } returns expectedEntity
+        every { mockRepository.findOne(predicate, true, AggregateLoadPlan.WHOLE_AGGREGATE) } returns expectedEntity
 
         val result = supervisor.findOne(predicate, true)
 
         assertEquals(expectedEntity, result)
-        verify { mockRepository.findOne(predicate, true) }
+        verify { mockRepository.findOne(predicate, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
         verify { mockUnitOfWork.persist(expectedEntity) }
     }
 
@@ -156,12 +158,12 @@ class DefaultRepositorySupervisorTest {
         val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
         val pageData = PageData.create(pageParam, 2L, entities)
 
-        every { mockRepository.findPage(predicate, pageParam, false) } returns pageData
+        every { mockRepository.findPage(predicate, pageParam, false, AggregateLoadPlan.WHOLE_AGGREGATE) } returns pageData
 
         val result = supervisor.findPage(predicate, pageParam, false)
 
         assertEquals(pageData, result)
-        verify { mockRepository.findPage(predicate, pageParam, false) }
+        verify { mockRepository.findPage(predicate, pageParam, false, AggregateLoadPlan.WHOLE_AGGREGATE) }
     }
 
     @Test
@@ -172,12 +174,12 @@ class DefaultRepositorySupervisorTest {
         val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
         val pageData = PageData.create(pageParam, 2L, entities)
 
-        every { mockRepository.findPage(predicate, pageParam, true) } returns pageData
+        every { mockRepository.findPage(predicate, pageParam, true, AggregateLoadPlan.WHOLE_AGGREGATE) } returns pageData
 
         val result = supervisor.findPage(predicate, pageParam, true)
 
         assertEquals(pageData, result)
-        verify { mockRepository.findPage(predicate, pageParam, true) }
+        verify { mockRepository.findPage(predicate, pageParam, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
         entities.forEach { entity ->
             verify { mockUnitOfWork.persist(entity) }
         }
@@ -189,12 +191,14 @@ class DefaultRepositorySupervisorTest {
         val predicate = TestPredicate()
         val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
 
-        every { mockRepository.find(predicate, any<Collection<OrderInfo>>(), any()) } returns entities
+        every {
+            mockRepository.find(predicate, any<Collection<OrderInfo>>(), any(), AggregateLoadPlan.WHOLE_AGGREGATE)
+        } returns entities
 
         val result = supervisor.remove(predicate)
 
         assertEquals(entities, result)
-        verify { mockRepository.find(predicate, any<Collection<OrderInfo>>(), any()) }
+        verify { mockRepository.find(predicate, any<Collection<OrderInfo>>(), any(), AggregateLoadPlan.WHOLE_AGGREGATE) }
         entities.forEach { entity ->
             verify { mockUnitOfWork.remove(entity) }
         }
@@ -288,18 +292,27 @@ class DefaultRepositorySupervisorTest {
             unitOfWork = mockUnitOfWork
         )
 
-        every { jpaRepository.find(aggregatePredicate, any<Collection<OrderInfo>>(), any()) } returns listOf(
-            TestEntity(
-                1L,
-                "jpa-test"
+        every {
+            jpaRepository.find(
+                aggregatePredicate,
+                any<Collection<OrderInfo>>(),
+                any(),
+                AggregateLoadPlan.WHOLE_AGGREGATE
             )
-        )
+        } returns listOf(TestEntity(1L, "jpa-test"))
 
         val result = supervisorWithJpa.remove(aggregatePredicate)
 
         assertEquals(listOf(TestEntity(1L, "jpa-test")), result)
         verify { JpaAggregatePredicateSupport.getPredicate(aggregatePredicate) }
-        verify { jpaRepository.find(aggregatePredicate, any<Collection<OrderInfo>>(), any()) }
+        verify {
+            jpaRepository.find(
+                aggregatePredicate,
+                any<Collection<OrderInfo>>(),
+                any(),
+                AggregateLoadPlan.WHOLE_AGGREGATE
+            )
+        }
 
         unmockkObject(JpaAggregatePredicateSupport)
     }

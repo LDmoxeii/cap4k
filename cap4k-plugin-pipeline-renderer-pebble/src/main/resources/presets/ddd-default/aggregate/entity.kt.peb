@@ -55,7 +55,7 @@ import {{ import }}
 {% endif -%}
 class {{ typeName }}(
 {% for field in scalarFields -%}
-    {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if field.defaultValue is not null %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{{ "    " }}{{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if field.defaultValue is not null %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor -%}
 ) {
 {% for field in scalarFields %}

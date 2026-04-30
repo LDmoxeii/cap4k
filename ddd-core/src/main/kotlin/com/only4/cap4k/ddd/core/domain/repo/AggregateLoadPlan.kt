@@ -5,11 +5,6 @@ package com.only4.cap4k.ddd.core.domain.repo
  */
 enum class AggregateLoadPlan {
     /**
-     * Existing repository behavior.
-     */
-    DEFAULT,
-
-    /**
      * Root-only read intent. Implementations must not force owned collections to load.
      */
     MINIMAL,

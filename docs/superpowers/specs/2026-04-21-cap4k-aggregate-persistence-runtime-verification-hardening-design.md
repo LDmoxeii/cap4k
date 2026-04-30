@@ -163,9 +163,10 @@ The preferred design direction is to keep the mediator/supervisor abstraction an
 
 First-slice load-plan vocabulary should stay small:
 
-- `DEFAULT`: current repository behavior
 - `MINIMAL`: load only the root shape needed for read-only checks
 - `WHOLE_AGGREGATE`: load the aggregate root and owned aggregate entities needed for command mutation
+
+There is no `DEFAULT` enum value. No-plan repository reads are an API-entry convention, not a public load-plan choice. JPA and Querydsl repository implementations default no-plan reads to `WHOLE_AGGREGATE`; performance-sensitive callers must request `MINIMAL` explicitly.
 
 Example intended shape:
 
@@ -268,7 +269,7 @@ The fixture should prefer cap4k's real repository/unit-of-work path when validat
 
 2026-04-29 H2 fixture: `AggregateJpaRuntimeDefectReproductionTest` under `cap4k-ddd-starter` currently supports the omitted-ID Snowflake-style Hibernate generator path, but classifies the preassigned-ID path as a known defect. A repair plan must preserve this fixture and replace the preassigned-ID characterization with the desired contract assertion after the ID strategy/new-entity decision is implemented.
 
-2026-04-29 H2 fixture: the same fixture classifies command handler repository load plus lazy child access through the current `RequestSupervisor` path as a known defect with `spring.jpa.open-in-view=false` and `hibernate.enable_lazy_load_no_trans=false`. The controlled transaction contrast test passes, proving the failure is persistence-context boundary related rather than a cascade-save defect.
+2026-04-30 H2 fixture: command handler repository load plus lazy child access through the current `RequestSupervisor` path is now supported because no-plan repository reads default to `WHOLE_AGGREGATE` and initialize owned collections below the repository boundary. The controlled transaction contrast test remains useful evidence, but the command path no longer requires command-wide transaction expansion for this lazy aggregate access case.
 
 2026-04-29 H2 fixture: the fixture also verifies the exact request path under an expanded transaction scope. Wrapping `RequestSupervisor.instance.send(CountRuntimeRootChildrenRequest(...))` in a transaction allows the command handler to load the aggregate through `RepositorySupervisor`, access lazy children, and return the expected child count. This proves the lazy command defect is addressable by expanding the command/request transaction boundary around handler execution, independently of whether the implementation uses declarative or programmatic transaction mechanics.
 
@@ -282,7 +283,7 @@ The nested reverse-navigation failure is not a lazy-loading or transaction-isola
 
 The intended use case for inverse parent navigation is aggregate rehydration after repository whole-load: domain logic may need to move from a child entity back to its parent inside the already loaded aggregate graph. That use case does not require `CascadeType.REFRESH`. Therefore a repair plan should prefer removing refresh from generated parent-child cascade policy, for example by replacing `CascadeType.ALL` with the explicit persistence cascades actually required for whole-save (`PERSIST`, `MERGE`, `REMOVE`) and keeping refresh out of the default aggregate entity template.
 
-Transaction-boundary expansion remains a separate design topic. The lazy aggregate access fixture proves the current command path has a transaction-boundary problem, but the nested reverse-navigation fixture proves a different mapping/refresh problem. A future repair plan should not conflate these two defects: changing command transaction scope may be valid, but it should not be used as the fix for cascade-refresh inverse navigation failures.
+Transaction-boundary expansion remains a separate design topic. The lazy aggregate access fixture previously proved a command path persistence-context boundary problem; that specific symptom is now addressed by default whole-aggregate repository loading. The nested reverse-navigation fixture proves a different mapping/refresh problem. A future repair plan should not conflate these two areas: changing command transaction scope may still be valid, but it should not be used as the fix for cascade-refresh inverse navigation failures.
 
 2026-04-29 implementation result: generated parent-child aggregate cascades no longer use `CascadeType.ALL`; they render explicit `PERSIST`, `MERGE`, and `REMOVE`, excluding `REFRESH`. The runtime fixture keeps the old `CascadeType.ALL` nested inverse eager graph as a known-defect contrast and adds a safe-cascade graph that persists successfully without triggering refresh-based `FetchNotFoundException`.
 
@@ -290,9 +291,9 @@ Transaction-boundary expansion remains a separate design topic. The lazy aggrega
 
 2026-04-29 implementation note: JPA `WHOLE_AGGREGATE` initialization requires the JPA repository read method itself to have a read-only transaction boundary; otherwise Spring Data's internal repository call returns a detached proxy before explicit initialization can run. This does not expand the full command/request transaction scope and does not change `JpaUnitOfWork.save()` commit semantics.
 
-2026-04-29 implementation note: public read APIs keep the old signatures and expose `AggregateLoadPlan` as additive overloads. Compatibility-only implementations may fall back to old behavior for `DEFAULT` and `MINIMAL`, but must fail fast for `WHOLE_AGGREGATE` unless they explicitly override the load-plan overload.
+2026-04-30 implementation note: `AggregateLoadPlan.DEFAULT` was removed because it encoded migration history rather than domain intent. Public load-plan values are now only `MINIMAL` and `WHOLE_AGGREGATE`.
 
-2026-04-29 implementation note: Querydsl repositories keep the same public load-plan signature but fail fast for `WHOLE_AGGREGATE`, because provider-specific whole-load semantics have not been designed for the Querydsl path.
+2026-04-30 implementation note: JPA and Querydsl repository no-plan reads now default to `WHOLE_AGGREGATE`. Querydsl repositories support the same owned `@OneToMany` initialization behavior as the JPA repository path.
 
 ## ID Contract Design Options
 
