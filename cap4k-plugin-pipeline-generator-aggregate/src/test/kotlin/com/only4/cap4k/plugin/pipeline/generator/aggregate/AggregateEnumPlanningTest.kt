@@ -13,6 +13,56 @@ import org.junit.jupiter.api.Test
 class AggregateEnumPlanningTest {
 
     @Test
+    fun `resolves local enum items for aggregate field`() {
+        val enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden"), EnumItemModel(1, "PUBLIC", "Public"))
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "",
+            fields = listOf(FieldModel("visibility", "Int", typeBinding = "Visibility", enumItems = enumItems)),
+            idField = FieldModel("id", "Long"),
+        )
+        val planning = AggregateEnumPlanning.from(
+            CanonicalModel(entities = listOf(entity)),
+            basePackage = "com.acme.demo",
+            typeRegistry = emptyMap(),
+        )
+
+        assertEquals(enumItems, planning.resolveEnumItems(entity.packageName, entity.fields.single()))
+    }
+
+    @Test
+    fun `resolves shared enum items for aggregate field`() {
+        val enumItems = listOf(EnumItemModel(0, "DRAFT", "Draft"), EnumItemModel(1, "PUBLISHED", "Published"))
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "",
+            fields = listOf(FieldModel("status", "Int", typeBinding = "Status")),
+            idField = FieldModel("id", "Long"),
+        )
+        val planning = AggregateEnumPlanning.from(
+            CanonicalModel(
+                sharedEnums = listOf(
+                    SharedEnumDefinition(
+                        typeName = "Status",
+                        packageName = "shared",
+                        generateTranslation = true,
+                        items = enumItems,
+                    )
+                ),
+                entities = listOf(entity),
+            ),
+            basePackage = "com.acme.demo",
+            typeRegistry = emptyMap(),
+        )
+
+        assertEquals(enumItems, planning.resolveEnumItems(entity.packageName, entity.fields.single()))
+    }
+
+    @Test
     fun `type binding prefers local enum definition over shared enum lookup only when E and T coexist`() {
         val entity = EntityModel(
             name = "VideoPost",
