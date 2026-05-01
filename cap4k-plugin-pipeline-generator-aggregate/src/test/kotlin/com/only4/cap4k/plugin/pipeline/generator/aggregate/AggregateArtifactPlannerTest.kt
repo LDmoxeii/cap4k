@@ -1380,11 +1380,11 @@ class AggregateArtifactPlannerTest {
         val scalarFields = entityArtifact.context["scalarFields"] as List<Map<String, Any?>>
 
         assertEquals(
-            "com.acme.demo.domain.aggregates.video_post.enums.Visibility.valueOf(1)",
+            "com.acme.demo.domain.aggregates.video_post.enums.Visibility.valueOfOrNull(1)!!",
             scalarFields.single { it["name"] == "visibility" }["defaultValue"],
         )
         assertEquals(
-            "com.acme.demo.domain.shared.enums.Status.valueOf(0)",
+            "com.acme.demo.domain.shared.enums.Status.valueOfOrNull(0)!!",
             scalarFields.single { it["name"] == "status" }["defaultValue"],
         )
     }

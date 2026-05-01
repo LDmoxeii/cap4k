@@ -37,7 +37,7 @@ internal class AggregateEntityDefaultProjector {
         require(enumItems.any { it.value == numericValue }) {
             "aggregate enum field $fieldPath default $numericValue does not match any enum item value"
         }
-        return "$fieldType.valueOf($numericValue)"
+        return "$fieldType.valueOfOrNull($numericValue)!!"
     }
 
     private fun projectScalarDefault(fieldPath: String, fieldType: String, normalized: String): String? {
