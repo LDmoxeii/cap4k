@@ -1199,7 +1199,9 @@ class AggregateArtifactPlannerTest {
                 FieldModel("enabled", "Boolean", defaultValue = "1"),
                 FieldModel("score", "Float", defaultValue = "(.5)"),
                 FieldModel("ratio", "Double", defaultValue = "(1.)"),
+                FieldModel("rating", "Double", defaultValue = "1"),
                 FieldModel("displayName", "String", nullable = true, defaultValue = "''"),
+                FieldModel("priceLabel", "String", defaultValue = "'\$name'"),
                 FieldModel("createdAt", "String", defaultValue = "CURRENT_TIMESTAMP"),
             ),
             idField = FieldModel("id", "Long"),
@@ -1226,7 +1228,9 @@ class AggregateArtifactPlannerTest {
         assertEquals("true", scalarFields.single { it["name"] == "enabled" }["defaultValue"])
         assertEquals("0.5f", scalarFields.single { it["name"] == "score" }["defaultValue"])
         assertEquals("1.0", scalarFields.single { it["name"] == "ratio" }["defaultValue"])
+        assertEquals("1.0", scalarFields.single { it["name"] == "rating" }["defaultValue"])
         assertEquals("\"\"", scalarFields.single { it["name"] == "displayName" }["defaultValue"])
+        assertEquals("\"\\\$name\"", scalarFields.single { it["name"] == "priceLabel" }["defaultValue"])
         assertEquals(null, scalarFields.single { it["name"] == "createdAt" }["defaultValue"])
     }
 

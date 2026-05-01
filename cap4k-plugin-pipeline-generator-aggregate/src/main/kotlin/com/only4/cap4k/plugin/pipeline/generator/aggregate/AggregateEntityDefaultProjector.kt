@@ -111,7 +111,11 @@ internal class AggregateEntityDefaultProjector {
         val sign = value.takeIf { it.startsWith("-") || it.startsWith("+") }?.take(1).orEmpty()
         val unsigned = value.removePrefix("-").removePrefix("+")
         val withLeadingDigit = if (unsigned.startsWith(".")) "0$unsigned" else unsigned
-        val normalized = if (withLeadingDigit.endsWith(".")) "${withLeadingDigit}0" else withLeadingDigit
+        val normalized = when {
+            withLeadingDigit.endsWith(".") -> "${withLeadingDigit}0"
+            suffix == null && !withLeadingDigit.contains(".") -> "$withLeadingDigit.0"
+            else -> withLeadingDigit
+        }
         return sign + normalized + (suffix ?: "")
     }
 
@@ -129,6 +133,7 @@ internal class AggregateEntityDefaultProjector {
                 when (char) {
                     '\\' -> append("\\\\")
                     '"' -> append("\\\"")
+                    '$' -> append("\\\$")
                     '\n' -> append("\\n")
                     '\r' -> append("\\r")
                     '\t' -> append("\\t")
