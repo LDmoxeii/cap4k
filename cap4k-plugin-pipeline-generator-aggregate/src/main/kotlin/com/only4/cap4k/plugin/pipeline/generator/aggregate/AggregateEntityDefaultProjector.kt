@@ -43,12 +43,16 @@ internal class AggregateEntityDefaultProjector {
     private fun projectScalarDefault(fieldPath: String, fieldType: String, normalized: String): String? {
         val shortType = fieldType.substringAfterLast('.').removeSuffix("?")
         return when (shortType) {
-            "Boolean" -> when {
-                normalized.equals("true", ignoreCase = true) || normalized == "1" -> "true"
-                normalized.equals("false", ignoreCase = true) || normalized == "0" -> "false"
-                else -> throw IllegalArgumentException(
-                    "aggregate field $fieldPath default $normalized cannot be projected to Boolean"
-                )
+            "Boolean" -> when (val rawValue = normalized.unquoteSqlString() ?: normalized) {
+                "1" -> "true"
+                "0" -> "false"
+                else -> when {
+                    rawValue.equals("true", ignoreCase = true) -> "true"
+                    rawValue.equals("false", ignoreCase = true) -> "false"
+                    else -> throw IllegalArgumentException(
+                        "aggregate field $fieldPath default $normalized cannot be projected to Boolean"
+                    )
+                }
             }
             "String" -> normalized.unquoteSqlString()?.let { quoteKotlinString(it) }
             "Byte", "Short", "Int" -> normalized.unquoteSqlString().unwrapIntegerLiteralOrNull()
@@ -92,7 +96,8 @@ internal class AggregateEntityDefaultProjector {
 
     private fun isSqlExpression(value: String): Boolean {
         val upper = value.uppercase()
-        return upper in setOf("CURRENT_TIMESTAMP", "CURRENT_DATE", "CURRENT_TIME") || upper.endsWith("()")
+        return upper in setOf("CURRENT_TIMESTAMP", "CURRENT_DATE", "CURRENT_TIME") ||
+            value.matches(Regex("""[A-Za-z_][A-Za-z0-9_$]*(\.[A-Za-z_][A-Za-z0-9_$]*)?\s*\(.*\)"""))
     }
 
     private fun String?.unwrapIntegerLiteralOrNull(): String? =

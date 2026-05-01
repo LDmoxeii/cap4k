@@ -1237,6 +1237,66 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner keeps SQL function scalar defaults constructor required`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("sequence", "Long", defaultValue = "nextval('video_post_seq'::regclass)"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            )
+        )
+
+        val entityArtifact = plan.single { it.outputPath.endsWith("/VideoPost.kt") }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityArtifact.context["scalarFields"] as List<Map<String, Any?>>
+
+        assertEquals(null, scalarFields.single { it["name"] == "sequence" }["defaultValue"])
+    }
+
+    @Test
+    fun `entity planner projects quoted numeric boolean defaults`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("enabled", "Boolean", defaultValue = "'1'"),
+                FieldModel("disabled", "Boolean", defaultValue = "'0'"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            )
+        )
+
+        val entityArtifact = plan.single { it.outputPath.endsWith("/VideoPost.kt") }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityArtifact.context["scalarFields"] as List<Map<String, Any?>>
+
+        assertEquals("true", scalarFields.single { it["name"] == "enabled" }["defaultValue"])
+        assertEquals("false", scalarFields.single { it["name"] == "disabled" }["defaultValue"])
+    }
+
+    @Test
     fun `entity planner fails when scalar database default cannot be projected`() {
         val entity = EntityModel(
             name = "VideoPost",
