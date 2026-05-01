@@ -605,21 +605,23 @@ Notes:
 Status:
 
 - candidate mainline work
-- spec not written
+- spec drafted: `docs/superpowers/specs/2026-05-02-cap4k-uuid7-id-generator-default-policy-design.md`
 - implementation plan not written
 
 Next action:
 
-- write an analysis/spec before implementation
-- decide whether UUID7 should replace Snowflake as the framework default ID generator
-- define migration behavior for existing projects that already use explicit Snowflake or custom generators
-- verify the decision against aggregate generation, JPA persistence annotations, preassignable application-side IDs, tests, and documentation
+- review and approve the spec before implementation planning
+- write an implementation plan after spec approval
+- verify the plan against aggregate generation, JPA persistence annotations, preassignable application-side IDs, tests, and documentation
 
 Notes:
 
 - this is a default-policy change, not only a utility-class addition
-- explicit project/entity ID-generator configuration must remain possible
-- the first discussion should distinguish framework default, generated entity default, and manually preassigned IDs
+- UUID7 is the desired project default application-side ID strategy
+- Snowflake remains explicit as `snowflake-long`, not the default
+- application-side ID policy is configured through Gradle DSL, not DB comments
+- field-level `@ApplicationSideId` is the runtime contract
+- `JpaUnitOfWork` must handle preassigned-ID new entities and save-time owned-child ID assignment
 - do not mix this with a repository backend replacement
 
 ### 4. Aggregate inverse-navigation fetch policy decision
