@@ -211,6 +211,8 @@ The generated-source output slice is complete:
 
 - generated source output and entity behavior split
 
+The aggregate entity default projection slice is complete.
+
 Status:
 
 - spec updated
@@ -267,6 +269,31 @@ Notes:
 - Querydsl repositories accept the same public load-plan parameter and initialize owned collections for `WHOLE_AGGREGATE`
 
 No new default mainline implementation slice has been selected yet; remaining candidates are tracked in the backlog below.
+
+Latest completed dogfood generator-quality slice:
+
+- aggregate entity default projection
+
+Status:
+
+- spec written
+- implementation plan written
+- implementation complete
+- verified through targeted aggregate generator tests covering scalar defaults, nullable defaults, unsupported SQL defaults, computed defaults, control-character escaping, and enum default projection
+
+Reference:
+
+- [aggregate entity default projection design](specs/2026-05-01-cap4k-aggregate-entity-default-projection-design.md)
+- [aggregate entity default projection implementation plan](plans/2026-05-01-cap4k-aggregate-entity-default-projection.md)
+
+Notes:
+
+- constructor defaults now follow explicit-input projection only
+- nullable fields may default to `null`
+- relation collections keep collection defaults
+- scalar DB defaults are normalized only when they can be safely rendered as Kotlin constructor defaults
+- enum DB defaults are resolved against known enum item metadata under the numeric enum model
+- the generator does not invent primitive fallback defaults, field-name-based technical defaults, implicit enum fallback defaults, or value-object defaults
 
 Current persistence decision:
 
@@ -332,19 +359,17 @@ Remaining recommended order from the current mainline handoff:
 
 Dogfood-discovered generator quality follow-ups:
 
-10. aggregate entity constructor default policy hardening
-11. design/query contract regeneration discipline for real-project migration
-12. aggregate unique family naming and soft-delete scope customization
-13. analysis / drawing-board defaultValue expression projection hardening
-14. generated / migrated Kotlin import formatting cleanup
-15. artifact-level conflict policy overrides for generator output
-16. aggregate factory payload metadata-name parity
+10. design/query contract regeneration discipline for real-project migration
+11. aggregate unique family naming and soft-delete scope customization
+12. analysis / drawing-board defaultValue expression projection hardening
+13. generated / migrated Kotlin import formatting cleanup
+14. artifact-level conflict policy overrides for generator output
+15. aggregate factory payload metadata-name parity
 
 Notes:
 
 - These items come from the `only-danmuku-zero` dogfood migration pass and should be reviewed before the next full real-project migration iteration.
 - The dogfood decision is that query/client/command `Request` and `Response` contracts should be repaired through design input and generators whenever the generator can express them; hand edits are temporary unblocks only.
-- Aggregate entity defaults are a generator contract issue, not a project-local workaround. The accepted direction is explicit-input projection only: relation collections, safely projected DB defaults, and nullable `null`; no primitive fallback defaults, no field-name-based technical-field guessing, and no implicit enum/value-object defaults. See [aggregate entity default projection design](specs/2026-05-01-cap4k-aggregate-entity-default-projection-design.md).
 - Aggregate unique naming should not blindly expose soft-delete fields in public type names when those fields are only uniqueness scope/filter fields. Query, query handler, and validator naming must stay aligned.
 - Default value projection should preserve stable expressions such as `null`, scalar literals, empty collection expressions, and enum/constant references through analysis/drawing-board to generate-ready design input.
 - Import formatting cleanup is lower priority and should only become a generator bug if fresh generated output still contains unnecessary blank lines.

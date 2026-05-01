@@ -1,5 +1,7 @@
 # Aggregate Entity Default Projection Implementation Plan
 
+Status: implemented. This is now a historical execution plan; do not treat unchecked boxes as remaining work without re-reviewing current `master`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Harden aggregate entity constructor default generation so defaults are projected only from explicit, stable inputs.

@@ -2,7 +2,9 @@
 
 ## Status
 
-Draft for review.
+Implemented.
+
+Completion follows the merged repository history and the roadmap status.
 
 ## Background
 
