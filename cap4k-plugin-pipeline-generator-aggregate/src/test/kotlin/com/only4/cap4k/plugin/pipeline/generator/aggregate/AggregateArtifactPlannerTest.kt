@@ -1326,6 +1326,148 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner projects numeric enum database defaults`() {
+        val visibilityItems = listOf(
+            EnumItemModel(0, "HIDDEN", "Hidden"),
+            EnumItemModel(1, "PUBLIC", "Public"),
+        )
+        val statusItems = listOf(
+            EnumItemModel(0, "DRAFT", "Draft"),
+            EnumItemModel(1, "PUBLISHED", "Published"),
+        )
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel(
+                    name = "visibility",
+                    type = "Int",
+                    defaultValue = "'1'",
+                    typeBinding = "Visibility",
+                    enumItems = visibilityItems,
+                ),
+                FieldModel(
+                    name = "status",
+                    type = "Int",
+                    defaultValue = "0",
+                    typeBinding = "Status",
+                ),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                sharedEnums = listOf(
+                    SharedEnumDefinition(
+                        typeName = "Status",
+                        packageName = "shared",
+                        generateTranslation = true,
+                        items = statusItems,
+                    )
+                ),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            )
+        )
+
+        val entityArtifact = plan.single { it.outputPath.endsWith("/VideoPost.kt") }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityArtifact.context["scalarFields"] as List<Map<String, Any?>>
+
+        assertEquals(
+            "com.acme.demo.domain.aggregates.video_post.enums.Visibility.valueOf(1)",
+            scalarFields.single { it["name"] == "visibility" }["defaultValue"],
+        )
+        assertEquals(
+            "com.acme.demo.domain.shared.enums.Status.valueOf(0)",
+            scalarFields.single { it["name"] == "status" }["defaultValue"],
+        )
+    }
+
+    @Test
+    fun `entity planner fails when enum database default is not numeric`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel(
+                    name = "visibility",
+                    type = "Int",
+                    defaultValue = "'PUBLIC'",
+                    typeBinding = "Visibility",
+                    enumItems = listOf(
+                        EnumItemModel(0, "HIDDEN", "Hidden"),
+                        EnumItemModel(1, "PUBLIC", "Public"),
+                    ),
+                ),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            AggregateArtifactPlanner().plan(
+                aggregateConfig(),
+                CanonicalModel(
+                    entities = listOf(entity),
+                    aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                )
+            )
+        }
+
+        assertEquals(
+            "aggregate enum field com.acme.demo.domain.aggregates.video_post.VideoPost.visibility default 'PUBLIC' is not numeric; enum defaults must use numeric values",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `entity planner fails when enum database default value is not declared`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel(
+                    name = "visibility",
+                    type = "Int",
+                    defaultValue = "9",
+                    typeBinding = "Visibility",
+                    enumItems = listOf(
+                        EnumItemModel(0, "HIDDEN", "Hidden"),
+                        EnumItemModel(1, "PUBLIC", "Public"),
+                    ),
+                ),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            AggregateArtifactPlanner().plan(
+                aggregateConfig(),
+                CanonicalModel(
+                    entities = listOf(entity),
+                    aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                )
+            )
+        }
+
+        assertEquals(
+            "aggregate enum field com.acme.demo.domain.aggregates.video_post.VideoPost.visibility default 9 does not match any enum item value",
+            error.message,
+        )
+    }
+
+    @Test
     fun `entity planner fails when scalar database default cannot be projected`() {
         val entity = EntityModel(
             name = "VideoPost",

@@ -106,7 +106,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                                 fieldType = fieldType,
                                 nullable = field.nullable,
                                 rawDefaultValue = field.defaultValue,
-                                enumItems = emptyList(),
+                                enumItems = planning.resolveEnumItems(entity.packageName, field),
                             ),
                             "typeBinding" to field.typeBinding,
                             "enumItems" to field.enumItems,
