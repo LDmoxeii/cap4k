@@ -95,9 +95,28 @@ internal class AggregateEntityDefaultProjector {
     }
 
     private fun isSqlExpression(value: String): Boolean {
+        if (value.unquoteSqlString() != null) return false
         val upper = value.uppercase()
         return upper in setOf("CURRENT_TIMESTAMP", "CURRENT_DATE", "CURRENT_TIME") ||
-            value.matches(Regex("""[A-Za-z_][A-Za-z0-9_$]*(\.[A-Za-z_][A-Za-z0-9_$]*)?\s*\(.*\)"""))
+            value.matches(Regex("""[A-Za-z_][A-Za-z0-9_$]*(\.[A-Za-z_][A-Za-z0-9_$]*)?\s*\(.*\)""")) ||
+            hasBinarySqlOperator(value)
+    }
+
+    private fun hasBinarySqlOperator(value: String): Boolean {
+        var inSingleQuotedString = false
+        var inDoubleQuotedString = false
+        value.forEachIndexed { index, char ->
+            when {
+                char == '\'' && !inDoubleQuotedString -> inSingleQuotedString = !inSingleQuotedString
+                char == '"' && !inSingleQuotedString -> inDoubleQuotedString = !inDoubleQuotedString
+                !inSingleQuotedString && !inDoubleQuotedString && char in setOf('+', '-', '*', '/', '%') -> {
+                    val hasLeftOperand = value.take(index).any { !it.isWhitespace() }
+                    val hasRightOperand = value.drop(index + 1).any { !it.isWhitespace() }
+                    if (hasLeftOperand && hasRightOperand) return true
+                }
+            }
+        }
+        return false
     }
 
     private fun String?.unwrapIntegerLiteralOrNull(): String? =

@@ -1266,6 +1266,35 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner keeps computed scalar defaults constructor required`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("computed", "Long", defaultValue = "(1 + 2)"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            )
+        )
+
+        val entityArtifact = plan.single { it.outputPath.endsWith("/VideoPost.kt") }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityArtifact.context["scalarFields"] as List<Map<String, Any?>>
+
+        assertEquals(null, scalarFields.single { it["name"] == "computed" }["defaultValue"])
+    }
+
+    @Test
     fun `entity planner projects quoted numeric boolean defaults`() {
         val entity = EntityModel(
             name = "VideoPost",
