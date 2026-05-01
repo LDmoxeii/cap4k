@@ -137,6 +137,11 @@ internal class AggregateEntityDefaultProjector {
                     '\n' -> append("\\n")
                     '\r' -> append("\\r")
                     '\t' -> append("\\t")
+                    '\b' -> append("\\b")
+                    in '\u0000'..'\u001F', in '\u007F'..'\u009F' -> {
+                        append("\\u")
+                        append(char.code.toString(radix = 16).padStart(4, '0'))
+                    }
                     else -> append(char)
                 }
             }

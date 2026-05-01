@@ -1202,6 +1202,7 @@ class AggregateArtifactPlannerTest {
                 FieldModel("rating", "Double", defaultValue = "1"),
                 FieldModel("displayName", "String", nullable = true, defaultValue = "''"),
                 FieldModel("priceLabel", "String", defaultValue = "'\$name'"),
+                FieldModel("controlCode", "String", defaultValue = "'a\u0000b'"),
                 FieldModel("createdAt", "String", defaultValue = "CURRENT_TIMESTAMP"),
             ),
             idField = FieldModel("id", "Long"),
@@ -1231,6 +1232,7 @@ class AggregateArtifactPlannerTest {
         assertEquals("1.0", scalarFields.single { it["name"] == "rating" }["defaultValue"])
         assertEquals("\"\"", scalarFields.single { it["name"] == "displayName" }["defaultValue"])
         assertEquals("\"\\\$name\"", scalarFields.single { it["name"] == "priceLabel" }["defaultValue"])
+        assertEquals("\"a\\u0000b\"", scalarFields.single { it["name"] == "controlCode" }["defaultValue"])
         assertEquals(null, scalarFields.single { it["name"] == "createdAt" }["defaultValue"])
     }
 
