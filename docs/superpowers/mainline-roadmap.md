@@ -338,6 +338,7 @@ Dogfood-discovered generator quality follow-ups:
 13. analysis / drawing-board defaultValue expression projection hardening
 14. generated / migrated Kotlin import formatting cleanup
 15. artifact-level conflict policy overrides for generator output
+16. aggregate factory payload metadata-name parity
 
 Notes:
 
@@ -348,6 +349,7 @@ Notes:
 - Default value projection should preserve stable expressions such as `null`, scalar literals, empty collection expressions, and enum/constant references through analysis/drawing-board to generate-ready design input.
 - Import formatting cleanup is lower priority and should only become a generator bug if fresh generated output still contains unnecessary blank lines.
 - Artifact-level conflict policy overrides are an experience optimization, not a current migration blocker. The current global `templates.conflictPolicy` is too coarse for real dogfood because users often need to overwrite generated contracts while preserving handler, validator, subscriber, controller, or behavior bodies. Prefer a direct artifact selector that is visible in `cap4kPlan` over introducing a separate family abstraction.
+- Aggregate factory payload metadata-name parity is a low-priority edge cleanup. Generated nested factory payload classes may remain named `Payload`, but the `@Aggregate(name = ...)` metadata should preserve the old semantic name such as `CategoryPayload` instead of the nested class simple name. Current analysis primarily binds factory payloads through `aggregate` and `type`, so this is not a blocker, but it should be fixed before `@Aggregate` metadata is treated as a stable projection input.
 
 The completed validator projection item was a combined implementation track over:
 
