@@ -1,6 +1,6 @@
 # Cap4k Mainline Roadmap
 
-Date: 2026-05-01
+Date: 2026-05-02
 
 ## Purpose
 
@@ -349,22 +349,23 @@ Remaining recommended order from the current mainline handoff:
 
 1. UUID7 ID generator and default ID-generation policy
 2. aggregate inverse-navigation fetch policy decision
-3. irAnalysis-backed frontend TypeScript generation analysis
-4. framework capability audit for domain service, value object, aggregate wrapper, strong ID, and saga
-5. README rewrite after the framework capability audit clarifies the public story
-6. DDD + cap4k + AI collaboration guide after the README positioning is stable
-7. built-in testing skeleton feasibility analysis
-8. irAnalysis restructuring analysis, only if smaller projection or TypeScript-generation needs prove the current shape is insufficient
-9. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
+3. read/write model association-scope separation analysis
+4. irAnalysis-backed frontend TypeScript generation analysis
+5. framework capability audit for domain service, value object, aggregate wrapper, strong ID, and saga
+6. README rewrite after the framework capability audit clarifies the public story
+7. DDD + cap4k + AI collaboration guide after the README positioning is stable
+8. built-in testing skeleton feasibility analysis
+9. irAnalysis restructuring analysis, only if smaller projection or TypeScript-generation needs prove the current shape is insufficient
+10. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
 
 Dogfood-discovered generator quality follow-ups:
 
-10. full design-regenerated Query/Cmd/Cli contract parity
-11. aggregate unique family naming and soft-delete scope customization
-12. analysis / drawing-board defaultValue expression projection hardening
-13. generated / migrated Kotlin import formatting cleanup
-14. artifact-level conflict policy overrides for generator output
-15. aggregate factory payload metadata-name parity
+11. full design-regenerated Query/Cmd/Cli contract parity
+12. aggregate unique family naming and soft-delete scope customization
+13. analysis / drawing-board defaultValue expression projection hardening
+14. generated / migrated Kotlin import formatting cleanup
+15. artifact-level conflict policy overrides for generator output
+16. aggregate factory payload metadata-name parity
 
 Notes:
 
@@ -615,7 +616,31 @@ Notes:
 - `AggregateLoadPlan` is the approved use-case loading mechanism
 - the decision must preserve generated-file consistency and avoid making performance-sensitive projects accidentally expensive
 
-### 5. irAnalysis-backed frontend TypeScript generation analysis
+### 5. Read/write model association-scope separation analysis
+
+Status:
+
+- candidate architecture analysis work
+- spec not written
+- implementation plan not written
+- explicitly deferred; do not implement before DDD/CQRS review
+
+Next action:
+
+- review DDD reference material and CQRS read-model best practices before deciding framework semantics
+- analyze whether DB/source annotations should distinguish strong associations from weak/logical associations
+- decide whether strong associations should feed aggregate write-model generation while weak associations feed read-model/query-model projection only
+- define how this would interact with repository restrictions, aggregate child-entity access, generated queries, analysis output, and future TypeScript generation
+
+Notes:
+
+- write models should preserve aggregate consistency boundaries; owned child entities are loaded and modified through the aggregate root and repository, not exposed as independent repository targets
+- read models optimize information completeness and may need broader logical associations than aggregate write models
+- strong association means aggregate ownership / child-entity containment; weak association means logical read-side relation without write-model ownership
+- this is not a request to immediately add new DB annotation behavior; it is a design question about whether the source model should carry separate association strengths for different consumers
+- avoid using this to weaken aggregate invariants or to turn read-model convenience into write-model coupling
+
+### 6. irAnalysis-backed frontend TypeScript generation analysis
 
 Status:
 
@@ -634,11 +659,11 @@ Next action:
 Notes:
 
 - the user is not assuming the current frontend project shape is ideal
-- this track may expose irAnalysis projection gaps, but should not automatically trigger broad irAnalysis restructuring
+- this track may expose irAnalysis projection gaps or read/write model association-scope questions, but should not automatically trigger broad irAnalysis restructuring
 - TypeScript output is a new consumer boundary, so stable input contracts matter more than copying the existing frontend folder style
 - do not implement this as a one-off only-danmuku-admin-ui generator
 
-### 6. Framework capability audit and pruning/optimization review
+### 7. Framework capability audit and pruning/optimization review
 
 Status:
 
@@ -658,7 +683,7 @@ Notes:
 - do not optimize or delete capabilities before their current semantics and users are understood
 - the result should clarify whether each capability belongs to core framework, optional extension, generated scaffold, or legacy/quarantine
 
-### 7. Public README rewrite and project positioning
+### 8. Public README rewrite and project positioning
 
 Status:
 
@@ -679,7 +704,7 @@ Notes:
 - the goal is to make the project understandable to people beyond the current maintainer
 - README should not require readers to know the chat history or roadmap terminology
 
-### 8. DDD + cap4k + AI collaboration guide
+### 9. DDD + cap4k + AI collaboration guide
 
 Status:
 
@@ -700,7 +725,7 @@ Notes:
 - it should encode how to use Cap4k safely: when to generate, when to hand-write, when to review, and when to stop
 - it should not be written before the public capability story is clear
 
-### 9. Built-in testing skeleton feasibility analysis
+### 10. Built-in testing skeleton feasibility analysis
 
 Status:
 
@@ -722,7 +747,7 @@ Notes:
 - it must integrate with generated aggregates, repositories, commands, events, and analysis artifacts if it becomes a framework capability
 - do not implement only a project-specific test helper unless it can become a stable Cap4k pattern
 
-### 10. irAnalysis restructuring analysis
+### 11. irAnalysis restructuring analysis
 
 Status:
 
@@ -747,7 +772,7 @@ Notes:
 - if analysis design projection normalization can be solved without restructuring, keep restructuring deferred
 - this should not block smaller drawing-board or validator-generation slices unless evidence shows the current architecture cannot support them
 
-### 11. Unit-of-work and repository backend comparison
+### 12. Unit-of-work and repository backend comparison
 
 Status:
 

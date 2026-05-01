@@ -58,6 +58,7 @@ Current active planning queue:
 
 - UUID7 ID generator and default ID-generation policy
 - aggregate inverse-navigation fetch policy decision
+- read/write model association-scope separation analysis
 - irAnalysis-backed frontend TypeScript generation analysis
 - framework capability audit for domain service, value object, aggregate wrapper, strong ID, and saga
 - README rewrite after the capability audit makes the project positioning clear
