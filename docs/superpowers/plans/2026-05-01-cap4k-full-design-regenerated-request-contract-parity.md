@@ -105,8 +105,8 @@ For every matched plan item, the script validates:
 - `object <context.typeName>` exists.
 - `Request` exists as a class/data class.
 - `Response` exists as a data class/data object.
-- Every `context.requestFields[].name` appears as a `val` property.
-- Every `context.responseFields[].name` appears as a `val` property.
+- Every `context.requestFields[].name` appears as a `val` or `var` property.
+- Every `context.responseFields[].name` appears as a `val` or `var` property.
 - Every request/response nested type name appears as a nested data class.
 - If `context.pageRequest == true`, the file contains `PageRequest`, `pageNum`, and `pageSize`.
 
