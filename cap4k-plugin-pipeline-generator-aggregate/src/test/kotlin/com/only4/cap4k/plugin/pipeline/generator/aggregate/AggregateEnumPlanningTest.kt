@@ -30,6 +30,10 @@ class AggregateEnumPlanningTest {
         )
 
         assertEquals(enumItems, planning.resolveEnumItems(entity.packageName, entity.fields.single()))
+        assertEquals(
+            "com.acme.demo.domain.aggregates.video_post.enums.Visibility",
+            planning.resolveFieldType(entity.packageName, entity.fields.single())
+        )
     }
 
     @Test
@@ -60,6 +64,10 @@ class AggregateEnumPlanningTest {
         )
 
         assertEquals(enumItems, planning.resolveEnumItems(entity.packageName, entity.fields.single()))
+        assertEquals(
+            "com.acme.demo.domain.shared.enums.Status",
+            planning.resolveFieldType(entity.packageName, entity.fields.single())
+        )
     }
 
     @Test

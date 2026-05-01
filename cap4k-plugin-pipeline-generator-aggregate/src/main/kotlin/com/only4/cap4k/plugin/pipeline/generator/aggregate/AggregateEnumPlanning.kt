@@ -93,8 +93,9 @@ internal class AggregateEnumPlanning private constructor(
             artifactLayout: ArtifactLayoutResolver,
             typeRegistry: Map<String, TypeRegistryEntry>,
         ): AggregateEnumPlanning {
-            val sharedEnumFqns = buildSharedEnumFqns(model.sharedEnums, artifactLayout)
-            val sharedEnumItems = buildSharedEnumItems(model.sharedEnums)
+            val sharedEnumDefinitions = buildSharedEnumDefinitions(model.sharedEnums, artifactLayout)
+            val sharedEnumFqns = sharedEnumDefinitions.mapValues { (_, definition) -> definition.fqn }
+            val sharedEnumItems = sharedEnumDefinitions.mapValues { (_, definition) -> definition.enumItems }
             sharedEnumFqns.keys.firstOrNull { it in typeRegistry }?.let { typeName ->
                 throw IllegalArgumentException(
                     "ambiguous type binding for $typeName: matches both shared enum and general type registry"
@@ -123,10 +124,10 @@ internal class AggregateEnumPlanning private constructor(
             )
         }
 
-        private fun buildSharedEnumFqns(
+        private fun buildSharedEnumDefinitions(
             definitions: List<SharedEnumDefinition>,
             artifactLayout: ArtifactLayoutResolver,
-        ): Map<String, String> {
+        ): Map<String, SharedEnumPlanningDefinition> {
             val grouped = definitions.groupBy { it.typeName.trim() }
             grouped.entries.firstOrNull { it.value.size > 1 }?.key?.let { duplicated ->
                 throw IllegalArgumentException("duplicate shared enum definition: $duplicated")
@@ -134,20 +135,13 @@ internal class AggregateEnumPlanning private constructor(
             return grouped.mapValues { (_, values) ->
                 val definition = values.single()
                 val packageName = resolveSharedEnumPackageName(definition.packageName, artifactLayout)
-                if (packageName.isBlank()) {
+                val fqn = if (packageName.isBlank()) {
                     definition.typeName
                 } else {
                     "$packageName.${definition.typeName}"
                 }
+                SharedEnumPlanningDefinition(fqn = fqn, enumItems = definition.items)
             }
-        }
-
-        private fun buildSharedEnumItems(definitions: List<SharedEnumDefinition>): Map<String, List<EnumItemModel>> {
-            val grouped = definitions.groupBy { it.typeName.trim() }
-            grouped.entries.firstOrNull { it.value.size > 1 }?.key?.let { duplicated ->
-                throw IllegalArgumentException("duplicate shared enum definition: $duplicated")
-            }
-            return grouped.mapValues { (_, values) -> values.single().items }
         }
 
         private fun resolveSharedEnumPackageName(
@@ -206,6 +200,11 @@ private data class LocalEnumOwnerKey(
 )
 
 private data class LocalEnumDefinition(
+    val fqn: String,
+    val enumItems: List<EnumItemModel>,
+)
+
+private data class SharedEnumPlanningDefinition(
     val fqn: String,
     val enumItems: List<EnumItemModel>,
 )
