@@ -1161,7 +1161,6 @@ class AggregateArtifactPlannerTest {
                 FieldModel("score", "Float", defaultValue = "0.5"),
                 FieldModel("sortWeight", "Float", defaultValue = "1."),
                 FieldModel("ratio", "Double", defaultValue = ".25"),
-                FieldModel("priority", "Long", defaultValue = "1.0"),
             ),
             idField = FieldModel("id", "Long"),
         )
@@ -1181,7 +1180,6 @@ class AggregateArtifactPlannerTest {
         assertEquals("0.5f", scalarFields.single { it["name"] == "score" }["defaultValue"])
         assertEquals("1.0f", scalarFields.single { it["name"] == "sortWeight" }["defaultValue"])
         assertEquals("0.25", scalarFields.single { it["name"] == "ratio" }["defaultValue"])
-        assertEquals(null, scalarFields.single { it["name"] == "priority" }["defaultValue"])
     }
 
     @Test
@@ -1230,6 +1228,36 @@ class AggregateArtifactPlannerTest {
         assertEquals("1.0", scalarFields.single { it["name"] == "ratio" }["defaultValue"])
         assertEquals("\"\"", scalarFields.single { it["name"] == "displayName" }["defaultValue"])
         assertEquals(null, scalarFields.single { it["name"] == "createdAt" }["defaultValue"])
+    }
+
+    @Test
+    fun `entity planner fails when scalar database default cannot be projected`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("priority", "Long", defaultValue = "1.0"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            AggregateArtifactPlanner().plan(
+                aggregateConfig(),
+                CanonicalModel(
+                    entities = listOf(entity),
+                    aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                )
+            )
+        }
+
+        assertEquals(
+            "aggregate field com.acme.demo.domain.aggregates.video_post.VideoPost.priority default 1.0 cannot be projected to Long",
+            error.message,
+        )
     }
 
     @Test
