@@ -330,6 +330,23 @@ Remaining recommended order from the current mainline handoff:
 8. irAnalysis restructuring analysis, only if smaller projection or TypeScript-generation needs prove the current shape is insufficient
 9. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
 
+Dogfood-discovered generator quality follow-ups:
+
+10. aggregate entity constructor default policy hardening
+11. design/query contract regeneration discipline for real-project migration
+12. aggregate unique family naming and soft-delete scope customization
+13. analysis / drawing-board defaultValue expression projection hardening
+14. generated / migrated Kotlin import formatting cleanup
+
+Notes:
+
+- These items come from the `only-danmuku-zero` dogfood migration pass and should be reviewed before the next full real-project migration iteration.
+- The dogfood decision is that query/client/command `Request` and `Response` contracts should be repaired through design input and generators whenever the generator can express them; hand edits are temporary unblocks only.
+- Aggregate entity defaults are a generator contract issue, not a project-local workaround. DB defaults should be honored when they can be normalized, and Kotlin type fallback defaults should cover behavior-friendly entity construction.
+- Aggregate unique naming should not blindly expose soft-delete fields in public type names when those fields are only uniqueness scope/filter fields. Query, query handler, and validator naming must stay aligned.
+- Default value projection should preserve stable expressions such as `null`, scalar literals, empty collection expressions, and enum/constant references through analysis/drawing-board to generate-ready design input.
+- Import formatting cleanup is lower priority and should only become a generator bug if fresh generated output still contains unnecessary blank lines.
+
 The completed validator projection item was a combined implementation track over:
 
 - analysis design projection normalization
