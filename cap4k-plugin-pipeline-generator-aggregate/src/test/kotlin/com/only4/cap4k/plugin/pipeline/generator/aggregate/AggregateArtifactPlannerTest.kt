@@ -1185,6 +1185,54 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner projects only explicit scalar defaults and nullable null`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("customerId", "Long"),
+                FieldModel("title", "String"),
+                FieldModel("description", "String", nullable = true),
+                FieldModel("deleted", "Long", defaultValue = "0"),
+                FieldModel("sort", "Int", defaultValue = "'1'"),
+                FieldModel("enabled", "Boolean", defaultValue = "1"),
+                FieldModel("score", "Float", defaultValue = "(.5)"),
+                FieldModel("ratio", "Double", defaultValue = "(1.)"),
+                FieldModel("displayName", "String", nullable = true, defaultValue = "''"),
+                FieldModel("createdAt", "String", defaultValue = "CURRENT_TIMESTAMP"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            )
+        )
+
+        val entityArtifact = plan.single { it.outputPath.endsWith("/VideoPost.kt") }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityArtifact.context["scalarFields"] as List<Map<String, Any?>>
+
+        assertEquals(null, scalarFields.single { it["name"] == "id" }["defaultValue"])
+        assertEquals(null, scalarFields.single { it["name"] == "customerId" }["defaultValue"])
+        assertEquals(null, scalarFields.single { it["name"] == "title" }["defaultValue"])
+        assertEquals("null", scalarFields.single { it["name"] == "description" }["defaultValue"])
+        assertEquals("0L", scalarFields.single { it["name"] == "deleted" }["defaultValue"])
+        assertEquals("1", scalarFields.single { it["name"] == "sort" }["defaultValue"])
+        assertEquals("true", scalarFields.single { it["name"] == "enabled" }["defaultValue"])
+        assertEquals("0.5f", scalarFields.single { it["name"] == "score" }["defaultValue"])
+        assertEquals("1.0", scalarFields.single { it["name"] == "ratio" }["defaultValue"])
+        assertEquals("\"\"", scalarFields.single { it["name"] == "displayName" }["defaultValue"])
+        assertEquals(null, scalarFields.single { it["name"] == "createdAt" }["defaultValue"])
+    }
+
+    @Test
     fun `entity planner exposes provider specific persistence contract`() {
         val entity = EntityModel(
             name = "VideoPost",
