@@ -337,6 +337,7 @@ Dogfood-discovered generator quality follow-ups:
 12. aggregate unique family naming and soft-delete scope customization
 13. analysis / drawing-board defaultValue expression projection hardening
 14. generated / migrated Kotlin import formatting cleanup
+15. artifact-level conflict policy overrides for generator output
 
 Notes:
 
@@ -346,6 +347,7 @@ Notes:
 - Aggregate unique naming should not blindly expose soft-delete fields in public type names when those fields are only uniqueness scope/filter fields. Query, query handler, and validator naming must stay aligned.
 - Default value projection should preserve stable expressions such as `null`, scalar literals, empty collection expressions, and enum/constant references through analysis/drawing-board to generate-ready design input.
 - Import formatting cleanup is lower priority and should only become a generator bug if fresh generated output still contains unnecessary blank lines.
+- Artifact-level conflict policy overrides are an experience optimization, not a current migration blocker. The current global `templates.conflictPolicy` is too coarse for real dogfood because users often need to overwrite generated contracts while preserving handler, validator, subscriber, controller, or behavior bodies. Prefer a direct artifact selector that is visible in `cap4kPlan` over introducing a separate family abstraction.
 
 The completed validator projection item was a combined implementation track over:
 
