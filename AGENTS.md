@@ -56,7 +56,14 @@ Recently completed:
 
 Current active planning queue:
 
-- irAnalysis restructuring analysis, only if smaller projection fixes are not enough
+- UUID7 ID generator and default ID-generation policy
+- aggregate inverse-navigation fetch policy decision
+- irAnalysis-backed frontend TypeScript generation analysis
+- framework capability audit for domain service, value object, aggregate wrapper, strong ID, and saga
+- README rewrite after the capability audit makes the project positioning clear
+- DDD + cap4k + AI collaboration guide after the public capability story stabilizes
+- built-in testing skeleton feasibility analysis
+- irAnalysis restructuring analysis, only if smaller projection or TypeScript-generation needs prove the current shape is insufficient
 - unit-of-work and repository backend comparison, only if focused JPA runtime reproductions justify it
 
 Do not execute an old historical plan just because it exists. Re-read the relevant spec and plan against current `master`, update them if the repository or user's latest decisions changed the boundary, and then execute from the refreshed plan.
@@ -69,6 +76,8 @@ Recent durable decisions to preserve:
 - command/query/client/saga transaction policy must be request-family-specific; `RequestSupervisor` being shared does not mean all request families share one transaction boundary
 - CLI/distributed-client requests currently lack a dedicated marker, so avoid accidental command-policy inclusion
 - aggregate JPA runtime problems should be reproduced in focused fixtures before replacing repository or unit-of-work backends
+- TypeScript frontend generation is only a candidate track; do not assume the current `only-danmuku-admin-ui/src/api` shape is best practice without review
+- public README and AI-collaboration rules should be written only after the capability audit clarifies what remains supported, optimized, or deleted
 
 ## Reading Order
 

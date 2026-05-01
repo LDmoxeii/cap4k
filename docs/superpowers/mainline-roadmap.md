@@ -1,6 +1,6 @@
 # Cap4k Mainline Roadmap
 
-Date: 2026-04-29
+Date: 2026-05-01
 
 ## Purpose
 
@@ -306,7 +306,7 @@ Decision:
 
 ## Upcoming Backlog
 
-Date: 2026-04-29
+Date: 2026-05-01
 
 These items are recorded to preserve scheduling context. They are not implementation plans.
 
@@ -320,9 +320,15 @@ Plan freshness rule:
 
 Remaining recommended order from the current mainline handoff:
 
-1. aggregate JPA mapping safety and load-plan semantics, if aggregate persistence work is selected next
-2. irAnalysis restructuring analysis
-3. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
+1. UUID7 ID generator and default ID-generation policy
+2. aggregate inverse-navigation fetch policy decision
+3. irAnalysis-backed frontend TypeScript generation analysis
+4. framework capability audit for domain service, value object, aggregate wrapper, strong ID, and saga
+5. README rewrite after the framework capability audit clarifies the public story
+6. DDD + cap4k + AI collaboration guide after the README positioning is stable
+7. built-in testing skeleton feasibility analysis
+8. irAnalysis restructuring analysis, only if smaller projection or TypeScript-generation needs prove the current shape is insufficient
+9. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
 
 The completed validator projection item was a combined implementation track over:
 
@@ -519,7 +525,158 @@ Notes:
 - command-wide transaction expansion has test evidence, but its blast radius includes `JpaUnitOfWork.save()`, real commit timing, `afterTransaction`, domain events, integration events, and interceptors
 - do not choose a persistence backend replacement just to solve this lazy-loading symptom
 
-### 3. irAnalysis restructuring analysis
+### 3. UUID7 ID generator and default ID-generation policy
+
+Status:
+
+- candidate mainline work
+- spec not written
+- implementation plan not written
+
+Next action:
+
+- write an analysis/spec before implementation
+- decide whether UUID7 should replace Snowflake as the framework default ID generator
+- define migration behavior for existing projects that already use explicit Snowflake or custom generators
+- verify the decision against aggregate generation, JPA persistence annotations, preassignable application-side IDs, tests, and documentation
+
+Notes:
+
+- this is a default-policy change, not only a utility-class addition
+- explicit project/entity ID-generator configuration must remain possible
+- the first discussion should distinguish framework default, generated entity default, and manually preassigned IDs
+- do not mix this with a repository backend replacement
+
+### 4. Aggregate inverse-navigation fetch policy decision
+
+Status:
+
+- candidate mainline work
+- spec not written
+- implementation plan not written
+
+Next action:
+
+- write an analysis/spec before implementation
+- decide whether generated inverse navigation should default to eager loading or lazy loading
+- review this against the current `AggregateLoadPlan.MINIMAL` / `WHOLE_AGGREGATE` contract
+- define whether users need explicit generator configuration and what invalid combinations should fail fast
+
+Notes:
+
+- previous JPA work fixed mapping safety and load-plan semantics, but did not settle every inverse-navigation default
+- `FetchType.EAGER` is a mapping policy, not a use-case loading policy
+- `AggregateLoadPlan` is the approved use-case loading mechanism
+- the decision must preserve generated-file consistency and avoid making performance-sensitive projects accidentally expensive
+
+### 5. irAnalysis-backed frontend TypeScript generation analysis
+
+Status:
+
+- candidate support/mainline-adjacent work
+- spec not written
+- implementation plan not written
+
+Next action:
+
+- write an analysis/spec before implementation
+- review `only-danmuku-admin-ui/src/api` as reference material, not as a confirmed best practice
+- investigate frontend API client / type-generation conventions before committing to output shape
+- decide whether generation should use irAnalysis output, drawing-board/design projection, or another canonical contract
+- separate endpoint/API functions from strong TypeScript types unless analysis proves a different split is better
+
+Notes:
+
+- the user is not assuming the current frontend project shape is ideal
+- this track may expose irAnalysis projection gaps, but should not automatically trigger broad irAnalysis restructuring
+- TypeScript output is a new consumer boundary, so stable input contracts matter more than copying the existing frontend folder style
+- do not implement this as a one-off only-danmuku-admin-ui generator
+
+### 6. Framework capability audit and pruning/optimization review
+
+Status:
+
+- candidate analysis work
+- spec not written
+- implementation plan not written
+
+Next action:
+
+- audit domain service, value object, aggregate wrapper generation, strong ID mechanism, and saga mechanism
+- document what each capability currently does, who should use it, and whether it should be optimized, simplified, deprecated, or removed
+- write follow-up specs only for capabilities that survive the audit
+
+Notes:
+
+- this is a prerequisite for credible public documentation
+- do not optimize or delete capabilities before their current semantics and users are understood
+- the result should clarify whether each capability belongs to core framework, optional extension, generated scaffold, or legacy/quarantine
+
+### 7. Public README rewrite and project positioning
+
+Status:
+
+- candidate documentation work
+- blocked on capability audit
+- spec not written
+- implementation plan not written
+
+Next action:
+
+- after the capability audit, rewrite README around what Cap4k does, who it is for, and what workflow it enables
+- explain the fixed pipeline, bootstrap, code generation, analysis outputs, DDD runtime pieces, and real-project verification story in a user-facing way
+- avoid documenting unstable or undecided capabilities as public promises
+
+Notes:
+
+- this is impact/communication work, not just README cleanup
+- the goal is to make the project understandable to people beyond the current maintainer
+- README should not require readers to know the chat history or roadmap terminology
+
+### 8. DDD + cap4k + AI collaboration guide
+
+Status:
+
+- candidate documentation/process work
+- should follow README positioning
+- spec not written
+- implementation plan not written
+
+Next action:
+
+- define a practical code and collaboration guide for AI-driven Cap4k projects
+- cover project structure, DDD type placement, requirement iteration specs/plans, skeleton generation, testing, frontend integration, and use of generated analysis artifacts
+- identify any missing topics during the guide design rather than forcing the first draft to be exhaustive
+
+Notes:
+
+- this should become project guidance for humans working with AI agents, not generic DDD theory
+- it should encode how to use Cap4k safely: when to generate, when to hand-write, when to review, and when to stop
+- it should not be written before the public capability story is clear
+
+### 9. Built-in testing skeleton feasibility analysis
+
+Status:
+
+- candidate framework-support work
+- inspired by Wow-style DDD tactical testing support
+- spec not written
+- implementation plan not written
+
+Next action:
+
+- write a feasibility analysis before implementation
+- evaluate whether Cap4k should provide a test skeleton suite to reduce repetitive test setup
+- decide how the testing skeleton can fit the structure-first and code-generation workflow
+- identify whether this belongs in bootstrap slots, generated source, runtime test support libraries, or documentation templates
+
+Notes:
+
+- this should improve user testing discipline without hiding domain behavior behind excessive framework magic
+- it must integrate with generated aggregates, repositories, commands, events, and analysis artifacts if it becomes a framework capability
+- do not implement only a project-specific test helper unless it can become a stable Cap4k pattern
+
+### 10. irAnalysis restructuring analysis
 
 Status:
 
@@ -544,7 +701,7 @@ Notes:
 - if analysis design projection normalization can be solved without restructuring, keep restructuring deferred
 - this should not block smaller drawing-board or validator-generation slices unless evidence shows the current architecture cannot support them
 
-### 4. Unit-of-work and repository backend comparison
+### 11. Unit-of-work and repository backend comparison
 
 Status:
 
