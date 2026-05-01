@@ -2,7 +2,16 @@
 
 ## Status
 
-Draft for review.
+Implemented and verified in `only-danmuku-zero`.
+
+Completion evidence:
+
+- dogfood audit script implemented in `only-danmuku-zero/docs/dogfood/audit-design-contracts.ps1`
+- audit report closed at 206/206 matched Query/Cmd/Cli contracts
+- command empty-response drift closed by aligning migrated handlers to generated `data object Response` shape
+- verified with `pwsh -NoProfile -ExecutionPolicy Bypass -File .\docs\dogfood\audit-design-contracts.ps1`
+- verified with `.\gradlew.bat --no-configuration-cache --no-build-cache compileKotlin`
+- closure commit in `only-danmuku-zero`: `f1e12f0 fix: align command empty responses with generated contract`
 
 ## Background
 

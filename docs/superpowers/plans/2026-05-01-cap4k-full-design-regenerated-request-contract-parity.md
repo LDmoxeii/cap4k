@@ -2,7 +2,17 @@
 
 > **For agentic workers:** This plan corrects the first implementation attempt. Do not interpret "design-regenerated" as "must be written to `build/generated`". The audit must follow `cap4kPlan` output paths.
 
-**Status:** Corrected after implementation review.
+**Status:** Implemented and verified in `only-danmuku-zero`.
+
+Completion evidence:
+
+- initial false-positive audit behavior was corrected to use `cap4kPlan` `outputPath` values instead of assuming `build/generated`
+- audit accepts both `val` and `var` properties for generated contract fields
+- 23 command empty-response drifts were fact-checked by isolating their design entries, regenerating only `designCommand`, and confirming generated output uses `data object Response`
+- migrated handlers were updated to keep business logic while matching the generated empty-response contract
+- final audit result: 206/206 Query/Cmd/Cli contracts matched, 0 drift
+- final compile result: `.\gradlew.bat --no-configuration-cache --no-build-cache compileKotlin` passed
+- closure commit in `only-danmuku-zero`: `f1e12f0 fix: align command empty responses with generated contract`
 
 **Goal:** Add an `only-danmuku-zero` dogfood audit that proves every Query/Cmd/Cli `Request` / `Response` contract structure is owned by `codegen/design/design.json` and by the pipeline plan context.
 

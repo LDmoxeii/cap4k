@@ -360,17 +360,16 @@ Remaining recommended order from the current mainline handoff:
 
 Dogfood-discovered generator quality follow-ups:
 
-11. full design-regenerated Query/Cmd/Cli contract parity
-12. aggregate unique family naming and soft-delete scope customization
-13. analysis / drawing-board defaultValue expression projection hardening
-14. generated / migrated Kotlin import formatting cleanup
-15. artifact-level conflict policy overrides for generator output
-16. aggregate factory payload metadata-name parity
+11. aggregate unique family naming and soft-delete scope customization
+12. analysis / drawing-board defaultValue expression projection hardening
+13. generated / migrated Kotlin import formatting cleanup
+14. artifact-level conflict policy overrides for generator output
+15. aggregate factory payload metadata-name parity
 
 Notes:
 
 - These items come from the `only-danmuku-zero` dogfood migration pass and should be reviewed before the next full real-project migration iteration.
-- The dogfood decision is that all Query/Cmd/Cli `Request` and `Response` contracts must be regenerated from design input. If a contract cannot be expressed and regenerated, that is a design/generator capability defect, not a permanent hand-written migration exception. Hand edits are temporary unblocks only. See [full design-regenerated request contract parity design](specs/2026-05-01-cap4k-full-design-regenerated-request-contract-parity-design.md) and [implementation plan](plans/2026-05-01-cap4k-full-design-regenerated-request-contract-parity.md).
+- The dogfood decision is that all Query/Cmd/Cli `Request` and `Response` contracts must be regenerated from design input. If a contract cannot be expressed and regenerated, that is a design/generator capability defect, not a permanent hand-written migration exception. Hand edits are temporary unblocks only. This was verified and closed in `only-danmuku-zero` with 206/206 matched contracts and `compileKotlin` passing; see [full design-regenerated request contract parity design](specs/2026-05-01-cap4k-full-design-regenerated-request-contract-parity-design.md) and [implementation plan](plans/2026-05-01-cap4k-full-design-regenerated-request-contract-parity.md).
 - Aggregate unique naming should not blindly expose soft-delete fields in public type names when those fields are only uniqueness scope/filter fields. Query, query handler, and validator naming must stay aligned.
 - Default value projection should preserve stable expressions such as `null`, scalar literals, empty collection expressions, and enum/constant references through analysis/drawing-board to generate-ready design input.
 - Import formatting cleanup is lower priority and should only become a generator bug if fresh generated output still contains unnecessary blank lines.
@@ -389,6 +388,7 @@ Recently completed mainline slices:
 - ddd-core nullability contract stabilization
 - validator projection and generation normalization
 - generated source output and entity behavior split
+- full design-regenerated Query/Cmd/Cli contract parity
 
 ### Completed: Contract-first query contract
 
@@ -507,6 +507,34 @@ Notes:
 - trait/interface targets, automatic request attachment, and advanced parameter types are deferred
 - aggregate unique validators remain separate from ordinary design validators
 - should be implemented in the same plan as analysis design projection normalization because both share the validator design model
+
+### Completed: Full design-regenerated Query/Cmd/Cli contract parity
+
+Status:
+
+- dogfood audit implemented in `only-danmuku-zero`
+- audit plan corrected to use `cap4kPlan` `outputPath` values instead of assuming generated-source output
+- audit accepts generated contract fields declared as either `val` or `var`
+- 23 command empty-response drifts were fact-checked by isolating their design entries and regenerating only `designCommand`
+- migrated handlers now preserve hand-written business logic while matching the generated `data object Response` empty-response contract
+- verified with 206/206 Query/Cmd/Cli contracts matched and 0 drift
+- verified with `.\gradlew.bat --no-configuration-cache --no-build-cache compileKotlin`
+- closure committed in `only-danmuku-zero` as `f1e12f0 fix: align command empty responses with generated contract`
+
+Reference:
+
+- [full design-regenerated request contract parity design](specs/2026-05-01-cap4k-full-design-regenerated-request-contract-parity-design.md)
+- [full design-regenerated request contract parity implementation plan](plans/2026-05-01-cap4k-full-design-regenerated-request-contract-parity.md)
+
+Next action:
+
+- no direct follow-up; continue with the remaining dogfood generator-quality backlog
+
+Notes:
+
+- contract parity is about generated structural ownership, not forcing output into `build/generated`
+- user-owned handler logic may stay checked in, but nested `Request` / `Response` contract shape must match design and plan context
+- future failures should be classified as bad input, generator capability defect, or migration logic drift rather than hand-patched permanently
 
 ### 1. Generated source output and entity behavior split
 
