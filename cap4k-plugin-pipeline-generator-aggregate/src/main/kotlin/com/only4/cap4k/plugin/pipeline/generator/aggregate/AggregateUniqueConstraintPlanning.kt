@@ -1,5 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
+import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import java.util.Locale
@@ -7,8 +8,11 @@ import java.util.Locale
 private val UNIQUE_IDENTIFIER_SPLIT_REGEX = Regex("(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+")
 
 internal data class AggregateUniqueConstraintSelection(
+    val physicalName: String,
+    val normalizedName: String,
     val suffix: String,
     val requestProps: List<FieldModel>,
+    val filteredControlFields: List<FieldModel>,
     val idType: String,
     val excludeIdParamName: String,
     val queryTypeName: String,
@@ -17,16 +21,35 @@ internal data class AggregateUniqueConstraintSelection(
 )
 
 internal object AggregateUniqueConstraintPlanning {
-    fun from(entity: EntityModel): List<AggregateUniqueConstraintSelection> {
-        return entity.uniqueConstraints.map { constraint ->
-            val selectedFields = selectConstraintFields(entity, constraint.columns)
-            val suffix = selectedFields.joinToString(separator = "") { field ->
-                field.name.replaceFirstChar { it.uppercase() }
+    fun from(
+        entity: EntityModel,
+        providerControl: AggregatePersistenceProviderControl? = null,
+    ): List<AggregateUniqueConstraintSelection> {
+        val selections = entity.uniqueConstraints.map { constraint ->
+            val resolvedFields = selectConstraintFields(entity, constraint.columns)
+            val controlColumnNames = controlColumnNames(entity, providerControl)
+            val filteredControlFields = resolvedFields.filter { field ->
+                (field.columnName ?: field.name).lowercase(Locale.ROOT) in controlColumnNames
             }
+            val businessFields = resolvedFields.filterNot { field ->
+                (field.columnName ?: field.name).lowercase(Locale.ROOT) in controlColumnNames
+            }
+            val normalizedName = normalizeUniqueName(entity.tableName, constraint.physicalName)
+            val explicitEmptySuffix = normalizedName.equals("uk", ignoreCase = true)
+            require(explicitEmptySuffix || businessFields.isNotEmpty()) {
+                "Unique constraint ${constraint.physicalName} on entity ${entity.name} has no business fields after filtering control fields."
+            }
+            val suffix = resolveSuffix(
+                normalizedName = normalizedName,
+                businessFields = businessFields,
+            )
 
             AggregateUniqueConstraintSelection(
+                physicalName = constraint.physicalName,
+                normalizedName = normalizedName,
                 suffix = suffix,
-                requestProps = selectedFields,
+                requestProps = businessFields,
+                filteredControlFields = filteredControlFields,
                 idType = entity.idField.type,
                 excludeIdParamName = "exclude${entity.name}Id",
                 queryTypeName = "Unique${entity.name}${suffix}Qry",
@@ -34,6 +57,8 @@ internal object AggregateUniqueConstraintPlanning {
                 validatorTypeName = "Unique${entity.name}${suffix}",
             )
         }
+        validateUniqueSelections(entity, selections)
+        return selections
     }
 
     private fun selectConstraintFields(entity: EntityModel, columns: List<String>): List<FieldModel> {
@@ -62,7 +87,85 @@ internal object AggregateUniqueConstraintPlanning {
             requireNotNull(field)
         }
     }
+
+    private fun controlColumnNames(
+        entity: EntityModel,
+        providerControl: AggregatePersistenceProviderControl?,
+    ): Set<String> = buildSet {
+        providerControl?.softDeleteColumn
+            ?.lowercase(Locale.ROOT)
+            ?.let(::add)
+
+        providerControl?.versionFieldName?.let { versionFieldName ->
+            entity.fields
+                .firstOrNull { field -> field.name.equals(versionFieldName, ignoreCase = true) }
+                ?.let { field -> (field.columnName ?: field.name).lowercase(Locale.ROOT) }
+                ?.let(::add)
+        }
+    }
+
+    private fun normalizeUniqueName(tableName: String, physicalName: String): String {
+        val trimmed = physicalName.trim()
+        val tablePrefix = "${tableName}_"
+        val withoutTablePrefix = if (trimmed.startsWith(tablePrefix, ignoreCase = true)) {
+            trimmed.substring(tablePrefix.length)
+        } else {
+            trimmed
+        }
+        return withoutTablePrefix.replace(Regex("(?i)_index_[a-z0-9]+$"), "")
+    }
+
+    private fun resolveSuffix(
+        normalizedName: String,
+        businessFields: List<FieldModel>,
+    ): String {
+        if (normalizedName.equals("uk", ignoreCase = true)) {
+            return ""
+        }
+
+        val explicitFragment = Regex("^uk(?:_v)?_(.+)$", RegexOption.IGNORE_CASE).find(normalizedName)
+        if (explicitFragment != null) {
+            return uniqueUpperCamel(explicitFragment.groupValues[1])
+        }
+
+        return businessFields.joinToString(separator = "") { field ->
+            uniqueUpperCamel(field.name)
+        }
+    }
+
+    private fun validateUniqueSelections(
+        entity: EntityModel,
+        selections: List<AggregateUniqueConstraintSelection>,
+    ) {
+        val emptySuffixCount = selections.count { it.suffix.isEmpty() }
+        require(emptySuffixCount <= 1) {
+            "Entity ${entity.name} has multiple aggregate unique constraints resolving to Unique${entity.name}."
+        }
+        requireNoDuplicateNames(entity, "validator", selections.map { it.validatorTypeName })
+        requireNoDuplicateNames(entity, "query", selections.map { it.queryTypeName })
+        requireNoDuplicateNames(entity, "query handler", selections.map { it.queryHandlerTypeName })
+    }
+
+    private fun requireNoDuplicateNames(
+        entity: EntityModel,
+        label: String,
+        names: List<String>,
+    ) {
+        val duplicates = names
+            .groupingBy { it }
+            .eachCount()
+            .filterValues { count -> count > 1 }
+            .keys
+        require(duplicates.isEmpty()) {
+            "Duplicate aggregate unique $label names for entity ${entity.name}: ${duplicates.joinToString(", ")}"
+        }
+    }
 }
+
+private fun uniqueUpperCamel(value: String): String =
+    uniqueLowerCamel(value).replaceFirstChar { char ->
+        if (char.isLowerCase()) char.titlecase(Locale.ROOT) else char.toString()
+    }
 
 private fun uniqueLowerCamel(value: String): String {
     val parts = value.trim()
