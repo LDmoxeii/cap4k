@@ -33,6 +33,7 @@ internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "aggregateName" to repository.entityName,
                     "idType" to repository.idType,
                     "supportQuerydsl" to false,
+                    "imports" to aggregateTypeImports(repository.idType),
                 ),
             )
         }

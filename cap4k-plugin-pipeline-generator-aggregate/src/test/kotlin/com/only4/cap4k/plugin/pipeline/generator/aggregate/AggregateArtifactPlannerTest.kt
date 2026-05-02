@@ -2401,6 +2401,53 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `unique query and validator import UUID request and exclude id types`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "Video post entity",
+            fields = listOf(
+                FieldModel("id", "UUID", columnName = "id"),
+                FieldModel("uploadId", "UUID", columnName = "upload_id"),
+                FieldModel("slug", "String", columnName = "slug"),
+            ),
+            idField = FieldModel("id", "UUID", columnName = "id"),
+            uniqueConstraints = listOf(listOf("upload_id", "slug")),
+        )
+        val model = CanonicalModel(
+            entities = listOf(entity),
+            schemas = listOf(
+                SchemaModel(
+                    name = "SVideoPost",
+                    packageName = "com.acme.demo.domain._share.meta.video_post",
+                    entityName = "VideoPost",
+                    comment = "Video post schema",
+                    fields = entity.fields,
+                )
+            ),
+            repositories = listOf(
+                RepositoryModel(
+                    name = "VideoPostRepository",
+                    packageName = "com.acme.demo.adapter.domain.repositories",
+                    entityName = "VideoPost",
+                    idType = "UUID",
+                )
+            ),
+            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(aggregateConfig(), model)
+        val query = planItems.single { it.templateId == "aggregate/unique_query.kt.peb" }
+        val validator = planItems.single { it.templateId == "aggregate/unique_validator.kt.peb" }
+        val repository = planItems.single { it.templateId == "aggregate/repository.kt.peb" }
+
+        assertEquals(listOf("java.util.UUID"), query.context["imports"])
+        assertEquals(listOf("java.util.UUID"), validator.context["imports"])
+        assertEquals(listOf("java.util.UUID"), repository.context["imports"])
+    }
+
+    @Test
     fun `unique planners expose business validator and repository backed handler context`() {
         val entity = EntityModel(
             name = "UserMessage",
