@@ -105,7 +105,12 @@ class AggregateJpaRuntimeDefectReproductionTest {
     private lateinit var rootJpaRepository: RuntimeRootJpaRepository
 
     @Autowired
-    private lateinit var applicationSideLongRootJpaRepository: RuntimeApplicationSideLongRootJpaRepository
+    @Qualifier("defaultRequestSupervisor")
+    private lateinit var requestSupervisor: RequestSupervisor
+
+    @Autowired
+    @Qualifier("defaultRepositorySupervisor")
+    private lateinit var repositorySupervisor: RepositorySupervisor
 
     @Autowired
     private lateinit var reverseChildJpaRepository: RuntimeReverseChildJpaRepository
@@ -135,8 +140,8 @@ class AggregateJpaRuntimeDefectReproductionTest {
     @DisplayName("fixture boots with real cap4k runtime beans")
     fun fixtureBootsWithRealRuntimeBeans() {
         assertNotNull(unitOfWork)
-        assertNotNull(RequestSupervisor.instance)
-        assertNotNull(RepositorySupervisor.instance)
+        assertNotNull(requestSupervisor)
+        assertNotNull(repositorySupervisor)
     }
 
     @Test
@@ -170,8 +175,18 @@ class AggregateJpaRuntimeDefectReproductionTest {
                 val root = RuntimeApplicationSideLongRoot(id = preassignedId, name = "preassigned-id")
                 unitOfWork.persist(root)
                 unitOfWork.save()
-                assertTrue(applicationSideLongRootJpaRepository.existsById(preassignedId), "A preassigned id should be inserted")
-                assertEquals(preassignedId, applicationSideLongRootJpaRepository.findById(preassignedId).orElseThrow().id)
+                assertEquals(
+                    1,
+                    countRows(
+                        "select count(*) from `runtime_application_side_long_root` where `id` = ?",
+                        preassignedId
+                    ),
+                    "A preassigned id should be inserted"
+                )
+                assertEquals(
+                    preassignedId,
+                    queryLong("select `id` from `runtime_application_side_long_root` where `id` = ?", preassignedId)
+                )
             },
             knownDefect = { failure ->
                 failure.hasCause<PersistentObjectException>() ||
@@ -192,7 +207,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
         })
         JpaUnitOfWork.reset()
 
-        val response = RequestSupervisor.instance.send(CountRuntimeRootChildrenRequest(root.id))
+        val response = requestSupervisor.send(CountRuntimeRootChildrenRequest(root.id))
 
         assertEquals(1, response.childCount)
     }
@@ -206,7 +221,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
         JpaUnitOfWork.reset()
 
         val response = requireNotNull(TransactionTemplate(transactionManager).execute {
-            RequestSupervisor.instance.send(CountRuntimeRootChildrenRequest(root.id))
+            requestSupervisor.send(CountRuntimeRootChildrenRequest(root.id))
         })
 
         assertEquals(1, response.childCount)
@@ -220,7 +235,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
         })
         JpaUnitOfWork.reset()
 
-        val response = RequestSupervisor.instance.send(CountRuntimeRootChildrenWholeLoadRequest(root.id))
+        val response = requestSupervisor.send(CountRuntimeRootChildrenWholeLoadRequest(root.id))
 
         assertEquals(1, response.childCount)
     }
@@ -560,8 +575,11 @@ class AggregateJpaRuntimeDefectReproductionTest {
         return root
     }
 
-    private fun countRows(sql: String): Int =
-        requireNotNull(jdbcTemplate.queryForObject(sql, Int::class.java))
+    private fun countRows(sql: String, vararg args: Any): Int =
+        requireNotNull(jdbcTemplate.queryForObject(sql, Int::class.java, *args))
+
+    private fun queryLong(sql: String, vararg args: Any): Long =
+        requireNotNull(jdbcTemplate.queryForObject(sql, Long::class.java, *args))
 
     private fun queryLongs(sql: String, vararg args: Any): List<Long> =
         jdbcTemplate.queryForList(sql, Long::class.java, *args).map { it.toLong() }
@@ -843,8 +861,6 @@ open class RuntimeApplicationSideLongRoot(id: Long = 0L, name: String = "") {
     open var name: String = name
 }
 
-interface RuntimeApplicationSideLongRootJpaRepository : JpaRepository<RuntimeApplicationSideLongRoot, Long>
-
 interface RuntimeReverseChildJpaRepository : JpaRepository<RuntimeReverseChild, Long>
 
 interface RuntimeReverseGrandchildJpaRepository : JpaRepository<RuntimeReverseGrandchild, Long>
@@ -867,9 +883,12 @@ data class CountRuntimeRootChildrenWholeLoadRequest(
 ) : RequestParam<CountRuntimeRootChildrenResponse>
 
 @Component
-class CountRuntimeRootChildrenCommand : Command<CountRuntimeRootChildrenRequest, CountRuntimeRootChildrenResponse> {
+class CountRuntimeRootChildrenCommand(
+    @param:Qualifier("defaultRepositorySupervisor")
+    private val repositorySupervisor: RepositorySupervisor
+) : Command<CountRuntimeRootChildrenRequest, CountRuntimeRootChildrenResponse> {
     override fun exec(request: CountRuntimeRootChildrenRequest): CountRuntimeRootChildrenResponse {
-        val root = RepositorySupervisor.instance.findOne(
+        val root = repositorySupervisor.findOne(
             JpaPredicate.byId(RuntimeRoot::class.java, request.rootId)
         ) ?: error("RuntimeRoot not found: ${request.rootId}")
 
@@ -878,10 +897,12 @@ class CountRuntimeRootChildrenCommand : Command<CountRuntimeRootChildrenRequest,
 }
 
 @Component
-class CountRuntimeRootChildrenWholeLoadCommand :
-    Command<CountRuntimeRootChildrenWholeLoadRequest, CountRuntimeRootChildrenResponse> {
+class CountRuntimeRootChildrenWholeLoadCommand(
+    @param:Qualifier("defaultRepositorySupervisor")
+    private val repositorySupervisor: RepositorySupervisor
+) : Command<CountRuntimeRootChildrenWholeLoadRequest, CountRuntimeRootChildrenResponse> {
     override fun exec(request: CountRuntimeRootChildrenWholeLoadRequest): CountRuntimeRootChildrenResponse {
-        val root = RepositorySupervisor.instance.findOne(
+        val root = repositorySupervisor.findOne(
             JpaPredicate.byId(RuntimeRoot::class.java, request.rootId),
             persist = true,
             loadPlan = AggregateLoadPlan.WHOLE_AGGREGATE

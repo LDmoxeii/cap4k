@@ -2,15 +2,9 @@ package com.only4.cap4k.ddd.runtime
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWork
-import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
-import jakarta.persistence.CascadeType
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.FetchType
-import jakarta.persistence.Id
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.OneToMany
-import jakarta.persistence.Table
+import com.only4.cap4k.test.runtime.appsideid.RuntimeUuidChild
+import com.only4.cap4k.test.runtime.appsideid.RuntimeUuidRoot
+import com.only4.cap4k.test.runtime.appsideid.RuntimeUuidRootRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.BeforeEach
@@ -20,7 +14,6 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.TestPropertySource
@@ -109,40 +102,8 @@ class ApplicationSideIdJpaRuntimeTest {
     private fun countRows(sql: String, vararg args: Any): Int =
         requireNotNull(jdbcTemplate.queryForObject(sql, Int::class.java, *args))
 
-    @SpringBootApplication(scanBasePackages = ["com.only4.cap4k.ddd"])
+    @SpringBootApplication(scanBasePackageClasses = [RuntimeUuidRoot::class])
     @EntityScan(basePackageClasses = [RuntimeUuidRoot::class])
     @EnableJpaRepositories(basePackageClasses = [RuntimeUuidRootRepository::class])
     class RuntimeTestApplication
 }
-
-@Entity
-@Table(name = "`runtime_uuid_root`")
-open class RuntimeUuidRoot(id: UUID = UUID(0L, 0L), name: String = "") {
-    @OneToMany(cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE], fetch = FetchType.LAZY, orphanRemoval = true)
-    @JoinColumn(name = "`root_id`", nullable = false)
-    open var children: MutableList<RuntimeUuidChild> = mutableListOf()
-
-    @Id
-    @ApplicationSideId(strategy = "uuid7")
-    @Column(name = "`id`", nullable = false, updatable = false)
-    open var id: UUID = id
-        protected set
-
-    @Column(name = "`name`", nullable = false)
-    open var name: String = name
-}
-
-@Entity
-@Table(name = "`runtime_uuid_child`")
-open class RuntimeUuidChild(id: UUID = UUID(0L, 0L), name: String = "") {
-    @Id
-    @ApplicationSideId(strategy = "uuid7")
-    @Column(name = "`id`", nullable = false, updatable = false)
-    open var id: UUID = id
-        protected set
-
-    @Column(name = "`name`", nullable = false)
-    open var name: String = name
-}
-
-interface RuntimeUuidRootRepository : JpaRepository<RuntimeUuidRoot, UUID>
