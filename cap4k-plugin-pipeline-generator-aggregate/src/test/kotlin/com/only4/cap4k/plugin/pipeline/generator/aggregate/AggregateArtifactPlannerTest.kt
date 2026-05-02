@@ -2931,6 +2931,52 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `unique planning narrows h2 backing index suffix normalization to explicit db fragments`() {
+        val planning = AggregateUniqueConstraintPlanning.from(
+            entity = EntityModel(
+                name = "Category",
+                packageName = "com.acme.demo.domain.aggregates.category",
+                tableName = "category",
+                comment = "Category",
+                fields = listOf(
+                    FieldModel("id", "Long", columnName = "id"),
+                    FieldModel("code", "String", columnName = "code"),
+                ),
+                idField = FieldModel("id", "Long", columnName = "id"),
+                uniqueConstraints = listOf(uniqueConstraint("category_uk_v_code_INDEX_C", "code")),
+            ),
+        )
+
+        val selection = planning.single()
+        assertEquals("uk_v_code", selection.normalizedName)
+        assertEquals("Code", selection.suffix)
+        assertEquals("UniqueCategoryCode", selection.validatorTypeName)
+    }
+
+    @Test
+    fun `unique planning does not strip legal index fragment names`() {
+        val planning = AggregateUniqueConstraintPlanning.from(
+            entity = EntityModel(
+                name = "Category",
+                packageName = "com.acme.demo.domain.aggregates.category",
+                tableName = "category",
+                comment = "Category",
+                fields = listOf(
+                    FieldModel("id", "Long", columnName = "id"),
+                    FieldModel("email", "String", columnName = "email"),
+                ),
+                idField = FieldModel("id", "Long", columnName = "id"),
+                uniqueConstraints = listOf(uniqueConstraint("uk_index_email", "email")),
+            ),
+        )
+
+        val selection = planning.single()
+        assertEquals("uk_index_email", selection.normalizedName)
+        assertEquals("IndexEmail", selection.suffix)
+        assertEquals("UniqueCategoryIndexEmail", selection.validatorTypeName)
+    }
+
+    @Test
     fun `unique planning uses table prefixed uk fragment without v marker`() {
         val planning = AggregateUniqueConstraintPlanning.from(
             entity = EntityModel(

@@ -112,7 +112,13 @@ internal object AggregateUniqueConstraintPlanning {
         } else {
             trimmed
         }
-        return withoutTablePrefix.replace(Regex("(?i)_index_[a-z0-9]+$"), "")
+        return normalizeH2BackingIndexName(withoutTablePrefix)
+    }
+
+    private fun normalizeH2BackingIndexName(normalizedName: String): String {
+        val h2BackingIndex = Regex("^(.+)_INDEX_[A-Z0-9]+$").find(normalizedName) ?: return normalizedName
+        val candidate = h2BackingIndex.groupValues[1]
+        return if (isExplicitUniqueName(candidate)) candidate else normalizedName
     }
 
     private fun resolveSuffix(
@@ -123,7 +129,7 @@ internal object AggregateUniqueConstraintPlanning {
             return ""
         }
 
-        val explicitFragment = Regex("^uk(?:_v)?_(.+)$", RegexOption.IGNORE_CASE).find(normalizedName)
+        val explicitFragment = EXPLICIT_UNIQUE_FRAGMENT_REGEX.find(normalizedName)
         if (explicitFragment != null) {
             return uniqueUpperCamel(explicitFragment.groupValues[1])
         }
@@ -160,7 +166,12 @@ internal object AggregateUniqueConstraintPlanning {
             "Duplicate aggregate unique $label names for entity ${entity.name}: ${duplicates.joinToString(", ")}"
         }
     }
+
+    private fun isExplicitUniqueName(normalizedName: String): Boolean =
+        normalizedName.equals("uk", ignoreCase = true) || EXPLICIT_UNIQUE_FRAGMENT_REGEX.matches(normalizedName)
 }
+
+private val EXPLICIT_UNIQUE_FRAGMENT_REGEX = Regex("^uk(?:_v)?_(.+)$", RegexOption.IGNORE_CASE)
 
 private fun uniqueUpperCamel(value: String): String =
     uniqueLowerCamel(value).replaceFirstChar { char ->
