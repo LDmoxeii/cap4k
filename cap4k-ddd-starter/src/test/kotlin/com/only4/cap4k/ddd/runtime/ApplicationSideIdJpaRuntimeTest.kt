@@ -2,6 +2,7 @@ package com.only4.cap4k.ddd.runtime
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.test.runtime.appsideid.RuntimeUuidChild
 import com.only4.cap4k.test.runtime.appsideid.RuntimeUuidRoot
 import com.only4.cap4k.test.runtime.appsideid.RuntimeUuidRootRepository
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.context.annotation.Bean
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.TestPropertySource
@@ -60,10 +62,14 @@ class ApplicationSideIdJpaRuntimeTest {
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
 
+    @Autowired
+    private lateinit var beforeTransactionIdCapture: BeforeTransactionIdCapture
+
     @BeforeEach
     fun cleanDatabase() {
         jdbcTemplate.update("delete from `runtime_uuid_child`")
         jdbcTemplate.update("delete from `runtime_uuid_root`")
+        beforeTransactionIdCapture.clear()
         JpaUnitOfWork.reset()
     }
 
@@ -82,6 +88,12 @@ class ApplicationSideIdJpaRuntimeTest {
         assertEquals(1, root.children.size)
         assertNotEquals(zeroUuid, root.children.single().id)
         assertEquals(7, root.children.single().id.version())
+        assertEquals(root.id, beforeTransactionIdCapture.rootId)
+        assertEquals(7, beforeTransactionIdCapture.rootId?.version())
+        assertNotEquals(zeroUuid, beforeTransactionIdCapture.rootId)
+        assertEquals(root.children.single().id, beforeTransactionIdCapture.childId)
+        assertEquals(7, beforeTransactionIdCapture.childId?.version())
+        assertNotEquals(zeroUuid, beforeTransactionIdCapture.childId)
         assertEquals(1, countRows("select count(*) from `runtime_uuid_root` where `id` = ?", root.id))
         assertEquals(1, countRows("select count(*) from `runtime_uuid_child` where `id` = ?", root.children.single().id))
         assertEquals(1, countRows("select count(*) from `runtime_uuid_child` where `root_id` = ?", root.id))
@@ -105,5 +117,37 @@ class ApplicationSideIdJpaRuntimeTest {
     @SpringBootApplication(scanBasePackageClasses = [RuntimeUuidRoot::class])
     @EntityScan(basePackageClasses = [RuntimeUuidRoot::class])
     @EnableJpaRepositories(basePackageClasses = [RuntimeUuidRootRepository::class])
-    class RuntimeTestApplication
+    class RuntimeTestApplication {
+        @Bean
+        fun beforeTransactionIdCapture(): BeforeTransactionIdCapture =
+            BeforeTransactionIdCapture()
+
+        @Bean
+        fun captureApplicationSideIdsInterceptor(capture: BeforeTransactionIdCapture): UnitOfWorkInterceptor =
+            object : UnitOfWorkInterceptor {
+                override fun beforeTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) {
+                    val root = persistAggregates.filterIsInstance<RuntimeUuidRoot>().singleOrNull() ?: return
+                    capture.rootId = root.id
+                    capture.childId = root.children.singleOrNull()?.id
+                }
+
+                override fun preInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) = Unit
+
+                override fun postEntitiesPersisted(entities: Set<Any>) = Unit
+
+                override fun postInTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) = Unit
+
+                override fun afterTransaction(persistAggregates: Set<Any>, removeAggregates: Set<Any>) = Unit
+            }
+    }
+}
+
+class BeforeTransactionIdCapture {
+    var rootId: UUID? = null
+    var childId: UUID? = null
+
+    fun clear() {
+        rootId = null
+        childId = null
+    }
 }
