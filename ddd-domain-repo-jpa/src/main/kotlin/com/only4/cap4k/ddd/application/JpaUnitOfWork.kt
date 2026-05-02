@@ -32,6 +32,19 @@ open class JpaUnitOfWork(
     idStrategyRegistry: IdStrategyRegistry = MapBackedIdStrategyRegistry(emptyList()),
 ) : UnitOfWork {
 
+    constructor(
+        uowInterceptors: List<UnitOfWorkInterceptor>,
+        persistListenerManager: PersistListenerManager,
+        supportEntityInlinePersistListener: Boolean,
+        supportValueObjectExistsCheckOnSave: Boolean,
+    ) : this(
+        uowInterceptors,
+        persistListenerManager,
+        supportEntityInlinePersistListener,
+        supportValueObjectExistsCheckOnSave,
+        MapBackedIdStrategyRegistry(emptyList()),
+    )
+
     @PersistenceContext
     lateinit var entityManager: EntityManager
 
@@ -208,12 +221,12 @@ open class JpaUnitOfWork(
                             applicationSideIdMember != null -> {
                                 check(!applicationSideIdSupport.isDefaultId(applicationSideIdMember, entity)) {
                                     "Application-side ID remains default after assignment: " +
-                                        "${entity.javaClass.name}.${applicationSideIdMember.field.name}"
+                                        "${applicationSideIdMember.ownerType.name}.${applicationSideIdMember.field.name}"
                                 }
                                 val id = applicationSideIdMember.get(entity)
                                 when {
                                     entityManager.contains(entity) -> results.updated.add(entity)
-                                    entityManager.find(entity.javaClass, id) == null -> {
+                                    entityManager.find(applicationSideIdMember.ownerType, id) == null -> {
                                         entityManager.persist(entity)
                                         results.created.add(entity)
                                     }

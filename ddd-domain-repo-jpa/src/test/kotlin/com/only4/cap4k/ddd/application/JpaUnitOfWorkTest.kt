@@ -567,6 +567,40 @@ class JpaUnitOfWorkTest {
         verify(exactly = 0) { entityManager.persist(entity) }
     }
 
+    @Test
+    @DisplayName("application-side id lookup should use managed owner class")
+    fun applicationSideIdLookupShouldUseManagedOwnerClass() {
+        val entity = ApplicationSideLongDerivedEntity(id = 100L, name = "derived")
+        every { entityManager.find(ApplicationSideLongBaseEntity::class.java, 100L) } returns null
+
+        jpaUnitOfWork.persist(entity)
+        jpaUnitOfWork.save()
+
+        verify { entityManager.find(ApplicationSideLongBaseEntity::class.java, 100L) }
+        verify(exactly = 0) { entityManager.find(ApplicationSideLongDerivedEntity::class.java, 100L) }
+        verify { entityManager.persist(entity) }
+    }
+
+    @Test
+    @DisplayName("four argument JpaUnitOfWork constructor should remain callable")
+    fun fourArgumentJpaUnitOfWorkConstructorShouldRemainCallable() {
+        val unitOfWork = JpaUnitOfWork(
+            uowInterceptors,
+            persistListenerManager,
+            supportEntityInlinePersistListener = true,
+            supportValueObjectExistsCheckOnSave = true,
+        )
+        val constructor = JpaUnitOfWork::class.java.getConstructor(
+            List::class.java,
+            PersistListenerManager::class.java,
+            Boolean::class.javaPrimitiveType,
+            Boolean::class.javaPrimitiveType,
+        )
+
+        assertEquals(JpaUnitOfWork::class.java, unitOfWork.javaClass)
+        assertEquals(JpaUnitOfWork::class.java, constructor.declaringClass)
+    }
+
     private fun realPersistenceContextLookupUnitOfWork(entityManager: EntityManager): TestableJpaUnitOfWork =
         TestableJpaUnitOfWork(
             uowInterceptors = emptyList(),
@@ -651,4 +685,17 @@ class JpaUnitOfWorkTest {
         var id: Long = 0L,
         var name: String = ""
     )
+
+    @jakarta.persistence.Entity
+    open class ApplicationSideLongBaseEntity(
+        @field:Id
+        @field:ApplicationSideId(strategy = "snowflake-long")
+        open var id: Long = 0L,
+        open var name: String = ""
+    )
+
+    private class ApplicationSideLongDerivedEntity(
+        override var id: Long = 0L,
+        override var name: String = ""
+    ) : ApplicationSideLongBaseEntity(id, name)
 }

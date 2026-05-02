@@ -23,15 +23,20 @@ internal class JpaApplicationSideIdSupport(
         assignMissingIds(root, Collections.newSetFromMap(IdentityHashMap()))
     }
 
-    fun findApplicationSideId(entity: Any): ApplicationSideIdMember? =
-        persistentFields(entityType(entity))
+    fun findApplicationSideId(entity: Any): ApplicationSideIdMember? {
+        val entityType = entityType(entity)
+        return persistentFields(entityType)
             .firstNotNullOfOrNull { field ->
-                val annotation = field.getAnnotation(ApplicationSideId::class.java)
-                    ?: findGetterAnnotation(entityType(entity), field.name)
+                val fieldAnnotation = field.getAnnotation(ApplicationSideId::class.java)
+                val getter = getter(entityType, field.name)
+                val annotation = fieldAnnotation
+                    ?: getter?.getAnnotation(ApplicationSideId::class.java)
                     ?: return@firstNotNullOfOrNull null
                 validateNoGeneratedValue(field, entity)
-                ApplicationSideIdMember(field, annotation)
+                val ownerType = fieldAnnotation?.let { field.declaringClass } ?: getter!!.declaringClass
+                ApplicationSideIdMember(field, annotation, ownerType)
             }
+    }
 
     fun isDefaultId(member: ApplicationSideIdMember, entity: Any): Boolean {
         val strategy = idStrategyRegistry.get(member.annotation.strategy)
@@ -108,9 +113,6 @@ internal class JpaApplicationSideIdSupport(
     private fun nextValue(strategy: IdStrategy): Any? =
         IdStrategy::class.java.getMethod("next").invoke(strategy)
 
-    private fun findGetterAnnotation(type: Class<*>, fieldName: String): ApplicationSideId? =
-        getter(type, fieldName)?.getAnnotation(ApplicationSideId::class.java)
-
     private fun getter(type: Class<*>, fieldName: String) =
         type.methods.firstOrNull {
             it.name == "get${fieldName.replaceFirstChar(Char::uppercaseChar)}" && it.parameterCount == 0
@@ -127,7 +129,8 @@ internal class JpaApplicationSideIdSupport(
 
 internal data class ApplicationSideIdMember(
     val field: Field,
-    val annotation: ApplicationSideId
+    val annotation: ApplicationSideId,
+    val ownerType: Class<*>,
 ) {
     fun get(entity: Any): Any? {
         field.isAccessible = true
