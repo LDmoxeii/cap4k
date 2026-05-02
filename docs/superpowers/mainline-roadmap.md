@@ -270,6 +270,24 @@ Notes:
 
 No new default mainline implementation slice has been selected yet; remaining candidates are tracked in the backlog below.
 
+Latest completed mainline slice:
+
+- UUID7 ID generator and default ID-generation policy
+
+Status:
+
+- implementation complete
+- spec and implementation plan completed
+- database identity IDs still render `@GeneratedValue(strategy = GenerationType.IDENTITY)`
+- application-side ID strategies render field-level `@ApplicationSideId`
+- UUID7 is the default application-side strategy; Snowflake remains explicit as `snowflake-long`
+- legacy DB `@IdGenerator` comment support remains unsupported
+
+Reference:
+
+- [UUID7 ID generator and default ID policy design](specs/2026-05-02-cap4k-uuid7-id-generator-default-policy-design.md)
+- [UUID7 application-side ID policy implementation plan](plans/2026-05-02-cap4k-uuid7-application-side-id-policy.md)
+
 Latest completed dogfood generator-quality slice:
 
 - aggregate entity default projection
@@ -347,16 +365,16 @@ Plan freshness rule:
 
 Remaining recommended order from the current mainline handoff:
 
-1. UUID7 ID generator and default ID-generation policy
-2. aggregate inverse-navigation fetch policy decision
-3. read/write model association-scope separation analysis
-4. irAnalysis-backed frontend TypeScript generation analysis
-5. framework capability audit for domain service, value object, aggregate wrapper, strong ID, and saga
-6. README rewrite after the framework capability audit clarifies the public story
-7. DDD + cap4k + AI collaboration guide after the README positioning is stable
-8. built-in testing skeleton feasibility analysis
-9. irAnalysis restructuring analysis, only if smaller projection or TypeScript-generation needs prove the current shape is insufficient
-10. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
+1. aggregate inverse-navigation fetch policy decision
+2. read/write model association-scope separation analysis
+3. irAnalysis-backed frontend TypeScript generation analysis
+4. framework capability audit for domain service, value object, aggregate wrapper, strong ID, and saga
+5. README rewrite after the framework capability audit clarifies the public story
+6. DDD + cap4k + AI collaboration guide after the README positioning is stable
+7. built-in testing skeleton feasibility analysis
+8. irAnalysis restructuring analysis, only if smaller projection or TypeScript-generation needs prove the current shape is insufficient
+9. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
+10. cap4k-ddd-starter auto-configuration test fixture isolation
 
 Dogfood-discovered generator quality follow-ups:
 
@@ -389,6 +407,7 @@ Recently completed mainline slices:
 - validator projection and generation normalization
 - generated source output and entity behavior split
 - full design-regenerated Query/Cmd/Cli contract parity
+- UUID7 ID generator and default ID-generation policy
 
 ### Completed: Contract-first query contract
 
@@ -600,19 +619,22 @@ Notes:
 - command-wide transaction expansion has test evidence, but its blast radius includes `JpaUnitOfWork.save()`, real commit timing, `afterTransaction`, domain events, integration events, and interceptors
 - do not choose a persistence backend replacement just to solve this lazy-loading symptom
 
-### 3. UUID7 ID generator and default ID-generation policy
+### Completed: UUID7 ID generator and default ID-generation policy
 
 Status:
 
-- candidate mainline work
-- spec drafted: `docs/superpowers/specs/2026-05-02-cap4k-uuid7-id-generator-default-policy-design.md`
-- implementation plan not written
+- implementation complete
+- spec updated to implemented
+- implementation plan written and executed
+
+Reference:
+
+- [UUID7 ID generator and default ID policy design](specs/2026-05-02-cap4k-uuid7-id-generator-default-policy-design.md)
+- [UUID7 application-side ID policy implementation plan](plans/2026-05-02-cap4k-uuid7-application-side-id-policy.md)
 
 Next action:
 
-- review and approve the spec before implementation planning
-- write an implementation plan after spec approval
-- verify the plan against aggregate generation, JPA persistence annotations, preassignable application-side IDs, tests, and documentation
+- no direct follow-up; continue from the remaining recommended order
 
 Notes:
 
@@ -624,7 +646,7 @@ Notes:
 - `JpaUnitOfWork` must handle preassigned-ID new entities and save-time owned-child ID assignment
 - do not mix this with a repository backend replacement
 
-### 4. Aggregate inverse-navigation fetch policy decision
+### 1. Aggregate inverse-navigation fetch policy decision
 
 Status:
 
@@ -646,7 +668,7 @@ Notes:
 - `AggregateLoadPlan` is the approved use-case loading mechanism
 - the decision must preserve generated-file consistency and avoid making performance-sensitive projects accidentally expensive
 
-### 5. Read/write model association-scope separation analysis
+### 2. Read/write model association-scope separation analysis
 
 Status:
 
@@ -670,7 +692,7 @@ Notes:
 - this is not a request to immediately add new DB annotation behavior; it is a design question about whether the source model should carry separate association strengths for different consumers
 - avoid using this to weaken aggregate invariants or to turn read-model convenience into write-model coupling
 
-### 6. irAnalysis-backed frontend TypeScript generation analysis
+### 3. irAnalysis-backed frontend TypeScript generation analysis
 
 Status:
 
@@ -693,7 +715,7 @@ Notes:
 - TypeScript output is a new consumer boundary, so stable input contracts matter more than copying the existing frontend folder style
 - do not implement this as a one-off only-danmuku-admin-ui generator
 
-### 7. Framework capability audit and pruning/optimization review
+### 4. Framework capability audit and pruning/optimization review
 
 Status:
 
@@ -713,7 +735,7 @@ Notes:
 - do not optimize or delete capabilities before their current semantics and users are understood
 - the result should clarify whether each capability belongs to core framework, optional extension, generated scaffold, or legacy/quarantine
 
-### 8. Public README rewrite and project positioning
+### 5. Public README rewrite and project positioning
 
 Status:
 
@@ -734,7 +756,7 @@ Notes:
 - the goal is to make the project understandable to people beyond the current maintainer
 - README should not require readers to know the chat history or roadmap terminology
 
-### 9. DDD + cap4k + AI collaboration guide
+### 6. DDD + cap4k + AI collaboration guide
 
 Status:
 
@@ -755,7 +777,7 @@ Notes:
 - it should encode how to use Cap4k safely: when to generate, when to hand-write, when to review, and when to stop
 - it should not be written before the public capability story is clear
 
-### 10. Built-in testing skeleton feasibility analysis
+### 7. Built-in testing skeleton feasibility analysis
 
 Status:
 
@@ -777,7 +799,7 @@ Notes:
 - it must integrate with generated aggregates, repositories, commands, events, and analysis artifacts if it becomes a framework capability
 - do not implement only a project-specific test helper unless it can become a stable Cap4k pattern
 
-### 11. irAnalysis restructuring analysis
+### 8. irAnalysis restructuring analysis
 
 Status:
 
@@ -802,7 +824,7 @@ Notes:
 - if analysis design projection normalization can be solved without restructuring, keep restructuring deferred
 - this should not block smaller drawing-board or validator-generation slices unless evidence shows the current architecture cannot support them
 
-### 12. Unit-of-work and repository backend comparison
+### 9. Unit-of-work and repository backend comparison
 
 Status:
 
@@ -826,11 +848,37 @@ Notes:
 - this should be treated as a persistence backend track only after in-place JPA repair has been evaluated
 - Spring Data JPA does not remove the core preassigned-ID issue because `save(...)` still routes through new-state detection and then `EntityManager.persist(...)` or `merge(...)`; assigned-ID support typically requires `Persistable.isNew()` or custom `EntityInformation`
 - Spring Data JDBC has a stronger aggregate-root repository model and avoids JPA lazy-loading, but existing aggregate saves can delete and recreate referenced child rows, which may conflict with cap4k's current dirty-tracking, child-ID stability, soft-delete, audit, optimistic-locking, and partial-update expectations
-- Spring Data JDBC can remain a future PoC candidate, but it does not provide enough immediate advantage to preempt the UUID7/application-side ID policy and in-place JPA unit-of-work repair
+- Spring Data JDBC can remain a future PoC candidate, but it does not change the completed UUID7/application-side ID policy or justify replacing the current JPA path by default
 - the first slice should compare candidates and define a bounded PoC, not replace the current JPA implementation
 - likely evaluation dimensions include aggregate loading, dirty tracking, transactions, optimistic locking, relation handling, preassignable application-side ID generation, query ergonomics, Kotlin support, Spring integration, testing, and migration risk
 - this has a large blast radius and should not be mixed into contract-first query, nullability contract stabilization, validator work, or irAnalysis work
 - the safest route is probably a parallel backend implementation behind existing repository/unit-of-work contracts, then runtime verification against representative aggregate fixtures
+
+### 10. cap4k-ddd-starter auto-configuration test fixture isolation
+
+Status:
+
+- candidate test-maintenance work
+- spec not written
+- implementation plan not written
+- failure root causes have been characterized from `:cap4k-ddd-starter:test`
+
+Next action:
+
+- write a focused maintenance spec before fixing the tests
+- isolate starter auto-configuration test applications so they do not package-scan unrelated test fixtures, runtime fixtures, or other nested test applications
+- replace broad `@ComponentScan`, `@EntityScan`, and `@EnableJpaRepositories` over `com.only4.cap4k.ddd` with scoped fixture packages or `basePackageClasses`
+- correct or remove stale Snowflake test properties, and either provide the `__worker_id` schema or explicitly disable Snowflake when it is not under test
+- provide required event scan package configuration when domain-event auto-configuration is under test, or disable that auto-configuration in unrelated context-startup tests
+- avoid enabling JPA repositories in contexts that intentionally exclude Hibernate JPA auto-configuration
+
+Notes:
+
+- full `:cap4k-ddd-starter:test` currently fails around old `@SpringBootTest` context fixtures, while focused UUID7/application-side ID tests and JPA runtime fixtures pass
+- observed failures include repository bean definition collisions, missing Snowflake worker table, blank `eventScanPackage` reaching `ScanUtils.scanClass`, and missing `entityManagerFactory`
+- this is a test fixture isolation debt, not evidence that the UUID7/application-side ID policy implementation is broken
+- this item should not be mixed with application-side ID runtime semantics, repository backend replacement, or command transaction-boundary design
+- prefer `ApplicationContextRunner` or narrowly scoped Spring Boot test apps where possible; avoid hiding scan pollution with global bean-definition overriding unless the test explicitly verifies overriding behavior
 
 ## Support Track Docs
 

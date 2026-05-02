@@ -24,6 +24,7 @@ dependencies {
     implementation(libs.fastjson)
     implementation(kotlin("reflect"))
     implementation(libs.spring.messaging)
+    implementation("com.github.f4b6a3:uuid-creator:6.1.1")
 
     compileOnly(libs.spring.boot.starter)
     compileOnly(libs.spring.tomcat)

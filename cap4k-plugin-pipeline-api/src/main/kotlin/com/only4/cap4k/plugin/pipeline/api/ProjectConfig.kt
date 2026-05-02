@@ -10,6 +10,7 @@ data class ProjectConfig(
     val generators: Map<String, GeneratorConfig>,
     val templates: TemplateConfig,
     val artifactLayout: ArtifactLayoutConfig = ArtifactLayoutConfig(),
+    val aggregateIdPolicy: AggregateIdPolicyConfig = AggregateIdPolicyConfig(),
 ) {
     fun enabledSourceIds(): Set<String> = sources.filterValues { it.enabled }.keys
 
@@ -17,6 +18,12 @@ data class ProjectConfig(
 
     fun typeRegistryFqns(): Map<String, String> = typeRegistry.mapValues { it.value.fqn }
 }
+
+data class AggregateIdPolicyConfig(
+    val defaultStrategy: String = "uuid7",
+    val aggregateStrategies: Map<String, String> = emptyMap(),
+    val entityStrategies: Map<String, String> = emptyMap(),
+)
 
 data class TypeRegistryEntry(
     val fqn: String,

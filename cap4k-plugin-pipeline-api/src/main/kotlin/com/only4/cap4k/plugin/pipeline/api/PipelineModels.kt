@@ -42,7 +42,6 @@ data class DbTableSnapshot(
     val dynamicInsert: Boolean? = null,
     val dynamicUpdate: Boolean? = null,
     val softDeleteColumn: String? = null,
-    val entityIdGenerator: String? = null,
 )
 
 data class DesignSpecEntry(
@@ -266,12 +265,19 @@ data class AggregatePersistenceProviderControl(
     val versionFieldName: String? = null,
 )
 
-data class AggregateIdGeneratorControl(
+enum class AggregateIdPolicyKind {
+    APPLICATION_SIDE,
+    DATABASE_SIDE,
+}
+
+data class AggregateIdPolicyControl(
     val entityName: String,
     val entityPackageName: String,
     val tableName: String,
     val idFieldName: String,
-    val entityIdGenerator: String,
+    val idFieldType: String,
+    val strategy: String,
+    val kind: AggregateIdPolicyKind,
 )
 
 data class RepositoryModel(
@@ -450,7 +456,7 @@ data class CanonicalModel(
     val aggregateEntityJpa: List<AggregateEntityJpaModel> = emptyList(),
     val aggregatePersistenceFieldControls: List<AggregatePersistenceFieldControl> = emptyList(),
     val aggregatePersistenceProviderControls: List<AggregatePersistenceProviderControl> = emptyList(),
-    val aggregateIdGeneratorControls: List<AggregateIdGeneratorControl> = emptyList(),
+    val aggregateIdPolicyControls: List<AggregateIdPolicyControl> = emptyList(),
 )
 
 data class UnsupportedAggregateTable(
@@ -509,6 +515,7 @@ data class RenderedArtifact(
 data class PlanReport(
     val items: List<ArtifactPlanItem>,
     val diagnostics: PipelineDiagnostics? = null,
+    val aggregateIdPolicy: AggregateIdPolicyConfig? = null,
 )
 
 data class PipelineResult(

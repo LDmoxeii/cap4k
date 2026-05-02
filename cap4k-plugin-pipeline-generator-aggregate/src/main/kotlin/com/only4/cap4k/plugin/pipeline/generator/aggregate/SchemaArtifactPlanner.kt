@@ -46,6 +46,14 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "comment" to "",
                 )
             }
+            val imports = fields
+                .mapNotNull { field ->
+                    when (field["fieldType"]) {
+                        "UUID" -> "java.util.UUID"
+                        else -> null
+                    }
+                }
+                .distinct()
 
             generatedKotlinArtifact(
                 config = config,
@@ -66,6 +74,7 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "aggregateTypeFqn" to aggregateTypeFqn,
                     "wrapperEnabled" to selection.wrapperEnabled,
                     "repositorySupportQuerydsl" to false,
+                    "imports" to imports,
                     "fields" to fields,
                 ),
             )

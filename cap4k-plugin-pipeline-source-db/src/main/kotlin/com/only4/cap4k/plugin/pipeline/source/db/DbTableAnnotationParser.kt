@@ -5,7 +5,7 @@ import java.util.Locale
 internal object DbTableAnnotationParser {
     private val annotationPattern = Regex("@([A-Za-z]+)(=([^;]*))?;?")
     private val tableAliases = setOf("PARENT", "P", "AGGREGATEROOT", "ROOT", "R", "VALUEOBJECT", "VO", "IGNORE", "I")
-    private val providerAliases = setOf("DYNAMICINSERT", "DYNAMICUPDATE", "SOFTDELETECOLUMN", "IDGENERATOR")
+    private val providerAliases = setOf("DYNAMICINSERT", "DYNAMICUPDATE", "SOFTDELETECOLUMN")
     private val multiSpacePattern = Regex("\\s{2,}")
 
     fun parse(comment: String): DbTableAnnotationParseResult {
@@ -19,6 +19,8 @@ internal object DbTableAnnotationParser {
                 )
             }
             .toList()
+
+        rejectLegacyIdGeneratorAnnotation(annotations)
 
         val parentTable = resolveAnnotationValue(
             annotations = annotations,
@@ -63,14 +65,6 @@ internal object DbTableAnnotationParser {
             blankValueMessage = "invalid @SoftDeleteColumn value: ",
             missingValueMessage = "invalid @SoftDeleteColumn value: ",
         )?.trim()
-        val entityIdGenerator = resolveAnnotationValue(
-            annotations = annotations,
-            aliases = setOf("IDGENERATOR"),
-            conflictMessage = "conflicting @IdGenerator annotations on the same table comment.",
-            blankValueMessage = "invalid @IdGenerator value: ",
-            missingValueMessage = "invalid @IdGenerator value: ",
-        )?.trim()
-
         return DbTableAnnotationParseResult(
             parentTable = parentTable,
             aggregateRoot = aggregateRootAnnotation.value ?: (parentTable == null),
@@ -79,9 +73,21 @@ internal object DbTableAnnotationParser {
             dynamicInsert = dynamicInsert,
             dynamicUpdate = dynamicUpdate,
             softDeleteColumn = softDeleteColumn,
-            entityIdGenerator = entityIdGenerator,
             cleanedComment = stripRecognizedAnnotations(comment, tableAliases + providerAliases),
         )
+    }
+
+    private fun rejectLegacyIdGeneratorAnnotation(annotations: List<ParsedTableAnnotation>) {
+        annotations.firstOrNull { it.key == "IDGENERATOR" }?.let {
+            throw IllegalArgumentException(
+                "unsupported table annotation @IdGenerator: configure aggregate.idPolicy in Gradle DSL instead"
+            )
+        }
+        annotations.firstOrNull { it.key == "IG" }?.let {
+            throw IllegalArgumentException(
+                "unsupported table annotation @IG: configure aggregate.idPolicy in Gradle DSL instead"
+            )
+        }
     }
 
     private fun resolveAnnotationValue(
@@ -199,7 +205,6 @@ internal data class DbTableAnnotationParseResult(
     val dynamicInsert: Boolean? = null,
     val dynamicUpdate: Boolean? = null,
     val softDeleteColumn: String? = null,
-    val entityIdGenerator: String? = null,
     val cleanedComment: String = "",
 )
 

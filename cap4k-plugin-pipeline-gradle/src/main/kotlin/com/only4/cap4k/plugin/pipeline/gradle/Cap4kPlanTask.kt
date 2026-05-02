@@ -26,6 +26,7 @@ abstract class Cap4kPlanTask : DefaultTask() {
                 report = PlanReport(
                     items = result.planItems,
                     diagnostics = result.diagnostics,
+                    aggregateIdPolicy = config.aggregateIdPolicy,
                 )
             )
         } catch (error: PipelineDiagnosticsException) {
@@ -34,6 +35,7 @@ abstract class Cap4kPlanTask : DefaultTask() {
                 report = PlanReport(
                     items = emptyList(),
                     diagnostics = error.diagnostics,
+                    aggregateIdPolicy = config.aggregateIdPolicy,
                 )
             )
             throw error

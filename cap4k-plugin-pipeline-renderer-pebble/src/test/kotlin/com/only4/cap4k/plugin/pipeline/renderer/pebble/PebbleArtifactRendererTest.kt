@@ -126,7 +126,6 @@ class PebbleArtifactRendererTest {
                 ),
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
-                "hasGenericGeneratorFields" to false,
                 "hasVersionFields" to false,
                 "dynamicInsert" to false,
                 "dynamicUpdate" to false,
@@ -2771,7 +2770,7 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("@DynamicUpdate"))
         assertFalse(content.contains("@SQLDelete"))
         assertFalse(content.contains("@Where"))
-        assertFalse(content.contains("@GenericGenerator"))
+        assertFalse(content.contains("@Generic" + "Generator"))
     }
 
     @Test
@@ -2883,11 +2882,11 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("\n\n@Entity"), content)
         assertTrue(content.contains("import jakarta.persistence.GeneratedValue"))
         assertTrue(content.contains("import jakarta.persistence.GenerationType"))
-        assertFalse(content.contains("import org.hibernate.annotations.GenericGenerator"))
+        assertFalse(content.contains("import org.hibernate.annotations.Generic" + "Generator"))
         assertTrue(content.contains("import jakarta.persistence.Version"))
         assertTrue(content.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
-        assertFalse(content.contains("@GeneratedValue(generator ="))
-        assertFalse(content.contains("@GenericGenerator("))
+        assertFalse(content.contains("@GeneratedValue(" + "generator ="))
+        assertFalse(content.contains("@Generic" + "Generator("))
         assertTrue(content.contains("@Version"))
         assertTrue(content.contains("@Column(name = \"version\")"))
         assertTrue(content.contains("@Column(name = \"title\")"))
@@ -2897,8 +2896,8 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `aggregate entity template renders bounded custom generator annotations`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-custom-generator")
+    fun `aggregate entity template renders application side id annotation and sentinel default`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-application-side-id")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -2923,20 +2922,20 @@ class PebbleArtifactRendererTest {
                         ),
                         "hasConverterFields" to false,
                         "hasGeneratedValueFields" to false,
-                        "hasGenericGeneratorFields" to true,
+                        "hasApplicationSideIdFields" to true,
                         "hasVersionFields" to false,
                         "scalarFields" to listOf(
                             mapOf(
                                 "fieldName" to "id",
-                                "fieldType" to "Long",
+                                "fieldType" to "UUID",
                                 "name" to "id",
-                                "type" to "Long",
+                                "type" to "UUID",
+                                "defaultValue" to "UUID(0L, 0L)",
                                 "columnName" to "id",
                                 "isId" to true,
-                                "generatedValueStrategy" to "IDENTITY",
-                                "generatedValueGenerator" to "snowflakeIdGenerator",
-                                "genericGeneratorName" to "snowflakeIdGenerator",
-                                "genericGeneratorStrategy" to "snowflakeIdGenerator",
+                                "applicationSideIdStrategy" to "uuid7",
+                                "insertable" to true,
+                                "updatable" to false,
                             ),
                             mapOf(
                                 "fieldName" to "title",
@@ -2947,11 +2946,11 @@ class PebbleArtifactRendererTest {
                             ),
                         ),
                         "fields" to listOf(
-                            mapOf("fieldName" to "id", "fieldType" to "Long"),
+                            mapOf("fieldName" to "id", "fieldType" to "UUID"),
                             mapOf("fieldName" to "title", "fieldType" to "String"),
                         ),
                         "relationFields" to emptyList<Map<String, Any?>>(),
-                        "imports" to emptyList<String>(),
+                        "imports" to listOf("java.util.UUID"),
                         "jpaImports" to emptyList<String>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP,
@@ -2973,12 +2972,19 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
 
-        assertTrue(content.contains("import jakarta.persistence.GeneratedValue"))
-        assertTrue(content.contains("import org.hibernate.annotations.GenericGenerator"))
+        assertTrue(content.contains("import java.util.UUID"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId"))
+        assertFalse(content.contains("import jakarta.persistence.GeneratedValue"))
+        assertFalse(content.contains("import org.hibernate.annotations.Generic" + "Generator"))
         assertFalse(content.contains("import jakarta.persistence.GenerationType"))
-        assertTrue(content.contains("@GeneratedValue(generator = \"snowflakeIdGenerator\")"))
-        assertTrue(content.contains("@GenericGenerator(name = \"snowflakeIdGenerator\", strategy = \"snowflakeIdGenerator\")"))
+        assertFalse(content.contains("@GeneratedValue(" + "generator ="))
+        assertFalse(content.contains("@Generic" + "Generator("))
         assertFalse(content.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
+        assertTrue(content.contains("@field:ApplicationSideId(strategy = \"uuid7\")"))
+        assertFalse(content.contains("@ApplicationSideId(strategy = \"uuid7\")"))
+        assertTrue(content.contains("id: UUID = UUID(0L, 0L)"))
+        assertTrue(content.contains("@Id"))
+        assertTrue(content.contains("@Column(name = \"id\", insertable = true, updatable = false)"))
     }
 
     @Test

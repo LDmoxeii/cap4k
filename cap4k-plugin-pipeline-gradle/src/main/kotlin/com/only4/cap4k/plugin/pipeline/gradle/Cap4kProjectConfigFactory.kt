@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
+import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
@@ -70,6 +71,7 @@ class Cap4kProjectConfigFactory {
                 ),
             ),
             artifactLayout = artifactLayout,
+            aggregateIdPolicy = buildAggregateIdPolicy(extension),
         )
     }
 
@@ -350,6 +352,15 @@ class Cap4kProjectConfigFactory {
         return artifactLayout
     }
 
+    private fun buildAggregateIdPolicy(extension: Cap4kExtension): AggregateIdPolicyConfig {
+        val idPolicy = extension.generators.aggregate.idPolicy
+        return AggregateIdPolicyConfig(
+            defaultStrategy = idPolicy.defaultStrategy.normalized().ifEmpty { "uuid7" },
+            aggregateStrategies = idPolicy.aggregateStrategies.get().normalizedEntries(),
+            entityStrategies = idPolicy.entityStrategies.get().normalizedEntries(),
+        )
+    }
+
     private fun buildTypeRegistry(project: Project, extension: Cap4kExtension): Map<String, TypeRegistryEntry> {
         val registryFile = extension.types.registryFile.optionalValue() ?: return emptyMap()
         val file = project.file(registryFile).absoluteFile
@@ -506,6 +517,9 @@ private fun Property<String>.rawValue(): String =
 
 private fun ListProperty<String>.normalizedValues(): List<String> =
     orNull.orEmpty().mapNotNull { value -> value.trim().takeIf { it.isNotEmpty() } }
+
+private fun Map<String, String>.normalizedEntries(): Map<String, String> =
+    mapKeys { it.key.trim() }.mapValues { it.value.trim() }
 
 private fun JsonReader.nextTypeRegistryEntry(key: String): TypeRegistryEntry {
     beginObject()

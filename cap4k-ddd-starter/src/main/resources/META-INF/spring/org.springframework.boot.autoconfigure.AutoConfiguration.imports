@@ -12,6 +12,7 @@ com.only4.cap4k.ddd.application.request.configure.RequestScheduleProperties
 com.only4.cap4k.ddd.application.request.RequestAutoConfiguration
 com.only4.cap4k.ddd.MediatorAutoConfiguration
 com.only4.cap4k.ddd.domain.distributed.SnowflakeAutoConfiguration
+com.only4.cap4k.ddd.domain.id.IdPolicyAutoConfiguration
 com.only4.cap4k.ddd.domain.event.configure.EventProperties
 com.only4.cap4k.ddd.domain.event.configure.EventScheduleProperties
 com.only4.cap4k.ddd.domain.event.DomainEventAutoConfiguration

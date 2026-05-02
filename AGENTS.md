@@ -53,10 +53,10 @@ Recently completed:
 - ddd-core nullability contract stabilization
 - validator projection and generation normalization
 - generated source output and entity behavior split
+- UUID7 ID generator and default ID-generation policy
 
 Current active planning queue:
 
-- UUID7 ID generator and default ID-generation policy
 - aggregate inverse-navigation fetch policy decision
 - read/write model association-scope separation analysis
 - irAnalysis-backed frontend TypeScript generation analysis
@@ -66,6 +66,7 @@ Current active planning queue:
 - built-in testing skeleton feasibility analysis
 - irAnalysis restructuring analysis, only if smaller projection or TypeScript-generation needs prove the current shape is insufficient
 - unit-of-work and repository backend comparison, only if focused JPA runtime reproductions justify it
+- cap4k-ddd-starter auto-configuration test fixture isolation
 
 Do not execute an old historical plan just because it exists. Re-read the relevant spec and plan against current `master`, update them if the repository or user's latest decisions changed the boundary, and then execute from the refreshed plan.
 
@@ -79,6 +80,23 @@ Recent durable decisions to preserve:
 - aggregate JPA runtime problems should be reproduced in focused fixtures before replacing repository or unit-of-work backends
 - TypeScript frontend generation is only a candidate track; do not assume the current `only-danmuku-admin-ui/src/api` shape is best practice without review
 - public README and AI-collaboration rules should be written only after the capability audit clarifies what remains supported, optimized, or deleted
+- UUID7 is the default application-side ID policy, Snowflake remains explicit as `snowflake-long`, database `@IdGenerator` comments are unsupported, and field-level `@ApplicationSideId` is the runtime contract
+
+## Known Test Fixture Debt
+
+Full `:cap4k-ddd-starter:test` currently fails because of old starter auto-configuration test fixture isolation problems, not because of the UUID7/application-side ID policy slice.
+
+Observed shape:
+
+- targeted UUID7 and application-side ID tests pass
+- full starter test run fails around old `@SpringBootTest` context startup tests
+- broad test applications under `com.only4.cap4k.ddd` use package-wide `@ComponentScan`, `@EntityScan`, and `@EnableJpaRepositories`, causing test fixtures and framework repositories to be scanned together
+- repeated repository bean names such as `sagaJpaRepository`, `requestJpaRepository`, and runtime fixture repositories collide across test contexts
+- some contexts start Snowflake auto-configuration without the `__worker_id` table because tests still use stale Snowflake property keys
+- some contexts create `DefaultEventSubscriberManager` with a blank event scan package and fail at `ScanUtils.scanClass`
+- one initialization test excludes Hibernate JPA auto-configuration while still enabling JPA repository scanning, so `entityManagerFactory` is missing
+
+Do not re-debug this as a functional regression without first checking the roadmap item for starter test fixture isolation. Treat it as a separate test-maintenance slice unless a fresh failure affects the focused UUID7/application-side ID tests or runtime fixtures.
 
 ## Reading Order
 

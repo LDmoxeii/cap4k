@@ -3,7 +3,7 @@ package {{ packageName }}
 {% if entityJpa.entityEnabled -%}
 {{ use("jakarta.persistence.Column") -}}
 {{ use("jakarta.persistence.Entity") -}}
-{% if hasGeneratedValueFields or hasGenericGeneratorFields -%}
+{% if hasGeneratedValueFields -%}
 {{ use("jakarta.persistence.GeneratedValue") -}}
 {% endif -%}
 {% if hasGeneratedValueFields -%}
@@ -18,6 +18,9 @@ package {{ packageName }}
 {% if hasConverterFields -%}
 {{ use("jakarta.persistence.Convert") -}}
 {% endif -%}
+{% if hasApplicationSideIdFields -%}
+{{ use("com.only4.cap4k.ddd.core.domain.id.ApplicationSideId") -}}
+{% endif -%}
 {% if dynamicInsert -%}
 {{ use("org.hibernate.annotations.DynamicInsert") -}}
 {% endif -%}
@@ -29,9 +32,6 @@ package {{ packageName }}
 {% endif -%}
 {% if softDeleteWhereClause -%}
 {{ use("org.hibernate.annotations.Where") -}}
-{% endif -%}
-{% if hasGenericGeneratorFields -%}
-{{ use("org.hibernate.annotations.GenericGenerator") -}}
 {% endif -%}
 {% for import in jpaImports -%}
 {{ use(import) -}}
@@ -60,9 +60,8 @@ class {{ typeName }}(
 ) {
 {% for field in scalarFields %}
 {% if field.isId %}    @Id
-{% endif %}{% if field.isId and field.generatedValueGenerator is not null %}    @GeneratedValue(generator = "{{ field.generatedValueGenerator }}")
-    @GenericGenerator(name = "{{ field.genericGeneratorName }}", strategy = "{{ field.genericGeneratorStrategy }}")
-{% elseif field.isId and field.generatedValueStrategy == "IDENTITY" %}    @GeneratedValue(strategy = GenerationType.IDENTITY)
+{% endif %}{% if field.isId and field.generatedValueStrategy == "IDENTITY" %}    @GeneratedValue(strategy = GenerationType.IDENTITY)
+{% endif %}{% if field.applicationSideIdStrategy is not null %}    @field:ApplicationSideId(strategy = "{{ field.applicationSideIdStrategy }}")
 {% endif %}{% if field.isVersion %}    @Version
 {% endif %}{% if field.insertable is not null or field.updatable is not null %}    @Column(name = "{{ field.columnName }}", insertable = {{ field.insertable }}, updatable = {{ field.updatable }})
 {% else %}    @Column(name = "{{ field.columnName }}")

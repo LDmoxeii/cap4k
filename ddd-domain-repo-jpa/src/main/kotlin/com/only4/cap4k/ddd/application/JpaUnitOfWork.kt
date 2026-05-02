@@ -4,6 +4,8 @@ import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
 import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
+import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.MapBackedIdStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import jakarta.persistence.EntityManager
@@ -26,11 +28,27 @@ open class JpaUnitOfWork(
     private val uowInterceptors: List<UnitOfWorkInterceptor>,
     private val persistListenerManager: PersistListenerManager,
     private val supportEntityInlinePersistListener: Boolean,
-    private val supportValueObjectExistsCheckOnSave: Boolean
+    private val supportValueObjectExistsCheckOnSave: Boolean,
+    idStrategyRegistry: IdStrategyRegistry = MapBackedIdStrategyRegistry(emptyList()),
 ) : UnitOfWork {
+
+    constructor(
+        uowInterceptors: List<UnitOfWorkInterceptor>,
+        persistListenerManager: PersistListenerManager,
+        supportEntityInlinePersistListener: Boolean,
+        supportValueObjectExistsCheckOnSave: Boolean,
+    ) : this(
+        uowInterceptors,
+        persistListenerManager,
+        supportEntityInlinePersistListener,
+        supportValueObjectExistsCheckOnSave,
+        MapBackedIdStrategyRegistry(emptyList()),
+    )
 
     @PersistenceContext
     lateinit var entityManager: EntityManager
+
+    private val applicationSideIdSupport = JpaApplicationSideIdSupport(idStrategyRegistry)
 
     companion object {
         private val log = LoggerFactory.getLogger(JpaUnitOfWork::class.java)
@@ -169,6 +187,7 @@ open class JpaUnitOfWork(
             entities.forEach { pushProcessingEntity(it, currentProcessedEntitySet) }
         } ?: emptySet()
 
+        persistEntitySet.forEach(applicationSideIdSupport::assignMissingIds)
         uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
 
         try {
@@ -189,12 +208,32 @@ open class JpaUnitOfWork(
                 persistEntities.takeIf { it.isNotEmpty() }?.let { entities ->
                     results.needsFlush = true
                     entities.forEach { entity ->
+                        val applicationSideIdMember = applicationSideIdSupport.findApplicationSideId(entity)
                         when {
                             // ValueObject 存在性检查
                             supportValueObjectExistsCheckOnSave && entity is ValueObject<*> -> {
                                 if (!isExists(entity)) {
                                     entityManager.persist(entity)
                                     results.created.add(entity)
+                                }
+                            }
+                            // 应用侧ID实体处理
+                            applicationSideIdMember != null -> {
+                                check(!applicationSideIdSupport.isDefaultId(applicationSideIdMember, entity)) {
+                                    "Application-side ID remains default after assignment: " +
+                                        "${applicationSideIdMember.ownerType.name}.${applicationSideIdMember.field.name}"
+                                }
+                                val id = applicationSideIdMember.get(entity)
+                                when {
+                                    entityManager.contains(entity) -> results.updated.add(entity)
+                                    entityManager.find(applicationSideIdMember.ownerType, id) == null -> {
+                                        entityManager.persist(entity)
+                                        results.created.add(entity)
+                                    }
+                                    else -> {
+                                        entityManager.merge(entity).also { merged -> updateWrappedEntity(entity, merged) }
+                                        results.updated.add(entity)
+                                    }
                                 }
                             }
                             // 新实体处理

@@ -4,6 +4,8 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
 import com.only4.cap4k.plugin.pipeline.api.CommandVariant
 import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
+import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyConfig
+import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
@@ -2129,112 +2131,137 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembler derives aggregate id generator control for eligible entity`() {
-        val result = DefaultCanonicalAssembler().assemble(
-            aggregateProjectConfig(),
-            listOf(
-                DbSchemaSnapshot(
-                    tables = listOf(
-                        DbTableSnapshot(
-                            tableName = "video_post",
-                            comment = "@AggregateRoot=true;",
-                            columns = listOf(
-                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                            ),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                            entityIdGenerator = "snowflakeIdGenerator",
-                        )
-                    )
+    fun `default uuid7 strategy applies to UUID aggregate id`() {
+        val result = assembleAggregate(
+            config = projectConfigWithIdPolicy(defaultStrategy = "uuid7"),
+            tables = listOf(
+                table(
+                    name = "user_message",
+                    columns = listOf(column("id", "UUID", "UUID", false, primaryKey = true)),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
                 )
             )
         )
 
-        val control = result.model.aggregateIdGeneratorControls.single()
+        val control = result.model.aggregateIdPolicyControls.single()
 
-        assertEquals("VideoPost", control.entityName)
-        assertEquals("com.acme.demo.domain.aggregates.video_post", control.entityPackageName)
-        assertEquals("video_post", control.tableName)
-        assertEquals("id", control.idFieldName)
-        assertEquals("snowflakeIdGenerator", control.entityIdGenerator)
+        assertEquals("uuid7", control.strategy)
+        assertEquals(AggregateIdPolicyKind.APPLICATION_SIDE, control.kind)
+        assertEquals("UUID", control.idFieldType)
     }
 
     @Test
-    fun `assembler trims aggregate id generator control value for eligible entity`() {
-        val result = DefaultCanonicalAssembler().assemble(
-            aggregateProjectConfig(),
-            listOf(
-                DbSchemaSnapshot(
-                    tables = listOf(
-                        DbTableSnapshot(
-                            tableName = "video_post",
-                            comment = "@AggregateRoot=true;",
-                            columns = listOf(
-                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                            ),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                            entityIdGenerator = "  snowflakeIdGenerator  ",
-                        )
+    fun `default uuid7 strategy rejects Long aggregate id`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithIdPolicy(defaultStrategy = "uuid7"),
+                tables = listOf(
+                    table(
+                        name = "video",
+                        columns = listOf(column("id", "BIGINT", "Long", false, primaryKey = true)),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
                     )
                 )
             )
-        )
+        }
 
-        val control = result.model.aggregateIdGeneratorControls.single()
-        assertEquals("snowflakeIdGenerator", control.entityIdGenerator)
+        assertTrue(error.message!!.contains("ID strategy uuid7 cannot be applied to aggregate video.Video id field id"))
     }
 
     @Test
-    fun `assembler skips aggregate id generator control for blank generator value`() {
-        val result = DefaultCanonicalAssembler().assemble(
-            aggregateProjectConfig(),
-            listOf(
-                DbSchemaSnapshot(
-                    tables = listOf(
-                        DbTableSnapshot(
-                            tableName = "video_post",
-                            comment = "@AggregateRoot=true;",
-                            columns = listOf(
-                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                            ),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                            entityIdGenerator = "   ",
-                        )
-                    )
+    fun `aggregate override applies to owned child entities`() {
+        val result = assembleAggregate(
+            config = projectConfigWithIdPolicy(
+                defaultStrategy = "uuid7",
+                aggregateStrategies = mapOf("video.Video" to "snowflake-long"),
+            ),
+            tables = listOf(
+                table(
+                    name = "video",
+                    columns = listOf(column("id", "BIGINT", "Long", false, primaryKey = true)),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                ),
+                table(
+                    name = "video_file",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column("video_id", "BIGINT", "Long", false, referenceTable = "video"),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = false,
+                    parentTable = "video",
                 )
             )
         )
 
-        assertTrue(result.model.aggregateIdGeneratorControls.isEmpty())
+        assertEquals(
+            setOf("Video" to "snowflake-long", "VideoFile" to "snowflake-long"),
+            result.model.aggregateIdPolicyControls.map { it.entityName to it.strategy }.toSet(),
+        )
     }
 
     @Test
-    fun `assembler does not derive aggregate id generator control for value object`() {
-        val result = DefaultCanonicalAssembler().assemble(
-            aggregateProjectConfig(),
-            listOf(
-                DbSchemaSnapshot(
-                    tables = listOf(
-                        DbTableSnapshot(
-                            tableName = "video_post",
-                            comment = "@AggregateRoot=false;",
-                            columns = listOf(
-                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                            ),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                            aggregateRoot = false,
-                            valueObject = true,
-                            entityIdGenerator = "snowflakeIdGenerator",
-                        )
-                    )
+    fun `entity override wins over aggregate override`() {
+        val result = assembleAggregate(
+            config = projectConfigWithIdPolicy(
+                defaultStrategy = "uuid7",
+                aggregateStrategies = mapOf("video.Video" to "uuid7"),
+                entityStrategies = mapOf("video.VideoFile" to "snowflake-long"),
+            ),
+            tables = listOf(
+                table(
+                    name = "video",
+                    columns = listOf(column("id", "UUID", "UUID", false, primaryKey = true)),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                ),
+                table(
+                    name = "video_file",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column("video_id", "UUID", "UUID", false, referenceTable = "video"),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = false,
+                    parentTable = "video",
                 )
             )
         )
 
-        assertTrue(result.model.aggregateIdGeneratorControls.isEmpty())
+        assertEquals("uuid7", result.model.aggregateIdPolicyControls.single { it.entityName == "Video" }.strategy)
+        assertEquals("snowflake-long", result.model.aggregateIdPolicyControls.single { it.entityName == "VideoFile" }.strategy)
+    }
+
+    @Test
+    fun `identity id remains database identity without application side annotation`() {
+        val result = assembleAggregate(
+            config = projectConfigWithIdPolicy(defaultStrategy = "uuid7"),
+            tables = listOf(
+                table(
+                    name = "audit_log",
+                    columns = listOf(
+                        column(
+                            name = "id",
+                            dbType = "BIGINT",
+                            kotlinType = "Long",
+                            nullable = false,
+                            primaryKey = true,
+                            generatedValueStrategy = "IDENTITY",
+                        )
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val control = result.model.aggregateIdPolicyControls.single()
+
+        assertEquals("database-identity", control.strategy)
+        assertEquals(AggregateIdPolicyKind.DATABASE_SIDE, control.kind)
     }
 
     @Test
@@ -4048,6 +4075,65 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(emptyList<String>(), assembly.model.aggregateRelations.map { it.fieldName })
     }
 
+    private fun assembleAggregate(
+        config: ProjectConfig,
+        tables: List<DbTableSnapshot>,
+    ) = DefaultCanonicalAssembler().assemble(
+        config = config,
+        snapshots = listOf(DbSchemaSnapshot(tables = tables)),
+    )
+
+    private fun projectConfigWithIdPolicy(
+        defaultStrategy: String,
+        aggregateStrategies: Map<String, String> = emptyMap(),
+        entityStrategies: Map<String, String> = emptyMap(),
+    ): ProjectConfig = baseAggregateConfig(
+        artifactLayout = ArtifactLayoutConfig(
+            aggregate = PackageLayout("domain.aggregates"),
+        ),
+    ).copy(
+        aggregateIdPolicy = AggregateIdPolicyConfig(
+            defaultStrategy = defaultStrategy,
+            aggregateStrategies = aggregateStrategies,
+            entityStrategies = entityStrategies,
+        )
+    )
+
+    private fun table(
+        name: String,
+        columns: List<DbColumnSnapshot>,
+        primaryKey: List<String>,
+        aggregateRoot: Boolean,
+        parentTable: String? = null,
+    ): DbTableSnapshot = DbTableSnapshot(
+        tableName = name,
+        comment = "",
+        columns = columns,
+        primaryKey = primaryKey,
+        uniqueConstraints = emptyList(),
+        parentTable = parentTable,
+        aggregateRoot = aggregateRoot,
+        valueObject = !aggregateRoot,
+    )
+
+    private fun column(
+        name: String,
+        dbType: String,
+        kotlinType: String,
+        nullable: Boolean,
+        primaryKey: Boolean = false,
+        referenceTable: String? = null,
+        generatedValueStrategy: String? = null,
+    ): DbColumnSnapshot = DbColumnSnapshot(
+        name = name,
+        dbType = dbType,
+        kotlinType = kotlinType,
+        nullable = nullable,
+        isPrimaryKey = primaryKey,
+        referenceTable = referenceTable,
+        generatedValueStrategy = generatedValueStrategy,
+    )
+
     private fun baseConfig(): ProjectConfig {
         return ProjectConfig(
             basePackage = "com.acme.demo",
@@ -4056,6 +4142,7 @@ class DefaultCanonicalAssemblerTest {
             sources = emptyMap(),
             generators = emptyMap(),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            aggregateIdPolicy = AggregateIdPolicyConfig(defaultStrategy = "snowflake-long"),
         )
     }
 
@@ -4074,6 +4161,7 @@ class DefaultCanonicalAssemblerTest {
             generators = generators,
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             artifactLayout = artifactLayout,
+            aggregateIdPolicy = AggregateIdPolicyConfig(defaultStrategy = "snowflake-long"),
         )
     }
 

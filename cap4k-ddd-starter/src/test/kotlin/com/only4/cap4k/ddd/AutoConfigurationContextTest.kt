@@ -4,19 +4,30 @@ import com.only4.cap4k.ddd.application.distributed.JdbcLockerAutoConfiguration
 import com.only4.cap4k.ddd.application.event.IntegrationEventAutoConfiguration
 import com.only4.cap4k.ddd.application.request.RequestAutoConfiguration
 import com.only4.cap4k.ddd.application.saga.SagaAutoConfiguration
+import com.only4.cap4k.ddd.application.JpaUnitOfWork
+import com.only4.cap4k.ddd.core.domain.id.IdAllocator
+import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
+import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import com.only4.cap4k.ddd.domain.distributed.SnowflakeAutoConfiguration
 import com.only4.cap4k.ddd.domain.event.DomainEventAutoConfiguration
+import com.only4.cap4k.ddd.domain.id.IdPolicyAutoConfiguration
 import com.only4.cap4k.ddd.domain.repo.JpaRepositoryAutoConfiguration
+import com.only4.cap4k.ddd.domain.repo.configure.JpaUnitOfWorkProperties
 import com.only4.cap4k.ddd.domain.service.DomainServiceAutoConfiguration
+import jakarta.persistence.EntityManager
+import jakarta.persistence.EntityManagerFactory
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.autoconfigure.domain.EntityScan
-import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
-import org.springframework.test.context.TestPropertySource
+import java.lang.reflect.InvocationHandler
+import java.lang.reflect.Proxy
 import kotlin.test.assertTrue
 
 /**
@@ -29,21 +40,66 @@ import kotlin.test.assertTrue
  * @author LD_moxeii
  * @date 2025/08/09
  */
-@SpringBootTest(classes = [AutoConfigurationContextTest.AutoConfigurationTestApp::class])
-@TestPropertySource(
-    properties = [
-        "cap4k.application.name=test-app",
-        "cap4k.ddd.domain.event.enable=true",
-        "cap4k.ddd.application.request.enable=true",
-        "cap4k.ddd.application.saga.enable=true",
-        "cap4k.ddd.domain.distributed.snowflake.enable=true",
-        "cap4k.ddd.application.distributed.locker.enable=true",
-        "spring.datasource.url=jdbc:h2:mem:testdb",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
-    ]
-)
 class AutoConfigurationContextTest {
+
+    private val contextRunner = ApplicationContextRunner()
+        .withUserConfiguration(
+            IdPolicyAutoConfiguration::class.java,
+            JpaRepositoryAutoConfiguration::class.java,
+        )
+        .withBean(JpaUnitOfWorkProperties::class.java, ::JpaUnitOfWorkProperties)
+        .withBean(EntityManagerFactory::class.java, { entityManagerFactoryProxy() })
+        .withBean(PersistListenerManager::class.java, {
+            object : PersistListenerManager {
+                override fun <Entity : Any> onChange(aggregate: Entity, type: PersistType) = Unit
+            }
+        })
+
+    @Test
+    fun `context should contain id policy beans for jpa unit of work`() {
+        contextRunner.run { context ->
+            assertNotNull(context.getBean(IdStrategyRegistry::class.java))
+            assertNotNull(context.getBean(IdAllocator::class.java))
+            assertNotNull(context.getBean(JpaUnitOfWork::class.java))
+        }
+    }
+
+    private fun entityManagerFactoryProxy(): EntityManagerFactory {
+        val handler = InvocationHandler { proxy, method, args ->
+            when (method.name) {
+                "createEntityManager" -> entityManagerProxy()
+                "isOpen" -> true
+                "close" -> Unit
+                "toString" -> "EntityManagerFactoryProxy"
+                "hashCode" -> System.identityHashCode(proxy)
+                "equals" -> proxy === args?.firstOrNull()
+                else -> null
+            }
+        }
+        return Proxy.newProxyInstance(
+            EntityManagerFactory::class.java.classLoader,
+            arrayOf(EntityManagerFactory::class.java),
+            handler,
+        ) as EntityManagerFactory
+    }
+
+    private fun entityManagerProxy(): EntityManager {
+        val handler = InvocationHandler { proxy, method, args ->
+            when (method.name) {
+                "isOpen" -> true
+                "close" -> Unit
+                "toString" -> "EntityManagerProxy"
+                "hashCode" -> System.identityHashCode(proxy)
+                "equals" -> proxy === args?.firstOrNull()
+                else -> null
+            }
+        }
+        return Proxy.newProxyInstance(
+            EntityManager::class.java.classLoader,
+            arrayOf(EntityManager::class.java),
+            handler,
+        ) as EntityManager
+    }
 
     @Test
     @Disabled

@@ -4,6 +4,7 @@ import com.only4.cap4k.ddd.application.JpaUnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.application.UnitOfWorkSupport
 import com.only4.cap4k.ddd.core.domain.aggregate.*
+import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultAggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultSpecificationManager
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.SpecificationUnitOfWorkInterceptor
@@ -76,11 +77,13 @@ class JpaRepositoryAutoConfiguration {
         unitOfWorkInterceptors: List<UnitOfWorkInterceptor>,
         persistListenerManager: PersistListenerManager,
         jpaUnitOfWorkProperties: JpaUnitOfWorkProperties,
+        idStrategyRegistry: IdStrategyRegistry,
     ): JpaUnitOfWork = JpaUnitOfWork(
         unitOfWorkInterceptors,
         persistListenerManager,
         jpaUnitOfWorkProperties.supportEntityInlinePersistListener,
-        jpaUnitOfWorkProperties.supportValueObjectExistsCheckOnSave
+        jpaUnitOfWorkProperties.supportValueObjectExistsCheckOnSave,
+        idStrategyRegistry,
     ).also {
         UnitOfWorkSupport.configure(it)
         JpaQueryUtils.configure(it, jpaUnitOfWorkProperties.retrieveCountWarnThreshold)

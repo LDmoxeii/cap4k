@@ -3,9 +3,15 @@ package com.only4.cap4k.ddd.application
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
 import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
+import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
+import com.only4.cap4k.ddd.core.domain.id.IdGenerationKind
+import com.only4.cap4k.ddd.core.domain.id.IdStrategy
+import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.MapBackedIdStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import io.mockk.*
 import jakarta.persistence.EntityManager
+import jakarta.persistence.Id
 import org.hibernate.engine.spi.SessionImplementor
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -32,11 +38,13 @@ class JpaUnitOfWorkTest {
         supportEntityInlinePersistListener: Boolean,
         supportValueObjectExistsCheckOnSave: Boolean,
         private val overridePersistenceContextEntities: Boolean = true,
+        idStrategyRegistry: IdStrategyRegistry = MapBackedIdStrategyRegistry(emptyList()),
     ) : JpaUnitOfWork(
         uowInterceptors,
         persistListenerManager,
         supportEntityInlinePersistListener,
-        supportValueObjectExistsCheckOnSave
+        supportValueObjectExistsCheckOnSave,
+        idStrategyRegistry
     ) {
 
         fun setTestEntityManager(em: EntityManager) {
@@ -68,7 +76,8 @@ class JpaUnitOfWorkTest {
             uowInterceptors = uowInterceptors,
             persistListenerManager = persistListenerManager,
             supportEntityInlinePersistListener = true,
-            supportValueObjectExistsCheckOnSave = true
+            supportValueObjectExistsCheckOnSave = true,
+            idStrategyRegistry = MapBackedIdStrategyRegistry(listOf(FixedLongStrategy())),
         )
 
         // Set up entity manager
@@ -511,6 +520,87 @@ class JpaUnitOfWorkTest {
         assertEquals(mergedEntity, aggregate._unwrap())
     }
 
+    @Test
+    @DisplayName("preassigned application-side id should persist when database row is missing")
+    fun preassignedApplicationSideIdShouldPersistWhenDatabaseRowIsMissing() {
+        val entity = ApplicationSideLongEntity(id = 100L, name = "new")
+        every { mockEntityInfo.isNew(entity) } returns false
+        every { mockEntityInfo.getId(entity) } returns 100L
+        every { entityManager.find(ApplicationSideLongEntity::class.java, 100L) } returns null
+
+        jpaUnitOfWork.persist(entity)
+        jpaUnitOfWork.save()
+
+        verify { entityManager.persist(entity) }
+        verify(exactly = 0) { entityManager.merge(entity) }
+    }
+
+    @Test
+    @DisplayName("application-side id should be assigned before beforeTransaction interceptors")
+    fun applicationSideIdShouldBeAssignedBeforeBeforeTransactionInterceptors() {
+        val entity = ApplicationSideLongEntity(id = 0L, name = "allocated")
+        every { mockEntityInfo.isNew(entity) } returns true
+
+        jpaUnitOfWork.persist(entity)
+        jpaUnitOfWork.save()
+
+        verify {
+            interceptor1.beforeTransaction(
+                match<Set<Any>> { persisted -> (persisted.single() as ApplicationSideLongEntity).id == 42L },
+                any()
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("existing application-side id should merge when database row exists")
+    fun existingApplicationSideIdShouldMergeWhenDatabaseRowExists() {
+        val entity = ApplicationSideLongEntity(id = 100L, name = "existing")
+        every { mockEntityInfo.isNew(entity) } returns false
+        every { mockEntityInfo.getId(entity) } returns 100L
+        every { entityManager.find(ApplicationSideLongEntity::class.java, 100L) } returns ApplicationSideLongEntity(100L)
+
+        jpaUnitOfWork.persist(entity)
+        jpaUnitOfWork.save()
+
+        verify { entityManager.merge(entity) }
+        verify(exactly = 0) { entityManager.persist(entity) }
+    }
+
+    @Test
+    @DisplayName("application-side id lookup should use managed owner class")
+    fun applicationSideIdLookupShouldUseManagedOwnerClass() {
+        val entity = ApplicationSideLongDerivedEntity(id = 100L, name = "derived")
+        every { entityManager.find(ApplicationSideLongBaseEntity::class.java, 100L) } returns null
+
+        jpaUnitOfWork.persist(entity)
+        jpaUnitOfWork.save()
+
+        verify { entityManager.find(ApplicationSideLongBaseEntity::class.java, 100L) }
+        verify(exactly = 0) { entityManager.find(ApplicationSideLongDerivedEntity::class.java, 100L) }
+        verify { entityManager.persist(entity) }
+    }
+
+    @Test
+    @DisplayName("four argument JpaUnitOfWork constructor should remain callable")
+    fun fourArgumentJpaUnitOfWorkConstructorShouldRemainCallable() {
+        val unitOfWork = JpaUnitOfWork(
+            uowInterceptors,
+            persistListenerManager,
+            supportEntityInlinePersistListener = true,
+            supportValueObjectExistsCheckOnSave = true,
+        )
+        val constructor = JpaUnitOfWork::class.java.getConstructor(
+            List::class.java,
+            PersistListenerManager::class.java,
+            Boolean::class.javaPrimitiveType,
+            Boolean::class.javaPrimitiveType,
+        )
+
+        assertEquals(JpaUnitOfWork::class.java, unitOfWork.javaClass)
+        assertEquals(JpaUnitOfWork::class.java, constructor.declaringClass)
+    }
+
     private fun realPersistenceContextLookupUnitOfWork(entityManager: EntityManager): TestableJpaUnitOfWork =
         TestableJpaUnitOfWork(
             uowInterceptors = emptyList(),
@@ -579,4 +669,33 @@ class JpaUnitOfWorkTest {
             this.entity = entity
         }
     }
+
+    private class FixedLongStrategy : IdStrategy {
+        override val name: String = "snowflake-long"
+        override val kind: IdGenerationKind = IdGenerationKind.APPLICATION_SIDE
+        override val outputType = Long::class
+        override val preassignable: Boolean = true
+        override fun isDefaultValue(value: Any?): Boolean = value == null || value == 0L
+        override fun next(): Any = 42L
+    }
+
+    private class ApplicationSideLongEntity(
+        @field:Id
+        @field:ApplicationSideId(strategy = "snowflake-long")
+        var id: Long = 0L,
+        var name: String = ""
+    )
+
+    @jakarta.persistence.Entity
+    open class ApplicationSideLongBaseEntity(
+        @field:Id
+        @field:ApplicationSideId(strategy = "snowflake-long")
+        open var id: Long = 0L,
+        open var name: String = ""
+    )
+
+    private class ApplicationSideLongDerivedEntity(
+        override var id: Long = 0L,
+        override var name: String = ""
+    ) : ApplicationSideLongBaseEntity(id, name)
 }
