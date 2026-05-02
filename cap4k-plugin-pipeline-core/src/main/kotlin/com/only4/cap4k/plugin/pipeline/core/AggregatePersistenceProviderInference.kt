@@ -14,7 +14,16 @@ internal object AggregatePersistenceProviderInference {
 
         return entities.mapNotNull { entity ->
             val table = tableByName[entity.tableName.lowercase(Locale.ROOT)] ?: return@mapNotNull null
-            if (table.dynamicInsert == null && table.dynamicUpdate == null && table.softDeleteColumn == null) {
+            val versionColumns = table.columns.filter { it.version == true }
+            require(versionColumns.size <= 1) {
+                "multiple explicit version columns found for table ${table.tableName}"
+            }
+            if (
+                table.dynamicInsert == null &&
+                table.dynamicUpdate == null &&
+                table.softDeleteColumn == null &&
+                versionColumns.isEmpty()
+            ) {
                 return@mapNotNull null
             }
 
@@ -30,10 +39,6 @@ internal object AggregatePersistenceProviderInference {
                 keySelector = { (it.columnName ?: it.name).lowercase(Locale.ROOT) },
                 valueTransform = { it.name },
             )
-            val versionColumns = table.columns.filter { it.version == true }
-            require(versionColumns.size <= 1) {
-                "multiple explicit version columns found for table ${table.tableName}"
-            }
             val versionFieldName = versionColumns
                 .singleOrNull()
                 ?.let { versionColumn -> fieldNameByColumnName[versionColumn.name.lowercase(Locale.ROOT)] }

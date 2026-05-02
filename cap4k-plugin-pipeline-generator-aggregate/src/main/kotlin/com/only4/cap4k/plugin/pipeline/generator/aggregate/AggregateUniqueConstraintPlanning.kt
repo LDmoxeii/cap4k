@@ -18,8 +18,8 @@ internal data class AggregateUniqueConstraintSelection(
 
 internal object AggregateUniqueConstraintPlanning {
     fun from(entity: EntityModel): List<AggregateUniqueConstraintSelection> {
-        return entity.uniqueConstraints.map { columns ->
-            val selectedFields = selectConstraintFields(entity, columns)
+        return entity.uniqueConstraints.map { constraint ->
+            val selectedFields = selectConstraintFields(entity, constraint.columns)
             val suffix = selectedFields.joinToString(separator = "") { field ->
                 field.name.replaceFirstChar { it.uppercase() }
             }

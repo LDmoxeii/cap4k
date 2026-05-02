@@ -2132,6 +2132,38 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler infers provider control for explicit version column without provider specific settings`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "@AggregateRoot=true;",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("version", "BIGINT", "Long", false, version = true),
+                                DbColumnSnapshot("slug", "VARCHAR", "String", false),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                )
+            )
+        )
+
+        val control = result.model.aggregatePersistenceProviderControls.single()
+        assertEquals("VideoPost", control.entityName)
+        assertEquals("id", control.idFieldName)
+        assertEquals("version", control.versionFieldName)
+        assertEquals(null, control.softDeleteColumn)
+        assertEquals(null, control.dynamicInsert)
+        assertEquals(null, control.dynamicUpdate)
+    }
+
+    @Test
     fun `default uuid7 strategy applies to UUID aggregate id`() {
         val result = assembleAggregate(
             config = projectConfigWithIdPolicy(defaultStrategy = "uuid7"),
@@ -2312,6 +2344,34 @@ class DefaultCanonicalAssemblerTest {
                                 primaryKey = listOf("id"),
                                 uniqueConstraints = emptyList(),
                                 dynamicUpdate = true,
+                            )
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals("multiple explicit version columns found for table video_post", error.message)
+    }
+
+    @Test
+    fun `assembler fails fast when multiple version columns are marked explicitly without provider specific settings`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "@AggregateRoot=true;",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot("version", "BIGINT", "Long", false, version = true),
+                                    DbColumnSnapshot("lock_version", "BIGINT", "Long", false, version = true),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
                             )
                         )
                     )
@@ -3527,7 +3587,7 @@ class DefaultCanonicalAssemblerTest {
                             primaryKey = listOf("id"),
                             uniqueConstraints = listOf(
                                 UniqueConstraintModel(
-                                    physicalName = "uk_v_title",
+                                    physicalName = "video_post_uk_v_title",
                                     columns = listOf("title"),
                                 )
                             ),
@@ -3541,7 +3601,9 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("com.acme.demo.domain._share.meta.video_post", model.schemas.single().packageName)
         assertEquals("VideoPost", model.entities.single().name)
         assertEquals("com.acme.demo.domain.aggregates.video_post", model.entities.single().packageName)
-        assertEquals(listOf(listOf("title")), model.entities.single().uniqueConstraints)
+        val unique = model.entities.single().uniqueConstraints.single()
+        assertEquals("video_post_uk_v_title", unique.physicalName)
+        assertEquals(listOf("title"), unique.columns)
         assertEquals("VideoPostRepository", model.repositories.single().name)
         assertEquals("com.acme.demo.adapter.domain.repositories", model.repositories.single().packageName)
         assertEquals("Long", model.repositories.single().idType)

@@ -233,7 +233,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     comment = table.comment,
                     fields = fields,
                     idField = idField,
-                    uniqueConstraints = table.uniqueConstraints.map { it.columns },
+                    uniqueConstraints = table.uniqueConstraints,
                     aggregateRoot = table.aggregateRoot,
                     valueObject = table.valueObject,
                     parentEntityName = when {

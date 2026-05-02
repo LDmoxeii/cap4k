@@ -25,6 +25,7 @@ import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -48,7 +49,7 @@ class AggregateArtifactPlannerTest {
                 FieldModel("slug", "String", columnName = "slug"),
             ),
             idField = FieldModel("id", "Long", columnName = "id"),
-            uniqueConstraints = listOf(listOf("tenant_id", "slug")),
+            uniqueConstraints = listOf(uniqueConstraint("uk_v_tenant_slug", "tenant_id", "slug")),
         )
         val plan = AggregateArtifactPlanner().plan(
             aggregateConfig(
@@ -112,7 +113,7 @@ class AggregateArtifactPlannerTest {
                 FieldModel("visibility", "Int", typeBinding = "VideoPostVisibility", enumItems = enumItems, columnName = "visibility"),
             ),
             idField = FieldModel("id", "Long", columnName = "id"),
-            uniqueConstraints = listOf(listOf("slug")),
+            uniqueConstraints = listOf(uniqueConstraint("uk_v_slug", "slug")),
         )
         val plan = AggregateArtifactPlanner().plan(
             aggregateConfig(),
@@ -249,7 +250,7 @@ class AggregateArtifactPlannerTest {
                 FieldModel("slug", "String", columnName = "slug"),
             ),
             idField = FieldModel("id", "Long", columnName = "id"),
-            uniqueConstraints = listOf(listOf("tenant_id", "slug")),
+            uniqueConstraints = listOf(uniqueConstraint("uk_v_tenant_slug", "tenant_id", "slug")),
         )
         val plan = AggregateArtifactPlanner().plan(
             aggregateConfig(
@@ -313,7 +314,7 @@ class AggregateArtifactPlannerTest {
                 FieldModel("slug", "String", columnName = "slug"),
             ),
             idField = FieldModel("id", "Long", columnName = "id"),
-            uniqueConstraints = listOf(listOf("tenant_id", "slug")),
+            uniqueConstraints = listOf(uniqueConstraint("uk_v_tenant_slug", "tenant_id", "slug")),
         )
         val schema = SchemaModel(
             name = "SUserMessage",
@@ -2245,7 +2246,7 @@ class AggregateArtifactPlannerTest {
             comment = "video file entity",
             fields = listOf(FieldModel("id", "Long"), FieldModel("videoId", "Long", columnName = "video_id")),
             idField = FieldModel("id", "Long"),
-            uniqueConstraints = listOf(listOf("video_id")),
+            uniqueConstraints = listOf(uniqueConstraint("uk_v_video_id", "video_id")),
             aggregateRoot = false,
             parentEntityName = "Video",
         )
@@ -2330,7 +2331,7 @@ class AggregateArtifactPlannerTest {
                 FieldModel("title", "String"),
             ),
             idField = FieldModel("id", "Long"),
-            uniqueConstraints = listOf(listOf("slug")),
+            uniqueConstraints = listOf(uniqueConstraint("uk_v_slug", "slug")),
         )
         val model = CanonicalModel(
             entities = listOf(entity),
@@ -2413,7 +2414,7 @@ class AggregateArtifactPlannerTest {
                 FieldModel("slug", "String", columnName = "slug"),
             ),
             idField = FieldModel("id", "UUID", columnName = "id"),
-            uniqueConstraints = listOf(listOf("upload_id", "slug")),
+            uniqueConstraints = listOf(uniqueConstraint("uk_v_upload_slug", "upload_id", "slug")),
         )
         val model = CanonicalModel(
             entities = listOf(entity),
@@ -2459,7 +2460,7 @@ class AggregateArtifactPlannerTest {
                 FieldModel("messageKey", "String", columnName = "message_key"),
             ),
             idField = FieldModel("id", "Long", columnName = "id"),
-            uniqueConstraints = listOf(listOf("message_key")),
+            uniqueConstraints = listOf(uniqueConstraint("uk_v_message_key", "message_key")),
         )
         val model = CanonicalModel(
             entities = listOf(entity),
@@ -2880,7 +2881,7 @@ class AggregateArtifactPlannerTest {
                     FieldModel("slug", "String"),
                 ),
                 idField = FieldModel("id", "Long"),
-                uniqueConstraints = listOf(listOf("tenant_id", "slug")),
+                uniqueConstraints = listOf(uniqueConstraint("uk_v_tenant_slug", "tenant_id", "slug")),
             )
         )
 
@@ -3210,5 +3211,11 @@ class AggregateArtifactPlannerTest {
                     converterTypeFqn = null,
                 )
             },
+        )
+
+    private fun uniqueConstraint(physicalName: String, vararg columns: String): UniqueConstraintModel =
+        UniqueConstraintModel(
+            physicalName = physicalName,
+            columns = columns.toList(),
         )
 }

@@ -226,7 +226,7 @@ data class EntityModel(
     val comment: String,
     val fields: List<FieldModel>,
     val idField: FieldModel,
-    val uniqueConstraints: List<List<String>> = emptyList(),
+    val uniqueConstraints: List<UniqueConstraintModel> = emptyList(),
     val aggregateRoot: Boolean = true,
     val valueObject: Boolean = false,
     val parentEntityName: String? = null,
