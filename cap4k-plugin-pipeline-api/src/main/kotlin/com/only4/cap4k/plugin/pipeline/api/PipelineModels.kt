@@ -274,6 +274,21 @@ data class AggregateIdGeneratorControl(
     val entityIdGenerator: String,
 )
 
+enum class AggregateIdPolicyKind {
+    APPLICATION_SIDE,
+    DATABASE_SIDE,
+}
+
+data class AggregateIdPolicyControl(
+    val entityName: String,
+    val entityPackageName: String,
+    val tableName: String,
+    val idFieldName: String,
+    val idFieldType: String,
+    val strategy: String,
+    val kind: AggregateIdPolicyKind,
+)
+
 data class RepositoryModel(
     val name: String,
     val packageName: String,
@@ -450,6 +465,7 @@ data class CanonicalModel(
     val aggregateEntityJpa: List<AggregateEntityJpaModel> = emptyList(),
     val aggregatePersistenceFieldControls: List<AggregatePersistenceFieldControl> = emptyList(),
     val aggregatePersistenceProviderControls: List<AggregatePersistenceProviderControl> = emptyList(),
+    val aggregateIdPolicyControls: List<AggregateIdPolicyControl> = emptyList(),
     val aggregateIdGeneratorControls: List<AggregateIdGeneratorControl> = emptyList(),
 )
 
@@ -509,6 +525,7 @@ data class RenderedArtifact(
 data class PlanReport(
     val items: List<ArtifactPlanItem>,
     val diagnostics: PipelineDiagnostics? = null,
+    val aggregateIdPolicy: AggregateIdPolicyConfig? = null,
 )
 
 data class PipelineResult(

@@ -1942,6 +1942,50 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kPlan includes aggregate id policy config`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-id-policy")
+        copyFixture(projectDir, "aggregate-policy-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent.replace(
+                """
+                |        aggregate {
+                |            enabled.set(true)
+                |            unsupportedTablePolicy.set("SKIP")
+                |        }
+                """.trimMargin(),
+                """
+                |        aggregate {
+                |            enabled.set(true)
+                |            unsupportedTablePolicy.set("SKIP")
+                |            idPolicy {
+                |                defaultStrategy.set(" snowflake-long ")
+                |                aggregate(" message.UserMessage ", " uuid7 ")
+                |                entity(" message.UserMessageAttachment ", " snowflake-long ")
+                |            }
+                |        }
+                """.trimMargin(),
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .build()
+
+        val planJson = projectDir.resolve("build/cap4k/plan.json").readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planJson.contains("\"defaultStrategy\": \"snowflake-long\""))
+        assertTrue(planJson.contains("\"message.UserMessage\": \"uuid7\""))
+        assertTrue(planJson.contains("\"message.UserMessageAttachment\": \"snowflake-long\""))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kPlan writes diagnostics envelope before failing on unsupported aggregate table`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-fail-diagnostics")
         copyFixture(projectDir, "aggregate-sample")

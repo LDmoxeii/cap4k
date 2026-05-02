@@ -33,6 +33,7 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.generators.designDomainEventHandler.enabled.get())
         assertFalse(extension.generators.aggregate.enabled.get())
         assertEquals("FAIL", extension.generators.aggregate.unsupportedTablePolicy.get())
+        assertEquals("uuid7", extension.generators.aggregate.idPolicy.defaultStrategy.get())
         assertFalse(extension.generators.aggregate.artifacts.factory.get())
         assertFalse(extension.generators.aggregate.artifacts.specification.get())
         assertFalse(extension.generators.aggregate.artifacts.wrapper.get())
@@ -73,6 +74,34 @@ class Cap4kProjectConfigFactoryTest {
         val config = Cap4kProjectConfigFactory().build(project, extension)
 
         assertEquals(ArtifactLayoutConfig(), config.artifactLayout)
+    }
+
+    @Test
+    fun `factory copies normalized aggregate id policy into project config`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.generators {
+            aggregate {
+                idPolicy {
+                    defaultStrategy.set("   ")
+                    aggregate(" message.UserMessage ", " uuid7 ")
+                    entity(" message.UserMessageAttachment ", " snowflake-long ")
+                }
+            }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals("uuid7", config.aggregateIdPolicy.defaultStrategy)
+        assertEquals(mapOf("message.UserMessage" to "uuid7"), config.aggregateIdPolicy.aggregateStrategies)
+        assertEquals(
+            mapOf("message.UserMessageAttachment" to "snowflake-long"),
+            config.aggregateIdPolicy.entityStrategies,
+        )
     }
 
     @Test

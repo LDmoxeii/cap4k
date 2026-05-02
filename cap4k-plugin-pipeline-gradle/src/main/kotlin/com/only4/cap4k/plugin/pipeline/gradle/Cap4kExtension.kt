@@ -7,6 +7,7 @@ import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.Project
 import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import javax.inject.Inject
 import kotlin.io.path.invariantSeparatorsPathString
@@ -376,11 +377,32 @@ open class DesignDomainEventHandlerGeneratorExtension @Inject constructor(object
 open class AggregateGeneratorExtension @Inject constructor(objects: ObjectFactory) {
     val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
     val unsupportedTablePolicy: Property<String> = objects.property(String::class.java).convention("FAIL")
+    val idPolicy: AggregateIdPolicyExtension = objects.newInstance(AggregateIdPolicyExtension::class.java)
     val artifacts: AggregateGeneratorArtifactsExtension =
         objects.newInstance(AggregateGeneratorArtifactsExtension::class.java)
 
+    fun idPolicy(block: AggregateIdPolicyExtension.() -> Unit) {
+        idPolicy.block()
+    }
+
     fun artifacts(block: AggregateGeneratorArtifactsExtension.() -> Unit) {
         artifacts.block()
+    }
+}
+
+open class AggregateIdPolicyExtension @Inject constructor(objects: ObjectFactory) {
+    val defaultStrategy: Property<String> = objects.property(String::class.java).convention("uuid7")
+    internal val aggregateStrategies: MapProperty<String, String> =
+        objects.mapProperty(String::class.java, String::class.java).convention(emptyMap())
+    internal val entityStrategies: MapProperty<String, String> =
+        objects.mapProperty(String::class.java, String::class.java).convention(emptyMap())
+
+    fun aggregate(name: String, strategy: String) {
+        aggregateStrategies.put(name, strategy)
+    }
+
+    fun entity(name: String, strategy: String) {
+        entityStrategies.put(name, strategy)
     }
 }
 
