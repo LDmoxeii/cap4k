@@ -85,41 +85,26 @@ class DbTableAnnotationParserTest {
     }
 
     @Test
-    fun `parser extracts bounded entity id generator from table comment`() {
-        val metadata = DbTableAnnotationParser.parse(
-            "Video post root @AggregateRoot=true;@IdGenerator=snowflakeIdGenerator;"
+    fun `parser rejects legacy id generator annotation`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("Video post root @AggregateRoot=true;@IdGenerator=snowflakeIdGenerator;")
+        }
+
+        assertEquals(
+            "unsupported table annotation @IdGenerator: configure aggregate.idPolicy in Gradle DSL instead",
+            error.message,
         )
-
-        assertEquals(true, metadata.aggregateRoot)
-        assertEquals("snowflakeIdGenerator", metadata.entityIdGenerator)
-        assertEquals("Video post root", metadata.cleanedComment)
-        assertEquals(false, metadata.cleanedComment.contains("@IdGenerator"))
     }
 
     @Test
-    fun `parser rejects blank entity id generator value`() {
+    fun `parser rejects legacy id generator alias annotation`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
-            DbTableAnnotationParser.parse("@IdGenerator=   ;")
+            DbTableAnnotationParser.parse("Video post root @AggregateRoot=true;@IG=snowflakeIdGenerator;")
         }
 
-        assertEquals("invalid @IdGenerator value: ", error.message)
-    }
-
-    @Test
-    fun `parser rejects missing entity id generator value`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbTableAnnotationParser.parse("@IdGenerator;")
-        }
-
-        assertEquals("invalid @IdGenerator value: ", error.message)
-    }
-
-    @Test
-    fun `parser rejects conflicting duplicate entity id generator annotations`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbTableAnnotationParser.parse("@IdGenerator=snowflakeIdGenerator;@IdGenerator=uuidGenerator;")
-        }
-
-        assertEquals("conflicting @IdGenerator annotations on the same table comment.", error.message)
+        assertEquals(
+            "unsupported table annotation @IG: configure aggregate.idPolicy in Gradle DSL instead",
+            error.message,
+        )
     }
 }

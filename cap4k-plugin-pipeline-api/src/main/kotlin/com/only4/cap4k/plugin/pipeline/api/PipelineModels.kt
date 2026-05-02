@@ -42,7 +42,6 @@ data class DbTableSnapshot(
     val dynamicInsert: Boolean? = null,
     val dynamicUpdate: Boolean? = null,
     val softDeleteColumn: String? = null,
-    val entityIdGenerator: String? = null,
 )
 
 data class DesignSpecEntry(

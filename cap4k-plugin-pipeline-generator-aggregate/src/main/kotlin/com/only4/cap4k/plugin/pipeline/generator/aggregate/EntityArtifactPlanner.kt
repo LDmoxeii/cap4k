@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
+import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
@@ -21,6 +22,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 .filter { it.entityName == entity.name && it.entityPackageName == entity.packageName }
                 .associateBy { it.fieldName }
             val idGeneratorControl = model.aggregateIdGeneratorControls.firstOrNull {
+                it.entityName == entity.name && it.entityPackageName == entity.packageName
+            }
+            val idPolicyControl = model.aggregateIdPolicyControls.firstOrNull {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
             val providerControl = model.aggregatePersistenceProviderControls.firstOrNull {
@@ -95,6 +99,16 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         } else {
                             null
                         }
+                        val applicationSideIdStrategy =
+                            if (
+                                jpa.isId &&
+                                idPolicyControl?.idFieldName == field.name &&
+                                idPolicyControl.kind == AggregateIdPolicyKind.APPLICATION_SIDE
+                            ) {
+                                idPolicyControl.strategy
+                            } else {
+                                null
+                            }
                         mapOf(
                             "fieldName" to field.name,
                             "fieldType" to fieldType,
@@ -118,6 +132,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "generatedValueGenerator" to generatedValueGenerator,
                             "genericGeneratorName" to genericGeneratorName,
                             "genericGeneratorStrategy" to genericGeneratorStrategy,
+                            "applicationSideIdStrategy" to applicationSideIdStrategy,
                             "isVersion" to (control?.version == true),
                             "insertable" to when {
                                 control?.insertable != null -> control.insertable
@@ -154,6 +169,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         it["isId"] == true && it["generatedValueStrategy"] == "IDENTITY"
                     },
                     "hasGenericGeneratorFields" to scalarFields.any { it["genericGeneratorName"] != null },
+                    "hasApplicationSideIdFields" to scalarFields.any { it["applicationSideIdStrategy"] != null },
                     "hasVersionFields" to scalarFields.any { it["isVersion"] == true },
                     "dynamicInsert" to (providerControl?.dynamicInsert == true),
                     "dynamicUpdate" to (providerControl?.dynamicUpdate == true),

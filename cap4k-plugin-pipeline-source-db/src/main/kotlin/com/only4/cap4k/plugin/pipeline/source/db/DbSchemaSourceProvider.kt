@@ -168,7 +168,6 @@ class DbSchemaSourceProvider : SourceProvider {
                 dynamicInsert = tableMetadata.dynamicInsert,
                 dynamicUpdate = tableMetadata.dynamicUpdate,
                 softDeleteColumn = tableMetadata.softDeleteColumn,
-                entityIdGenerator = tableMetadata.entityIdGenerator,
             ),
             ignored = tableMetadata.ignored,
         )

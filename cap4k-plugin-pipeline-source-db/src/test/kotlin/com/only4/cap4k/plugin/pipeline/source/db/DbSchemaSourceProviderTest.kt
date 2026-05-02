@@ -327,7 +327,7 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
-    fun `provider carries table level entity id generator into db snapshot`() {
+    fun `db source rejects legacy table level entity id generator`() {
         val url = "jdbc:h2:mem:cap4k-db-source-entity-id-generator;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -345,34 +345,35 @@ class DbSchemaSourceProviderTest {
             }
         }
 
-        val snapshot = DbSchemaSourceProvider().collect(
-            ProjectConfig(
-                basePackage = "com.acme.demo",
-                layout = ProjectLayout.MULTI_MODULE,
-                modules = emptyMap(),
-                sources = mapOf(
-                    "db" to SourceConfig(
-                        enabled = true,
-                        options = mapOf(
-                            "url" to url,
-                            "username" to "sa",
-                            "password" to "",
-                            "schema" to "PUBLIC",
-                            "includeTables" to listOf("video_post"),
-                            "excludeTables" to emptyList<String>(),
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbSchemaSourceProvider().collect(
+                ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = mapOf(
+                        "db" to SourceConfig(
+                            enabled = true,
+                            options = mapOf(
+                                "url" to url,
+                                "username" to "sa",
+                                "password" to "",
+                                "schema" to "PUBLIC",
+                                "includeTables" to listOf("video_post"),
+                                "excludeTables" to emptyList<String>(),
+                            )
                         )
-                    )
-                ),
-                generators = emptyMap(),
-                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                    ),
+                    generators = emptyMap(),
+                    templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                )
             )
-        ) as DbSchemaSnapshot
+        }
 
-        val table = snapshot.tables.single { it.tableName.equals("VIDEO_POST", true) }
-
-        assertEquals("snowflakeIdGenerator", table.entityIdGenerator)
-        assertEquals("Video post root", table.comment)
-        assertFalse(table.comment.contains("@IdGenerator"))
+        assertEquals(
+            "unsupported table annotation @IdGenerator: configure aggregate.idPolicy in Gradle DSL instead",
+            error.message,
+        )
     }
 
     @Test

@@ -1740,20 +1740,30 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `aggregate provider persistence generation supports mixed custom and identity id generators`() {
+    fun `aggregate provider persistence generation supports application-side and identity id policies`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-provider-persistence-mixed-id-generate")
         copyFixture(projectDir, "aggregate-provider-persistence-sample")
         val schemaFile = projectDir.resolve("schema.sql")
-        val patchedSchema = schemaFile.readText().replace(
-            "@AggregateRoot=true;@DynamicInsert=true;@DynamicUpdate=true;@SoftDeleteColumn=deleted;",
-            "@AggregateRoot=true;@IdGenerator=snowflakeIdGenerator;@DynamicInsert=true;@DynamicUpdate=true;@SoftDeleteColumn=deleted;",
+        schemaFile.writeText(
+            schemaFile.readText().replaceFirst(
+                "id bigint primary key comment '@GeneratedValue=IDENTITY;',",
+                "id bigint primary key,",
+            )
         )
-        schemaFile.writeText(patchedSchema)
-        val persistedPatchedSchema = schemaFile.readText()
-        assertTrue(
-            persistedPatchedSchema.contains("@IdGenerator=snowflakeIdGenerator;"),
-            "Expected patched schema to contain @IdGenerator=snowflakeIdGenerator; but was:\n$persistedPatchedSchema"
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val patchedBuildFile = buildFile.readText().replace(
+            Regex("""aggregate\s*\{\s*enabled\.set\(true\)\s*}"""),
+            """
+            |aggregate {
+            |            enabled.set(true)
+            |            idPolicy {
+            |                defaultStrategy.set("snowflake-long")
+            |            }
+            |        }
+            """.trimMargin(),
         )
+        buildFile.writeText(patchedBuildFile)
+        assertTrue(patchedBuildFile.contains("""defaultStrategy.set("snowflake-long")"""))
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -1768,12 +1778,9 @@ class PipelinePluginFunctionalTest {
         ).readText()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(generatedVideoPost.contains("@GeneratedValue(generator = \"snowflakeIdGenerator\")"))
-        assertTrue(
-            generatedVideoPost.contains(
-                "@GenericGenerator(name = \"snowflakeIdGenerator\", strategy = \"snowflakeIdGenerator\")"
-            )
-        )
+        assertTrue(generatedVideoPost.contains("@ApplicationSideId(strategy = \"snowflake-long\")"))
+        assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
+        assertFalse(generatedVideoPost.contains("@GenericGenerator"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedAuditLog.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertFalse(generatedAuditLog.contains("GenericGenerator"))
