@@ -374,14 +374,15 @@ Remaining recommended order from the current mainline handoff:
 7. built-in testing skeleton feasibility analysis
 8. irAnalysis restructuring analysis, only if smaller projection or TypeScript-generation needs prove the current shape is insufficient
 9. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
+10. cap4k-ddd-starter auto-configuration test fixture isolation
 
 Dogfood-discovered generator quality follow-ups:
 
-10. aggregate unique family naming and soft-delete scope customization
-11. analysis / drawing-board defaultValue expression projection hardening
-12. generated / migrated Kotlin import formatting cleanup
-13. artifact-level conflict policy overrides for generator output
-14. aggregate factory payload metadata-name parity
+11. aggregate unique family naming and soft-delete scope customization
+12. analysis / drawing-board defaultValue expression projection hardening
+13. generated / migrated Kotlin import formatting cleanup
+14. artifact-level conflict policy overrides for generator output
+15. aggregate factory payload metadata-name parity
 
 Notes:
 
@@ -852,6 +853,32 @@ Notes:
 - likely evaluation dimensions include aggregate loading, dirty tracking, transactions, optimistic locking, relation handling, preassignable application-side ID generation, query ergonomics, Kotlin support, Spring integration, testing, and migration risk
 - this has a large blast radius and should not be mixed into contract-first query, nullability contract stabilization, validator work, or irAnalysis work
 - the safest route is probably a parallel backend implementation behind existing repository/unit-of-work contracts, then runtime verification against representative aggregate fixtures
+
+### 10. cap4k-ddd-starter auto-configuration test fixture isolation
+
+Status:
+
+- candidate test-maintenance work
+- spec not written
+- implementation plan not written
+- failure root causes have been characterized from `:cap4k-ddd-starter:test`
+
+Next action:
+
+- write a focused maintenance spec before fixing the tests
+- isolate starter auto-configuration test applications so they do not package-scan unrelated test fixtures, runtime fixtures, or other nested test applications
+- replace broad `@ComponentScan`, `@EntityScan`, and `@EnableJpaRepositories` over `com.only4.cap4k.ddd` with scoped fixture packages or `basePackageClasses`
+- correct or remove stale Snowflake test properties, and either provide the `__worker_id` schema or explicitly disable Snowflake when it is not under test
+- provide required event scan package configuration when domain-event auto-configuration is under test, or disable that auto-configuration in unrelated context-startup tests
+- avoid enabling JPA repositories in contexts that intentionally exclude Hibernate JPA auto-configuration
+
+Notes:
+
+- full `:cap4k-ddd-starter:test` currently fails around old `@SpringBootTest` context fixtures, while focused UUID7/application-side ID tests and JPA runtime fixtures pass
+- observed failures include repository bean definition collisions, missing Snowflake worker table, blank `eventScanPackage` reaching `ScanUtils.scanClass`, and missing `entityManagerFactory`
+- this is a test fixture isolation debt, not evidence that the UUID7/application-side ID policy implementation is broken
+- this item should not be mixed with application-side ID runtime semantics, repository backend replacement, or command transaction-boundary design
+- prefer `ApplicationContextRunner` or narrowly scoped Spring Boot test apps where possible; avoid hiding scan pollution with global bean-definition overriding unless the test explicitly verifies overriding behavior
 
 ## Support Track Docs
 
