@@ -30,12 +30,17 @@ data class DbColumnSnapshot(
     val updatable: Boolean? = null,
 )
 
+data class UniqueConstraintModel(
+    val physicalName: String,
+    val columns: List<String>,
+)
+
 data class DbTableSnapshot(
     val tableName: String,
     val comment: String,
     val columns: List<DbColumnSnapshot>,
     val primaryKey: List<String>,
-    val uniqueConstraints: List<List<String>>,
+    val uniqueConstraints: List<UniqueConstraintModel>,
     val parentTable: String? = null,
     val aggregateRoot: Boolean = true,
     val valueObject: Boolean = false,

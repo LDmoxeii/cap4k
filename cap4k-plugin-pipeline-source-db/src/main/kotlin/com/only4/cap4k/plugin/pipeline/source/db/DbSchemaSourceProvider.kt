@@ -5,10 +5,13 @@ import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
+import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
 import java.sql.DatabaseMetaData
 import java.sql.DriverManager
 import java.sql.SQLException
 import java.util.Locale
+
+private val H2_UNIQUE_INDEX_SUFFIX = Regex("""_INDEX_[A-Z0-9]+$""")
 
 class DbSchemaSourceProvider : SourceProvider {
     override val id: String = "db"
@@ -135,7 +138,8 @@ class DbSchemaSourceProvider : SourceProvider {
                     val indexName = rows.getString("INDEX_NAME") ?: continue
                     val columnName = rows.getString("COLUMN_NAME") ?: continue
                     val ordinalPosition = rows.getInt("ORDINAL_POSITION")
-                    getOrPut(indexName) { mutableListOf() }.add(
+                    val physicalName = normalizeUniquePhysicalName(metadata, indexName)
+                    getOrPut(physicalName) { mutableListOf() }.add(
                         IndexedConstraintColumn(
                             name = columnName,
                             ordinalPosition = ordinalPosition,
@@ -143,17 +147,19 @@ class DbSchemaSourceProvider : SourceProvider {
                         )
                     )
                 }
-            }.values
-                .map { columns ->
-                    columns
+            }.map { (physicalName, columns) ->
+                UniqueConstraintModel(
+                    physicalName = physicalName,
+                    columns = columns
                         .sortedWith(
                             compareBy<IndexedConstraintColumn> {
                                 if (it.ordinalPosition > 0) it.ordinalPosition else Int.MAX_VALUE
                             }.thenBy { it.metadataSequence }
                         )
-                        .map { it.name }
-                }
-                .filter { it.toSet() != primaryKeySet }
+                        .map { it.name },
+                )
+            }
+                .filter { it.columns.toSet() != primaryKeySet }
         }
 
         return ReadTableResult(
@@ -176,6 +182,11 @@ class DbSchemaSourceProvider : SourceProvider {
 
     private fun requestedTableNames(value: Any?): List<String> =
         (value as? List<*>)?.mapNotNull { it?.toString() }.orEmpty()
+
+    private fun normalizeUniquePhysicalName(metadata: DatabaseMetaData, indexName: String): String {
+        if (!metadata.databaseProductName.equals("H2", ignoreCase = true)) return indexName
+        return indexName.replace(H2_UNIQUE_INDEX_SUFFIX, "")
+    }
 
     private fun resolveRequestedTables(requestedTables: List<String>, discoveredTables: List<String>): Set<String> {
         if (requestedTables.isEmpty()) return emptySet()

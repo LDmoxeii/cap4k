@@ -518,9 +518,10 @@ class DbSchemaSourceProviderTest {
                     """
                     create table video_post (
                         id bigint primary key,
-                        slug varchar(128) not null unique,
+                        slug varchar(128) not null,
                         title varchar(255) not null,
-                        published boolean default false
+                        published boolean default false,
+                        constraint video_post_uk_v_slug unique (slug)
                     )
                     """.trimIndent()
                 )
@@ -553,7 +554,9 @@ class DbSchemaSourceProviderTest {
         val table = snapshot.tables.single()
         assertEquals("VIDEO_POST", table.tableName)
         assertEquals(listOf("ID"), table.primaryKey)
-        assertEquals(listOf(listOf("SLUG")), table.uniqueConstraints)
+        val unique = table.uniqueConstraints.single()
+        assertTrue(unique.physicalName.equals("VIDEO_POST_UK_V_SLUG", ignoreCase = true))
+        assertEquals(listOf("SLUG"), unique.columns)
         assertEquals(listOf("ID", "SLUG", "TITLE", "PUBLISHED"), table.columns.map { it.name })
         assertEquals("Long", table.columns.first { it.name == "ID" }.kotlinType)
         assertEquals("Boolean", table.columns.first { it.name == "PUBLISHED" }.kotlinType)
@@ -613,9 +616,10 @@ class DbSchemaSourceProviderTest {
                     """
                     create table "VideoPost" (
                         "Id" bigint primary key,
-                        "Slug" varchar(128) not null unique,
+                        "Slug" varchar(128) not null,
                         "Title" varchar(255) not null,
-                        "Published" boolean default false
+                        "Published" boolean default false,
+                        constraint "VideoPost_uk_v_slug" unique ("Slug")
                     )
                     """.trimIndent()
                 )
@@ -649,7 +653,9 @@ class DbSchemaSourceProviderTest {
         assertEquals("VideoPost", table.tableName)
         assertEquals(listOf("Id", "Slug", "Title", "Published"), table.columns.map { it.name })
         assertEquals(listOf("Id"), table.primaryKey)
-        assertEquals(listOf(listOf("Slug")), table.uniqueConstraints)
+        val unique = table.uniqueConstraints.single()
+        assertEquals("VideoPost_uk_v_slug", unique.physicalName)
+        assertEquals(listOf("Slug"), unique.columns)
         assertEquals("Long", table.columns.first { it.name == "Id" }.kotlinType)
         assertEquals("Boolean", table.columns.first { it.name == "Published" }.kotlinType)
     }
@@ -792,7 +798,9 @@ class DbSchemaSourceProviderTest {
         val table = snapshot.tables.single()
         assertEquals(listOf("SEQUENCE_ID", "TENANT_ID", "CODE", "REGION_ID"), table.columns.map { it.name })
         assertEquals(listOf("SEQUENCE_ID", "TENANT_ID"), table.primaryKey)
-        assertEquals(listOf(listOf("REGION_ID", "CODE")), table.uniqueConstraints)
+        val unique = table.uniqueConstraints.single()
+        assertTrue(unique.physicalName.equals("UQ_ACCOUNT_ENTRY", ignoreCase = true))
+        assertEquals(listOf("REGION_ID", "CODE"), unique.columns)
     }
 
     @Test

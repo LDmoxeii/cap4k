@@ -37,6 +37,7 @@ import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverter
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
+import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
 import com.only4.cap4k.plugin.pipeline.api.ValidatorParameterModel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -3524,7 +3525,12 @@ class DefaultCanonicalAssemblerTest {
                                 DbColumnSnapshot("title", "VARCHAR", "String", false, null, "", false),
                             ),
                             primaryKey = listOf("id"),
-                            uniqueConstraints = listOf(listOf("title")),
+                            uniqueConstraints = listOf(
+                                UniqueConstraintModel(
+                                    physicalName = "uk_v_title",
+                                    columns = listOf("title"),
+                                )
+                            ),
                         )
                     )
                 )
@@ -3554,7 +3560,12 @@ class DefaultCanonicalAssemblerTest {
                             tableName = "user_message",
                             comment = "user message",
                             primaryKey = listOf("id"),
-                            uniqueConstraints = listOf(listOf("message_key")),
+                            uniqueConstraints = listOf(
+                                UniqueConstraintModel(
+                                    physicalName = "uk_v_message_key",
+                                    columns = listOf("message_key"),
+                                )
+                            ),
                             columns = listOf(
                                 DbColumnSnapshot("id", "bigint", "Long", false, isPrimaryKey = true),
                                 DbColumnSnapshot("message_key", "varchar", "String", false),
@@ -3598,7 +3609,12 @@ class DefaultCanonicalAssemblerTest {
                                 DbColumnSnapshot("title", "VARCHAR", "String", false, null, "", false),
                             ),
                             primaryKey = listOf("id"),
-                            uniqueConstraints = listOf(listOf("title")),
+                            uniqueConstraints = listOf(
+                                UniqueConstraintModel(
+                                    physicalName = "uk_v_title",
+                                    columns = listOf("title"),
+                                )
+                            ),
                         )
                     )
                 )
@@ -3627,7 +3643,12 @@ class DefaultCanonicalAssemblerTest {
                                 DbColumnSnapshot("title", "VARCHAR", "String", false, null, "", false),
                             ),
                             primaryKey = listOf("id"),
-                            uniqueConstraints = listOf(listOf("title")),
+                            uniqueConstraints = listOf(
+                                UniqueConstraintModel(
+                                    physicalName = "uk_v_title",
+                                    columns = listOf("title"),
+                                )
+                            ),
                         )
                     )
                 )
@@ -3656,7 +3677,12 @@ class DefaultCanonicalAssemblerTest {
                                 DbColumnSnapshot("client_name", "VARCHAR", "String", false, null, "", false),
                             ),
                             primaryKey = listOf("id"),
-                            uniqueConstraints = listOf(listOf("client_name")),
+                            uniqueConstraints = listOf(
+                                UniqueConstraintModel(
+                                    physicalName = "uk_v_client_name",
+                                    columns = listOf("client_name"),
+                                )
+                            ),
                         )
                     )
                 )

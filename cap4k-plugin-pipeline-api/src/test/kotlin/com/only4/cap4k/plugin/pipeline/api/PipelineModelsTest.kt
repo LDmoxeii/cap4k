@@ -407,13 +407,20 @@ class PipelineModelsTest {
                         )
                     ),
                     primaryKey = listOf("id"),
-                    uniqueConstraints = listOf(listOf("id")),
+                    uniqueConstraints = listOf(
+                        UniqueConstraintModel(
+                            physicalName = "uk_v_id",
+                            columns = listOf("id"),
+                        )
+                    ),
                 )
             )
         )
 
         assertEquals("video_post", snapshot.tables.single().tableName)
         assertEquals(listOf("id"), snapshot.tables.single().primaryKey)
+        assertEquals("uk_v_id", snapshot.tables.single().uniqueConstraints.single().physicalName)
+        assertEquals(listOf("id"), snapshot.tables.single().uniqueConstraints.single().columns)
         assertEquals("Long", snapshot.tables.single().columns.single().kotlinType)
     }
 }
