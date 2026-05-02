@@ -1252,14 +1252,27 @@ class PipelinePluginFunctionalTest {
             )
         )
         val planContent = planFile.readText()
-        assertTrue(planContent.contains("\"uniquePhysicalName\": \"video_post_uk_v_slug_INDEX_"))
-        assertTrue(planContent.contains("\"uniqueNormalizedName\": \"uk_v_slug\""))
-        assertTrue(planContent.contains("\"uniqueResolvedSuffix\": \"Slug\""))
-        assertTrue(planContent.contains("\"uniqueSelectedBusinessFields\": ["))
-        assertTrue(planContent.contains("\"slug\""))
-        assertTrue(planContent.contains("\"uniqueFilteredControlFields\": ["))
-        assertTrue(planContent.contains("\"deleted\""))
-        assertTrue(planContent.contains("\"version\""))
+        assertUniqueArtifactPlanItemMetadata(
+            planContent = planContent,
+            templateId = "aggregate/unique_query.kt.peb",
+            outputPathSuffix = generatedSource(
+                "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt"
+            ),
+        )
+        assertUniqueArtifactPlanItemMetadata(
+            planContent = planContent,
+            templateId = "aggregate/unique_query_handler.kt.peb",
+            outputPathSuffix = generatedSource(
+                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt"
+            ),
+        )
+        assertUniqueArtifactPlanItemMetadata(
+            planContent = planContent,
+            templateId = "aggregate/unique_validator.kt.peb",
+            outputPathSuffix = generatedSource(
+                "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostSlug.kt"
+            ),
+        )
         assertPlanItemMetadata(
             planContent = planContent,
             templateId = "aggregate/entity.kt.peb",
@@ -3380,6 +3393,36 @@ class PipelinePluginFunctionalTest {
         assertEquals(outputKind, item.get("outputKind").asString)
         assertEquals(resolvedOutputRoot, item.get("resolvedOutputRoot").asString)
         assertEquals(conflictPolicy, item.get("conflictPolicy").asString)
+    }
+
+    private fun assertUniqueArtifactPlanItemMetadata(
+        planContent: String,
+        templateId: String,
+        outputPathSuffix: String,
+    ) {
+        val context = JsonParser.parseString(planContent)
+            .asJsonObject
+            .getAsJsonArray("items")
+            .map { it.asJsonObject }
+            .single {
+                it.get("templateId").asString == templateId &&
+                    it.get("outputPath").asString.endsWith(outputPathSuffix)
+            }
+            .getAsJsonObject("context")
+
+        assertEquals(
+            listOf("slug"),
+            context.getAsJsonArray("uniqueSelectedBusinessFields").map { it.asString },
+        )
+        assertEquals(
+            listOf("deleted", "version"),
+            context.getAsJsonArray("uniqueFilteredControlFields").map { it.asString },
+        )
+        assertEquals("uk_v_slug", context.get("uniqueNormalizedName").asString)
+        assertEquals("Slug", context.get("uniqueResolvedSuffix").asString)
+        val uniquePhysicalName = context.get("uniquePhysicalName").asString
+        assertTrue(uniquePhysicalName.startsWith("video_post_uk_v_slug"))
+        assertTrue(uniquePhysicalName.contains("_INDEX_"))
     }
 
     private fun generatedSource(relativePath: String): String =
