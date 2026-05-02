@@ -35,6 +35,20 @@ UUID version 7 is defined by RFC 9562 as a time-ordered UUID format based on Uni
 
 The NetCorePal Cloud Framework uses a related model through EF Core property-level value generators. DeepWiki analysis of `netcorepal/netcorepal-cloud-framework` identifies `UseGuidVersion7ValueGenerator`, `StrongTypeGuidVersion7ValueGenerator<TEntityId>`, `UseSnowFlakeValueGenerator`, and `SnowflakeValueGenerator<TEntityId>` as property-level generators invoked when EF Core tracks new entities whose ID property still has its default value. cap4k should not copy EF Core APIs directly, but the important architectural lesson is that ID generation belongs to a property-level strategy contract, not to a table-level schema comment.
 
+Hibernate 6.5 also provides a useful reference point through `org.hibernate.generator.Generator.allowAssignedIdentifiers()`. A generator that returns `true` declares that existing assigned identifier values may be kept while default identifiers can still fall back to generated values. Hibernate 6.5.3.Final uses this during session-factory generator creation to set the identifier unsaved-value strategy to `undefined`, so transient/detached detection is not based only on the non-default identifier value. The save path can then call a before-execution generator, which may read the current identifier from the entity and either return that existing value or generate a new one.
+
+The Hibernate model is useful, but it is not sufficient as the cap4k contract:
+
+- it is Hibernate-specific, not portable JPA
+- it still depends on the caller reaching `entityManager.persist(...)`
+- cap4k currently routes entities through `JpaUnitOfWork` before Hibernate sees them
+- root-ID preallocation still needs a framework allocator for command handlers and aggregate factories
+
+Therefore this spec borrows the two core lessons from Hibernate 6.5, but keeps cap4k's own framework-level policy as the source of truth:
+
+- assigned-or-generated ID behavior must handle both unsaved/new-state classification and value generation
+- the strategy must be attached to the ID member, not inferred from table comments
+
 ## Problem
 
 `@GeneratedValue` is not the right contract for preassignable application-side IDs.
@@ -335,6 +349,8 @@ Recommended placement:
 - pipeline modules: Gradle DSL, canonical strategy resolution, type validation, and entity template output
 
 The existing `UuidV7IdentifierGenerator` can be reused as implementation reference, but the final UUID7 allocator should not be modeled primarily as a Hibernate `IdentifierGenerator`.
+
+Hibernate 6.5+ can be evaluated as an implementation aid after the framework-level contract is in place. If cap4k later upgrades to a Hibernate version whose generator APIs satisfy the needed lifecycle, a Hibernate generator may delegate to `IdStrategyRegistry` and use `allowAssignedIdentifiers()` to reduce duplicated provider work. That remains an optimization detail. The public cap4k behavior must continue to be defined by `@ApplicationSideId`, `IdStrategyRegistry`, and `JpaUnitOfWork` processing.
 
 ## Snowflake Policy
 
