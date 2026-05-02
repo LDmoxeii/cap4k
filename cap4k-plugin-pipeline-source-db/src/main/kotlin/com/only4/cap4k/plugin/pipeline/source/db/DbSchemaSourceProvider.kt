@@ -11,8 +11,6 @@ import java.sql.DriverManager
 import java.sql.SQLException
 import java.util.Locale
 
-private val H2_UNIQUE_INDEX_SUFFIX = Regex("""_INDEX_[A-Z0-9]+$""")
-
 class DbSchemaSourceProvider : SourceProvider {
     override val id: String = "db"
     private val relationAnnotationParser = DbRelationAnnotationParser()
@@ -138,8 +136,7 @@ class DbSchemaSourceProvider : SourceProvider {
                     val indexName = rows.getString("INDEX_NAME") ?: continue
                     val columnName = rows.getString("COLUMN_NAME") ?: continue
                     val ordinalPosition = rows.getInt("ORDINAL_POSITION")
-                    val physicalName = normalizeUniquePhysicalName(metadata, indexName)
-                    getOrPut(physicalName) { mutableListOf() }.add(
+                    getOrPut(indexName) { mutableListOf() }.add(
                         IndexedConstraintColumn(
                             name = columnName,
                             ordinalPosition = ordinalPosition,
@@ -182,11 +179,6 @@ class DbSchemaSourceProvider : SourceProvider {
 
     private fun requestedTableNames(value: Any?): List<String> =
         (value as? List<*>)?.mapNotNull { it?.toString() }.orEmpty()
-
-    private fun normalizeUniquePhysicalName(metadata: DatabaseMetaData, indexName: String): String {
-        if (!metadata.databaseProductName.equals("H2", ignoreCase = true)) return indexName
-        return indexName.replace(H2_UNIQUE_INDEX_SUFFIX, "")
-    }
 
     private fun resolveRequestedTables(requestedTables: List<String>, discoveredTables: List<String>): Set<String> {
         if (requestedTables.isEmpty()) return emptySet()
