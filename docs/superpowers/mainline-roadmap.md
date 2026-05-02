@@ -807,10 +807,10 @@ Notes:
 Status:
 
 - candidate strategic work
-- backend choice not analyzed
+- Spring Data JPA/JDBC feasibility lightly analyzed
 - spec not written
 - implementation plan not written
-- deferred until aggregate JPA runtime defects are reproduced and classified
+- deferred; no current evidence justifies replacing the JPA path
 
 Next action:
 
@@ -824,6 +824,9 @@ Notes:
 - current unit-of-work and repository implementations are JPA-based
 - JPA usage has exposed enough practical problems to justify runtime reproduction first, not immediate replacement
 - this should be treated as a persistence backend track only after in-place JPA repair has been evaluated
+- Spring Data JPA does not remove the core preassigned-ID issue because `save(...)` still routes through new-state detection and then `EntityManager.persist(...)` or `merge(...)`; assigned-ID support typically requires `Persistable.isNew()` or custom `EntityInformation`
+- Spring Data JDBC has a stronger aggregate-root repository model and avoids JPA lazy-loading, but existing aggregate saves can delete and recreate referenced child rows, which may conflict with cap4k's current dirty-tracking, child-ID stability, soft-delete, audit, optimistic-locking, and partial-update expectations
+- Spring Data JDBC can remain a future PoC candidate, but it does not provide enough immediate advantage to preempt the UUID7/application-side ID policy and in-place JPA unit-of-work repair
 - the first slice should compare candidates and define a bounded PoC, not replace the current JPA implementation
 - likely evaluation dimensions include aggregate loading, dirty tracking, transactions, optimistic locking, relation handling, preassignable application-side ID generation, query ergonomics, Kotlin support, Spring integration, testing, and migration risk
 - this has a large blast radius and should not be mixed into contract-first query, nullability contract stabilization, validator work, or irAnalysis work
