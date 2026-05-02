@@ -116,7 +116,8 @@ internal object AggregateUniqueConstraintPlanning {
     }
 
     private fun normalizeH2BackingIndexName(normalizedName: String): String {
-        val h2BackingIndex = Regex("^(.+)_INDEX_[A-Z0-9]+$").find(normalizedName) ?: return normalizedName
+        // Intentionally narrow: "index" can be a valid business fragment such as uk_index_email.
+        val h2BackingIndex = Regex("^(.+)_INDEX_[A-Z0-9]$").find(normalizedName) ?: return normalizedName
         val candidate = h2BackingIndex.groupValues[1]
         return if (isExplicitUniqueName(candidate)) candidate else normalizedName
     }

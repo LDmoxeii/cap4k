@@ -2977,6 +2977,29 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `unique planning does not strip uppercase legal index fragment names`() {
+        val planning = AggregateUniqueConstraintPlanning.from(
+            entity = EntityModel(
+                name = "Category",
+                packageName = "com.acme.demo.domain.aggregates.category",
+                tableName = "category",
+                comment = "Category",
+                fields = listOf(
+                    FieldModel("id", "Long", columnName = "id"),
+                    FieldModel("email", "String", columnName = "email"),
+                ),
+                idField = FieldModel("id", "Long", columnName = "id"),
+                uniqueConstraints = listOf(uniqueConstraint("CATEGORY_UK_INDEX_EMAIL", "email")),
+            ),
+        )
+
+        val selection = planning.single()
+        assertEquals("UK_INDEX_EMAIL", selection.normalizedName)
+        assertEquals("IndexEmail", selection.suffix)
+        assertEquals("UniqueCategoryIndexEmail", selection.validatorTypeName)
+    }
+
+    @Test
     fun `unique planning uses table prefixed uk fragment without v marker`() {
         val planning = AggregateUniqueConstraintPlanning.from(
             entity = EntityModel(
