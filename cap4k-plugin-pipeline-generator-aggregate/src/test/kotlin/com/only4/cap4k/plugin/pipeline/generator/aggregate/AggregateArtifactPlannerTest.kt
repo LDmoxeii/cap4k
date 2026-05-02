@@ -4,8 +4,9 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateColumnJpaModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateEntityJpaModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
+import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyControl
+import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateInverseRelationModel
-import com.only4.cap4k.plugin.pipeline.api.AggregateIdGeneratorControl
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
@@ -753,17 +754,17 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner exposes custom generator render keys on id field`() {
+    fun `entity planner exposes application side uuid7 render keys on id field`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
             tableName = "video_post",
             comment = "video post",
             fields = listOf(
-                FieldModel("id", "Long"),
+                FieldModel("id", "UUID"),
                 FieldModel("title", "String"),
             ),
-            idField = FieldModel("id", "Long"),
+            idField = FieldModel("id", "UUID"),
         )
         val plan = AggregateArtifactPlanner().plan(
             aggregateConfig(),
@@ -772,13 +773,15 @@ class AggregateArtifactPlannerTest {
                 aggregateEntityJpa = listOf(
                     defaultAggregateEntityJpa(entity)
                 ),
-                aggregateIdGeneratorControls = listOf(
-                    AggregateIdGeneratorControl(
+                aggregateIdPolicyControls = listOf(
+                    AggregateIdPolicyControl(
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         tableName = "video_post",
                         idFieldName = "id",
-                        entityIdGenerator = "snowflakeIdGenerator",
+                        idFieldType = "UUID",
+                        strategy = "uuid7",
+                        kind = AggregateIdPolicyKind.APPLICATION_SIDE,
                     )
                 ),
             )
@@ -789,15 +792,21 @@ class AggregateArtifactPlannerTest {
         val scalarFields = entityArtifact.context["fields"] as List<Map<String, Any?>>
         val idField = scalarFields.single { it["fieldName"] == "id" }
 
-        assertEquals("snowflakeIdGenerator", idField["generatedValueGenerator"])
-        assertEquals("snowflakeIdGenerator", idField["genericGeneratorName"])
-        assertEquals("snowflakeIdGenerator", idField["genericGeneratorStrategy"])
+        assertEquals("uuid7", idField["applicationSideIdStrategy"])
+        assertEquals("UUID(0L, 0L)", idField["defaultValue"])
+        assertEquals(false, idField["updatable"])
+        assertEquals(null, idField["generatedValueStrategy"])
+        assertFalse(idField.containsKey("generatedValue" + "Generator"))
+        assertFalse(idField.containsKey("genericGenerator" + "Name"))
+        assertFalse(idField.containsKey("genericGenerator" + "Strategy"))
         assertEquals(false, entityArtifact.context["hasGeneratedValueFields"])
-        assertEquals(true, entityArtifact.context["hasGenericGeneratorFields"])
+        assertEquals(false, entityArtifact.context["hasGenericGeneratorFields"])
+        assertEquals(true, entityArtifact.context["hasApplicationSideIdFields"])
+        assertEquals(listOf("java.util.UUID"), entityArtifact.context["imports"])
     }
 
     @Test
-    fun `entity planner clears identity strategy when custom generator control is present on id field`() {
+    fun `entity planner exposes application side snowflake long render keys on id field`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -816,22 +825,15 @@ class AggregateArtifactPlannerTest {
                 aggregateEntityJpa = listOf(
                     defaultAggregateEntityJpa(entity)
                 ),
-                aggregatePersistenceFieldControls = listOf(
-                    AggregatePersistenceFieldControl(
-                        "VideoPost",
-                        "com.acme.demo.domain.aggregates.video_post",
-                        "id",
-                        "id",
-                        generatedValueStrategy = "IDENTITY",
-                    )
-                ),
-                aggregateIdGeneratorControls = listOf(
-                    AggregateIdGeneratorControl(
+                aggregateIdPolicyControls = listOf(
+                    AggregateIdPolicyControl(
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         tableName = "video_post",
                         idFieldName = "id",
-                        entityIdGenerator = "snowflakeIdGenerator",
+                        idFieldType = "Long",
+                        strategy = "snowflake-long",
+                        kind = AggregateIdPolicyKind.APPLICATION_SIDE,
                     )
                 ),
             )
@@ -842,12 +844,62 @@ class AggregateArtifactPlannerTest {
         val scalarFields = entityArtifact.context["fields"] as List<Map<String, Any?>>
         val idField = scalarFields.single { it["fieldName"] == "id" }
 
+        assertEquals("snowflake-long", idField["applicationSideIdStrategy"])
+        assertEquals("0L", idField["defaultValue"])
+        assertEquals(false, idField["updatable"])
         assertEquals(null, idField["generatedValueStrategy"])
-        assertEquals("snowflakeIdGenerator", idField["generatedValueGenerator"])
-        assertEquals("snowflakeIdGenerator", idField["genericGeneratorName"])
-        assertEquals("snowflakeIdGenerator", idField["genericGeneratorStrategy"])
+        assertFalse(idField.containsKey("generatedValue" + "Generator"))
+        assertFalse(idField.containsKey("genericGenerator" + "Name"))
+        assertFalse(idField.containsKey("genericGenerator" + "Strategy"))
         assertEquals(false, entityArtifact.context["hasGeneratedValueFields"])
-        assertEquals(true, entityArtifact.context["hasGenericGeneratorFields"])
+        assertEquals(false, entityArtifact.context["hasGenericGeneratorFields"])
+        assertEquals(true, entityArtifact.context["hasApplicationSideIdFields"])
+    }
+
+    @Test
+    fun `entity planner exposes database identity render keys on id field`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("title", "String"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    defaultAggregateEntityJpa(entity)
+                ),
+                aggregateIdPolicyControls = listOf(
+                    AggregateIdPolicyControl(
+                        entityName = "VideoPost",
+                        entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        tableName = "video_post",
+                        idFieldName = "id",
+                        idFieldType = "Long",
+                        strategy = "database-identity",
+                        kind = AggregateIdPolicyKind.DATABASE_SIDE,
+                    )
+                ),
+            )
+        )
+
+        val entityArtifact = plan.single { it.outputPath.endsWith("/VideoPost.kt") }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityArtifact.context["fields"] as List<Map<String, Any?>>
+        val idField = scalarFields.single { it["fieldName"] == "id" }
+
+        assertEquals(null, idField["applicationSideIdStrategy"])
+        assertEquals("IDENTITY", idField["generatedValueStrategy"])
+        assertEquals(true, entityArtifact.context["hasGeneratedValueFields"])
+        assertEquals(false, entityArtifact.context["hasGenericGeneratorFields"])
+        assertEquals(false, entityArtifact.context["hasApplicationSideIdFields"])
     }
 
     @Test

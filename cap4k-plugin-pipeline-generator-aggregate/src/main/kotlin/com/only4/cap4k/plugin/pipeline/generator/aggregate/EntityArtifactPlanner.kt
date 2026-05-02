@@ -21,9 +21,6 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             val controlsByField = model.aggregatePersistenceFieldControls
                 .filter { it.entityName == entity.name && it.entityPackageName == entity.packageName }
                 .associateBy { it.fieldName }
-            val idGeneratorControl = model.aggregateIdGeneratorControls.firstOrNull {
-                it.entityName == entity.name && it.entityPackageName == entity.packageName
-            }
             val idPolicyControl = model.aggregateIdPolicyControls.firstOrNull {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
@@ -77,51 +74,53 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     } else {
                         val control = controlsByField[field.name]
                         val fieldType = planning.resolveFieldType(entity.packageName, field)
-                        val isCustomGeneratorIdField =
-                            jpa.isId && idGeneratorControl?.idFieldName == field.name
-                        val generatedValueStrategy = if (isCustomGeneratorIdField) {
+                        val idPolicyApplies = jpa.isId && idPolicyControl?.idFieldName == field.name
+                        val applicationSideIdStrategy = if (
+                            idPolicyApplies &&
+                            idPolicyControl.kind == AggregateIdPolicyKind.APPLICATION_SIDE
+                        ) {
+                            idPolicyControl.strategy
+                        } else {
                             null
+                        }
+                        val generatedValueStrategy = if (
+                            idPolicyApplies &&
+                            idPolicyControl.kind == AggregateIdPolicyKind.DATABASE_SIDE
+                        ) {
+                            "IDENTITY"
                         } else {
                             control?.generatedValueStrategy
                         }
-                        val generatedValueGenerator = if (isCustomGeneratorIdField) {
-                            idGeneratorControl.entityIdGenerator
-                        } else {
-                            null
+                        val defaultValue = when (applicationSideIdStrategy) {
+                            "uuid7" -> "UUID(0L, 0L)"
+                            "snowflake-long" -> "0L"
+                            else -> defaultProjector.project(
+                                fieldPath = "${entity.packageName}.${entity.name}.${field.name}",
+                                fieldType = fieldType,
+                                nullable = field.nullable,
+                                rawDefaultValue = field.defaultValue,
+                                enumItems = planning.resolveEnumItems(entity.packageName, field),
+                            )
                         }
-                        val genericGeneratorName = if (isCustomGeneratorIdField) {
-                            idGeneratorControl.entityIdGenerator
-                        } else {
-                            null
+                        val insertable = when {
+                            control?.insertable != null -> control.insertable
+                            control?.updatable != null -> true
+                            applicationSideIdStrategy != null -> true
+                            else -> null
                         }
-                        val genericGeneratorStrategy = if (isCustomGeneratorIdField) {
-                            idGeneratorControl.entityIdGenerator
-                        } else {
-                            null
+                        val updatable = when {
+                            applicationSideIdStrategy != null -> false
+                            control?.updatable != null -> control.updatable
+                            control?.insertable != null -> true
+                            else -> null
                         }
-                        val applicationSideIdStrategy =
-                            if (
-                                jpa.isId &&
-                                idPolicyControl?.idFieldName == field.name &&
-                                idPolicyControl.kind == AggregateIdPolicyKind.APPLICATION_SIDE
-                            ) {
-                                idPolicyControl.strategy
-                            } else {
-                                null
-                            }
                         mapOf(
                             "fieldName" to field.name,
                             "fieldType" to fieldType,
                             "name" to field.name,
                             "type" to fieldType,
                             "nullable" to field.nullable,
-                            "defaultValue" to defaultProjector.project(
-                                fieldPath = "${entity.packageName}.${entity.name}.${field.name}",
-                                fieldType = fieldType,
-                                nullable = field.nullable,
-                                rawDefaultValue = field.defaultValue,
-                                enumItems = planning.resolveEnumItems(entity.packageName, field),
-                            ),
+                            "defaultValue" to defaultValue,
                             "typeBinding" to field.typeBinding,
                             "enumItems" to field.enumItems,
                             "columnName" to jpa.columnName,
@@ -129,24 +128,22 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "converterTypeRef" to jpa.converterTypeFqn,
                             "converterClassRef" to jpa.converterClassFqn,
                             "generatedValueStrategy" to generatedValueStrategy,
-                            "generatedValueGenerator" to generatedValueGenerator,
-                            "genericGeneratorName" to genericGeneratorName,
-                            "genericGeneratorStrategy" to genericGeneratorStrategy,
                             "applicationSideIdStrategy" to applicationSideIdStrategy,
                             "isVersion" to (control?.version == true),
-                            "insertable" to when {
-                                control?.insertable != null -> control.insertable
-                                control?.updatable != null -> true
-                                else -> null
-                            },
-                            "updatable" to when {
-                                control?.updatable != null -> control.updatable
-                                control?.insertable != null -> true
-                                else -> null
-                            },
+                            "insertable" to insertable,
+                            "updatable" to updatable,
                         )
                     }
                 }
+            val scalarImports = if (
+                scalarFields.any {
+                    it["fieldType"] == "UUID" && it["defaultValue"] == "UUID(0L, 0L)"
+                }
+            ) {
+                relationPlan.imports + "java.util.UUID"
+            } else {
+                relationPlan.imports
+            }
             generatedKotlinArtifact(
                 config = config,
                 artifactLayout = artifactLayout,
@@ -168,7 +165,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "hasGeneratedValueFields" to scalarFields.any {
                         it["isId"] == true && it["generatedValueStrategy"] == "IDENTITY"
                     },
-                    "hasGenericGeneratorFields" to scalarFields.any { it["genericGeneratorName"] != null },
+                    "hasGenericGeneratorFields" to false,
                     "hasApplicationSideIdFields" to scalarFields.any { it["applicationSideIdStrategy"] != null },
                     "hasVersionFields" to scalarFields.any { it["isVersion"] == true },
                     "dynamicInsert" to (providerControl?.dynamicInsert == true),
@@ -176,7 +173,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "softDeleteSql" to softDeleteSql,
                     "softDeleteWhereClause" to softDeleteWhereClause,
                     "jpaImports" to relationPlan.jpaImports,
-                    "imports" to relationPlan.imports,
+                    "imports" to scalarImports.distinct(),
                     "fields" to scalarFields,
                     "scalarFields" to scalarFields,
                     "relationFields" to relationPlan.relationFields,
