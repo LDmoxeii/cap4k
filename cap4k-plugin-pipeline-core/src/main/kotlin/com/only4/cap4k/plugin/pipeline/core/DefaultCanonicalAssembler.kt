@@ -312,9 +312,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             entities = entities,
             tables = supportedTables,
         )
-        val aggregateIdGeneratorControls = AggregateIdGeneratorInference.infer(
+        val aggregateIdPolicyControls = AggregateIdPolicyResolver.resolve(
+            config = config,
             entities = entities,
-            tables = supportedTables,
+            persistenceFieldControls = aggregatePersistenceFieldControls,
         )
 
         val diagnostics = buildDiagnostics(
@@ -383,7 +384,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 aggregateEntityJpa = aggregateEntityJpa,
                 aggregatePersistenceFieldControls = aggregatePersistenceFieldControls,
                 aggregatePersistenceProviderControls = aggregatePersistenceProviderControls,
-                aggregateIdGeneratorControls = aggregateIdGeneratorControls,
+                aggregateIdPolicyControls = aggregateIdPolicyControls,
             ),
             diagnostics = diagnostics,
         )
