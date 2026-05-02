@@ -94,13 +94,14 @@ class DbSchemaSourceProvider : SourceProvider {
                 while (rows.next()) {
                     val name = rows.getString("COLUMN_NAME")
                     val comment = rows.getString("REMARKS") ?: ""
+                    val typeName = rows.getString("TYPE_NAME")
                     val annotationMetadata = DbColumnAnnotationParser.parse(comment)
                     val relationMetadata = relationAnnotationParser.parseColumn(comment)
                     add(
                         DbColumnSnapshot(
                             name = name,
-                            dbType = rows.getString("TYPE_NAME"),
-                            kotlinType = JdbcTypeMapper.toKotlinType(rows.getInt("DATA_TYPE")),
+                            dbType = typeName,
+                            kotlinType = JdbcTypeMapper.toKotlinType(rows.getInt("DATA_TYPE"), typeName),
                             nullable = rows.getInt("NULLABLE") == DatabaseMetaData.columnNullable,
                             defaultValue = rows.getString("COLUMN_DEF"),
                             comment = relationMetadata.cleanedComment,

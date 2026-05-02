@@ -1778,12 +1778,86 @@ class PipelinePluginFunctionalTest {
         ).readText()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(generatedVideoPost.contains("@ApplicationSideId(strategy = \"snowflake-long\")"))
+        assertTrue(generatedVideoPost.contains("@field:ApplicationSideId(strategy = \"snowflake-long\")"))
+        assertTrue(generatedVideoPost.contains("id: Long = 0L"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedAuditLog.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertFalse(generatedAuditLog.contains("GenericGenerator"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `aggregate provider persistence generation supports native uuid application-side ids`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-provider-persistence-uuid-id-generate")
+        copyFixture(projectDir, "aggregate-provider-persistence-sample")
+        val schemaFile = projectDir.resolve("schema.sql")
+        schemaFile.writeText(
+            schemaFile.readText().replaceFirst(
+                "id bigint primary key comment '@GeneratedValue=IDENTITY;',",
+                "id uuid primary key,",
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+        val generatedVideoPost = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
+        ).readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedVideoPost.contains("import java.util.UUID"))
+        assertTrue(generatedVideoPost.contains("@field:ApplicationSideId(strategy = \"uuid7\")"))
+        assertTrue(generatedVideoPost.contains("id: UUID = UUID(0L, 0L)"))
+        assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
+        assertFalse(generatedVideoPost.contains("@GenericGenerator"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `aggregate provider persistence generation fails fast when uuid7 is applied to Long id`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-provider-persistence-invalid-uuid7-generate")
+        copyFixture(projectDir, "aggregate-provider-persistence-sample")
+        val schemaFile = projectDir.resolve("schema.sql")
+        schemaFile.writeText(
+            """
+            create table video (
+                id bigint primary key,
+                title varchar(128) not null
+            );
+            comment on table video is '@AggregateRoot=true;';
+
+            create table audit_log (
+                id bigint primary key comment '@GeneratedValue=IDENTITY;',
+                deleted int not null,
+                content varchar(128) not null
+            );
+            comment on table audit_log is '@AggregateRoot=true;@SoftDeleteColumn=deleted;';
+            """.trimIndent()
+        )
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace(
+                "includeTables.set(listOf(\"video_post\", \"audit_log\"))",
+                "includeTables.set(listOf(\"video\", \"audit_log\"))",
+            )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .buildAndFail()
+
+        assertTrue(
+            result.output.contains(
+                "ID strategy uuid7 cannot be applied to aggregate video.Video id field id: generated ID type is Long"
+            )
+        )
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1896,7 +1970,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(generatedEntity.contains("@Entity"))
         assertTrue(generatedEntity.contains("@Table(name = \"video_post\")"))
         assertTrue(generatedEntity.contains("@Id"))
-        assertTrue(generatedEntity.contains("@Column(name = \"id\")"))
+        assertTrue(generatedEntity.contains("@Column(name = \"id\""))
         assertTrue(generatedEntity.contains("@Column(name = \"status\")"))
         assertTrue(
             generatedEntity.contains(
@@ -1957,22 +2031,11 @@ class PipelinePluginFunctionalTest {
         val buildFileContent = buildFile.readText().replace("\r\n", "\n")
         buildFile.writeText(
             buildFileContent.replace(
+                """defaultStrategy.set("snowflake-long")""",
                 """
-                |        aggregate {
-                |            enabled.set(true)
-                |            unsupportedTablePolicy.set("SKIP")
-                |        }
-                """.trimMargin(),
-                """
-                |        aggregate {
-                |            enabled.set(true)
-                |            unsupportedTablePolicy.set("SKIP")
-                |            idPolicy {
-                |                defaultStrategy.set(" snowflake-long ")
+                |defaultStrategy.set(" snowflake-long ")
                 |                aggregate(" message.UserMessage ", " uuid7 ")
                 |                entity(" message.UserMessageAttachment ", " snowflake-long ")
-                |            }
-                |        }
                 """.trimMargin(),
             )
         )
@@ -3030,6 +3093,23 @@ class PipelinePluginFunctionalTest {
                 |        }
                 """.trimMargin(),
             )
+                .replace(
+                    """
+                    |        designDomainEventHandler {
+                    |            enabled.set(true)
+                    |        }
+                    """.trimMargin(),
+                    """
+                    |        designDomainEventHandler {
+                    |            enabled.set(true)
+                    |        }
+                    |        aggregate {
+                    |            idPolicy {
+                    |                defaultStrategy.set("snowflake-long")
+                    |            }
+                    |        }
+                    """.trimMargin(),
+                )
         )
 
         val result = GradleRunner.create()
