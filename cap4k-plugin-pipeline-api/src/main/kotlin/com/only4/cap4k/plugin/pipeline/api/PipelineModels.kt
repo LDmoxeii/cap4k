@@ -265,14 +265,6 @@ data class AggregatePersistenceProviderControl(
     val versionFieldName: String? = null,
 )
 
-data class AggregateIdGeneratorControl(
-    val entityName: String,
-    val entityPackageName: String,
-    val tableName: String,
-    val idFieldName: String,
-    val entityIdGenerator: String,
-)
-
 enum class AggregateIdPolicyKind {
     APPLICATION_SIDE,
     DATABASE_SIDE,
@@ -465,7 +457,6 @@ data class CanonicalModel(
     val aggregatePersistenceFieldControls: List<AggregatePersistenceFieldControl> = emptyList(),
     val aggregatePersistenceProviderControls: List<AggregatePersistenceProviderControl> = emptyList(),
     val aggregateIdPolicyControls: List<AggregateIdPolicyControl> = emptyList(),
-    val aggregateIdGeneratorControls: List<AggregateIdGeneratorControl> = emptyList(),
 )
 
 data class UnsupportedAggregateTable(

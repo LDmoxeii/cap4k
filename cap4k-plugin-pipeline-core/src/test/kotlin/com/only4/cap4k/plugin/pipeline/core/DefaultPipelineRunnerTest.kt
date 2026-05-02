@@ -5,6 +5,7 @@ import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
+import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyConfig
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
@@ -309,6 +310,7 @@ class DefaultPipelineRunnerTest {
                     )
                 ),
                 templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                aggregateIdPolicy = AggregateIdPolicyConfig(defaultStrategy = "snowflake-long"),
             )
         )
 
