@@ -92,7 +92,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             control?.generatedValueStrategy
                         }
                         val defaultValue = when (applicationSideIdStrategy) {
-                            "uuid7" -> "UUID(0L, 0L)"
+                            "uuid7" -> uuid7SentinelDefault(fieldType)
                             "snowflake-long" -> "0L"
                             else -> defaultProjector.project(
                                 fieldPath = "${entity.packageName}.${entity.name}.${field.name}",
@@ -137,7 +137,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 }
             val scalarImports = if (
                 scalarFields.any {
-                    it["fieldType"] == "UUID" && it["defaultValue"] == "UUID(0L, 0L)"
+                    it["defaultValue"] == "UUID(0L, 0L)"
                 }
             ) {
                 relationPlan.imports + "java.util.UUID"
@@ -181,6 +181,13 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             )
         }
     }
+
+    private fun uuid7SentinelDefault(fieldType: String): String =
+        if (fieldType.removeSuffix("?") == "java.util.UUID") {
+            "java.util.UUID(0L, 0L)"
+        } else {
+            "UUID(0L, 0L)"
+        }
 
     private fun buildSoftDeleteSql(
         tableName: String,

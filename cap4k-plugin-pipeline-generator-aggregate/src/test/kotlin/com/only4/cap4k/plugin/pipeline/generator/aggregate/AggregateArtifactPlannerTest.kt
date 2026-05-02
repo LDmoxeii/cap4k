@@ -806,6 +806,50 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner renders uuid7 default with qualified constructor when id field keeps qualified UUID type`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "java.util.UUID"),
+                FieldModel("title", "String"),
+            ),
+            idField = FieldModel("id", "java.util.UUID"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    defaultAggregateEntityJpa(entity)
+                ),
+                aggregateIdPolicyControls = listOf(
+                    AggregateIdPolicyControl(
+                        entityName = "VideoPost",
+                        entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        tableName = "video_post",
+                        idFieldName = "id",
+                        idFieldType = "java.util.UUID",
+                        strategy = "uuid7",
+                        kind = AggregateIdPolicyKind.APPLICATION_SIDE,
+                    )
+                ),
+            )
+        )
+
+        val entityArtifact = plan.single { it.outputPath.endsWith("/VideoPost.kt") }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityArtifact.context["fields"] as List<Map<String, Any?>>
+        val idField = scalarFields.single { it["fieldName"] == "id" }
+
+        assertEquals("java.util.UUID", idField["fieldType"])
+        assertEquals("java.util.UUID(0L, 0L)", idField["defaultValue"])
+        assertEquals(emptyList<String>(), entityArtifact.context["imports"])
+    }
+
+    @Test
     fun `entity planner exposes application side snowflake long render keys on id field`() {
         val entity = EntityModel(
             name = "VideoPost",
