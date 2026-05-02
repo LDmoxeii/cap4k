@@ -1,6 +1,6 @@
 # Cap4k Mainline Roadmap
 
-Date: 2026-05-02
+Date: 2026-05-03
 
 ## Purpose
 
@@ -351,7 +351,7 @@ Decision:
 
 ## Upcoming Backlog
 
-Date: 2026-05-01
+Date: 2026-05-03
 
 These items are recorded to preserve scheduling context. They are not implementation plans.
 
@@ -366,19 +366,20 @@ Plan freshness rule:
 Remaining recommended order from the current mainline handoff:
 
 1. aggregate inverse-navigation fetch policy decision
-2. read/write model association-scope separation analysis
-3. irAnalysis-backed frontend TypeScript generation analysis
-4. framework capability audit for domain service, value object, aggregate wrapper, strong ID, and saga
-5. README rewrite after the framework capability audit clarifies the public story
-6. DDD + cap4k + AI collaboration guide after the README positioning is stable
-7. built-in testing skeleton feasibility analysis
-8. irAnalysis restructuring analysis, only if smaller projection or TypeScript-generation needs prove the current shape is insufficient
-9. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
-10. cap4k-ddd-starter auto-configuration test fixture isolation
+2. database special-field declaration contract unification
+3. read/write model association-scope separation analysis
+4. irAnalysis-backed frontend TypeScript generation analysis
+5. framework capability audit for domain service, value object, aggregate wrapper, strong ID, and saga
+6. README rewrite after the framework capability audit clarifies the public story
+7. DDD + cap4k + AI collaboration guide after the README positioning is stable
+8. built-in testing skeleton feasibility analysis
+9. irAnalysis restructuring analysis, only if smaller projection or TypeScript-generation needs prove the current shape is insufficient
+10. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
+11. cap4k-ddd-starter auto-configuration test fixture isolation
 
 Dogfood-discovered generator quality follow-ups:
 
-11. aggregate unique family naming and soft-delete scope customization
+11. aggregate unique family naming and control-field scope customization
 12. analysis / drawing-board defaultValue expression projection hardening
 13. generated / migrated Kotlin import formatting cleanup
 14. artifact-level conflict policy overrides for generator output
@@ -388,7 +389,7 @@ Notes:
 
 - These items come from the `only-danmuku-zero` dogfood migration pass and should be reviewed before the next full real-project migration iteration.
 - The dogfood decision is that all Query/Cmd/Cli `Request` and `Response` contracts must be regenerated from design input. If a contract cannot be expressed and regenerated, that is a design/generator capability defect, not a permanent hand-written migration exception. Hand edits are temporary unblocks only. This was verified and closed in `only-danmuku-zero` with 206/206 matched contracts and `compileKotlin` passing; see [full design-regenerated request contract parity design](specs/2026-05-01-cap4k-full-design-regenerated-request-contract-parity-design.md) and [implementation plan](plans/2026-05-01-cap4k-full-design-regenerated-request-contract-parity.md).
-- Aggregate unique naming should not blindly expose soft-delete fields in public type names when those fields are only uniqueness scope/filter fields. Query, query handler, and validator naming must stay aligned.
+- Aggregate unique naming should not blindly expose soft-delete or optimistic-lock version fields in public type names when those fields are only uniqueness scope/control fields. Query, query handler, and validator naming must stay aligned. The approved direction is DB-source-driven naming using `uk`, `uk_v_<fragment>`, `<table>_uk`, and `<table>_uk_v_<fragment>` with table-prefix normalization, not a DSL-first override model. See [aggregate unique family naming contract design](specs/2026-05-03-cap4k-aggregate-unique-family-naming-contract-design.md).
 - Default value projection should preserve stable expressions such as `null`, scalar literals, empty collection expressions, and enum/constant references through analysis/drawing-board to generate-ready design input.
 - Import formatting cleanup is lower priority and should only become a generator bug if fresh generated output still contains unnecessary blank lines.
 - Artifact-level conflict policy overrides are an experience optimization, not a current migration blocker. The current global `templates.conflictPolicy` is too coarse for real dogfood because users often need to overwrite generated contracts while preserving handler, validator, subscriber, controller, or behavior bodies. Prefer a direct artifact selector that is visible in `cap4kPlan` over introducing a separate family abstraction.
@@ -668,7 +669,34 @@ Notes:
 - `AggregateLoadPlan` is the approved use-case loading mechanism
 - the decision must preserve generated-file consistency and avoid making performance-sensitive projects accidentally expensive
 
-### 2. Read/write model association-scope separation analysis
+### 2. Database special-field declaration contract unification
+
+Status:
+
+- candidate persistence-configuration cleanup work
+- spec not written
+- implementation plan not written
+- explicitly deferred until the current ID policy DSL surface is re-evaluated
+
+Next action:
+
+- write an analysis/spec before implementation
+- unify the declaration contract for database special fields: ID generation policy, soft-delete column, and optimistic-lock version column
+- prefer Gradle DSL project-level defaults with DB column annotation entity/field-level overrides
+- re-evaluate and likely reduce the current ID-generation DSL surface before adding more special-field configuration
+- define how `cap4kPlan` should expose the effective resolved policy so users can review what will be generated
+- define fail-fast validation for invalid combinations such as UUID strategies on non-UUID-compatible DB columns
+
+Notes:
+
+- current contracts are inconsistent: ID generation is primarily DSL-driven, soft delete is table-comment driven through `@SoftDeleteColumn=...`, and optimistic locking is column-comment driven through `@Version=true`
+- this inconsistency increases user mental load and makes future generator behavior harder to explain
+- the target contract is not "more knobs"; it is a smaller, more regular configuration model with clear defaults and explicit local override points
+- ID strategy DSL options may currently expose too much internal capability; future spec work should prune the public surface before extending it
+- DB annotations should remain close to physical schema intent, while DSL defaults should express project-wide policy
+- do not mix this with repository backend replacement, aggregate relation policy changes, or frontend TypeScript generation
+
+### 3. Read/write model association-scope separation analysis
 
 Status:
 
@@ -692,7 +720,7 @@ Notes:
 - this is not a request to immediately add new DB annotation behavior; it is a design question about whether the source model should carry separate association strengths for different consumers
 - avoid using this to weaken aggregate invariants or to turn read-model convenience into write-model coupling
 
-### 3. irAnalysis-backed frontend TypeScript generation analysis
+### 4. irAnalysis-backed frontend TypeScript generation analysis
 
 Status:
 
@@ -715,7 +743,7 @@ Notes:
 - TypeScript output is a new consumer boundary, so stable input contracts matter more than copying the existing frontend folder style
 - do not implement this as a one-off only-danmuku-admin-ui generator
 
-### 4. Framework capability audit and pruning/optimization review
+### 5. Framework capability audit and pruning/optimization review
 
 Status:
 
@@ -735,7 +763,7 @@ Notes:
 - do not optimize or delete capabilities before their current semantics and users are understood
 - the result should clarify whether each capability belongs to core framework, optional extension, generated scaffold, or legacy/quarantine
 
-### 5. Public README rewrite and project positioning
+### 6. Public README rewrite and project positioning
 
 Status:
 
@@ -756,7 +784,7 @@ Notes:
 - the goal is to make the project understandable to people beyond the current maintainer
 - README should not require readers to know the chat history or roadmap terminology
 
-### 6. DDD + cap4k + AI collaboration guide
+### 7. DDD + cap4k + AI collaboration guide
 
 Status:
 
@@ -777,7 +805,7 @@ Notes:
 - it should encode how to use Cap4k safely: when to generate, when to hand-write, when to review, and when to stop
 - it should not be written before the public capability story is clear
 
-### 7. Built-in testing skeleton feasibility analysis
+### 8. Built-in testing skeleton feasibility analysis
 
 Status:
 
@@ -799,7 +827,7 @@ Notes:
 - it must integrate with generated aggregates, repositories, commands, events, and analysis artifacts if it becomes a framework capability
 - do not implement only a project-specific test helper unless it can become a stable Cap4k pattern
 
-### 8. irAnalysis restructuring analysis
+### 9. irAnalysis restructuring analysis
 
 Status:
 
@@ -824,7 +852,7 @@ Notes:
 - if analysis design projection normalization can be solved without restructuring, keep restructuring deferred
 - this should not block smaller drawing-board or validator-generation slices unless evidence shows the current architecture cannot support them
 
-### 9. Unit-of-work and repository backend comparison
+### 10. Unit-of-work and repository backend comparison
 
 Status:
 
@@ -854,7 +882,7 @@ Notes:
 - this has a large blast radius and should not be mixed into contract-first query, nullability contract stabilization, validator work, or irAnalysis work
 - the safest route is probably a parallel backend implementation behind existing repository/unit-of-work contracts, then runtime verification against representative aggregate fixtures
 
-### 10. cap4k-ddd-starter auto-configuration test fixture isolation
+### 11. cap4k-ddd-starter auto-configuration test fixture isolation
 
 Status:
 
