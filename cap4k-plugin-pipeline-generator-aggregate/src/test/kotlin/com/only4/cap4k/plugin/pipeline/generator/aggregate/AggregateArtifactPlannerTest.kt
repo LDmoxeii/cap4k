@@ -800,7 +800,6 @@ class AggregateArtifactPlannerTest {
         assertFalse(idField.containsKey("genericGenerator" + "Name"))
         assertFalse(idField.containsKey("genericGenerator" + "Strategy"))
         assertEquals(false, entityArtifact.context["hasGeneratedValueFields"])
-        assertEquals(false, entityArtifact.context["hasGenericGeneratorFields"])
         assertEquals(true, entityArtifact.context["hasApplicationSideIdFields"])
         assertEquals(listOf("java.util.UUID"), entityArtifact.context["imports"])
     }
@@ -896,7 +895,6 @@ class AggregateArtifactPlannerTest {
         assertFalse(idField.containsKey("genericGenerator" + "Name"))
         assertFalse(idField.containsKey("genericGenerator" + "Strategy"))
         assertEquals(false, entityArtifact.context["hasGeneratedValueFields"])
-        assertEquals(false, entityArtifact.context["hasGenericGeneratorFields"])
         assertEquals(true, entityArtifact.context["hasApplicationSideIdFields"])
     }
 
@@ -942,7 +940,6 @@ class AggregateArtifactPlannerTest {
         assertEquals(null, idField["applicationSideIdStrategy"])
         assertEquals("IDENTITY", idField["generatedValueStrategy"])
         assertEquals(true, entityArtifact.context["hasGeneratedValueFields"])
-        assertEquals(false, entityArtifact.context["hasGenericGeneratorFields"])
         assertEquals(false, entityArtifact.context["hasApplicationSideIdFields"])
     }
 

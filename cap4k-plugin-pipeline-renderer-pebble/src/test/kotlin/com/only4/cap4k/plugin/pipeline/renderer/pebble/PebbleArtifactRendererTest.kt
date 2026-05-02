@@ -126,7 +126,6 @@ class PebbleArtifactRendererTest {
                 ),
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
-                "hasGenericGeneratorFields" to false,
                 "hasVersionFields" to false,
                 "dynamicInsert" to false,
                 "dynamicUpdate" to false,
@@ -2923,7 +2922,6 @@ class PebbleArtifactRendererTest {
                         ),
                         "hasConverterFields" to false,
                         "hasGeneratedValueFields" to false,
-                        "hasGenericGeneratorFields" to false,
                         "hasApplicationSideIdFields" to true,
                         "hasVersionFields" to false,
                         "scalarFields" to listOf(
