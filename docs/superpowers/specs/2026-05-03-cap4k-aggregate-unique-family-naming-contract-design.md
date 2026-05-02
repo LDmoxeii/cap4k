@@ -2,7 +2,9 @@
 
 Date: 2026-05-03
 
-Status: Draft for review
+Status: Implemented
+
+Completion note: Implemented by the aggregate unique family naming contract slice. The pipeline now preserves physical DB unique names, carries named unique constraints into canonical aggregate entities, resolves `uk` / `uk_v_<fragment>` families through the shared aggregate unique planner, filters soft-delete and optimistic-lock version control fields from generated unique APIs, and exposes resolved unique metadata in `cap4kPlan`.
 
 ## Problem
 

@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> Status: Implemented. This is now a historical execution plan; do not treat unchecked checklist items as pending work. Current completion status is tracked in `docs/superpowers/mainline-roadmap.md` and the implemented spec.
+
 **Goal:** Make aggregate unique query, query handler, and validator names derive from DB unique names (`uk`, `uk_v_<fragment>`, `<table>_uk`, `<table>_uk_v_<fragment>`) while filtering soft-delete and version control fields from generated business APIs.
 
 **Architecture:** Preserve named unique constraints from DB source collection into canonical aggregate entities, then centralize all unique family naming in `AggregateUniqueConstraintPlanning`. Artifact planners consume the shared resolved selection and add review metadata to `cap4kPlan` contexts.

@@ -379,17 +379,16 @@ Remaining recommended order from the current mainline handoff:
 
 Dogfood-discovered generator quality follow-ups:
 
-11. aggregate unique family naming and control-field scope customization
-12. analysis / drawing-board defaultValue expression projection hardening
-13. generated / migrated Kotlin import formatting cleanup
-14. artifact-level conflict policy overrides for generator output
-15. aggregate factory payload metadata-name parity
+11. analysis / drawing-board defaultValue expression projection hardening
+12. generated / migrated Kotlin import formatting cleanup
+13. artifact-level conflict policy overrides for generator output
+14. aggregate factory payload metadata-name parity
 
 Notes:
 
 - These items come from the `only-danmuku-zero` dogfood migration pass and should be reviewed before the next full real-project migration iteration.
 - The dogfood decision is that all Query/Cmd/Cli `Request` and `Response` contracts must be regenerated from design input. If a contract cannot be expressed and regenerated, that is a design/generator capability defect, not a permanent hand-written migration exception. Hand edits are temporary unblocks only. This was verified and closed in `only-danmuku-zero` with 206/206 matched contracts and `compileKotlin` passing; see [full design-regenerated request contract parity design](specs/2026-05-01-cap4k-full-design-regenerated-request-contract-parity-design.md) and [implementation plan](plans/2026-05-01-cap4k-full-design-regenerated-request-contract-parity.md).
-- Aggregate unique naming should not blindly expose soft-delete or optimistic-lock version fields in public type names when those fields are only uniqueness scope/control fields. Query, query handler, and validator naming must stay aligned. The approved direction is DB-source-driven naming using `uk`, `uk_v_<fragment>`, `<table>_uk`, and `<table>_uk_v_<fragment>` with table-prefix normalization, not a DSL-first override model. See [aggregate unique family naming contract design](specs/2026-05-03-cap4k-aggregate-unique-family-naming-contract-design.md).
+- Aggregate unique naming and control-field scope customization has been implemented. Query, query handler, and validator naming now share DB-source-driven unique metadata using `uk`, `uk_v_<fragment>`, `<table>_uk`, and `<table>_uk_v_<fragment>` with table-prefix normalization, while soft-delete and optimistic-lock version fields are filtered from generated unique business APIs. See [aggregate unique family naming contract design](specs/2026-05-03-cap4k-aggregate-unique-family-naming-contract-design.md).
 - Default value projection should preserve stable expressions such as `null`, scalar literals, empty collection expressions, and enum/constant references through analysis/drawing-board to generate-ready design input.
 - Import formatting cleanup is lower priority and should only become a generator bug if fresh generated output still contains unnecessary blank lines.
 - Artifact-level conflict policy overrides are an experience optimization, not a current migration blocker. The current global `templates.conflictPolicy` is too coarse for real dogfood because users often need to overwrite generated contracts while preserving handler, validator, subscriber, controller, or behavior bodies. Prefer a direct artifact selector that is visible in `cap4kPlan` over introducing a separate family abstraction.
@@ -646,6 +645,34 @@ Notes:
 - field-level `@ApplicationSideId` is the runtime contract
 - `JpaUnitOfWork` must handle preassigned-ID new entities and save-time owned-child ID assignment
 - do not mix this with a repository backend replacement
+
+### Completed: Aggregate unique family naming and control-field scope customization
+
+Status:
+
+- implementation complete
+- spec updated to implemented
+- implementation plan written and executed
+
+Reference:
+
+- [aggregate unique family naming contract design](specs/2026-05-03-cap4k-aggregate-unique-family-naming-contract-design.md)
+- [aggregate unique family naming contract implementation plan](plans/2026-05-03-cap4k-aggregate-unique-family-naming-contract.md)
+
+Next action:
+
+- no direct follow-up; continue from the remaining recommended order
+
+Notes:
+
+- DB source snapshots preserve physical unique names instead of collapsing unique constraints to column lists
+- canonical aggregate entities now carry named unique constraints
+- aggregate unique query, query handler, and validator planners share one resolved unique-family selection
+- `uk` / `<table>_uk` generate `Unique<Entity>` only when at least one business field remains after filtering
+- `uk_v_<fragment>`, `<table>_uk_v_<fragment>`, and supported `uk_<fragment>` forms generate `Unique<Entity><Fragment>`
+- soft-delete and optimistic-lock version fields are filtered from generated unique request props, handler `whereProps`, and validator field params
+- `cap4kPlan` exposes unique physical name, normalized name, resolved suffix, selected business fields, and filtered control fields for review
+- H2 raw JDBC `_INDEX_*` suffix handling is intentionally narrow and happens in planner normalization, not in DB source collection
 
 ### 1. Aggregate inverse-navigation fetch policy decision
 
