@@ -5,6 +5,7 @@ import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.command.Command
+import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.domain.distributed.SnowflakeIdentifierGenerator
@@ -104,6 +105,9 @@ class AggregateJpaRuntimeDefectReproductionTest {
     private lateinit var rootJpaRepository: RuntimeRootJpaRepository
 
     @Autowired
+    private lateinit var applicationSideLongRootJpaRepository: RuntimeApplicationSideLongRootJpaRepository
+
+    @Autowired
     private lateinit var reverseChildJpaRepository: RuntimeReverseChildJpaRepository
 
     @Autowired
@@ -123,6 +127,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
         jdbcTemplate.update("delete from `runtime_grandchild`")
         jdbcTemplate.update("delete from `runtime_child`")
         jdbcTemplate.update("delete from `runtime_root`")
+        jdbcTemplate.update("delete from `runtime_application_side_long_root`")
         JpaUnitOfWork.reset()
     }
 
@@ -162,10 +167,11 @@ class AggregateJpaRuntimeDefectReproductionTest {
         val classification = classifyRuntimeBehavior(
             label = "preassigned application-side generated id",
             desiredContract = {
-                val root = RuntimeRoot(id = preassignedId, name = "preassigned-id")
-                saveRoot(root)
-                assertTrue(rootJpaRepository.existsById(preassignedId), "A preassigned id should be inserted")
-                assertEquals(preassignedId, rootJpaRepository.findById(preassignedId).orElseThrow().id)
+                val root = RuntimeApplicationSideLongRoot(id = preassignedId, name = "preassigned-id")
+                unitOfWork.persist(root)
+                unitOfWork.save()
+                assertTrue(applicationSideLongRootJpaRepository.existsById(preassignedId), "A preassigned id should be inserted")
+                assertEquals(preassignedId, applicationSideLongRootJpaRepository.findById(preassignedId).orElseThrow().id)
             },
             knownDefect = { failure ->
                 failure.hasCause<PersistentObjectException>() ||
@@ -175,7 +181,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             }
         )
 
-        assertKnownDefect(classification)
+        assertSupported(classification)
     }
 
     @Test
@@ -823,6 +829,21 @@ open class RuntimeSafeReverseGrandchild(id: Long = 0L, name: String = "") {
 interface RuntimeRootJpaRepository :
     JpaRepository<RuntimeRoot, Long>,
     JpaSpecificationExecutor<RuntimeRoot>
+
+@Entity
+@Table(name = "`runtime_application_side_long_root`")
+open class RuntimeApplicationSideLongRoot(id: Long = 0L, name: String = "") {
+    @Id
+    @ApplicationSideId(strategy = "snowflake-long")
+    @Column(name = "`id`", nullable = false, updatable = false)
+    open var id: Long = id
+        protected set
+
+    @Column(name = "`name`", nullable = false)
+    open var name: String = name
+}
+
+interface RuntimeApplicationSideLongRootJpaRepository : JpaRepository<RuntimeApplicationSideLongRoot, Long>
 
 interface RuntimeReverseChildJpaRepository : JpaRepository<RuntimeReverseChild, Long>
 
