@@ -1,9 +1,11 @@
 # cap4k UUID7 ID Generator and Default ID Policy Design
 
 > Date: 2026-05-02
-> Status: Draft for review
+> Status: Implemented
 > Scope: application-side ID policy, UUID7 default strategy, ID allocation registry, aggregate code generation, JPA unit-of-work assigned-id handling
 > Out of scope: database schema migration tooling, strong ID type system, composite IDs, repository backend replacement, DB comment ID-strategy compatibility, legacy `@IdGenerator` support
+
+> Completion note: Implemented by the UUID7 application-side ID policy slice. The implementation keeps `@GeneratedValue(strategy = GenerationType.IDENTITY)` for database identity IDs and uses `@ApplicationSideId` for application-side strategies.
 
 ## Background
 

@@ -53,10 +53,10 @@ Recently completed:
 - ddd-core nullability contract stabilization
 - validator projection and generation normalization
 - generated source output and entity behavior split
+- UUID7 ID generator and default ID-generation policy
 
 Current active planning queue:
 
-- UUID7 ID generator and default ID-generation policy
 - aggregate inverse-navigation fetch policy decision
 - read/write model association-scope separation analysis
 - irAnalysis-backed frontend TypeScript generation analysis
@@ -79,6 +79,7 @@ Recent durable decisions to preserve:
 - aggregate JPA runtime problems should be reproduced in focused fixtures before replacing repository or unit-of-work backends
 - TypeScript frontend generation is only a candidate track; do not assume the current `only-danmuku-admin-ui/src/api` shape is best practice without review
 - public README and AI-collaboration rules should be written only after the capability audit clarifies what remains supported, optimized, or deleted
+- UUID7 is the default application-side ID policy, Snowflake remains explicit as `snowflake-long`, database `@IdGenerator` comments are unsupported, and field-level `@ApplicationSideId` is the runtime contract
 
 ## Reading Order
 

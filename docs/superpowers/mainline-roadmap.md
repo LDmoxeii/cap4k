@@ -270,6 +270,24 @@ Notes:
 
 No new default mainline implementation slice has been selected yet; remaining candidates are tracked in the backlog below.
 
+Latest completed mainline slice:
+
+- UUID7 ID generator and default ID-generation policy
+
+Status:
+
+- implementation complete
+- spec and implementation plan completed
+- database identity IDs still render `@GeneratedValue(strategy = GenerationType.IDENTITY)`
+- application-side ID strategies render field-level `@ApplicationSideId`
+- UUID7 is the default application-side strategy; Snowflake remains explicit as `snowflake-long`
+- legacy DB `@IdGenerator` comment support remains unsupported
+
+Reference:
+
+- [UUID7 ID generator and default ID policy design](specs/2026-05-02-cap4k-uuid7-id-generator-default-policy-design.md)
+- [UUID7 application-side ID policy implementation plan](plans/2026-05-02-cap4k-uuid7-application-side-id-policy.md)
+
 Latest completed dogfood generator-quality slice:
 
 - aggregate entity default projection
@@ -347,16 +365,15 @@ Plan freshness rule:
 
 Remaining recommended order from the current mainline handoff:
 
-1. UUID7 ID generator and default ID-generation policy
-2. aggregate inverse-navigation fetch policy decision
-3. read/write model association-scope separation analysis
-4. irAnalysis-backed frontend TypeScript generation analysis
-5. framework capability audit for domain service, value object, aggregate wrapper, strong ID, and saga
-6. README rewrite after the framework capability audit clarifies the public story
-7. DDD + cap4k + AI collaboration guide after the README positioning is stable
-8. built-in testing skeleton feasibility analysis
-9. irAnalysis restructuring analysis, only if smaller projection or TypeScript-generation needs prove the current shape is insufficient
-10. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
+1. aggregate inverse-navigation fetch policy decision
+2. read/write model association-scope separation analysis
+3. irAnalysis-backed frontend TypeScript generation analysis
+4. framework capability audit for domain service, value object, aggregate wrapper, strong ID, and saga
+5. README rewrite after the framework capability audit clarifies the public story
+6. DDD + cap4k + AI collaboration guide after the README positioning is stable
+7. built-in testing skeleton feasibility analysis
+8. irAnalysis restructuring analysis, only if smaller projection or TypeScript-generation needs prove the current shape is insufficient
+9. unit-of-work and repository backend comparison, only if aggregate JPA runtime reproduction evidence justifies it
 
 Dogfood-discovered generator quality follow-ups:
 
@@ -389,6 +406,7 @@ Recently completed mainline slices:
 - validator projection and generation normalization
 - generated source output and entity behavior split
 - full design-regenerated Query/Cmd/Cli contract parity
+- UUID7 ID generator and default ID-generation policy
 
 ### Completed: Contract-first query contract
 
@@ -600,19 +618,22 @@ Notes:
 - command-wide transaction expansion has test evidence, but its blast radius includes `JpaUnitOfWork.save()`, real commit timing, `afterTransaction`, domain events, integration events, and interceptors
 - do not choose a persistence backend replacement just to solve this lazy-loading symptom
 
-### 3. UUID7 ID generator and default ID-generation policy
+### Completed: UUID7 ID generator and default ID-generation policy
 
 Status:
 
-- candidate mainline work
-- spec drafted: `docs/superpowers/specs/2026-05-02-cap4k-uuid7-id-generator-default-policy-design.md`
-- implementation plan not written
+- implementation complete
+- spec updated to implemented
+- implementation plan written and executed
+
+Reference:
+
+- [UUID7 ID generator and default ID policy design](specs/2026-05-02-cap4k-uuid7-id-generator-default-policy-design.md)
+- [UUID7 application-side ID policy implementation plan](plans/2026-05-02-cap4k-uuid7-application-side-id-policy.md)
 
 Next action:
 
-- review and approve the spec before implementation planning
-- write an implementation plan after spec approval
-- verify the plan against aggregate generation, JPA persistence annotations, preassignable application-side IDs, tests, and documentation
+- no direct follow-up; continue from the remaining recommended order
 
 Notes:
 
@@ -826,7 +847,7 @@ Notes:
 - this should be treated as a persistence backend track only after in-place JPA repair has been evaluated
 - Spring Data JPA does not remove the core preassigned-ID issue because `save(...)` still routes through new-state detection and then `EntityManager.persist(...)` or `merge(...)`; assigned-ID support typically requires `Persistable.isNew()` or custom `EntityInformation`
 - Spring Data JDBC has a stronger aggregate-root repository model and avoids JPA lazy-loading, but existing aggregate saves can delete and recreate referenced child rows, which may conflict with cap4k's current dirty-tracking, child-ID stability, soft-delete, audit, optimistic-locking, and partial-update expectations
-- Spring Data JDBC can remain a future PoC candidate, but it does not provide enough immediate advantage to preempt the UUID7/application-side ID policy and in-place JPA unit-of-work repair
+- Spring Data JDBC can remain a future PoC candidate, but it does not change the completed UUID7/application-side ID policy or justify replacing the current JPA path by default
 - the first slice should compare candidates and define a bounded PoC, not replace the current JPA implementation
 - likely evaluation dimensions include aggregate loading, dirty tracking, transactions, optimistic locking, relation handling, preassignable application-side ID generation, query ergonomics, Kotlin support, Spring integration, testing, and migration risk
 - this has a large blast radius and should not be mixed into contract-first query, nullability contract stabilization, validator work, or irAnalysis work
