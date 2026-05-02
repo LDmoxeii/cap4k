@@ -18,7 +18,7 @@ The legacy and current aggregate generation path can emit Hibernate provider-sid
 @GenericGenerator(name = "snowflakeIdGenerator", strategy = "snowflakeIdGenerator")
 ```
 
-That path is useful for omitted IDs, but it does not provide a stable cap4k contract for preassignable application-side IDs. A previous runtime fixture already captured this problem: `AggregateJpaRuntimeDefectReproductionTest.preassignedApplicationSideIdIsPreservedForNewRoot` exists, but it currently asserts `KNOWN_DEFECT`, not `SUPPORTED`.
+That path was useful for omitted IDs, but it did not provide a stable cap4k contract for preassignable application-side IDs. The runtime fixture `AggregateJpaRuntimeDefectReproductionTest.preassignedApplicationSideIdIsPreservedForNewRoot` captured that historical problem and now asserts `SUPPORTED` for the implemented application-side ID contract.
 
 cap4k also already contains `UuidV7IdentifierGenerator` in `ddd-domain-repo-jpa`, backed by `UuidCreator.getTimeOrderedEpoch()`. That implementation is currently another Hibernate `IdentifierGenerator`; it is not yet a framework-level ID policy.
 
@@ -448,7 +448,7 @@ JPA runtime tests:
 - owned child with default application-side ID gets an ID before cascade persist
 - assigned-ID existing entity routes to merge/update
 - `@ApplicationSideId` combined with `@GeneratedValue` fails fast
-- current `preassignedApplicationSideIdIsPreservedForNewRoot` fixture changes from `KNOWN_DEFECT` to `SUPPORTED`
+- `preassignedApplicationSideIdIsPreservedForNewRoot` fixture asserts `SUPPORTED`
 
 Gradle/plugin integration tests:
 

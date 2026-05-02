@@ -377,11 +377,11 @@ Remaining recommended order from the current mainline handoff:
 
 Dogfood-discovered generator quality follow-ups:
 
-11. aggregate unique family naming and soft-delete scope customization
-12. analysis / drawing-board defaultValue expression projection hardening
-13. generated / migrated Kotlin import formatting cleanup
-14. artifact-level conflict policy overrides for generator output
-15. aggregate factory payload metadata-name parity
+10. aggregate unique family naming and soft-delete scope customization
+11. analysis / drawing-board defaultValue expression projection hardening
+12. generated / migrated Kotlin import formatting cleanup
+13. artifact-level conflict policy overrides for generator output
+14. aggregate factory payload metadata-name parity
 
 Notes:
 
@@ -645,7 +645,7 @@ Notes:
 - `JpaUnitOfWork` must handle preassigned-ID new entities and save-time owned-child ID assignment
 - do not mix this with a repository backend replacement
 
-### 4. Aggregate inverse-navigation fetch policy decision
+### 1. Aggregate inverse-navigation fetch policy decision
 
 Status:
 
@@ -667,7 +667,7 @@ Notes:
 - `AggregateLoadPlan` is the approved use-case loading mechanism
 - the decision must preserve generated-file consistency and avoid making performance-sensitive projects accidentally expensive
 
-### 5. Read/write model association-scope separation analysis
+### 2. Read/write model association-scope separation analysis
 
 Status:
 
@@ -691,7 +691,7 @@ Notes:
 - this is not a request to immediately add new DB annotation behavior; it is a design question about whether the source model should carry separate association strengths for different consumers
 - avoid using this to weaken aggregate invariants or to turn read-model convenience into write-model coupling
 
-### 6. irAnalysis-backed frontend TypeScript generation analysis
+### 3. irAnalysis-backed frontend TypeScript generation analysis
 
 Status:
 
@@ -714,7 +714,7 @@ Notes:
 - TypeScript output is a new consumer boundary, so stable input contracts matter more than copying the existing frontend folder style
 - do not implement this as a one-off only-danmuku-admin-ui generator
 
-### 7. Framework capability audit and pruning/optimization review
+### 4. Framework capability audit and pruning/optimization review
 
 Status:
 
@@ -734,7 +734,7 @@ Notes:
 - do not optimize or delete capabilities before their current semantics and users are understood
 - the result should clarify whether each capability belongs to core framework, optional extension, generated scaffold, or legacy/quarantine
 
-### 8. Public README rewrite and project positioning
+### 5. Public README rewrite and project positioning
 
 Status:
 
@@ -755,7 +755,7 @@ Notes:
 - the goal is to make the project understandable to people beyond the current maintainer
 - README should not require readers to know the chat history or roadmap terminology
 
-### 9. DDD + cap4k + AI collaboration guide
+### 6. DDD + cap4k + AI collaboration guide
 
 Status:
 
@@ -776,7 +776,7 @@ Notes:
 - it should encode how to use Cap4k safely: when to generate, when to hand-write, when to review, and when to stop
 - it should not be written before the public capability story is clear
 
-### 10. Built-in testing skeleton feasibility analysis
+### 7. Built-in testing skeleton feasibility analysis
 
 Status:
 
@@ -798,7 +798,7 @@ Notes:
 - it must integrate with generated aggregates, repositories, commands, events, and analysis artifacts if it becomes a framework capability
 - do not implement only a project-specific test helper unless it can become a stable Cap4k pattern
 
-### 11. irAnalysis restructuring analysis
+### 8. irAnalysis restructuring analysis
 
 Status:
 
@@ -823,7 +823,7 @@ Notes:
 - if analysis design projection normalization can be solved without restructuring, keep restructuring deferred
 - this should not block smaller drawing-board or validator-generation slices unless evidence shows the current architecture cannot support them
 
-### 12. Unit-of-work and repository backend comparison
+### 9. Unit-of-work and repository backend comparison
 
 Status:
 
