@@ -2403,6 +2403,72 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `aggregate unique artifacts share resolved db unique family metadata`() {
+        val entity = EntityModel(
+            name = "Category",
+            packageName = "com.acme.demo.domain.aggregates.category",
+            tableName = "category",
+            comment = "Category",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("code", "String", columnName = "code"),
+                FieldModel("deleted", "Long", columnName = "deleted"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            uniqueConstraints = listOf(uniqueConstraint("category_uk_v_code", "code", "deleted")),
+        )
+        val planItems = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                schemas = listOf(
+                    SchemaModel(
+                        name = "SCategory",
+                        packageName = "com.acme.demo.domain._share.meta.category",
+                        entityName = "Category",
+                        comment = "Category",
+                        fields = entity.fields,
+                    )
+                ),
+                repositories = listOf(
+                    RepositoryModel(
+                        name = "CategoryRepository",
+                        packageName = "com.acme.demo.adapter.domain.repositories",
+                        entityName = "Category",
+                        idType = "Long",
+                    )
+                ),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregatePersistenceProviderControls = listOf(
+                    AggregatePersistenceProviderControl(
+                        entityName = "Category",
+                        entityPackageName = "com.acme.demo.domain.aggregates.category",
+                        tableName = "category",
+                        softDeleteColumn = "deleted",
+                        idFieldName = "id",
+                    )
+                ),
+            ),
+        )
+
+        val query = planItems.single { it.templateId == "aggregate/unique_query.kt.peb" }
+        val handler = planItems.single { it.templateId == "aggregate/unique_query_handler.kt.peb" }
+        val validator = planItems.single { it.templateId == "aggregate/unique_validator.kt.peb" }
+
+        listOf(query, handler, validator).forEach { item ->
+            assertEquals("category_uk_v_code", item.context["uniquePhysicalName"])
+            assertEquals("uk_v_code", item.context["uniqueNormalizedName"])
+            assertEquals("Code", item.context["uniqueResolvedSuffix"])
+            assertEquals(listOf("code"), item.context["uniqueSelectedBusinessFields"])
+            assertEquals(listOf("deleted"), item.context["uniqueFilteredControlFields"])
+        }
+        assertEquals("UniqueCategoryCodeQry", query.context["typeName"])
+        assertEquals("UniqueCategoryCodeQryHandler", handler.context["typeName"])
+        assertEquals("UniqueCategoryCode", validator.context["typeName"])
+        assertEquals(listOf("code"), handler.context["whereProps"])
+    }
+
+    @Test
     fun `unique query and validator import UUID request and exclude id types`() {
         val entity = EntityModel(
             name = "VideoPost",

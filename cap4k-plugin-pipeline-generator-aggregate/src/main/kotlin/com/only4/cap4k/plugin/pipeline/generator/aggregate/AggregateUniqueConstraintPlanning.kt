@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl
+import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import java.util.Locale
@@ -58,6 +59,20 @@ internal object AggregateUniqueConstraintPlanning {
         }
         validateUniqueSelections(entity, selections)
         return selections
+    }
+
+    fun from(model: CanonicalModel): List<Pair<EntityModel, List<AggregateUniqueConstraintSelection>>> {
+        val providerControlsByEntity = model.aggregatePersistenceProviderControls.associateBy {
+            it.entityPackageName to it.entityName
+        }
+        return model.entities
+            .map { entity ->
+                entity to from(
+                    entity = entity,
+                    providerControl = providerControlsByEntity[entity.packageName to entity.name],
+                )
+            }
+            .filter { (_, selections) -> selections.isNotEmpty() }
     }
 
     private fun selectConstraintFields(entity: EntityModel, columns: List<String>): List<FieldModel> {

@@ -9,9 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
 internal class UniqueQueryHandlerArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        val plannedSelections = model.entities.map { entity ->
-            entity to AggregateUniqueConstraintPlanning.from(entity)
-        }.filter { (_, selections) -> selections.isNotEmpty() }
+        val plannedSelections = AggregateUniqueConstraintPlanning.from(model)
         if (plannedSelections.isEmpty()) return emptyList()
 
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
@@ -55,6 +53,11 @@ internal class UniqueQueryHandlerArtifactPlanner : AggregateArtifactFamilyPlanne
                         "whereProps" to selection.requestProps.map { it.name },
                         "idPropName" to entity.idField.name,
                         "excludeIdParamName" to selection.excludeIdParamName,
+                        "uniquePhysicalName" to selection.physicalName,
+                        "uniqueNormalizedName" to selection.normalizedName,
+                        "uniqueResolvedSuffix" to selection.suffix,
+                        "uniqueSelectedBusinessFields" to selection.requestProps.map { it.name },
+                        "uniqueFilteredControlFields" to selection.filteredControlFields.map { it.name },
                     ),
                 )
             }
