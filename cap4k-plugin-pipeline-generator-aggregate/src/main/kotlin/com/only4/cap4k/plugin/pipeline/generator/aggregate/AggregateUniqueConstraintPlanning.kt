@@ -35,8 +35,7 @@ internal object AggregateUniqueConstraintPlanning {
                 (field.columnName ?: field.name).lowercase(Locale.ROOT) in controlColumnNames
             }
             val normalizedName = normalizeUniqueName(entity.tableName, constraint.physicalName)
-            val explicitEmptySuffix = normalizedName.equals("uk", ignoreCase = true)
-            require(explicitEmptySuffix || businessFields.isNotEmpty()) {
+            require(businessFields.isNotEmpty()) {
                 "Unique constraint ${constraint.physicalName} on entity ${entity.name} has no business fields after filtering control fields."
             }
             val suffix = resolveSuffix(

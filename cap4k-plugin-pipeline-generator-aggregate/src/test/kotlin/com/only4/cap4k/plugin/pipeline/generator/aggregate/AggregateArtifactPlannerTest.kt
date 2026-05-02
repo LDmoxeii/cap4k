@@ -3048,6 +3048,30 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `unique planning explicit uk keeps empty suffix with business fields`() {
+        val planning = AggregateUniqueConstraintPlanning.from(
+            entity = EntityModel(
+                name = "Category",
+                packageName = "com.acme.demo.domain.aggregates.category",
+                tableName = "category",
+                comment = "Category",
+                fields = listOf(
+                    FieldModel("id", "Long", columnName = "id"),
+                    FieldModel("code", "String", columnName = "code"),
+                ),
+                idField = FieldModel("id", "Long", columnName = "id"),
+                uniqueConstraints = listOf(uniqueConstraint("category_uk", "code")),
+            ),
+        )
+
+        val selection = planning.single()
+        assertEquals("uk", selection.normalizedName)
+        assertEquals("", selection.suffix)
+        assertEquals("UniqueCategory", selection.validatorTypeName)
+        assertEquals(listOf("code"), selection.requestProps.map { it.name })
+    }
+
+    @Test
     fun `unique planning fallback filters version fields`() {
         val planning = AggregateUniqueConstraintPlanning.from(
             entity = EntityModel(
@@ -3106,6 +3130,38 @@ class AggregateArtifactPlannerTest {
 
         assertEquals(
             "Unique constraint uq_deleted on entity Category has no business fields after filtering control fields.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `unique planning explicit uk fails when all fields are control fields`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            AggregateUniqueConstraintPlanning.from(
+                entity = EntityModel(
+                    name = "Category",
+                    packageName = "com.acme.demo.domain.aggregates.category",
+                    tableName = "category",
+                    comment = "Category",
+                    fields = listOf(
+                        FieldModel("id", "Long", columnName = "id"),
+                        FieldModel("deleted", "Long", columnName = "deleted"),
+                    ),
+                    idField = FieldModel("id", "Long", columnName = "id"),
+                    uniqueConstraints = listOf(uniqueConstraint("category_uk", "deleted")),
+                ),
+                providerControl = AggregatePersistenceProviderControl(
+                    entityName = "Category",
+                    entityPackageName = "com.acme.demo.domain.aggregates.category",
+                    tableName = "category",
+                    softDeleteColumn = "deleted",
+                    idFieldName = "id",
+                ),
+            )
+        }
+
+        assertEquals(
+            "Unique constraint category_uk on entity Category has no business fields after filtering control fields.",
             error.message,
         )
     }
