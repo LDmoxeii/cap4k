@@ -1223,6 +1223,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(uniqueQueryContent.contains(") : RequestParam<Response>"))
         assertTrue(uniqueQueryContent.contains("val excludeVideoPostId: Long?"))
         assertTrue(uniqueQueryContent.contains("val exists: Boolean"))
+        assertFalse(uniqueQueryContent.contains("val deleted"))
+        assertFalse(uniqueQueryContent.contains("val version"))
         assertTrue(uniqueQueryHandlerContent.contains("class UniqueVideoPostSlugQryHandler"))
         assertTrue(uniqueQueryHandlerContent.contains("class UniqueVideoPostSlugQryHandler("))
         assertTrue(
@@ -1231,6 +1233,8 @@ class PipelinePluginFunctionalTest {
             )
         )
         assertTrue(uniqueQueryHandlerContent.contains("return UniqueVideoPostSlugQry.Response("))
+        assertFalse(uniqueQueryHandlerContent.contains("request.deleted"))
+        assertFalse(uniqueQueryHandlerContent.contains("request.version"))
         assertTrue(uniqueValidatorContent.contains("annotation class UniqueVideoPostSlug"))
         assertTrue(
             uniqueValidatorContent.contains(
@@ -1240,12 +1244,22 @@ class PipelinePluginFunctionalTest {
         assertTrue(uniqueValidatorContent.contains("class Validator : ConstraintValidator<UniqueVideoPostSlug, Any>"))
         assertTrue(uniqueValidatorContent.contains("slug = slugTrimmed!!"))
         assertTrue(uniqueValidatorContent.contains("excludeVideoPostId = excludeId"))
+        assertFalse(uniqueValidatorContent.contains("deletedField"))
+        assertFalse(uniqueValidatorContent.contains("versionField"))
         assertTrue(
             uniqueValidatorContent.contains(
                 "import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry"
             )
         )
         val planContent = planFile.readText()
+        assertTrue(planContent.contains("\"uniquePhysicalName\": \"video_post_uk_v_slug_INDEX_"))
+        assertTrue(planContent.contains("\"uniqueNormalizedName\": \"uk_v_slug\""))
+        assertTrue(planContent.contains("\"uniqueResolvedSuffix\": \"Slug\""))
+        assertTrue(planContent.contains("\"uniqueSelectedBusinessFields\": ["))
+        assertTrue(planContent.contains("\"slug\""))
+        assertTrue(planContent.contains("\"uniqueFilteredControlFields\": ["))
+        assertTrue(planContent.contains("\"deleted\""))
+        assertTrue(planContent.contains("\"version\""))
         assertPlanItemMetadata(
             planContent = planContent,
             templateId = "aggregate/entity.kt.peb",
