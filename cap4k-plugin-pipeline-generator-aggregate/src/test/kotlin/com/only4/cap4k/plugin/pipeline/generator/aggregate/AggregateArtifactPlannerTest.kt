@@ -851,6 +851,69 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner marks DSL default resolved version field without explicit version control`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("version", "Long"),
+                FieldModel("title", "String"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    defaultAggregateEntityJpa(entity)
+                ),
+                aggregateSpecialFieldResolvedPolicies = listOf(
+                    AggregateSpecialFieldResolvedPolicy(
+                        entityName = "VideoPost",
+                        entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        tableName = "video_post",
+                        id = ResolvedIdPolicy(
+                            fieldName = "id",
+                            columnName = "id",
+                            strategy = "database-identity",
+                            kind = AggregateIdPolicyKind.DATABASE_SIDE,
+                            source = SpecialFieldSource.DSL_DEFAULT,
+                            writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                        ),
+                        deleted = ResolvedMarkerPolicy(
+                            enabled = false,
+                            source = SpecialFieldSource.NONE,
+                        ),
+                        version = ResolvedMarkerPolicy(
+                            enabled = true,
+                            fieldName = "version",
+                            columnName = "version",
+                            source = SpecialFieldSource.DSL_DEFAULT,
+                            writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                        ),
+                        writeSurface = ResolvedWriteSurfacePolicy(
+                            createAllowedFields = listOf("title"),
+                            updateAllowedFields = listOf("title"),
+                        ),
+                    )
+                ),
+            )
+        )
+
+        val entityArtifact = plan.single { it.outputPath.endsWith("/VideoPost.kt") }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityArtifact.context["scalarFields"] as List<Map<String, Any?>>
+        val versionField = scalarFields.single { it["fieldName"] == "version" }
+
+        assertEquals(true, versionField["isVersion"])
+        assertEquals("READ_ONLY", versionField["writePolicy"])
+    }
+
+    @Test
     fun `entity planner renders uuid7 default with qualified constructor when id field keeps qualified UUID type`() {
         val entity = EntityModel(
             name = "VideoPost",

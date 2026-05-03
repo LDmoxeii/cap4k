@@ -98,6 +98,11 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         } else {
                             control?.generatedValueStrategy
                         }
+                        val isVersionField = when {
+                            resolvedPolicy?.version?.enabled == true ->
+                                resolvedPolicy.version.fieldName == field.name
+                            else -> control?.version == true
+                        }
                         val defaultValue = when (applicationSideIdStrategy) {
                             "uuid7" -> uuid7SentinelDefault(fieldType)
                             "snowflake-long" -> "0L"
@@ -123,7 +128,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         }
                         val writePolicy = when {
                             jpa.isId && resolvedPolicy != null -> resolvedPolicy.id.writePolicy.name
-                            control?.version == true && resolvedPolicy != null -> resolvedPolicy.version.writePolicy.name
+                            isVersionField && resolvedPolicy != null -> resolvedPolicy.version.writePolicy.name
                             managedByField[field.name] != null -> managedByField.getValue(field.name).writePolicy.name
                             else -> "READ_WRITE"
                         }
@@ -142,7 +147,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "converterClassRef" to jpa.converterClassFqn,
                             "generatedValueStrategy" to generatedValueStrategy,
                             "applicationSideIdStrategy" to applicationSideIdStrategy,
-                            "isVersion" to (control?.version == true),
+                            "isVersion" to isVersionField,
                             "writePolicy" to writePolicy,
                             "insertable" to insertable,
                             "updatable" to updatable,
