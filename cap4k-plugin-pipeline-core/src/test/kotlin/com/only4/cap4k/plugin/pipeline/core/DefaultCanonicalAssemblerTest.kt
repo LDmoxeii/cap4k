@@ -2078,7 +2078,7 @@ class DefaultCanonicalAssemblerTest {
                             columns = listOf(
                                 DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
                                 DbColumnSnapshot("created_by", "VARCHAR", "String", false, managed = true),
-                                DbColumnSnapshot("display_name", "VARCHAR", "String", false, exposed = false),
+                                DbColumnSnapshot("display_name", "VARCHAR", "String", false, exposed = true),
                             ),
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
@@ -2347,7 +2347,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `missing managed defaults on entity do not fail and produce empty managed list`() {
+    fun `missing managed defaults on entity keep protected id managed and add no extra managed fields`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(
                 idDefaultStrategy = "identity",
@@ -2379,6 +2379,84 @@ class DefaultCanonicalAssemblerTest {
 
         assertEquals(listOf("id"), policy.managedFields.map { it.columnName })
         assertEquals(emptyList<String>(), policy.managedFields.filterNot { it.columnName == "id" }.map { it.columnName })
+    }
+
+    @Test
+    fun `non protected managed column becomes read only and is removed from update write surface`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(
+                idDefaultStrategy = "identity",
+                deletedDefaultColumn = "",
+                versionDefaultColumn = "",
+                managedDefaultColumns = emptyList(),
+            ),
+            tables = listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(
+                        column(
+                            name = "id",
+                            dbType = "BIGINT",
+                            kotlinType = "Long",
+                            nullable = false,
+                            primaryKey = true,
+                            generatedValueDeclared = true,
+                            generatedValueStrategy = "identity",
+                        ),
+                        column("created_by", "VARCHAR", "String", false, managed = true),
+                        column("title", "VARCHAR", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+        val createdByPolicy = policy.managedFields.single { it.columnName == "created_by" }
+
+        assertEquals(SpecialFieldWritePolicy.READ_ONLY, createdByPolicy.writePolicy)
+        assertEquals(listOf("id", "created_by"), policy.managedFields.map { it.columnName })
+        assertEquals(listOf("title"), policy.writeSurface.createAllowedFields)
+        assertEquals(listOf("title"), policy.writeSurface.updateAllowedFields)
+    }
+
+    @Test
+    fun `non protected exposed column overrides dsl managed default and reopens write surface`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(
+                idDefaultStrategy = "identity",
+                deletedDefaultColumn = "",
+                versionDefaultColumn = "",
+                managedDefaultColumns = listOf("created_by"),
+            ),
+            tables = listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(
+                        column(
+                            name = "id",
+                            dbType = "BIGINT",
+                            kotlinType = "Long",
+                            nullable = false,
+                            primaryKey = true,
+                            generatedValueDeclared = true,
+                            generatedValueStrategy = "identity",
+                        ),
+                        column("created_by", "VARCHAR", "String", false, exposed = true),
+                        column("title", "VARCHAR", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+
+        assertEquals(listOf("id"), policy.managedFields.map { it.columnName })
+        assertEquals(listOf("createdBy", "title"), policy.writeSurface.createAllowedFields)
+        assertEquals(listOf("createdBy", "title"), policy.writeSurface.updateAllowedFields)
     }
 
     @Test
