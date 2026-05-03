@@ -565,7 +565,7 @@ Default packages:
 
 ```text
 designDomainEvent        -> basePackage.domain.aggregates.<designPackage>.events
-designDomainEventHandler -> basePackage.application.<designPackage>.events
+designDomainEventHandler -> basePackage.application.subscribers.domain.<designPackage>
 ```
 
 The event handler must import the event type through the same resolver.
@@ -828,8 +828,8 @@ data class ArtifactPackageLayoutConfig(
         packageSuffix = "events",
     ),
     val designDomainEventHandler: PackageLayout = PackageLayout(
-        packageRoot = "application",
-        packageSuffix = "events",
+        packageRoot = "application.subscribers.domain",
+        packageSuffix = "",
     ),
 )
 

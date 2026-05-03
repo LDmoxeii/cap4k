@@ -5306,9 +5306,9 @@ class PebbleArtifactRendererTest {
                     generatorId = "design-domain-event-handler",
                     moduleRole = "application",
                     templateId = "design/domain_event_handler.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
                     context = mapOf(
-                        "packageName" to "com.acme.demo.application.order.events",
+                        "packageName" to "com.acme.demo.application.subscribers.domain.order",
                         "typeName" to "OrderCreatedDomainEventSubscriber",
                         "domainEventTypeName" to "OrderCreatedDomainEvent",
                         "domainEventType" to "com.acme.demo.domain.order.events.OrderCreatedDomainEvent",
@@ -5343,7 +5343,7 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("class OrderCreatedDomainEventSubscriber"))
         assertTrue(content.contains("import com.acme.demo.domain.order.events.OrderCreatedDomainEvent"))
         assertTrue(
-            normalizedContent.contains("package com.acme.demo.application.order.events\n\nimport"),
+            normalizedContent.contains("package com.acme.demo.application.subscribers.domain.order\n\nimport"),
             "domain event handler should keep one blank line between package and imports"
         )
         assertFalse(
@@ -5402,9 +5402,9 @@ class PebbleArtifactRendererTest {
                     generatorId = "design-domain-event-handler",
                     moduleRole = "application",
                     templateId = "design/domain_event_handler.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
                     context = mapOf(
-                        "packageName" to "com.acme.demo.application.order.events",
+                        "packageName" to "com.acme.demo.application.subscribers.domain.order",
                         "typeName" to "OrderCreatedDomainEventSubscriber",
                         "domainEventTypeName" to "OrderCreatedDomainEvent",
                         "domainEventType" to "com.acme.demo.domain.order.events.OrderCreatedDomainEvent",

@@ -51,7 +51,10 @@ class ArtifactLayoutResolverTest {
         assertEquals("com.acme.demo.application.validators.message", resolver.designValidatorPackage("message"))
         assertEquals("com.acme.demo.adapter.portal.api.payload.message", resolver.designApiPayloadPackage("message"))
         assertEquals("com.acme.demo.domain.aggregates.message.events", resolver.designDomainEventPackage("message"))
-        assertEquals("com.acme.demo.application.message.events", resolver.designDomainEventHandlerPackage("message"))
+        assertEquals(
+            "com.acme.demo.application.subscribers.domain.message",
+            resolver.designDomainEventHandlerPackage("message"),
+        )
     }
 
     @Test

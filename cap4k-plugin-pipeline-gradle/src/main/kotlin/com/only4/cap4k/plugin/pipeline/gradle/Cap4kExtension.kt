@@ -101,7 +101,7 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
     val designDomainEvent: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention(packageRoot = "domain.aggregates", packageSuffix = "events")
     val designDomainEventHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
-        .convention(packageRoot = "application", packageSuffix = "events")
+        .convention("application.subscribers.domain")
 
     fun aggregate(block: PackageLayoutExtension.() -> Unit) {
         aggregate.block()

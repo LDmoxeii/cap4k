@@ -91,8 +91,8 @@ data class ArtifactLayoutConfig(
         packageSuffix = "events",
     ),
     val designDomainEventHandler: PackageLayout = PackageLayout(
-        packageRoot = "application",
-        packageSuffix = "events",
+        packageRoot = "application.subscribers.domain",
+        packageSuffix = "",
     ),
 )
 

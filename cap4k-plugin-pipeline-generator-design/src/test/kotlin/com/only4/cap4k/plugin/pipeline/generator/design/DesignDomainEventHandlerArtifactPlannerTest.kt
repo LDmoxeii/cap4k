@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test
 class DesignDomainEventHandlerArtifactPlannerTest {
 
     @Test
-    fun `plans domain event subscriber artifacts into application events path`() {
+    fun `plans domain event subscriber artifacts into application subscribers domain path`() {
         val planner = DesignDomainEventHandlerArtifactPlanner()
 
         val items = planner.plan(
@@ -45,12 +45,12 @@ class DesignDomainEventHandlerArtifactPlannerTest {
         assertEquals("design-domain-event-handler", handler.generatorId)
         assertEquals("design/domain_event_handler.kt.peb", handler.templateId)
         assertEquals(
-            "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
             handler.outputPath,
         )
         assertEquals("application", handler.moduleRole)
         assertEquals(ConflictPolicy.SKIP, handler.conflictPolicy)
-        assertEquals("com.acme.demo.application.order.events", handler.context["packageName"])
+        assertEquals("com.acme.demo.application.subscribers.domain.order", handler.context["packageName"])
         assertEquals("OrderCreatedDomainEventSubscriber", handler.context["typeName"])
         assertEquals("OrderCreatedDomainEvent", handler.context["domainEventTypeName"])
         assertEquals("com.acme.demo.domain.aggregates.order.events.OrderCreatedDomainEvent", handler.context["domainEventType"])
@@ -85,10 +85,10 @@ class DesignDomainEventHandlerArtifactPlannerTest {
 
         val handler = items.single()
         assertEquals(
-            "demo-application/src/main/kotlin/com/acme/demo/application/user_message/events/UserMessageCreatedDomainEventSubscriber.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/user_message/UserMessageCreatedDomainEventSubscriber.kt",
             handler.outputPath,
         )
-        assertEquals("com.acme.demo.application.user_message.events", handler.context["packageName"])
+        assertEquals("com.acme.demo.application.subscribers.domain.user_message", handler.context["packageName"])
         assertEquals(
             "com.acme.demo.domain.aggregates.user_message.events.UserMessageCreatedDomainEvent",
             handler.context["domainEventType"],

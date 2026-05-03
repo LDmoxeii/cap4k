@@ -2846,7 +2846,7 @@ class PipelinePluginFunctionalTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt"
         )
         val handlerFile = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt"
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt"
         )
         val eventContent = eventFile.readText()
         val handlerContent = handlerFile.readText()
@@ -2943,7 +2943,7 @@ class PipelinePluginFunctionalTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt"
         )
         val handlerFile = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/order/events/OrderCreatedDomainEventSubscriber.kt"
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt"
         )
         val eventContent = eventFile.readText()
         val handlerContent = handlerFile.readText()
@@ -3241,7 +3241,7 @@ class PipelinePluginFunctionalTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_message/events/UserMessageCreatedDomainEvent.kt"
         )
         val domainEventHandlerFile = projectDir.generatedFile(
-            "demo-application/src/main/kotlin/com/acme/demo/application/user_message/events/UserMessageCreatedDomainEventSubscriber.kt"
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/user_message/UserMessageCreatedDomainEventSubscriber.kt"
         )
 
         listOf(
@@ -3359,7 +3359,7 @@ class PipelinePluginFunctionalTest {
         )
 
         val domainEventHandlerContent = domainEventHandlerFile.readText()
-        assertTrue(domainEventHandlerContent.contains("package com.acme.demo.application.user_message.events"))
+        assertTrue(domainEventHandlerContent.contains("package com.acme.demo.application.subscribers.domain.user_message"))
         assertTrue(
             domainEventHandlerContent.contains(
                 "import com.acme.demo.domain.aggregates.user_message.events.UserMessageCreatedDomainEvent"
