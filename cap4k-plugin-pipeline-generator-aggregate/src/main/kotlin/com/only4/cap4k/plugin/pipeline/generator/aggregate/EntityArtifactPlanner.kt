@@ -6,12 +6,14 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import java.util.Locale
 
 internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry)
         val defaultProjector = AggregateEntityDefaultProjector()
+        val identifierQuoteStyle = resolveIdentifierQuoteStyle(config)
 
         return model.entities.map { entity ->
             val entityJpa = model.aggregateEntityJpa.singleOrNull {
@@ -59,10 +61,11 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     softDeleteColumn = column,
                     idColumnName = requireNotNull(idColumnName),
                     versionColumnName = versionColumnName,
+                    identifierQuoteStyle = identifierQuoteStyle,
                 )
             }
             val softDeleteWhereClause = providerControl?.softDeleteColumn?.let { column ->
-                "\"$column\" = 0"
+                "${quoteIdentifier(column, identifierQuoteStyle)} = 0"
             }
             val scalarFields = entity.fields
                 .mapNotNull { field ->
@@ -193,10 +196,38 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
         softDeleteColumn: String,
         idColumnName: String,
         versionColumnName: String?,
+        identifierQuoteStyle: IdentifierQuoteStyle,
     ): String =
         if (versionColumnName != null) {
-            "update \"$tableName\" set \"$softDeleteColumn\" = 1 where \"$idColumnName\" = ? and \"$versionColumnName\" = ?"
+            "update ${quoteIdentifier(tableName, identifierQuoteStyle)} set ${quoteIdentifier(softDeleteColumn, identifierQuoteStyle)} = 1 where ${quoteIdentifier(idColumnName, identifierQuoteStyle)} = ? and ${quoteIdentifier(versionColumnName, identifierQuoteStyle)} = ?"
         } else {
-            "update \"$tableName\" set \"$softDeleteColumn\" = 1 where \"$idColumnName\" = ?"
+            "update ${quoteIdentifier(tableName, identifierQuoteStyle)} set ${quoteIdentifier(softDeleteColumn, identifierQuoteStyle)} = 1 where ${quoteIdentifier(idColumnName, identifierQuoteStyle)} = ?"
         }
+
+    private fun resolveIdentifierQuoteStyle(config: ProjectConfig): IdentifierQuoteStyle {
+        val dbUrl = config.sources["db"]
+            ?.options
+            ?.get("url")
+            ?.toString()
+            ?.lowercase(Locale.ROOT)
+            ?: return IdentifierQuoteStyle.DOUBLE_QUOTE
+
+        return when {
+            dbUrl.startsWith("jdbc:mysql:") -> IdentifierQuoteStyle.BACKTICK
+            dbUrl.startsWith("jdbc:mariadb:") -> IdentifierQuoteStyle.BACKTICK
+            dbUrl.startsWith("jdbc:h2:") && dbUrl.contains("mode=mysql") -> IdentifierQuoteStyle.BACKTICK
+            else -> IdentifierQuoteStyle.DOUBLE_QUOTE
+        }
+    }
+
+    private fun quoteIdentifier(value: String, style: IdentifierQuoteStyle): String =
+        when (style) {
+            IdentifierQuoteStyle.DOUBLE_QUOTE -> "\"$value\""
+            IdentifierQuoteStyle.BACKTICK -> "`$value`"
+        }
+}
+
+private enum class IdentifierQuoteStyle {
+    DOUBLE_QUOTE,
+    BACKTICK,
 }

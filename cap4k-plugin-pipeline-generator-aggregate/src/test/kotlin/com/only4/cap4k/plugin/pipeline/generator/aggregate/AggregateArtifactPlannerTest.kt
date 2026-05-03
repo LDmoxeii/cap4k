@@ -25,6 +25,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
+import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -1732,6 +1733,54 @@ class AggregateArtifactPlannerTest {
             artifact.context["softDeleteSql"],
         )
         assertEquals("\"deleted\" = 0", artifact.context["softDeleteWhereClause"])
+    }
+
+    @Test
+    fun `entity planner uses backticks for soft delete sql and where clause in mysql mode`() {
+        val entity = EntityModel(
+            name = "Category",
+            packageName = "com.acme.demo.domain.aggregates.category",
+            tableName = "category",
+            comment = "category",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("version", "Long"),
+                FieldModel("deleted", "Int"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val artifact = AggregateArtifactPlanner().plan(
+            aggregateConfig(
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "url" to "jdbc:h2:mem:test;MODE=MySQL;DATABASE_TO_UPPER=false"
+                        ),
+                    )
+                )
+            ),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregatePersistenceProviderControls = listOf(
+                    AggregatePersistenceProviderControl(
+                        entityName = "Category",
+                        entityPackageName = "com.acme.demo.domain.aggregates.category",
+                        tableName = "category",
+                        softDeleteColumn = "deleted",
+                        idFieldName = "id",
+                        versionFieldName = "version",
+                    )
+                ),
+            )
+        ).single { it.templateId == "aggregate/entity.kt.peb" }
+
+        assertEquals(
+            "update `category` set `deleted` = 1 where `id` = ? and `version` = ?",
+            artifact.context["softDeleteSql"],
+        )
+        assertEquals("`deleted` = 0", artifact.context["softDeleteWhereClause"])
     }
 
     @Test
@@ -3539,6 +3588,7 @@ class AggregateArtifactPlannerTest {
         applicationModule: String? = "demo-application",
         adapterModule: String? = "demo-adapter",
         artifactLayout: ArtifactLayoutConfig = ArtifactLayoutConfig(),
+        sources: Map<String, SourceConfig> = emptyMap(),
         options: Map<String, Any?> = allAggregateArtifactsEnabled(),
     ): ProjectConfig =
         ProjectConfig(
@@ -3549,7 +3599,7 @@ class AggregateArtifactPlannerTest {
                 applicationModule?.let { put("application", it) }
                 adapterModule?.let { put("adapter", it) }
             },
-            sources = emptyMap(),
+            sources = sources,
             generators = mapOf("aggregate" to GeneratorConfig(enabled = true, options = options)),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             artifactLayout = artifactLayout,

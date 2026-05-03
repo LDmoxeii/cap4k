@@ -1749,17 +1749,17 @@ class PipelinePluginFunctionalTest {
         assertTrue(generatedVideoPost.contains("@DynamicUpdate"))
         assertTrue(
             generatedVideoPost.contains(
-                "@SQLDelete(sql = \"update \\\"video_post\\\" set \\\"deleted\\\" = 1 where \\\"id\\\" = ? and \\\"version\\\" = ?\")"
+                "@SQLDelete(sql = \"update `video_post` set `deleted` = 1 where `id` = ? and `version` = ?\")"
             )
         )
-        assertTrue(generatedVideoPost.contains("@Where(clause = \"\\\"deleted\\\" = 0\")"))
+        assertTrue(generatedVideoPost.contains("@Where(clause = \"`deleted` = 0\")"))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
         assertTrue(
             generatedAuditLog.contains(
-                "@SQLDelete(sql = \"update \\\"audit_log\\\" set \\\"deleted\\\" = 1 where \\\"id\\\" = ?\")"
+                "@SQLDelete(sql = \"update `audit_log` set `deleted` = 1 where `id` = ?\")"
             )
         )
-        assertTrue(generatedAuditLog.contains("@Where(clause = \"\\\"deleted\\\" = 0\")"))
+        assertTrue(generatedAuditLog.contains("@Where(clause = \"`deleted` = 0\")"))
         assertFalse(generatedAuditLog.contains("@DynamicInsert"))
         assertFalse(generatedAuditLog.contains("@DynamicUpdate"))
         assertFalse(generatedAuditLog.contains("@GenericGenerator"))
