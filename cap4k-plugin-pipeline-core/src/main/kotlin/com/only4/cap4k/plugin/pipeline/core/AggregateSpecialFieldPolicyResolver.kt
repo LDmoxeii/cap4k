@@ -9,7 +9,9 @@ import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ResolvedIdPolicy
+import com.only4.cap4k.plugin.pipeline.api.ResolvedManagedFieldPolicy
 import com.only4.cap4k.plugin.pipeline.api.ResolvedMarkerPolicy
+import com.only4.cap4k.plugin.pipeline.api.ResolvedWriteSurfacePolicy
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
 import java.util.Locale
@@ -105,26 +107,47 @@ internal object AggregateSpecialFieldPolicyResolver {
             entity = entity,
             fieldByColumnName = fieldByColumnName,
         )
+        val idPolicy = ResolvedIdPolicy(
+            fieldName = entity.idField.name,
+            columnName = idColumn.name,
+            strategy = idStrategy,
+            kind = idKind,
+            writePolicy = idWritePolicy(idKind),
+            source = idSource,
+        )
+        val managedFields = resolveManagedFields(
+            config = config,
+            entity = entity,
+            table = table,
+            fieldByColumnName = fieldByColumnName,
+            id = idPolicy,
+            deleted = deletedPolicy,
+            version = versionPolicy,
+        )
 
         return AggregateSpecialFieldResolvedPolicy(
             entityName = entity.name,
             entityPackageName = entity.packageName,
             tableName = entity.tableName,
-            id = ResolvedIdPolicy(
-                fieldName = entity.idField.name,
-                columnName = idColumn.name,
-                strategy = idStrategy,
-                kind = idKind,
-                writePolicy = if (idKind == AggregateIdPolicyKind.APPLICATION_SIDE) {
-                    SpecialFieldWritePolicy.CREATE_ONLY
-                } else {
-                    SpecialFieldWritePolicy.READ_ONLY
-                },
-                source = idSource,
-            ),
+            id = idPolicy,
             deleted = deletedPolicy,
             version = versionPolicy,
+            managedFields = managedFields,
+            writeSurface = buildWriteSurface(entity, managedFields),
         )
+    }
+
+    private fun idWritePolicy(kind: AggregateIdPolicyKind): SpecialFieldWritePolicy =
+        if (kind == AggregateIdPolicyKind.APPLICATION_SIDE) {
+            SpecialFieldWritePolicy.CREATE_ONLY
+        } else {
+            SpecialFieldWritePolicy.READ_ONLY
+        }
+
+    private fun markerWritePolicy(markerName: String, enabled: Boolean): SpecialFieldWritePolicy = when {
+        !enabled -> SpecialFieldWritePolicy.READ_WRITE
+        markerName == "deleted" -> SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
+        else -> SpecialFieldWritePolicy.READ_ONLY
     }
 
     private fun resolveIdColumn(entity: EntityModel, table: DbTableSnapshot): DbColumnSnapshot {
@@ -166,6 +189,7 @@ internal object AggregateSpecialFieldPolicyResolver {
                 enabled = true,
                 fieldName = resolveFieldName(fieldByColumnName, entity, explicitColumn),
                 columnName = explicitColumn.name,
+                writePolicy = markerWritePolicy(markerName, enabled = true),
                 source = SpecialFieldSource.DB_EXPLICIT,
             )
         }
@@ -174,6 +198,7 @@ internal object AggregateSpecialFieldPolicyResolver {
         if (normalizedDefaultColumn.isBlank()) {
             return ResolvedMarkerPolicy(
                 enabled = false,
+                writePolicy = markerWritePolicy(markerName, enabled = false),
                 source = SpecialFieldSource.NONE,
             )
         }
@@ -181,6 +206,7 @@ internal object AggregateSpecialFieldPolicyResolver {
         val defaultColumn = table.columns.firstOrNull { it.name.equals(normalizedDefaultColumn, ignoreCase = true) }
             ?: return ResolvedMarkerPolicy(
                 enabled = false,
+                writePolicy = markerWritePolicy(markerName, enabled = false),
                 source = SpecialFieldSource.NONE,
             )
 
@@ -188,7 +214,121 @@ internal object AggregateSpecialFieldPolicyResolver {
             enabled = true,
             fieldName = resolveFieldName(fieldByColumnName, entity, defaultColumn),
             columnName = defaultColumn.name,
+            writePolicy = markerWritePolicy(markerName, enabled = true),
             source = SpecialFieldSource.DSL_DEFAULT,
+        )
+    }
+
+    private fun resolveManagedFields(
+        config: ProjectConfig,
+        entity: EntityModel,
+        table: DbTableSnapshot,
+        fieldByColumnName: Map<String, String>,
+        id: ResolvedIdPolicy,
+        deleted: ResolvedMarkerPolicy,
+        version: ResolvedMarkerPolicy,
+    ): List<ResolvedManagedFieldPolicy> {
+        val managedByColumnName = linkedMapOf<String, ResolvedManagedFieldPolicy>()
+        val protectedByColumnName = linkedMapOf<String, ResolvedManagedFieldPolicy>()
+
+        fun registerProtected(policy: ResolvedManagedFieldPolicy) {
+            val key = policy.columnName.lowercase(Locale.ROOT)
+            protectedByColumnName[key] = policy
+            managedByColumnName[key] = policy
+        }
+
+        registerProtected(
+            ResolvedManagedFieldPolicy(
+                fieldName = id.fieldName,
+                columnName = id.columnName,
+                writePolicy = id.writePolicy,
+                source = id.source,
+            )
+        )
+        registerMarkerManagedField(deleted)?.let(::registerProtected)
+        registerMarkerManagedField(version)?.let(::registerProtected)
+
+        val columnsByName = table.columns.associateBy { it.name.lowercase(Locale.ROOT) }
+        config.aggregateSpecialFieldDefaults.managedDefaultColumns
+            .asSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .forEach { configuredColumnName ->
+                val columnKey = configuredColumnName.lowercase(Locale.ROOT)
+                val column = columnsByName[columnKey] ?: return@forEach
+                val fieldName = fieldByColumnName[columnKey] ?: return@forEach
+                managedByColumnName.putIfAbsent(
+                    columnKey,
+                    ResolvedManagedFieldPolicy(
+                        fieldName = fieldName,
+                        columnName = column.name,
+                        writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                        source = SpecialFieldSource.DSL_DEFAULT,
+                    )
+                )
+            }
+
+        table.columns.forEach { column ->
+            val columnKey = column.name.lowercase(Locale.ROOT)
+            if (column.exposed == true) {
+                require(columnKey !in protectedByColumnName) {
+                    "@Exposed cannot be applied to protected special field: ${table.tableName}.${column.name}"
+                }
+                managedByColumnName.remove(columnKey)
+                return@forEach
+            }
+
+            if (column.managed == true) {
+                if (columnKey in protectedByColumnName) {
+                    return@forEach
+                }
+                val fieldName = fieldByColumnName[columnKey] ?: return@forEach
+                managedByColumnName[columnKey] = ResolvedManagedFieldPolicy(
+                    fieldName = fieldName,
+                    columnName = column.name,
+                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                    source = SpecialFieldSource.DB_EXPLICIT,
+                )
+            }
+        }
+
+        return managedByColumnName.values.toList()
+    }
+
+    private fun registerMarkerManagedField(policy: ResolvedMarkerPolicy): ResolvedManagedFieldPolicy? {
+        if (!policy.enabled) {
+            return null
+        }
+        return ResolvedManagedFieldPolicy(
+            fieldName = requireNotNull(policy.fieldName),
+            columnName = requireNotNull(policy.columnName),
+            writePolicy = policy.writePolicy,
+            source = policy.source,
+        )
+    }
+
+    private fun buildWriteSurface(
+        entity: EntityModel,
+        managedFields: List<ResolvedManagedFieldPolicy>,
+    ): ResolvedWriteSurfacePolicy {
+        val createDenied = managedFields
+            .asSequence()
+            .filter {
+                it.writePolicy == SpecialFieldWritePolicy.READ_ONLY ||
+                    it.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
+            }
+            .map { it.fieldName }
+            .toSet()
+        val updateDenied = managedFields
+            .asSequence()
+            .filter { it.writePolicy != SpecialFieldWritePolicy.READ_WRITE }
+            .map { it.fieldName }
+            .toSet()
+
+        return ResolvedWriteSurfacePolicy(
+            createAllowedFields = entity.fields.map { it.name }.filterNot { it in createDenied },
+            updateAllowedFields = entity.fields.map { it.name }.filterNot { it in updateDenied },
         )
     }
 
