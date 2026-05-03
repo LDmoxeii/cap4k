@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyControl
+import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
@@ -10,6 +11,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ResolvedIdPolicy
 import com.only4.cap4k.plugin.pipeline.api.ResolvedMarkerPolicy
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
+import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
 import java.util.Locale
 
 internal data class AggregateSpecialFieldResolutionResult(
@@ -113,6 +115,11 @@ internal object AggregateSpecialFieldPolicyResolver {
                 columnName = idColumn.name,
                 strategy = idStrategy,
                 kind = idKind,
+                writePolicy = if (idKind == AggregateIdPolicyKind.APPLICATION_SIDE) {
+                    SpecialFieldWritePolicy.CREATE_ONLY
+                } else {
+                    SpecialFieldWritePolicy.READ_ONLY
+                },
                 source = idSource,
             ),
             deleted = deletedPolicy,
