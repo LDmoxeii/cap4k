@@ -26,7 +26,8 @@ abstract class Cap4kPlanTask : DefaultTask() {
                 report = PlanReport(
                     items = result.planItems,
                     diagnostics = result.diagnostics,
-                    aggregateIdPolicy = config.aggregateIdPolicy,
+                    aggregateSpecialFieldDefaults = config.aggregateSpecialFieldDefaults,
+                    aggregateSpecialFieldResolvedPolicies = result.aggregateSpecialFieldResolvedPolicies,
                 )
             )
         } catch (error: PipelineDiagnosticsException) {
@@ -35,7 +36,8 @@ abstract class Cap4kPlanTask : DefaultTask() {
                 report = PlanReport(
                     items = emptyList(),
                     diagnostics = error.diagnostics,
-                    aggregateIdPolicy = config.aggregateIdPolicy,
+                    aggregateSpecialFieldDefaults = config.aggregateSpecialFieldDefaults,
+                    aggregateSpecialFieldResolvedPolicies = emptyList(),
                 )
             )
             throw error
@@ -43,12 +45,10 @@ abstract class Cap4kPlanTask : DefaultTask() {
     }
 
     private fun writePlanReport(outputFile: java.io.File, report: PlanReport) {
-        outputFile.writeText(
-            GsonBuilder()
-                .setPrettyPrinting()
-                .serializeNulls()
-                .create()
-                .toJson(report)
-        )
+        val gson = GsonBuilder()
+            .setPrettyPrinting()
+            .serializeNulls()
+            .create()
+        outputFile.writeText(gson.toJson(report))
     }
 }

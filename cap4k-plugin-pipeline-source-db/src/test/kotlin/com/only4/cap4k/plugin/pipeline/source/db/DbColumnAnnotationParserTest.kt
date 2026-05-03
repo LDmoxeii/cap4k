@@ -53,15 +53,30 @@ class DbColumnAnnotationParserTest {
     }
 
     @Test
-    fun `parser extracts generated value version and write controls from comment`() {
+    fun `parser extracts generated value marker deleted version and write controls from comment`() {
         val metadata = DbColumnAnnotationParser.parse(
-            "audit field @GeneratedValue=IDENTITY;@Version=true;@Insertable=false;@Updatable=false;"
+            "audit field @GeneratedValue;@Deleted;@Version;@Insertable=false;@Updatable=false;"
         )
 
-        assertEquals("IDENTITY", metadata.generatedValueStrategy)
+        assertEquals(true, metadata.generatedValueDeclared)
+        assertEquals(null, metadata.generatedValueStrategy)
+        assertEquals(true, metadata.deleted)
         assertEquals(true, metadata.version)
         assertEquals(false, metadata.insertable)
         assertEquals(false, metadata.updatable)
+    }
+
+    @Test
+    fun `parser supports explicit generated value strategies and alias`() {
+        val uuid7 = DbColumnAnnotationParser.parse("@GeneratedValue=uuid7;")
+        val snowflake = DbColumnAnnotationParser.parse("@GeneratedValue=SNOWFLAKE-LONG;")
+        val identity = DbColumnAnnotationParser.parse("@GeneratedValue=IDENTITY;")
+        val databaseIdentity = DbColumnAnnotationParser.parse("@GeneratedValue=database-identity;")
+
+        assertEquals("uuid7", uuid7.generatedValueStrategy)
+        assertEquals("snowflake-long", snowflake.generatedValueStrategy)
+        assertEquals("identity", identity.generatedValueStrategy)
+        assertEquals("identity", databaseIdentity.generatedValueStrategy)
     }
 
     @Test
@@ -74,25 +89,37 @@ class DbColumnAnnotationParserTest {
     }
 
     @Test
-    fun `parser preserves explicit false for version annotation`() {
-        val metadata = DbColumnAnnotationParser.parse("@Version=false;")
-
-        assertEquals(false, metadata.version)
-    }
-
-    @Test
-    fun `parser keeps version null when source is silent`() {
+    fun `parser keeps deleted and version null when source is silent`() {
         val metadata = DbColumnAnnotationParser.parse("plain comment")
 
         assertEquals(null, metadata.version)
+        assertEquals(null, metadata.deleted)
+        assertEquals(false, metadata.generatedValueDeclared)
     }
 
     @Test
-    fun `parser rejects invalid boolean annotation values`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@Insertable=maybe;")
+    fun `parser rejects valued deleted and version markers`() {
+        val versionError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Version=true;")
+        }
+        val deletedError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Deleted=false;")
         }
 
-        assertEquals("invalid @Insertable boolean value in this slice: maybe", error.message)
+        assertEquals("invalid @Version annotation: explicit values are not supported.", versionError.message)
+        assertEquals("invalid @Deleted annotation: explicit values are not supported.", deletedError.message)
+    }
+
+    @Test
+    fun `parser rejects invalid insertable updatable boolean annotation values`() {
+        val insertableError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Insertable=maybe;")
+        }
+        val updatableError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Updatable=maybe;")
+        }
+
+        assertEquals("invalid @Insertable boolean value in this slice: maybe", insertableError.message)
+        assertEquals("invalid @Updatable boolean value in this slice: maybe", updatableError.message)
     }
 }

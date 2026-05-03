@@ -1783,14 +1783,14 @@ class PipelinePluginFunctionalTest {
             """
             |aggregate {
             |            enabled.set(true)
-            |            idPolicy {
-            |                defaultStrategy.set("snowflake-long")
+            |            specialFields {
+            |                idDefaultStrategy.set("snowflake-long")
             |            }
             |        }
             """.trimMargin(),
         )
         buildFile.writeText(patchedBuildFile)
-        assertTrue(patchedBuildFile.contains("""defaultStrategy.set("snowflake-long")"""))
+        assertTrue(patchedBuildFile.contains("""idDefaultStrategy.set("snowflake-long")"""))
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -1860,10 +1860,10 @@ class PipelinePluginFunctionalTest {
 
             create table audit_log (
                 id bigint primary key comment '@GeneratedValue=IDENTITY;',
-                deleted int not null,
+                deleted int not null comment '@Deleted;',
                 content varchar(128) not null
             );
-            comment on table audit_log is '@AggregateRoot=true;@SoftDeleteColumn=deleted;';
+            comment on table audit_log is '@AggregateRoot=true;';
             """.trimIndent()
         )
         val buildFile = projectDir.resolve("build.gradle.kts")
@@ -2050,21 +2050,32 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kPlan includes aggregate id policy config`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-id-policy")
-        copyFixture(projectDir, "aggregate-policy-sample")
+    fun `cap4kPlan includes aggregate special-field defaults and resolved policies`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-special-field-plan")
+        copyFixture(projectDir, "aggregate-provider-persistence-sample")
+
+        val schemaFile = projectDir.resolve("schema.sql")
+        schemaFile.writeText(
+            schemaFile.readText().replaceFirst(
+                "id bigint primary key comment '@GeneratedValue=IDENTITY;',",
+                "id bigint primary key,",
+            )
+        )
 
         val buildFile = projectDir.resolve("build.gradle.kts")
         val buildFileContent = buildFile.readText().replace("\r\n", "\n")
         buildFile.writeText(
             buildFileContent.replace(
-                """defaultStrategy.set("snowflake-long")""",
+                Regex("""aggregate\s*\{\s*enabled\.set\(true\)\s*}"""),
                 """
-                |defaultStrategy.set(" snowflake-long ")
-                |                aggregate(" message.UserMessage ", " uuid7 ")
-                |                entity(" message.UserMessageAttachment ", " snowflake-long ")
+                |aggregate {
+                |            enabled.set(true)
+                |            specialFields {
+                |                idDefaultStrategy.set(" snowflake-long ")
+                |            }
+                |        }
                 """.trimMargin(),
-            )
+            ),
         )
 
         val result = GradleRunner.create()
@@ -2074,11 +2085,26 @@ class PipelinePluginFunctionalTest {
             .build()
 
         val planJson = projectDir.resolve("build/cap4k/plan.json").readText()
+        val planObject = JsonParser.parseString(planJson).asJsonObject
+        val defaults = planObject.getAsJsonObject("aggregateSpecialFieldDefaults")
+        val resolvedPolicies = planObject.getAsJsonArray("aggregateSpecialFieldResolvedPolicies")
+            .map { it.asJsonObject }
+            .associateBy { it.get("tableName").asString }
+        val videoPostPolicy = resolvedPolicies.getValue("video_post")
+        val auditLogPolicy = resolvedPolicies.getValue("audit_log")
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(planJson.contains("\"defaultStrategy\": \"snowflake-long\""))
-        assertTrue(planJson.contains("\"message.UserMessage\": \"uuid7\""))
-        assertTrue(planJson.contains("\"message.UserMessageAttachment\": \"snowflake-long\""))
+        assertFalse(planObject.has("aggregateIdPolicy"))
+        assertEquals("snowflake-long", defaults.get("idDefaultStrategy").asString)
+        assertEquals("", defaults.get("deletedDefaultColumn").asString)
+        assertEquals("", defaults.get("versionDefaultColumn").asString)
+        assertEquals(2, resolvedPolicies.size)
+        assertEquals("DSL_DEFAULT", videoPostPolicy.getAsJsonObject("id").get("source").asString)
+        assertEquals("snowflake-long", videoPostPolicy.getAsJsonObject("id").get("strategy").asString)
+        assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("deleted").get("source").asString)
+        assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("version").get("source").asString)
+        assertEquals("DB_EXPLICIT", auditLogPolicy.getAsJsonObject("id").get("source").asString)
+        assertEquals("NONE", auditLogPolicy.getAsJsonObject("version").get("source").asString)
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -3131,8 +3157,8 @@ class PipelinePluginFunctionalTest {
                     |            enabled.set(true)
                     |        }
                     |        aggregate {
-                    |            idPolicy {
-                    |                defaultStrategy.set("snowflake-long")
+                    |            specialFields {
+                    |                idDefaultStrategy.set("snowflake-long")
                     |            }
                     |        }
                     """.trimMargin(),

@@ -24,7 +24,9 @@ data class DbColumnSnapshot(
     val explicitRelationType: String? = null,
     val lazy: Boolean? = null,
     val countHint: String? = null,
+    val generatedValueDeclared: Boolean = false,
     val generatedValueStrategy: String? = null,
+    val deleted: Boolean? = null,
     val version: Boolean? = null,
     val insertable: Boolean? = null,
     val updatable: Boolean? = null,
@@ -46,7 +48,6 @@ data class DbTableSnapshot(
     val valueObject: Boolean = false,
     val dynamicInsert: Boolean? = null,
     val dynamicUpdate: Boolean? = null,
-    val softDeleteColumn: String? = null,
 )
 
 data class DesignSpecEntry(
@@ -285,6 +286,36 @@ data class AggregateIdPolicyControl(
     val kind: AggregateIdPolicyKind,
 )
 
+enum class SpecialFieldSource {
+    DB_EXPLICIT,
+    DSL_DEFAULT,
+    NONE,
+}
+
+data class ResolvedIdPolicy(
+    val fieldName: String,
+    val columnName: String,
+    val strategy: String,
+    val kind: AggregateIdPolicyKind,
+    val source: SpecialFieldSource,
+)
+
+data class ResolvedMarkerPolicy(
+    val enabled: Boolean,
+    val fieldName: String? = null,
+    val columnName: String? = null,
+    val source: SpecialFieldSource,
+)
+
+data class AggregateSpecialFieldResolvedPolicy(
+    val entityName: String,
+    val entityPackageName: String,
+    val tableName: String,
+    val id: ResolvedIdPolicy,
+    val deleted: ResolvedMarkerPolicy,
+    val version: ResolvedMarkerPolicy,
+)
+
 data class RepositoryModel(
     val name: String,
     val packageName: String,
@@ -462,6 +493,7 @@ data class CanonicalModel(
     val aggregatePersistenceFieldControls: List<AggregatePersistenceFieldControl> = emptyList(),
     val aggregatePersistenceProviderControls: List<AggregatePersistenceProviderControl> = emptyList(),
     val aggregateIdPolicyControls: List<AggregateIdPolicyControl> = emptyList(),
+    val aggregateSpecialFieldResolvedPolicies: List<AggregateSpecialFieldResolvedPolicy> = emptyList(),
 )
 
 data class UnsupportedAggregateTable(
@@ -520,7 +552,8 @@ data class RenderedArtifact(
 data class PlanReport(
     val items: List<ArtifactPlanItem>,
     val diagnostics: PipelineDiagnostics? = null,
-    val aggregateIdPolicy: AggregateIdPolicyConfig? = null,
+    val aggregateSpecialFieldDefaults: AggregateSpecialFieldDefaultsConfig? = null,
+    val aggregateSpecialFieldResolvedPolicies: List<AggregateSpecialFieldResolvedPolicy> = emptyList(),
 )
 
 data class PipelineResult(
@@ -528,5 +561,6 @@ data class PipelineResult(
     val renderedArtifacts: List<RenderedArtifact> = emptyList(),
     val writtenPaths: List<String> = emptyList(),
     val warnings: List<String> = emptyList(),
+    val aggregateSpecialFieldResolvedPolicies: List<AggregateSpecialFieldResolvedPolicy> = emptyList(),
     val diagnostics: PipelineDiagnostics? = null,
 )

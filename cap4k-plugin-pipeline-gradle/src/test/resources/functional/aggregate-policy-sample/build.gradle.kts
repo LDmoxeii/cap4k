@@ -27,8 +27,8 @@ cap4k {
         aggregate {
             enabled.set(true)
             unsupportedTablePolicy.set("SKIP")
-            idPolicy {
-                defaultStrategy.set("snowflake-long")
+            specialFields {
+                idDefaultStrategy.set("snowflake-long")
             }
         }
     }

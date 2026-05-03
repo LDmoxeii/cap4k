@@ -5,7 +5,7 @@ import java.util.Locale
 internal object DbTableAnnotationParser {
     private val annotationPattern = Regex("@([A-Za-z]+)(=([^;]*))?;?")
     private val tableAliases = setOf("PARENT", "P", "AGGREGATEROOT", "ROOT", "R", "VALUEOBJECT", "VO", "IGNORE", "I")
-    private val providerAliases = setOf("DYNAMICINSERT", "DYNAMICUPDATE", "SOFTDELETECOLUMN")
+    private val providerAliases = setOf("DYNAMICINSERT", "DYNAMICUPDATE")
     private val multiSpacePattern = Regex("\\s{2,}")
 
     fun parse(comment: String): DbTableAnnotationParseResult {
@@ -21,6 +21,7 @@ internal object DbTableAnnotationParser {
             .toList()
 
         rejectLegacyIdGeneratorAnnotation(annotations)
+        rejectLegacySoftDeleteColumnAnnotation(annotations)
 
         val parentTable = resolveAnnotationValue(
             annotations = annotations,
@@ -58,13 +59,6 @@ internal object DbTableAnnotationParser {
             key = "DYNAMICUPDATE",
             annotationName = "DynamicUpdate",
         )
-        val softDeleteColumn = resolveAnnotationValue(
-            annotations = annotations,
-            aliases = setOf("SOFTDELETECOLUMN"),
-            conflictMessage = "conflicting @SoftDeleteColumn annotations on the same table comment.",
-            blankValueMessage = "invalid @SoftDeleteColumn value: ",
-            missingValueMessage = "invalid @SoftDeleteColumn value: ",
-        )?.trim()
         return DbTableAnnotationParseResult(
             parentTable = parentTable,
             aggregateRoot = aggregateRootAnnotation.value ?: (parentTable == null),
@@ -72,7 +66,6 @@ internal object DbTableAnnotationParser {
             ignored = ignored,
             dynamicInsert = dynamicInsert,
             dynamicUpdate = dynamicUpdate,
-            softDeleteColumn = softDeleteColumn,
             cleanedComment = stripRecognizedAnnotations(comment, tableAliases + providerAliases),
         )
     }
@@ -80,12 +73,20 @@ internal object DbTableAnnotationParser {
     private fun rejectLegacyIdGeneratorAnnotation(annotations: List<ParsedTableAnnotation>) {
         annotations.firstOrNull { it.key == "IDGENERATOR" }?.let {
             throw IllegalArgumentException(
-                "unsupported table annotation @IdGenerator: configure aggregate.idPolicy in Gradle DSL instead"
+                "unsupported table annotation @IdGenerator: use @GeneratedValue on the ID column instead"
             )
         }
         annotations.firstOrNull { it.key == "IG" }?.let {
             throw IllegalArgumentException(
-                "unsupported table annotation @IG: configure aggregate.idPolicy in Gradle DSL instead"
+                "unsupported table annotation @IG: use @GeneratedValue on the ID column instead"
+            )
+        }
+    }
+
+    private fun rejectLegacySoftDeleteColumnAnnotation(annotations: List<ParsedTableAnnotation>) {
+        annotations.firstOrNull { it.key == "SOFTDELETECOLUMN" }?.let {
+            throw IllegalArgumentException(
+                "unsupported table annotation @SoftDeleteColumn: use @Deleted marker on the delete column instead"
             )
         }
     }
@@ -165,11 +166,6 @@ internal object DbTableAnnotationParser {
         )
     }
 
-    private fun parseBooleanAnnotation(name: String, value: String): Boolean {
-        return value.toBooleanStrictOrNull()
-            ?: throw IllegalArgumentException("invalid @$name value: $value")
-    }
-
     private fun stripRecognizedAnnotations(comment: String, aliases: Set<String>): String {
         if (comment.isBlank()) {
             return ""
@@ -204,7 +200,6 @@ internal data class DbTableAnnotationParseResult(
     val ignored: Boolean = false,
     val dynamicInsert: Boolean? = null,
     val dynamicUpdate: Boolean? = null,
-    val softDeleteColumn: String? = null,
     val cleanedComment: String = "",
 )
 

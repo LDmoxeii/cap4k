@@ -389,6 +389,56 @@ class PipelineModelsTest {
     }
 
     @Test
+    fun `plan report and pipeline result carry aggregate special field defaults and resolved policies`() {
+        val defaults = AggregateSpecialFieldDefaultsConfig(
+            idDefaultStrategy = "snowflake-long",
+            deletedDefaultColumn = "deleted",
+            versionDefaultColumn = "version",
+        )
+        val resolvedPolicy = AggregateSpecialFieldResolvedPolicy(
+            entityName = "VideoPost",
+            entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            id = ResolvedIdPolicy(
+                fieldName = "id",
+                columnName = "id",
+                strategy = "uuid7",
+                kind = AggregateIdPolicyKind.APPLICATION_SIDE,
+                source = SpecialFieldSource.DSL_DEFAULT,
+            ),
+            deleted = ResolvedMarkerPolicy(
+                enabled = true,
+                fieldName = "deleted",
+                columnName = "deleted",
+                source = SpecialFieldSource.DB_EXPLICIT,
+            ),
+            version = ResolvedMarkerPolicy(
+                enabled = true,
+                fieldName = "version",
+                columnName = "version",
+                source = SpecialFieldSource.DB_EXPLICIT,
+            ),
+        )
+
+        val report = PlanReport(
+            items = emptyList(),
+            aggregateSpecialFieldDefaults = defaults,
+            aggregateSpecialFieldResolvedPolicies = listOf(resolvedPolicy),
+        )
+        val result = PipelineResult(
+            aggregateSpecialFieldResolvedPolicies = listOf(resolvedPolicy),
+        )
+        val model = CanonicalModel(
+            aggregateSpecialFieldResolvedPolicies = listOf(resolvedPolicy),
+        )
+
+        assertEquals(defaults, report.aggregateSpecialFieldDefaults)
+        assertEquals(listOf(resolvedPolicy), report.aggregateSpecialFieldResolvedPolicies)
+        assertEquals(listOf(resolvedPolicy), result.aggregateSpecialFieldResolvedPolicies)
+        assertEquals(listOf(resolvedPolicy), model.aggregateSpecialFieldResolvedPolicies)
+    }
+
+    @Test
     fun `db schema snapshot preserves normalized table metadata`() {
         val snapshot = DbSchemaSnapshot(
             tables = listOf(

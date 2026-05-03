@@ -682,14 +682,14 @@ class PipelinePluginCompileFunctionalTest {
             """
             |aggregate {
             |            enabled.set(true)
-            |            idPolicy {
-            |                defaultStrategy.set("snowflake-long")
+            |            specialFields {
+            |                idDefaultStrategy.set("snowflake-long")
             |            }
             |        }
             """.trimMargin(),
         )
         buildFile.writeText(patchedBuildFile)
-        assertTrue(patchedBuildFile.contains("""defaultStrategy.set("snowflake-long")"""))
+        assertTrue(patchedBuildFile.contains("""idDefaultStrategy.set("snowflake-long")"""))
 
         val compileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-domain:compileKotlin")

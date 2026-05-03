@@ -5,7 +5,7 @@ import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
-import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyConfig
+import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
@@ -251,7 +251,7 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
-    fun `pipeline result carries aggregate diagnostics`() {
+    fun `pipeline result carries aggregate diagnostics and resolved special field policies`() {
         val result = DefaultPipelineRunner(
             sources = listOf(
                 object : SourceProvider {
@@ -310,12 +310,16 @@ class DefaultPipelineRunnerTest {
                     )
                 ),
                 templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
-                aggregateIdPolicy = AggregateIdPolicyConfig(defaultStrategy = "snowflake-long"),
+                aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
+                    idDefaultStrategy = "snowflake-long",
+                ),
             )
         )
 
         assertEquals(listOf("video_post"), result.diagnostics!!.aggregate!!.supportedTables)
         assertEquals("composite_primary_key", result.diagnostics!!.aggregate!!.unsupportedTables.single().reason)
+        assertEquals(1, result.aggregateSpecialFieldResolvedPolicies.size)
+        assertEquals("video_post", result.aggregateSpecialFieldResolvedPolicies.single().tableName)
     }
 
     private fun runnerWithSingleArtifact(

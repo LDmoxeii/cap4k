@@ -33,7 +33,9 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.generators.designDomainEventHandler.enabled.get())
         assertFalse(extension.generators.aggregate.enabled.get())
         assertEquals("FAIL", extension.generators.aggregate.unsupportedTablePolicy.get())
-        assertEquals("uuid7", extension.generators.aggregate.idPolicy.defaultStrategy.get())
+        assertEquals("uuid7", extension.generators.aggregate.specialFields.idDefaultStrategy.get())
+        assertEquals("", extension.generators.aggregate.specialFields.deletedDefaultColumn.get())
+        assertEquals("", extension.generators.aggregate.specialFields.versionDefaultColumn.get())
         assertFalse(extension.generators.aggregate.artifacts.factory.get())
         assertFalse(extension.generators.aggregate.artifacts.specification.get())
         assertFalse(extension.generators.aggregate.artifacts.wrapper.get())
@@ -79,7 +81,7 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `factory copies normalized aggregate id policy into project config`() {
+    fun `factory copies normalized aggregate special field defaults into project config`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
@@ -88,21 +90,39 @@ class Cap4kProjectConfigFactoryTest {
         }
         extension.generators {
             aggregate {
-                idPolicy {
-                    defaultStrategy.set("   ")
-                    aggregate(" message.UserMessage ", " uuid7 ")
-                    entity(" message.UserMessageAttachment ", " snowflake-long ")
+                specialFields {
+                    idDefaultStrategy.set("   ")
+                    deletedDefaultColumn.set(" deleted ")
+                    versionDefaultColumn.set(" version ")
                 }
             }
         }
 
         val config = Cap4kProjectConfigFactory().build(project, extension)
 
-        assertEquals("uuid7", config.aggregateIdPolicy.defaultStrategy)
-        assertEquals(mapOf("message.UserMessage" to "uuid7"), config.aggregateIdPolicy.aggregateStrategies)
+        assertEquals("uuid7", config.aggregateSpecialFieldDefaults.idDefaultStrategy)
+        assertEquals("deleted", config.aggregateSpecialFieldDefaults.deletedDefaultColumn)
+        assertEquals("version", config.aggregateSpecialFieldDefaults.versionDefaultColumn)
+    }
+
+    @Test
+    fun `factory rejects legacy aggregate entity id override dsl`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            extension.generators {
+                aggregate {
+                    idPolicy {
+                        aggregate("message.UserMessage", "uuid7")
+                    }
+                }
+            }
+        }
+
         assertEquals(
-            mapOf("message.UserMessageAttachment" to "snowflake-long"),
-            config.aggregateIdPolicy.entityStrategies,
+            "generators.aggregate.idPolicy is removed. Use generators.aggregate.specialFields { idDefaultStrategy, deletedDefaultColumn, versionDefaultColumn }.",
+            error.message,
         )
     }
 

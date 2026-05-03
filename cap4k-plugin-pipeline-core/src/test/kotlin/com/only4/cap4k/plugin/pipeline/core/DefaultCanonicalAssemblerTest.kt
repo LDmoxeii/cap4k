@@ -4,10 +4,10 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
 import com.only4.cap4k.plugin.pipeline.api.CommandVariant
 import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
-import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyConfig
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
+import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
@@ -33,6 +33,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
 import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.RequestTrait
+import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverter
@@ -2083,13 +2084,12 @@ class DefaultCanonicalAssemblerTest {
                                     generatedValueStrategy = "IDENTITY"
                                 ),
                                 DbColumnSnapshot("version", "BIGINT", "Long", false, version = true),
-                                DbColumnSnapshot("deleted", "INT", "Int", false),
+                                DbColumnSnapshot("deleted", "INT", "Int", false, deleted = true),
                             ),
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
                             dynamicInsert = true,
                             dynamicUpdate = true,
-                            softDeleteColumn = "deleted",
                         )
                     )
                 )
@@ -2166,7 +2166,7 @@ class DefaultCanonicalAssemblerTest {
     @Test
     fun `default uuid7 strategy applies to UUID aggregate id`() {
         val result = assembleAggregate(
-            config = projectConfigWithIdPolicy(defaultStrategy = "uuid7"),
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
             tables = listOf(
                 table(
                     name = "user_message",
@@ -2178,17 +2178,19 @@ class DefaultCanonicalAssemblerTest {
         )
 
         val control = result.model.aggregateIdPolicyControls.single()
+        val resolved = result.model.aggregateSpecialFieldResolvedPolicies.single()
 
         assertEquals("uuid7", control.strategy)
         assertEquals(AggregateIdPolicyKind.APPLICATION_SIDE, control.kind)
         assertEquals("UUID", control.idFieldType)
+        assertEquals(SpecialFieldSource.DSL_DEFAULT, resolved.id.source)
     }
 
     @Test
     fun `default uuid7 strategy rejects Long aggregate id`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             assembleAggregate(
-                config = projectConfigWithIdPolicy(defaultStrategy = "uuid7"),
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
                 tables = listOf(
                     table(
                         name = "video",
@@ -2204,46 +2206,34 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `aggregate override applies to owned child entities`() {
+    fun `generated value marker uses DSL default strategy with DB explicit source`() {
         val result = assembleAggregate(
-            config = projectConfigWithIdPolicy(
-                defaultStrategy = "uuid7",
-                aggregateStrategies = mapOf("video.Video" to "snowflake-long"),
-            ),
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "snowflake-long"),
             tables = listOf(
                 table(
-                    name = "video",
-                    columns = listOf(column("id", "BIGINT", "Long", false, primaryKey = true)),
-                    primaryKey = listOf("id"),
-                    aggregateRoot = true,
-                ),
-                table(
-                    name = "video_file",
+                    name = "audit_log",
                     columns = listOf(
-                        column("id", "BIGINT", "Long", false, primaryKey = true),
-                        column("video_id", "BIGINT", "Long", false, referenceTable = "video"),
+                        column("id", "BIGINT", "Long", false, primaryKey = true, generatedValueDeclared = true),
                     ),
                     primaryKey = listOf("id"),
-                    aggregateRoot = false,
-                    parentTable = "video",
+                    aggregateRoot = true,
                 )
             )
         )
 
-        assertEquals(
-            setOf("Video" to "snowflake-long", "VideoFile" to "snowflake-long"),
-            result.model.aggregateIdPolicyControls.map { it.entityName to it.strategy }.toSet(),
-        )
+        val control = result.model.aggregateIdPolicyControls.single()
+        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+
+        assertEquals("snowflake-long", control.strategy)
+        assertEquals(AggregateIdPolicyKind.APPLICATION_SIDE, control.kind)
+        assertEquals("snowflake-long", policy.id.strategy)
+        assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.id.source)
     }
 
     @Test
-    fun `entity override wins over aggregate override`() {
+    fun `mixed id strategies across entities are allowed`() {
         val result = assembleAggregate(
-            config = projectConfigWithIdPolicy(
-                defaultStrategy = "uuid7",
-                aggregateStrategies = mapOf("video.Video" to "uuid7"),
-                entityStrategies = mapOf("video.VideoFile" to "snowflake-long"),
-            ),
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
             tables = listOf(
                 table(
                     name = "video",
@@ -2254,7 +2244,14 @@ class DefaultCanonicalAssemblerTest {
                 table(
                     name = "video_file",
                     columns = listOf(
-                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column(
+                            "id",
+                            "BIGINT",
+                            "Long",
+                            false,
+                            primaryKey = true,
+                            generatedValueStrategy = "identity",
+                        ),
                         column("video_id", "UUID", "UUID", false, referenceTable = "video"),
                     ),
                     primaryKey = listOf("id"),
@@ -2265,13 +2262,70 @@ class DefaultCanonicalAssemblerTest {
         )
 
         assertEquals("uuid7", result.model.aggregateIdPolicyControls.single { it.entityName == "Video" }.strategy)
-        assertEquals("snowflake-long", result.model.aggregateIdPolicyControls.single { it.entityName == "VideoFile" }.strategy)
+        assertEquals("identity", result.model.aggregateIdPolicyControls.single { it.entityName == "VideoFile" }.strategy)
     }
 
     @Test
-    fun `identity id remains database identity without application side annotation`() {
+    fun `missing DSL deleted and version default columns do not fail and stay disabled`() {
         val result = assembleAggregate(
-            config = projectConfigWithIdPolicy(defaultStrategy = "uuid7"),
+            config = projectConfigWithSpecialFieldDefaults(
+                idDefaultStrategy = "uuid7",
+                deletedDefaultColumn = "deleted",
+                versionDefaultColumn = "version",
+            ),
+            tables = listOf(
+                table(
+                    name = "video",
+                    columns = listOf(column("id", "UUID", "UUID", false, primaryKey = true)),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+
+        assertEquals(false, policy.deleted.enabled)
+        assertEquals(false, policy.version.enabled)
+        assertEquals(SpecialFieldSource.NONE, policy.deleted.source)
+        assertEquals(SpecialFieldSource.NONE, policy.version.source)
+    }
+
+    @Test
+    fun `explicit deleted marker overrides DSL default column name`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(
+                idDefaultStrategy = "snowflake-long",
+                deletedDefaultColumn = "deleted",
+            ),
+            tables = listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(
+                        column(name = "id", dbType = "BIGINT", kotlinType = "Long", nullable = false, primaryKey = true),
+                        column(name = "is_deleted", dbType = "INT", kotlinType = "Int", nullable = false, deleted = true),
+                        column(name = "deleted", dbType = "INT", kotlinType = "Int", nullable = false),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+        val providerControl = result.model.aggregatePersistenceProviderControls.single()
+
+        assertEquals(true, policy.deleted.enabled)
+        assertEquals("isDeleted", policy.deleted.fieldName)
+        assertEquals("is_deleted", policy.deleted.columnName)
+        assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.deleted.source)
+        assertEquals("is_deleted", providerControl.softDeleteColumn)
+    }
+
+    @Test
+    fun `identity id remains database identity without explicit strategy`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
             tables = listOf(
                 table(
                     name = "audit_log",
@@ -2282,7 +2336,7 @@ class DefaultCanonicalAssemblerTest {
                             kotlinType = "Long",
                             nullable = false,
                             primaryKey = true,
-                            generatedValueStrategy = "IDENTITY",
+                            generatedValueStrategy = "identity",
                         )
                     ),
                     primaryKey = listOf("id"),
@@ -2292,16 +2346,51 @@ class DefaultCanonicalAssemblerTest {
         )
 
         val control = result.model.aggregateIdPolicyControls.single()
+        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
 
-        assertEquals("database-identity", control.strategy)
+        assertEquals("identity", control.strategy)
         assertEquals(AggregateIdPolicyKind.DATABASE_SIDE, control.kind)
+        assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.id.source)
     }
 
     @Test
-    fun `assembler fails fast when soft delete column does not exist on the table`() {
+    fun `assembler fails fast when generated value marker is declared on a non id column`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
-                aggregateProjectConfig(),
+                projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "audit_log",
+                                comment = "@AggregateRoot=true;",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "UUID", "UUID", false, isPrimaryKey = true),
+                                    DbColumnSnapshot(
+                                        "created_at",
+                                        "TIMESTAMP",
+                                        "java.time.Instant",
+                                        false,
+                                        generatedValueDeclared = true,
+                                    ),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            )
+                        )
+                    )
+                )
+            )
+        }
+
+        assertEquals("generated value annotation can only be declared on id column: audit_log.created_at", error.message)
+    }
+
+    @Test
+    fun `assembler fails fast when multiple deleted columns are marked explicitly`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "snowflake-long"),
                 listOf(
                     DbSchemaSnapshot(
                         tables = listOf(
@@ -2310,11 +2399,11 @@ class DefaultCanonicalAssemblerTest {
                                 comment = "@AggregateRoot=true;",
                                 columns = listOf(
                                     DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                    DbColumnSnapshot("title", "VARCHAR", "String", false),
+                                    DbColumnSnapshot("deleted", "INT", "Int", false, deleted = true),
+                                    DbColumnSnapshot("is_deleted", "INT", "Int", false, deleted = true),
                                 ),
                                 primaryKey = listOf("id"),
                                 uniqueConstraints = emptyList(),
-                                softDeleteColumn = "deletd",
                             )
                         )
                     )
@@ -2322,7 +2411,7 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals("softDeleteColumn deletd does not exist on table video_post", error.message)
+        assertEquals("multiple explicit deleted columns found for table video_post", error.message)
     }
 
     @Test
@@ -2344,34 +2433,6 @@ class DefaultCanonicalAssemblerTest {
                                 primaryKey = listOf("id"),
                                 uniqueConstraints = emptyList(),
                                 dynamicUpdate = true,
-                            )
-                        )
-                    )
-                )
-            )
-        }
-
-        assertEquals("multiple explicit version columns found for table video_post", error.message)
-    }
-
-    @Test
-    fun `assembler fails fast when multiple version columns are marked explicitly without provider specific settings`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DefaultCanonicalAssembler().assemble(
-                aggregateProjectConfig(),
-                listOf(
-                    DbSchemaSnapshot(
-                        tables = listOf(
-                            DbTableSnapshot(
-                                tableName = "video_post",
-                                comment = "@AggregateRoot=true;",
-                                columns = listOf(
-                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                    DbColumnSnapshot("version", "BIGINT", "Long", false, version = true),
-                                    DbColumnSnapshot("lock_version", "BIGINT", "Long", false, version = true),
-                                ),
-                                primaryKey = listOf("id"),
-                                uniqueConstraints = emptyList(),
                             )
                         )
                     )
@@ -4171,19 +4232,19 @@ class DefaultCanonicalAssemblerTest {
         snapshots = listOf(DbSchemaSnapshot(tables = tables)),
     )
 
-    private fun projectConfigWithIdPolicy(
-        defaultStrategy: String,
-        aggregateStrategies: Map<String, String> = emptyMap(),
-        entityStrategies: Map<String, String> = emptyMap(),
+    private fun projectConfigWithSpecialFieldDefaults(
+        idDefaultStrategy: String,
+        deletedDefaultColumn: String = "",
+        versionDefaultColumn: String = "",
     ): ProjectConfig = baseAggregateConfig(
         artifactLayout = ArtifactLayoutConfig(
             aggregate = PackageLayout("domain.aggregates"),
         ),
     ).copy(
-        aggregateIdPolicy = AggregateIdPolicyConfig(
-            defaultStrategy = defaultStrategy,
-            aggregateStrategies = aggregateStrategies,
-            entityStrategies = entityStrategies,
+        aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
+            idDefaultStrategy = idDefaultStrategy,
+            deletedDefaultColumn = deletedDefaultColumn,
+            versionDefaultColumn = versionDefaultColumn,
         )
     )
 
@@ -4211,7 +4272,10 @@ class DefaultCanonicalAssemblerTest {
         nullable: Boolean,
         primaryKey: Boolean = false,
         referenceTable: String? = null,
+        generatedValueDeclared: Boolean = false,
         generatedValueStrategy: String? = null,
+        deleted: Boolean? = null,
+        version: Boolean? = null,
     ): DbColumnSnapshot = DbColumnSnapshot(
         name = name,
         dbType = dbType,
@@ -4219,7 +4283,10 @@ class DefaultCanonicalAssemblerTest {
         nullable = nullable,
         isPrimaryKey = primaryKey,
         referenceTable = referenceTable,
+        generatedValueDeclared = generatedValueDeclared,
         generatedValueStrategy = generatedValueStrategy,
+        deleted = deleted,
+        version = version,
     )
 
     private fun baseConfig(): ProjectConfig {
@@ -4230,7 +4297,9 @@ class DefaultCanonicalAssemblerTest {
             sources = emptyMap(),
             generators = emptyMap(),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
-            aggregateIdPolicy = AggregateIdPolicyConfig(defaultStrategy = "snowflake-long"),
+            aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
+                idDefaultStrategy = "snowflake-long",
+            ),
         )
     }
 
@@ -4249,7 +4318,9 @@ class DefaultCanonicalAssemblerTest {
             generators = generators,
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             artifactLayout = artifactLayout,
-            aggregateIdPolicy = AggregateIdPolicyConfig(defaultStrategy = "snowflake-long"),
+            aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
+                idDefaultStrategy = "snowflake-long",
+            ),
         )
     }
 

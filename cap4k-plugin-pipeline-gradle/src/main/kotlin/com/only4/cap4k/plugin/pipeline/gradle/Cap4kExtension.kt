@@ -7,7 +7,6 @@ import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.Project
 import org.gradle.api.provider.ListProperty
-import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import javax.inject.Inject
 import kotlin.io.path.invariantSeparatorsPathString
@@ -377,12 +376,20 @@ open class DesignDomainEventHandlerGeneratorExtension @Inject constructor(object
 open class AggregateGeneratorExtension @Inject constructor(objects: ObjectFactory) {
     val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
     val unsupportedTablePolicy: Property<String> = objects.property(String::class.java).convention("FAIL")
-    val idPolicy: AggregateIdPolicyExtension = objects.newInstance(AggregateIdPolicyExtension::class.java)
+    val specialFields: AggregateSpecialFieldsExtension =
+        objects.newInstance(AggregateSpecialFieldsExtension::class.java)
     val artifacts: AggregateGeneratorArtifactsExtension =
         objects.newInstance(AggregateGeneratorArtifactsExtension::class.java)
 
-    fun idPolicy(block: AggregateIdPolicyExtension.() -> Unit) {
-        idPolicy.block()
+    fun specialFields(block: AggregateSpecialFieldsExtension.() -> Unit) {
+        specialFields.block()
+    }
+
+    @Deprecated("generators.aggregate.idPolicy is removed. Use generators.aggregate.specialFields instead.")
+    fun idPolicy(@Suppress("UNUSED_PARAMETER") block: AggregateIdPolicyExtension.() -> Unit) {
+        throw IllegalArgumentException(
+            "generators.aggregate.idPolicy is removed. Use generators.aggregate.specialFields { idDefaultStrategy, deletedDefaultColumn, versionDefaultColumn }."
+        )
     }
 
     fun artifacts(block: AggregateGeneratorArtifactsExtension.() -> Unit) {
@@ -391,19 +398,28 @@ open class AggregateGeneratorExtension @Inject constructor(objects: ObjectFactor
 }
 
 open class AggregateIdPolicyExtension @Inject constructor(objects: ObjectFactory) {
+    @Deprecated("Use generators.aggregate.specialFields.idDefaultStrategy instead.")
     val defaultStrategy: Property<String> = objects.property(String::class.java).convention("uuid7")
-    internal val aggregateStrategies: MapProperty<String, String> =
-        objects.mapProperty(String::class.java, String::class.java).convention(emptyMap())
-    internal val entityStrategies: MapProperty<String, String> =
-        objects.mapProperty(String::class.java, String::class.java).convention(emptyMap())
 
+    @Deprecated("aggregate-level id overrides are removed.")
     fun aggregate(name: String, strategy: String) {
-        aggregateStrategies.put(name, strategy)
+        throw IllegalArgumentException(
+            "generators.aggregate.idPolicy.aggregate(...) is removed. Use generators.aggregate.specialFields.idDefaultStrategy and column-level @GeneratedValue declarations."
+        )
     }
 
+    @Deprecated("entity-level id overrides are removed.")
     fun entity(name: String, strategy: String) {
-        entityStrategies.put(name, strategy)
+        throw IllegalArgumentException(
+            "generators.aggregate.idPolicy.entity(...) is removed. Use generators.aggregate.specialFields.idDefaultStrategy and column-level @GeneratedValue declarations."
+        )
     }
+}
+
+open class AggregateSpecialFieldsExtension @Inject constructor(objects: ObjectFactory) {
+    val idDefaultStrategy: Property<String> = objects.property(String::class.java).convention("uuid7")
+    val deletedDefaultColumn: Property<String> = objects.property(String::class.java).convention("")
+    val versionDefaultColumn: Property<String> = objects.property(String::class.java).convention("")
 }
 
 open class AggregateGeneratorArtifactsExtension @Inject constructor(objects: ObjectFactory) {

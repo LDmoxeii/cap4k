@@ -5,6 +5,7 @@ import java.util.Locale
 
 internal object DbColumnAnnotationParser {
     private val annotationPattern = Regex("@([A-Za-z]+)(=([^;]*))?;?")
+    private val supportedGeneratedValueStrategies = setOf("uuid7", "snowflake-long", "identity", "database-identity")
 
     fun parse(comment: String): DbColumnAnnotationParseResult {
         val annotations = annotationPattern.findAll(comment)
@@ -12,6 +13,7 @@ internal object DbColumnAnnotationParser {
                 ParsedAnnotation(
                     key = match.groupValues[1].uppercase(Locale.ROOT),
                     value = match.groupValues[3].trim(),
+                    hasExplicitValue = match.groups[2] != null,
                 )
             }
             .toList()
@@ -30,22 +32,15 @@ internal object DbColumnAnnotationParser {
             throw IllegalArgumentException("@E requires @T on the same column comment.")
         }
 
-        var generatedValueStrategy: String? = null
-        var version: Boolean? = null
+        val generatedValue = resolveGeneratedValue(annotations)
+        val deleted = resolveMarkerAnnotation(annotations, "DELETED", "Deleted")
+        val version = resolveMarkerAnnotation(annotations, "VERSION", "Version")
         var insertable: Boolean? = null
         var updatable: Boolean? = null
 
         annotations.forEach { annotation ->
             val value = annotation.value
             when (annotation.key) {
-                "GENERATEDVALUE" -> {
-                    val strategy = value.uppercase(Locale.ROOT)
-                    require(strategy == "IDENTITY") {
-                        "unsupported @GeneratedValue strategy in this slice: $strategy"
-                    }
-                    generatedValueStrategy = strategy
-                }
-                "VERSION" -> version = parseBooleanAnnotationValue("Version", value)
                 "INSERTABLE" -> insertable = parseBooleanAnnotationValue("Insertable", value)
                 "UPDATABLE" -> updatable = parseBooleanAnnotationValue("Updatable", value)
             }
@@ -54,11 +49,66 @@ internal object DbColumnAnnotationParser {
         return DbColumnAnnotationParseResult(
             typeBinding = typeBinding,
             enumItems = parseEnumItems(enumConfig),
-            generatedValueStrategy = generatedValueStrategy,
+            generatedValueDeclared = generatedValue.declared,
+            generatedValueStrategy = generatedValue.strategy,
+            deleted = deleted,
             version = version,
             insertable = insertable,
             updatable = updatable,
         )
+    }
+
+    private fun resolveGeneratedValue(annotations: List<ParsedAnnotation>): ResolvedGeneratedValue {
+        val generatedValueAnnotations = annotations.filter { it.key == "GENERATEDVALUE" }
+        if (generatedValueAnnotations.isEmpty()) {
+            return ResolvedGeneratedValue(declared = false, strategy = null)
+        }
+
+        val markerAnnotations = generatedValueAnnotations.filterNot { it.hasExplicitValue }
+        val explicitStrategies = generatedValueAnnotations
+            .filter { it.hasExplicitValue }
+            .map { annotation ->
+                require(annotation.value.isNotBlank()) { "invalid @GeneratedValue strategy in this slice: " }
+                annotation.value.lowercase(Locale.ROOT).also { strategy ->
+                    require(strategy in supportedGeneratedValueStrategies) {
+                        "unsupported @GeneratedValue strategy in this slice: ${annotation.value}"
+                    }
+                }
+            }
+            .distinct()
+        require(markerAnnotations.isEmpty() || explicitStrategies.isEmpty()) {
+            "conflicting @GeneratedValue annotations on the same column comment."
+        }
+        require(explicitStrategies.size <= 1) {
+            "conflicting @GeneratedValue strategies on the same column comment."
+        }
+
+        val resolvedStrategy = explicitStrategies.singleOrNull()?.let { strategy ->
+            if (strategy == "database-identity") {
+                "identity"
+            } else {
+                strategy
+            }
+        }
+        return ResolvedGeneratedValue(
+            declared = true,
+            strategy = resolvedStrategy,
+        )
+    }
+
+    private fun resolveMarkerAnnotation(
+        annotations: List<ParsedAnnotation>,
+        key: String,
+        annotationName: String,
+    ): Boolean? {
+        val matchingAnnotations = annotations.filter { it.key == key }
+        if (matchingAnnotations.isEmpty()) {
+            return null
+        }
+        require(matchingAnnotations.none { it.hasExplicitValue }) {
+            "invalid @$annotationName annotation: explicit values are not supported."
+        }
+        return true
     }
 
     private fun parseEnumItems(enumConfig: String?): List<EnumItemModel> {
@@ -120,13 +170,21 @@ internal object DbColumnAnnotationParser {
 private data class ParsedAnnotation(
     val key: String,
     val value: String,
+    val hasExplicitValue: Boolean,
 )
 
 internal data class DbColumnAnnotationParseResult(
     val typeBinding: String? = null,
     val enumItems: List<EnumItemModel> = emptyList(),
+    val generatedValueDeclared: Boolean = false,
     val generatedValueStrategy: String? = null,
+    val deleted: Boolean? = null,
     val version: Boolean? = null,
     val insertable: Boolean? = null,
     val updatable: Boolean? = null,
+)
+
+private data class ResolvedGeneratedValue(
+    val declared: Boolean,
+    val strategy: String?,
 )

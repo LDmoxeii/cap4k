@@ -308,15 +308,13 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             entities = entities,
             schema = dbSnapshot,
         )
-        val aggregatePersistenceProviderControls = AggregatePersistenceProviderInference.infer(
+        val specialFieldResolution = AggregateSpecialFieldPolicyResolver.resolve(
+            config = config,
             entities = entities,
             tables = supportedTables,
         )
-        val aggregateIdPolicyControls = AggregateIdPolicyResolver.resolve(
-            config = config,
-            entities = entities,
-            persistenceFieldControls = aggregatePersistenceFieldControls,
-        )
+        val aggregatePersistenceProviderControls = specialFieldResolution.providerControls
+        val aggregateIdPolicyControls = specialFieldResolution.idControls
 
         val diagnostics = buildDiagnostics(
             snapshot = dbSnapshot,
@@ -385,6 +383,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 aggregatePersistenceFieldControls = aggregatePersistenceFieldControls,
                 aggregatePersistenceProviderControls = aggregatePersistenceProviderControls,
                 aggregateIdPolicyControls = aggregateIdPolicyControls,
+                aggregateSpecialFieldResolvedPolicies = specialFieldResolution.resolvedPolicies,
             ),
             diagnostics = diagnostics,
         )

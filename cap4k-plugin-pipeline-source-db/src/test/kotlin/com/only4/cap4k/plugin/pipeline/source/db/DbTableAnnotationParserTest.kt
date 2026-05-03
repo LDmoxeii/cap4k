@@ -9,13 +9,12 @@ class DbTableAnnotationParserTest {
     @Test
     fun `parser extracts provider specific table controls from comment`() {
         val metadata = DbTableAnnotationParser.parse(
-            "@AggregateRoot=true;@DynamicInsert=true;@DynamicUpdate=true;@SoftDeleteColumn=deleted;"
+            "@AggregateRoot=true;@DynamicInsert=true;@DynamicUpdate=true;"
         )
 
         assertEquals(true, metadata.aggregateRoot)
         assertEquals(true, metadata.dynamicInsert)
         assertEquals(true, metadata.dynamicUpdate)
-        assertEquals("deleted", metadata.softDeleteColumn)
     }
 
     @Test
@@ -76,12 +75,15 @@ class DbTableAnnotationParserTest {
     }
 
     @Test
-    fun `parser rejects conflicting duplicate soft delete column annotations`() {
+    fun `parser rejects legacy soft delete column annotation with migration message`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
-            DbTableAnnotationParser.parse("@SoftDeleteColumn=deleted;@SoftDeleteColumn=is_deleted;")
+            DbTableAnnotationParser.parse("@SoftDeleteColumn=deleted;")
         }
 
-        assertEquals("conflicting @SoftDeleteColumn annotations on the same table comment.", error.message)
+        assertEquals(
+            "unsupported table annotation @SoftDeleteColumn: use @Deleted marker on the delete column instead",
+            error.message,
+        )
     }
 
     @Test
@@ -91,7 +93,7 @@ class DbTableAnnotationParserTest {
         }
 
         assertEquals(
-            "unsupported table annotation @IdGenerator: configure aggregate.idPolicy in Gradle DSL instead",
+            "unsupported table annotation @IdGenerator: use @GeneratedValue on the ID column instead",
             error.message,
         )
     }
@@ -103,7 +105,7 @@ class DbTableAnnotationParserTest {
         }
 
         assertEquals(
-            "unsupported table annotation @IG: configure aggregate.idPolicy in Gradle DSL instead",
+            "unsupported table annotation @IG: use @GeneratedValue on the ID column instead",
             error.message,
         )
     }

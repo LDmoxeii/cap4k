@@ -2,7 +2,7 @@ package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
-import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyConfig
+import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
@@ -55,6 +55,7 @@ class Cap4kProjectConfigFactory {
         validateGeneratorDependencies(sourceStates, generatorStates)
         val typeRegistry = buildTypeRegistry(project, extension)
         val artifactLayout = buildArtifactLayout(basePackage, extension)
+        val aggregateSpecialFieldDefaults = buildAggregateSpecialFieldDefaults(extension)
 
         return ProjectConfig(
             basePackage = basePackage,
@@ -71,7 +72,7 @@ class Cap4kProjectConfigFactory {
                 ),
             ),
             artifactLayout = artifactLayout,
-            aggregateIdPolicy = buildAggregateIdPolicy(extension),
+            aggregateSpecialFieldDefaults = aggregateSpecialFieldDefaults,
         )
     }
 
@@ -352,12 +353,12 @@ class Cap4kProjectConfigFactory {
         return artifactLayout
     }
 
-    private fun buildAggregateIdPolicy(extension: Cap4kExtension): AggregateIdPolicyConfig {
-        val idPolicy = extension.generators.aggregate.idPolicy
-        return AggregateIdPolicyConfig(
-            defaultStrategy = idPolicy.defaultStrategy.normalized().ifEmpty { "uuid7" },
-            aggregateStrategies = idPolicy.aggregateStrategies.get().normalizedEntries(),
-            entityStrategies = idPolicy.entityStrategies.get().normalizedEntries(),
+    private fun buildAggregateSpecialFieldDefaults(extension: Cap4kExtension): AggregateSpecialFieldDefaultsConfig {
+        val specialFields = extension.generators.aggregate.specialFields
+        return AggregateSpecialFieldDefaultsConfig(
+            idDefaultStrategy = specialFields.idDefaultStrategy.normalized().ifEmpty { "uuid7" },
+            deletedDefaultColumn = specialFields.deletedDefaultColumn.normalized(),
+            versionDefaultColumn = specialFields.versionDefaultColumn.normalized(),
         )
     }
 
@@ -517,9 +518,6 @@ private fun Property<String>.rawValue(): String =
 
 private fun ListProperty<String>.normalizedValues(): List<String> =
     orNull.orEmpty().mapNotNull { value -> value.trim().takeIf { it.isNotEmpty() } }
-
-private fun Map<String, String>.normalizedEntries(): Map<String, String> =
-    mapKeys { it.key.trim() }.mapValues { it.value.trim() }
 
 private fun JsonReader.nextTypeRegistryEntry(key: String): TypeRegistryEntry {
     beginObject()

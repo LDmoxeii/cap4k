@@ -28,8 +28,8 @@ cap4k {
     generators {
         aggregate {
             enabled.set(true)
-            idPolicy {
-                defaultStrategy.set("snowflake-long")
+            specialFields {
+                idDefaultStrategy.set("snowflake-long")
             }
             artifacts {
                 factory.set(true)

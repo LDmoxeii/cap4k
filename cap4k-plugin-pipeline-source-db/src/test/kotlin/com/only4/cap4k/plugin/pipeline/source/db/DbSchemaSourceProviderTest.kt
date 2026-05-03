@@ -226,7 +226,7 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
-    fun `provider carries explicit persistence field behavior into db snapshot`() {
+    fun `provider carries explicit special field column metadata into db snapshot`() {
         val url = "jdbc:h2:mem:cap4k-db-source-persistence-field-behavior;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -234,7 +234,8 @@ class DbSchemaSourceProviderTest {
                     """
                     create table video_post (
                         id bigint primary key comment '@GeneratedValue=IDENTITY;',
-                        version bigint not null comment '@Version=true;',
+                        version bigint not null comment '@Version;',
+                        deleted int not null comment '@Deleted;',
                         created_by varchar(64) comment '@Insertable=false;',
                         updated_by varchar(64) comment '@Updatable=false;',
                         title varchar(128) not null
@@ -270,14 +271,16 @@ class DbSchemaSourceProviderTest {
 
         val table = snapshot.tables.single { it.tableName.equals("VIDEO_POST", true) }
 
-        assertEquals("IDENTITY", table.columns.single { it.name.equals("ID", true) }.generatedValueStrategy)
+        assertEquals(true, table.columns.single { it.name.equals("ID", true) }.generatedValueDeclared)
+        assertEquals("identity", table.columns.single { it.name.equals("ID", true) }.generatedValueStrategy)
         assertEquals(true, table.columns.single { it.name.equals("VERSION", true) }.version)
+        assertEquals(true, table.columns.single { it.name.equals("DELETED", true) }.deleted)
         assertEquals(false, table.columns.single { it.name.equals("CREATED_BY", true) }.insertable)
         assertEquals(false, table.columns.single { it.name.equals("UPDATED_BY", true) }.updatable)
     }
 
     @Test
-    fun `provider carries explicit provider specific table metadata into db snapshot`() {
+    fun `provider carries dynamic insert and dynamic update table metadata into db snapshot`() {
         val url = "jdbc:h2:mem:cap4k-db-source-provider-persistence-table;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -285,14 +288,13 @@ class DbSchemaSourceProviderTest {
                     """
                     create table video_post (
                         id bigint primary key comment '@GeneratedValue=IDENTITY;',
-                        version bigint not null comment '@Version=true;',
-                        deleted int not null,
+                        version bigint not null comment '@Version;',
                         title varchar(128) not null
                     );
                     """.trimIndent()
                 )
                 statement.execute(
-                    "comment on table video_post is '@AggregateRoot=true;@DynamicInsert=true;@DynamicUpdate=true;@SoftDeleteColumn=deleted;'"
+                    "comment on table video_post is '@AggregateRoot=true;@DynamicInsert=true;@DynamicUpdate=true;'"
                 )
             }
         }
@@ -324,7 +326,56 @@ class DbSchemaSourceProviderTest {
 
         assertEquals(true, table.dynamicInsert)
         assertEquals(true, table.dynamicUpdate)
-        assertEquals("deleted", table.softDeleteColumn)
+    }
+
+    @Test
+    fun `db source rejects legacy soft delete column table annotation`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-legacy-soft-delete-table;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table video_post (
+                        id bigint primary key,
+                        deleted int not null
+                    );
+                    """.trimIndent()
+                )
+                statement.execute(
+                    "comment on table video_post is '@AggregateRoot=true;@SoftDeleteColumn=deleted;'"
+                )
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbSchemaSourceProvider().collect(
+                ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = mapOf(
+                        "db" to SourceConfig(
+                            enabled = true,
+                            options = mapOf(
+                                "url" to url,
+                                "username" to "sa",
+                                "password" to "",
+                                "schema" to "PUBLIC",
+                                "includeTables" to listOf("video_post"),
+                                "excludeTables" to emptyList<String>(),
+                            )
+                        )
+                    ),
+                    generators = emptyMap(),
+                    templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                )
+            )
+        }
+
+        assertEquals(
+            "unsupported table annotation @SoftDeleteColumn: use @Deleted marker on the delete column instead",
+            error.message,
+        )
     }
 
     @Test
@@ -372,13 +423,13 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported table annotation @IdGenerator: configure aggregate.idPolicy in Gradle DSL instead",
+            "unsupported table annotation @IdGenerator: use @GeneratedValue on the ID column instead",
             error.message,
         )
     }
 
     @Test
-    fun `provider preserves explicit false for version annotation`() {
+    fun `provider rejects valued version marker annotation`() {
         val url = "jdbc:h2:mem:cap4k-db-source-persistence-field-version-false;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -393,32 +444,32 @@ class DbSchemaSourceProviderTest {
             }
         }
 
-        val snapshot = DbSchemaSourceProvider().collect(
-            ProjectConfig(
-                basePackage = "com.acme.demo",
-                layout = ProjectLayout.MULTI_MODULE,
-                modules = emptyMap(),
-                sources = mapOf(
-                    "db" to SourceConfig(
-                        enabled = true,
-                        options = mapOf(
-                            "url" to url,
-                            "username" to "sa",
-                            "password" to "",
-                            "schema" to "PUBLIC",
-                            "includeTables" to listOf("video_post"),
-                            "excludeTables" to emptyList<String>(),
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbSchemaSourceProvider().collect(
+                ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = mapOf(
+                        "db" to SourceConfig(
+                            enabled = true,
+                            options = mapOf(
+                                "url" to url,
+                                "username" to "sa",
+                                "password" to "",
+                                "schema" to "PUBLIC",
+                                "includeTables" to listOf("video_post"),
+                                "excludeTables" to emptyList<String>(),
+                            )
                         )
-                    )
-                ),
-                generators = emptyMap(),
-                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                    ),
+                    generators = emptyMap(),
+                    templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                )
             )
-        ) as DbSchemaSnapshot
+        }
 
-        val version = snapshot.tables.single().columns.single { it.name.equals("VERSION", true) }
-
-        assertEquals(false, version.version)
+        assertEquals("invalid @Version annotation: explicit values are not supported.", error.message)
     }
 
     @Test

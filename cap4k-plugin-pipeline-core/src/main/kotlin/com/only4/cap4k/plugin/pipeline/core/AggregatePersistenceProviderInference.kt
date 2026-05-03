@@ -1,56 +1,33 @@
 package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl
+import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
-import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import java.util.Locale
 
 internal object AggregatePersistenceProviderInference {
     fun infer(
-        entities: List<EntityModel>,
         tables: List<DbTableSnapshot>,
+        resolvedPolicies: List<AggregateSpecialFieldResolvedPolicy>,
     ): List<AggregatePersistenceProviderControl> {
         val tableByName = tables.associateBy { it.tableName.lowercase(Locale.ROOT) }
 
-        return entities.mapNotNull { entity ->
-            val table = tableByName[entity.tableName.lowercase(Locale.ROOT)] ?: return@mapNotNull null
-            val versionColumns = table.columns.filter { it.version == true }
-            require(versionColumns.size <= 1) {
-                "multiple explicit version columns found for table ${table.tableName}"
-            }
-            if (
-                table.dynamicInsert == null &&
-                table.dynamicUpdate == null &&
-                table.softDeleteColumn == null &&
-                versionColumns.isEmpty()
-            ) {
+        return resolvedPolicies.mapNotNull { policy ->
+            val table = tableByName[policy.tableName.lowercase(Locale.ROOT)] ?: return@mapNotNull null
+            val softDeleteColumn = if (policy.deleted.enabled) policy.deleted.columnName else null
+            val versionFieldName = if (policy.version.enabled) policy.version.fieldName else null
+            if (table.dynamicInsert == null && table.dynamicUpdate == null && softDeleteColumn == null && versionFieldName == null) {
                 return@mapNotNull null
             }
 
-            val columnNames = table.columns.map { it.name.lowercase(Locale.ROOT) }.toSet()
-            val softDeleteColumn = table.softDeleteColumn
-            if (softDeleteColumn != null) {
-                require(softDeleteColumn.lowercase(Locale.ROOT) in columnNames) {
-                    "softDeleteColumn $softDeleteColumn does not exist on table ${table.tableName}"
-                }
-            }
-
-            val fieldNameByColumnName = entity.fields.associateBy(
-                keySelector = { (it.columnName ?: it.name).lowercase(Locale.ROOT) },
-                valueTransform = { it.name },
-            )
-            val versionFieldName = versionColumns
-                .singleOrNull()
-                ?.let { versionColumn -> fieldNameByColumnName[versionColumn.name.lowercase(Locale.ROOT)] }
-
             AggregatePersistenceProviderControl(
-                entityName = entity.name,
-                entityPackageName = entity.packageName,
-                tableName = entity.tableName,
+                entityName = policy.entityName,
+                entityPackageName = policy.entityPackageName,
+                tableName = policy.tableName,
                 dynamicInsert = table.dynamicInsert,
                 dynamicUpdate = table.dynamicUpdate,
                 softDeleteColumn = softDeleteColumn,
-                idFieldName = entity.idField.name,
+                idFieldName = policy.id.fieldName,
                 versionFieldName = versionFieldName,
             )
         }

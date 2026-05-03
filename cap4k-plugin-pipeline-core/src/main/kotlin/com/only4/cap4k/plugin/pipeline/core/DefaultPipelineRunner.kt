@@ -51,6 +51,7 @@ class DefaultPipelineRunner(
             renderedArtifacts = renderedArtifacts,
             writtenPaths = writtenPaths,
             warnings = emptyList(),
+            aggregateSpecialFieldResolvedPolicies = model.aggregateSpecialFieldResolvedPolicies,
             diagnostics = assembly.diagnostics,
         )
     }

@@ -701,9 +701,13 @@ Notes:
 Status:
 
 - candidate persistence-configuration cleanup work
-- spec not written
+- spec written
 - implementation plan not written
 - explicitly deferred until the current ID policy DSL surface is re-evaluated
+
+Reference:
+
+- [database special-field declaration contract unification design](specs/2026-05-03-cap4k-database-special-field-declaration-contract-unification-design.md)
 
 Next action:
 
