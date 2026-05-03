@@ -106,6 +106,26 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
+    fun `factory maps managed default columns from aggregate special fields with trimming and filtering`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.generators.aggregate.specialFields.managedDefaultColumns.set(
+            listOf(" created_at ", "", "  ", "updated_at  ")
+        )
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(
+            listOf("created_at", "updated_at"),
+            config.aggregateSpecialFieldDefaults.managedDefaultColumns,
+        )
+    }
+
+    @Test
     fun `factory rejects legacy aggregate entity id override dsl`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)

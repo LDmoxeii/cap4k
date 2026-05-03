@@ -359,6 +359,7 @@ class Cap4kProjectConfigFactory {
             idDefaultStrategy = specialFields.idDefaultStrategy.normalized().ifEmpty { "uuid7" },
             deletedDefaultColumn = specialFields.deletedDefaultColumn.normalized(),
             versionDefaultColumn = specialFields.versionDefaultColumn.normalized(),
+            managedDefaultColumns = specialFields.managedDefaultColumns.normalizedValues(),
         )
     }
 
