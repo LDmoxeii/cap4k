@@ -128,15 +128,19 @@ class DbColumnAnnotationParserTest {
         val managedError = assertThrows(IllegalArgumentException::class.java) {
             DbColumnAnnotationParser.parse("@Managed=true;")
         }
-        val exposedError = assertThrows(IllegalArgumentException::class.java) {
+        val exposedBooleanError = assertThrows(IllegalArgumentException::class.java) {
             DbColumnAnnotationParser.parse("@Exposed=false;")
+        }
+        val exposedNumericError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Exposed=1;")
         }
         val conflictError = assertThrows(IllegalArgumentException::class.java) {
             DbColumnAnnotationParser.parse("@Managed;@Exposed;")
         }
 
         assertEquals("invalid @Managed annotation: explicit values are not supported.", managedError.message)
-        assertEquals("invalid @Exposed annotation: explicit values are not supported.", exposedError.message)
+        assertEquals("invalid @Exposed annotation: explicit values are not supported.", exposedBooleanError.message)
+        assertEquals("invalid @Exposed annotation: explicit values are not supported.", exposedNumericError.message)
         assertEquals("conflicting @Managed/@Exposed annotations on the same column comment.", conflictError.message)
     }
 
