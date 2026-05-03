@@ -23,11 +23,18 @@ import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
+import com.only4.cap4k.plugin.pipeline.api.ResolvedIdPolicy
+import com.only4.cap4k.plugin.pipeline.api.ResolvedManagedFieldPolicy
+import com.only4.cap4k.plugin.pipeline.api.ResolvedMarkerPolicy
+import com.only4.cap4k.plugin.pipeline.api.ResolvedWriteSurfacePolicy
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
+import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
+import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -787,15 +794,51 @@ class AggregateArtifactPlannerTest {
                         kind = AggregateIdPolicyKind.APPLICATION_SIDE,
                     )
                 ),
+                aggregateSpecialFieldResolvedPolicies = listOf(
+                    AggregateSpecialFieldResolvedPolicy(
+                        entityName = "VideoPost",
+                        entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        tableName = "video_post",
+                        id = ResolvedIdPolicy(
+                            fieldName = "id",
+                            columnName = "id",
+                            strategy = "uuid7",
+                            kind = AggregateIdPolicyKind.APPLICATION_SIDE,
+                            source = SpecialFieldSource.DSL_DEFAULT,
+                            writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                        ),
+                        deleted = ResolvedMarkerPolicy(
+                            enabled = false,
+                            source = SpecialFieldSource.NONE,
+                        ),
+                        version = ResolvedMarkerPolicy(
+                            enabled = false,
+                            source = SpecialFieldSource.NONE,
+                        ),
+                        managedFields = listOf(
+                            ResolvedManagedFieldPolicy(
+                                fieldName = "id",
+                                columnName = "id",
+                                writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                                source = SpecialFieldSource.DSL_DEFAULT,
+                            )
+                        ),
+                        writeSurface = ResolvedWriteSurfacePolicy(
+                            createAllowedFields = listOf("id", "title"),
+                            updateAllowedFields = listOf("title"),
+                        ),
+                    )
+                ),
             )
         )
 
         val entityArtifact = plan.single { it.outputPath.endsWith("/VideoPost.kt") }
         @Suppress("UNCHECKED_CAST")
-        val scalarFields = entityArtifact.context["fields"] as List<Map<String, Any?>>
+        val scalarFields = entityArtifact.context["scalarFields"] as List<Map<String, Any?>>
         val idField = scalarFields.single { it["fieldName"] == "id" }
 
         assertEquals("uuid7", idField["applicationSideIdStrategy"])
+        assertEquals("CREATE_ONLY", idField["writePolicy"])
         assertEquals("UUID(0L, 0L)", idField["defaultValue"])
         assertEquals(false, idField["updatable"])
         assertEquals(null, idField["generatedValueStrategy"])
