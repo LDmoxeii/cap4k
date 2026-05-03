@@ -28,6 +28,8 @@ data class DbColumnSnapshot(
     val generatedValueStrategy: String? = null,
     val deleted: Boolean? = null,
     val version: Boolean? = null,
+    val managed: Boolean? = null,
+    val exposed: Boolean? = null,
     val insertable: Boolean? = null,
     val updatable: Boolean? = null,
 )
@@ -292,12 +294,20 @@ enum class SpecialFieldSource {
     NONE,
 }
 
+enum class SpecialFieldWritePolicy {
+    READ_WRITE,
+    CREATE_ONLY,
+    READ_ONLY,
+    SYSTEM_TRANSITION_ONLY,
+}
+
 data class ResolvedIdPolicy(
     val fieldName: String,
     val columnName: String,
     val strategy: String,
     val kind: AggregateIdPolicyKind,
     val source: SpecialFieldSource,
+    val writePolicy: SpecialFieldWritePolicy,
 )
 
 data class ResolvedMarkerPolicy(
@@ -305,6 +315,19 @@ data class ResolvedMarkerPolicy(
     val fieldName: String? = null,
     val columnName: String? = null,
     val source: SpecialFieldSource,
+    val writePolicy: SpecialFieldWritePolicy = SpecialFieldWritePolicy.READ_WRITE,
+)
+
+data class ResolvedManagedFieldPolicy(
+    val fieldName: String,
+    val columnName: String,
+    val writePolicy: SpecialFieldWritePolicy,
+    val source: SpecialFieldSource,
+)
+
+data class ResolvedWriteSurfacePolicy(
+    val createAllowedFields: List<String> = emptyList(),
+    val updateAllowedFields: List<String> = emptyList(),
 )
 
 data class AggregateSpecialFieldResolvedPolicy(
@@ -314,6 +337,8 @@ data class AggregateSpecialFieldResolvedPolicy(
     val id: ResolvedIdPolicy,
     val deleted: ResolvedMarkerPolicy,
     val version: ResolvedMarkerPolicy,
+    val managedFields: List<ResolvedManagedFieldPolicy> = emptyList(),
+    val writeSurface: ResolvedWriteSurfacePolicy = ResolvedWriteSurfacePolicy(),
 )
 
 data class RepositoryModel(

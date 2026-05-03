@@ -394,6 +394,7 @@ class PipelineModelsTest {
             idDefaultStrategy = "snowflake-long",
             deletedDefaultColumn = "deleted",
             versionDefaultColumn = "version",
+            managedDefaultColumns = listOf("created_at", "updated_at"),
         )
         val resolvedPolicy = AggregateSpecialFieldResolvedPolicy(
             entityName = "VideoPost",
@@ -405,18 +406,39 @@ class PipelineModelsTest {
                 strategy = "uuid7",
                 kind = AggregateIdPolicyKind.APPLICATION_SIDE,
                 source = SpecialFieldSource.DSL_DEFAULT,
+                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
             ),
             deleted = ResolvedMarkerPolicy(
                 enabled = true,
                 fieldName = "deleted",
                 columnName = "deleted",
                 source = SpecialFieldSource.DB_EXPLICIT,
+                writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
             ),
             version = ResolvedMarkerPolicy(
                 enabled = true,
                 fieldName = "version",
                 columnName = "version",
                 source = SpecialFieldSource.DB_EXPLICIT,
+                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+            ),
+            managedFields = listOf(
+                ResolvedManagedFieldPolicy(
+                    fieldName = "createdAt",
+                    columnName = "created_at",
+                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                    source = SpecialFieldSource.DSL_DEFAULT,
+                ),
+                ResolvedManagedFieldPolicy(
+                    fieldName = "updatedAt",
+                    columnName = "updated_at",
+                    writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
+                    source = SpecialFieldSource.DSL_DEFAULT,
+                )
+            ),
+            writeSurface = ResolvedWriteSurfacePolicy(
+                createAllowedFields = listOf("id", "title"),
+                updateAllowedFields = listOf("title"),
             ),
         )
 
@@ -433,9 +455,18 @@ class PipelineModelsTest {
         )
 
         assertEquals(defaults, report.aggregateSpecialFieldDefaults)
+        assertEquals(listOf("created_at", "updated_at"), report.aggregateSpecialFieldDefaults!!.managedDefaultColumns)
         assertEquals(listOf(resolvedPolicy), report.aggregateSpecialFieldResolvedPolicies)
         assertEquals(listOf(resolvedPolicy), result.aggregateSpecialFieldResolvedPolicies)
         assertEquals(listOf(resolvedPolicy), model.aggregateSpecialFieldResolvedPolicies)
+        assertEquals(
+            SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
+            report.aggregateSpecialFieldResolvedPolicies.single().managedFields[1].writePolicy,
+        )
+        assertEquals(
+            listOf("title"),
+            model.aggregateSpecialFieldResolvedPolicies.single().writeSurface.updateAllowedFields,
+        )
     }
 
     @Test
@@ -454,6 +485,8 @@ class PipelineModelsTest {
                             defaultValue = null,
                             comment = "primary key",
                             isPrimaryKey = true,
+                            managed = false,
+                            exposed = true,
                         )
                     ),
                     primaryKey = listOf("id"),
@@ -472,5 +505,7 @@ class PipelineModelsTest {
         assertEquals("uk_v_id", snapshot.tables.single().uniqueConstraints.single().physicalName)
         assertEquals(listOf("id"), snapshot.tables.single().uniqueConstraints.single().columns)
         assertEquals("Long", snapshot.tables.single().columns.single().kotlinType)
+        assertEquals(false, snapshot.tables.single().columns.single().managed)
+        assertEquals(true, snapshot.tables.single().columns.single().exposed)
     }
 }
