@@ -436,7 +436,7 @@ class PipelinePluginCompileFunctionalTest {
         assertFalse(generatedRootEntity.contains("CascadeType.ALL"))
         assertTrue(generatedRootEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
         assertFalse(generatedRootEntity.contains("mappedBy ="))
-        assertTrue(generatedChildEntity.contains("@Column(name = \"video_post_id\")"))
+        assertTrue(generatedChildEntity.contains("@Column(name = \"video_post_id\", insertable = false, updatable = false)"))
         assertTrue(generatedChildEntity.contains("var videoPostId: Long = videoPostId"))
         assertTrue(generatedChildEntity.contains("@ManyToOne(fetch = FetchType.LAZY)"))
         assertTrue(
@@ -445,6 +445,7 @@ class PipelinePluginCompileFunctionalTest {
             )
         )
         assertFalse(generatedChildEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)\n    lateinit var videoPost: VideoPost"))
+        assertFalse(generatedChildEntity.contains("@Column(name = \"video_post_id\")\n    var videoPostId: Long = videoPostId"))
         assertFalse(generatedChildEntity.contains("mappedBy ="))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))

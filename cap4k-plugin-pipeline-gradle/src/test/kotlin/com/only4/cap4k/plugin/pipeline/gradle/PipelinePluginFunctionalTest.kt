@@ -1630,7 +1630,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(rootEntityContent.contains("var coverProfile: UserProfile? = null"))
         assertFalse(rootEntityContent.contains("mappedBy ="))
         assertFalse(rootEntityContent.contains("ManyToMany"))
-        assertTrue(childEntityContent.contains("@Column(name = \"video_post_id\")"))
+        assertTrue(childEntityContent.contains("@Column(name = \"video_post_id\", insertable = false, updatable = false)"))
         assertTrue(childEntityContent.contains("var videoPostId: Long = videoPostId"))
         assertTrue(childEntityContent.contains("@ManyToOne(fetch = FetchType.LAZY)"))
         assertTrue(

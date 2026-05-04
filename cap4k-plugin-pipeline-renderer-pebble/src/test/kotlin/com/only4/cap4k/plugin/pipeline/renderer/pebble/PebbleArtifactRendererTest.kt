@@ -2240,6 +2240,8 @@ class PebbleArtifactRendererTest {
                                 "columnName" to "video_post_id",
                                 "isId" to false,
                                 "converterTypeRef" to null,
+                                "insertable" to false,
+                                "updatable" to false,
                             ),
                         ),
                         "fields" to listOf(
@@ -2282,7 +2284,7 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
 
-        assertTrue(content.contains("@Column(name = \"video_post_id\")"))
+        assertTrue(content.contains("@Column(name = \"video_post_id\", insertable = false, updatable = false)"))
         assertTrue(content.contains("var videoPostId: Long = videoPostId"))
         assertTrue(content.contains("@ManyToOne(fetch = FetchType.LAZY)"))
         assertTrue(
