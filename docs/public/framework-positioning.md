@@ -20,11 +20,13 @@
 
 ## Background Concepts
 
+These concepts matter, but they sit behind the public first-screen story and usually become relevant after the default path is clear.
+
 - Value Object
 - Integration Event
-- Repository contract
-- handler family
-- cli
+- Repository contract for aggregate loading and persistence boundaries
+- handler families for standard command/query execution
+- `cli` as the anti-corruption boundary for external capabilities
 
 ## Advanced But Valid Concepts
 
@@ -34,16 +36,18 @@
 
 ## Runtime And Infra Surfaces
 
-- JPA runtime and repository landing path
+These are real landing surfaces in the codebase, but they support the framework rather than define its public identity.
+
+- JPA-based repository and unit-of-work landing path
 - integration-event transport and persistence adapters
-- starter and auto-configuration
-- other provider-specific runtime support
+- starter and auto-configuration modules for runtime wiring
+- other provider-specific runtime support where the host stack needs it
 
 ## Removed Or Deprecated Core Positioning
 
-- Wrapper is not part of the public core positioning anymore
+- Wrapper is not part of the public core positioning anymore and should be treated as deprecated outside legacy cleanup work
 
 ## Advanced Modeling Note
 
-- advanced read/write model split with read-only weak-reference template context is non-default
+- advanced read/write model split with optional read-only reference context is non-default
 - repository remains write-model only
