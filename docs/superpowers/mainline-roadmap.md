@@ -680,15 +680,16 @@ Status:
 
 - candidate mainline work
 - spec written
-- implementation plan not written
+- implementation plan written
 
 Reference:
 
 - [aggregate inverse-navigation owner and fetch policy design](specs/2026-05-04-cap4k-aggregate-inverse-navigation-owner-and-fetch-policy-design.md)
+- [aggregate inverse-navigation owner and fetch policy implementation plan](plans/2026-05-04-cap4k-aggregate-inverse-navigation-owner-and-fetch-policy.md)
 
 Next action:
 
-- write an implementation plan before execution
+- execute the written implementation plan
 - implement one parent-child ownership contract for both `root-child` and `child-child`
 - keep owned parent-child defaults aligned with the current `AggregateLoadPlan.MINIMAL` / `WHOLE_AGGREGATE` contract
 - restore real generated-entity audit verification after the duplicated-owner mapping failure is removed
