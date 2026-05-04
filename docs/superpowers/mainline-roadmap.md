@@ -734,7 +734,30 @@ Notes:
 - DB annotations should remain close to physical schema intent, while DSL defaults should express project-wide policy
 - do not mix this with repository backend replacement, aggregate relation policy changes, or frontend TypeScript generation
 
-### 3. Read/write model association-scope separation analysis
+### 3. Managed special-field write-surface enforcement
+
+Status:
+
+- candidate application-surface cleanup work
+- spec not written
+- implementation plan not written
+
+Next action:
+
+- analyze which generated write surfaces must consume `writeSurface` first, such as command/request DTOs, application-service write inputs, and client payload contracts
+- decide whether generated entities stay as runtime carriers only or should also expose explicit managed/read-only cues for developer clarity
+- make resolved `managedFields` / `writeSurface` materially affect generated create/update surfaces instead of only `cap4kPlan` review output
+- define dogfood verification that managed fields cannot accidentally flow back into generated write requests
+
+Notes:
+
+- current special-field work already resolves `managedFields`, `writePolicy`, and `writeSurface` into the canonical model and `cap4kPlan`
+- current entity generation intentionally keeps audit / soft-delete / version fields as runtime carriers, so managed does not currently imply entity-field suppression
+- user-write restriction is therefore mostly contractual today; downstream generators do not yet consistently consume `writeSurface`
+- this follow-up should stay separate from special-field declaration unification: it is about consuming resolved policy on generated surfaces, not redefining how policy is declared
+- query/read exposure is a separate product decision; this item should focus on create/update surfaces first
+
+### 4. Read/write model association-scope separation analysis
 
 Status:
 
@@ -758,7 +781,7 @@ Notes:
 - this is not a request to immediately add new DB annotation behavior; it is a design question about whether the source model should carry separate association strengths for different consumers
 - avoid using this to weaken aggregate invariants or to turn read-model convenience into write-model coupling
 
-### 4. irAnalysis-backed frontend TypeScript generation analysis
+### 5. irAnalysis-backed frontend TypeScript generation analysis
 
 Status:
 
