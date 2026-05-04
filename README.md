@@ -1,23 +1,46 @@
 # cap4k
 
-This project uses [Gradle](https://gradle.org/).
-To build and run the application, use the *Gradle* tool window by clicking the Gradle icon in the right-hand toolbar,
-or run it directly from the terminal:
+[中文文档](README.zh-CN.md)
 
-* Run `./gradlew run` to build and run the application.
-* Run `./gradlew build` to only build the application.
-* Run `./gradlew check` to run all checks, including tests.
-* Run `./gradlew clean` to clean all build outputs.
+> cap4k is a simplified DDD tactical framework designed for AI-assisted implementation and human review.
 
-Note the usage of the Gradle Wrapper (`./gradlew`).
-This is the suggested way to use Gradle in production projects.
+## Mainline
 
-[Learn more about the Gradle Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html).
+`Aggregate Root -> Entity -> Command / Query -> Domain Event -> Orchestration Surfaces`
 
-[Learn more about Gradle tasks](https://docs.gradle.org/current/userguide/command_line_interface.html#common_tasks).
+## How to Start
 
-This project follows the suggested multi-module setup and consists of the `app` and `utils` subprojects.
-The shared build logic was extracted to a convention plugin located in `buildSrc`.
+1. Read the default happy path in this README.
+2. Continue with [Getting Started](docs/public/getting-started.md).
+3. Read [Framework Positioning](docs/public/framework-positioning.md) before treating advanced concepts or runtime surfaces as default promises.
 
-This project uses a version catalog (see `gradle/libs.versions.toml`) to declare and version dependencies
-and both a build cache and a configuration cache (see `gradle.properties`).
+## What cap4k Is
+
+- an aggregate-centered DDD tactical framework
+- command/query driven by default
+- domain-event aware
+- designed for AI-assisted implementation and human review
+- able to project design, runtime, and generation layers without reducing the framework to code generation alone
+
+## What cap4k Is Not
+
+- not a generic code generator platform
+- not a JPA-centric framework first and foremost
+- not an integration-event platform first and foremost
+- not a frontend generation framework
+- not a framework that places every DDD pattern on the front page equally
+
+## Default Happy Path
+
+- single-command single-aggregate-root mutation
+- aggregate root as the write-facing surface
+- domain mutation converges into command handling
+- domain events are registered and released by aggregate roots
+- multiple handlers do not have guaranteed execution order
+- `cli` is an anti-corruption boundary rather than the truth source of the process
+
+## Documentation Map
+
+- [Getting Started](docs/public/getting-started.md)
+- [Framework Positioning](docs/public/framework-positioning.md)
+- repository specs and plans under `docs/superpowers/` for internal design work
