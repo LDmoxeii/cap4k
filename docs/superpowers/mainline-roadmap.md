@@ -679,15 +679,19 @@ Notes:
 Status:
 
 - candidate mainline work
-- spec not written
+- spec written
 - implementation plan not written
+
+Reference:
+
+- [aggregate inverse-navigation owner and fetch policy design](specs/2026-05-04-cap4k-aggregate-inverse-navigation-owner-and-fetch-policy-design.md)
 
 Next action:
 
-- write an analysis/spec before implementation
-- decide whether generated inverse navigation should default to eager loading or lazy loading
-- review this against the current `AggregateLoadPlan.MINIMAL` / `WHOLE_AGGREGATE` contract
-- define whether users need explicit generator configuration and what invalid combinations should fail fast
+- write an implementation plan before execution
+- implement one parent-child ownership contract for both `root-child` and `child-child`
+- keep owned parent-child defaults aligned with the current `AggregateLoadPlan.MINIMAL` / `WHOLE_AGGREGATE` contract
+- restore real generated-entity audit verification after the duplicated-owner mapping failure is removed
 
 Notes:
 
@@ -696,7 +700,7 @@ Notes:
 - `AggregateLoadPlan` is the approved use-case loading mechanism
 - the decision must preserve generated-file consistency and avoid making performance-sensitive projects accidentally expensive
 - dogfood evidence in `only-danmuku-zero` shows this track is not only about eager/lazy defaults: current parent-child inverse navigation can render both sides as FK owners (`@OneToMany + @JoinColumn` on parent together with `@ManyToOne + @JoinColumn` on child), which causes Hibernate duplicated-column mapping failures such as `file_post_id`
-- future spec work on this item should explicitly decide owner/inverse-side generation rules for parent-child associations, not only fetch policy, and should treat “both sides own the same FK column” as fail-fast-invalid output
+- the written spec for this item now settles owner/inverse-side generation rules together with fetch defaults, keeps owned parent-child bindings parent-owned, and treats “both sides own the same FK column” as fail-fast-invalid output
 
 ### 2. Database special-field declaration contract unification
 
