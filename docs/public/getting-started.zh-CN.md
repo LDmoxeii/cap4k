@@ -9,9 +9,10 @@
 
 ## 推荐阅读顺序
 
-1. `README.zh-CN.md`
+1. [README.zh-CN.md](../../README.zh-CN.md)
 2. 先用下面的最小工作流跑一个小聚合片段
-3. 需要更清楚的概念边界时，再读 `docs/public/framework-positioning.zh-CN.md`
+3. 需要更清楚的概念边界时，再读 [框架定位](framework-positioning.zh-CN.md)
+4. 如果你是在这个仓库里继续推进实现，再进入对应的 GitHub issue，以及配套的 [spec](../superpowers/specs/) 和 [plan](../superpowers/plans/)
 
 ## 最小工作流
 

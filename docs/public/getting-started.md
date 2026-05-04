@@ -9,9 +9,10 @@
 
 ## Read in This Order
 
-1. `README.md`
+1. [README](../../README.md)
 2. work through the minimal workflow below on a small aggregate slice
-3. read `docs/public/framework-positioning.md` when you need clearer concept boundaries
+3. read [Framework Positioning](framework-positioning.md) when you need clearer concept boundaries
+4. if you are contributing inside this repository, continue with the relevant GitHub issue plus the matching [spec](../superpowers/specs/) and [plan](../superpowers/plans/)
 
 ## Minimal Workflow
 
