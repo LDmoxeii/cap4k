@@ -2647,7 +2647,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembler preserves both parent and child relations for parent child table metadata`() {
+    fun `assembler keeps direct parent binding out of owner side child relations`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
             listOf(
@@ -2682,11 +2682,14 @@ class DefaultCanonicalAssemblerTest {
         )
 
         assertEquals(
-            listOf(
-                "VideoPost|items|VideoPostItem|ONE_TO_MANY",
-                "VideoPostItem|videoPost|VideoPost|MANY_TO_ONE",
-            ).sorted(),
+            listOf("VideoPost|items|VideoPostItem|ONE_TO_MANY"),
             result.model.aggregateRelations
+                .map { "${it.ownerEntityName}|${it.fieldName}|${it.targetEntityName}|${it.relationType}" }
+                .sorted(),
+        )
+        assertEquals(
+            listOf("VideoPostItem|videoPost|VideoPost|MANY_TO_ONE"),
+            result.model.aggregateInverseRelations
                 .map { "${it.ownerEntityName}|${it.fieldName}|${it.targetEntityName}|${it.relationType}" }
                 .sorted(),
         )
@@ -2858,7 +2861,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembler suppresses inverse read only relation when explicit owner side relation already exists`() {
+    fun `assembler keeps owned direct parent ref inside parent owned relation contract`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
             listOf(
@@ -2886,7 +2889,6 @@ class DefaultCanonicalAssemblerTest {
                                     nullable = false,
                                     referenceTable = "video_post",
                                     explicitRelationType = "MANY_TO_ONE",
-                                    lazy = true,
                                 ),
                                 DbColumnSnapshot("label", "VARCHAR", "String", false),
                             ),
@@ -2901,73 +2903,92 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        assertTrue(result.model.aggregateInverseRelations.isEmpty())
         assertEquals(
             1,
-            result.model.aggregateRelations.count {
-                it.ownerEntityName == "VideoPostItem" &&
-                    it.targetEntityName == "VideoPost" &&
-                    it.relationType == AggregateRelationType.MANY_TO_ONE
+            result.model.aggregateRelations.size,
+        )
+        assertEquals(
+            AggregateRelationModel(
+                ownerEntityName = "VideoPost",
+                ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                fieldName = "items",
+                targetEntityName = "VideoPostItem",
+                targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                relationType = AggregateRelationType.ONE_TO_MANY,
+                joinColumn = "video_post_id",
+                fetchType = AggregateFetchType.LAZY,
+                nullable = false,
+                cascadeTypes = listOf(
+                    AggregateCascadeType.PERSIST,
+                    AggregateCascadeType.MERGE,
+                    AggregateCascadeType.REMOVE,
+                ),
+                orphanRemoval = true,
+                joinColumnNullable = false,
+            ),
+            result.model.aggregateRelations.single(),
+        )
+        assertEquals(
+            "VideoPostItem|videoPost|VideoPost|MANY_TO_ONE|video_post_id|LAZY|false|false",
+            result.model.aggregateInverseRelations.single().let { inverse ->
+                "${inverse.ownerEntityName}|${inverse.fieldName}|${inverse.targetEntityName}|${inverse.relationType}|${inverse.joinColumn}|${inverse.fetchType}|${inverse.insertable}|${inverse.updatable}"
             },
         )
     }
 
     @Test
-    fun `assembler suppresses inverse read only relation when default owner side reference already exists`() {
-        val result = DefaultCanonicalAssembler().assemble(
-            aggregateProjectConfig(),
-            listOf(
-                DbSchemaSnapshot(
-                    tables = listOf(
-                        DbTableSnapshot(
-                            tableName = "video_post",
-                            comment = "",
-                            columns = listOf(
-                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                DbColumnSnapshot("title", "VARCHAR", "String", false),
-                            ),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                        ),
-                        DbTableSnapshot(
-                            tableName = "video_post_item",
-                            comment = "",
-                            columns = listOf(
-                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                DbColumnSnapshot(
-                                    name = "video_post_id",
-                                    dbType = "BIGINT",
-                                    kotlinType = "Long",
-                                    nullable = false,
-                                    referenceTable = "video_post",
-                                    lazy = true,
+    fun `assembler rejects local lazy override on owned direct parent binding`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "video_post",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot("title", "VARCHAR", "String", false),
                                 ),
-                                DbColumnSnapshot("label", "VARCHAR", "String", false),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
                             ),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                            parentTable = "video_post",
-                            aggregateRoot = false,
-                            valueObject = true,
-                        ),
+                            DbTableSnapshot(
+                                tableName = "video_post_item",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot(
+                                        name = "video_post_id",
+                                        dbType = "BIGINT",
+                                        kotlinType = "Long",
+                                        nullable = false,
+                                        referenceTable = "video_post",
+                                        lazy = true,
+                                    ),
+                                    DbColumnSnapshot("label", "VARCHAR", "String", false),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                                parentTable = "video_post",
+                                aggregateRoot = false,
+                                valueObject = true,
+                            ),
+                        )
                     )
                 )
             )
-        )
+        }
 
-        assertTrue(result.model.aggregateInverseRelations.isEmpty())
         assertEquals(
-            1,
-            result.model.aggregateRelations.count {
-                it.ownerEntityName == "VideoPostItem" &&
-                    it.targetEntityName == "VideoPost" &&
-                    it.relationType == AggregateRelationType.MANY_TO_ONE
-            },
+            "owned parent-child direct parent binding does not allow local lazy override: video_post_item.video_post_id",
+            error.message,
         )
     }
 
     @Test
-    fun `inverse inference suppresses owner side relation with case insensitive join column matching`() {
+    fun `inverse inference keeps owned direct parent binding derived when explicit ref matches parent case insensitively`() {
         val parentId = FieldModel(name = "id", type = "Long")
         val childId = FieldModel(name = "id", type = "Long")
 
@@ -3049,7 +3070,10 @@ class DefaultCanonicalAssemblerTest {
             ),
         )
 
-        assertTrue(inverseRelations.isEmpty())
+        assertEquals(
+            listOf("VideoPostItem|videoPost|VideoPost|MANY_TO_ONE|video_post_id"),
+            inverseRelations.map { "${it.ownerEntityName}|${it.fieldName}|${it.targetEntityName}|${it.relationType}|${it.joinColumn}" },
+        )
     }
 
     @Test

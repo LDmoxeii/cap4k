@@ -38,6 +38,13 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 relations = model.aggregateRelations,
                 inverseRelations = model.aggregateInverseRelations,
             )
+            val readOnlyInverseJoinColumns = relationPlan.relationFields
+                .filter {
+                    it["relationType"] == AggregateRelationType.MANY_TO_ONE.name &&
+                        it["readOnly"] == true
+                }
+                .mapNotNull { it["joinColumn"] as? String }
+                .toSet()
             val relationJoinColumns = relationPlan.relationFields
                 .filter {
                     when (it["relationType"]) {
@@ -115,12 +122,14 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             )
                         }
                         val insertable = when {
+                            jpa.columnName in readOnlyInverseJoinColumns -> false
                             control?.insertable != null -> control.insertable
                             control?.updatable != null -> true
                             applicationSideIdStrategy != null -> true
                             else -> null
                         }
                         val updatable = when {
+                            jpa.columnName in readOnlyInverseJoinColumns -> false
                             applicationSideIdStrategy != null -> false
                             control?.updatable != null -> control.updatable
                             control?.insertable != null -> true

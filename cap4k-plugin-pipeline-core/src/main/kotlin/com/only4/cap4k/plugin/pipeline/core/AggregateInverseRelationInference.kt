@@ -108,6 +108,9 @@ internal object AggregateInverseRelationInference {
             val ownerEntity = entityByTableName[tableKey(ownerTable.tableName)] ?: return@flatMap emptyList()
             ownerTable.columns.mapNotNull { column ->
                 val referenceTable = column.referenceTable ?: return@mapNotNull null
+                if (isOwnedDirectParentReference(ownerTable, referenceTable)) {
+                    return@mapNotNull null
+                }
                 val relationType = resolveExplicitOwnerRelationType(column.explicitRelationType) ?: AggregateRelationType.MANY_TO_ONE
                 val targetEntity = entityByTableName[tableKey(referenceTable)] ?: return@mapNotNull null
                 RelationKey(
@@ -126,6 +129,14 @@ internal object AggregateInverseRelationInference {
             "ONE_TO_ONE" -> AggregateRelationType.ONE_TO_ONE
             else -> null
         }
+    }
+
+    private fun isOwnedDirectParentReference(
+        ownerTable: DbTableSnapshot,
+        referenceTable: String,
+    ): Boolean {
+        val parentTable = ownerTable.parentTable ?: return false
+        return referenceTable.equals(parentTable, ignoreCase = true)
     }
 
     private fun tableKey(tableName: String): String = tableName.lowercase(Locale.ROOT)

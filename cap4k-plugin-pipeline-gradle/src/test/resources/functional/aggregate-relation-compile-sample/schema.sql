@@ -7,7 +7,7 @@ create table video_post (
 
 create table video_post_item (
     id bigint primary key,
-    video_post_id bigint not null comment '@Reference=video_post;@Lazy=true;',
+    video_post_id bigint not null comment '@Reference=video_post;',
     label varchar(128) not null
 );
 

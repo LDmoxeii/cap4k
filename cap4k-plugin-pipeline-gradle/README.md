@@ -706,6 +706,8 @@ type FieldModel = {
 
 注意：`@REL` / `@L` / `@C` 必须与 `@REF` 在同一列上，否则校验失败（`@Relation/Lazy/Count requires @Reference on the same column comment`）。
 
+注意：如果某列属于 `@Parent` 子表，且该列的 `@REF` 直接指向父表，则该绑定固定按 owned direct-parent FK 处理。子表保留标量外键列，同时生成只读逆向 `MANY_TO_ONE`（`insertable=false, updatable=false`）；父表 `ONE_TO_MANY` 与子表逆向 `MANY_TO_ONE` 的抓取策略都固定为 `LAZY`。这种 direct-parent FK **不允许**本地 `@L` / `@Lazy` 覆盖；整聚合的装载策略统一由 `AggregateLoadPlan` 控制。
+
 #### 示例
 
 ```sql

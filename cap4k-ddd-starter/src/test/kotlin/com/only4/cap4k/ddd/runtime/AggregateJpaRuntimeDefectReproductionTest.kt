@@ -119,6 +119,9 @@ class AggregateJpaRuntimeDefectReproductionTest {
     private lateinit var reverseGrandchildJpaRepository: RuntimeReverseGrandchildJpaRepository
 
     @Autowired
+    private lateinit var fkMirrorChildJpaRepository: RuntimeFkMirrorChildJpaRepository
+
+    @Autowired
     private lateinit var transactionManager: PlatformTransactionManager
 
     @BeforeEach
@@ -129,6 +132,8 @@ class AggregateJpaRuntimeDefectReproductionTest {
         jdbcTemplate.update("delete from `runtime_reverse_grandchild`")
         jdbcTemplate.update("delete from `runtime_reverse_child`")
         jdbcTemplate.update("delete from `runtime_reverse_root`")
+        jdbcTemplate.update("delete from `runtime_fk_mirror_child`")
+        jdbcTemplate.update("delete from `runtime_fk_mirror_root`")
         jdbcTemplate.update("delete from `runtime_grandchild`")
         jdbcTemplate.update("delete from `runtime_child`")
         jdbcTemplate.update("delete from `runtime_root`")
@@ -343,6 +348,36 @@ class AggregateJpaRuntimeDefectReproductionTest {
                 val loadedRoot = loadedChild.root ?: error("Reverse child should resolve its parent root")
 
                 assertEquals(root.id, loadedRoot.id)
+            },
+            knownDefect = { failure ->
+                failure.hasCause<jakarta.persistence.PersistenceException>() ||
+                    failure.hasCause<HibernateException>() ||
+                    failure is AssertionError
+            }
+        )
+
+        assertSupported(classification)
+    }
+
+    @Test
+    @DisplayName("read only scalar fk can coexist with read only inverse many to one on the same column")
+    fun readOnlyScalarFkCanCoexistWithReadOnlyInverseManyToOneOnTheSameColumn() {
+        val classification = classifyRuntimeBehavior(
+            label = "read only scalar fk plus inverse many to one",
+            desiredContract = {
+                val root = RuntimeFkMirrorRoot(name = "fk-mirror-root").apply {
+                    children.add(RuntimeFkMirrorChild(name = "fk-mirror-child"))
+                }
+                unitOfWork.persist(root)
+                unitOfWork.save()
+                assertNotEquals(0L, root.id)
+                val childId = queryLong("select `id` from `runtime_fk_mirror_child` where `name` = ?", "fk-mirror-child")
+                JpaUnitOfWork.reset()
+
+                val loadedChild = fkMirrorChildJpaRepository.findById(childId).orElseThrow()
+                assertEquals(root.id, loadedChild.rootId)
+                assertNotNull(loadedChild.root)
+                assertEquals(root.id, loadedChild.root!!.id)
             },
             knownDefect = { failure ->
                 failure.hasCause<jakarta.persistence.PersistenceException>() ||
@@ -844,6 +879,46 @@ open class RuntimeSafeReverseGrandchild(id: Long = 0L, name: String = "") {
     open var name: String = name
 }
 
+@Entity
+@Table(name = "`runtime_fk_mirror_root`")
+open class RuntimeFkMirrorRoot(id: Long = 0L, name: String = "") {
+    @OneToMany(cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE], fetch = FetchType.LAZY, orphanRemoval = true)
+    @JoinColumn(name = "`root_id`", nullable = false)
+    open var children: MutableList<RuntimeFkMirrorChild> = mutableListOf()
+
+    @Id
+    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
+    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
+    @Column(name = "`id`", insertable = false, updatable = false)
+    open var id: Long = id
+        protected set
+
+    @Column(name = "`name`", nullable = false)
+    open var name: String = name
+}
+
+@Entity
+@Table(name = "`runtime_fk_mirror_child`")
+open class RuntimeFkMirrorChild(id: Long = 0L, rootId: Long = 0L, name: String = "") {
+    @ManyToOne(cascade = [], fetch = FetchType.LAZY)
+    @JoinColumn(name = "`root_id`", nullable = false, insertable = false, updatable = false)
+    open var root: RuntimeFkMirrorRoot? = null
+
+    @Id
+    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
+    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
+    @Column(name = "`id`", insertable = false, updatable = false)
+    open var id: Long = id
+        protected set
+
+    @Column(name = "`root_id`", insertable = false, updatable = false)
+    open var rootId: Long = rootId
+        protected set
+
+    @Column(name = "`name`", nullable = false)
+    open var name: String = name
+}
+
 interface RuntimeRootJpaRepository :
     JpaRepository<RuntimeRoot, Long>,
     JpaSpecificationExecutor<RuntimeRoot>
@@ -864,6 +939,8 @@ open class RuntimeApplicationSideLongRoot(id: Long = 0L, name: String = "") {
 interface RuntimeReverseChildJpaRepository : JpaRepository<RuntimeReverseChild, Long>
 
 interface RuntimeReverseGrandchildJpaRepository : JpaRepository<RuntimeReverseGrandchild, Long>
+
+interface RuntimeFkMirrorChildJpaRepository : JpaRepository<RuntimeFkMirrorChild, Long>
 
 @Repository
 class RuntimeRootRepository(

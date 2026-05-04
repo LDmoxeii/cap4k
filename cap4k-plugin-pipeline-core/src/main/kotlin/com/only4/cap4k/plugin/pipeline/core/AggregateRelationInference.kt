@@ -72,38 +72,10 @@ internal object AggregateRelationInference {
                 val target = requireNotNull(entityLookup[tableKey(child.tableName)]) {
                     "unknown child table: ${child.tableName}"
                 }
-                val annotatedParentAnchorColumns = child.columns
-                    .filter { it.referenceTable?.equals(parentTable, ignoreCase = true) == true }
-                    .sortedBy { it.name }
-                annotatedParentAnchorColumns
-                    .firstOrNull { it.explicitRelationType != null && it.explicitRelationType != "MANY_TO_ONE" }
-                    ?.let { column ->
-                        throw IllegalArgumentException(
-                            "parent reference relation type must be MANY_TO_ONE in first slice: ${child.tableName}.${column.name} -> $parentTable = ${column.explicitRelationType}"
-                        )
-                    }
-                val fallbackParentAnchorColumns = if (annotatedParentAnchorColumns.isEmpty()) {
-                    child.columns
-                        .filter { it.name.equals("${parentTable}_id", ignoreCase = true) }
-                        .sortedBy { it.name }
-                } else {
-                    emptyList()
-                }
-                val parentAnchorColumns = if (annotatedParentAnchorColumns.isNotEmpty()) {
-                    annotatedParentAnchorColumns
-                } else {
-                    fallbackParentAnchorColumns
-                }
-                val joinColumns = parentAnchorColumns
-                    .map { it.name }
-                    .sorted()
-                val joinColumn = when (joinColumns.size) {
-                    0 -> throw IllegalArgumentException("missing parent reference column for table: ${child.tableName}")
-                    1 -> joinColumns.single()
-                    else -> throw IllegalArgumentException(
-                        "ambiguous parent reference columns for table ${child.tableName} -> $parentTable: ${joinColumns.joinToString(", ")}"
-                    )
-                }
+                val joinColumn = resolveOwnedParentAnchorColumn(
+                    child = child,
+                    parentTable = parentTable,
+                ).name
                 AggregateRelationModel(
                     ownerEntityName = resolvedParent.entityName,
                     ownerEntityPackageName = resolvedParent.packageName,
@@ -131,6 +103,9 @@ internal object AggregateRelationInference {
             table.columns
                 .mapNotNull { column ->
                     val referenceTable = column.referenceTable ?: return@mapNotNull null
+                    if (isOwnedDirectParentReference(table, column)) {
+                        return@mapNotNull null
+                    }
                     val relationType = resolveRelationType(column.explicitRelationType)
                     val referenceKey = tableKey(referenceTable)
                     val target = entityLookup[referenceKey]
@@ -191,6 +166,50 @@ internal object AggregateRelationInference {
         }
 
         return relations
+    }
+
+    private fun resolveOwnedParentAnchorColumn(
+        child: DbTableSnapshot,
+        parentTable: String,
+    ) = resolveSingleDirectParentColumn(
+        child = child,
+        parentTable = parentTable,
+        candidates = directParentReferenceColumns(child, parentTable).ifEmpty {
+            child.columns
+                .filter { it.name.equals("${parentTable}_id", ignoreCase = true) }
+                .sortedBy { it.name }
+        },
+    )
+
+    private fun resolveSingleDirectParentColumn(
+        child: DbTableSnapshot,
+        parentTable: String,
+        candidates: List<com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot>,
+    ): com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot {
+        candidates
+            .firstOrNull { it.lazy != null }
+            ?.let { column ->
+                throw IllegalArgumentException(
+                    "owned parent-child direct parent binding does not allow local lazy override: ${child.tableName}.${column.name}"
+                )
+            }
+        candidates
+            .firstOrNull { it.explicitRelationType != null && it.explicitRelationType != "MANY_TO_ONE" }
+            ?.let { column ->
+                throw IllegalArgumentException(
+                    "parent reference relation type must be MANY_TO_ONE in first slice: ${child.tableName}.${column.name} -> $parentTable = ${column.explicitRelationType}"
+                )
+            }
+        val joinColumns = candidates
+            .map { it.name }
+            .sorted()
+        return when (joinColumns.size) {
+            0 -> throw IllegalArgumentException("missing parent reference column for table: ${child.tableName}")
+            1 -> candidates.single()
+            else -> throw IllegalArgumentException(
+                "ambiguous parent reference columns for table ${child.tableName} -> $parentTable: ${joinColumns.joinToString(", ")}"
+            )
+        }
     }
 
     private fun resolveRelationType(explicitRelationType: String?): AggregateRelationType {
@@ -300,6 +319,21 @@ internal object AggregateRelationInference {
 
     private fun upperFirst(value: String): String =
         if (value.isEmpty()) value else value.substring(0, 1).uppercase(Locale.ROOT) + value.substring(1)
+
+    private fun directParentReferenceColumns(
+        table: DbTableSnapshot,
+        parentTable: String,
+    ) = table.columns
+        .filter { it.referenceTable?.equals(parentTable, ignoreCase = true) == true }
+        .sortedBy { it.name }
+
+    private fun isOwnedDirectParentReference(
+        table: DbTableSnapshot,
+        column: com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot,
+    ): Boolean {
+        val parentTable = table.parentTable ?: return false
+        return column.referenceTable?.equals(parentTable, ignoreCase = true) == true
+    }
 
     private object RelationInflector {
         private data class Rule(
