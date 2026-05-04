@@ -383,6 +383,8 @@ Dogfood-discovered generator quality follow-ups:
 12. generated / migrated Kotlin import formatting cleanup
 13. artifact-level conflict policy overrides for generator output
 14. aggregate factory payload metadata-name parity
+15. drawing-board JSON readability cleanup for escaped generic angle brackets
+16. analysis flow repair for top-level behavior extension `CommandHandlerToEntityMethod` edges
 
 Notes:
 
@@ -393,6 +395,8 @@ Notes:
 - Import formatting cleanup is lower priority and should only become a generator bug if fresh generated output still contains unnecessary blank lines.
 - Artifact-level conflict policy overrides are an experience optimization, not a current migration blocker. The current global `templates.conflictPolicy` is too coarse for real dogfood because users often need to overwrite generated contracts while preserving handler, validator, subscriber, controller, or behavior bodies. Prefer a direct artifact selector that is visible in `cap4kPlan` over introducing a separate family abstraction.
 - Aggregate factory payload metadata-name parity is a low-priority edge cleanup. Generated nested factory payload classes may remain named `Payload`, but the `@Aggregate(name = ...)` metadata should preserve the old semantic name such as `CategoryPayload` instead of the nested class simple name. Current analysis primarily binds factory payloads through `aggregate` and `type`, so this is not a blocker, but it should be fixed before `@Aggregate` metadata is treated as a stable projection input.
+- Drawing-board JSON currently escapes generic angle brackets through the shared Pebble `json` filter (`List<Response>` becomes `List\u003cResponse\u003e`). This is legal JSON but hurts review readability; treat it as a renderer-quality follow-up, not a contract blocker.
+- Analysis flow currently still emits `EntityMethodToDomainEvent`, but dogfood evidence from `only-danmuku-zero` suggests `CommandHandlerToEntityMethod` is missing when aggregate behavior lives in top-level extension files such as `*Behavior.kt`. Keep this as a targeted analysis-compiler follow-up rather than broad flow/irAnalysis restructuring.
 
 The completed validator projection item was a combined implementation track over:
 
