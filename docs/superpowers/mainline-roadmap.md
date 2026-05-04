@@ -695,6 +695,8 @@ Notes:
 - `FetchType.EAGER` is a mapping policy, not a use-case loading policy
 - `AggregateLoadPlan` is the approved use-case loading mechanism
 - the decision must preserve generated-file consistency and avoid making performance-sensitive projects accidentally expensive
+- dogfood evidence in `only-danmuku-zero` shows this track is not only about eager/lazy defaults: current parent-child inverse navigation can render both sides as FK owners (`@OneToMany + @JoinColumn` on parent together with `@ManyToOne + @JoinColumn` on child), which causes Hibernate duplicated-column mapping failures such as `file_post_id`
+- future spec work on this item should explicitly decide owner/inverse-side generation rules for parent-child associations, not only fetch policy, and should treat “both sides own the same FK column” as fail-fast-invalid output
 
 ### 2. Database special-field declaration contract unification
 
