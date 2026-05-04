@@ -20,14 +20,14 @@ cap4k is a simplified DDD tactical framework designed for AI-assisted implementa
 - command/query driven by default
 - domain-event aware
 - designed for AI-assisted implementation and human review
-- able to project design, runtime, and generation layers without reducing the framework to code generation alone
+- keeps design, runtime, and generation layers visible without collapsing the framework into code generation
 
 ## What cap4k Is Not
 
 - not a generic code generator platform
 - not a JPA-centric framework first and foremost
-- not a framework that centers its public entry on downstream event choreography
-- not a frontend generation framework
+- not centered on downstream event handling
+- not a frontend code generation framework
 - not a framework that places every DDD pattern on the front page equally
 
 ## Default Happy Path
