@@ -26,7 +26,7 @@
 
 - not a generic code generator platform
 - not a JPA-centric framework first and foremost
-- not an integration-event platform first and foremost
+- not a framework that centers its public entry on downstream event choreography
 - not a frontend generation framework
 - not a framework that places every DDD pattern on the front page equally
 
