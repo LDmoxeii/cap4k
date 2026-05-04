@@ -10,8 +10,8 @@
 ## 推荐阅读顺序
 
 1. `README.zh-CN.md`
-2. `docs/public/framework-positioning.zh-CN.md`
-3. `docs/public/getting-started.zh-CN.md`
+2. 先用下面的最小工作流跑一个小聚合片段
+3. 需要更清楚的概念边界时，再读 `docs/public/framework-positioning.zh-CN.md`
 
 ## 最小工作流
 

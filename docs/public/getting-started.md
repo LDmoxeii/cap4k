@@ -10,8 +10,8 @@
 ## Read in This Order
 
 1. `README.md`
-2. `docs/public/framework-positioning.md`
-3. `docs/public/getting-started.md`
+2. work through the minimal workflow below on a small aggregate slice
+3. read `docs/public/framework-positioning.md` when you need clearer concept boundaries
 
 ## Minimal Workflow
 
