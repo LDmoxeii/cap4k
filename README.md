@@ -2,7 +2,7 @@
 
 [中文文档](README.zh-CN.md)
 
-> cap4k is a simplified DDD tactical framework designed for AI-assisted implementation and human review.
+cap4k is a simplified DDD tactical framework designed for AI-assisted implementation and human review.
 
 ## Mainline
 
