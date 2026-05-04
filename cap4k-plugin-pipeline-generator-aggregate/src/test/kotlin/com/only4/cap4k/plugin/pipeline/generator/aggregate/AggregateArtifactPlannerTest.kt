@@ -1250,6 +1250,7 @@ class AggregateArtifactPlannerTest {
         assertEquals("video_post_id", relation["joinColumn"])
         assertEquals("LAZY", relation["fetchType"])
         assertEquals(false, relation["nullable"])
+        assertEquals("VideoPost", relation["targetType"])
         assertEquals(true, relation["readOnly"])
         assertEquals(false, relation["insertable"])
         assertEquals(false, relation["updatable"])

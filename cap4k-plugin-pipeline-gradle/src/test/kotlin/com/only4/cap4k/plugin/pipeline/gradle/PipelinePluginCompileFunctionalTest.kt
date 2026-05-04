@@ -394,18 +394,11 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate relation generation participates in domain compileKotlin`() {
+    fun `aggregate relation generation keeps owned direct parent bindings scalar plus read only inverse relation`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-relation-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
         val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts")
         val domainBuildFileContent = domainBuildFile.readText()
-        val schemaFile = projectDir.resolve("schema.sql")
-        schemaFile.writeText(
-            schemaFile.readText().replace(
-                "@Reference=video_post;@Lazy=true;",
-                "@Reference=video_post;@Relation=ManyToOne;@Lazy=true;",
-            )
-        )
 
         assertFalse(domainBuildFileContent.contains("jakarta.persistence:jakarta.persistence-api"))
 
@@ -443,19 +436,15 @@ class PipelinePluginCompileFunctionalTest {
         assertFalse(generatedRootEntity.contains("CascadeType.ALL"))
         assertTrue(generatedRootEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
         assertFalse(generatedRootEntity.contains("mappedBy ="))
+        assertTrue(generatedChildEntity.contains("@Column(name = \"video_post_id\")"))
+        assertTrue(generatedChildEntity.contains("var videoPostId: Long = videoPostId"))
         assertTrue(generatedChildEntity.contains("@ManyToOne(fetch = FetchType.LAZY)"))
-        assertTrue(generatedChildEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
-        assertFalse(
+        assertTrue(
             generatedChildEntity.contains(
                 "@JoinColumn(name = \"video_post_id\", nullable = false, insertable = false, updatable = false)"
             )
         )
-        assertFalse(generatedChildEntity.contains("insertable = false"))
-        assertFalse(
-            generatedChildEntity.contains(
-                "@JoinColumn(name = \"video_post_id\", nullable = false, insertable = false, updatable = false)"
-            )
-        )
+        assertFalse(generatedChildEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)\n    lateinit var videoPost: VideoPost"))
         assertFalse(generatedChildEntity.contains("mappedBy ="))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
@@ -561,49 +550,25 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate inverse read only relation generation participates in domain compileKotlin with scalar fk preserved`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-inverse-relation-compile")
+    fun `aggregate direct parent lazy override fails fast during domain compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-direct-parent-lazy-override-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
         val schemaFile = projectDir.resolve("schema.sql")
         schemaFile.writeText(
             schemaFile.readText().replace(
+                "video_post_id bigint not null comment '@Reference=video_post;',",
                 "video_post_id bigint not null comment '@Reference=video_post;@Lazy=true;',",
-                "video_post_id bigint not null,",
             )
         )
 
         val compileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-domain:compileKotlin")
-            .build()
-        val generatedRootEntity = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
-        ).readText()
-        val generatedChildEntity = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt")
-        ).readText()
-
-        assertGeneratedFilesExist(
-            projectDir,
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"),
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt"),
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_profile/UserProfile.kt"),
-        )
-        assertTrue(generatedRootEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
-        assertTrue(generatedRootEntity.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
-        assertTrue(generatedChildEntity.contains("@Column(name = \"video_post_id\")"))
-        assertTrue(generatedChildEntity.contains("var videoPostId: Long = videoPostId"))
-        assertTrue(generatedChildEntity.contains("@ManyToOne(fetch = FetchType.LAZY)"))
+            .buildAndFail()
         assertTrue(
-            generatedChildEntity.contains(
-                "@JoinColumn(name = \"video_post_id\", nullable = false, insertable = false, updatable = false)"
+            compileResult.output.contains(
+                "owned parent-child direct parent binding does not allow local lazy override: video_post_item.video_post_id"
             )
         )
-        assertTrue(generatedChildEntity.contains("lateinit var videoPost: VideoPost"))
-        assertFalse(generatedChildEntity.contains("mappedBy ="))
-        assertFalse(generatedChildEntity.contains("JoinTable"))
-        assertFalse(generatedChildEntity.contains("ManyToMany"))
-        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
-        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
 
     @Test
@@ -900,7 +865,7 @@ class PipelinePluginCompileFunctionalTest {
 
                 create table if not exists video_file (
                     id bigint primary key,
-                    video_post_id bigint not null comment '@Reference=video_post;@Lazy=true;',
+                    video_post_id bigint not null comment '@Reference=video_post;',
                     file_index int not null,
                     constraint uq_video_file_parent_index unique (video_post_id, file_index)
                 );

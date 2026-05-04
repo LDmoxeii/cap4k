@@ -1583,7 +1583,7 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kGenerate emits representative aggregate relation artifacts`() {
+    fun `cap4kGenerate aligns owned direct parent bindings with scalar fk and read only inverse relation`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-relation")
         copyFixture(projectDir, "aggregate-relation-sample")
 
@@ -1630,52 +1630,6 @@ class PipelinePluginFunctionalTest {
         assertTrue(rootEntityContent.contains("var coverProfile: UserProfile? = null"))
         assertFalse(rootEntityContent.contains("mappedBy ="))
         assertFalse(rootEntityContent.contains("ManyToMany"))
-        assertTrue(childEntityContent.contains("@ManyToOne(fetch = FetchType.LAZY)"))
-        assertFalse(
-            childEntityContent.contains(
-                "@JoinColumn(name = \"video_post_id\", nullable = false, insertable = false, updatable = false)"
-            )
-        )
-        assertTrue(childEntityContent.contains("lateinit var videoPost: VideoPost"))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kGenerate derives inverse read only many to one relation when parent anchor stays scalar`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-inverse-relation")
-        copyFixture(projectDir, "aggregate-relation-sample")
-        val schemaFile = projectDir.resolve("schema.sql")
-        schemaFile.writeText(
-            schemaFile.readText().replace(
-                "video_post_id bigint not null comment '@Reference=video_post;@Lazy=true;',",
-                "video_post_id bigint not null,",
-            )
-        )
-
-        val result = FunctionalFixtureSupport
-            .runner(projectDir, "cap4kGenerate")
-            .build()
-
-        val rootEntityFile = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
-        )
-        val childEntityFile = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt")
-        )
-        val rootEntityContent = rootEntityFile.readText()
-        val childEntityContent = childEntityFile.readText()
-
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(rootEntityFile.toFile().exists())
-        assertTrue(childEntityFile.toFile().exists())
-        assertTrue(
-            rootEntityContent.contains(
-                "@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE], orphanRemoval = true)"
-            )
-        )
-        assertFalse(rootEntityContent.contains("CascadeType.ALL"))
-        assertTrue(rootEntityContent.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
-        assertTrue(rootEntityContent.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
         assertTrue(childEntityContent.contains("@Column(name = \"video_post_id\")"))
         assertTrue(childEntityContent.contains("var videoPostId: Long = videoPostId"))
         assertTrue(childEntityContent.contains("@ManyToOne(fetch = FetchType.LAZY)"))
@@ -1685,9 +1639,31 @@ class PipelinePluginFunctionalTest {
             )
         )
         assertTrue(childEntityContent.contains("lateinit var videoPost: VideoPost"))
-        assertFalse(childEntityContent.contains("mappedBy ="))
-        assertFalse(childEntityContent.contains("JoinTable"))
-        assertFalse(childEntityContent.contains("ManyToMany"))
+        assertFalse(childEntityContent.contains("@JoinColumn(name = \"video_post_id\", nullable = false)\n    lateinit var videoPost: VideoPost"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate fails fast when owned direct parent binding declares local lazy override`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-direct-parent-lazy-override")
+        copyFixture(projectDir, "aggregate-relation-sample")
+        val schemaFile = projectDir.resolve("schema.sql")
+        schemaFile.writeText(
+            schemaFile.readText().replace(
+                "video_post_id bigint not null comment '@Reference=video_post;',",
+                "video_post_id bigint not null comment '@Reference=video_post;@Lazy=true;',",
+            )
+        )
+
+        val result = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .buildAndFail()
+
+        assertTrue(
+            result.output.contains(
+                "owned parent-child direct parent binding does not allow local lazy override: video_post_item.video_post_id"
+            )
+        )
     }
 
     @OptIn(ExperimentalPathApi::class)
