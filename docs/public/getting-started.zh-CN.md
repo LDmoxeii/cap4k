@@ -11,8 +11,7 @@
 
 1. `README.zh-CN.md`
 2. `docs/public/framework-positioning.zh-CN.md`
-3. 对应的 GitHub issue
-4. `docs/superpowers/` 下的相关 spec 或 plan
+3. `docs/public/getting-started.zh-CN.md`
 
 ## 最小工作流
 
@@ -20,12 +19,12 @@
 2. 分别定义命令意图与查询意图
 3. 让状态变更收敛到命令处理路径
 4. 需要流程继续时，由聚合根发出领域事件
-5. 把 controller、job、事件处理器看作流程入口，而不是领域真相源
+5. 把 controller、job、事件处理器看作协同点，而不是业务真相所在
 
 ## 先走保守路径
 
 - 先走默认 happy path
-- 不要一开始就使用读写弱引用高级模式
+- 不要一开始就使用高级读写建模
 - 没有明确问题前，不要先上 Saga、Strong ID、Domain Service
 
 ## 下一步阅读

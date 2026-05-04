@@ -11,8 +11,7 @@
 
 1. `README.md`
 2. `docs/public/framework-positioning.md`
-3. the relevant GitHub issue
-4. the relevant spec or plan under `docs/superpowers/`
+3. `docs/public/getting-started.md`
 
 ## Minimal Workflow
 
@@ -20,12 +19,12 @@
 2. define command and query intent separately
 3. let mutation converge into command handling
 4. release domain events from the aggregate root when process continuation is needed
-5. treat controller, job, and event handlers as orchestration surfaces rather than truth sources
+5. treat controller, job, and event handlers as coordination points, not the place where business truth lives
 
 ## Start Conservatively
 
 - use the default happy path first
-- do not start with advanced read/write weak-reference modeling
+- do not start with advanced read/write modeling
 - do not start with Saga, Strong ID, or Domain Service unless the problem really requires them
 
 ## Next Reading
