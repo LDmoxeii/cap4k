@@ -420,6 +420,8 @@ open class AggregateSpecialFieldsExtension @Inject constructor(objects: ObjectFa
     val idDefaultStrategy: Property<String> = objects.property(String::class.java).convention("uuid7")
     val deletedDefaultColumn: Property<String> = objects.property(String::class.java).convention("")
     val versionDefaultColumn: Property<String> = objects.property(String::class.java).convention("")
+    val managedDefaultColumns: ListProperty<String> =
+        objects.listProperty(String::class.java).convention(emptyList())
 }
 
 open class AggregateGeneratorArtifactsExtension @Inject constructor(objects: ObjectFactory) {

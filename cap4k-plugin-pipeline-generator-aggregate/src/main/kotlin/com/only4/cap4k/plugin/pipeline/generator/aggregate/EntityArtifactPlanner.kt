@@ -19,10 +19,14 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             val entityJpa = model.aggregateEntityJpa.singleOrNull {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
+            val resolvedPolicy = model.aggregateSpecialFieldResolvedPolicies.singleOrNull {
+                it.entityName == entity.name && it.entityPackageName == entity.packageName
+            }
             val scalarJpaByField = entityJpa?.columns.orEmpty().associateBy { it.fieldName }
             val controlsByField = model.aggregatePersistenceFieldControls
                 .filter { it.entityName == entity.name && it.entityPackageName == entity.packageName }
                 .associateBy { it.fieldName }
+            val managedByField = resolvedPolicy?.managedFields.orEmpty().associateBy { it.fieldName }
             val idPolicyControl = model.aggregateIdPolicyControls.firstOrNull {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
@@ -94,6 +98,11 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         } else {
                             control?.generatedValueStrategy
                         }
+                        val isVersionField = when {
+                            resolvedPolicy?.version?.enabled == true ->
+                                resolvedPolicy.version.fieldName == field.name
+                            else -> control?.version == true
+                        }
                         val defaultValue = when (applicationSideIdStrategy) {
                             "uuid7" -> uuid7SentinelDefault(fieldType)
                             "snowflake-long" -> "0L"
@@ -117,6 +126,12 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             control?.insertable != null -> true
                             else -> null
                         }
+                        val writePolicy = when {
+                            jpa.isId && resolvedPolicy != null -> resolvedPolicy.id.writePolicy.name
+                            isVersionField && resolvedPolicy != null -> resolvedPolicy.version.writePolicy.name
+                            managedByField[field.name] != null -> managedByField.getValue(field.name).writePolicy.name
+                            else -> "READ_WRITE"
+                        }
                         mapOf(
                             "fieldName" to field.name,
                             "fieldType" to fieldType,
@@ -132,7 +147,8 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "converterClassRef" to jpa.converterClassFqn,
                             "generatedValueStrategy" to generatedValueStrategy,
                             "applicationSideIdStrategy" to applicationSideIdStrategy,
-                            "isVersion" to (control?.version == true),
+                            "isVersion" to isVersionField,
+                            "writePolicy" to writePolicy,
                             "insertable" to insertable,
                             "updatable" to updatable,
                         )

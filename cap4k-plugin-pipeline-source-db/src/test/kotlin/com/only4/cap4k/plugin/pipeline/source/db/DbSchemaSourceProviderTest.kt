@@ -280,6 +280,143 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
+    fun `provider carries managed and exposed column markers into db snapshot`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-managed-exposed-column-behavior;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table video_post (
+                        id bigint primary key,
+                        created_at timestamp not null comment '@Managed;',
+                        title varchar(128) not null comment '@Exposed;'
+                    );
+                    """.trimIndent()
+                )
+                statement.execute("comment on table video_post is '@AggregateRoot=true;'")
+            }
+        }
+
+        val snapshot = DbSchemaSourceProvider().collect(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "url" to url,
+                            "username" to "sa",
+                            "password" to "",
+                            "schema" to "PUBLIC",
+                            "includeTables" to listOf("video_post"),
+                            "excludeTables" to emptyList<String>(),
+                        )
+                    )
+                ),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        ) as DbSchemaSnapshot
+
+        val table = snapshot.tables.single { it.tableName.equals("VIDEO_POST", true) }
+
+        assertEquals(true, table.columns.single { it.name.equals("CREATED_AT", true) }.managed)
+        assertEquals(null, table.columns.single { it.name.equals("CREATED_AT", true) }.exposed)
+        assertEquals(null, table.columns.single { it.name.equals("TITLE", true) }.managed)
+        assertEquals(true, table.columns.single { it.name.equals("TITLE", true) }.exposed)
+    }
+
+    @Test
+    fun `provider rejects explicit exposed marker value`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-exposed-marker-value;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table video_post (
+                        id bigint primary key,
+                        title varchar(128) not null comment '@Exposed=1;'
+                    );
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbSchemaSourceProvider().collect(
+                ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = mapOf(
+                        "db" to SourceConfig(
+                            enabled = true,
+                            options = mapOf(
+                                "url" to url,
+                                "username" to "sa",
+                                "password" to "",
+                                "schema" to "PUBLIC",
+                                "includeTables" to listOf("video_post"),
+                                "excludeTables" to emptyList<String>(),
+                            )
+                        )
+                    ),
+                    generators = emptyMap(),
+                    templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                )
+            )
+        }
+
+        assertEquals("invalid @Exposed annotation: explicit values are not supported.", error.message)
+    }
+
+    @Test
+    fun `provider rejects managed exposed mutual exclusion`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-managed-exposed-conflict;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table video_post (
+                        id bigint primary key,
+                        title varchar(128) not null comment '@Managed;@Exposed;'
+                    );
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbSchemaSourceProvider().collect(
+                ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = mapOf(
+                        "db" to SourceConfig(
+                            enabled = true,
+                            options = mapOf(
+                                "url" to url,
+                                "username" to "sa",
+                                "password" to "",
+                                "schema" to "PUBLIC",
+                                "includeTables" to listOf("video_post"),
+                                "excludeTables" to emptyList<String>(),
+                            )
+                        )
+                    ),
+                    generators = emptyMap(),
+                    templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                )
+            )
+        }
+
+        assertEquals("conflicting @Managed/@Exposed annotations on the same column comment.", error.message)
+    }
+
+    @Test
     fun `provider carries dynamic insert and dynamic update table metadata into db snapshot`() {
         val url = "jdbc:h2:mem:cap4k-db-source-provider-persistence-table;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->

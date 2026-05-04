@@ -14,6 +14,7 @@ import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.RenderedArtifact
+import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import com.only4.cap4k.plugin.pipeline.api.SourceSnapshot
@@ -275,6 +276,8 @@ class DefaultPipelineRunnerTest {
                                     "",
                                     columns = listOf(
                                         DbColumnSnapshot("id", "BIGINT", "Long", false, null, "", true),
+                                        DbColumnSnapshot("created_by", "VARCHAR", "String", false),
+                                        DbColumnSnapshot("title", "VARCHAR", "String", false),
                                     ),
                                     primaryKey = listOf("id"),
                                     uniqueConstraints = emptyList(),
@@ -312,14 +315,21 @@ class DefaultPipelineRunnerTest {
                 templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
                 aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
                     idDefaultStrategy = "snowflake-long",
+                    managedDefaultColumns = listOf("created_by"),
                 ),
             )
         )
 
+        val policy = result.aggregateSpecialFieldResolvedPolicies.single()
+
         assertEquals(listOf("video_post"), result.diagnostics!!.aggregate!!.supportedTables)
         assertEquals("composite_primary_key", result.diagnostics!!.aggregate!!.unsupportedTables.single().reason)
         assertEquals(1, result.aggregateSpecialFieldResolvedPolicies.size)
-        assertEquals("video_post", result.aggregateSpecialFieldResolvedPolicies.single().tableName)
+        assertEquals("video_post", policy.tableName)
+        assertEquals(SpecialFieldWritePolicy.CREATE_ONLY, policy.id.writePolicy)
+        assertEquals(listOf("id", "created_by"), policy.managedFields.map { it.columnName })
+        assertEquals(listOf("id", "title"), policy.writeSurface.createAllowedFields)
+        assertEquals(listOf("title"), policy.writeSurface.updateAllowedFields)
     }
 
     private fun runnerWithSingleArtifact(

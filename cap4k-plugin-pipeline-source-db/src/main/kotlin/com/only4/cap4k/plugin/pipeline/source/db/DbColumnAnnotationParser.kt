@@ -35,6 +35,11 @@ internal object DbColumnAnnotationParser {
         val generatedValue = resolveGeneratedValue(annotations)
         val deleted = resolveMarkerAnnotation(annotations, "DELETED", "Deleted")
         val version = resolveMarkerAnnotation(annotations, "VERSION", "Version")
+        val managed = resolveMarkerAnnotation(annotations, "MANAGED", "Managed")
+        val exposed = resolveMarkerAnnotation(annotations, "EXPOSED", "Exposed")
+        require(!(managed == true && exposed == true)) {
+            "conflicting @Managed/@Exposed annotations on the same column comment."
+        }
         var insertable: Boolean? = null
         var updatable: Boolean? = null
 
@@ -53,6 +58,8 @@ internal object DbColumnAnnotationParser {
             generatedValueStrategy = generatedValue.strategy,
             deleted = deleted,
             version = version,
+            managed = managed,
+            exposed = exposed,
             insertable = insertable,
             updatable = updatable,
         )
@@ -180,6 +187,8 @@ internal data class DbColumnAnnotationParseResult(
     val generatedValueStrategy: String? = null,
     val deleted: Boolean? = null,
     val version: Boolean? = null,
+    val managed: Boolean? = null,
+    val exposed: Boolean? = null,
     val insertable: Boolean? = null,
     val updatable: Boolean? = null,
 )

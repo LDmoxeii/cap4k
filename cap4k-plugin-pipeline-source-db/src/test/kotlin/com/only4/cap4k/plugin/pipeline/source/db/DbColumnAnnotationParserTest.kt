@@ -94,6 +94,8 @@ class DbColumnAnnotationParserTest {
 
         assertEquals(null, metadata.version)
         assertEquals(null, metadata.deleted)
+        assertEquals(null, metadata.managed)
+        assertEquals(null, metadata.exposed)
         assertEquals(false, metadata.generatedValueDeclared)
     }
 
@@ -108,6 +110,38 @@ class DbColumnAnnotationParserTest {
 
         assertEquals("invalid @Version annotation: explicit values are not supported.", versionError.message)
         assertEquals("invalid @Deleted annotation: explicit values are not supported.", deletedError.message)
+    }
+
+    @Test
+    fun `parser supports managed and exposed markers`() {
+        val managed = DbColumnAnnotationParser.parse("@Managed;")
+        val exposed = DbColumnAnnotationParser.parse("@Exposed;")
+
+        assertEquals(true, managed.managed)
+        assertEquals(null, managed.exposed)
+        assertEquals(null, exposed.managed)
+        assertEquals(true, exposed.exposed)
+    }
+
+    @Test
+    fun `parser rejects valued managed exposed and mutual exclusion`() {
+        val managedError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Managed=true;")
+        }
+        val exposedBooleanError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Exposed=false;")
+        }
+        val exposedNumericError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Exposed=1;")
+        }
+        val conflictError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Managed;@Exposed;")
+        }
+
+        assertEquals("invalid @Managed annotation: explicit values are not supported.", managedError.message)
+        assertEquals("invalid @Exposed annotation: explicit values are not supported.", exposedBooleanError.message)
+        assertEquals("invalid @Exposed annotation: explicit values are not supported.", exposedNumericError.message)
+        assertEquals("conflicting @Managed/@Exposed annotations on the same column comment.", conflictError.message)
     }
 
     @Test

@@ -23,6 +23,7 @@ data class AggregateSpecialFieldDefaultsConfig(
     val idDefaultStrategy: String = "uuid7",
     val deletedDefaultColumn: String = "",
     val versionDefaultColumn: String = "",
+    val managedDefaultColumns: List<String> = emptyList(),
 )
 
 data class TypeRegistryEntry(

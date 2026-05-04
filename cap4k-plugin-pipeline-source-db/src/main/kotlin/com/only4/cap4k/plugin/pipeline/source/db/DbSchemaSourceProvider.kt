@@ -117,6 +117,8 @@ class DbSchemaSourceProvider : SourceProvider {
                             generatedValueStrategy = annotationMetadata.generatedValueStrategy,
                             deleted = annotationMetadata.deleted,
                             version = annotationMetadata.version,
+                            managed = annotationMetadata.managed,
+                            exposed = annotationMetadata.exposed,
                             insertable = annotationMetadata.insertable,
                             updatable = annotationMetadata.updatable,
                         )

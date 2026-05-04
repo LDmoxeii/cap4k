@@ -2059,6 +2059,9 @@ class PipelinePluginFunctionalTest {
             schemaFile.readText().replaceFirst(
                 "id bigint primary key comment '@GeneratedValue=IDENTITY;',",
                 "id bigint primary key,",
+            ).replaceFirst(
+                "title varchar(128) not null",
+                "created_by varchar(64) not null,\n    title varchar(128) not null",
             )
         )
 
@@ -2072,6 +2075,7 @@ class PipelinePluginFunctionalTest {
                 |            enabled.set(true)
                 |            specialFields {
                 |                idDefaultStrategy.set(" snowflake-long ")
+                |                managedDefaultColumns.set(listOf(" created_by "))
                 |            }
                 |        }
                 """.trimMargin(),
@@ -2087,7 +2091,9 @@ class PipelinePluginFunctionalTest {
         val planJson = projectDir.resolve("build/cap4k/plan.json").readText()
         val planObject = JsonParser.parseString(planJson).asJsonObject
         val defaults = planObject.getAsJsonObject("aggregateSpecialFieldDefaults")
-        val resolvedPolicies = planObject.getAsJsonArray("aggregateSpecialFieldResolvedPolicies")
+        val resolvedPoliciesArray = planObject.getAsJsonArray("aggregateSpecialFieldResolvedPolicies")
+        val firstResolvedPolicy = resolvedPoliciesArray.first().asJsonObject
+        val resolvedPolicies = resolvedPoliciesArray
             .map { it.asJsonObject }
             .associateBy { it.get("tableName").asString }
         val videoPostPolicy = resolvedPolicies.getValue("video_post")
@@ -2098,11 +2104,31 @@ class PipelinePluginFunctionalTest {
         assertEquals("snowflake-long", defaults.get("idDefaultStrategy").asString)
         assertEquals("", defaults.get("deletedDefaultColumn").asString)
         assertEquals("", defaults.get("versionDefaultColumn").asString)
+        assertEquals(listOf("created_by"), defaults.getAsJsonArray("managedDefaultColumns").map { it.asString })
         assertEquals(2, resolvedPolicies.size)
+        assertTrue(firstResolvedPolicy.has("managedFields"))
+        assertTrue(firstResolvedPolicy.getAsJsonArray("managedFields").size() > 0)
+        assertTrue(firstResolvedPolicy.has("writeSurface"))
+        assertTrue(firstResolvedPolicy.getAsJsonObject("writeSurface").has("createAllowedFields"))
+        assertTrue(firstResolvedPolicy.getAsJsonObject("writeSurface").has("updateAllowedFields"))
         assertEquals("DSL_DEFAULT", videoPostPolicy.getAsJsonObject("id").get("source").asString)
         assertEquals("snowflake-long", videoPostPolicy.getAsJsonObject("id").get("strategy").asString)
         assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("deleted").get("source").asString)
         assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("version").get("source").asString)
+        assertEquals(listOf("id", "deleted", "version", "created_by"), videoPostPolicy.getAsJsonArray("managedFields").map {
+            it.asJsonObject.get("columnName").asString
+        })
+        assertEquals(
+            listOf("id", "title"),
+            videoPostPolicy.getAsJsonObject("writeSurface").getAsJsonArray("createAllowedFields").map { it.asString }
+        )
+        assertEquals(
+            listOf("title"),
+            videoPostPolicy.getAsJsonObject("writeSurface").getAsJsonArray("updateAllowedFields").map { it.asString }
+        )
+        assertEquals("READ_ONLY", videoPostPolicy.getAsJsonArray("managedFields").single {
+            it.asJsonObject.get("columnName").asString == "created_by"
+        }.asJsonObject.get("writePolicy").asString)
         assertEquals("DB_EXPLICIT", auditLogPolicy.getAsJsonObject("id").get("source").asString)
         assertEquals("NONE", auditLogPolicy.getAsJsonObject("version").get("source").asString)
     }

@@ -23,6 +23,8 @@ internal object AggregatePersistenceFieldBehaviorInference {
                 val hasExplicitControl =
                     column.generatedValueStrategy != null ||
                         column.version != null ||
+                        column.managed != null ||
+                        column.exposed != null ||
                         column.insertable != null ||
                         column.updatable != null
                 if (!hasExplicitControl) {

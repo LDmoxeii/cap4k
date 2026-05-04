@@ -34,6 +34,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
 import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
+import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverter
@@ -2065,6 +2066,36 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler records explicit managed and exposed persistence controls`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "@AggregateRoot=true;",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot("created_by", "VARCHAR", "String", false, managed = true),
+                                DbColumnSnapshot("display_name", "VARCHAR", "String", false, exposed = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                )
+            )
+        )
+
+        val controls = result.model.aggregatePersistenceFieldControls
+
+        assertEquals(2, controls.size)
+        assertEquals(setOf("createdBy", "displayName"), controls.map { it.fieldName }.toSet())
+        assertEquals(setOf("created_by", "display_name"), controls.map { it.columnName }.toSet())
+    }
+
+    @Test
     fun `assembler records explicit aggregate provider persistence controls`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -2187,6 +2218,30 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `application-side id resolves create-only write policy`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(
+                idDefaultStrategy = "uuid7",
+                deletedDefaultColumn = "",
+                versionDefaultColumn = "",
+                managedDefaultColumns = emptyList(),
+            ),
+            tables = listOf(
+                table(
+                    name = "category",
+                    columns = listOf(column("id", "UUID", "UUID", false, primaryKey = true)),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+
+        assertEquals(SpecialFieldWritePolicy.CREATE_ONLY, policy.id.writePolicy)
+    }
+
+    @Test
     fun `default uuid7 strategy rejects Long aggregate id`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             assembleAggregate(
@@ -2292,6 +2347,119 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `missing managed defaults on entity keep protected id managed and add no extra managed fields`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(
+                idDefaultStrategy = "identity",
+                deletedDefaultColumn = "",
+                versionDefaultColumn = "",
+                managedDefaultColumns = listOf("create_user_id"),
+            ),
+            tables = listOf(
+                table(
+                    name = "audit_log",
+                    columns = listOf(
+                        column(
+                            "id",
+                            "BIGINT",
+                            "Long",
+                            false,
+                            primaryKey = true,
+                            generatedValueDeclared = true,
+                            generatedValueStrategy = "identity",
+                        ),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+
+        assertEquals(listOf("id"), policy.managedFields.map { it.columnName })
+        assertEquals(emptyList<String>(), policy.managedFields.filterNot { it.columnName == "id" }.map { it.columnName })
+    }
+
+    @Test
+    fun `non protected managed column becomes read only and is removed from update write surface`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(
+                idDefaultStrategy = "identity",
+                deletedDefaultColumn = "",
+                versionDefaultColumn = "",
+                managedDefaultColumns = emptyList(),
+            ),
+            tables = listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(
+                        column(
+                            name = "id",
+                            dbType = "BIGINT",
+                            kotlinType = "Long",
+                            nullable = false,
+                            primaryKey = true,
+                            generatedValueDeclared = true,
+                            generatedValueStrategy = "identity",
+                        ),
+                        column("created_by", "VARCHAR", "String", false, managed = true),
+                        column("title", "VARCHAR", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+        val createdByPolicy = policy.managedFields.single { it.columnName == "created_by" }
+
+        assertEquals(SpecialFieldWritePolicy.READ_ONLY, createdByPolicy.writePolicy)
+        assertEquals(listOf("id", "created_by"), policy.managedFields.map { it.columnName })
+        assertEquals(listOf("title"), policy.writeSurface.createAllowedFields)
+        assertEquals(listOf("title"), policy.writeSurface.updateAllowedFields)
+    }
+
+    @Test
+    fun `non protected exposed column overrides dsl managed default and reopens write surface`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(
+                idDefaultStrategy = "identity",
+                deletedDefaultColumn = "",
+                versionDefaultColumn = "",
+                managedDefaultColumns = listOf("created_by"),
+            ),
+            tables = listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(
+                        column(
+                            name = "id",
+                            dbType = "BIGINT",
+                            kotlinType = "Long",
+                            nullable = false,
+                            primaryKey = true,
+                            generatedValueDeclared = true,
+                            generatedValueStrategy = "identity",
+                        ),
+                        column("created_by", "VARCHAR", "String", false, exposed = true),
+                        column("title", "VARCHAR", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+
+        assertEquals(listOf("id"), policy.managedFields.map { it.columnName })
+        assertEquals(listOf("createdBy", "title"), policy.writeSurface.createAllowedFields)
+        assertEquals(listOf("createdBy", "title"), policy.writeSurface.updateAllowedFields)
+    }
+
+    @Test
     fun `explicit deleted marker overrides DSL default column name`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(
@@ -2351,6 +2519,41 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("identity", control.strategy)
         assertEquals(AggregateIdPolicyKind.DATABASE_SIDE, control.kind)
         assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.id.source)
+    }
+
+    @Test
+    fun `exposed on resolved version field fails fast`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(
+                    idDefaultStrategy = "identity",
+                    deletedDefaultColumn = "",
+                    versionDefaultColumn = "",
+                    managedDefaultColumns = emptyList(),
+                ),
+                tables = listOf(
+                    table(
+                        name = "category",
+                        columns = listOf(
+                            column(
+                                "id",
+                                "BIGINT",
+                                "Long",
+                                false,
+                                primaryKey = true,
+                                generatedValueDeclared = true,
+                                generatedValueStrategy = "identity",
+                            ),
+                            column("version", "BIGINT", "Long", false, version = true, exposed = true),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    )
+                )
+            )
+        }
+
+        assertEquals("@Exposed cannot be applied to protected special field: category.version", error.message)
     }
 
     @Test
@@ -4236,6 +4439,7 @@ class DefaultCanonicalAssemblerTest {
         idDefaultStrategy: String,
         deletedDefaultColumn: String = "",
         versionDefaultColumn: String = "",
+        managedDefaultColumns: List<String> = emptyList(),
     ): ProjectConfig = baseAggregateConfig(
         artifactLayout = ArtifactLayoutConfig(
             aggregate = PackageLayout("domain.aggregates"),
@@ -4245,6 +4449,7 @@ class DefaultCanonicalAssemblerTest {
             idDefaultStrategy = idDefaultStrategy,
             deletedDefaultColumn = deletedDefaultColumn,
             versionDefaultColumn = versionDefaultColumn,
+            managedDefaultColumns = managedDefaultColumns,
         )
     )
 
@@ -4276,6 +4481,8 @@ class DefaultCanonicalAssemblerTest {
         generatedValueStrategy: String? = null,
         deleted: Boolean? = null,
         version: Boolean? = null,
+        managed: Boolean? = null,
+        exposed: Boolean? = null,
     ): DbColumnSnapshot = DbColumnSnapshot(
         name = name,
         dbType = dbType,
@@ -4287,6 +4494,8 @@ class DefaultCanonicalAssemblerTest {
         generatedValueStrategy = generatedValueStrategy,
         deleted = deleted,
         version = version,
+        managed = managed,
+        exposed = exposed,
     )
 
     private fun baseConfig(): ProjectConfig {

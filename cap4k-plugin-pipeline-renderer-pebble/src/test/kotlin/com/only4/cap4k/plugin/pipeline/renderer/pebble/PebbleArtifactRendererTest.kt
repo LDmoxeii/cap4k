@@ -191,6 +191,52 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `aggregate entity template keeps explicit column flags for application side id fields`() {
+        val content = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/category/Category.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.category",
+                "typeName" to "Category",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to "category",
+                ),
+                "hasConverterFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasApplicationSideIdFields" to true,
+                "hasVersionFields" to false,
+                "dynamicInsert" to false,
+                "dynamicUpdate" to false,
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "jpaImports" to emptyList<String>(),
+                "imports" to emptyList<String>(),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "type" to "java.util.UUID",
+                        "nullable" to false,
+                        "defaultValue" to "java.util.UUID(0L, 0L)",
+                        "columnName" to "id",
+                        "isId" to true,
+                        "applicationSideIdStrategy" to "uuid7",
+                        "writePolicy" to "CREATE_ONLY",
+                        "isVersion" to false,
+                        "insertable" to true,
+                        "updatable" to false,
+                        "converterClassRef" to null,
+                    )
+                ),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+
+        assertTrue(content.contains("@field:ApplicationSideId(strategy = \"uuid7\")"))
+        assertTrue(content.contains("@Column(name = \"id\", insertable = true, updatable = false)"))
+    }
+
+    @Test
     fun `aggregate behavior template renders checked in scaffold without generated business body`() {
         val content = renderTemplate(
             templateId = "aggregate/behavior.kt.peb",
