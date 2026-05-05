@@ -26,6 +26,9 @@
   - enum：表达固定离散状态，例如 `MediaProcessingStatus`。
   - primitive value：表达单一但有明确业务语义的值，例如 `ContentTitle`、`ExternalMediaTaskId`。
   - composite value object：表达多个字段共同组成的不可分业务值，例如 `ProcessingResultSnapshot`，里面可以包含转码输出、加密结果、失败原因摘要等。
+- 对 `ExternalMediaTaskId` 这类例子，先用一个明确分界：
+  - 如果你关心的是值语义更丰富，例如格式校验、归一化、从不同 payload 统一解析、或多个字段共同决定等值关系，这是 value-object 思路。
+  - 如果你关心的核心只是别把 `ContentId`、`MediaProcessingTaskId`、`ExternalMediaTaskId` 混用，那优先看 [Strong ID](strong-id.zh-CN.md)。
 - 让值对象服务于聚合行为，而不是替代聚合行为。比如 `Content` 负责“是否允许发布”，值对象只负责把输入值保持成合法、可比较、可复用的业务值。
 - callback 主路径和 polling 备用路径都先在 adapter / application 层完成外部协议转换，再统一构造同一种值对象进入 `MediaProcessingTask`。
 - 如果数据库需要 JSON、嵌入字段或列展开，那是持久化层决定如何承载；领域层仍然只关心这个值对象长什么业务样。
@@ -44,4 +47,5 @@
 - 这段值语义是否真的被多个业务动作共享，或者真的需要独立校验与等值规则。
 - `Content` 与 `MediaProcessingTask` 的聚合行为是否仍然清晰，没有被值对象碎片替代。
 - JSON 字段是否只被当作 persistence carrier，而不是领域定义本身。
+- 如果作者把 `ExternalMediaTaskId` 归到值对象，审阅者是否能看到明确的值语义、归一化或等值规则，而不只是 ID 防混淆诉求。
 - callback 主路径与 polling 备用路径进入内部后，是否构造成同一种值表达。

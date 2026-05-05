@@ -18,6 +18,9 @@
 
 - 把 Strong ID 视为类型安全增强，而不是领域建模主角。
 - 优先在容易混淆的边界引入，例如 `ContentId`、`MediaProcessingTaskId`、`ExternalMediaTaskId` 的命令参数、查询参数和导航字段。
+- 对 `ExternalMediaTaskId` 这类例子，先用一个明确分界：
+  - 如果主要问题是防止不同 ID 类型传错、混用、串位，那它属于 Strong ID。
+  - 如果主要问题是这个值本身还有更丰富的语义，例如格式标准化、复合组成、业务等值规则，那它更接近 [Value Object](value-object.zh-CN.md)。
 - 保持 ID 的业务归属清楚：内部聚合 ID 还是内部聚合 ID，外部系统任务号还是外部系统任务号，不要因为都包了一层就混成同类。
 - 当前阶段可以先用薄包装实现类型约束，但后续设计应与 wrapper 脱钩。重点是“类型语义更强”，不是“必须用某种包装手法”。
 - callback 和 polling 进入系统时，都先把外部任务标识规范化成统一的内部表达，再交给 `MediaProcessingTask` 相关命令。
@@ -35,5 +38,6 @@
 - 当前 Strong ID 是否解决了真实的 ID 混用风险，而不是为了“看起来更强类型”。
 - 团队能否清楚区分内部聚合 ID 与外部系统 ID，而不是只看底层存储类型。
 - Strong ID 是否仍然是工程强化，不会盖过聚合、命令和命名这些默认主规则。
+- 如果作者把 `ExternalMediaTaskId` 归到 Strong ID，审阅者是否能确认核心诉求是 ID 防混淆，而不是其实在承载更丰富的值语义。
 - 现有设计是否保留了与 wrapper 脱钩的空间，而不是把某种封装技法写死成框架核心。
 - callback 主路径和 polling 备用路径在 ID 进入内部时，是否遵守同一套类型表达。
