@@ -4,7 +4,7 @@
 
 > This is the normative center of the cap4k authoring model. Other authoring guides are expected to stay consistent with the rules defined here.
 
-The shared teaching project for this guide family is a single bounded-context content publishing and media processing project built around `Content`, `MediaProcessingTask`, and `MediaProcessingCli`.
+The shared teaching project for this guide family is a single bounded-context content publishing and media processing project built around `Content`, `MediaProcessingTask`, and `MediaProcessingCli`. Its default chain is create draft, submit for review, start media processing, receive the processing result, publish when conditions are met, and support retry or rollback when processing fails.
 
 ## Rule Strengths
 
