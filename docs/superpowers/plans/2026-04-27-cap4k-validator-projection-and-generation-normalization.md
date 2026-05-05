@@ -35,7 +35,7 @@ This plan combines three documents:
 
 - `docs/superpowers/specs/2026-04-27-cap4k-analysis-design-projection-normalization-design.md`
 - `docs/superpowers/specs/2026-04-27-cap4k-validator-generation-capability-expansion-design.md`
-- `docs/design/ir-analysis/current-state-analysis.md`
+- `cap4k#25` current-state analysis evidence and restructuring anchor
 
 Non-negotiable constraints:
 

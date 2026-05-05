@@ -8,7 +8,7 @@
 
 ## Background
 
-The existing `docs/design/ddd-core-nullability/analysis.md` documents a full scan of nullability and `java.util.Optional` usage across the project.
+The full-project nullability and `java.util.Optional` scan that originally motivated this slice has been completed and retired as a standalone design-analysis note. This spec records the stabilization decision and should now be treated as the durable reference.
 
 That analysis was created because the original ddd-core APIs were designed before the framework had a stable Kotlin nullability policy.
 It is historical reference material, not the current implementation plan. In current `master`, the contract-first query contract has already removed the old `ListQuery` / `PageQuery` API family and left `Query<PARAM, RESULT>` plus `PageRequest(pageNum, pageSize)`. Those historical query-family inventory entries do not belong to this stabilization slice.

@@ -14,7 +14,7 @@
 
 ### New files
 
-- Create: `docs/design/pipeline-migration/type-reference-audit.md`
+- Historical note: the narrow type-reference audit for this slice was completed and later retired as a standalone design-analysis file once its conclusions were absorbed into the slice plan.
 - Create: `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateDerivedTypeReferences.kt`
 - Create: `cap4k-plugin-pipeline-generator-aggregate/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateDerivedTypeReferencesTest.kt`
 
@@ -26,7 +26,7 @@
 
 ### Responsibilities
 
-- `docs/design/pipeline-migration/type-reference-audit.md`
+- historical type-reference audit note (retired after parity conclusions were captured here)
   - durable audit of old `typeMapping` usage categories with concrete source references
   - records which usages are already covered, convention-derived, or deferred
 
@@ -53,11 +53,11 @@
 ## Task 1: Record the Old `typeMapping` Audit as a Durable Artifact
 
 **Files:**
-- Create: `docs/design/pipeline-migration/type-reference-audit.md`
+- Create a narrow type-reference audit note for this slice
 
 - [ ] **Step 1: Write the audit document with a fixed category structure**
 
-Create `docs/design/pipeline-migration/type-reference-audit.md` with this content:
+Create a narrow type-reference audit note with this content:
 
 ```md
 # Type-Reference Audit
@@ -128,7 +128,7 @@ The first active parity slice should:
 Run:
 
 ```powershell
-Get-Content docs/design/pipeline-migration/type-reference-audit.md
+Get-Content <historical type-reference audit note>
 ```
 
 Expected:
@@ -142,7 +142,7 @@ Expected:
 - [ ] **Step 3: Commit the audit artifact**
 
 ```powershell
-git add docs/design/pipeline-migration/type-reference-audit.md
+git add <historical type-reference audit note>
 git commit -m "docs: add type reference audit"
 ```
 
@@ -492,7 +492,7 @@ git commit -m "feat: surface derived aggregate type references"
 ## Task 5: Full Slice Regression and Final Audit Coherence Check
 
 **Files:**
-- Verify: `docs/design/pipeline-migration/type-reference-audit.md`
+- Verify the recorded type-reference audit conclusions
 - Verify: `cap4k-plugin-pipeline-generator-design/.../DesignTypeResolverTest.kt`
 - Verify: `cap4k-plugin-pipeline-generator-aggregate/...`
 
@@ -535,7 +535,7 @@ Expected:
 Run:
 
 ```powershell
-Get-Content docs/design/pipeline-migration/type-reference-audit.md
+Get-Content <historical type-reference audit note>
 ```
 
 Expected:
@@ -593,6 +593,6 @@ This plan consistently uses:
 - `qEntityFqn`
 - `entityTypeFqn`
 - `qEntityTypeFqn`
-- `type-reference-audit.md`
+- historical type-reference audit note
 
 Do not rename these during implementation unless the entire plan is updated consistently.

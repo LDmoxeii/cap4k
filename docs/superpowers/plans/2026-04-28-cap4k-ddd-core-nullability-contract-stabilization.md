@@ -13,7 +13,7 @@
 ## Current-Master Scope
 
 - Spec: `docs/superpowers/specs/2026-04-27-cap4k-ddd-core-nullability-contract-stabilization-design.md`
-- Historical analysis: `docs/design/ddd-core-nullability/analysis.md`
+- Historical analysis was completed and retired; use the paired spec as the durable reference for this slice.
 - Do not touch `cap4k-plugin-codegen`.
 - Do not mix in `Any` serialization-boundary cleanup.
 - Keep Spring Data repository `Optional` boundaries in request/event/saga/http persistence modules.

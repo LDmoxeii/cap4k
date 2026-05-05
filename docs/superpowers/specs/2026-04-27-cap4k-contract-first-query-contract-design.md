@@ -124,7 +124,7 @@ This spec does not require API `Result<T>` / `ResponseData<T>` wrapper generatio
 
 This spec does not require generating mapper implementations between API payload and application query result. Projects may use custom templates, slots, or hand-written mappers.
 
-This spec does not include the ddd-core Optional-to-nullable cleanup described in `docs/design/ddd-core-nullability/analysis.md`.
+This spec does not include the already-audited ddd-core Optional-to-nullable cleanup covered by the nullability stabilization slice.
 
 This spec does not design sorting. Sorting must not be implicitly included in the first `page` trait.
 

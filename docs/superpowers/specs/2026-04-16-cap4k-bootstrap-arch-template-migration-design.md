@@ -446,8 +446,7 @@ It is there to prove that the old asset can be decomposed into the new contract.
 
 The following documents are useful input for this slice:
 
-- [Pipeline Full-Replacement Gap Analysis](../../design/pipeline-migration/feasibility-analysis.md)
-- [Pipeline Full-Replacement - Exploratory Backlog](../../design/pipeline-migration/issues.md)
+- Historical pipeline full-replacement parity notes under `docs/design/pipeline-migration/` were retired once the repository direction shifted from exploratory parity to explicit legacy-codegen removal.
 
 Their role here is limited:
 
