@@ -91,6 +91,13 @@
 
 这些反例会让系统越来越依赖外部技术细节，最终回调、轮询、Web 入口、数据库结构都会开始抢业务真相。
 
+## 对应示例
+
+- [内容发布与处理示例项目总览](examples/reference-project-overview.zh-CN.md)：先看统一教学项目里有哪些外部入口、内部命令和聚合边界需要被 adapter 接住。
+- [内容草稿到发布主链路](examples/content-draft-to-publish.zh-CN.md)：看 Web / UI 请求如何只翻译成 `CreateContentDraftCmd`、`SubmitContentForReviewCmd`、`ApproveContentCmd`、`PublishContentCmd`，而不直接改 `Content`。
+- [媒体处理 callback 主路径](examples/media-processing-callback.zh-CN.md)：看 callback controller、integration listener、`IntegrationEventSubscriber`、`MediaProcessingCli` 各自该停在哪一层。
+- [媒体处理 polling 备用路径](examples/media-processing-polling.zh-CN.md)：看 polling job 为什么只该承担外部任务查询和内部命令转换，而不该升级成主流程编排器。
+
 ## 最低验证与审计检查点
 
 - 所有外部输入是否都先被转换成内部命令 / 查询，再进入应用层推进。

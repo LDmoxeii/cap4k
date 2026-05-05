@@ -98,6 +98,13 @@
 
 这些反例的共同问题是：把“业务真相”和“技术入口”混在一起，最后谁都说不清哪一层应该负责修复问题。
 
+## 对应示例
+
+- [内容发布与处理示例项目总览](examples/reference-project-overview.zh-CN.md)：先确认统一教学项目里 `Content`、`MediaProcessingTask`、`MediaProcessingCli`、callback 主路径、polling 备用路径各自代表什么。
+- [内容草稿到发布主链路](examples/content-draft-to-publish.zh-CN.md)：看 `CreateContentDraftCmd`、`SubmitContentForReviewCmd`、`ApproveContentCmd`、`PublishContentCmd` 背后哪些状态迁移属于 `Content` 的领域真相。
+- [媒体处理 callback 主路径](examples/media-processing-callback.zh-CN.md)：看 callback 回来以后，哪些事实最终应该由 `MediaProcessingTask` 统一吸收。
+- [媒体处理 polling 备用路径](examples/media-processing-polling.zh-CN.md)：看为什么 polling 进入领域层后也只能变成同一套内部业务语义，而不是另一套聚合规则。
+
 ## 最低验证与审计检查点
 
 - `Content` 与 `MediaProcessingTask` 的状态迁移是否都只能通过聚合行为方法发生，而不是外部直接改字段。

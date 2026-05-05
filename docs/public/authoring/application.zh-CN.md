@@ -100,6 +100,13 @@
 
 这些反例通常会让项目后期越来越难审计，因为写入边界、失败边界和重试边界会一起变模糊。
 
+## 对应示例
+
+- [内容发布与处理示例项目总览](examples/reference-project-overview.zh-CN.md)：先用统一参考项目校准“这条命令链到底在推进哪段主动作”。
+- [内容草稿到发布主链路](examples/content-draft-to-publish.zh-CN.md)：对应 `CreateContentDraftCmd`、`SubmitContentForReviewCmd`、`ApproveContentCmd`、`PublishContentCmd` 的默认应用层推进方式。
+- [媒体处理 callback 主路径](examples/media-processing-callback.zh-CN.md)：对应 `MediaProcessingCli` 发起外部处理后，callback / integration event 如何回到内部命令链。
+- [媒体处理 polling 备用路径](examples/media-processing-polling.zh-CN.md)：对应外部任务 ID、定时 job 和 `SyncMediaProcessingProgressCmd` / 完成失败命令的 fallback 收敛方式。
+
 ## 最低验证与审计检查点
 
 - 一个 handler 是否只推进一个主动作，并且只让一个聚合根进入持久化写边界。
