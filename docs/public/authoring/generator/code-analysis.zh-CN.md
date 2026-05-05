@@ -1,6 +1,6 @@
 # Code Analysis Guide
 
-> analysis 任务族是观察与投影链路。它服务于审阅、可视化和导出，不替代默认的业务源码生成。
+> analysis 任务族是观察与导出链路。它帮助你看清流程和设计结果，不替代默认的业务源码生成。
 
 ## 何时进入 `cap4kAnalysisPlan`
 
@@ -22,7 +22,7 @@
 以下情况才应该跑 `cap4kAnalysisGenerate`：
 
 - `build/cap4k/analysis-plan.json` 已经显示出你真正需要的 `flow` 或 `drawing-board` 产物。
-- 你已经明确这次要导出的是观察结果、可视化材料或分析投影。
+- 你已经明确这次要导出的是观察结果、可视化材料或分析结果。
 - 你接受这些产物默认落到 `layout.flow.outputRoot` 或 `layout.drawingBoard.outputRoot` 指向的位置，而不是业务源码模块。
 
 `cap4kAnalysisGenerate` 的硬边界同样很窄：
@@ -33,10 +33,10 @@
 
 ## flow / drawing-board 的作者视角用途
 
-- `flow`：把当前分析输入投影成更适合审阅、沟通和流程观察的产物。
-- `drawing-board`：把分析输入投影成另一类设计/文档观察面，而不是业务真相面。
+- `flow`：把当前分析输入导出成更适合审阅、沟通和流程观察的材料。
+- `drawing-board`：把分析输入导出成另一类设计 / 文档材料，而不是业务真相面。
 
-作者视角里，这两个 generator 都属于“看清系统”而不是“写出系统”。项目真相仍然回到源码主面、手写主面和 Default Happy Path。
+作者视角里，这两个选项都属于“看清系统”而不是“写出系统”。项目真相仍然回到源码主面、手写主面和 Default Happy Path。
 
 ## analysis 不是默认主生成路径
 

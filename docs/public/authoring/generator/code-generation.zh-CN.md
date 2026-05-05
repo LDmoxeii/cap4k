@@ -54,11 +54,28 @@
 
 作者最常见的读取方式：
 
-- `GENERATED_SOURCE` + `build/generated/cap4k/main/kotlin`：这是 build-owned 生成主面，不要靠手改去维持业务真相。
-- `CHECKED_IN_SOURCE` + `src/main/kotlin`：这是 checked-in 输出根，但仍然要继续结合 `templateId`、`conflictPolicy` 与指南边界判断是否该把项目特有逻辑放进去。
+- `GENERATED_SOURCE` + `build/generated/cap4k/main/kotlin`：这是每次生成都可能覆盖的构建输出目录，不要靠手改去维持业务真相。
+- `CHECKED_IN_SOURCE` + `src/main/kotlin`：这是写进版本库源码目录的计划产物；是否可改取决于它是不是明确留给作者补充的文件，不能只看目录位置。
 - `OUTPUT_ARTIFACT`：这是非源码产物，不要把它当成业务代码入口。
 
-一个关键例子是 aggregate 默认行为骨架：`aggregate/behavior.kt.peb` 会以 checked-in source 形式进入 `src/main/kotlin/.../<AggregateRootName>Behavior.kt`。这类文件是生成链路与后续手写补全的连接面；而大量 aggregate 主体骨架则会通过 `GENERATED_SOURCE` 进入模块本地 `build/generated/cap4k/main/kotlin`。如果你不读 `outputKind` 与 `resolvedOutputRoot`，很容易把“输出根位置”误判成“作者所有权”。
+一个关键例子是 aggregate 默认行为骨架：`aggregate/behavior.kt.peb` 会以 checked-in source 形式进入 `src/main/kotlin/.../<AggregateRootName>Behavior.kt`。这类文件是明确留给作者补业务行为的文件；而大量 aggregate 主体骨架则会通过 `GENERATED_SOURCE` 进入模块本地 `build/generated/cap4k/main/kotlin`。如果你不读 `outputKind` 与 `resolvedOutputRoot`，很容易把“输出根位置”误判成“作者是否可以直接改”。
+
+## `CHECKED_IN_SOURCE` 落到 `src/main/kotlin` 时怎么判断
+
+短答案：不能因为文件落在 `src/main/kotlin`，就默认把它当成普通手写文件。只要它出现在 `plan.json` 里，就先把它当成计划产物，再按下面这张表判断。
+
+| 情况 | 可以直接编辑吗 | 项目特有逻辑应该放哪里 |
+| --- | --- | --- |
+| `plan.json` 中出现，且 `outputKind=GENERATED_SOURCE` | 不可以 | 放到手写文件里，例如 application handler、adapter 转换文件，或文档明确留给作者补充的行为文件 |
+| `plan.json` 中出现，且 `outputKind=CHECKED_IN_SOURCE`，并且该文件族被文档明确说明是作者补充点，例如 `*Behavior.kt` | 可以，但只补这类文件被设计出来要承载的内容 | 只在该文件里补聚合行为；application 编排、查询组装、外部协议转换仍回到手写的 application / adapter 文件 |
+| `plan.json` 中出现，且 `outputKind=CHECKED_IN_SOURCE`，但你看不出它是不是明确留给作者补充的文件 | 先不要改 | 先把项目逻辑放回手写文件；等文档或模板家族明确它是作者补充点后再决定 |
+| 文件不在 `plan.json` 中，只是普通 `src/main/kotlin` 文件 | 可以 | 这是正常手写文件，按层次责任放业务逻辑 |
+
+直接规则：
+
+- Do：先看 `outputKind`、`templateId`，再决定文件是不是作者补充点。
+- Do：把项目特有编排、查询组装、外部协议转换放在手写的 application / adapter 文件里。
+- Don't：因为文件出现在 `src/main/kotlin`，就往计划产物里塞 controller 流程、CLI 调用、查询拼装或跨层逻辑。
 
 什么时候必须读 `plan.json`：
 
@@ -67,11 +84,11 @@
 - 任何会改变 aggregate 族产物归属的排查场景里。
 - 审阅前，你要证明这次生成没有把手写主面和生成主面混淆时。
 
-## 生成主面与手写主面的连接方式
+## 生成文件和手写文件怎么配合
 
 - 先让生成器产出结构骨架，再把项目特有规则补回手写主面。
-- application 的编排、adapter 的协议转换、查询组装，不该靠抢 generator-owned 文件来实现。
-- aggregate 家族里，默认会同时存在 generated-source 产物和 checked-in handoff surface。前者是 build-owned，后者是作者接入行为与补全的连接面。
+- application 的编排、adapter 的协议转换、查询组装，不该靠去改那些会被计划再次生成的文件来实现。
+- aggregate 家族里，默认会同时存在“可能被重复生成覆盖的文件”和“明确留给作者补行为的文件”。前者不要承载项目特有逻辑，后者也只承载它被设计出来要承载的那一小段责任。
 - 当 `plan.json` 里某个文件持续作为计划产物出现时，不要因为它落在 `src/main/kotlin` 就默认把它当成随意手写文件；先回到 [生成 / 手写边界](../generation-boundaries.zh-CN.md) 做判断。
 
 ## 常见生成误用
@@ -87,4 +104,4 @@
 - 跑 `./gradlew cap4kPlan`。
 - 打开 `build/cap4k/plan.json`，至少确认目标 family、`outputKind`、`resolvedOutputRoot` 与 `conflictPolicy`。
 - 跑 `./gradlew cap4kGenerate`。
-- 确认计划中的源码已落到预期根目录，且手写主面没有因为误判所有权而被你塞进 build-owned 产物里。
+- 确认计划中的源码已落到预期根目录，且手写主面没有因为误判所有权而被你塞进会被下次生成覆盖的产物里。
