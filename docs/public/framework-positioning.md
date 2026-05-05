@@ -51,3 +51,9 @@ These are real landing surfaces in the codebase, but they support the framework 
 
 - advanced read/write model split with optional read-only reference context is non-default
 - repository remains write-model only
+
+## From Positioning to Authoring
+
+- positioning explains what cap4k is and is not
+- authoring guides explain how to write projects under that positioning
+- continue with the authoring overview and Default Happy Path

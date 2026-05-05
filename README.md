@@ -43,4 +43,4 @@ cap4k is a simplified DDD tactical framework designed for AI-assisted implementa
 
 - [Getting Started](docs/public/getting-started.md)
 - [Framework Positioning](docs/public/framework-positioning.md)
-- [Repository specs](docs/superpowers/specs/) and [implementation plans](docs/superpowers/plans/) for repository-internal design work
+- [Authoring Guide Overview](docs/public/authoring/index.md)

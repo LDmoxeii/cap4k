@@ -31,3 +31,5 @@
 ## 下一步阅读
 
 - [框架定位](framework-positioning.zh-CN.md)
+- [编写指南总览](authoring/index.zh-CN.md)
+- [Default Happy Path](authoring/default-happy-path.zh-CN.md)

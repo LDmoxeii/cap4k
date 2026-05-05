@@ -31,3 +31,5 @@
 ## Next Reading
 
 - [Framework Positioning](framework-positioning.md)
+- [Authoring Guide Overview](authoring/index.md)
+- [Default Happy Path](authoring/default-happy-path.md)
