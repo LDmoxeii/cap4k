@@ -16,6 +16,10 @@
 | aggregate `factory` / `specification` scaffold | 条件性手写补充点 | 这两类文件虽然是 `CHECKED_IN_SOURCE`，但是否可当作者维护骨架取决于 `templates.conflictPolicy`；`SKIP` 时可作为作者维护 scaffold，`OVERWRITE` / `FAIL` 时仍按计划产物对待 |
 | aggregate `wrapper` | 条件性 checked-in artifact | 它同样跟随 `templates.conflictPolicy`，但当前不是推荐默认写业务逻辑的地方；即使在 `SKIP` 下，也只做最小 wrapper 级调整 |
 | 生成的命令 / 查询契约骨架 | 生成主面 | `CreateContentDraftCmd`、`GetContentDetailQry` 这类契约骨架可生成；手写逻辑放在 handler 或 adapter 侧 |
+| query / client handler family | 条件性计划产物 | `*QryHandler.kt`、`*CliHandler.kt` 在当前默认 layout 下常落在 `adapter.application.*`；它们承担 application 级调度责任，但 ownership 仍要先看 `plan.json` |
+| domain / integration subscriber family | 条件性计划产物 | `*DomainEventSubscriber.kt`、`*IntegrationEventSubscriber.kt` 既可能是作者维护推进点，也可能是 generator 写出的壳；需要先核对 recurring plan item |
+| payload family | 条件性计划产物 | `adapter.portal.api.payload/**` 下的 request / response payload 常由 generator 产出；项目特有协议转换不要直接抢它们当长期手写家 |
+| repository-side generated artifacts | 条件性计划产物 | `adapter.domain.repositories/*Repository.kt`、`*JpaRepositoryAdapter.kt` 一类当前可能由 generator 写出或持续接管；是否可直接编辑要以 `plan.json` 为准 |
 | 应用层流程编排 | 手写主面 | 项目特有的送审、媒体处理推进、发布编排不能期待生成器自动替你完成 |
 | 外部系统协议转换 | 手写主面 | `MediaProcessingCli`、回调 payload、轮询结果转换都属于适配器责任 |
 | 模板覆盖 | `Advanced` | 允许，但会引入升级漂移与额外审计成本，只在默认模板确实不够时进入 |
@@ -27,6 +31,12 @@
 - 再看 `conflictPolicy`：对 checked-in aggregate artifact，`behavior` 当前固定 `SKIP`，而 `factory` / `specification` / `wrapper` 默认跟随 `templates.conflictPolicy`。这一步决定“虽然 checked in，但当前到底能不能按作者维护文件来用”。
 - 再看分析输入目录：像 `domain/build/generated/ksp/main/resources/metadata/...` 这类路径是生成或分析出来的输入资料，不是作者手写主面，也不该被当成业务逻辑落点。
 - 手写主面通常是作者自己维护、需要长期保留人工修改的文件，例如 `application` 下的处理器实现、`adapter/application/...`、`adapter/portal/...`、`adapter/integration/...` 中的边界转换文件。它们不依赖 `plan.json` 直接落产物，重新生成也不应该默默覆盖作者改动。
+- 对当前默认 layout 再加一条现实判断：
+  - `application/commands/**`、`application/queries/**` 更常出现 request-contract family；
+  - `adapter.application.queries/**`、`adapter.application.distributed.clients/**` 更常出现 `*QryHandler.kt`、`*CliHandler.kt` 这类 handler family；
+  - `adapter.domain.repositories/**` 更常出现 repository-side generated artifacts；
+  - `adapter.portal.api.payload/**` 更常出现 payload family。
+  这些路径都不能单靠目录推断为“稳定手写家”，仍要回到 `plan.json` 判断 ownership。
 
 ## 当前 checked-in aggregate 文件合同
 
@@ -43,6 +53,20 @@
 - 如果 checked-in aggregate 文件是 `factory` / `specification`，只有 `SKIP` 时才把它当作者维护 scaffold。
 - 如果 checked-in aggregate 文件是 `wrapper`，即使 `SKIP`，也不要把它当主要业务逻辑入口。
 - 如果 checked-in aggregate 文件当前使用 `OVERWRITE` 或 `FAIL`，不要因为它已经 checked in 就把它当成普通手写家。
+
+## 当前常见 family 的 ownership 判断
+
+| 文件族 | 默认判断 |
+| --- | --- |
+| `application/commands/**/*.kt` 下的 `*Cmd.kt` | 默认先当 request-contract 计划产物，除非 `plan.json` 明确没有持续接管 |
+| `application/queries/**/*.kt` 下的 `*Qry.kt` | 默认先当 request-contract 计划产物 |
+| `adapter.application.queries/**/*.kt` 下的 `*QryHandler.kt` | 当前常见为 handler family 产物；逻辑属于 application 调度，但 ownership 仍先看 `plan.json` |
+| `adapter.application.distributed/clients/**/*.kt` 下的 `*CliHandler.kt` | 当前常见为 client-handler family 产物；不要因为它在 adapter module 就自动当普通手写家 |
+| `application/subscribers/**/*.kt` 下的 `*DomainEventSubscriber.kt` / `*IntegrationEventSubscriber.kt` | 可能是作者推进点，也可能是 generator 壳；先核对是否 recurring |
+| `adapter.portal.api.payload/**/*.kt` | 常见为 payload family 产物；项目特有逻辑优先放在 controller / mapper / collaborator，而不是直接改 payload 骨架 |
+| `adapter.domain.repositories/**/*.kt` 下的 `*Repository.kt` / `*JpaRepositoryAdapter.kt` | 先视为 repository family；是否可改必须看 `plan.json`，不能只因是 Spring Data 落点就当纯手写文件 |
+
+如果某个 family 同时满足“位于 `src/main/kotlin`”和“出现在 `plan.json` recurring items”这两个条件，先把它当计划产物，而不是因为 checked in 就默认长期手写。
 
 ## 当前现实（Current Reality）
 
