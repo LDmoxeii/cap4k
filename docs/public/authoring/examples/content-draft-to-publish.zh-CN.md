@@ -11,6 +11,8 @@
 
 本例聚焦统一教学项目里的内容主链路：作者先创建草稿，再送审，审核通过后满足发布前提，最后发布内容。这里刻意只覆盖 `Content` 自己的生命周期推进，不把媒体处理结果回传入口塞进来混讲；媒体处理入口和回传分别见 [callback 主路径示例](media-processing-callback.zh-CN.md) 与 [polling 备用路径示例](media-processing-polling.zh-CN.md)。
 
+但这条主链路必须把一个交接缝讲清楚：`ApproveContentCmd` 完成后，谁来发出 `StartMediaProcessingCmd`，以及 `MediaProcessingTask` 在哪里被创建 / 启动。否则读者只会看到“审核通过前”和“媒体已处理后”，看不到两条生命周期如何在 application 层衔接。
+
 这一条主链路至少要覆盖四个内部命令：
 
 1. `CreateContentDraftCmd`
@@ -29,6 +31,8 @@
 - 对 adapter 来说，它说明 Web 入口最多只负责把外部请求翻译成这些内部命令，不应该直接改 `Content`。
 
 这也是 Default Happy Path 的典型“单命令单聚合根变更”样例：四个命令都只推进 `Content` 一个聚合根。即使 `PublishContentCmd` 在发布前需要确认媒体处理是否已完成，它也应该通过只读查询、投影或既有事实判断来决定能否继续，而不是顺手把 `MediaProcessingTask` 一起改掉。
+
+与这条规则配套的，是把 `StartMediaProcessingCmd` 明确放在 `Content` 之外：`Content` 被 `ApproveContentCmd` 推进后，只暴露“审核已通过”的事实；application 层再根据这个事实决定创建并启动 `MediaProcessingTask`。这样 `Content` 没有吞掉媒体处理生命周期，`MediaProcessingTask` 也不是从聚合内部偷偷长出来的。
 
 ## Recommended shape
 
@@ -49,6 +53,14 @@ Reviewer action / internal approval
   -> ApproveContentCmd
   -> ApproveContentCommandHandler
   -> Content.approve()
+  -> emit / observe approved fact
+
+application follow-up
+  -> StartMediaProcessingCmd
+  -> StartMediaProcessingCommandHandler
+  -> create or load MediaProcessingTask
+  -> MediaProcessingCli.start(...)
+  -> MediaProcessingTask.recordExternalTaskIdAndStart(...)
 
 Publish request
   -> PublishContentCmd
@@ -62,11 +74,14 @@ Publish request
 - `CreateContentDraftCmd` 负责创建最初的 `Content` 草稿，不顺手送审。
 - `SubmitContentForReviewCmd` 只负责把草稿推进到送审状态，不顺手批准。
 - `ApproveContentCmd` 只负责登记审核通过这件事实，不顺手发布。
+- `StartMediaProcessingCmd` 由 application 层后续流程发出，不是 `Content.approve()` 内部偷偷调用出来的。
+- `StartMediaProcessingCommandHandler` 负责创建 / 启动 `MediaProcessingTask`，并通过 `MediaProcessingCli` 向外部发起处理。
 - `PublishContentCmd` 只在前置条件已满足时推进发布，不顺手修复媒体处理状态。
 
 如果项目需要把“媒体处理已完成”作为发布前提，推荐形状是：
 
-- `MediaProcessingTask` 先在自己的命令链里被推进到完成。
+- `ApproveContentCmd` 之后先进入 `StartMediaProcessingCmd`，由后者创建并启动 `MediaProcessingTask`。
+- `MediaProcessingTask` 再在自己的命令链里被推进到完成。
 - `PublishContentCmd` handler 在 application 层读取“媒体已完成”的只读事实。
 - 条件满足时再调用 `Content.publish()`。
 
@@ -76,6 +91,7 @@ Publish request
 
 - 一个 `UpsertContentCmd` 同时兼做创建草稿、送审、批准、发布，靠分支参数决定走哪一步。
 - `ApproveContentCmd` handler 审核通过后，顺手调用 `PublishContentCmd` 逻辑，把批准和发布绑成一个主动作。
+- `Content.approve()` 内部直接 new `MediaProcessingTask`，或者直接调用 `MediaProcessingCli.start(...)` 发起外部处理。
 - `PublishContentCmd` handler 直接加载 `MediaProcessingTask` 并修改它的状态，试图一次事务里把两个聚合都收尾。
 - controller 直接调用仓储修改 `Content.status`，绕过 `Content` 聚合行为。
 - 为了省一个命令，把“查询详情时发现媒体已完成”写成查询路径里的补写逻辑，然后顺手自动发布内容。
@@ -85,7 +101,9 @@ Publish request
 ## Audit cues
 
 - 看 `CreateContentDraftCmd`、`SubmitContentForReviewCmd`、`ApproveContentCmd`、`PublishContentCmd` 是否是四个语义清楚的主动作，而不是参数分支。
+- 看 `ApproveContentCmd` 之后是否明确还有一个 `StartMediaProcessingCmd` 交接缝，而不是把媒体处理启动逻辑塞回 `Content`。
 - 看每个 handler 是否都只推进 `Content` 一个聚合根进入写边界。
+- 看 `StartMediaProcessingCommandHandler` 是否负责创建 / 启动 `MediaProcessingTask`，而不是让 `PublishContentCmd` 或 `Content.approve()` 接管这件事。
 - 看 `PublishContentCmd` 是否只消费媒体处理的只读事实，而没有顺手回写 `MediaProcessingTask`。
 - 看 `Content` 聚合是否自己掌握草稿、送审、批准、发布的状态迁移规则。
 - 看媒体处理回传入口是否被另放在 [callback 主路径示例](media-processing-callback.zh-CN.md) 和 [polling 备用路径示例](media-processing-polling.zh-CN.md) 中讲清，而不是混进这条主链路里。
