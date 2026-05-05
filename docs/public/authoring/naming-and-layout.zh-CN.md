@@ -1,5 +1,10 @@
 # 命名与目录规范
 
+## 何时阅读本页
+
+- 当你已经接受 Default Happy Path，需要把规则落成目录、文件名和角色归位时，读本页。
+- 如果还没有先确认默认规则，请先回到 [Default Happy Path](default-happy-path.zh-CN.md)。
+
 本页给 Default Happy Path 提供可执行的落地约束。以下示例继续使用“内容发布与处理示例项目”，因此目录和命名会围绕 `Content`、`MediaProcessingTask`、`MediaProcessingCli` 展开。
 
 ## 推荐目录结构

@@ -4,6 +4,8 @@
 
 > This is the normative center of the cap4k authoring model. Other authoring guides are expected to stay consistent with the rules defined here.
 
+This English page stays shorter than the Chinese page, but it preserves the same final `Must` rule inventory.
+
 The shared teaching project for this guide family is a single bounded-context content publishing and media processing project built around `Content`, `MediaProcessingTask`, and `MediaProcessingCli`. Its default chain is create draft, submit for review, start media processing, receive the processing result, publish when conditions are met, and support retry or rollback when processing fails.
 
 ## Rule Strengths
@@ -29,9 +31,10 @@ Interpretation:
 | aggregate root is the only write-facing surface | `Must` | child entities are not external write targets |
 | domain events are registered and released by aggregate roots | `Must` | event content may describe child change, but event ownership remains at the root |
 | cross-aggregate write-model strong reference is forbidden by default | `Default` | read-only weak reference is advanced only |
-| cli is an anti-corruption boundary rather than process truth | `Must` | external capabilities must cross a boundary first |
 | multiple handlers have no guaranteed order | `Default` | sequencing should be made explicit through staged flow |
 | one main action per surface | `Default` | write surfaces advance one command, read surfaces advance one query |
+| query observation does not back-pollute the write model | `Must` | query paths observe only; they do not repair or contaminate aggregate state |
+| cli is an anti-corruption boundary rather than process truth | `Must` | external capabilities must cross a boundary first |
 
 ## Modeling
 
@@ -55,6 +58,7 @@ Interpretation:
 
 ## Query
 
+- `query observation does not back-pollute the write model` means query handlers remain read-only and do not repair aggregate state.
 - Query surfaces observe `Content` and `MediaProcessingTask`; they do not repair or back-write aggregate state.
 - Read models may project from the write model, but they do not become the write model.
 
