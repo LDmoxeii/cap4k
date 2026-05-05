@@ -54,6 +54,5 @@
 
 ## 从定位到编写
 
-- 定位文档负责说明 cap4k 是什么，以及不是什么
-- 编写指南负责说明在这个定位下如何写项目
-- 下一步进入编写指南总览与 Default Happy Path
+- [编写指南总览](authoring/index.zh-CN.md)
+- [Default Happy Path](authoring/default-happy-path.zh-CN.md)

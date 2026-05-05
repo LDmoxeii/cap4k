@@ -54,6 +54,5 @@ These are real landing surfaces in the codebase, but they support the framework 
 
 ## From Positioning to Authoring
 
-- positioning explains what cap4k is and is not
-- authoring guides explain how to write projects under that positioning
-- continue with the authoring overview and Default Happy Path
+- [Authoring Guide Overview](authoring/index.md)
+- [Default Happy Path](authoring/default-happy-path.md)
