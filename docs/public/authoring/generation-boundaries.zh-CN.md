@@ -12,6 +12,9 @@
 | 产物类型 | 默认归属 | 说明 |
 | --- | --- | --- |
 | 生成的聚合骨架 | 生成主面 | 例如 `Content`、`MediaProcessingTask` 的结构骨架由生成器落出；作者在手写文件中补行为，不直接改写由生成器负责的文件 |
+| aggregate `*Behavior.kt` | 手写补充点 | 这是当前明确留给作者补聚合行为的 checked-in scaffold，计划里固定使用 `ConflictPolicy.SKIP` |
+| aggregate `factory` / `specification` scaffold | 条件性手写补充点 | 这两类文件虽然是 `CHECKED_IN_SOURCE`，但是否可当作者维护骨架取决于 `templates.conflictPolicy`；`SKIP` 时可作为作者维护 scaffold，`OVERWRITE` / `FAIL` 时仍按计划产物对待 |
+| aggregate `wrapper` | 条件性 checked-in artifact | 它同样跟随 `templates.conflictPolicy`，但当前不是推荐默认写业务逻辑的地方；即使在 `SKIP` 下，也只做最小 wrapper 级调整 |
 | 生成的命令 / 查询契约骨架 | 生成主面 | `CreateContentDraftCmd`、`GetContentDetailQry` 这类契约骨架可生成；手写逻辑放在 handler 或 adapter 侧 |
 | 应用层流程编排 | 手写主面 | 项目特有的送审、媒体处理推进、发布编排不能期待生成器自动替你完成 |
 | 外部系统协议转换 | 手写主面 | `MediaProcessingCli`、回调 payload、轮询结果转换都属于适配器责任 |
@@ -21,8 +24,25 @@
 
 - 先看 `build/cap4k/plan.json`：这里会列出本次 `cap4kPlan` 规划出的目标产物与落点路径。凡是被 `cap4kGenerate` 计划写入、重复生成后仍会被覆盖的目标文件，都应先视为生成主面。
 - 再看模块里的实际目录：生成后的契约骨架通常会落在业务模块的 `src/main/kotlin/.../application/commands/...`、`src/main/kotlin/.../application/queries/...`，或聚合对应的目标目录中。路径本身不自动说明“能不能手改”，是否属于生成主面要以 `plan.json` 和重复生成行为为准。
+- 再看 `conflictPolicy`：对 checked-in aggregate artifact，`behavior` 当前固定 `SKIP`，而 `factory` / `specification` / `wrapper` 默认跟随 `templates.conflictPolicy`。这一步决定“虽然 checked in，但当前到底能不能按作者维护文件来用”。
 - 再看分析输入目录：像 `domain/build/generated/ksp/main/resources/metadata/...` 这类路径是生成或分析出来的输入资料，不是作者手写主面，也不该被当成业务逻辑落点。
 - 手写主面通常是作者自己维护、需要长期保留人工修改的文件，例如 `application` 下的处理器实现、`adapter/application/...`、`adapter/portal/...`、`adapter/integration/...` 中的边界转换文件。它们不依赖 `plan.json` 直接落产物，重新生成也不应该默默覆盖作者改动。
+
+## 当前 checked-in aggregate 文件合同
+
+| 文件族 | 当前合同 |
+| --- | --- |
+| `aggregate/behavior.kt.peb` | 明确的作者维护补充点；固定 `ConflictPolicy.SKIP`，生成后可以在文件内补聚合行为 |
+| `aggregate/factory.kt.peb` | 可选构造骨架；只有在 `templates.conflictPolicy=SKIP` 时，才把它当作者维护 scaffold |
+| `aggregate/specification.kt.peb` | 可选规格骨架；只有在 `templates.conflictPolicy=SKIP` 时，才把它当作者维护 scaffold |
+| `aggregate/wrapper.kt.peb` | 可选薄包装 artifact；同样跟随 `templates.conflictPolicy`，且当前不是推荐默认业务逻辑入口 |
+
+直接判断：
+
+- 如果 checked-in aggregate 文件是 `behavior`，可以把它当作者维护文件。
+- 如果 checked-in aggregate 文件是 `factory` / `specification`，只有 `SKIP` 时才把它当作者维护 scaffold。
+- 如果 checked-in aggregate 文件是 `wrapper`，即使 `SKIP`，也不要把它当主要业务逻辑入口。
+- 如果 checked-in aggregate 文件当前使用 `OVERWRITE` 或 `FAIL`，不要因为它已经 checked in 就把它当成普通手写家。
 
 ## 当前现实（Current Reality）
 
