@@ -21,7 +21,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 
-@SpringBootApplication(scanBasePackageClasses = [StarterEventScanMarker::class])
+@SpringBootApplication(
+    scanBasePackageClasses = [
+        StarterJpaTestApplication::class,
+        StarterEventScanMarker::class,
+    ]
+)
 @EntityScan(
     basePackageClasses = [
         Event::class,
