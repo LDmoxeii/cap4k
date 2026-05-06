@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.codeanalysis.compiler
 
 import com.tschuchort.compiletesting.SourceFile
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
 
@@ -56,9 +57,52 @@ class AnalysisOutputCorrectnessTest {
         )
     }
 
+    @Test
+    fun `supported stable defaults survive request projection into design-elements json`() {
+        val json = compileDesignElements(
+            stableDefaultSources(
+                channelsType = "Set<CaptchaChannel>",
+                channelsDefaultExpression = "emptySet()",
+            ),
+        )
+
+        val issueCaptcha = findDesignElement(json, tag = "command", name = "IssueCaptcha")
+
+        assertTrue(issueCaptcha.contains(""""name":"note","type":"String","nullable":true,"defaultValue":"null""""))
+        assertTrue(issueCaptcha.contains(""""name":"title","type":"String","nullable":false,"defaultValue":"\"inline\"""""))
+        assertTrue(issueCaptcha.contains(""""name":"attempt","type":"Int","nullable":false,"defaultValue":"1""""))
+        assertTrue(issueCaptcha.contains(""""name":"enabled","type":"Boolean","nullable":false,"defaultValue":"true""""))
+        assertTrue(issueCaptcha.contains(""""name":"tags","type":"List<String>","nullable":false,"defaultValue":"emptyList()""""))
+        assertTrue(issueCaptcha.contains(""""name":"channels","type":"Set<CaptchaChannel>","nullable":false,"defaultValue":"emptySet()""""))
+        assertTrue(issueCaptcha.contains(""""name":"metadata","type":"Map<String,String>","nullable":false,"defaultValue":"emptyMap()""""))
+        assertTrue(issueCaptcha.contains(""""name":"preferredChannel","type":"CaptchaChannel","nullable":false,"defaultValue":"CaptchaChannel.INLINE""""))
+        assertTrue(issueCaptcha.contains(""""name":"policy","type":"CaptchaPolicy","nullable":false,"defaultValue":"CaptchaPolicy""""))
+    }
+
+    @Test
+    fun `unsupported default expressions fail request projection explicitly`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            stableDefaultSources(
+                channelsType = "List<String>",
+                channelsDefaultExpression = """listOf("inline")""",
+            ),
+        )
+
+        assertTrue(
+            messages.contains(
+                "unsupported defaultValue expression for command IssueCaptcha request field channels",
+            ),
+        )
+    }
+
     private fun compileRelationships(sources: List<SourceFile>): List<RelationshipView> {
         val outputDir = compileWithCap4kPlugin(sources)
         return readRelationships(outputDir)
+    }
+
+    private fun compileDesignElements(sources: List<SourceFile>): String {
+        val outputDir = compileWithCap4kPlugin(sources)
+        return outputDir.resolve("design-elements.json").toFile().readText()
     }
 
     private fun readRelationships(outputDir: Path): List<RelationshipView> {
@@ -83,6 +127,49 @@ class AnalysisOutputCorrectnessTest {
         return raw
             .replace("\\\"", "\"")
             .replace("\\\\", "\\")
+    }
+
+    private fun findDesignElement(json: String, tag: String, name: String): String {
+        val objects = mutableListOf<String>()
+        var depth = 0
+        var start = -1
+        var inString = false
+        var escape = false
+        json.forEachIndexed { index, ch ->
+            if (escape) {
+                escape = false
+                return@forEachIndexed
+            }
+            if (ch == '\\' && inString) {
+                escape = true
+                return@forEachIndexed
+            }
+            if (ch == '"') {
+                inString = !inString
+                return@forEachIndexed
+            }
+            if (inString) {
+                return@forEachIndexed
+            }
+            when (ch) {
+                '{' -> {
+                    if (depth == 0) {
+                        start = index
+                    }
+                    depth++
+                }
+                '}' -> {
+                    depth--
+                    if (depth == 0 && start >= 0) {
+                        objects += json.substring(start, index + 1)
+                        start = -1
+                    }
+                }
+            }
+        }
+        return objects.firstOrNull {
+            it.contains(""""tag":"$tag"""") && it.contains(""""name":"$name"""")
+        } ?: error("Missing design element tag=$tag name=$name")
     }
 
     private fun assertMethodEdgeShape(
@@ -251,6 +338,53 @@ class AnalysisOutputCorrectnessTest {
         }
 
         return sources
+    }
+
+    private fun stableDefaultSources(
+        channelsType: String,
+        channelsDefaultExpression: String,
+    ): List<SourceFile> {
+        return listOf(
+            SourceFile.kotlin(
+                "RequestParam.kt",
+                """
+                    package com.only4.cap4k.ddd.core.application
+
+                    interface RequestParam<RESULT : Any>
+                """.trimIndent(),
+            ),
+            SourceFile.kotlin(
+                "IssueCaptchaCmd.kt",
+                """
+                    package demo.application.commands.auth
+
+                    import com.only4.cap4k.ddd.core.application.RequestParam
+
+                    enum class CaptchaChannel {
+                        INLINE,
+                        SMS,
+                    }
+
+                    object CaptchaPolicy
+
+                    object IssueCaptchaCmd {
+                        data class Request(
+                            val note: String? = null,
+                            val title: String = "inline",
+                            val attempt: Int = 1,
+                            val enabled: Boolean = true,
+                            val tags: List<String> = emptyList(),
+                            val channels: $channelsType = $channelsDefaultExpression,
+                            val metadata: Map<String, String> = emptyMap(),
+                            val preferredChannel: CaptchaChannel = CaptchaChannel.INLINE,
+                            val policy: CaptchaPolicy = CaptchaPolicy,
+                        ) : RequestParam<Response>
+
+                        data class Response(val issued: Boolean)
+                    }
+                """.trimIndent(),
+            ),
+        )
     }
 
     private data class RelationshipView(

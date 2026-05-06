@@ -13,9 +13,16 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
+import org.jetbrains.kotlin.ir.expressions.IrBlock
+import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrComposite
 import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetEnumValue
+import org.jetbrains.kotlin.ir.expressions.IrGetField
+import org.jetbrains.kotlin.ir.expressions.IrGetObjectValue
+import org.jetbrains.kotlin.ir.expressions.IrTypeOperatorCall
 import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
@@ -92,8 +99,12 @@ class DesignElementCollector(
         val nestedTypes = collectNestedTypes(declaration)
         val responseClass = findNestedClass(declaration, "Response")
         rejectLegacyItemResponse(declaration, responseClass, kind.tag, name)
-        val requestFields = requestClass?.let { collectFields(it, nestedTypes) }.orEmpty()
-        val responseFields = responseClass?.let { collectFields(it, nestedTypes) }.orEmpty()
+        val requestFields = requestClass?.let {
+            collectFields(it, nestedTypes, DefaultValueContext("${kind.tag} $name request field"))
+        }.orEmpty()
+        val responseFields = responseClass?.let {
+            collectFields(it, nestedTypes, DefaultValueContext("${kind.tag} $name response field"))
+        }.orEmpty()
         val aggregates = requestAggregates[requestFqcn].orEmpty()
         addElement(
             DesignElement(
@@ -118,8 +129,12 @@ class DesignElementCollector(
         val requestClass = findNestedClass(declaration, "Request")
         val responseClass = findNestedClass(declaration, "Response")
         rejectLegacyItemResponse(declaration, responseClass, "api_payload", name)
-        val requestFields = requestClass?.let { collectFields(it, nestedTypes) }.orEmpty()
-        val responseFields = responseClass?.let { collectFields(it, nestedTypes) }.orEmpty()
+        val requestFields = requestClass?.let {
+            collectFields(it, nestedTypes, DefaultValueContext("api_payload $name request field"))
+        }.orEmpty()
+        val responseFields = responseClass?.let {
+            collectFields(it, nestedTypes, DefaultValueContext("api_payload $name response field"))
+        }.orEmpty()
         val aggInfo = declaration.readAggregateInfo(aggregateAnnFq)
         val aggregates = if (aggInfo?.type == AGG_TYPE_FACTORY_PAYLOAD) listOf(aggInfo.aggregateName) else emptyList()
         addElement(
@@ -145,7 +160,11 @@ class DesignElementCollector(
         val aggregates = entity?.let { listOf(it) }.orEmpty()
         val persist = declaration.readDomainEventPersist(domainEventAnnFq)
         val nestedTypes = collectNestedTypes(declaration)
-        val requestFields = collectFields(declaration, nestedTypes)
+        val requestFields = collectFields(
+            declaration,
+            nestedTypes,
+            DefaultValueContext("domain_event ${declaration.name.asString()} request field"),
+        )
         addElement(
             DesignElement(
                 tag = "domain_event",
@@ -179,7 +198,7 @@ class DesignElementCollector(
         if ("CLASS" in targets && valueType != "Any") {
             return
         }
-        val parameters = collectValidatorParameters(declaration) ?: return
+        val parameters = collectValidatorParameters(declaration, declaration.name.asString()) ?: return
         addElement(
             DesignElement(
                 tag = "validator",
@@ -194,9 +213,13 @@ class DesignElementCollector(
         )
     }
 
-    private fun collectFields(rootClass: IrClass, nestedTypes: Map<String, IrClass>): List<DesignField> {
+    private fun collectFields(
+        rootClass: IrClass,
+        nestedTypes: Map<String, IrClass>,
+        defaultValueContext: DefaultValueContext,
+    ): List<DesignField> {
         val visited = mutableSetOf<String>()
-        return collectFieldsRecursive(rootClass, nestedTypes, null, visited)
+        return collectFieldsRecursive(rootClass, nestedTypes, null, visited, defaultValueContext)
     }
 
     private fun requestTraitsFor(tag: String, requestClass: IrClass?): List<String> {
@@ -227,7 +250,8 @@ class DesignElementCollector(
         rootClass: IrClass,
         nestedTypes: Map<String, IrClass>,
         prefix: String?,
-        visited: MutableSet<String>
+        visited: MutableSet<String>,
+        defaultValueContext: DefaultValueContext,
     ): List<DesignField> {
         val fqcn = rootClass.fqNameWhenAvailable?.asString()
         if (fqcn != null && !visited.add(fqcn)) return emptyList()
@@ -238,7 +262,7 @@ class DesignElementCollector(
             val fieldPath = if (prefix.isNullOrEmpty()) name else "$prefix.$name"
             val type = param.type
             val nullable = type.isNullable()
-            val defaultValue = resolveDefaultValue(param)
+            val defaultValue = resolveDefaultValue(param, defaultValueContext.describe(fieldPath), defaultValueContext.renderStyle)
             fields.add(DesignField(fieldPath, typeFormatter.format(type), nullable, defaultValue))
 
             val nestedInfo = resolveNestedType(type, nestedTypes)
@@ -249,7 +273,8 @@ class DesignElementCollector(
                         nestedInfo.nestedClass,
                         nestedTypes,
                         nestedPrefix,
-                        visited
+                        visited,
+                        defaultValueContext,
                     )
                 )
             }
@@ -287,7 +312,7 @@ class DesignElementCollector(
         return typeFormatter.format(valueType).removeSuffix("?")
     }
 
-    private fun collectValidatorParameters(annotationClass: IrClass): List<DesignParameter>? {
+    private fun collectValidatorParameters(annotationClass: IrClass, annotationName: String): List<DesignParameter>? {
         val ctor = annotationClass.primaryConstructor ?: return emptyList()
         val parameters = mutableListOf<DesignParameter>()
         ctor.valueParameters.forEach { parameter ->
@@ -303,7 +328,11 @@ class DesignElementCollector(
                 name = name,
                 type = type,
                 nullable = parameter.type.isNullable(),
-                defaultValue = resolveDefaultValue(parameter),
+                defaultValue = resolveDefaultValue(
+                    parameter,
+                    "validator $annotationName parameter $name",
+                    DefaultValueRenderStyle.LEGACY_RAW_STRING_LITERAL,
+                ),
             )
         }
         return parameters
@@ -320,14 +349,158 @@ class DesignElementCollector(
         val ctor = annotationClass.primaryConstructor ?: return null
         return ctor.valueParameters
             .firstOrNull { it.name.asString() == parameterName }
-            ?.let { resolveDefaultValue(it) }
+            ?.let {
+                resolveDefaultValue(
+                    it,
+                    "validator ${annotationClass.name.asString()} parameter $parameterName",
+                    DefaultValueRenderStyle.LEGACY_RAW_STRING_LITERAL,
+                )
+            }
     }
 
-    private fun resolveDefaultValue(param: IrValueParameter): String? {
+    private fun resolveDefaultValue(
+        param: IrValueParameter,
+        context: String,
+        renderStyle: DefaultValueRenderStyle,
+    ): String? {
         val expr = param.defaultValue?.expression ?: return null
-        val const = expr as? IrConst ?: return null
-        val value = const.value ?: return null
-        return value.toString()
+        val rendered = renderDefaultValueExpression(expr.unwrapDefaultValueExpression(), renderStyle)
+        if (rendered != null) {
+            return rendered
+        }
+        throw IllegalArgumentException("unsupported defaultValue expression for $context")
+    }
+
+    private fun renderDefaultValueExpression(
+        expression: IrExpression,
+        renderStyle: DefaultValueRenderStyle,
+    ): String? {
+        return when (expression) {
+            is IrConst -> renderConstDefaultValue(expression, renderStyle)
+            is IrCall -> renderEmptyCollectionCall(expression) ?: renderStablePropertyGetterCall(expression, renderStyle)
+            is IrGetEnumValue -> {
+                val ownerClass = expression.symbol.owner.parentAsClass
+                "${renderClassReference(ownerClass)}.${expression.symbol.owner.name.asString()}"
+            }
+            is IrGetObjectValue -> renderClassReference(expression.symbol.owner)
+            is IrGetField -> renderStableFieldReference(expression, renderStyle)
+            else -> null
+        }
+    }
+
+    private fun renderConstDefaultValue(
+        expression: IrConst,
+        renderStyle: DefaultValueRenderStyle,
+    ): String? {
+        val value = expression.value
+        return when (value) {
+            null -> "null"
+            is String -> when (renderStyle) {
+                DefaultValueRenderStyle.KOTLIN_READY -> renderStringLiteral(value)
+                DefaultValueRenderStyle.LEGACY_RAW_STRING_LITERAL -> value
+            }
+            is Boolean,
+            is Byte,
+            is Short,
+            is Int -> value.toString()
+            is Long -> "${value}L"
+            is Float -> "${value}F"
+            is Double -> value.toString()
+            else -> null
+        }
+    }
+
+    private fun renderEmptyCollectionCall(expression: IrCall): String? {
+        if (expression.dispatchReceiver != null || expression.extensionReceiver != null) {
+            return null
+        }
+        if (expression.symbol.owner.valueParameters.isNotEmpty()) {
+            return null
+        }
+        return when (expression.symbol.owner.fqNameWhenAvailable?.asString()) {
+            "kotlin.collections.emptyList" -> "emptyList()"
+            "kotlin.collections.emptySet" -> "emptySet()"
+            "kotlin.collections.emptyMap" -> "emptyMap()"
+            else -> null
+        }
+    }
+
+    private fun renderStablePropertyGetterCall(
+        expression: IrCall,
+        renderStyle: DefaultValueRenderStyle,
+    ): String? {
+        val function = expression.symbol.owner as? org.jetbrains.kotlin.ir.declarations.IrSimpleFunction ?: return null
+        val property = function.correspondingPropertySymbol?.owner ?: return null
+        if (expression.symbol.owner.valueParameters.isNotEmpty()) {
+            return null
+        }
+        val receiver = expression.dispatchReceiver ?: expression.extensionReceiver
+        val renderedReceiver = receiver?.let { renderDefaultValueExpression(it.unwrapDefaultValueExpression(), renderStyle) }
+            ?: renderClassReference(property.parent as? IrClass)
+            ?: return null
+        return "$renderedReceiver.${property.name.asString()}"
+    }
+
+    private fun renderStableFieldReference(
+        expression: IrGetField,
+        renderStyle: DefaultValueRenderStyle,
+    ): String? {
+        val owner = expression.symbol.owner
+        val renderedReceiver = expression.receiver?.let {
+            renderDefaultValueExpression(it.unwrapDefaultValueExpression(), renderStyle)
+        }
+            ?: renderClassReference(owner.parent as? IrClass)
+            ?: return null
+        return "$renderedReceiver.${owner.name.asString()}"
+    }
+
+    private fun renderClassReference(irClass: IrClass?): String? {
+        if (irClass == null) {
+            return null
+        }
+        val names = mutableListOf<String>()
+        var current: IrClass? = irClass
+        while (current != null) {
+            names += current.name.asString()
+            current = current.parent as? IrClass
+        }
+        return names.asReversed().joinToString(".")
+    }
+
+    private fun renderStringLiteral(value: String): String = buildString {
+        append('"')
+        value.forEach { ch ->
+            when (ch) {
+                '\\' -> append("\\\\")
+                '"' -> append("\\\"")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                '\b' -> append("\\b")
+                '\u000C' -> append("\\f")
+                '$' -> append("\\$")
+                else -> {
+                    if (ch.code < 0x20) {
+                        append("\\u").append(ch.code.toString(16).padStart(4, '0'))
+                    } else {
+                        append(ch)
+                    }
+                }
+            }
+        }
+        append('"')
+    }
+
+    private fun IrExpression.unwrapDefaultValueExpression(): IrExpression {
+        var current: IrExpression = this
+        while (true) {
+            current = when (current) {
+                is IrTypeOperatorCall -> current.argument
+                is IrBlock -> current.statements.lastOrNull() as? IrExpression ?: return current
+                is IrComposite -> current.statements.lastOrNull() as? IrExpression ?: return current
+                else -> return current
+            }
+        }
     }
 
     private fun findNestedClass(container: IrClass, name: String): IrClass? {
@@ -466,6 +639,18 @@ class DesignElementCollector(
         val nestedClass: IrClass,
         val isCollection: Boolean
     )
+
+    private data class DefaultValueContext(
+        val owner: String,
+        val renderStyle: DefaultValueRenderStyle = DefaultValueRenderStyle.KOTLIN_READY,
+    ) {
+        fun describe(name: String): String = "$owner $name"
+    }
+
+    private enum class DefaultValueRenderStyle {
+        KOTLIN_READY,
+        LEGACY_RAW_STRING_LITERAL,
+    }
 
     private data class AggregateInfo(
         val aggregateName: String,
