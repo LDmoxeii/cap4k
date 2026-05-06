@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
+import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrComposite
@@ -378,7 +379,7 @@ class DesignElementCollector(
     ): String? {
         return when (expression) {
             is IrConst -> renderConstDefaultValue(expression, renderStyle)
-            is IrCall -> renderEmptyCollectionCall(expression)
+            is IrCall -> renderEmptyCollectionCall(expression) ?: renderStablePropertyGetterCall(expression, renderStyle)
             is IrGetEnumValue -> {
                 val ownerClass = expression.symbol.owner.parentAsClass
                 "${renderClassReference(ownerClass)}.${expression.symbol.owner.name.asString()}"
@@ -426,6 +427,27 @@ class DesignElementCollector(
         }
     }
 
+    private fun renderStablePropertyGetterCall(
+        expression: IrCall,
+        renderStyle: DefaultValueRenderStyle,
+    ): String? {
+        val function = expression.symbol.owner as? IrSimpleFunction ?: return null
+        val property = function.correspondingPropertySymbol?.owner ?: return null
+        if (property.isVar || function.valueParameters.isNotEmpty()) {
+            return null
+        }
+        val backingField = property.backingField ?: return null
+        if (!backingField.isStableConstantField()) {
+            return null
+        }
+        return property.fqNameWhenAvailable?.asString()
+            ?: renderQualifiedFieldReference(
+                owner = backingField,
+                receiver = expression.dispatchReceiver ?: expression.extensionReceiver,
+                renderStyle = renderStyle,
+            )
+    }
+
     private fun renderStableFieldReference(
         expression: IrGetField,
         renderStyle: DefaultValueRenderStyle,
@@ -434,12 +456,7 @@ class DesignElementCollector(
         if (!owner.isStableConstantField()) {
             return null
         }
-        val renderedReceiver = expression.receiver?.let {
-            renderDefaultValueExpression(it.unwrapDefaultValueExpression(), renderStyle)
-        }
-            ?: renderClassReference(owner.parent as? IrClass)
-            ?: return null
-        return "$renderedReceiver.${owner.name.asString()}"
+        return renderQualifiedFieldReference(owner, expression.receiver, renderStyle)
     }
 
     private fun IrField.isStableConstantField(): Boolean {
@@ -468,17 +485,27 @@ class DesignElementCollector(
         }
     }
 
+    private fun renderQualifiedFieldReference(
+        owner: IrField,
+        receiver: IrExpression?,
+        renderStyle: DefaultValueRenderStyle,
+    ): String? {
+        owner.fqNameWhenAvailable?.asString()?.let { return it }
+        val renderedReceiver = receiver?.let {
+            renderDefaultValueExpression(it.unwrapDefaultValueExpression(), renderStyle)
+        }
+        if (renderedReceiver != null) {
+            return "$renderedReceiver.${owner.name.asString()}"
+        }
+        val parentClass = owner.parent as? IrClass ?: return null
+        return "${renderClassReference(parentClass)}.${owner.name.asString()}"
+    }
+
     private fun renderClassReference(irClass: IrClass?): String? {
         if (irClass == null) {
             return null
         }
-        val names = mutableListOf<String>()
-        var current: IrClass? = irClass
-        while (current != null) {
-            names += current.name.asString()
-            current = current.parent as? IrClass
-        }
-        return names.asReversed().joinToString(".")
+        return irClass.fqNameWhenAvailable?.asString()
     }
 
     private fun renderStringLiteral(value: String): String = buildString {

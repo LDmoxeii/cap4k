@@ -75,9 +75,12 @@ class AnalysisOutputCorrectnessTest {
         assertTrue(issueCaptcha.contains(""""name":"tags","type":"List<String>","nullable":false,"defaultValue":"emptyList()""""))
         assertTrue(issueCaptcha.contains(""""name":"channels","type":"Set<CaptchaChannel>","nullable":false,"defaultValue":"emptySet()""""))
         assertTrue(issueCaptcha.contains(""""name":"metadata","type":"Map<String,String>","nullable":false,"defaultValue":"emptyMap()""""))
-        assertTrue(issueCaptcha.contains(""""name":"preferredChannel","type":"CaptchaChannel","nullable":false,"defaultValue":"CaptchaChannel.INLINE""""))
-        assertTrue(issueCaptcha.contains(""""name":"policy","type":"CaptchaPolicy","nullable":false,"defaultValue":"CaptchaPolicy""""))
-        assertTrue(issueCaptcha.contains(""""name":"referenceTitle","type":"String","nullable":false,"defaultValue":"CaptchaStableDefaults.DEFAULT_TITLE""""))
+        assertTrue(issueCaptcha.contains(""""name":"preferredChannel","type":"CaptchaChannel","nullable":false,"defaultValue":"demo.application.commands.auth.CaptchaChannel.INLINE""""))
+        assertTrue(issueCaptcha.contains(""""name":"policy","type":"CaptchaPolicy","nullable":false,"defaultValue":"demo.application.commands.auth.CaptchaPolicy""""))
+        assertTrue(issueCaptcha.contains(""""name":"referenceTitle","type":"String","nullable":false,"defaultValue":"demo.application.shared.defaults.CaptchaStableDefaults.DEFAULT_TITLE""""))
+        assertTrue(issueCaptcha.contains(""""name":"externalPreferredChannel","type":"SharedCaptchaChannel","nullable":false,"defaultValue":"demo.application.shared.defaults.SharedCaptchaChannel.IMAGE""""))
+        assertTrue(issueCaptcha.contains(""""name":"externalPolicy","type":"SharedCaptchaPolicy","nullable":false,"defaultValue":"demo.application.shared.defaults.SharedCaptchaPolicy""""))
+        assertTrue(issueCaptcha.contains(""""name":"topLevelReferenceTitle","type":"String","nullable":false,"defaultValue":"demo.application.shared.defaults.TOP_LEVEL_DEFAULT_TITLE""""))
     }
 
     @Test
@@ -375,7 +378,7 @@ class AnalysisOutputCorrectnessTest {
             SourceFile.java(
                 "CaptchaStableDefaults.java",
                 """
-                    package demo.application.commands.auth;
+                    package demo.application.shared.defaults;
 
                     public final class CaptchaStableDefaults {
                         public static final String DEFAULT_TITLE = new String("const-inline");
@@ -386,11 +389,33 @@ class AnalysisOutputCorrectnessTest {
                 """.trimIndent(),
             ),
             SourceFile.kotlin(
+                "SharedDefaults.kt",
+                """
+                    @file:JvmName("SharedDefaults")
+
+                    package demo.application.shared.defaults
+
+                    enum class SharedCaptchaChannel {
+                        IMAGE,
+                        SMS,
+                    }
+
+                    object SharedCaptchaPolicy
+
+                    @JvmField
+                    val TOP_LEVEL_DEFAULT_TITLE: String = "top-level-inline"
+                """.trimIndent(),
+            ),
+            SourceFile.kotlin(
                 "IssueCaptchaCmd.kt",
                 """
                     package demo.application.commands.auth
 
                     import com.only4.cap4k.ddd.core.application.RequestParam
+                    import demo.application.shared.defaults.CaptchaStableDefaults
+                    import demo.application.shared.defaults.SharedCaptchaChannel
+                    import demo.application.shared.defaults.SharedCaptchaPolicy
+                    import demo.application.shared.defaults.TOP_LEVEL_DEFAULT_TITLE
 
                     enum class CaptchaChannel {
                         INLINE,
@@ -416,6 +441,9 @@ class AnalysisOutputCorrectnessTest {
                             val preferredChannel: CaptchaChannel = CaptchaChannel.INLINE,
                             val policy: CaptchaPolicy = CaptchaPolicy,
                             val referenceTitle: String = $referenceTitleDefaultExpression,
+                            val externalPreferredChannel: SharedCaptchaChannel = SharedCaptchaChannel.IMAGE,
+                            val externalPolicy: SharedCaptchaPolicy = SharedCaptchaPolicy,
+                            val topLevelReferenceTitle: String = TOP_LEVEL_DEFAULT_TITLE,
                         ) : RequestParam<Response>
 
                         data class Response(val issued: Boolean)
