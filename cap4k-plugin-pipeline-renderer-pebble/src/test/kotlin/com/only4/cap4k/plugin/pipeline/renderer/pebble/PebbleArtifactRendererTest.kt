@@ -68,6 +68,56 @@ class PebbleArtifactRendererTest {
         ).single().content
 
     @Test
+    fun `aggregate factory template renders semantic payload metadata and filtered payload fields`() {
+        val content = renderTemplate(
+            templateId = "aggregate/factory.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.video_post.factory",
+                "typeName" to "VideoPostFactory",
+                "payloadTypeName" to "Payload",
+                "payloadMetadataName" to "VideoPostPayload",
+                "payloadWriteSurfaceResolved" to true,
+                "payloadFields" to listOf(
+                    mapOf("name" to "id", "type" to "Long", "nullable" to false),
+                    mapOf("name" to "title", "type" to "String", "nullable" to false),
+                ),
+                "entityName" to "VideoPost",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
+                "aggregateName" to "VideoPost",
+            ),
+        )
+
+        assertTrue(content.contains("""name = "VideoPostPayload""""))
+        assertTrue(content.contains("data class Payload("))
+        assertTrue(content.contains("val id: Long"))
+        assertTrue(content.contains("val title: String"))
+        assertFalse(content.contains("val name: String"))
+    }
+
+    @Test
+    fun `aggregate factory template falls back to legacy payload contract when write surface is unresolved`() {
+        val content = renderTemplate(
+            templateId = "aggregate/factory.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.video_post.factory",
+                "typeName" to "VideoPostFactory",
+                "payloadTypeName" to "Payload",
+                "payloadMetadataName" to "VideoPostPayload",
+                "payloadWriteSurfaceResolved" to false,
+                "payloadFields" to emptyList<Map<String, Any?>>(),
+                "entityName" to "VideoPost",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
+                "aggregateName" to "VideoPost",
+            ),
+        )
+
+        assertTrue(content.contains("""name = "VideoPostPayload""""))
+        assertTrue(content.contains("val name: String"))
+    }
+
+    @Test
     fun `renderer preserves artifact output ownership metadata`() {
         val overrideDir = Files.createTempDirectory("cap4k-renderer-output-kind")
         val overrideAggregateDir = Files.createDirectories(overrideDir.resolve("aggregate"))
@@ -1815,6 +1865,9 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.order.factory",
                         "typeName" to "OrderFactory",
                         "payloadTypeName" to "Payload",
+                        "payloadMetadataName" to "OrderPayload",
+                        "payloadWriteSurfaceResolved" to false,
+                        "payloadFields" to emptyList<Map<String, Any?>>(),
                         "entityName" to "Order",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
                         "aggregateName" to "Order",
@@ -1987,10 +2040,11 @@ class PebbleArtifactRendererTest {
         assertTrue(factoryContent.contains("""aggregate = "Order""""))
         assertTrue(factoryContent.contains("""name = "OrderFactory""""))
         assertTrue(factoryContent.contains("type = Aggregate.TYPE_FACTORY"))
-        assertTrue(factoryContent.contains("""name = "Payload""""))
+        assertTrue(factoryContent.contains("""name = "OrderPayload""""))
         assertTrue(factoryContent.contains("type = Aggregate.TYPE_FACTORY_PAYLOAD"))
         assertTrue(factoryContent.contains("""TODO("Implement aggregate construction")"""))
         assertTrue(factoryContent.contains("data class Payload("))
+        assertTrue(factoryContent.contains("val name: String"))
         assertTrue(specificationContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.Specification"))
         assertTrue(specificationContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.Specification.Result"))
         assertTrue(specificationContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"))

@@ -24,11 +24,17 @@ class {{ typeName }} : AggregateFactory<{{ typeName }}.{{ payloadTypeName }}, {{
 
     @Aggregate(
         aggregate = "{{ aggregateName }}",
-        name = "{{ payloadTypeName }}",
+        name = "{{ payloadMetadataName }}",
         type = Aggregate.TYPE_FACTORY_PAYLOAD,
         description = ""
     )
     data class {{ payloadTypeName }}(
+{% if payloadWriteSurfaceResolved %}
+{% for field in payloadFields %}
+        val {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
+{% endfor %}
+{% else %}
         val name: String
+{% endif %}
     ) : AggregatePayload<{{ entityName }}>
 }
