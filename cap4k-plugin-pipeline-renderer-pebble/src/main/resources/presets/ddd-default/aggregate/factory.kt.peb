@@ -28,13 +28,17 @@ class {{ typeName }} : AggregateFactory<{{ typeName }}.{{ payloadTypeName }}, {{
         type = Aggregate.TYPE_FACTORY_PAYLOAD,
         description = ""
     )
+{% if payloadWriteSurfaceResolved and payloadFields|length == 0 %}
+    class {{ payloadTypeName }} : AggregatePayload<{{ entityName }}>
+{% elseif payloadWriteSurfaceResolved %}
     data class {{ payloadTypeName }}(
-{% if payloadWriteSurfaceResolved %}
 {% for field in payloadFields %}
         val {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
-{% else %}
-        val name: String
-{% endif %}
     ) : AggregatePayload<{{ entityName }}>
+{% else %}
+    data class {{ payloadTypeName }}(
+        val name: String
+    ) : AggregatePayload<{{ entityName }}>
+{% endif %}
 }

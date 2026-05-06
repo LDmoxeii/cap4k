@@ -80,7 +80,7 @@ class PebbleArtifactRendererTest {
                 "payloadWriteSurfaceResolved" to true,
                 "payloadFields" to listOf(
                     mapOf("name" to "id", "type" to "Long", "nullable" to false),
-                    mapOf("name" to "title", "type" to "String", "nullable" to false),
+                    mapOf("name" to "title", "type" to "String", "nullable" to true),
                 ),
                 "entityName" to "VideoPost",
                 "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
@@ -91,7 +91,31 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("""name = "VideoPostPayload""""))
         assertTrue(content.contains("data class Payload("))
         assertTrue(content.contains("val id: Long"))
-        assertTrue(content.contains("val title: String"))
+        assertTrue(content.contains("val title: String?"))
+        assertFalse(content.contains("val name: String"))
+    }
+
+    @Test
+    fun `aggregate factory template renders resolved empty payload as valid empty class`() {
+        val content = renderTemplate(
+            templateId = "aggregate/factory.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.video_post.factory",
+                "typeName" to "VideoPostFactory",
+                "payloadTypeName" to "Payload",
+                "payloadMetadataName" to "VideoPostPayload",
+                "payloadWriteSurfaceResolved" to true,
+                "payloadFields" to emptyList<Map<String, Any?>>(),
+                "entityName" to "VideoPost",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
+                "aggregateName" to "VideoPost",
+            ),
+        )
+
+        assertTrue(content.contains("""name = "VideoPostPayload""""))
+        assertTrue(content.contains("class Payload : AggregatePayload<VideoPost>"))
+        assertFalse(content.contains("data class Payload("))
         assertFalse(content.contains("val name: String"))
     }
 
