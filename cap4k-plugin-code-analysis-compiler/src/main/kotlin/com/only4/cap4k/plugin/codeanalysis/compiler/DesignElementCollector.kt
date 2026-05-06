@@ -473,7 +473,7 @@ class DesignElementCollector(
         if (property?.isVar == true) {
             return false
         }
-        return hasStableConstantInitializer() || isStatic
+        return hasStableConstantInitializer()
     }
 
     private fun IrField.hasStableConstantInitializer(): Boolean {

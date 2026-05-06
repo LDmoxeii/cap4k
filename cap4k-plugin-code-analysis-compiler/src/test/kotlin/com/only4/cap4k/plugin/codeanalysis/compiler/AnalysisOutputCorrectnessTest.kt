@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.createExpressionBody
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
 import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.impl.IrBlockImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrCompositeImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
@@ -96,7 +97,7 @@ class AnalysisOutputCorrectnessTest {
         assertTrue(issueCaptcha.contains(""""name":"metadata","type":"Map<String,String>","nullable":false,"defaultValue":"emptyMap()""""))
         assertTrue(issueCaptcha.contains(""""name":"preferredChannel","type":"CaptchaChannel","nullable":false,"defaultValue":"demo.application.commands.auth.CaptchaChannel.INLINE""""))
         assertTrue(issueCaptcha.contains(""""name":"policy","type":"CaptchaPolicy","nullable":false,"defaultValue":"demo.application.commands.auth.CaptchaPolicy""""))
-        assertTrue(issueCaptcha.contains(""""name":"referenceTitle","type":"String","nullable":false,"defaultValue":"demo.application.shared.defaults.CaptchaStableDefaults.DEFAULT_TITLE""""))
+        assertTrue(issueCaptcha.contains(""""name":"referenceTitle","type":"String","nullable":false,"defaultValue":"demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE""""))
         assertTrue(issueCaptcha.contains(""""name":"externalPreferredChannel","type":"SharedCaptchaChannel","nullable":false,"defaultValue":"demo.application.shared.defaults.SharedCaptchaChannel.IMAGE""""))
         assertTrue(issueCaptcha.contains(""""name":"externalPolicy","type":"SharedCaptchaPolicy","nullable":false,"defaultValue":"demo.application.shared.defaults.SharedCaptchaPolicy""""))
         assertTrue(issueCaptcha.contains(""""name":"topLevelReferenceTitle","type":"String","nullable":false,"defaultValue":"demo.application.shared.defaults.TOP_LEVEL_DEFAULT_TITLE""""))
@@ -235,6 +236,31 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
+    fun `multi statement block defaults fail request projection explicitly`() {
+        val collector = DesignElementCollector(Cap4kOptions(), emptyMap())
+        val param = irValueParameterWithDefault(
+            name = "smuggledBlockTitle",
+            expression = irBlockExpression(
+                irIntConst(1),
+                irStringConst("inline"),
+            ),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            invokeResolveDefaultValue(
+                collector = collector,
+                param = param,
+                context = "command IssueCaptcha request field smuggledBlockTitle",
+            )
+        }
+
+        assertEquals(
+            "unsupported defaultValue expression for command IssueCaptcha request field smuggledBlockTitle",
+            error.message,
+        )
+    }
+
+    @Test
     fun `multi statement composite backed field initializers are not treated as stable constants`() {
         val collector = DesignElementCollector(Cap4kOptions(), emptyMap())
         val field = irFieldWithInitializer(
@@ -245,6 +271,44 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertEquals(false, invokeIsStableConstantField(collector, field))
+    }
+
+    @Test
+    fun `dynamic top level jvm field references fail request projection explicitly`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            stableDefaultSources(
+                channelsType = "Set<CaptchaChannel>",
+                channelsDefaultExpression = "emptySet()",
+                extraRequestFields = """
+                    val dynamicTopLevelFieldTitle: String = DYNAMIC_TOP_LEVEL_DEFAULT_TITLE,
+                """.trimIndent(),
+            ),
+        )
+
+        assertTrue(
+            messages.contains(
+                "unsupported defaultValue expression for command IssueCaptcha request field dynamicTopLevelFieldTitle",
+            ),
+        )
+    }
+
+    @Test
+    fun `dynamic public static final field references fail request projection explicitly`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            stableDefaultSources(
+                channelsType = "Set<CaptchaChannel>",
+                channelsDefaultExpression = "emptySet()",
+                extraRequestFields = """
+                    val dynamicJavaFieldTitle: String = CaptchaStableDefaults.DYNAMIC_TITLE,
+                """.trimIndent(),
+            ),
+        )
+
+        assertTrue(
+            messages.contains(
+                "unsupported defaultValue expression for command IssueCaptcha request field dynamicJavaFieldTitle",
+            ),
+        )
     }
 
     private fun compileRelationships(sources: List<SourceFile>): List<RelationshipView> {
@@ -495,7 +559,7 @@ class AnalysisOutputCorrectnessTest {
     private fun stableDefaultSources(
         channelsType: String,
         channelsDefaultExpression: String,
-        referenceTitleDefaultExpression: String = "CaptchaStableDefaults.DEFAULT_TITLE",
+        referenceTitleDefaultExpression: String = "SHARED_FIELD_DEFAULT_TITLE",
         preferredChannelDefaultExpression: String = "CaptchaChannel.INLINE",
         policyDefaultExpression: String = "CaptchaPolicy",
         privateReferenceTitleDefaultExpression: String = "TOP_LEVEL_GETTER_DEFAULT_TITLE",
@@ -517,6 +581,7 @@ class AnalysisOutputCorrectnessTest {
 
                     public final class CaptchaStableDefaults {
                         public static final String DEFAULT_TITLE = new String("const-inline");
+                        public static final String DYNAMIC_TITLE = new StringBuilder().append("dynamic-java-inline").toString();
 
                         private CaptchaStableDefaults() {
                         }
@@ -540,6 +605,14 @@ class AnalysisOutputCorrectnessTest {
                     @JvmField
                     val TOP_LEVEL_DEFAULT_TITLE: String = "top-level-inline"
 
+                    @JvmField
+                    val SHARED_FIELD_DEFAULT_TITLE: String = "shared-field-inline"
+
+                    @JvmField
+                    val DYNAMIC_TOP_LEVEL_DEFAULT_TITLE: String = buildString {
+                        append("dynamic-top-level-inline")
+                    }
+
                     val TOP_LEVEL_GETTER_DEFAULT_TITLE: String = "top-level-getter-inline"
 
                     object SharedGetterDefaults {
@@ -557,6 +630,8 @@ class AnalysisOutputCorrectnessTest {
                     import demo.application.shared.defaults.SharedCaptchaChannel
                     import demo.application.shared.defaults.SharedCaptchaPolicy
                     import demo.application.shared.defaults.SharedGetterDefaults
+                    import demo.application.shared.defaults.DYNAMIC_TOP_LEVEL_DEFAULT_TITLE
+                    import demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE
                     import demo.application.shared.defaults.TOP_LEVEL_DEFAULT_TITLE
                     import demo.application.shared.defaults.TOP_LEVEL_GETTER_DEFAULT_TITLE
 
@@ -705,6 +780,26 @@ class AnalysisOutputCorrectnessTest {
             null,
             statements.toList(),
         )
+    }
+
+    private fun irBlockExpression(vararg statements: IrExpression): IrExpression {
+        val constructor = IrBlockImpl::class.java.getDeclaredConstructor(
+            Class.forName("org.jetbrains.kotlin.ir.util.IrElementConstructorIndicator"),
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
+            IrType::class.java,
+            Class.forName("org.jetbrains.kotlin.ir.expressions.IrStatementOrigin"),
+        )
+        constructor.isAccessible = true
+        return (constructor.newInstance(
+            null,
+            UNDEFINED_OFFSET,
+            UNDEFINED_OFFSET,
+            dynamicIrType(),
+            null,
+        ) as IrBlockImpl).apply {
+            this.statements += statements
+        }
     }
 
     private fun irStringConst(value: String): IrExpression =
