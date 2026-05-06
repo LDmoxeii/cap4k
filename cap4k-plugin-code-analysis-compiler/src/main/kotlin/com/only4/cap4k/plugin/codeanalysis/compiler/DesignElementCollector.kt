@@ -443,6 +443,9 @@ class DesignElementCollector(
         if (!property.isExternallyUsableStableProperty(function)) {
             return null
         }
+        if (!isSupportedStablePropertyReceiver(expression.dispatchReceiver, expression.extensionReceiver)) {
+            return null
+        }
         val backingField = property.backingField ?: return null
         if (!backingField.hasStableConstantInitializer()) {
             return null
@@ -459,6 +462,9 @@ class DesignElementCollector(
             return null
         }
         if (!owner.isExternallyUsableReference()) {
+            return null
+        }
+        if (!isSupportedStableFieldReceiver(expression.receiver)) {
             return null
         }
         return renderQualifiedFieldReference(owner, expression.receiver, renderStyle)
@@ -511,6 +517,27 @@ class DesignElementCollector(
             return false
         }
         return getter.isExternallyUsableReference()
+    }
+
+    private fun isSupportedStablePropertyReceiver(
+        dispatchReceiver: IrExpression?,
+        extensionReceiver: IrExpression?,
+    ): Boolean {
+        if (extensionReceiver != null) {
+            return false
+        }
+        return isSupportedSingletonReferenceReceiver(dispatchReceiver)
+    }
+
+    private fun isSupportedStableFieldReceiver(receiver: IrExpression?): Boolean {
+        return isSupportedSingletonReferenceReceiver(receiver)
+    }
+
+    private fun isSupportedSingletonReferenceReceiver(receiver: IrExpression?): Boolean {
+        if (receiver == null) {
+            return true
+        }
+        return receiver.unwrapDefaultValueExpression() is IrGetObjectValue
     }
 
     private fun IrDeclarationWithVisibility.isExternallyUsableReference(): Boolean {

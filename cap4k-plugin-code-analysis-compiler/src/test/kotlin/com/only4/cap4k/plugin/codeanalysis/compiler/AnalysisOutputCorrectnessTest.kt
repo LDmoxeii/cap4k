@@ -135,6 +135,23 @@ class AnalysisOutputCorrectnessTest {
         )
     }
 
+    @Test
+    fun `instance backed property references fail request projection explicitly`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            stableDefaultSources(
+                channelsType = "Set<CaptchaChannel>",
+                channelsDefaultExpression = "emptySet()",
+                referenceTitleDefaultExpression = "StableInstanceDefaults().defaultTitle",
+            ),
+        )
+
+        assertTrue(
+            messages.contains(
+                "unsupported defaultValue expression for command IssueCaptcha request field referenceTitle",
+            ),
+        )
+    }
+
     private fun compileRelationships(sources: List<SourceFile>): List<RelationshipView> {
         val outputDir = compileWithCap4kPlugin(sources)
         return readRelationships(outputDir)
@@ -453,6 +470,10 @@ class AnalysisOutputCorrectnessTest {
                     object CaptchaDefaults {
                         val dynamicTitle: String
                             get() = CaptchaStableDefaults.DEFAULT_TITLE.lowercase()
+                    }
+
+                    class StableInstanceDefaults {
+                        val defaultTitle: String = "instance-inline"
                     }
 
                     private object PrivateCaptchaDefaults {
