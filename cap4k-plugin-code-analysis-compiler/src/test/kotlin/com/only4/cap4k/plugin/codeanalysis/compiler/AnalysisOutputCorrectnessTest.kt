@@ -152,6 +152,44 @@ class AnalysisOutputCorrectnessTest {
         )
     }
 
+    @Test
+    fun `private object defaults fail request projection explicitly`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            stableDefaultSources(
+                channelsType = "Set<CaptchaChannel>",
+                channelsDefaultExpression = "emptySet()",
+                extraRequestFields = """
+                    val privatePolicy: Any = PrivateCaptchaPolicy,
+                """.trimIndent(),
+            ),
+        )
+
+        assertTrue(
+            messages.contains(
+                "unsupported defaultValue expression for command IssueCaptcha request field privatePolicy",
+            ),
+        )
+    }
+
+    @Test
+    fun `private enum defaults fail request projection explicitly`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            stableDefaultSources(
+                channelsType = "Set<CaptchaChannel>",
+                channelsDefaultExpression = "emptySet()",
+                extraRequestFields = """
+                    val privatePreferredChannel: Any = PrivateCaptchaChannel.SMS,
+                """.trimIndent(),
+            ),
+        )
+
+        assertTrue(
+            messages.contains(
+                "unsupported defaultValue expression for command IssueCaptcha request field privatePreferredChannel",
+            ),
+        )
+    }
+
     private fun compileRelationships(sources: List<SourceFile>): List<RelationshipView> {
         val outputDir = compileWithCap4kPlugin(sources)
         return readRelationships(outputDir)
@@ -401,7 +439,10 @@ class AnalysisOutputCorrectnessTest {
         channelsType: String,
         channelsDefaultExpression: String,
         referenceTitleDefaultExpression: String = "CaptchaStableDefaults.DEFAULT_TITLE",
+        preferredChannelDefaultExpression: String = "CaptchaChannel.INLINE",
+        policyDefaultExpression: String = "CaptchaPolicy",
         privateReferenceTitleDefaultExpression: String = "TOP_LEVEL_GETTER_DEFAULT_TITLE",
+        extraRequestFields: String = "",
     ): List<SourceFile> {
         return listOf(
             SourceFile.kotlin(
@@ -467,6 +508,11 @@ class AnalysisOutputCorrectnessTest {
                         SMS,
                     }
 
+                    private enum class PrivateCaptchaChannel {
+                        INLINE,
+                        SMS,
+                    }
+
                     object CaptchaDefaults {
                         val dynamicTitle: String
                             get() = CaptchaStableDefaults.DEFAULT_TITLE.lowercase()
@@ -480,6 +526,8 @@ class AnalysisOutputCorrectnessTest {
                         val PRIVATE_OBJECT_DEFAULT_TITLE: String = "private-object-inline"
                     }
 
+                    private object PrivateCaptchaPolicy
+
                     object CaptchaPolicy
 
                     object IssueCaptchaCmd {
@@ -491,8 +539,8 @@ class AnalysisOutputCorrectnessTest {
                             val tags: List<String> = emptyList(),
                             val channels: $channelsType = $channelsDefaultExpression,
                             val metadata: Map<String, String> = emptyMap(),
-                            val preferredChannel: CaptchaChannel = CaptchaChannel.INLINE,
-                            val policy: CaptchaPolicy = CaptchaPolicy,
+                            val preferredChannel: CaptchaChannel = $preferredChannelDefaultExpression,
+                            val policy: CaptchaPolicy = $policyDefaultExpression,
                             val referenceTitle: String = $referenceTitleDefaultExpression,
                             val externalPreferredChannel: SharedCaptchaChannel = SharedCaptchaChannel.IMAGE,
                             val externalPolicy: SharedCaptchaPolicy = SharedCaptchaPolicy,
@@ -500,6 +548,7 @@ class AnalysisOutputCorrectnessTest {
                             val topLevelGetterReferenceTitle: String = TOP_LEVEL_GETTER_DEFAULT_TITLE,
                             val objectGetterReferenceTitle: String = SharedGetterDefaults.OBJECT_DEFAULT_TITLE,
                             val privateReferenceTitle: String = $privateReferenceTitleDefaultExpression,
+                            $extraRequestFields
                         ) : RequestParam<Response>
 
                         data class Response(val issued: Boolean)

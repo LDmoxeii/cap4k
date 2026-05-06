@@ -384,11 +384,8 @@ class DesignElementCollector(
         return when (expression) {
             is IrConst -> renderConstDefaultValue(expression, renderStyle)
             is IrCall -> renderEmptyCollectionCall(expression) ?: renderStablePropertyGetterCall(expression, renderStyle)
-            is IrGetEnumValue -> {
-                val ownerClass = expression.symbol.owner.parentAsClass
-                "${renderClassReference(ownerClass)}.${expression.symbol.owner.name.asString()}"
-            }
-            is IrGetObjectValue -> renderClassReference(expression.symbol.owner)
+            is IrGetEnumValue -> renderStableEnumValue(expression)
+            is IrGetObjectValue -> renderStableObjectValue(expression)
             is IrGetField -> renderStableFieldReference(expression, renderStyle)
             else -> null
         }
@@ -494,6 +491,22 @@ class DesignElementCollector(
             is IrCall -> renderEmptyCollectionCall(expression) != null
             else -> false
         }
+    }
+
+    private fun renderStableEnumValue(expression: IrGetEnumValue): String? {
+        val ownerClass = expression.symbol.owner.parentAsClass
+        if (!ownerClass.isExternallyUsableReference()) {
+            return null
+        }
+        return "${renderClassReference(ownerClass)}.${expression.symbol.owner.name.asString()}"
+    }
+
+    private fun renderStableObjectValue(expression: IrGetObjectValue): String? {
+        val ownerClass = expression.symbol.owner
+        if (!ownerClass.isExternallyUsableReference()) {
+            return null
+        }
+        return renderClassReference(ownerClass)
     }
 
     private fun renderQualifiedFieldReference(
