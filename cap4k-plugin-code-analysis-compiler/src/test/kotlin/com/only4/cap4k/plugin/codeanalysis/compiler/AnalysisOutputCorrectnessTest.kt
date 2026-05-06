@@ -1,9 +1,28 @@
+@file:Suppress("DEPRECATION")
+@file:OptIn(org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi::class)
+
 package com.only4.cap4k.plugin.codeanalysis.compiler
 
 import com.tschuchort.compiletesting.SourceFile
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
+import org.jetbrains.kotlin.ir.declarations.IrField
+import org.jetbrains.kotlin.ir.declarations.IrValueParameter
+import org.jetbrains.kotlin.ir.declarations.createExpressionBody
+import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
+import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.impl.IrCompositeImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
+import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
+import org.jetbrains.kotlin.ir.symbols.impl.IrValueParameterSymbolImpl
+import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.impl.IrDynamicTypeImpl
+import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.types.Variance
 import java.nio.file.Path
 
 class AnalysisOutputCorrectnessTest {
@@ -188,6 +207,44 @@ class AnalysisOutputCorrectnessTest {
                 "unsupported defaultValue expression for command IssueCaptcha request field privatePreferredChannel",
             ),
         )
+    }
+
+    @Test
+    fun `multi statement composite defaults fail request projection explicitly`() {
+        val collector = DesignElementCollector(Cap4kOptions(), emptyMap())
+        val param = irValueParameterWithDefault(
+            name = "smuggledTitle",
+            expression = irCompositeExpression(
+                irIntConst(1),
+                irStringConst("inline"),
+            ),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            invokeResolveDefaultValue(
+                collector = collector,
+                param = param,
+                context = "command IssueCaptcha request field smuggledTitle",
+            )
+        }
+
+        assertEquals(
+            "unsupported defaultValue expression for command IssueCaptcha request field smuggledTitle",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `multi statement composite backed field initializers are not treated as stable constants`() {
+        val collector = DesignElementCollector(Cap4kOptions(), emptyMap())
+        val field = irFieldWithInitializer(
+            irCompositeExpression(
+                irIntConst(1),
+                irStringConst("inline"),
+            ),
+        )
+
+        assertEquals(false, invokeIsStableConstantField(collector, field))
     }
 
     private fun compileRelationships(sources: List<SourceFile>): List<RelationshipView> {
@@ -564,7 +621,104 @@ class AnalysisOutputCorrectnessTest {
         val type: String,
     )
 
+    private fun invokeResolveDefaultValue(
+        collector: DesignElementCollector,
+        param: IrValueParameter,
+        context: String,
+    ): String? {
+        val renderStyleClass = DesignElementCollector::class.java.declaredClasses
+            .single { it.simpleName == "DefaultValueRenderStyle" }
+        val kotlinReady = renderStyleClass.enumConstants.single {
+            (it as Enum<*>).name == "KOTLIN_READY"
+        }
+        val method = DesignElementCollector::class.java.getDeclaredMethod(
+            "resolveDefaultValue",
+            IrValueParameter::class.java,
+            String::class.java,
+            renderStyleClass,
+        )
+        method.isAccessible = true
+        return try {
+            method.invoke(collector, param, context, kotlinReady) as String?
+        } catch (ex: java.lang.reflect.InvocationTargetException) {
+            throw (ex.targetException ?: ex)
+        }
+    }
+
+    private fun invokeIsStableConstantField(
+        collector: DesignElementCollector,
+        field: IrField,
+    ): Boolean {
+        val method = DesignElementCollector::class.java.getDeclaredMethod(
+            "isStableConstantField",
+            IrField::class.java,
+        )
+        method.isAccessible = true
+        return method.invoke(collector, field) as Boolean
+    }
+
+    private fun irValueParameterWithDefault(
+        name: String,
+        expression: IrExpression,
+    ): IrValueParameter {
+        return irFactory().createValueParameter(
+            UNDEFINED_OFFSET,
+            UNDEFINED_OFFSET,
+            IrDeclarationOrigin.DEFINED,
+            Name.identifier(name),
+            dynamicIrType(),
+            false,
+            IrValueParameterSymbolImpl(),
+            null,
+            false,
+            false,
+            false,
+        ).apply {
+            defaultValue = irFactory().createExpressionBody(expression)
+        }
+    }
+
+    private fun irFieldWithInitializer(expression: IrExpression): IrField {
+        return irFactory().createField(
+            UNDEFINED_OFFSET,
+            UNDEFINED_OFFSET,
+            IrDeclarationOrigin.DEFINED,
+            Name.identifier("BLOCK_DEFAULT_TITLE"),
+            DescriptorVisibilities.PUBLIC,
+            IrFieldSymbolImpl(),
+            dynamicIrType(),
+            false,
+            true,
+            false,
+        ).apply {
+            isFinal = true
+            isStatic = false
+            initializer = irFactory().createExpressionBody(expression)
+        }
+    }
+
+    private fun irCompositeExpression(vararg statements: IrExpression): IrExpression {
+        return IrCompositeImpl(
+            UNDEFINED_OFFSET,
+            UNDEFINED_OFFSET,
+            dynamicIrType(),
+            null,
+            statements.toList(),
+        )
+    }
+
+    private fun irStringConst(value: String): IrExpression =
+        IrConstImpl.Companion.string(UNDEFINED_OFFSET, UNDEFINED_OFFSET, dynamicIrType(), value)
+
+    private fun irIntConst(value: Int): IrExpression =
+        IrConstImpl.Companion.int(UNDEFINED_OFFSET, UNDEFINED_OFFSET, dynamicIrType(), value)
+
+    private fun dynamicIrType(): IrType = IrDynamicTypeImpl(emptyList(), Variance.INVARIANT)
+
+    private fun irFactory(): IrFactoryImpl = IrFactoryImpl
+
     companion object {
+        private const val UNDEFINED_OFFSET = -1
         private const val DEFAULT_CATEGORY_BODY = """
             @Aggregate(aggregate = "Category", type = "entity", root = true)
             class Category

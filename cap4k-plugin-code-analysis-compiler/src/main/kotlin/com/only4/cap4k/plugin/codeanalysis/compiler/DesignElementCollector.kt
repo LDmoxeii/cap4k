@@ -19,9 +19,7 @@ import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
-import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrCall
-import org.jetbrains.kotlin.ir.expressions.IrComposite
 import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
@@ -607,8 +605,6 @@ class DesignElementCollector(
         while (true) {
             current = when (current) {
                 is IrTypeOperatorCall -> current.argument
-                is IrBlock -> current.statements.lastOrNull() as? IrExpression ?: return current
-                is IrComposite -> current.statements.lastOrNull() as? IrExpression ?: return current
                 else -> return current
             }
         }
