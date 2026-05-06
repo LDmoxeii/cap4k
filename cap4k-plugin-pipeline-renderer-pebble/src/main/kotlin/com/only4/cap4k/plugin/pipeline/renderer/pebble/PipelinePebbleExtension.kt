@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.renderer.pebble
 
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import io.pebbletemplates.pebble.extension.AbstractExtension
 import io.pebbletemplates.pebble.extension.Filter
 import io.pebbletemplates.pebble.extension.Function
@@ -172,7 +173,7 @@ private class UseFunction(
 }
 
 private class JsonFilter(
-    private val gson: Gson = Gson(),
+    private val gson: Gson = GsonBuilder().disableHtmlEscaping().create(),
 ) : Filter {
     override fun getArgumentNames(): List<String> = emptyList()
 
