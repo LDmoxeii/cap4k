@@ -81,6 +81,8 @@ class AnalysisOutputCorrectnessTest {
         assertTrue(issueCaptcha.contains(""""name":"externalPreferredChannel","type":"SharedCaptchaChannel","nullable":false,"defaultValue":"demo.application.shared.defaults.SharedCaptchaChannel.IMAGE""""))
         assertTrue(issueCaptcha.contains(""""name":"externalPolicy","type":"SharedCaptchaPolicy","nullable":false,"defaultValue":"demo.application.shared.defaults.SharedCaptchaPolicy""""))
         assertTrue(issueCaptcha.contains(""""name":"topLevelReferenceTitle","type":"String","nullable":false,"defaultValue":"demo.application.shared.defaults.TOP_LEVEL_DEFAULT_TITLE""""))
+        assertTrue(issueCaptcha.contains(""""name":"topLevelGetterReferenceTitle","type":"String","nullable":false,"defaultValue":"demo.application.shared.defaults.TOP_LEVEL_GETTER_DEFAULT_TITLE""""))
+        assertTrue(issueCaptcha.contains(""""name":"objectGetterReferenceTitle","type":"String","nullable":false,"defaultValue":"demo.application.shared.defaults.SharedGetterDefaults.OBJECT_DEFAULT_TITLE""""))
     }
 
     @Test
@@ -112,6 +114,23 @@ class AnalysisOutputCorrectnessTest {
         assertTrue(
             messages.contains(
                 "unsupported defaultValue expression for command IssueCaptcha request field referenceTitle",
+            ),
+        )
+    }
+
+    @Test
+    fun `private object backed getter references fail request projection explicitly`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            stableDefaultSources(
+                channelsType = "Set<CaptchaChannel>",
+                channelsDefaultExpression = "emptySet()",
+                privateReferenceTitleDefaultExpression = "PrivateCaptchaDefaults.PRIVATE_OBJECT_DEFAULT_TITLE",
+            ),
+        )
+
+        assertTrue(
+            messages.contains(
+                "unsupported defaultValue expression for command IssueCaptcha request field privateReferenceTitle",
             ),
         )
     }
@@ -365,6 +384,7 @@ class AnalysisOutputCorrectnessTest {
         channelsType: String,
         channelsDefaultExpression: String,
         referenceTitleDefaultExpression: String = "CaptchaStableDefaults.DEFAULT_TITLE",
+        privateReferenceTitleDefaultExpression: String = "TOP_LEVEL_GETTER_DEFAULT_TITLE",
     ): List<SourceFile> {
         return listOf(
             SourceFile.kotlin(
@@ -404,6 +424,12 @@ class AnalysisOutputCorrectnessTest {
 
                     @JvmField
                     val TOP_LEVEL_DEFAULT_TITLE: String = "top-level-inline"
+
+                    val TOP_LEVEL_GETTER_DEFAULT_TITLE: String = "top-level-getter-inline"
+
+                    object SharedGetterDefaults {
+                        val OBJECT_DEFAULT_TITLE: String = "object-getter-inline"
+                    }
                 """.trimIndent(),
             ),
             SourceFile.kotlin(
@@ -415,7 +441,9 @@ class AnalysisOutputCorrectnessTest {
                     import demo.application.shared.defaults.CaptchaStableDefaults
                     import demo.application.shared.defaults.SharedCaptchaChannel
                     import demo.application.shared.defaults.SharedCaptchaPolicy
+                    import demo.application.shared.defaults.SharedGetterDefaults
                     import demo.application.shared.defaults.TOP_LEVEL_DEFAULT_TITLE
+                    import demo.application.shared.defaults.TOP_LEVEL_GETTER_DEFAULT_TITLE
 
                     enum class CaptchaChannel {
                         INLINE,
@@ -425,6 +453,10 @@ class AnalysisOutputCorrectnessTest {
                     object CaptchaDefaults {
                         val dynamicTitle: String
                             get() = CaptchaStableDefaults.DEFAULT_TITLE.lowercase()
+                    }
+
+                    private object PrivateCaptchaDefaults {
+                        val PRIVATE_OBJECT_DEFAULT_TITLE: String = "private-object-inline"
                     }
 
                     object CaptchaPolicy
@@ -444,6 +476,9 @@ class AnalysisOutputCorrectnessTest {
                             val externalPreferredChannel: SharedCaptchaChannel = SharedCaptchaChannel.IMAGE,
                             val externalPolicy: SharedCaptchaPolicy = SharedCaptchaPolicy,
                             val topLevelReferenceTitle: String = TOP_LEVEL_DEFAULT_TITLE,
+                            val topLevelGetterReferenceTitle: String = TOP_LEVEL_GETTER_DEFAULT_TITLE,
+                            val objectGetterReferenceTitle: String = SharedGetterDefaults.OBJECT_DEFAULT_TITLE,
+                            val privateReferenceTitle: String = $privateReferenceTitleDefaultExpression,
                         ) : RequestParam<Response>
 
                         data class Response(val issued: Boolean)

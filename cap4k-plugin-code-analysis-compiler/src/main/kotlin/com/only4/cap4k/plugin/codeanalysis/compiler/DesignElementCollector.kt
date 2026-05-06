@@ -9,10 +9,14 @@ package com.only4.cap4k.plugin.codeanalysis.compiler
 import com.only4.cap4k.plugin.codeanalysis.core.model.DesignElement
 import com.only4.cap4k.plugin.codeanalysis.core.model.DesignField
 import com.only4.cap4k.plugin.codeanalysis.core.model.DesignParameter
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationParent
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithVisibility
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrBlock
@@ -436,16 +440,14 @@ class DesignElementCollector(
         if (property.isVar || function.valueParameters.isNotEmpty()) {
             return null
         }
+        if (!property.isExternallyUsableStableProperty(function)) {
+            return null
+        }
         val backingField = property.backingField ?: return null
-        if (!backingField.isStableConstantField()) {
+        if (!backingField.hasStableConstantInitializer()) {
             return null
         }
         return property.fqNameWhenAvailable?.asString()
-            ?: renderQualifiedFieldReference(
-                owner = backingField,
-                receiver = expression.dispatchReceiver ?: expression.extensionReceiver,
-                renderStyle = renderStyle,
-            )
     }
 
     private fun renderStableFieldReference(
@@ -454,6 +456,9 @@ class DesignElementCollector(
     ): String? {
         val owner = expression.symbol.owner
         if (!owner.isStableConstantField()) {
+            return null
+        }
+        if (!owner.isExternallyUsableReference()) {
             return null
         }
         return renderQualifiedFieldReference(owner, expression.receiver, renderStyle)
@@ -467,12 +472,12 @@ class DesignElementCollector(
         if (property?.isVar == true) {
             return false
         }
-        val initializer = initializer?.expression?.unwrapDefaultValueExpression()
-        return if (initializer != null) {
-            renderStableConstantInitializer(initializer)
-        } else {
-            isStatic
-        }
+        return hasStableConstantInitializer() || isStatic
+    }
+
+    private fun IrField.hasStableConstantInitializer(): Boolean {
+        val initializer = initializer?.expression?.unwrapDefaultValueExpression() ?: return false
+        return renderStableConstantInitializer(initializer)
     }
 
     private fun renderStableConstantInitializer(expression: IrExpression): Boolean {
@@ -499,6 +504,31 @@ class DesignElementCollector(
         }
         val parentClass = owner.parent as? IrClass ?: return null
         return "${renderClassReference(parentClass)}.${owner.name.asString()}"
+    }
+
+    private fun IrProperty.isExternallyUsableStableProperty(getter: IrSimpleFunction): Boolean {
+        if (!isExternallyUsableReference()) {
+            return false
+        }
+        return getter.isExternallyUsableReference()
+    }
+
+    private fun IrDeclarationWithVisibility.isExternallyUsableReference(): Boolean {
+        if (visibility != DescriptorVisibilities.PUBLIC) {
+            return false
+        }
+        return parentChainIsExternallyUsable(parent)
+    }
+
+    private fun parentChainIsExternallyUsable(parent: IrDeclarationParent?): Boolean {
+        var current = parent
+        while (current is IrClass) {
+            if (current.visibility != DescriptorVisibilities.PUBLIC) {
+                return false
+            }
+            current = current.parent
+        }
+        return true
     }
 
     private fun renderClassReference(irClass: IrClass?): String? {
