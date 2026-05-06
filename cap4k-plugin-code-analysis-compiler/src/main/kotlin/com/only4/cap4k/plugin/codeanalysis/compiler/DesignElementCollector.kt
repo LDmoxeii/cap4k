@@ -11,6 +11,7 @@ import com.only4.cap4k.plugin.codeanalysis.core.model.DesignField
 import com.only4.cap4k.plugin.codeanalysis.core.model.DesignParameter
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.IrBlock
@@ -377,7 +378,7 @@ class DesignElementCollector(
     ): String? {
         return when (expression) {
             is IrConst -> renderConstDefaultValue(expression, renderStyle)
-            is IrCall -> renderEmptyCollectionCall(expression) ?: renderStablePropertyGetterCall(expression, renderStyle)
+            is IrCall -> renderEmptyCollectionCall(expression)
             is IrGetEnumValue -> {
                 val ownerClass = expression.symbol.owner.parentAsClass
                 "${renderClassReference(ownerClass)}.${expression.symbol.owner.name.asString()}"
@@ -425,33 +426,46 @@ class DesignElementCollector(
         }
     }
 
-    private fun renderStablePropertyGetterCall(
-        expression: IrCall,
-        renderStyle: DefaultValueRenderStyle,
-    ): String? {
-        val function = expression.symbol.owner as? org.jetbrains.kotlin.ir.declarations.IrSimpleFunction ?: return null
-        val property = function.correspondingPropertySymbol?.owner ?: return null
-        if (expression.symbol.owner.valueParameters.isNotEmpty()) {
-            return null
-        }
-        val receiver = expression.dispatchReceiver ?: expression.extensionReceiver
-        val renderedReceiver = receiver?.let { renderDefaultValueExpression(it.unwrapDefaultValueExpression(), renderStyle) }
-            ?: renderClassReference(property.parent as? IrClass)
-            ?: return null
-        return "$renderedReceiver.${property.name.asString()}"
-    }
-
     private fun renderStableFieldReference(
         expression: IrGetField,
         renderStyle: DefaultValueRenderStyle,
     ): String? {
         val owner = expression.symbol.owner
+        if (!owner.isStableConstantField()) {
+            return null
+        }
         val renderedReceiver = expression.receiver?.let {
             renderDefaultValueExpression(it.unwrapDefaultValueExpression(), renderStyle)
         }
             ?: renderClassReference(owner.parent as? IrClass)
             ?: return null
         return "$renderedReceiver.${owner.name.asString()}"
+    }
+
+    private fun IrField.isStableConstantField(): Boolean {
+        if (!isFinal) {
+            return false
+        }
+        val property = correspondingPropertySymbol?.owner
+        if (property?.isVar == true) {
+            return false
+        }
+        val initializer = initializer?.expression?.unwrapDefaultValueExpression()
+        return if (initializer != null) {
+            renderStableConstantInitializer(initializer)
+        } else {
+            isStatic
+        }
+    }
+
+    private fun renderStableConstantInitializer(expression: IrExpression): Boolean {
+        return when (expression) {
+            is IrConst -> renderConstDefaultValue(expression, DefaultValueRenderStyle.KOTLIN_READY) != null
+            is IrGetEnumValue -> true
+            is IrGetObjectValue -> true
+            is IrCall -> renderEmptyCollectionCall(expression) != null
+            else -> false
+        }
     }
 
     private fun renderClassReference(irClass: IrClass?): String? {

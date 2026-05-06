@@ -77,6 +77,7 @@ class AnalysisOutputCorrectnessTest {
         assertTrue(issueCaptcha.contains(""""name":"metadata","type":"Map<String,String>","nullable":false,"defaultValue":"emptyMap()""""))
         assertTrue(issueCaptcha.contains(""""name":"preferredChannel","type":"CaptchaChannel","nullable":false,"defaultValue":"CaptchaChannel.INLINE""""))
         assertTrue(issueCaptcha.contains(""""name":"policy","type":"CaptchaPolicy","nullable":false,"defaultValue":"CaptchaPolicy""""))
+        assertTrue(issueCaptcha.contains(""""name":"referenceTitle","type":"String","nullable":false,"defaultValue":"CaptchaStableDefaults.DEFAULT_TITLE""""))
     }
 
     @Test
@@ -91,6 +92,23 @@ class AnalysisOutputCorrectnessTest {
         assertTrue(
             messages.contains(
                 "unsupported defaultValue expression for command IssueCaptcha request field channels",
+            ),
+        )
+    }
+
+    @Test
+    fun `non constant property references fail request projection explicitly`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            stableDefaultSources(
+                channelsType = "Set<CaptchaChannel>",
+                channelsDefaultExpression = "emptySet()",
+                referenceTitleDefaultExpression = "CaptchaDefaults.dynamicTitle",
+            ),
+        )
+
+        assertTrue(
+            messages.contains(
+                "unsupported defaultValue expression for command IssueCaptcha request field referenceTitle",
             ),
         )
     }
@@ -343,6 +361,7 @@ class AnalysisOutputCorrectnessTest {
     private fun stableDefaultSources(
         channelsType: String,
         channelsDefaultExpression: String,
+        referenceTitleDefaultExpression: String = "CaptchaStableDefaults.DEFAULT_TITLE",
     ): List<SourceFile> {
         return listOf(
             SourceFile.kotlin(
@@ -351,6 +370,19 @@ class AnalysisOutputCorrectnessTest {
                     package com.only4.cap4k.ddd.core.application
 
                     interface RequestParam<RESULT : Any>
+                """.trimIndent(),
+            ),
+            SourceFile.java(
+                "CaptchaStableDefaults.java",
+                """
+                    package demo.application.commands.auth;
+
+                    public final class CaptchaStableDefaults {
+                        public static final String DEFAULT_TITLE = new String("const-inline");
+
+                        private CaptchaStableDefaults() {
+                        }
+                    }
                 """.trimIndent(),
             ),
             SourceFile.kotlin(
@@ -363,6 +395,11 @@ class AnalysisOutputCorrectnessTest {
                     enum class CaptchaChannel {
                         INLINE,
                         SMS,
+                    }
+
+                    object CaptchaDefaults {
+                        val dynamicTitle: String
+                            get() = CaptchaStableDefaults.DEFAULT_TITLE.lowercase()
                     }
 
                     object CaptchaPolicy
@@ -378,6 +415,7 @@ class AnalysisOutputCorrectnessTest {
                             val metadata: Map<String, String> = emptyMap(),
                             val preferredChannel: CaptchaChannel = CaptchaChannel.INLINE,
                             val policy: CaptchaPolicy = CaptchaPolicy,
+                            val referenceTitle: String = $referenceTitleDefaultExpression,
                         ) : RequestParam<Response>
 
                         data class Response(val issued: Boolean)
