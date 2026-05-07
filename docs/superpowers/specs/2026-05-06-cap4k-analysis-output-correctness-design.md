@@ -183,8 +183,16 @@ Not supported in this slice:
 - time-sensitive or runtime-dependent factories such as `now()`
 - inferred or approximated replacements for unsupported expressions
 
-The collector should continue to omit unsupported expressions rather than pretending to preserve them.
-This slice does not add a new diagnostics channel for those omissions.
+Unsupported expressions must not be silently dropped.
+
+For this slice, the narrow compliant behavior is:
+
+- preserve the supported subset exactly
+- fail fast in analysis projection when a declared default expression exists but is outside the supported subset
+- emit a clear compiler-side error that surfaces which projected field or parameter could not be preserved
+
+This slice still does not add a separate diagnostics file format or a new reporting subsystem.
+The explicit surfacing mechanism is compiler-side failure, not silent omission.
 
 ### Decision 4: Preserve The Existing Downstream Contract
 
@@ -226,6 +234,7 @@ Add focused compiler-side regression tests for:
   - `emptySet()`
   - `emptyMap()`
   - enum or constant references
+- unsupported defaults fail analysis projection with an explicit error message rather than disappearing from output
 
 ### Renderer Regression Coverage
 
@@ -261,11 +270,13 @@ This slice does not need a new large functional fixture if module-level regressi
 
 - supported stable defaults survive analysis projection
 - those preserved defaults still appear in drawing-board JSON output
+- unsupported defaults fail fast during analysis projection with an explicit compiler-side error
 - regression coverage exists for:
   - `null`
   - scalar literals
   - empty collection factories
   - enum or constant references
+  - at least one unsupported complex expression
 
 ## Verification Boundary
 
@@ -295,7 +306,7 @@ If the collector attempts to serialize arbitrary IR expressions, the slice will 
 Mitigation:
 
 - keep an explicit whitelist
-- leave unsupported expressions unprojected
+- fail fast for unsupported expressions instead of trying to approximate or silently omitting them
 
 ### Risk: Shared JSON Filter Side Effects
 
