@@ -27,9 +27,9 @@ class Cap4kFlowExportPluginTest {
 
         val shape = FlowProjectShape(
             basePackage = "com.acme.demo",
-            adapterModulePath = "sample-adapter",
-            applicationModulePath = "sample-application",
-            domainModulePath = "sample-domain",
+            adapterModulePath = adapter.path,
+            applicationModulePath = application.path,
+            domainModulePath = domain.path,
         )
 
         assertEquals(
