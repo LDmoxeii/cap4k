@@ -35,6 +35,7 @@ import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
+import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -3476,6 +3477,106 @@ class AggregateArtifactPlannerTest {
         assertEquals(false, entityContext.containsKey("entityTypeFqn"))
         assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", repositoryContext["entityTypeFqn"])
         assertEquals(false, repositoryContext["supportQuerydsl"])
+    }
+
+    @Test
+    fun `factory planner exposes filtered payload metadata for resolved write surface`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("title", "String", columnName = "title"),
+                FieldModel("createdBy", "String", columnName = "created_by"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregateSpecialFieldResolvedPolicies = listOf(
+                    AggregateSpecialFieldResolvedPolicy(
+                        entityName = "VideoPost",
+                        entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        tableName = "video_post",
+                        id = ResolvedIdPolicy(
+                            fieldName = "id",
+                            columnName = "id",
+                            strategy = "database-identity",
+                            kind = AggregateIdPolicyKind.DATABASE_SIDE,
+                            source = SpecialFieldSource.NONE,
+                            writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                        ),
+                        deleted = ResolvedMarkerPolicy(
+                            enabled = false,
+                            source = SpecialFieldSource.NONE,
+                        ),
+                        version = ResolvedMarkerPolicy(
+                            enabled = false,
+                            source = SpecialFieldSource.NONE,
+                        ),
+                        writeSurface = ResolvedWriteSurfacePolicy(
+                            createAllowedFields = listOf("id", "title"),
+                            updateAllowedFields = listOf("title"),
+                        ),
+                    ),
+                ),
+            )
+        )
+
+        val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
+
+        assertAll(
+            { assertEquals(true, factoryContext["payloadWriteSurfaceResolved"]) },
+            { assertEquals("Payload", factoryContext["payloadTypeName"]) },
+            { assertEquals("VideoPostPayload", factoryContext["payloadMetadataName"]) },
+            {
+                @Suppress("UNCHECKED_CAST")
+                val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
+                assertEquals(listOf("id", "title"), payloadFields.map { it["name"] })
+            },
+            {
+                @Suppress("UNCHECKED_CAST")
+                val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
+                assertEquals(listOf("Long", "String"), payloadFields.map { it["typeName"] })
+            },
+        )
+    }
+
+    @Test
+    fun `factory planner keeps legacy payload metadata fallback without resolved write surface`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("title", "String", columnName = "title"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            )
+        )
+
+        val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
+
+        assertAll(
+            { assertEquals(false, factoryContext["payloadWriteSurfaceResolved"]) },
+            { assertEquals("VideoPostPayload", factoryContext["payloadMetadataName"]) },
+            { assertEquals(emptyList<Map<String, Any?>>(), factoryContext["payloadFields"]) },
+        )
     }
 
     @Test
