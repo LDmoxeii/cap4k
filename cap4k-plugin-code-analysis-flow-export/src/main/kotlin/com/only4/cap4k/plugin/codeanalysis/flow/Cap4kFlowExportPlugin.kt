@@ -5,7 +5,6 @@ import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.only4.cap4k.plugin.codegen.gradle.extension.CodegenExtension
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
@@ -77,11 +76,11 @@ class Cap4kFlowExportPlugin : Plugin<Project> {
         }
 
         project.afterEvaluate {
-            val codegenExtension = project.extensions.findByType(CodegenExtension::class.java)
-            extension.inputDirs.convention(resolveInputDirs(project, codegenExtension))
-            extension.labelPrefixes.convention(resolveLabelPrefixes(project, codegenExtension))
+            val projectShape = resolvePipelineProjectShape(project)
+            extension.inputDirs.convention(resolveInputDirs(project, projectShape))
+            extension.labelPrefixes.convention(resolveLabelPrefixes(project, projectShape))
 
-            val moduleProjects = resolveModuleProjects(project, codegenExtension)
+            val moduleProjects = resolveModuleProjects(project, projectShape)
             flowClean.configure { task ->
                 moduleProjects.forEach { module ->
                     task.dependsOn(module.tasks.matching { it.name == "clean" })
@@ -95,8 +94,8 @@ class Cap4kFlowExportPlugin : Plugin<Project> {
         }
 
         project.gradle.projectsEvaluated {
-            val codegenExtension = project.extensions.findByType(CodegenExtension::class.java)
-            val moduleProjects = resolveModuleProjects(project, codegenExtension)
+            val projectShape = resolvePipelineProjectShape(project)
+            val moduleProjects = resolveModuleProjects(project, projectShape)
 
             val cleanTasks = moduleProjects.flatMap { module ->
                 module.tasks.matching { it.name == "clean" }
@@ -258,46 +257,43 @@ abstract class Cap4kFlowExportTask : DefaultTask() {
     }
 }
 
-private fun resolveInputDirs(project: Project, codegenExtension: CodegenExtension?): List<Directory> {
-    val modules = resolveModuleProjects(project, codegenExtension)
+internal data class FlowProjectShape(
+    val basePackage: String?,
+    val adapterModulePath: String?,
+    val applicationModulePath: String?,
+    val domainModulePath: String?,
+) {
+    fun modulePaths(): List<String> = listOfNotNull(
+        adapterModulePath?.trim()?.takeIf { it.isNotEmpty() },
+        applicationModulePath?.trim()?.takeIf { it.isNotEmpty() },
+        domainModulePath?.trim()?.takeIf { it.isNotEmpty() },
+    )
+}
+
+internal fun resolveInputDirs(project: Project, projectShape: FlowProjectShape?): List<Directory> {
+    val modules = resolveModuleProjects(project, projectShape)
     return modules.map { module ->
         module.layout.buildDirectory.dir("cap4k-code-analysis").get()
     }
 }
 
-private fun resolveModuleProjects(project: Project, codegenExtension: CodegenExtension?): List<Project> {
+internal fun resolveModuleProjects(project: Project, projectShape: FlowProjectShape?): List<Project> {
     val root = project.rootProject
-    val multiModule = codegenExtension?.multiModule?.orNull ?: true
-    if (!multiModule) return listOf(root)
+    val explicitModules = projectShape
+        ?.modulePaths()
+        .orEmpty()
+        .mapNotNull { modulePath -> resolveModuleProject(root, modulePath) }
+        .distinctBy { candidate -> candidate.path }
 
-    val suffixes = resolveSuffixes(codegenExtension)
-    val expectedNames = listOf(
-        root.name + suffixes.adapter,
-        root.name + suffixes.application,
-        root.name + suffixes.domain
-    )
-
-    val expectedProjects = expectedNames.mapNotNull { name ->
-        root.findProject(":$name")
-    }
-    if (expectedProjects.isNotEmpty()) {
-        return expectedProjects
-    }
-
-    val suffixList = listOf(suffixes.adapter, suffixes.application, suffixes.domain)
-    val fallback = root.subprojects.filter { subproject ->
-        suffixList.any { suffix -> subproject.name.endsWith(suffix) }
-    }
-
-    return if (fallback.isNotEmpty()) fallback.sortedBy { it.name } else listOf(root)
+    return if (explicitModules.isNotEmpty()) explicitModules else listOf(root)
 }
 
-private fun resolveLabelPrefixes(project: Project, codegenExtension: CodegenExtension?): List<String> {
+internal fun resolveLabelPrefixes(project: Project, projectShape: FlowProjectShape?): List<String> {
     val prefixes = mutableListOf<String>()
-    val basePackage = codegenExtension?.basePackage?.orNull?.trim().orEmpty()
-    if (basePackage.isNotEmpty()) {
-        prefixes.add("$basePackage.")
-    }
+    projectShape?.basePackage
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?.let { prefixes.add("$it.") }
     val group = project.group?.toString()?.trim().orEmpty()
     if (group.isNotEmpty() && group != "unspecified") {
         prefixes.add("$group.")
@@ -305,17 +301,63 @@ private fun resolveLabelPrefixes(project: Project, codegenExtension: CodegenExte
     return prefixes.distinct()
 }
 
-private data class ModuleSuffixes(
-    val adapter: String,
-    val application: String,
-    val domain: String
-)
+internal fun resolvePipelineProjectShape(project: Project): FlowProjectShape? {
+    val extension = project.extensions.findByName("cap4k") ?: return null
+    val projectExtension = extension.invokeNoArg("getProject") ?: return null
+    return FlowProjectShape(
+        basePackage = projectExtension.readGradleStringProperty("getBasePackage"),
+        adapterModulePath = projectExtension.readGradleStringProperty("getAdapterModulePath"),
+        applicationModulePath = projectExtension.readGradleStringProperty("getApplicationModulePath"),
+        domainModulePath = projectExtension.readGradleStringProperty("getDomainModulePath"),
+    )
+}
 
-private fun resolveSuffixes(codegenExtension: CodegenExtension?): ModuleSuffixes {
-    val adapter = codegenExtension?.moduleNameSuffix4Adapter?.orNull ?: "-adapter"
-    val domain = codegenExtension?.moduleNameSuffix4Domain?.orNull ?: "-domain"
-    val application = codegenExtension?.moduleNameSuffix4Application?.orNull ?: "-application"
-    return ModuleSuffixes(adapter = adapter, application = application, domain = domain)
+private fun resolveModuleProject(rootProject: Project, modulePath: String): Project? {
+    val normalizedModulePath = modulePath.trim()
+    if (normalizedModulePath.isEmpty()) {
+        return null
+    }
+
+    val gradleProjectPath = normalizedModulePath.toGradleProjectPath()
+    rootProject.findProject(gradleProjectPath)?.let { return it }
+
+    val normalizedRelativePath = normalizedModulePath.trimStart(':')
+        .replace(':', '/')
+        .replace('\\', '/')
+    if (normalizedRelativePath.isEmpty()) {
+        return rootProject
+    }
+
+    val expectedProjectDir = rootProject.projectDir.toPath().toAbsolutePath().normalize()
+        .resolve(normalizedRelativePath)
+        .normalize()
+    return rootProject.allprojects.firstOrNull { candidate ->
+        candidate.projectDir.toPath().toAbsolutePath().normalize() == expectedProjectDir
+    }
+}
+
+private fun String.toGradleProjectPath(): String {
+    val normalized = trim()
+    if (normalized.startsWith(":")) {
+        return normalized
+    }
+    val modulePath = normalized.trim('/').replace('\\', '/').replace('/', ':')
+    return if (modulePath.isEmpty()) ":" else ":$modulePath"
+}
+
+private fun Any.invokeNoArg(methodName: String): Any? =
+    javaClass.methods
+        .singleOrNull { method -> method.name == methodName && method.parameterCount == 0 }
+        ?.invoke(this)
+
+private fun Any.readGradleStringProperty(methodName: String): String? {
+    val property = invokeNoArg(methodName) ?: return null
+    val value = property.javaClass.methods
+        .singleOrNull { method -> method.name == "getOrNull" && method.parameterCount == 0 }
+        ?.invoke(property)
+        ?.toString()
+        ?.trim()
+    return value?.takeIf { it.isNotEmpty() }
 }
 
 private fun normalizeNode(raw: RawNode): Node {

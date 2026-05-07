@@ -9,7 +9,6 @@ dependencies {
     implementation(gradleApi())
     implementation(gradleKotlinDsl())
     implementation(libs.jackson.module.kotlin)
-    implementation(project(":cap4k-plugin-codegen"))
 
     testImplementation(gradleTestKit())
     testImplementation(platform(libs.junit.bom))
