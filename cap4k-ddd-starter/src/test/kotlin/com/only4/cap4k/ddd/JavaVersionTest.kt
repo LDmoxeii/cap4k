@@ -1,13 +1,10 @@
 package com.only4.cap4k.ddd
 
+import com.only4.cap4k.ddd.fixture.jpa.StarterJpaTestApplication
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.ComponentScan
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.test.context.TestPropertySource
 import kotlin.test.assertTrue
 
@@ -18,7 +15,7 @@ import kotlin.test.assertTrue
  * @author LD_moxeii
  * @date 2025/08/09
  */
-@SpringBootTest(classes = [JavaVersionTest.JavaTestApp::class])
+@SpringBootTest(classes = [StarterJpaTestApplication::class])
 @TestPropertySource(
     properties = [
         "cap4k.application.name=test-app",
@@ -27,6 +24,11 @@ import kotlin.test.assertTrue
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.jpa.show-sql=false",
         "spring.main.allow-bean-definition-overriding=true",
+        "cap4k.ddd.domain.event.event-scan-package=com.only4.cap4k.ddd.fixture.event",
+        "cap4k.ddd.distributed.id-generator.snowflake.enable=false",
+        "cap4k.ddd.application.event.http.enable=false",
+        "cap4k.ddd.application.event.rabbitmq.enable=false",
+        "cap4k.ddd.application.event.rocketmq.enable=false",
         "logging.level.org.springframework.beans=WARN"
     ]
 )
@@ -40,10 +42,4 @@ class JavaVersionTest {
         // 如果测试能运行到这里，说明没有循环依赖问题
         assertTrue(true, "Java version configuration works without circular dependencies")
     }
-
-    @SpringBootApplication
-    @ComponentScan(basePackages = ["com.only4.cap4k.ddd"])
-    @EnableJpaRepositories(basePackages = ["com.only4.cap4k.ddd"])
-    @EntityScan(basePackages = ["com.only4.cap4k.ddd"])
-    class JavaTestApp
 }

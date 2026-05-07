@@ -15,17 +15,14 @@ import com.only4.cap4k.ddd.domain.id.IdPolicyAutoConfiguration
 import com.only4.cap4k.ddd.domain.repo.JpaRepositoryAutoConfiguration
 import com.only4.cap4k.ddd.domain.repo.configure.JpaUnitOfWorkProperties
 import com.only4.cap4k.ddd.domain.service.DomainServiceAutoConfiguration
+import com.only4.cap4k.ddd.fixture.jpa.StarterJpaTestApplication
 import jakarta.persistence.EntityManager
 import jakarta.persistence.EntityManagerFactory
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
-import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
-import org.springframework.context.annotation.ComponentScan
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Proxy
 import kotlin.test.assertTrue
@@ -193,7 +190,7 @@ class AutoConfigurationContextTest {
         }
 
         try {
-            context.register(TestApplication::class.java)
+            context.register(StarterJpaTestApplication::class.java)
             context.refresh()
 
             // 验证关键 Bean 的初始化顺序
@@ -211,10 +208,4 @@ class AutoConfigurationContextTest {
             context.close()
         }
     }
-
-    @SpringBootApplication
-    @ComponentScan(basePackages = ["com.only4.cap4k.ddd"])
-    @EnableJpaRepositories(basePackages = ["com.only4.cap4k.ddd"])
-    @EntityScan(basePackages = ["com.only4.cap4k.ddd"])
-    class AutoConfigurationTestApp
 }

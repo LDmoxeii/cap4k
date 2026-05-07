@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd
 
+import com.only4.cap4k.ddd.fixture.jpa.StarterJpaTestApplication
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -19,7 +20,7 @@ import kotlin.test.assertTrue
  * @author LD_moxeii
  * @date 2025/08/10
  */
-@SpringBootTest(classes = [SimpleBeanLoadTest.SimpleBeanLoadTestApp::class])
+@SpringBootTest(classes = [StarterJpaTestApplication::class])
 @TestPropertySource(
     properties = [
         "cap4k.application.name=test-app",
@@ -29,6 +30,12 @@ import kotlin.test.assertTrue
         "spring.datasource.password=",
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.jpa.show-sql=false",
+        "cap4k.ddd.domain.event.event-scan-package=com.only4.cap4k.ddd.fixture.event",
+        "cap4k.ddd.distributed.id-generator.snowflake.enable=false",
+        "cap4k.ddd.application.event.http.enable=false",
+        "cap4k.ddd.application.event.rabbitmq.enable=false",
+        "cap4k.ddd.application.event.rocketmq.enable=false",
+        "spring.main.allow-bean-definition-overriding=true",
         "logging.level.org.springframework=WARN",
         "logging.level.org.hibernate=WARN"
     ]
@@ -127,10 +134,4 @@ class SimpleBeanLoadTest {
 
         println("✓ 未检测到循环依赖问题")
     }
-
-    @org.springframework.boot.autoconfigure.SpringBootApplication
-    @org.springframework.context.annotation.ComponentScan(basePackages = ["com.only4.cap4k.ddd"])
-    @org.springframework.boot.autoconfigure.domain.EntityScan(basePackages = ["com.only4.cap4k.ddd"])
-    @org.springframework.data.jpa.repository.config.EnableJpaRepositories(basePackages = ["com.only4.cap4k.ddd"])
-    class SimpleBeanLoadTestApp
 }

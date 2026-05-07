@@ -1,23 +1,20 @@
 package com.only4.cap4k.ddd
 
+import com.only4.cap4k.ddd.fixture.jpa.StarterJpaTestApplication
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.ApplicationContext
-import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.event.ContextRefreshedEvent
 import org.springframework.context.event.EventListener
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.stereotype.Component
 import org.springframework.test.context.TestPropertySource
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import kotlin.test.assertTrue
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * Bean生命周期和初始化顺序测试
@@ -29,15 +26,20 @@ import kotlin.test.assertFalse
  * @author LD_moxeii
  * @date 2025/08/09
  */
-@SpringBootTest(classes = [BeanLifecycleTest.BeanLifecycleTestApp::class, BeanLifecycleTest.TestLifecycleListener::class])
+@SpringBootTest(classes = [StarterJpaTestApplication::class, BeanLifecycleTest.TestLifecycleListener::class])
 @TestPropertySource(
     properties = [
         "cap4k.application.name=test-app",
         "cap4k.ddd.domain.event.enable=true",
+        "cap4k.ddd.domain.event.event-scan-package=com.only4.cap4k.ddd.fixture.event",
         "cap4k.ddd.application.request.enable=false",
         "cap4k.ddd.application.saga.enable=false",
-        "cap4k.ddd.domain.distributed.snowflake.enable=true",
+        "cap4k.ddd.distributed.id-generator.snowflake.enable=false",
         "cap4k.ddd.application.distributed.locker.enable=true",
+        "cap4k.ddd.application.event.http.enable=false",
+        "cap4k.ddd.application.event.rabbitmq.enable=false",
+        "cap4k.ddd.application.event.rocketmq.enable=false",
+        "spring.main.allow-bean-definition-overriding=true",
         "spring.datasource.url=jdbc:h2:mem:lifecycletest",
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.jpa.hibernate.ddl-auto=create-drop",
@@ -228,10 +230,4 @@ class BeanLifecycleTest {
             }
         }
     }
-
-    @SpringBootApplication
-    @ComponentScan(basePackages = ["com.only4.cap4k.ddd"])
-    @EnableJpaRepositories(basePackages = ["com.only4.cap4k.ddd"])
-    @EntityScan(basePackages = ["com.only4.cap4k.ddd"])
-    class BeanLifecycleTestApp
 }

@@ -1,17 +1,14 @@
 package com.only4.cap4k.ddd
 
+import com.only4.cap4k.ddd.fixture.jpa.StarterJpaTestApplication
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.BeanCreationException
 import org.springframework.beans.factory.BeanCurrentlyInCreationException
 import org.springframework.beans.factory.UnsatisfiedDependencyException
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.ApplicationContext
-import org.springframework.context.annotation.ComponentScan
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.test.context.TestPropertySource
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -27,15 +24,20 @@ import kotlin.test.fail
  * @author LD_moxeii
  * @date 2025/08/09
  */
-@SpringBootTest(classes = [BeanDependencyTest.BeanDependencyTestApp::class])
+@SpringBootTest(classes = [StarterJpaTestApplication::class])
 @TestPropertySource(
     properties = [
         "cap4k.application.name=test-app",
         "cap4k.ddd.domain.event.enable=true",
+        "cap4k.ddd.domain.event.event-scan-package=com.only4.cap4k.ddd.fixture.event",
         "cap4k.ddd.application.request.enable=true",
         "cap4k.ddd.application.saga.enable=true",
-        "cap4k.ddd.domain.distributed.snowflake.enable=true",
+        "cap4k.ddd.distributed.id-generator.snowflake.enable=false",
         "cap4k.ddd.application.distributed.locker.enable=true",
+        "cap4k.ddd.application.event.http.enable=false",
+        "cap4k.ddd.application.event.rabbitmq.enable=false",
+        "cap4k.ddd.application.event.rocketmq.enable=false",
+        "spring.main.allow-bean-definition-overriding=true",
         "spring.datasource.url=jdbc:h2:mem:testdb",
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.jpa.hibernate.ddl-auto=create-drop",
@@ -122,7 +124,7 @@ class BeanDependencyTest {
             "jpaEventRecordRepository" to "cap4k.ddd.domain.event.enable",
             "jpaRequestRecordRepository" to "cap4k.ddd.application.request.enable",
             "jpaSagaRecordRepository" to "cap4k.ddd.application.saga.enable",
-            "snowflakeIdGenerator" to "cap4k.ddd.domain.distributed.snowflake.enable"
+            "snowflakeIdGenerator" to "cap4k.ddd.distributed.id-generator.snowflake.enable"
         )
 
         for ((beanName, condition) in conditionalBeans) {
@@ -195,10 +197,4 @@ class BeanDependencyTest {
             println("✓ Bean post processor: $name (${processor::class.simpleName})")
         }
     }
-
-    @SpringBootApplication
-    @ComponentScan(basePackages = ["com.only4.cap4k.ddd"])
-    @EnableJpaRepositories(basePackages = ["com.only4.cap4k.ddd"])
-    @EntityScan(basePackages = ["com.only4.cap4k.ddd"])
-    class BeanDependencyTestApp
 }
