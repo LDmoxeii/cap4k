@@ -279,13 +279,16 @@ internal fun resolveInputDirs(project: Project, projectShape: FlowProjectShape?)
 
 internal fun resolveModuleProjects(project: Project, projectShape: FlowProjectShape?): List<Project> {
     val root = project.rootProject
-    val explicitModules = projectShape
+    val configuredModulePaths = projectShape
         ?.modulePaths()
         .orEmpty()
+    if (configuredModulePaths.isEmpty()) {
+        return listOf(root)
+    }
+
+    return configuredModulePaths
         .mapNotNull { modulePath -> resolveModuleProject(root, modulePath) }
         .distinctBy { candidate -> candidate.path }
-
-    return if (explicitModules.isNotEmpty()) explicitModules else listOf(root)
 }
 
 internal fun resolveLabelPrefixes(project: Project, projectShape: FlowProjectShape?): List<String> {

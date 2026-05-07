@@ -48,6 +48,22 @@ class Cap4kFlowExportPluginTest {
     }
 
     @Test
+    fun `resolve module projects does not fall back to root when explicit pipeline module paths are unresolved`() {
+        val root = ProjectBuilder.builder()
+            .withName("sample")
+            .build()
+
+        val shape = FlowProjectShape(
+            basePackage = "com.acme.demo",
+            adapterModulePath = ":missing-adapter",
+            applicationModulePath = "missing/application",
+            domainModulePath = null,
+        )
+
+        assertEquals(emptyList<String>(), resolveModuleProjectsReflectively(root, shape).map { it.path })
+    }
+
+    @Test
     fun `resolve label prefixes includes pipeline base package and project group`() {
         val root = ProjectBuilder.builder()
             .withName("sample")
