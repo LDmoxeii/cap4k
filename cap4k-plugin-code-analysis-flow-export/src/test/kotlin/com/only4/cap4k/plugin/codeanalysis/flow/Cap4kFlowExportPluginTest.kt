@@ -1,8 +1,9 @@
 package com.only4.cap4k.plugin.codeanalysis.flow
 
-import org.gradle.api.Project
+import org.gradle.api.GradleException
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 class Cap4kFlowExportPluginTest {
@@ -34,7 +35,7 @@ class Cap4kFlowExportPluginTest {
 
         assertEquals(
             listOf(adapter.path, application.path, domain.path),
-            resolveModuleProjectsReflectively(root, shape).map { it.path }
+            resolveModuleProjects(root, shape).map { it.path }
         )
     }
 
@@ -44,11 +45,11 @@ class Cap4kFlowExportPluginTest {
             .withName("sample")
             .build()
 
-        assertEquals(listOf(root.path), resolveModuleProjectsReflectively(root, null).map { it.path })
+        assertEquals(listOf(root.path), resolveModuleProjects(root, null).map { it.path })
     }
 
     @Test
-    fun `resolve module projects does not fall back to root when explicit pipeline module paths are unresolved`() {
+    fun `resolve module projects fails fast when explicit pipeline module paths are unresolved`() {
         val root = ProjectBuilder.builder()
             .withName("sample")
             .build()
@@ -60,7 +61,14 @@ class Cap4kFlowExportPluginTest {
             domainModulePath = null,
         )
 
-        assertEquals(emptyList<String>(), resolveModuleProjectsReflectively(root, shape).map { it.path })
+        val error = assertThrows(GradleException::class.java) {
+            resolveModuleProjects(root, shape)
+        }
+
+        assertEquals(
+            "Unable to resolve configured Cap4k flow-export module paths: :missing-adapter, missing/application",
+            error.message
+        )
     }
 
     @Test
@@ -79,25 +87,56 @@ class Cap4kFlowExportPluginTest {
 
         assertEquals(
             listOf("com.acme.demo.", "com.acme."),
-            resolveLabelPrefixesReflectively(root, shape)
+            resolveLabelPrefixes(root, shape)
         )
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun resolveModuleProjectsReflectively(project: Project, shape: Any?): List<Project> {
-        return invokeHelper("resolveModuleProjects", project, shape) as List<Project>
-    }
+    @Test
+    fun `resolve pipeline project shape reads cap4k project extension`() {
+        val root = ProjectBuilder.builder()
+            .withName("sample")
+            .build()
 
-    @Suppress("UNCHECKED_CAST")
-    private fun resolveLabelPrefixesReflectively(project: Project, shape: Any?): List<String> {
-        return invokeHelper("resolveLabelPrefixes", project, shape) as List<String>
-    }
+        root.extensions.add(
+            "cap4k",
+            FakeCap4kExtension(
+                FakeCap4kProjectExtension(
+                    basePackage = "com.acme.demo",
+                    adapterModulePath = ":sample-adapter",
+                    applicationModulePath = ":sample-application",
+                    domainModulePath = ":sample-domain",
+                )
+            )
+        )
 
-    private fun invokeHelper(name: String, project: Project, shape: Any?): Any {
-        val helper = Class.forName("com.only4.cap4k.plugin.codeanalysis.flow.Cap4kFlowExportPluginKt")
-            .declaredMethods
-            .single { it.name == name }
-        helper.isAccessible = true
-        return helper.invoke(null, project, shape)!!
+        assertEquals(
+            FlowProjectShape(
+                basePackage = "com.acme.demo",
+                adapterModulePath = ":sample-adapter",
+                applicationModulePath = ":sample-application",
+                domainModulePath = ":sample-domain",
+            ),
+            resolvePipelineProjectShape(root)
+        )
     }
+}
+
+private class FakeCap4kExtension(private val project: FakeCap4kProjectExtension) {
+    fun getProject(): FakeCap4kProjectExtension = project
+}
+
+private class FakeCap4kProjectExtension(
+    private val basePackage: String?,
+    private val adapterModulePath: String?,
+    private val applicationModulePath: String?,
+    private val domainModulePath: String?,
+) {
+    fun getBasePackage(): FakeGradleProperty = FakeGradleProperty(basePackage)
+    fun getAdapterModulePath(): FakeGradleProperty = FakeGradleProperty(adapterModulePath)
+    fun getApplicationModulePath(): FakeGradleProperty = FakeGradleProperty(applicationModulePath)
+    fun getDomainModulePath(): FakeGradleProperty = FakeGradleProperty(domainModulePath)
+}
+
+private class FakeGradleProperty(private val value: String?) {
+    fun getOrNull(): String? = value
 }

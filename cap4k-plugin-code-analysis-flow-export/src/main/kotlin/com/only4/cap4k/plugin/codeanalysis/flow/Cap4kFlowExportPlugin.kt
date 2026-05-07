@@ -286,9 +286,23 @@ internal fun resolveModuleProjects(project: Project, projectShape: FlowProjectSh
         return listOf(root)
     }
 
-    return configuredModulePaths
-        .mapNotNull { modulePath -> resolveModuleProject(root, modulePath) }
-        .distinctBy { candidate -> candidate.path }
+    val resolvedModules = mutableListOf<Project>()
+    val unresolvedModulePaths = mutableListOf<String>()
+    configuredModulePaths.forEach { modulePath ->
+        val resolvedModule = resolveModuleProject(root, modulePath)
+        if (resolvedModule != null) {
+            resolvedModules += resolvedModule
+        } else {
+            unresolvedModulePaths += modulePath
+        }
+    }
+    if (unresolvedModulePaths.isNotEmpty()) {
+        throw GradleException(
+            "Unable to resolve configured Cap4k flow-export module paths: ${unresolvedModulePaths.joinToString(", ")}"
+        )
+    }
+
+    return resolvedModules.distinctBy { candidate -> candidate.path }
 }
 
 internal fun resolveLabelPrefixes(project: Project, projectShape: FlowProjectShape?): List<String> {
