@@ -1,5 +1,6 @@
 package com.only4.cap4k.plugin.codeanalysis.flow
 
+import org.gradle.api.Project
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -33,7 +34,7 @@ class Cap4kFlowExportPluginTest {
 
         assertEquals(
             listOf(adapter.path, application.path, domain.path),
-            resolveModuleProjects(root, shape).map { it.path }
+            resolveModuleProjectsReflectively(root, shape).map { it.path }
         )
     }
 
@@ -43,7 +44,7 @@ class Cap4kFlowExportPluginTest {
             .withName("sample")
             .build()
 
-        assertEquals(listOf(root.path), resolveModuleProjects(root, null).map { it.path })
+        assertEquals(listOf(root.path), resolveModuleProjectsReflectively(root, null).map { it.path })
     }
 
     @Test
@@ -62,7 +63,25 @@ class Cap4kFlowExportPluginTest {
 
         assertEquals(
             listOf("com.acme.demo.", "com.acme."),
-            resolveLabelPrefixes(root, shape)
+            resolveLabelPrefixesReflectively(root, shape)
         )
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun resolveModuleProjectsReflectively(project: Project, shape: Any?): List<Project> {
+        return invokeHelper("resolveModuleProjects", project, shape) as List<Project>
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun resolveLabelPrefixesReflectively(project: Project, shape: Any?): List<String> {
+        return invokeHelper("resolveLabelPrefixes", project, shape) as List<String>
+    }
+
+    private fun invokeHelper(name: String, project: Project, shape: Any?): Any {
+        val helper = Class.forName("com.only4.cap4k.plugin.codeanalysis.flow.Cap4kFlowExportPluginKt")
+            .declaredMethods
+            .single { it.name == name }
+        helper.isAccessible = true
+        return helper.invoke(null, project, shape)!!
     }
 }
