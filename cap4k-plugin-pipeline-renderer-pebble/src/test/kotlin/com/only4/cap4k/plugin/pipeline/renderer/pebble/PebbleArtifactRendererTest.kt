@@ -3659,6 +3659,170 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `renders drawing board json without html escaping and preserves defaultValue expressions`() {
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = emptyList()
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "drawing-board",
+                    moduleRole = "project",
+                    templateId = "drawing-board/document.json.peb",
+                    outputPath = "design/validator.json",
+                    context = mapOf(
+                        "elements" to listOf(
+                            DrawingBoardElementModel(
+                                tag = "validator",
+                                packageName = "demo.application.shared",
+                                name = "SharedDefaultsValidator",
+                                description = "Map<String, String> <raw> & stable",
+                                message = "use <raw> & keep",
+                                targets = listOf("CLASS"),
+                                valueType = "Map<String, String>",
+                                parameters = listOf(
+                                    ValidatorParameterModel(
+                                        name = "metadata",
+                                        type = "Map<String, String>",
+                                        defaultValue = "emptyMap()",
+                                    ),
+                                    ValidatorParameterModel(
+                                        name = "title",
+                                        type = "String",
+                                        defaultValue = "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
+                                    )
+                                ),
+                            )
+                        )
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertFalse(content.contains("\\u003c"))
+        assertFalse(content.contains("\\u003e"))
+        assertFalse(content.contains("\\u0026"))
+
+        val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
+        assertEquals("Map<String, String> <raw> & stable", element["desc"].asString)
+        assertEquals("use <raw> & keep", element["message"].asString)
+        assertEquals("Map<String, String>", element["valueType"].asString)
+        assertEquals(
+            "emptyMap()",
+            element["parameters"].asJsonArray[0].asJsonObject["defaultValue"].asString,
+        )
+        assertEquals(
+            "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
+            element["parameters"].asJsonArray[1].asJsonObject["defaultValue"].asString,
+        )
+    }
+
+    @Test
+    fun `renders drawing board request and response field default values unchanged`() {
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = emptyList()
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "drawing-board",
+                    moduleRole = "project",
+                    templateId = "drawing-board/document.json.peb",
+                    outputPath = "design/command.json",
+                    context = mapOf(
+                        "elements" to listOf(
+                            DrawingBoardElementModel(
+                                tag = "command",
+                                packageName = "demo.application.shared",
+                                name = "IssueCaptcha",
+                                description = "issue captcha",
+                                requestFields = listOf(
+                                    DrawingBoardFieldModel(
+                                        name = "channels",
+                                        type = "Set<String>",
+                                        nullable = false,
+                                        defaultValue = "emptySet()",
+                                    ),
+                                    DrawingBoardFieldModel(
+                                        name = "metadata",
+                                        type = "Map<String, String>",
+                                        nullable = true,
+                                        defaultValue = "null",
+                                    ),
+                                ),
+                                responseFields = listOf(
+                                    DrawingBoardFieldModel(
+                                        name = "channel",
+                                        type = "SharedCaptchaChannel",
+                                        nullable = false,
+                                        defaultValue = "demo.application.shared.defaults.SharedCaptchaChannel.IMAGE",
+                                    ),
+                                    DrawingBoardFieldModel(
+                                        name = "title",
+                                        type = "String",
+                                        nullable = false,
+                                        defaultValue = "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
+                                    ),
+                                ),
+                            )
+                        )
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val element = JsonParser.parseString(rendered.single().content).asJsonArray.single().asJsonObject
+        val requestFields = element["requestFields"].asJsonArray
+        val responseFields = element["responseFields"].asJsonArray
+
+        assertEquals("emptySet()", requestFields[0].asJsonObject["defaultValue"].asString)
+        assertEquals("null", requestFields[1].asJsonObject["defaultValue"].asString)
+        assertEquals(
+            "demo.application.shared.defaults.SharedCaptchaChannel.IMAGE",
+            responseFields[0].asJsonObject["defaultValue"].asString,
+        )
+        assertEquals(
+            "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
+            responseFields[1].asJsonObject["defaultValue"].asString,
+        )
+    }
+
+    @Test
     fun `renders domain event drawing board json without reserved entity fields`() {
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(

@@ -118,6 +118,12 @@ private fun findModuleRootByGradle(filePaths: Iterable<String>): Path? {
 
 private data class AggregateInfo(val aggregateName: String, val type: String, val root: Boolean)
 
+private data class EntityMethodRef(
+    val aggregateRootFq: String,
+    val methodId: String,
+    val displayName: String,
+)
+
 private data class ClassIndex(
     val aggregateInfoByClass: Map<String, AggregateInfo>,
     val aggregateRootsByName: Map<String, String>,
@@ -380,6 +386,7 @@ private class GraphCollector(
         val parentFqcn = parentClass?.fqNameWhenAvailable?.asString()
         val methodId = if (parentFqcn != null) "$parentFqcn::$methodName" else methodName
         val methodDisplayName = buildMethodDisplayName(parentClass, methodName)
+        val entityMethodRef = resolveEntityMethodRef(declaration)
 
         val isControllerMethod = options.scanSpring &&
             parentClass != null &&
@@ -412,9 +419,15 @@ private class GraphCollector(
             addRel(Relationship(fromId = eventType, toId = methodId, type = relType))
         }
 
-        val aggInfo = parentFqcn?.let { index.aggregateInfoByClass[it] }
-        if (aggInfo != null && aggInfo.type == AGG_TYPE_ENTITY) {
-            addNode(Node(id = methodId, name = methodDisplayName, fullName = methodId, type = NodeType.entitymethod))
+        if (entityMethodRef != null) {
+            addNode(
+                Node(
+                    id = entityMethodRef.methodId,
+                    name = entityMethodRef.displayName,
+                    fullName = entityMethodRef.methodId,
+                    type = NodeType.entitymethod
+                )
+            )
         }
 
         val ctx = when {
@@ -533,30 +546,40 @@ private class GraphCollector(
 
                 if (handlerContext.isNotEmpty()) {
                     val handlerId = handlerContext.lastOrNull()
-                    val targetClass = expression.symbol.owner.parent as? IrClass
-                    if (targetClass != null) {
-                        val targetFq = targetClass.fqNameWhenAvailable?.asString()
-                        val targetAggInfo = targetClass.aggregateInfo()
-                        if (targetAggInfo != null && targetAggInfo.type == AGG_TYPE_ENTITY) {
-                            val aggRootFq = if (targetAggInfo.root) {
-                                targetFq
-                            } else {
-                                targetAggInfo.aggregateName
-                                    .takeIf { it.isNotEmpty() }
-                                    ?.let { aggregateRootsByName[it] }
-                                    ?: targetFq
-                            }
-                            val calleeId = "$targetFq::${expression.symbol.owner.name.asString()}"
-                            val calleeName = buildMethodDisplayName(targetClass, expression.symbol.owner.name.asString())
-                            addNode(Node(id = calleeId, name = calleeName, fullName = calleeId, type = NodeType.entitymethod))
-                            if (handlerId != null) {
-                                addRel(Relationship(fromId = handlerId, toId = calleeId, type = RelationshipType.CommandHandlerToEntityMethod))
-                            }
-                            if (aggRootFq != null) {
-                                addNode(Node(id = aggRootFq, name = typeDisplayNameForFqcn(aggRootFq), fullName = aggRootFq, type = NodeType.aggregate))
-                                addRel(Relationship(fromId = aggRootFq, toId = calleeId, type = RelationshipType.AggregateToEntityMethod))
-                            }
+                    val targetMethod = resolveEntityMethodRef(expression.symbol.owner)
+                    if (targetMethod != null) {
+                        addNode(
+                            Node(
+                                id = targetMethod.methodId,
+                                name = targetMethod.displayName,
+                                fullName = targetMethod.methodId,
+                                type = NodeType.entitymethod
+                            )
+                        )
+                        if (handlerId != null) {
+                            addRel(
+                                Relationship(
+                                    fromId = handlerId,
+                                    toId = targetMethod.methodId,
+                                    type = RelationshipType.CommandHandlerToEntityMethod
+                                )
+                            )
                         }
+                        addNode(
+                            Node(
+                                id = targetMethod.aggregateRootFq,
+                                name = typeDisplayNameForFqcn(targetMethod.aggregateRootFq),
+                                fullName = targetMethod.aggregateRootFq,
+                                type = NodeType.aggregate
+                            )
+                        )
+                        addRel(
+                            Relationship(
+                                fromId = targetMethod.aggregateRootFq,
+                                toId = targetMethod.methodId,
+                                type = RelationshipType.AggregateToEntityMethod
+                            )
+                        )
                     }
                 }
 
@@ -568,7 +591,8 @@ private class GraphCollector(
                 val evtFq = evtClass.fqNameWhenAvailable?.asString()
                 if (evtFq != null && isDomainEventClass(evtClass)) {
                     addNode(Node(id = evtFq, name = evtClass.nestedSimpleName(), fullName = evtFq, type = NodeType.domainevent))
-                    addRel(Relationship(fromId = methodId, toId = evtFq, type = RelationshipType.EntityMethodToDomainEvent))
+                    val eventSourceId = entityMethodRef?.methodId ?: methodId
+                    addRel(Relationship(fromId = eventSourceId, toId = evtFq, type = RelationshipType.EntityMethodToDomainEvent))
                 }
                 super.visitConstructorCall(expression)
             }
@@ -668,6 +692,57 @@ private class GraphCollector(
         } else {
             aggregateRootsByName[info.aggregateName] ?: fq
         }
+    }
+
+    private fun resolveEntityMethodRef(function: IrFunction): EntityMethodRef? {
+        val methodName = function.name.asString()
+        val parentClass = function.parent as? IrClass
+        if (parentClass != null) {
+            val parentFq = parentClass.fqNameWhenAvailable?.asString() ?: return null
+            val aggInfo = parentClass.aggregateInfo() ?: return null
+            if (aggInfo.type != AGG_TYPE_ENTITY) return null
+            val aggregateRootFq = if (aggInfo.root) {
+                parentFq
+            } else {
+                aggInfo.aggregateName
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { aggregateRootsByName[it] }
+                    ?: parentFq
+            }
+            val methodId = "$parentFq::$methodName"
+            return EntityMethodRef(
+                aggregateRootFq = aggregateRootFq,
+                methodId = methodId,
+                displayName = buildMethodDisplayName(parentClass, methodName)
+            )
+        }
+
+        if (function.parent !is IrFile) return null
+
+        val receiverType = function.parameters
+            .firstOrNull { it.kind == IrParameterKind.ExtensionReceiver }
+            ?.type
+            ?: return null
+        val receiverSimpleType = receiverType as? IrSimpleType ?: return null
+        val receiverClass = receiverSimpleType.classifier?.owner as? IrClass ?: return null
+        val receiverFq = receiverClass.fqNameWhenAvailable?.asString() ?: return null
+        val receiverInfo = receiverClass.aggregateInfo() ?: return null
+        if (receiverInfo.type != AGG_TYPE_ENTITY) return null
+
+        val aggregateRootFq = if (receiverInfo.root) {
+            receiverFq
+        } else {
+            receiverInfo.aggregateName
+                .takeIf { it.isNotEmpty() }
+                ?.let { aggregateRootsByName[it] }
+                ?: receiverFq
+        }
+        val methodId = "$receiverFq::$methodName"
+        return EntityMethodRef(
+            aggregateRootFq = aggregateRootFq,
+            methodId = methodId,
+            displayName = buildMethodDisplayNameFromFqcn(receiverFq, methodName)
+        )
     }
 
     private fun resolveAggregateFromPredicateType(type: IrType): String? {

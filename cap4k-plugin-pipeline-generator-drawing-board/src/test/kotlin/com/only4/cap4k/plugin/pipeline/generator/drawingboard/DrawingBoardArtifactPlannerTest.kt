@@ -104,6 +104,20 @@ class DrawingBoardArtifactPlannerTest {
     }
 
     @Test
+    fun `preserves defaultValue in drawing board planner context`() {
+        val planner = DrawingBoardArtifactPlanner()
+
+        val plan = planner.plan(config(), model())
+        val validatorPlan = plan.single { it.context["drawingBoardTag"] == "validator" }
+        val validatorElement = (validatorPlan.context["elements"] as List<*>).single() as DrawingBoardElementModel
+
+        assertEquals(
+            "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
+            validatorElement.parameters.single().defaultValue,
+        )
+    }
+
+    @Test
     fun `fails when drawing board slice is missing`() {
         val planner = DrawingBoardArtifactPlanner()
 
@@ -178,7 +192,7 @@ class DrawingBoardArtifactPlannerTest {
                             ValidatorParameterModel(
                                 name = "danmukuIdField",
                                 type = "String",
-                                defaultValue = "danmukuId",
+                                defaultValue = "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
                             )
                         ),
                     ),
