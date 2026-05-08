@@ -1295,6 +1295,71 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kPlan applies template conflict policy overrides predictably across mixed aggregate surfaces`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-conflict-policy")
+        copyFixture(projectDir, "aggregate-sample")
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        val originalTemplatesBlock = """
+            |    templates {
+            |        overrideDirs.from("template-overrides")
+            |    }
+            """.trimMargin()
+        require(buildFileContent.contains(originalTemplatesBlock)) {
+            "aggregate-sample fixture templates block changed"
+        }
+        buildFile.writeText(
+            buildFileContent.replace(
+                originalTemplatesBlock,
+                """
+                |    templates {
+                |        overrideDirs.from("template-overrides")
+                |        templateConflictPolicies.put("aggregate/factory.kt.peb", "OVERWRITE")
+                |        templateConflictPolicies.put("aggregate/behavior.kt.peb", "FAIL")
+                |        templateConflictPolicies.put("aggregate/entity.kt.peb", "FAIL")
+                |    }
+                """.trimMargin(),
+            )
+        )
+
+        val result = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kPlan")
+            .build()
+
+        val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertPlanItemMetadata(
+            planContent = planContent,
+            templateId = "aggregate/factory.kt.peb",
+            outputPathSuffix = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
+            outputKind = "CHECKED_IN_SOURCE",
+            resolvedOutputRoot = "demo-domain/src/main/kotlin",
+            conflictPolicy = "OVERWRITE",
+        )
+        assertPlanItemMetadata(
+            planContent = planContent,
+            templateId = "aggregate/behavior.kt.peb",
+            outputPathSuffix = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt",
+            outputKind = "CHECKED_IN_SOURCE",
+            resolvedOutputRoot = "demo-domain/src/main/kotlin",
+            conflictPolicy = "FAIL",
+        )
+        assertPlanItemMetadata(
+            planContent = planContent,
+            templateId = "aggregate/entity.kt.peb",
+            outputPathSuffix = generatedSource(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
+            ),
+            outputKind = "GENERATED_SOURCE",
+            resolvedOutputRoot = "demo-domain/build/generated/cap4k/main/kotlin",
+            conflictPolicy = "OVERWRITE",
+        )
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `aggregate generator defaults to minimal aggregate artifacts`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-minimal")
         copyFixture(projectDir, "aggregate-minimal-sample")

@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
+import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
@@ -28,6 +29,99 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class DefaultPipelineRunnerTest {
+
+    @Test
+    fun `template conflict override beats planner default for checked-in source items`() {
+        val plannedItem = ArtifactPlanItem(
+            generatorId = "design-command",
+            moduleRole = "application",
+            templateId = "design/command.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/CreateOrderCmd.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = listOf(plannedItem),
+            config = enabledConfig(
+                templates = TemplateConfig(
+                    preset = "default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.FAIL,
+                    templateConflictPolicies = mapOf(
+                        "design/command.kt.peb" to ConflictPolicy.OVERWRITE,
+                    ),
+                ),
+            ),
+        )
+
+        val expectedResolvedItem = plannedItem.copy(conflictPolicy = ConflictPolicy.OVERWRITE)
+
+        assertEquals(listOf(expectedResolvedItem), result.rendererReceivedPlanItems)
+        assertEquals(listOf(expectedResolvedItem), result.pipelineResult.planItems)
+    }
+
+    @Test
+    fun `generated source items keep overwrite even when template override conflicts`() {
+        val plannedItem = ArtifactPlanItem(
+            generatorId = "aggregate",
+            moduleRole = "domain",
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/order/Order.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+            outputKind = ArtifactOutputKind.GENERATED_SOURCE,
+        )
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = listOf(plannedItem),
+            config = enabledConfig(
+                generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+                templates = TemplateConfig(
+                    preset = "default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.OVERWRITE,
+                    templateConflictPolicies = mapOf(
+                        "aggregate/entity.kt.peb" to ConflictPolicy.FAIL,
+                    ),
+                ),
+            ),
+        )
+
+        val expectedResolvedItem = plannedItem.copy(conflictPolicy = ConflictPolicy.OVERWRITE)
+
+        assertEquals(listOf(expectedResolvedItem), result.rendererReceivedPlanItems)
+        assertEquals(listOf(expectedResolvedItem), result.pipelineResult.planItems)
+    }
+
+    @Test
+    fun `include plan item hook observes pre resolution conflict policy`() {
+        val plannedItem = ArtifactPlanItem(
+            generatorId = "design-command",
+            moduleRole = "application",
+            templateId = "design/command.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/CreateOrderCmd.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = listOf(plannedItem),
+            config = enabledConfig(
+                templates = TemplateConfig(
+                    preset = "default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.FAIL,
+                    templateConflictPolicies = mapOf(
+                        "design/command.kt.peb" to ConflictPolicy.OVERWRITE,
+                    ),
+                ),
+            ),
+            includePlanItem = { it.conflictPolicy == ConflictPolicy.SKIP },
+        )
+
+        val expectedResolvedItem = plannedItem.copy(conflictPolicy = ConflictPolicy.OVERWRITE)
+
+        assertEquals(listOf(expectedResolvedItem), result.rendererReceivedPlanItems)
+        assertEquals(listOf(expectedResolvedItem), result.pipelineResult.planItems)
+    }
 
     @Test
     fun `run executes enabled providers in order and returns expected pipeline result`() {
@@ -376,18 +470,68 @@ class DefaultPipelineRunnerTest {
         )
     }
 
-    private fun enabledConfig(): ProjectConfig {
+    private fun runWithCapturedPlanItems(
+        plannedItems: List<ArtifactPlanItem>,
+        config: ProjectConfig,
+        includePlanItem: (ArtifactPlanItem) -> Boolean = { true },
+    ): CapturedPlanItemsResult {
+        val capturedPlanItems = mutableListOf<ArtifactPlanItem>()
+        val runner = DefaultPipelineRunner(
+            sources = listOf(
+                object : SourceProvider {
+                    override val id: String = "design-json"
+
+                    override fun collect(config: ProjectConfig): SourceSnapshot =
+                        DesignSpecSnapshot(entries = emptyList())
+                }
+            ),
+            generators = listOf(
+                object : GeneratorProvider {
+                    override val id: String = config.generators.keys.single()
+
+                    override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> = plannedItems
+                }
+            ),
+            assembler = object : CanonicalAssembler {
+                override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult =
+                    CanonicalAssemblyResult(CanonicalModel())
+            },
+            renderer = object : ArtifactRenderer {
+                override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> {
+                    capturedPlanItems += planItems
+                    return emptyList()
+                }
+            },
+            exporter = NoopArtifactExporter(),
+            includePlanItem = includePlanItem,
+        )
+
+        return CapturedPlanItemsResult(
+            pipelineResult = runner.run(config),
+            rendererReceivedPlanItems = capturedPlanItems.toList(),
+        )
+    }
+
+    private fun enabledConfig(
+        generators: Map<String, GeneratorConfig> = mapOf("design-command" to GeneratorConfig(enabled = true)),
+        templates: TemplateConfig = TemplateConfig(
+            preset = "default",
+            overrideDirs = emptyList(),
+            conflictPolicy = ConflictPolicy.OVERWRITE,
+        ),
+    ): ProjectConfig {
         return ProjectConfig(
             basePackage = "com.only4.cap4k.sample",
             layout = ProjectLayout.SINGLE_MODULE,
             modules = mapOf("app" to "sample-app"),
             sources = mapOf("design-json" to SourceConfig(enabled = true)),
-            generators = mapOf("design-command" to GeneratorConfig(enabled = true)),
-            templates = TemplateConfig(
-                preset = "default",
-                overrideDirs = emptyList(),
-                conflictPolicy = ConflictPolicy.OVERWRITE,
-            ),
+            generators = generators,
+            templates = templates,
         )
     }
+
+    private data class CapturedPlanItemsResult(
+        val pipelineResult: com.only4.cap4k.plugin.pipeline.api.PipelineResult,
+        val rendererReceivedPlanItems: List<ArtifactPlanItem>,
+    )
 }

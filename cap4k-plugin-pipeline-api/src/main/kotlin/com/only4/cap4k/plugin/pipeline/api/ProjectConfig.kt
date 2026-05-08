@@ -121,6 +121,7 @@ data class TemplateConfig(
     val preset: String,
     val overrideDirs: List<String>,
     val conflictPolicy: ConflictPolicy,
+    val templateConflictPolicies: Map<String, ConflictPolicy> = emptyMap(),
 )
 
 enum class ConflictPolicy {

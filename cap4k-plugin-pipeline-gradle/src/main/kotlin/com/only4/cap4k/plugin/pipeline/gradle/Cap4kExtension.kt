@@ -7,6 +7,7 @@ import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.Project
 import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import javax.inject.Inject
 import kotlin.io.path.invariantSeparatorsPathString
@@ -544,6 +545,8 @@ open class Cap4kTemplatesExtension @Inject constructor(objects: ObjectFactory) {
     val preset: Property<String> = objects.property(String::class.java).convention("ddd-default")
     val overrideDirs: ConfigurableFileCollection = objects.fileCollection()
     val conflictPolicy: Property<String> = objects.property(String::class.java).convention("SKIP")
+    val templateConflictPolicies: MapProperty<String, String> =
+        objects.mapProperty(String::class.java, String::class.java).convention(emptyMap())
     internal val templateOverrideDir: Property<String> = objects.property(String::class.java)
 }
 

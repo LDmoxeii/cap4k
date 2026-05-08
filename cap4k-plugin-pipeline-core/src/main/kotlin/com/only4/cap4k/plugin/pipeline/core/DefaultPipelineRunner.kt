@@ -1,6 +1,8 @@
 package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
+import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
+import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.PipelineResult
 import com.only4.cap4k.plugin.pipeline.api.PipelineRunner
@@ -42,6 +44,7 @@ class DefaultPipelineRunner(
             .flatMap { it.plan(config, model) }
             .map(transformPlanItem)
             .filter(includePlanItem)
+            .map { resolveConflictPolicy(it, config) }
 
         val renderedArtifacts = renderer.render(planItems, config)
         val writtenPaths = exporter.export(renderedArtifacts)
@@ -54,5 +57,14 @@ class DefaultPipelineRunner(
             aggregateSpecialFieldResolvedPolicies = model.aggregateSpecialFieldResolvedPolicies,
             diagnostics = assembly.diagnostics,
         )
+    }
+
+    private fun resolveConflictPolicy(item: ArtifactPlanItem, config: ProjectConfig): ArtifactPlanItem {
+        val resolvedConflictPolicy = when (item.outputKind) {
+            ArtifactOutputKind.GENERATED_SOURCE -> ConflictPolicy.OVERWRITE
+            else -> config.templates.templateConflictPolicies[item.templateId] ?: item.conflictPolicy
+        }
+
+        return item.copy(conflictPolicy = resolvedConflictPolicy)
     }
 }

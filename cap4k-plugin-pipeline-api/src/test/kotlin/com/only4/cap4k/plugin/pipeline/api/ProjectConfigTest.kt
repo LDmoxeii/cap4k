@@ -26,6 +26,9 @@ class ProjectConfigTest {
                 preset = "default",
                 overrideDirs = listOf("src/main/templates"),
                 conflictPolicy = ConflictPolicy.SKIP,
+                templateConflictPolicies = mapOf(
+                    "aggregate/factory.kt.peb" to ConflictPolicy.OVERWRITE,
+                ),
             ),
         )
 
@@ -33,6 +36,10 @@ class ProjectConfigTest {
         assertEquals(setOf("design-command"), config.enabledGeneratorIds())
         assertEquals("sample-api", config.modules["api"])
         assertEquals(ConflictPolicy.SKIP, config.templates.conflictPolicy)
+        assertEquals(
+            mapOf("aggregate/factory.kt.peb" to ConflictPolicy.OVERWRITE),
+            config.templates.templateConflictPolicies,
+        )
         assertEquals("domain.aggregates", config.artifactLayout.aggregate.packageRoot)
         assertEquals("flows", config.artifactLayout.flow.outputRoot)
         assertEquals("design", config.artifactLayout.drawingBoard.outputRoot)

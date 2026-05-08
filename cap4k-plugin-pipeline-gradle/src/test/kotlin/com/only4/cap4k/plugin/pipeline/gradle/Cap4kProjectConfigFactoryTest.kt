@@ -45,6 +45,7 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.generators.flow.enabled.get())
         assertEquals("ddd-default", extension.templates.preset.get())
         assertEquals("SKIP", extension.templates.conflictPolicy.get())
+        assertTrue(extension.templates.templateConflictPolicies.get().isEmpty())
         assertEquals(null, extension.types.registryFile.orNull)
     }
 
@@ -829,6 +830,73 @@ class Cap4kProjectConfigFactoryTest {
                 project.file("bridge/templates").absolutePath,
             ),
             config.templates.overrideDirs
+        )
+        assertTrue(config.templates.templateConflictPolicies.isEmpty())
+    }
+
+    @Test
+    fun `factory trims and maps template conflict policies`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.templates {
+            templateConflictPolicies.put(" aggregate/factory.kt.peb ", " overwrite ")
+            templateConflictPolicies.put("aggregate/behavior.kt.peb", "FAIL")
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(
+            mapOf(
+                "aggregate/factory.kt.peb" to ConflictPolicy.OVERWRITE,
+                "aggregate/behavior.kt.peb" to ConflictPolicy.FAIL,
+            ),
+            config.templates.templateConflictPolicies,
+        )
+    }
+
+    @Test
+    fun `factory rejects blank template id in template conflict policies`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.templates {
+            templateConflictPolicies.put("   ", "OVERWRITE")
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("templates.templateConflictPolicies contains a blank template id.", error.message)
+    }
+
+    @Test
+    fun `factory rejects duplicate template ids after normalization in template conflict policies`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.templates {
+            templateConflictPolicies.put(" aggregate/factory.kt.peb ", "OVERWRITE")
+            templateConflictPolicies.put("aggregate/factory.kt.peb", "FAIL")
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals(
+            "templates.templateConflictPolicies contains duplicate template id after normalization: aggregate/factory.kt.peb",
+            error.message,
         )
     }
 
