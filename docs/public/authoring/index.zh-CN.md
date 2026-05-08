@@ -18,8 +18,9 @@
 2. [生成器指南](generator/index.zh-CN.md)
 3. [领域层指南](domain.zh-CN.md)
 4. [应用层指南](application.zh-CN.md)
-5. [适配器层指南](adapter.zh-CN.md)
-6. [高级概念指南](advanced/index.zh-CN.md)
+5. [测试合同](testing-contract.zh-CN.md)
+6. [适配器层指南](adapter.zh-CN.md)
+7. [高级概念指南](advanced/index.zh-CN.md)
 
 ### 深度用户 / 框架贡献者
 
@@ -40,3 +41,4 @@
 - [命名与目录规范](naming-and-layout.zh-CN.md)
 - [生成 / 手写边界](generation-boundaries.zh-CN.md)
 - [示例合同](example-contract.zh-CN.md)
+- [测试合同](testing-contract.zh-CN.md)
