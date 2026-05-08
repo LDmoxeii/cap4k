@@ -28,7 +28,10 @@ private class ProbeRegistrar : CompilerPluginRegistrar() {
     }
 }
 
-fun compileWithCap4kPlugin(sources: List<SourceFile>): Path {
+fun compileWithCap4kPlugin(
+    sources: List<SourceFile>,
+    classpaths: List<File> = emptyList(),
+): Path {
     val workingDir = java.nio.file.Files.createTempDirectory("cap4k-compile").toFile()
     System.clearProperty("cap4k.test.plugin.registrar")
     System.clearProperty("cap4k.test.ir")
@@ -36,6 +39,7 @@ fun compileWithCap4kPlugin(sources: List<SourceFile>): Path {
         this.sources = sources
         this.workingDir = workingDir
         inheritClassPath = true
+        this.classpaths = classpaths
         supportsK2 = true
         compilerPluginRegistrars = listOf(
             Cap4kCodeAnalysisCompilerRegistrar(),
@@ -66,7 +70,10 @@ fun compileWithCap4kPlugin(sources: List<SourceFile>): Path {
     return outputDir
 }
 
-fun compileWithCap4kPluginExpectingFailure(sources: List<SourceFile>): String {
+fun compileWithCap4kPluginExpectingFailure(
+    sources: List<SourceFile>,
+    classpaths: List<File> = emptyList(),
+): String {
     val workingDir = java.nio.file.Files.createTempDirectory("cap4k-compile-failure").toFile()
     System.clearProperty("cap4k.test.plugin.registrar")
     System.clearProperty("cap4k.test.ir")
@@ -74,6 +81,7 @@ fun compileWithCap4kPluginExpectingFailure(sources: List<SourceFile>): String {
         this.sources = sources
         this.workingDir = workingDir
         inheritClassPath = true
+        this.classpaths = classpaths
         supportsK2 = true
         compilerPluginRegistrars = listOf(
             Cap4kCodeAnalysisCompilerRegistrar(),
@@ -97,6 +105,20 @@ fun compileWithCap4kPluginExpectingFailure(sources: List<SourceFile>): String {
             System.setProperty(OptionsKeys.OUTPUT_DIR, originalOutput)
         }
     }
+}
+
+fun compileLibrary(sources: List<SourceFile>): File {
+    val workingDir = java.nio.file.Files.createTempDirectory("cap4k-library").toFile()
+    val compilation = KotlinCompilation().apply {
+        this.sources = sources
+        this.workingDir = workingDir
+        inheritClassPath = true
+        supportsK2 = true
+        messageOutputStream = System.out
+    }
+    val result = compilation.compile()
+    assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
+    return result.outputDirectory
 }
 
 private fun resolvePluginClasspaths(): List<File> {

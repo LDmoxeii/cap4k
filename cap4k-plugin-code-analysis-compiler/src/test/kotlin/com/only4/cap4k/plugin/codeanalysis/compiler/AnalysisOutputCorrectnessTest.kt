@@ -51,6 +51,83 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
+    fun `command handler calling cross module top level aggregate behavior extension emits exact entity method edges`() {
+        val domainOutput = compileLibrary(
+            categoryDomainLibrarySources(
+                """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent()
+            )
+        )
+
+        val rels = compileRelationships(
+            categoryAppSources(useTopLevelBehavior = true),
+            classpaths = listOf(domainOutput),
+        )
+
+        assertCrossModuleMethodEdgeShape(
+            rels = rels,
+            handlerId = "demo.application.commands.category.UpdateCategorySortCmd.Handler",
+            aggregateId = "demo.domain.aggregates.category.Category",
+            methodId = "demo.domain.aggregates.category.Category::changeSort",
+            wrongMethodIds = setOf("changeSort", "demo.domain.aggregates.category.CategoryBehaviorKt::changeSort")
+        )
+    }
+
+    @Test
+    fun `top level behavior on generated style entity keeps exact domain event edge`() {
+        val rels = compileRelationships(
+            categorySources(
+                categoryBody = GENERATED_STYLE_CATEGORY_BODY,
+                useTopLevelBehavior = true,
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent()
+            )
+        )
+
+        assertMethodEdgeShape(
+            rels = rels,
+            handlerId = "demo.application.commands.category.UpdateCategorySortCmd.Handler",
+            aggregateId = "demo.domain.aggregates.category.Category",
+            methodId = "demo.domain.aggregates.category.Category::changeSort",
+            eventId = "demo.domain.aggregates.category.events.CategorySortChanged",
+            wrongMethodIds = setOf("changeSort", "demo.domain.aggregates.category.CategoryBehaviorKt::changeSort")
+        )
+    }
+
+    @Test
+    fun `command handler calling cross module top level behavior extension on generated style entity emits exact entity method edges`() {
+        val domainOutput = compileLibrary(
+            categoryDomainLibrarySources(
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent(),
+                categoryBody = GENERATED_STYLE_CATEGORY_BODY,
+            )
+        )
+
+        val rels = compileRelationships(
+            categoryAppSources(useTopLevelBehavior = true),
+            classpaths = listOf(domainOutput),
+        )
+
+        assertCrossModuleMethodEdgeShape(
+            rels = rels,
+            handlerId = "demo.application.commands.category.UpdateCategorySortCmd.Handler",
+            aggregateId = "demo.domain.aggregates.category.Category",
+            methodId = "demo.domain.aggregates.category.Category::changeSort",
+            wrongMethodIds = setOf("changeSort", "demo.domain.aggregates.category.CategoryBehaviorKt::changeSort")
+        )
+    }
+
+    @Test
     fun `command handler calling aggregate member method keeps exact entity method edges`() {
         val rels = compileRelationships(
             categorySources(
@@ -311,8 +388,11 @@ class AnalysisOutputCorrectnessTest {
         )
     }
 
-    private fun compileRelationships(sources: List<SourceFile>): List<RelationshipView> {
-        val outputDir = compileWithCap4kPlugin(sources)
+    private fun compileRelationships(
+        sources: List<SourceFile>,
+        classpaths: List<java.io.File> = emptyList(),
+    ): List<RelationshipView> {
+        val outputDir = compileWithCap4kPlugin(sources, classpaths)
         return readRelationships(outputDir)
     }
 
@@ -431,6 +511,48 @@ class AnalysisOutputCorrectnessTest {
         )
     }
 
+    private fun assertCrossModuleMethodEdgeShape(
+        rels: List<RelationshipView>,
+        handlerId: String,
+        aggregateId: String,
+        methodId: String,
+        wrongMethodIds: Set<String>,
+    ) {
+        val expected = setOf(
+            RelationshipView(handlerId, methodId, "CommandHandlerToEntityMethod"),
+            RelationshipView(aggregateId, methodId, "AggregateToEntityMethod"),
+        )
+
+        val relevant = rels.filter {
+            it.toId == methodId ||
+                it.fromId == methodId ||
+                it.fromId in wrongMethodIds ||
+                it.toId in wrongMethodIds
+        }.toSet()
+
+        assertEquals(expected, relevant, "Unexpected relevant relationships: $relevant")
+        wrongMethodIds.forEach { wrongId ->
+            assertEquals(
+                0,
+                rels.count { it.fromId == wrongId || it.toId == wrongId },
+                "Wrong method id leaked into graph: $wrongId"
+            )
+        }
+        assertEquals(
+            1,
+            rels.count { it.fromId == handlerId && it.toId == methodId && it.type == "CommandHandlerToEntityMethod" }
+        )
+        assertEquals(
+            1,
+            rels.count { it.fromId == aggregateId && it.toId == methodId && it.type == "AggregateToEntityMethod" }
+        )
+        assertEquals(
+            0,
+            rels.count { it.fromId == methodId && it.type == "EntityMethodToDomainEvent" },
+            "Cross-module handler compile should not infer external method body domain events"
+        )
+    }
+
     private fun categorySources(
         categoryBody: String = DEFAULT_CATEGORY_BODY,
         useTopLevelBehavior: Boolean,
@@ -482,6 +604,29 @@ class AnalysisOutputCorrectnessTest {
                         val aggregate: String = "",
                         val type: String = "",
                         val root: Boolean = false
+                    )
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "ApplicationSideId.kt",
+                """
+                    package com.only4.cap4k.ddd.core.domain.id
+
+                    annotation class ApplicationSideId(val strategy: String = "")
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "JpaAnnotations.kt",
+                """
+                    package jakarta.persistence
+
+                    annotation class Entity
+                    annotation class Table(val name: String = "")
+                    annotation class Id
+                    annotation class Column(
+                        val name: String = "",
+                        val insertable: Boolean = true,
+                        val updatable: Boolean = true,
                     )
                 """.trimIndent()
             ),
@@ -554,6 +699,152 @@ class AnalysisOutputCorrectnessTest {
         }
 
         return sources
+    }
+
+    private fun categoryDomainLibrarySources(
+        behaviorBody: String,
+        categoryBody: String = DEFAULT_CATEGORY_BODY,
+    ): List<SourceFile> {
+        return listOf(
+            SourceFile.kotlin(
+                "Aggregate.kt",
+                """
+                    package com.only4.cap4k.ddd.core.domain.aggregate.annotation
+
+                    annotation class Aggregate(
+                        val aggregate: String = "",
+                        val type: String = "",
+                        val root: Boolean = false
+                    )
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "ApplicationSideId.kt",
+                """
+                    package com.only4.cap4k.ddd.core.domain.id
+
+                    annotation class ApplicationSideId(val strategy: String = "")
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "JpaAnnotations.kt",
+                """
+                    package jakarta.persistence
+
+                    annotation class Entity
+                    annotation class Table(val name: String = "")
+                    annotation class Id
+                    annotation class Column(
+                        val name: String = "",
+                        val insertable: Boolean = true,
+                        val updatable: Boolean = true,
+                    )
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "DomainEvent.kt",
+                """
+                    package com.only4.cap4k.ddd.core.domain.event.annotation
+
+                    annotation class DomainEvent(val value: String = "", val persist: Boolean = false)
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "Category.kt",
+                """
+                    package demo.domain.aggregates.category
+
+                    import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+
+                    $categoryBody
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "CategorySortChanged.kt",
+                """
+                    package demo.domain.aggregates.category.events
+
+                    import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
+
+                    @DomainEvent
+                    data class CategorySortChanged(val sort: Int)
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "CategoryBehavior.kt",
+                """
+                    package demo.domain.aggregates.category
+
+                    import demo.domain.aggregates.category.events.CategorySortChanged
+
+                    $behaviorBody
+                """.trimIndent()
+            ),
+        )
+    }
+
+    private fun categoryAppSources(useTopLevelBehavior: Boolean): List<SourceFile> {
+        val behaviorImport = if (useTopLevelBehavior) {
+            "import demo.domain.aggregates.category.changeSort"
+        } else {
+            ""
+        }
+        return listOf(
+            SourceFile.kotlin(
+                "RequestParam.kt",
+                """
+                    package com.only4.cap4k.ddd.core.application
+
+                    interface RequestParam<RESULT : Any>
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "RequestHandler.kt",
+                """
+                    package com.only4.cap4k.ddd.core.application
+
+                    interface RequestHandler<REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> {
+                        fun exec(request: REQUEST): RESPONSE
+                    }
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "Command.kt",
+                """
+                    package com.only4.cap4k.ddd.core.application.command
+
+                    import com.only4.cap4k.ddd.core.application.RequestHandler
+                    import com.only4.cap4k.ddd.core.application.RequestParam
+
+                    interface Command<PARAM : RequestParam<RESULT>, RESULT : Any> : RequestHandler<PARAM, RESULT> {
+                        override fun exec(request: PARAM): RESULT
+                    }
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "UpdateCategorySortCmd.kt",
+                """
+                    package demo.application.commands.category
+
+                    import com.only4.cap4k.ddd.core.application.RequestParam
+                    import com.only4.cap4k.ddd.core.application.command.Command
+                    import demo.domain.aggregates.category.Category
+                    $behaviorImport
+
+                    class UpdateCategorySortCmd(val sort: Int) : RequestParam<UpdateCategorySortCmd.Response> {
+                        class Response
+
+                        class Handler : Command<UpdateCategorySortCmd, Response> {
+                            override fun exec(request: UpdateCategorySortCmd): Response {
+                                val category = Category()
+                                category.changeSort(request.sort)
+                                return Response()
+                            }
+                        }
+                    }
+                """.trimIndent()
+            ),
+        )
     }
 
     private fun stableDefaultSources(
@@ -817,6 +1108,17 @@ class AnalysisOutputCorrectnessTest {
         private const val DEFAULT_CATEGORY_BODY = """
             @Aggregate(aggregate = "Category", type = "entity", root = true)
             class Category
+        """
+        private const val GENERATED_STYLE_CATEGORY_BODY = """
+            import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
+            import jakarta.persistence.Entity
+            import java.util.UUID
+
+            @Entity
+            class Category(
+                @field:ApplicationSideId(strategy = "uuid7")
+                var id: UUID = UUID(0L, 0L)
+            )
         """
     }
 }

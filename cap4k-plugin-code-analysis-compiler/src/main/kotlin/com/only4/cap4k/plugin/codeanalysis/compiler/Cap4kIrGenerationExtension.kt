@@ -308,6 +308,7 @@ private class GraphCollector(
     private val domainEventAnn = FqName(options.domainEventAnnFq)
     private val integrationEventAnn = FqName(options.integrationEventAnnFq)
     private val eventListenerAnn = FqName(options.eventListenerAnnFq)
+    private val applicationSideIdAnn = FqName("com.only4.cap4k.ddd.core.domain.id.ApplicationSideId")
 
     private val commandInterfaceFq = FqName("com.only4.cap4k.ddd.core.application.command.Command")
     private val queryInterfaceFq = FqName("com.only4.cap4k.ddd.core.application.query.Query")
@@ -690,7 +691,9 @@ private class GraphCollector(
             aggregateRootsByName.putIfAbsent(info.aggregateName, fq)
             fq
         } else {
-            aggregateRootsByName[info.aggregateName] ?: fq
+            aggregateRootsByName[info.aggregateName]
+                ?: inferGeneratedAggregateRootFq(fq, info.aggregateName)
+                ?: fq
         }
     }
 
@@ -706,7 +709,7 @@ private class GraphCollector(
             } else {
                 aggInfo.aggregateName
                     .takeIf { it.isNotEmpty() }
-                    ?.let { aggregateRootsByName[it] }
+                    ?.let { aggregateRootsByName[it] ?: inferGeneratedAggregateRootFq(parentFq, it) }
                     ?: parentFq
             }
             val methodId = "$parentFq::$methodName"
@@ -717,7 +720,8 @@ private class GraphCollector(
             )
         }
 
-        if (function.parent !is IrFile) return null
+        val parent = function.parent
+        if (parent !is IrFile && parent !is IrPackageFragment) return null
 
         val receiverType = function.parameters
             .firstOrNull { it.kind == IrParameterKind.ExtensionReceiver }
@@ -734,7 +738,7 @@ private class GraphCollector(
         } else {
             receiverInfo.aggregateName
                 .takeIf { it.isNotEmpty() }
-                ?.let { aggregateRootsByName[it] }
+                ?.let { aggregateRootsByName[it] ?: inferGeneratedAggregateRootFq(receiverFq, it) }
                 ?: receiverFq
         }
         val methodId = "$receiverFq::$methodName"
@@ -822,7 +826,9 @@ private class GraphCollector(
     private fun IrClass.aggregateInfo(): AggregateInfo? {
         val fq = fqNameWhenAvailable?.asString() ?: return null
         return aggregateInfoCache.getOrPut(fq) {
-            index.aggregateInfoByClass[fq] ?: readAggregateInfo(aggregateAnn)
+            index.aggregateInfoByClass[fq]
+                ?: readAggregateInfo(aggregateAnn)
+                ?: inferGeneratedEntityAggregateInfo(applicationSideIdAnn)
         }
     }
 }
@@ -1019,6 +1025,55 @@ private fun IrClass.readAggregateInfo(aggregateAnn: FqName): AggregateInfo? {
     val root = ann.getBooleanArg("root") ?: false
     val resolvedName = if (aggregateName.isNotEmpty()) aggregateName else name.asString()
     return AggregateInfo(resolvedName, type, root)
+}
+
+private fun IrClass.inferGeneratedEntityAggregateInfo(applicationSideIdAnn: FqName): AggregateInfo? {
+    val fq = fqNameWhenAvailable?.asString() ?: return null
+    if (!fq.contains(".domain.aggregates.")) return null
+    if (!hasApplicationSideIdMember(applicationSideIdAnn)) return null
+
+    val packageName = fq.substringBeforeLast('.', missingDelimiterValue = "")
+    val aggregateToken = packageName.substringAfter(".domain.aggregates.", missingDelimiterValue = "")
+    if (aggregateToken.isBlank() || aggregateToken.contains('.')) return null
+
+    val aggregateName = aggregateToken.toUpperCamelCase()
+    val root = name.asString() == aggregateName
+    return AggregateInfo(aggregateName, AGG_TYPE_ENTITY, root)
+}
+
+private fun IrClass.hasApplicationSideIdMember(applicationSideIdAnn: FqName): Boolean {
+    return declarations.any { declaration ->
+        when (declaration) {
+            is IrProperty -> declaration.annotations.any {
+                it.symbol.owner.parentAsClass.fqNameWhenAvailable == applicationSideIdAnn
+            } || declaration.backingField?.annotations?.any {
+                it.symbol.owner.parentAsClass.fqNameWhenAvailable == applicationSideIdAnn
+            } == true
+
+            is IrField -> declaration.annotations.any {
+                it.symbol.owner.parentAsClass.fqNameWhenAvailable == applicationSideIdAnn
+            }
+
+            else -> false
+        }
+    }
+}
+
+private fun inferGeneratedAggregateRootFq(entityFq: String, aggregateName: String): String? {
+    val packageName = entityFq.substringBeforeLast('.', missingDelimiterValue = "")
+    val aggregateToken = packageName.substringAfter(".domain.aggregates.", missingDelimiterValue = "")
+    if (aggregateToken.isBlank() || aggregateToken.contains('.')) return null
+    val inferredAggregateName = aggregateToken.toUpperCamelCase()
+    if (inferredAggregateName != aggregateName) return null
+    return "$packageName.$aggregateName"
+}
+
+private fun String.toUpperCamelCase(): String {
+    return split('_', '-', '.')
+        .filter { it.isNotBlank() }
+        .joinToString("") { part ->
+            part.lowercase().replaceFirstChar { ch -> ch.titlecase() }
+        }
 }
 
 private fun IrConstructorCall.getStringArg(name: String): String? {
