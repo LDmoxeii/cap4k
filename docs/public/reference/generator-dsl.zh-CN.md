@@ -123,7 +123,6 @@ aggregate {
     artifacts {
         factory.set(false)
         specification.set(false)
-        wrapper.set(false)
         unique.set(false)
         enumTranslation.set(false)
     }
@@ -140,7 +139,6 @@ aggregate {
 | `specialFields.managedDefaultColumns` | 默认受管字段 |
 | `artifacts.factory` | 可选 factory 产物 |
 | `artifacts.specification` | 可选 specification 产物 |
-| `artifacts.wrapper` | 可选 wrapper 产物 |
 | `artifacts.unique` | 可选 unique 查询 / handler / validator |
 | `artifacts.enumTranslation` | 可选枚举翻译产物 |
 

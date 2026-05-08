@@ -15,7 +15,6 @@ class AggregateArtifactPlanner : GeneratorProvider {
         RepositoryArtifactPlanner(),
         FactoryArtifactPlanner(),
         SpecificationArtifactPlanner(),
-        AggregateWrapperArtifactPlanner(),
         UniqueQueryArtifactPlanner(),
         UniqueQueryHandlerArtifactPlanner(),
         UniqueValidatorArtifactPlanner(),
@@ -32,8 +31,6 @@ class AggregateArtifactPlanner : GeneratorProvider {
                     if (selection.factoryEnabled) delegate.plan(config, model) else emptyList()
                 is SpecificationArtifactPlanner ->
                     if (selection.specificationEnabled) delegate.plan(config, model) else emptyList()
-                is AggregateWrapperArtifactPlanner ->
-                    if (selection.wrapperEnabled) delegate.plan(config, model) else emptyList()
                 is UniqueQueryArtifactPlanner,
                 is UniqueQueryHandlerArtifactPlanner,
                 is UniqueValidatorArtifactPlanner ->

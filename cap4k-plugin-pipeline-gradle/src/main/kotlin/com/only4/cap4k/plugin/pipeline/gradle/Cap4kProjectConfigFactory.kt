@@ -291,9 +291,6 @@ class Cap4kProjectConfigFactory {
         }
         if (states.aggregateEnabled) {
             val aggregate = extension.generators.aggregate
-            if (aggregate.artifacts.wrapper.get() && !aggregate.artifacts.factory.get()) {
-                throw IllegalArgumentException("aggregate wrapper artifact requires enabled aggregate factory artifact.")
-            }
             put(
                 "aggregate",
                 GeneratorConfig(
@@ -305,7 +302,6 @@ class Cap4kProjectConfigFactory {
                             .ifEmpty { "FAIL" },
                         "artifact.factory" to aggregate.artifacts.factory.get(),
                         "artifact.specification" to aggregate.artifacts.specification.get(),
-                        "artifact.wrapper" to aggregate.artifacts.wrapper.get(),
                         "artifact.unique" to aggregate.artifacts.unique.get(),
                         "artifact.enumTranslation" to aggregate.artifacts.enumTranslation.get(),
                     ),
