@@ -27,6 +27,8 @@
 - 真正的状态修改仍由聚合行为完成。例如 application handler 先调用领域服务拿到资格结论，再决定是否向 `Content` 发起发布相关命令。
 - callback 主路径与 polling 备用路径带回的外部结果，先统一进入 `MediaProcessingTask`；领域服务只看已经内部化后的领域事实，不看入口差异。
 
+对应示例：[内容发布示例：Domain Service](../examples/content-publication-domain-service.zh-CN.md)
+
 ## 常见误用
 
 - 把 application orchestration 塞进领域服务，例如在一个 service 里顺手发命令、调 `cli`、写仓储、发消息。

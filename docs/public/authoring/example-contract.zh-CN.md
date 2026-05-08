@@ -44,6 +44,13 @@
 ## Audit cues
 ```
 
+## 高级概念示例的窄扩展
+
+- 上面的五段结构仍然是所有示例页的基线合同，不因为高级概念示例而改写。
+- 如果是高级概念示例页，可以在 `Non-example / misuse` 与 `Audit cues` 之间补一个 `Usage boundary` 小节，用来说明“什么时候该用、什么时候还不该升级”。
+- 高级概念示例页在确实有助于澄清边界时，也可以补充短小的支持性片段；但片段只负责辅助说明，不能替代 `Scenario`、`Why this layer / concept`、`Recommended shape`、`Non-example / misuse`、`Audit cues` 这些叙述性合同。
+- 其他示例页仍按原五段结构执行，不因为这条窄扩展而默认增加额外章节。
+
 ## 示例不是随手代码片段
 
 - 必须说明它在统一参考项目中的位置。

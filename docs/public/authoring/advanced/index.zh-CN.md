@@ -25,11 +25,12 @@
 ## 参考主场景
 
 - [内容发布与处理示例项目总览](../examples/reference-project-overview.zh-CN.md)
+- [高级概念实践示例总览](../examples/advanced-concepts-overview.zh-CN.md)
 - [内容草稿到发布主链路](../examples/content-draft-to-publish.zh-CN.md)
 - [媒体处理 callback 主路径](../examples/media-processing-callback.zh-CN.md)
 - [媒体处理 polling 备用路径](../examples/media-processing-polling.zh-CN.md)
 
-这些示例不是额外阅读负担，而是高级概念的回跳底图。进入 `Value Object`、`Domain Service`、`Saga`、`Strong ID`、`Read-only Weak Reference` 前，先能在这四页里指出默认路径已经卡在什么地方，再谈偏离才有意义。
+这些示例不是额外阅读负担，而是高级概念的回跳底图。进入 `Value Object`、`Domain Service`、`Saga`、`Strong ID`、`Read-only Weak Reference` 前，先能在这五页里指出默认路径已经卡在什么地方，再谈偏离才有意义。
 
 ## 使用方式
 
