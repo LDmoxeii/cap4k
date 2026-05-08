@@ -428,7 +428,6 @@ open class AggregateSpecialFieldsExtension @Inject constructor(objects: ObjectFa
 open class AggregateGeneratorArtifactsExtension @Inject constructor(objects: ObjectFactory) {
     val factory: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
     val specification: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-    val wrapper: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
     val unique: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
     val enumTranslation: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }

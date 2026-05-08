@@ -38,7 +38,6 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals("", extension.generators.aggregate.specialFields.versionDefaultColumn.get())
         assertFalse(extension.generators.aggregate.artifacts.factory.get())
         assertFalse(extension.generators.aggregate.artifacts.specification.get())
-        assertFalse(extension.generators.aggregate.artifacts.wrapper.get())
         assertFalse(extension.generators.aggregate.artifacts.unique.get())
         assertFalse(extension.generators.aggregate.artifacts.enumTranslation.get())
         assertFalse(extension.generators.drawingBoard.enabled.get())
@@ -1330,7 +1329,6 @@ class Cap4kProjectConfigFactoryTest {
                 artifacts {
                     factory.set(true)
                     specification.set(true)
-                    wrapper.set(true)
                     unique.set(true)
                     enumTranslation.set(true)
                 }
@@ -1342,44 +1340,9 @@ class Cap4kProjectConfigFactoryTest {
 
         assertEquals(true, options["artifact.factory"])
         assertEquals(true, options["artifact.specification"])
-        assertEquals(true, options["artifact.wrapper"])
         assertEquals(true, options["artifact.unique"])
         assertEquals(true, options["artifact.enumTranslation"])
-    }
-
-    @Test
-    fun `aggregate wrapper artifact requires factory artifact`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            domainModulePath.set("demo-domain")
-            applicationModulePath.set("demo-application")
-            adapterModulePath.set("demo-adapter")
-        }
-        extension.sources {
-            db {
-                enabled.set(true)
-                url.set("jdbc:h2:mem:test")
-                username.set("sa")
-                password.set("secret")
-            }
-        }
-        extension.generators {
-            aggregate {
-                enabled.set(true)
-                artifacts {
-                    wrapper.set(true)
-                }
-            }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("aggregate wrapper artifact requires enabled aggregate factory artifact.", error.message)
+        assertFalse(options.containsKey("artifact.wrapper"))
     }
 
     @Test

@@ -26,7 +26,6 @@ class ArtifactLayoutResolverTest {
     fun `resolves aggregate helper packages from resolved entity package`() {
         val entityPackage = "com.acme.demo.domain.aggregates.user_message"
 
-        assertEquals(entityPackage, resolver.aggregateWrapperPackage(entityPackage))
         assertEquals("com.acme.demo.domain.aggregates.user_message.factory", resolver.aggregateFactoryPackage(entityPackage))
         assertEquals(
             "com.acme.demo.domain.aggregates.user_message.specification",

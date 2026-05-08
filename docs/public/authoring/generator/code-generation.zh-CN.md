@@ -69,7 +69,7 @@
 | `plan.json` 中出现，且 `outputKind=GENERATED_SOURCE` | 不可以 | 放到手写文件里，例如 application handler、adapter 转换文件，或文档明确留给作者补充的行为文件 |
 | `plan.json` 中出现，且 `outputKind=CHECKED_IN_SOURCE`，并且是 `aggregate/behavior.kt.peb` | 可以 | 只在 `*Behavior.kt` 里补聚合行为 |
 | `plan.json` 中出现，且 `outputKind=CHECKED_IN_SOURCE`，并且是 `factory` / `specification` 这类 checked-in aggregate scaffold，同时 `conflictPolicy=SKIP` | 可以，但只能把它当成作者维护的骨架文件 | `factory` 只放聚合构造逻辑，`specification` 只放聚合规格规则；application 编排、查询组装、外部协议转换仍回到手写的 application / adapter 文件 |
-| `plan.json` 中出现，且 `outputKind=CHECKED_IN_SOURCE`，并且是 `factory` / `specification` / `wrapper`，但 `conflictPolicy=OVERWRITE` 或 `FAIL` | 不建议直接当手写家 | 把项目逻辑放回普通手写文件；这类文件虽然 checked in，但当前仍应按计划产物对待 |
+| `plan.json` 中出现，且 `outputKind=CHECKED_IN_SOURCE`，并且是 `factory` / `specification`，但 `conflictPolicy=OVERWRITE` 或 `FAIL` | 不建议直接当手写家 | 把项目逻辑放回普通手写文件；这类文件虽然 checked in，但当前仍应按计划产物对待 |
 | `plan.json` 中出现，且 `outputKind=CHECKED_IN_SOURCE`，但你看不出它是不是明确留给作者补充的文件 | 先不要改 | 先把项目逻辑放回手写文件；等文档或模板家族明确它是作者补充点后再决定 |
 | 文件不在 `plan.json` 中，只是普通 `src/main/kotlin` 文件 | 可以 | 这是正常手写文件，按层次责任放业务逻辑 |
 
@@ -80,8 +80,6 @@
 | `behavior` | 聚合根行为补充点 | 固定 `SKIP` | 这是明确的作者维护文件；补聚合行为就在这里 |
 | `factory` | 可选聚合构造骨架，模板默认给出 `TODO("Implement aggregate construction")` | 跟随 `templates.conflictPolicy` | 只有在 `SKIP` 下，才把它当作者维护 scaffold；否则仍按计划产物看待 |
 | `specification` | 可选聚合规格骨架，模板默认给出 `Result.pass()` 占位实现 | 跟随 `templates.conflictPolicy` | 只有在 `SKIP` 下，才把它当作者维护 scaffold；否则仍按计划产物看待 |
-| `wrapper` | 可选薄包装类型 | 跟随 `templates.conflictPolicy` | 当前不是推荐默认写业务逻辑的地方；即使在 `SKIP` 下，也只做最小 wrapper 级调整，不把它当主要作者入口 |
-
 直接规则：
 
 - Do：先看 `outputKind`、`templateId`、`conflictPolicy`，再决定文件是不是作者补充点。
@@ -89,7 +87,6 @@
 - Do：把 `behavior` 当成明确的聚合行为补充点。
 - Do：只有当 `factory` / `specification` 的 `conflictPolicy=SKIP` 时，才把它们当作作者维护 scaffold。
 - Don't：因为文件出现在 `src/main/kotlin`，就往计划产物里塞 controller 流程、CLI 调用、查询拼装或跨层逻辑。
-- Don't：把 `wrapper` 重新表述成推荐默认入口，或把主要业务逻辑塞进去。
 - Don't：当 checked-in aggregate 文件的 `conflictPolicy=OVERWRITE` 或 `FAIL` 时，仍把它当稳定手写家。
 
 什么时候必须读 `plan.json`：
@@ -103,7 +100,7 @@
 
 - 先让生成器产出结构骨架，再把项目特有规则补回手写主面。
 - application 的编排、adapter 的协议转换、查询组装，不该靠去改那些会被计划再次生成的文件来实现。
-- aggregate 家族里，默认会同时存在“可能被重复生成覆盖的文件”和“明确留给作者补行为的文件”。`behavior` 属于后者，而且固定 `SKIP`；`factory` / `specification` / `wrapper` 则要继续看 `conflictPolicy`，不能仅凭 checked in 就推断为作者长期维护文件。
+- aggregate 家族里，默认会同时存在“可能被重复生成覆盖的文件”和“明确留给作者补行为的文件”。`behavior` 属于后者，而且固定 `SKIP`；`factory` / `specification` 则要继续看 `conflictPolicy`，不能仅凭 checked in 就推断为作者长期维护文件。
 - 当 `plan.json` 里某个文件持续作为计划产物出现时，不要因为它落在 `src/main/kotlin` 就默认把它当成随意手写文件；先回到 [生成 / 手写边界](../generation-boundaries.zh-CN.md) 做判断。
 
 ## 常见生成误用

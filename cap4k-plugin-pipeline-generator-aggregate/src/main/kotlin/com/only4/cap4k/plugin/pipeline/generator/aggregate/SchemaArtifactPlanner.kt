@@ -15,7 +15,6 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
-        val selection = AggregateArtifactSelection.from(config)
         val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
         val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry)
         val entitiesByName = model.entities
@@ -24,12 +23,6 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
         return model.schemas.map { schema ->
             val entity = requireUniqueSchemaEntity(schema.name, schema.entityName, entitiesByName[schema.entityName].orEmpty())
             val entityTypeFqn = derivedTypeReferences.entityFqn(entity)
-            val qEntityTypeFqn = requireNotNull(derivedTypeReferences.qEntityFqn(schema.entityName))
-            val aggregateTypeFqn = if (entity.aggregateRoot && selection.wrapperEnabled) {
-                buildAggregateWrapperFqn(entity.packageName, entity.name)
-            } else {
-                ""
-            }
             val ownerPackage = entity.packageName
             val fields = schema.fields.map { field ->
                 val fieldType = planning.resolveFieldType(ownerPackage, field)
@@ -70,10 +63,6 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "isAggregateRoot" to entity.aggregateRoot,
                     "schemaRuntimePackage" to SCHEMA_RUNTIME_PACKAGE,
                     "entityTypeFqn" to entityTypeFqn,
-                    "qEntityTypeFqn" to qEntityTypeFqn,
-                    "aggregateTypeFqn" to aggregateTypeFqn,
-                    "wrapperEnabled" to selection.wrapperEnabled,
-                    "repositorySupportQuerydsl" to false,
                     "imports" to imports,
                     "fields" to fields,
                 ),
@@ -92,12 +81,6 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
         return entities.single()
     }
 
-    private fun buildAggregateWrapperFqn(packageName: String, entityName: String): String =
-        if (packageName.isBlank()) {
-            "Agg$entityName"
-        } else {
-            "$packageName.Agg$entityName"
-        }
 }
 
 internal fun requireRelativeModule(config: ProjectConfig, role: String): String {
