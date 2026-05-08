@@ -1,7 +1,7 @@
 # Cap4k Remove Wrapper From Core Pipeline And Docs Design
 
 Date: 2026-05-08
-Status: Proposed
+Status: Approved for implementation planning
 
 ## Summary
 
