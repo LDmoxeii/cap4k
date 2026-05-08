@@ -70,6 +70,7 @@ class Cap4kProjectConfigFactory {
                 conflictPolicy = ConflictPolicy.valueOf(
                     extension.templates.conflictPolicy.normalized().ifEmpty { "SKIP" }
                 ),
+                templateConflictPolicies = buildTemplateConflictPolicies(extension),
             ),
             artifactLayout = artifactLayout,
             aggregateSpecialFieldDefaults = aggregateSpecialFieldDefaults,
@@ -454,6 +455,23 @@ class Cap4kProjectConfigFactory {
         val bridgedDir = extension.templates.templateOverrideDir.optionalValue()?.let { project.file(it).absolutePath }
         return LinkedHashSet(overrideDirs + listOfNotNull(bridgedDir)).toList()
     }
+
+    private fun buildTemplateConflictPolicies(extension: Cap4kExtension): Map<String, ConflictPolicy> =
+        buildMap {
+            extension.templates.templateConflictPolicies.get().forEach { (templateId, rawConflictPolicy) ->
+                val normalizedTemplateId = templateId.trim()
+                require(normalizedTemplateId.isNotEmpty()) {
+                    "templates.templateConflictPolicies contains a blank template id."
+                }
+                require(normalizedTemplateId !in this) {
+                    "templates.templateConflictPolicies contains duplicate template id after normalization: $normalizedTemplateId"
+                }
+                put(
+                    normalizedTemplateId,
+                    ConflictPolicy.valueOf(rawConflictPolicy.trim().uppercase(Locale.ROOT))
+                )
+            }
+        }
 }
 
 private data class SourceStates(
