@@ -268,6 +268,32 @@ The project should consume `cap4k` through `mavenLocal()` by default.
 
 Composite-build or `includeBuild` local development can be documented later, but it must not be the primary project contract.
 
+### Repository Ownership and Delivery Path
+
+The relationship between `cap4k` and `cap4k-reference-content-studio` must be explicit.
+
+`cap4k` owns:
+
+- issue planning and sequencing for the reference-project line
+- authoring-guide references that cite the project
+- spec and plan documents that define how the project should behave
+
+`cap4k-reference-content-studio` owns:
+
+- runnable project code
+- project README and operator instructions
+- `.http` interaction files
+- committed OpenAPI snapshot
+- project-local snapshot sync task
+- smoke tests and other project-local verification assets
+
+The repository contract for version one is therefore:
+
+- implementation begins locally under `only-workspace`
+- the canonical project repository is `git@github.com:LDmoxeii/cap4k-reference-content-studio.git`
+- version-one delivery is not complete until the runnable project is actually published to that separate repository
+- `cap4k` should reference the project; it should not vendor the runnable project code back into the framework repository
+
 ### Startup Experience
 
 After `cap4k` has been published to `mavenLocal()`, a clean clone of `cap4k-reference-content-studio` should be directly runnable.
