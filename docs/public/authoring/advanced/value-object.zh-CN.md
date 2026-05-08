@@ -1,5 +1,9 @@
 # Value Object
 
+对应示例：
+
+- [内容发布示例：Value Object](../examples/content-publication-value-object.zh-CN.md)
+
 ## 什么时候需要它
 
 - `Content` 或 `MediaProcessingTask` 里有一段值语义，已经不适合继续裸用 `String`、`Int` 或松散字段组合表达。

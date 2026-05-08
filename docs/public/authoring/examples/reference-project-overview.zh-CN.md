@@ -74,6 +74,14 @@
 - `MediaProcessingCli` 不自己编排发布流程。
 - callback 和 polling 虽然入口不同，但进入内部后都要收敛为同一批命令语义。
 
+## 高级概念观察视角
+
+同一个参考项目也会被后续高级概念示例页复用，但这些页面不是另起一个样板系统，而是拿同一条 `Content` / `MediaProcessingTask` / callback / polling 参考链路，分别观察“值语义什么时候需要升级”“领域判断什么时候不自然落在单个聚合里”“什么时候问题已经跨入长流程协调”。
+
+- [内容发布示例：Value Object](content-publication-value-object.zh-CN.md)
+- [内容发布示例：Domain Service](content-publication-domain-service.zh-CN.md)
+- [内容发布示例：Saga](content-publication-saga.zh-CN.md)
+
 ## Non-example / misuse
 
 下面这些写法会直接破坏“统一参考项目”的作用：

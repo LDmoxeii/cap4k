@@ -1,5 +1,7 @@
 # Saga
 
+对应示例：[内容发布示例：Saga](../examples/content-publication-saga.zh-CN.md)
+
 ## 什么时候需要它
 
 - 你的流程已经不是“一个命令推进一个聚合行为”就能讲清，而是跨时间、跨步骤、可能失败重试的长流程协调。
