@@ -20,6 +20,7 @@
 3. 让状态变更收敛到命令处理路径
 4. 需要流程继续时，由聚合根发出领域事件
 5. 把 controller、job、事件处理器看作协同点，而不是业务真相所在
+6. 先为 `domain` 和 `application` 主链路补行为测试，再决定是否需要更重的基础设施测试
 
 ## 先走保守路径
 
@@ -32,3 +33,4 @@
 - [框架定位](framework-positioning.zh-CN.md)
 - [编写指南总览](authoring/index.zh-CN.md)
 - [Default Happy Path](authoring/default-happy-path.zh-CN.md)
+- [测试合同](authoring/testing-contract.zh-CN.md)
