@@ -350,7 +350,8 @@ class PipelinePluginCompileFunctionalTest {
             beforeGenerateCompileResult.task(":demo-domain:compileKotlin")?.outcome
         )
         assertTrue(beforeGenerateCompileResult.output.contains("VideoPostFactory"))
-        assertTrue(beforeGenerateCompileResult.output.contains("AggVideoPost"))
+        assertTrue(beforeGenerateCompileResult.output.contains("VideoPostSpecification"))
+        assertFalse(beforeGenerateCompileResult.output.contains("AggVideoPost"))
 
         val generateResult = FunctionalFixtureSupport
             .runner(projectDir, "cap4kGenerate")
@@ -373,8 +374,12 @@ class PipelinePluginCompileFunctionalTest {
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"),
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt",
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/AggVideoPost.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt",
+        )
+        assertFalse(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/AggVideoPost.kt"
+            ).toFile().exists()
         )
         assertFalse(checkedInEntity.toFile().exists())
         assertTrue(behaviorFile.readText().contains("Place behavior for VideoPost and its owned entities here."))

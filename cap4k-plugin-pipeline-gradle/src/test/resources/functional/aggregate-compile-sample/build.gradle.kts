@@ -34,7 +34,6 @@ cap4k {
             artifacts {
                 factory.set(true)
                 specification.set(true)
-                wrapper.set(true)
                 unique.set(true)
             }
         }
