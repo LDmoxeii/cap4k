@@ -420,50 +420,6 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `aggregate wrapper template does not emit trailing whitespace when comment is blank`() {
-        val renderer = PebbleArtifactRenderer(
-            templateResolver = PresetTemplateResolver("ddd-default", emptyList())
-        )
-
-        val rendered = renderer.render(
-            planItems = listOf(
-                ArtifactPlanItem(
-                    generatorId = "aggregate",
-                    moduleRole = "domain",
-                    templateId = "aggregate/wrapper.kt.peb",
-                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/AggOrder.kt",
-                    context = mapOf(
-                        "packageName" to "com.acme.demo.domain.aggregates.order",
-                        "typeName" to "AggOrder",
-                        "entityName" to "Order",
-                        "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
-                        "factoryTypeName" to "OrderFactory",
-                        "factoryTypeFqn" to "com.acme.demo.domain.aggregates.order.factory.OrderFactory",
-                        "idType" to "Long",
-                        "comment" to "",
-                    ),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            ),
-            config = ProjectConfig(
-                basePackage = "com.acme.demo",
-                layout = ProjectLayout.MULTI_MODULE,
-                modules = emptyMap(),
-                sources = emptyMap(),
-                generators = emptyMap(),
-                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
-            )
-        )
-
-        val trailingWhitespaceLine = Regex("""(?m)[ \t]+$""")
-
-        assertFalse(
-            trailingWhitespaceLine.containsMatchIn(rendered.single().content),
-            "Generated Kotlin must not contain trailing whitespace.",
-        )
-    }
-
-    @Test
     fun `aggregate repository and schema templates restore default contracts`() {
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver("ddd-default", emptyList())
@@ -499,9 +455,7 @@ class PebbleArtifactRendererTest {
                         "schemaRuntimePackage" to "com.only4.cap4k.ddd.domain.repo.schema",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.UserMessage",
                         "qEntityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.QUserMessage",
-                        "aggregateTypeFqn" to "com.acme.demo.domain.aggregates.user_message.AggUserMessage",
                         "isAggregateRoot" to true,
-                        "wrapperEnabled" to true,
                         "repositorySupportQuerydsl" to false,
                         "fields" to listOf(
                             mapOf(
@@ -547,18 +501,20 @@ class PebbleArtifactRendererTest {
         assertTrue(schemaContent.contains("import com.only4.cap4k.ddd.domain.repo.schema.SchemaSpecification"))
         assertTrue(schemaContent.contains("import com.only4.cap4k.ddd.domain.repo.schema.Field"))
         assertTrue(schemaContent.contains("import com.acme.demo.domain.aggregates.user_message.UserMessage"))
-        assertTrue(schemaContent.contains("import com.acme.demo.domain.aggregates.user_message.AggUserMessage"))
         assertFalse(schemaContent.contains("import {{"))
         assertTrue(schemaContent.contains("class SUserMessage("))
         assertTrue(schemaContent.contains("fun specify(builder: PredicateBuilder<SUserMessage>): Specification<UserMessage>"))
-        assertTrue(schemaContent.contains("fun predicateById(id: Any): AggregatePredicate<AggUserMessage, UserMessage>"))
+        assertTrue(schemaContent.contains("fun predicateById(id: Any): JpaPredicate<UserMessage>"))
+        assertTrue(schemaContent.contains("fun predicate(builder: PredicateBuilder<SUserMessage>): JpaPredicate<UserMessage>"))
+        assertFalse(schemaContent.contains("AggUserMessage"))
+        assertFalse(schemaContent.contains("AggregatePredicate"))
         assertTrue(schemaContent.contains("val messageKey: Field<String>"))
         assertFalse(schemaContent.contains("val message_key"))
         assertFalse(schemaContent.contains("Field<Any>"))
     }
 
     @Test
-    fun `aggregate schema template omits wrapper references when wrapper is disabled`() {
+    fun `aggregate schema template always renders root predicates against JpaPredicate`() {
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver("ddd-default", emptyList())
         )
@@ -577,9 +533,7 @@ class PebbleArtifactRendererTest {
                         "schemaRuntimePackage" to "com.only4.cap4k.ddd.domain.repo.schema",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.UserMessage",
                         "qEntityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.QUserMessage",
-                        "aggregateTypeFqn" to "",
                         "isAggregateRoot" to true,
-                        "wrapperEnabled" to false,
                         "repositorySupportQuerydsl" to false,
                         "fields" to listOf(
                             mapOf(
@@ -634,9 +588,7 @@ class PebbleArtifactRendererTest {
                         "schemaRuntimePackage" to "com.only4.cap4k.ddd.domain.repo.schema",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.video.VideoFile",
                         "qEntityTypeFqn" to "com.acme.demo.domain.aggregates.video.QVideoFile",
-                        "aggregateTypeFqn" to "",
                         "isAggregateRoot" to false,
-                        "wrapperEnabled" to true,
                         "repositorySupportQuerydsl" to false,
                         "fields" to listOf(
                             mapOf(
@@ -1816,8 +1768,7 @@ class PebbleArtifactRendererTest {
                         "schemaRuntimePackage" to "com.only4.cap4k.ddd.domain.repo.schema",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
                         "qEntityTypeFqn" to "com.acme.demo.domain.aggregates.order.QOrder",
-                        "aggregateTypeFqn" to "com.acme.demo.domain.aggregates.order.AggOrder",
-                        "wrapperEnabled" to true,
+                        "isAggregateRoot" to true,
                         "repositorySupportQuerydsl" to false,
                         "fields" to listOf(
                             mapOf(
@@ -1910,23 +1861,6 @@ class PebbleArtifactRendererTest {
                         "entityName" to "Order",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
                         "aggregateName" to "Order",
-                        "comment" to "Order aggregate",
-                    ),
-                    conflictPolicy = ConflictPolicy.SKIP
-                ),
-                ArtifactPlanItem(
-                    generatorId = "aggregate",
-                    moduleRole = "domain",
-                    templateId = "aggregate/wrapper.kt.peb",
-                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/AggOrder.kt",
-                    context = mapOf(
-                        "packageName" to "com.acme.demo.domain.aggregates.order",
-                        "typeName" to "AggOrder",
-                        "entityName" to "Order",
-                        "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
-                        "factoryTypeName" to "OrderFactory",
-                        "factoryTypeFqn" to "com.acme.demo.domain.aggregates.order.factory.OrderFactory",
-                        "idType" to "Long",
                         "comment" to "Order aggregate",
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
@@ -2027,7 +1961,7 @@ class PebbleArtifactRendererTest {
 
         val aggregateArtifacts = rendered.reversed()
 
-        assertEquals(9, aggregateArtifacts.size)
+        assertEquals(8, aggregateArtifacts.size)
 
         fun contentFor(pathSuffix: String): String = aggregateArtifacts.single {
             it.outputPath.endsWith(pathSuffix)
@@ -2038,7 +1972,6 @@ class PebbleArtifactRendererTest {
         val repositoryContent = contentFor("/adapter/domain/repositories/OrderRepository.kt")
         val factoryContent = contentFor("/factory/OrderFactory.kt")
         val specificationContent = contentFor("/specification/OrderSpecification.kt")
-        val wrapperContent = contentFor("/aggregates/order/AggOrder.kt")
         val uniqueQueryContent = contentFor("/application/queries/video_post/unique/UniqueVideoPostTenantIdSlugQry.kt")
         val uniqueHandlerContent = contentFor("/adapter/queries/video_post/unique/UniqueVideoPostTenantIdSlugQryHandler.kt")
         val uniqueValidatorContent = contentFor("/application/validators/video_post/unique/UniqueVideoPostTenantIdSlug.kt")
@@ -2079,18 +2012,10 @@ class PebbleArtifactRendererTest {
         assertTrue(specificationContent.contains("""name = "OrderSpecification""""))
         assertTrue(specificationContent.contains("type = Aggregate.TYPE_SPECIFICATION"))
         assertTrue(specificationContent.contains("return Result.pass()"))
-        assertTrue(wrapperContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate"))
-        assertTrue(wrapperContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
-        assertTrue(wrapperContent.contains("import com.acme.demo.domain.aggregates.order.factory.OrderFactory"))
-        assertTrue(wrapperContent.contains("class AggOrder("))
-        assertTrue(wrapperContent.contains("payload: OrderFactory.Payload? = null"))
-        assertTrue(wrapperContent.contains(") : Aggregate.Default<Order>(payload)"))
-        assertTrue(wrapperContent.contains("val id by lazy { root.id }"))
-        assertTrue(
-            wrapperContent.contains(
-                "class Id(key: Long) : com.only4.cap4k.ddd.core.domain.aggregate.Id.Default<AggOrder, Long>(key)"
-            )
-        )
+        assertTrue(schemaContent.contains("fun predicateById(id: Any): JpaPredicate<Order>"))
+        assertTrue(schemaContent.contains("fun predicate(builder: PredicateBuilder<SOrder>): JpaPredicate<Order>"))
+        assertFalse(schemaContent.contains("AggregatePredicate"))
+        assertFalse(schemaContent.contains("AggOrder"))
         assertTrue(uniqueQueryContent.contains("object UniqueVideoPostTenantIdSlugQry"))
         assertTrue(uniqueQueryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
         assertTrue(uniqueQueryContent.contains("val tenantId: Long"))

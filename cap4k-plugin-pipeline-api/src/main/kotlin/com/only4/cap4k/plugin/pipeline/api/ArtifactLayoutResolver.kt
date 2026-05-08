@@ -40,9 +40,6 @@ class ArtifactLayoutResolver(
     fun aggregateUniqueValidatorPackage(entityPackage: String): String =
         packageFromLayout(artifactLayout.aggregateUniqueValidator, entityPackage)
 
-    fun aggregateWrapperPackage(entityPackage: String): String =
-        entityPackage
-
     fun aggregateFactoryPackage(entityPackage: String): String =
         joinPackage(entityPackage, "factory")
 

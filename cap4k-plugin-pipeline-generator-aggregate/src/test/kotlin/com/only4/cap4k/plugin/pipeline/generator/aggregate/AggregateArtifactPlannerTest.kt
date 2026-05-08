@@ -66,7 +66,6 @@ class AggregateArtifactPlannerTest {
                 options = mapOf(
                     "artifact.factory" to false,
                     "artifact.specification" to false,
-                    "artifact.wrapper" to false,
                     "artifact.unique" to false,
                     "artifact.enumTranslation" to false,
                 )
@@ -99,7 +98,6 @@ class AggregateArtifactPlannerTest {
         assertTrue(plan.any { it.templateId == "aggregate/repository.kt.peb" })
         assertFalse(plan.any { it.templateId == "aggregate/factory.kt.peb" })
         assertFalse(plan.any { it.templateId == "aggregate/specification.kt.peb" })
-        assertFalse(plan.any { it.templateId == "aggregate/wrapper.kt.peb" })
         assertFalse(plan.any { it.templateId == "aggregate/unique_query.kt.peb" })
         assertFalse(plan.any { it.templateId == "aggregate/unique_query_handler.kt.peb" })
         assertFalse(plan.any { it.templateId == "aggregate/unique_validator.kt.peb" })
@@ -179,7 +177,6 @@ class AggregateArtifactPlannerTest {
         }
         assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, plan.single { it.templateId == "aggregate/factory.kt.peb" }.outputKind)
         assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, plan.single { it.templateId == "aggregate/specification.kt.peb" }.outputKind)
-        assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, plan.single { it.templateId == "aggregate/wrapper.kt.peb" }.outputKind)
     }
 
     @Test
@@ -267,7 +264,6 @@ class AggregateArtifactPlannerTest {
                 options = mapOf(
                     "artifact.factory" to false,
                     "artifact.specification" to false,
-                    "artifact.wrapper" to false,
                     "artifact.unique" to true,
                     "artifact.enumTranslation" to false,
                 )
@@ -300,7 +296,6 @@ class AggregateArtifactPlannerTest {
         assertEquals(1, plan.count { it.templateId == "aggregate/unique_validator.kt.peb" })
         assertFalse(plan.any { it.templateId == "aggregate/factory.kt.peb" })
         assertFalse(plan.any { it.templateId == "aggregate/specification.kt.peb" })
-        assertFalse(plan.any { it.templateId == "aggregate/wrapper.kt.peb" })
     }
 
     @Test
@@ -446,16 +441,11 @@ class AggregateArtifactPlannerTest {
             "com.acme.demo.domain.aggregates.user_message.UserMessage",
             schema.context["entityTypeFqn"],
         )
-        assertEquals(
-            "com.acme.demo.domain.aggregates.user_message.AggUserMessage",
-            schema.context["aggregateTypeFqn"],
-        )
-        assertEquals(true, schema.context["wrapperEnabled"])
         assertEquals(false, schema.context["repositorySupportQuerydsl"])
     }
 
     @Test
-    fun `schema planner disables wrapper dependent render model when wrapper artifact is disabled`() {
+    fun `schema planner omits wrapper specific render model keys`() {
         val entity = EntityModel(
             name = "UserMessage",
             packageName = "com.acme.demo.domain.aggregates.user_message",
@@ -469,7 +459,6 @@ class AggregateArtifactPlannerTest {
                 options = mapOf(
                     "artifact.factory" to false,
                     "artifact.specification" to false,
-                    "artifact.wrapper" to false,
                     "artifact.unique" to false,
                     "artifact.enumTranslation" to false,
                 )
@@ -491,8 +480,8 @@ class AggregateArtifactPlannerTest {
 
         val schema = plan.single { it.templateId == "aggregate/schema.kt.peb" }
 
-        assertEquals(false, schema.context["wrapperEnabled"])
-        assertEquals("", schema.context["aggregateTypeFqn"])
+        assertFalse(schema.context.containsKey("wrapperEnabled"))
+        assertFalse(schema.context.containsKey("aggregateTypeFqn"))
     }
 
     @Test
@@ -2225,7 +2214,7 @@ class AggregateArtifactPlannerTest {
 
         val planItems = AggregateArtifactPlanner().plan(config, model)
 
-        assertEquals(7, planItems.size)
+        assertEquals(6, planItems.size)
         assertFalse(planItems.any { it.templateId == "aggregate/schema_base.kt.peb" })
         assertEquals(
             "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt",
@@ -2279,10 +2268,6 @@ class AggregateArtifactPlannerTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt",
             planItems.first { it.templateId == "aggregate/specification.kt.peb" }.outputPath,
         )
-        assertEquals(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/AggVideoPost.kt",
-            planItems.first { it.templateId == "aggregate/wrapper.kt.peb" }.outputPath,
-        )
         val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
         assertEquals("com.acme.demo.domain.aggregates.video_post.factory", factoryContext["packageName"])
         assertEquals("VideoPostFactory", factoryContext["typeName"])
@@ -2296,18 +2281,6 @@ class AggregateArtifactPlannerTest {
         assertEquals("VideoPost", specificationContext["entityName"])
         assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", specificationContext["entityTypeFqn"])
         assertEquals("VideoPost", specificationContext["aggregateName"])
-        val wrapperContext = planItems.first { it.templateId == "aggregate/wrapper.kt.peb" }.context
-        assertEquals("com.acme.demo.domain.aggregates.video_post", wrapperContext["packageName"])
-        assertEquals("AggVideoPost", wrapperContext["typeName"])
-        assertEquals("VideoPost", wrapperContext["entityName"])
-        assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", wrapperContext["entityTypeFqn"])
-        assertEquals("VideoPostFactory", wrapperContext["factoryTypeName"])
-        assertEquals(
-            "com.acme.demo.domain.aggregates.video_post.factory.VideoPostFactory",
-            wrapperContext["factoryTypeFqn"],
-        )
-        assertEquals("Long", wrapperContext["idType"])
-        assertEquals("Video post entity", wrapperContext["comment"])
     }
 
     @Test
@@ -2383,9 +2356,9 @@ class AggregateArtifactPlannerTest {
             it.templateId == "aggregate/schema.kt.peb" && it.context["typeName"] == "SVideoFile"
         }.context
         assertEquals(true, rootSchemaContext["isAggregateRoot"])
-        assertEquals("com.acme.demo.domain.aggregates.video.AggVideo", rootSchemaContext["aggregateTypeFqn"])
+        assertFalse(rootSchemaContext.containsKey("aggregateTypeFqn"))
         assertEquals(false, childSchemaContext["isAggregateRoot"])
-        assertEquals("", childSchemaContext["aggregateTypeFqn"])
+        assertFalse(childSchemaContext.containsKey("aggregateTypeFqn"))
     }
 
     @Test
@@ -3627,7 +3600,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `factory specification and wrapper planners use the current entity when names collide`() {
+    fun `factory and specification planners use the current entity when names collide`() {
         val config = aggregateConfig()
         val primaryEntity = EntityModel(
             name = "VideoPost",
@@ -3672,15 +3645,6 @@ class AggregateArtifactPlannerTest {
             it.templateId == "aggregate/specification.kt.peb" &&
                 it.context["packageName"] == "com.acme.demo.domain.aggregates.secondary_video_post.specification"
         }.context
-        val primaryWrapperContext = planItems.first {
-            it.templateId == "aggregate/wrapper.kt.peb" &&
-                it.context["packageName"] == "com.acme.demo.domain.aggregates.primary_video_post"
-        }.context
-        val secondaryWrapperContext = planItems.first {
-            it.templateId == "aggregate/wrapper.kt.peb" &&
-            it.context["packageName"] == "com.acme.demo.domain.aggregates.secondary_video_post"
-        }.context
-
         assertEquals(
             "com.acme.demo.domain.aggregates.primary_video_post.VideoPost",
             primaryFactoryContext["entityTypeFqn"],
@@ -3696,22 +3660,6 @@ class AggregateArtifactPlannerTest {
         assertEquals(
             "com.acme.demo.domain.aggregates.secondary_video_post.VideoPost",
             secondarySpecificationContext["entityTypeFqn"],
-        )
-        assertEquals(
-            "com.acme.demo.domain.aggregates.primary_video_post.VideoPost",
-            primaryWrapperContext["entityTypeFqn"],
-        )
-        assertEquals(
-            "com.acme.demo.domain.aggregates.primary_video_post.factory.VideoPostFactory",
-            primaryWrapperContext["factoryTypeFqn"],
-        )
-        assertEquals(
-            "com.acme.demo.domain.aggregates.secondary_video_post.VideoPost",
-            secondaryWrapperContext["entityTypeFqn"],
-        )
-        assertEquals(
-            "com.acme.demo.domain.aggregates.secondary_video_post.factory.VideoPostFactory",
-            secondaryWrapperContext["factoryTypeFqn"],
         )
     }
 
@@ -3819,7 +3767,6 @@ class AggregateArtifactPlannerTest {
         mapOf(
             "artifact.factory" to true,
             "artifact.specification" to true,
-            "artifact.wrapper" to true,
             "artifact.unique" to true,
             "artifact.enumTranslation" to true,
         )
