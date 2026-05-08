@@ -23,7 +23,6 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
         return model.schemas.map { schema ->
             val entity = requireUniqueSchemaEntity(schema.name, schema.entityName, entitiesByName[schema.entityName].orEmpty())
             val entityTypeFqn = derivedTypeReferences.entityFqn(entity)
-            val qEntityTypeFqn = requireNotNull(derivedTypeReferences.qEntityFqn(schema.entityName))
             val ownerPackage = entity.packageName
             val fields = schema.fields.map { field ->
                 val fieldType = planning.resolveFieldType(ownerPackage, field)
@@ -64,8 +63,6 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "isAggregateRoot" to entity.aggregateRoot,
                     "schemaRuntimePackage" to SCHEMA_RUNTIME_PACKAGE,
                     "entityTypeFqn" to entityTypeFqn,
-                    "qEntityTypeFqn" to qEntityTypeFqn,
-                    "repositorySupportQuerydsl" to false,
                     "imports" to imports,
                     "fields" to fields,
                 ),

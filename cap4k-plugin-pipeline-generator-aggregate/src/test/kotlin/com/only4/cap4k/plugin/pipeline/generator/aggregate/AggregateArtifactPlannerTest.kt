@@ -441,7 +441,8 @@ class AggregateArtifactPlannerTest {
             "com.acme.demo.domain.aggregates.user_message.UserMessage",
             schema.context["entityTypeFqn"],
         )
-        assertEquals(false, schema.context["repositorySupportQuerydsl"])
+        assertFalse(schema.context.containsKey("qEntityTypeFqn"))
+        assertFalse(schema.context.containsKey("repositorySupportQuerydsl"))
     }
 
     @Test
@@ -2229,12 +2230,16 @@ class AggregateArtifactPlannerTest {
             planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context["entityTypeFqn"],
         )
         assertEquals(
-            "com.acme.demo.domain.aggregates.video_post.QVideoPost",
-            planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context["qEntityTypeFqn"],
-        )
-        assertEquals(
             "com.only4.cap4k.ddd.domain.repo.schema",
             planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context["schemaRuntimePackage"],
+        )
+        assertEquals(
+            false,
+            planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context.containsKey("qEntityTypeFqn"),
+        )
+        assertEquals(
+            false,
+            planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context.containsKey("repositorySupportQuerydsl"),
         )
         assertEquals(
             "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
@@ -3393,7 +3398,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `derived aggregate references are exposed only to schema factory and specification contexts`() {
+    fun `derived aggregate references are exposed only to schema entity factory and specification contexts`() {
         val config = aggregateConfig()
         val model = CanonicalModel(
             schemas = listOf(
@@ -3444,7 +3449,8 @@ class AggregateArtifactPlannerTest {
         val repositoryContext = planItems.first { it.templateId == "aggregate/repository.kt.peb" }.context
 
         assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", schemaContext["entityTypeFqn"])
-        assertEquals("com.acme.demo.domain.aggregates.video_post.QVideoPost", schemaContext["qEntityTypeFqn"])
+        assertFalse(schemaContext.containsKey("qEntityTypeFqn"))
+        assertFalse(schemaContext.containsKey("repositorySupportQuerydsl"))
         assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", factoryContext["entityTypeFqn"])
         assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", specificationContext["entityTypeFqn"])
         assertEquals(false, entityContext.containsKey("entityTypeFqn"))

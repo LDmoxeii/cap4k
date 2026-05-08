@@ -454,9 +454,7 @@ class PebbleArtifactRendererTest {
                         "entityName" to "UserMessage",
                         "schemaRuntimePackage" to "com.only4.cap4k.ddd.domain.repo.schema",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.UserMessage",
-                        "qEntityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.QUserMessage",
                         "isAggregateRoot" to true,
-                        "repositorySupportQuerydsl" to false,
                         "fields" to listOf(
                             mapOf(
                                 "name" to "messageKey",
@@ -532,9 +530,7 @@ class PebbleArtifactRendererTest {
                         "entityName" to "UserMessage",
                         "schemaRuntimePackage" to "com.only4.cap4k.ddd.domain.repo.schema",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.UserMessage",
-                        "qEntityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.QUserMessage",
                         "isAggregateRoot" to true,
-                        "repositorySupportQuerydsl" to false,
                         "fields" to listOf(
                             mapOf(
                                 "name" to "messageKey",
@@ -587,9 +583,7 @@ class PebbleArtifactRendererTest {
                         "entityName" to "VideoFile",
                         "schemaRuntimePackage" to "com.only4.cap4k.ddd.domain.repo.schema",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.video.VideoFile",
-                        "qEntityTypeFqn" to "com.acme.demo.domain.aggregates.video.QVideoFile",
                         "isAggregateRoot" to false,
-                        "repositorySupportQuerydsl" to false,
                         "fields" to listOf(
                             mapOf(
                                 "name" to "videoId",
@@ -1767,9 +1761,7 @@ class PebbleArtifactRendererTest {
                         "entityName" to "Order",
                         "schemaRuntimePackage" to "com.only4.cap4k.ddd.domain.repo.schema",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
-                        "qEntityTypeFqn" to "com.acme.demo.domain.aggregates.order.QOrder",
                         "isAggregateRoot" to true,
-                        "repositorySupportQuerydsl" to false,
                         "fields" to listOf(
                             mapOf(
                                 "name" to "id",
