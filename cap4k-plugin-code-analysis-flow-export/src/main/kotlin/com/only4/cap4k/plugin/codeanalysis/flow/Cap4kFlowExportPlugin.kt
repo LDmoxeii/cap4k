@@ -18,6 +18,7 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.security.MessageDigest
@@ -271,6 +272,13 @@ internal data class FlowProjectShape(
 }
 
 internal fun resolveInputDirs(project: Project, projectShape: FlowProjectShape?): List<Directory> {
+    if (projectShape?.modulePaths().orEmpty().isEmpty()) {
+        val pipelineInputDirs = resolvePipelineIrAnalysisInputDirs(project)
+        if (pipelineInputDirs.isNotEmpty()) {
+            return pipelineInputDirs
+        }
+    }
+
     val modules = resolveModuleProjects(project, projectShape)
     return modules.map { module ->
         module.layout.buildDirectory.dir("cap4k-code-analysis").get()
@@ -329,6 +337,16 @@ internal fun resolvePipelineProjectShape(project: Project): FlowProjectShape? {
     )
 }
 
+private fun resolvePipelineIrAnalysisInputDirs(project: Project): List<Directory> {
+    val extension = project.extensions.findByName("cap4k") ?: return emptyList()
+    return extension.invokeNoArg("getSources")
+        ?.invokeNoArg("getIrAnalysis")
+        ?.invokeNoArg("getInputDirs")
+        .readGradleFiles()
+        .distinctBy { file -> file.toPath().toAbsolutePath().normalize() }
+        .map { inputDir -> project.layout.dir(project.provider { inputDir }).get() }
+}
+
 private fun resolveModuleProject(rootProject: Project, modulePath: String): Project? {
     val normalizedModulePath = modulePath.trim()
     if (normalizedModulePath.isEmpty()) {
@@ -375,6 +393,17 @@ private fun Any.readGradleStringProperty(methodName: String): String? {
         ?.toString()
         ?.trim()
     return value?.takeIf { it.isNotEmpty() }
+}
+
+private fun Any?.readGradleFiles(): List<File> {
+    val files = this
+        ?.javaClass
+        ?.methods
+        ?.singleOrNull { method -> method.name == "getFiles" && method.parameterCount == 0 }
+        ?.invoke(this) as? Iterable<*>
+    return files
+        ?.mapNotNull { candidate -> candidate as? File }
+        .orEmpty()
 }
 
 private fun normalizeNode(raw: RawNode): Node {

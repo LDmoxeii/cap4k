@@ -5,6 +5,7 @@ import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import java.io.File
 
 class Cap4kFlowExportPluginTest {
 
@@ -72,6 +73,60 @@ class Cap4kFlowExportPluginTest {
     }
 
     @Test
+    fun `resolve input dirs uses pipeline irAnalysis input dirs when module paths are absent`() {
+        val root = ProjectBuilder.builder()
+            .withName("sample")
+            .build()
+        val configuredInputDir = root.projectDir.resolve("analysis/app/build/cap4k-code-analysis")
+
+        root.extensions.add(
+            "cap4k",
+            FakeCap4kExtension(
+                project = FakeCap4kProjectExtension(
+                    basePackage = "com.acme.demo",
+                    adapterModulePath = null,
+                    applicationModulePath = null,
+                    domainModulePath = null,
+                ),
+                sources = FakeCap4kSourcesExtension(
+                    irAnalysis = FakeIrAnalysisSourceExtension(
+                        inputDirs = listOf(configuredInputDir)
+                    )
+                )
+            )
+        )
+
+        assertEquals(
+            listOf(configuredInputDir.absolutePath),
+            resolveInputDirs(root, resolvePipelineProjectShape(root)).map { it.asFile.absolutePath }
+        )
+    }
+
+    @Test
+    fun `resolve input dirs falls back to root build dir when pipeline irAnalysis input dirs are absent`() {
+        val root = ProjectBuilder.builder()
+            .withName("sample")
+            .build()
+
+        root.extensions.add(
+            "cap4k",
+            FakeCap4kExtension(
+                project = FakeCap4kProjectExtension(
+                    basePackage = "com.acme.demo",
+                    adapterModulePath = null,
+                    applicationModulePath = null,
+                    domainModulePath = null,
+                )
+            )
+        )
+
+        assertEquals(
+            listOf(root.layout.buildDirectory.dir("cap4k-code-analysis").get().asFile.absolutePath),
+            resolveInputDirs(root, resolvePipelineProjectShape(root)).map { it.asFile.absolutePath }
+        )
+    }
+
+    @Test
     fun `resolve label prefixes includes pipeline base package and project group`() {
         val root = ProjectBuilder.builder()
             .withName("sample")
@@ -121,8 +176,12 @@ class Cap4kFlowExportPluginTest {
     }
 }
 
-private class FakeCap4kExtension(private val project: FakeCap4kProjectExtension) {
+private class FakeCap4kExtension(
+    private val project: FakeCap4kProjectExtension,
+    private val sources: FakeCap4kSourcesExtension = FakeCap4kSourcesExtension()
+) {
     fun getProject(): FakeCap4kProjectExtension = project
+    fun getSources(): FakeCap4kSourcesExtension = sources
 }
 
 private class FakeCap4kProjectExtension(
@@ -137,6 +196,22 @@ private class FakeCap4kProjectExtension(
     fun getDomainModulePath(): FakeGradleProperty = FakeGradleProperty(domainModulePath)
 }
 
+private class FakeCap4kSourcesExtension(
+    private val irAnalysis: FakeIrAnalysisSourceExtension = FakeIrAnalysisSourceExtension()
+) {
+    fun getIrAnalysis(): FakeIrAnalysisSourceExtension = irAnalysis
+}
+
+private class FakeIrAnalysisSourceExtension(
+    private val inputDirs: List<File> = emptyList()
+) {
+    fun getInputDirs(): FakeGradleFileCollection = FakeGradleFileCollection(inputDirs)
+}
+
 private class FakeGradleProperty(private val value: String?) {
     fun getOrNull(): String? = value
+}
+
+private class FakeGradleFileCollection(private val files: List<File>) {
+    fun getFiles(): Set<File> = files.toSet()
 }
