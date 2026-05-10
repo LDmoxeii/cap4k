@@ -6,6 +6,7 @@ import java.io.File
 class PresetTemplateResolver(
     private val preset: String,
     private val overrideDirs: List<String>,
+    private val addonClassLoaders: List<ClassLoader> = emptyList(),
 ) : TemplateResolver {
 
     override fun resolve(templateId: String): String {
@@ -21,6 +22,17 @@ class PresetTemplateResolver(
             if (file.exists()) {
                 return file.readText()
             }
+        }
+
+        if (templateId.startsWith("addons/")) {
+            val resourcePath = "cap4k/$templateId"
+            for (classLoader in addonClassLoaders) {
+                val resource = classLoader.getResource(resourcePath)
+                if (resource != null) {
+                    return resource.readText()
+                }
+            }
+            error("Addon template not found: $resourcePath")
         }
 
         val resourcePath = "presets/$preset/$templateId"

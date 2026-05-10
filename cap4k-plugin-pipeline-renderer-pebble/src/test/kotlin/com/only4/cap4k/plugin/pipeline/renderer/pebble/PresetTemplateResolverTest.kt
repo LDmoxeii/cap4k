@@ -1,8 +1,12 @@
 package com.only4.cap4k.plugin.pipeline.renderer.pebble
 
+import java.net.URLClassLoader
 import java.nio.file.Files
+import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class PresetTemplateResolverTest {
@@ -24,5 +28,76 @@ class PresetTemplateResolverTest {
         val resolved = resolver.resolve(directFile.toString())
 
         assertEquals("direct={{ projectName }}", resolved)
+    }
+
+    @Test
+    fun `resolve prefers project override for addon template before addon classloader resource`() {
+        val templateId = "addons/sample-addon/sample.kt.peb"
+        val overrideDir = Files.createTempDirectory("addon-override")
+        overrideDir.resolve(templateId).parent.createDirectories()
+        overrideDir.resolve(templateId).writeText("override addon template")
+
+        val addonResourceDir = Files.createTempDirectory("addon-resource")
+        addonResourceDir.resolve("cap4k/$templateId").parent.createDirectories()
+        addonResourceDir.resolve("cap4k/$templateId").writeText("jar addon template")
+
+        URLClassLoader(arrayOf(addonResourceDir.toUri().toURL()), null).use { addonClassLoader ->
+            val resolver = PresetTemplateResolver(
+                preset = "ddd-default-bootstrap",
+                overrideDirs = listOf(overrideDir.toString()),
+                addonClassLoaders = listOf(addonClassLoader)
+            )
+
+            val resolved = resolver.resolve(templateId)
+
+            assertEquals("override addon template", resolved)
+        }
+    }
+
+    @Test
+    fun `resolve uses addon classloader resource when addon template has no override`() {
+        val templateId = "addons/sample-addon/sample.kt.peb"
+        val addonResourceDir = Files.createTempDirectory("addon-resource")
+        addonResourceDir.resolve("cap4k/$templateId").parent.createDirectories()
+        addonResourceDir.resolve("cap4k/$templateId").writeText("jar addon template")
+
+        URLClassLoader(arrayOf(addonResourceDir.toUri().toURL()), null).use { addonClassLoader ->
+            val resolver = PresetTemplateResolver(
+                preset = "ddd-default-bootstrap",
+                overrideDirs = emptyList(),
+                addonClassLoaders = listOf(addonClassLoader)
+            )
+
+            val resolved = resolver.resolve(templateId)
+
+            assertEquals("jar addon template", resolved)
+        }
+    }
+
+    @Test
+    fun `resolve fails fast for missing addon template without preset fallback`() {
+        val templateId = "addons/sample-addon/missing.kt.peb"
+        val resolver = PresetTemplateResolver(
+            preset = "ddd-default-bootstrap",
+            overrideDirs = emptyList()
+        )
+
+        val exception = assertThrows(IllegalStateException::class.java) {
+            resolver.resolve(templateId)
+        }
+
+        assertTrue(exception.message!!.contains("Addon template not found: cap4k/$templateId"))
+    }
+
+    @Test
+    fun `resolve keeps built in preset resource resolution for non addon template`() {
+        val resolver = PresetTemplateResolver(
+            preset = "ddd-default-bootstrap",
+            overrideDirs = emptyList()
+        )
+
+        val resolved = resolver.resolve("bootstrap/root/settings.gradle.kts.peb")
+
+        assertTrue(resolved.contains("rootProject.name"))
     }
 }
