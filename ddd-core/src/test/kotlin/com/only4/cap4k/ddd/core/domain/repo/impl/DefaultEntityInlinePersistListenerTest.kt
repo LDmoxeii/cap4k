@@ -11,6 +11,7 @@ import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithThrowin
 import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithoutBehaviorHooks
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import java.lang.reflect.InvocationTargetException
 
 @DisplayName("DefaultEntityInlinePersistListener 测试")
@@ -64,11 +65,11 @@ class DefaultEntityInlinePersistListenerTest {
             listener.onCreate(entity2)
 
             // then
-            assert(
+            assertTrue(
                 DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.keys.any {
                     it.kind == "member" &&
                         it.targetClassName == TestEntityWithHandlers::class.java.name &&
-                        it.targetClassIdentity == System.identityHashCode(TestEntityWithHandlers::class.java) &&
+                        it.matchesTargetClass(TestEntityWithHandlers::class.java) &&
                         it.methodName == "onCreate"
                 }
             )
@@ -293,7 +294,7 @@ class DefaultEntityInlinePersistListenerTest {
                 .filter {
                     it.kind == "member" &&
                         it.targetClassName == TestEntityWithHandlers::class.java.name &&
-                        it.targetClassIdentity == System.identityHashCode(TestEntityWithHandlers::class.java) &&
+                        it.matchesTargetClass(TestEntityWithHandlers::class.java) &&
                         it.methodName == "onCreate"
                 }
             assertEquals(1, createCacheEntries.size)
@@ -308,11 +309,11 @@ class DefaultEntityInlinePersistListenerTest {
 
             listener.onCreate(entity)
 
-            assert(
+            assertTrue(
                 DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.keys.any {
                     it.kind == "behavior" &&
                         it.targetClassName == entityClass.name &&
-                        it.targetClassIdentity == System.identityHashCode(entityClass) &&
+                        it.matchesTargetClass(entityClass) &&
                         it.methodName == "onCreate" &&
                         it.behaviorClassName == behaviorClassName
                 }
@@ -351,19 +352,19 @@ class DefaultEntityInlinePersistListenerTest {
 
             listener.onCreate(entity)
 
-            assert(
+            assertTrue(
                 DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.keys.any {
                     it.kind == "member" &&
                         it.targetClassName == entityClass.name &&
-                        it.targetClassIdentity == System.identityHashCode(entityClass) &&
+                        it.matchesTargetClass(entityClass) &&
                         it.methodName == "onCreate"
                 }
             )
-            assert(
+            assertTrue(
                 DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.keys.any {
                     it.kind == "behavior" &&
                         it.targetClassName == entityClass.name &&
-                        it.targetClassIdentity == System.identityHashCode(entityClass) &&
+                        it.matchesTargetClass(entityClass) &&
                         it.methodName == "onCreate" &&
                         it.behaviorClassName == behaviorClassName
                 }
