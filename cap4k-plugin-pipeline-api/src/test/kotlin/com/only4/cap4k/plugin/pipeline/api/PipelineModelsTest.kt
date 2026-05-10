@@ -19,7 +19,11 @@ class PipelineModelsTest {
                         moduleRole = "adapter",
                         templateId = "addons/sample-addon/sample.kt.peb",
                         outputPath = "demo-adapter/src/main/kotlin/com/acme/Sample.kt",
-                        context = mapOf("basePackage" to context.config.basePackage),
+                        context = mapOf(
+                            "basePackage" to context.config.basePackage,
+                            "enumTypeName" to context.model.sharedEnums.single().typeName,
+                            "featureName" to context.options["featureName"],
+                        ),
                         conflictPolicy = ConflictPolicy.SKIP,
                     )
                 )
@@ -38,18 +42,32 @@ class PipelineModelsTest {
             ),
         )
 
-        val items = provider.plan(
-            ArtifactAddonContext(
-                config = config,
-                model = CanonicalModel(),
-                options = emptyMap(),
+        val model = CanonicalModel(
+            sharedEnums = listOf(
+                SharedEnumDefinition(
+                    typeName = "SampleStatus",
+                    packageName = "com.acme.demo.shared.enums",
+                    generateTranslation = true,
+                    items = emptyList(),
+                )
             )
         )
 
+        val items = provider.plan(
+            ArtifactAddonContext(
+                config = config,
+                model = model,
+                options = mapOf("featureName" to "sample-feature"),
+            )
+        )
+        val item = items.single()
+
         assertEquals("sample-addon", provider.id)
-        assertEquals("sample-addon", items.single().generatorId)
-        assertEquals("addons/sample-addon/sample.kt.peb", items.single().templateId)
-        assertEquals("com.acme.demo", items.single().context["basePackage"])
+        assertEquals("sample-addon", item.generatorId)
+        assertEquals("addons/sample-addon/sample.kt.peb", item.templateId)
+        assertEquals("com.acme.demo", item.context["basePackage"])
+        assertEquals("SampleStatus", item.context["enumTypeName"])
+        assertEquals("sample-feature", item.context["featureName"])
     }
 
     @Test
