@@ -304,7 +304,6 @@ class PipelinePluginTest {
                             enabled = true,
                             options = mapOf(
                                 "artifact.unique" to false,
-                                "artifact.enumTranslation" to false,
                             ),
                         )
                     ),
@@ -322,7 +321,6 @@ class PipelinePluginTest {
                             enabled = true,
                             options = mapOf(
                                 "artifact.unique" to true,
-                                "artifact.enumTranslation" to false,
                             ),
                         )
                     ),

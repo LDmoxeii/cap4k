@@ -6,7 +6,6 @@ internal data class AggregateArtifactSelection(
     val factoryEnabled: Boolean,
     val specificationEnabled: Boolean,
     val uniqueEnabled: Boolean,
-    val enumTranslationEnabled: Boolean,
 ) {
     companion object {
         fun from(config: ProjectConfig): AggregateArtifactSelection {
@@ -15,7 +14,6 @@ internal data class AggregateArtifactSelection(
                 factoryEnabled = options["artifact.factory"] as? Boolean ?: false,
                 specificationEnabled = options["artifact.specification"] as? Boolean ?: false,
                 uniqueEnabled = options["artifact.unique"] as? Boolean ?: false,
-                enumTranslationEnabled = options["artifact.enumTranslation"] as? Boolean ?: false,
             )
         }
     }

@@ -124,7 +124,6 @@ aggregate {
         factory.set(false)
         specification.set(false)
         unique.set(false)
-        enumTranslation.set(false)
     }
 }
 ```
@@ -140,7 +139,8 @@ aggregate {
 | `artifacts.factory` | 可选 factory 产物 |
 | `artifacts.specification` | 可选 specification 产物 |
 | `artifacts.unique` | 可选 unique 查询 / handler / validator |
-| `artifacts.enumTranslation` | 可选枚举翻译产物 |
+
+枚举翻译不再是 cap4k core aggregate 产物。需要这类产物时，应通过构建期 addon 提供，并由 `cap4kAddon` 依赖加载。
 
 ## `preset / overrideDirs`
 

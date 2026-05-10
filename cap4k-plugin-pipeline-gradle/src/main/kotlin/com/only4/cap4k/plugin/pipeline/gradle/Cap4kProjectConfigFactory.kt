@@ -303,7 +303,6 @@ class Cap4kProjectConfigFactory {
                         "artifact.factory" to aggregate.artifacts.factory.get(),
                         "artifact.specification" to aggregate.artifacts.specification.get(),
                         "artifact.unique" to aggregate.artifacts.unique.get(),
-                        "artifact.enumTranslation" to aggregate.artifacts.enumTranslation.get(),
                     ),
                 )
             )
@@ -322,9 +321,6 @@ class Cap4kProjectConfigFactory {
             aggregateSchema = extension.layout.aggregateSchema.toPackageLayout("aggregateSchema"),
             aggregateRepository = extension.layout.aggregateRepository.toPackageLayout("aggregateRepository"),
             aggregateSharedEnum = extension.layout.aggregateSharedEnum.toPackageLayout("aggregateSharedEnum"),
-            aggregateEnumTranslation = extension.layout.aggregateEnumTranslation.toPackageLayout(
-                "aggregateEnumTranslation"
-            ),
             aggregateUniqueQuery = extension.layout.aggregateUniqueQuery.toPackageLayout("aggregateUniqueQuery"),
             aggregateUniqueQueryHandler = extension.layout.aggregateUniqueQueryHandler.toPackageLayout(
                 "aggregateUniqueQueryHandler"

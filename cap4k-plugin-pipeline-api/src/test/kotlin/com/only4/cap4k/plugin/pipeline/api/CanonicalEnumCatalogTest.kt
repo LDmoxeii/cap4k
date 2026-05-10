@@ -179,7 +179,6 @@ class CanonicalEnumCatalogTest {
         SharedEnumDefinition(
             typeName = typeName,
             packageName = packageName,
-            generateTranslation = true,
             items = items,
         )
 

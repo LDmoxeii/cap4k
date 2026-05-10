@@ -38,10 +38,12 @@ class EnumManifestSourceProvider : SourceProvider {
         }
         return definitions.map { element ->
             val json = element.asJsonObject
+            require(!json.has(REMOVED_TRANSLATION_FLAG)) {
+                "enum manifest field $REMOVED_TRANSLATION_FLAG is removed; install an enum translation addon instead."
+            }
             SharedEnumDefinition(
                 typeName = json.requiredString("name"),
                 packageName = json.requiredString("package"),
-                generateTranslation = json["generateTranslation"]?.asBoolean ?: false,
                 items = json.requiredArray("items").map { item ->
                     val itemJson = item.asJsonObject
                     EnumItemModel(
@@ -56,6 +58,8 @@ class EnumManifestSourceProvider : SourceProvider {
 }
 
 private fun JsonObject.requiredString(field: String): String = get(field).asString
+
+private val REMOVED_TRANSLATION_FLAG = "generate" + "Translation"
 
 private fun JsonObject.requiredInt(field: String): Int = get(field).asInt
 

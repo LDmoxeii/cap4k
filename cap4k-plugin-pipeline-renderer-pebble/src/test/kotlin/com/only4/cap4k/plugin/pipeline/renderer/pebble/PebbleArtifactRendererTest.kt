@@ -3186,7 +3186,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `falls back to preset aggregate enum and translation templates`() {
+    fun `falls back to preset aggregate enum template`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-enum")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
@@ -3210,24 +3210,6 @@ class PebbleArtifactRendererTest {
                             mapOf("value" to 0, "name" to "DRAFT", "description" to "Draft"),
                             mapOf("value" to 1, "name" to "PUBLISHED", "description" to "Published"),
                         ),
-                        "translationTypeName" to "StatusTranslation",
-                        "translationEnabled" to true,
-                    ),
-                    conflictPolicy = ConflictPolicy.SKIP,
-                ),
-                ArtifactPlanItem(
-                    generatorId = "aggregate",
-                    moduleRole = "adapter",
-                    templateId = "aggregate/enum_translation.kt.peb",
-                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/translation/shared/StatusTranslation.kt",
-                    context = mapOf(
-                        "packageName" to "com.acme.demo.adapter.domain.translation.shared",
-                        "typeName" to "StatusTranslation",
-                        "enumTypeName" to "Status",
-                        "enumTypeFqn" to "com.acme.demo.domain.shared.enums.Status",
-                        "translationTypeConst" to "STATUS_CODE_TO_DESC",
-                        "translationTypeValue" to "status_code_to_desc",
-                        "enumNameField" to "description",
                     ),
                     conflictPolicy = ConflictPolicy.SKIP,
                 ),
@@ -3247,9 +3229,6 @@ class PebbleArtifactRendererTest {
         )
 
         val enumContent = rendered.single { it.outputPath.endsWith("/domain/shared/enums/Status.kt") }.content
-        val translationContent = rendered.single {
-            it.outputPath.endsWith("/adapter/domain/translation/shared/StatusTranslation.kt")
-        }.content
 
         assertTrue(enumContent.contains("enum class Status("))
         assertTrue(enumContent.contains("DRAFT(0, \"Draft\")"))
@@ -3261,10 +3240,6 @@ class PebbleArtifactRendererTest {
         assertTrue(enumContent.contains("return attribute?.value"))
         assertTrue(enumContent.contains("override fun convertToEntityAttribute(dbData: Int?): Status?"))
         assertTrue(enumContent.contains("return valueOfOrNull(dbData)"))
-        assertTrue(translationContent.contains("class StatusTranslation"))
-        assertTrue(translationContent.contains("import com.acme.demo.domain.shared.enums.Status"))
-        assertTrue(translationContent.contains("@TranslationType(type = \"status_code_to_desc\")"))
-        assertTrue(translationContent.contains("const val STATUS_CODE_TO_DESC = \"status_code_to_desc\""))
     }
 
     @Test

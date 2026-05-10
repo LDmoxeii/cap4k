@@ -53,7 +53,6 @@ class AggregateEnumPlanningTest {
                     SharedEnumDefinition(
                         typeName = "Status",
                         packageName = "shared",
-                        generateTranslation = true,
                         items = enumItems,
                     )
                 ),
@@ -94,7 +93,6 @@ class AggregateEnumPlanningTest {
                     SharedEnumDefinition(
                         typeName = "Status",
                         packageName = "shared",
-                        generateTranslation = true,
                         items = listOf(EnumItemModel(0, "DRAFT", "Draft"))
                     )
                 ),
@@ -124,7 +122,6 @@ class AggregateEnumPlanningTest {
                         SharedEnumDefinition(
                             typeName = "Status",
                             packageName = "shared",
-                            generateTranslation = true,
                             items = listOf(EnumItemModel(0, "DRAFT", "Draft"))
                         )
                     ),
@@ -150,7 +147,6 @@ class AggregateEnumPlanningTest {
                         SharedEnumDefinition(
                             typeName = "Status",
                             packageName = "shared",
-                            generateTranslation = true,
                             items = listOf(EnumItemModel(0, "DRAFT", "Draft"))
                         )
                     ),

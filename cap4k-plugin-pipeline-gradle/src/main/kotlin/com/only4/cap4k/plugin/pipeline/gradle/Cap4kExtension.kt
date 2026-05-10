@@ -72,8 +72,6 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
         .convention("adapter.domain.repositories")
     val aggregateSharedEnum: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention(packageRoot = "domain", packageSuffix = "enums", defaultPackage = "shared")
-    val aggregateEnumTranslation: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
-        .convention("adapter.domain.translation")
     val aggregateUniqueQuery: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention(packageRoot = "application.queries", packageSuffix = "unique")
     val aggregateUniqueQueryHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
@@ -117,10 +115,6 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
 
     fun aggregateSharedEnum(block: PackageLayoutExtension.() -> Unit) {
         aggregateSharedEnum.block()
-    }
-
-    fun aggregateEnumTranslation(block: PackageLayoutExtension.() -> Unit) {
-        aggregateEnumTranslation.block()
     }
 
     fun aggregateUniqueQuery(block: PackageLayoutExtension.() -> Unit) {
@@ -429,7 +423,6 @@ open class AggregateGeneratorArtifactsExtension @Inject constructor(objects: Obj
     val factory: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
     val specification: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
     val unique: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-    val enumTranslation: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }
 
 open class DrawingBoardGeneratorExtension @Inject constructor(objects: ObjectFactory) {

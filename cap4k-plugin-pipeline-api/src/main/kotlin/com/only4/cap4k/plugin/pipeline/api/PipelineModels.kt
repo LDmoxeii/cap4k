@@ -129,7 +129,6 @@ data class EnumItemModel(
 data class SharedEnumDefinition(
     val typeName: String,
     val packageName: String,
-    val generateTranslation: Boolean,
     val items: List<EnumItemModel>,
 )
 

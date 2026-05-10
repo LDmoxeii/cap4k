@@ -67,7 +67,6 @@ class AggregateArtifactPlannerTest {
                     "artifact.factory" to false,
                     "artifact.specification" to false,
                     "artifact.unique" to false,
-                    "artifact.enumTranslation" to false,
                 )
             ),
             CanonicalModel(
@@ -101,7 +100,6 @@ class AggregateArtifactPlannerTest {
         assertFalse(plan.any { it.templateId == "aggregate/unique_query.kt.peb" })
         assertFalse(plan.any { it.templateId == "aggregate/unique_query_handler.kt.peb" })
         assertFalse(plan.any { it.templateId == "aggregate/unique_validator.kt.peb" })
-        assertFalse(plan.any { it.templateId == "aggregate/enum_translation.kt.peb" })
     }
 
     @Test
@@ -148,7 +146,6 @@ class AggregateArtifactPlannerTest {
                     SharedEnumDefinition(
                         typeName = "SharedStatus",
                         packageName = "shared",
-                        generateTranslation = true,
                         items = enumItems,
                     )
                 ),
@@ -163,8 +160,6 @@ class AggregateArtifactPlannerTest {
             plan.single { it.templateId == "aggregate/unique_query.kt.peb" },
             plan.single { it.templateId == "aggregate/unique_query_handler.kt.peb" },
             plan.single { it.templateId == "aggregate/unique_validator.kt.peb" },
-            plan.single { it.templateId == "aggregate/enum_translation.kt.peb" && it.context["typeName"] == "SharedStatusTranslation" },
-            plan.single { it.templateId == "aggregate/enum_translation.kt.peb" && it.context["typeName"] == "VideoPostVisibilityTranslation" },
             plan.single { it.templateId == "aggregate/enum.kt.peb" && it.context["typeName"] == "SharedStatus" },
             plan.single { it.templateId == "aggregate/enum.kt.peb" && it.context["typeName"] == "VideoPostVisibility" },
         )
@@ -265,7 +260,6 @@ class AggregateArtifactPlannerTest {
                     "artifact.factory" to false,
                     "artifact.specification" to false,
                     "artifact.unique" to true,
-                    "artifact.enumTranslation" to false,
                 )
             ),
             CanonicalModel(
@@ -461,7 +455,6 @@ class AggregateArtifactPlannerTest {
                     "artifact.factory" to false,
                     "artifact.specification" to false,
                     "artifact.unique" to false,
-                    "artifact.enumTranslation" to false,
                 )
             ),
             CanonicalModel(
@@ -1563,7 +1556,6 @@ class AggregateArtifactPlannerTest {
                     SharedEnumDefinition(
                         typeName = "Status",
                         packageName = "shared",
-                        generateTranslation = true,
                         items = statusItems,
                     )
                 ),
@@ -2723,7 +2715,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `aggregate planner emits shared enum local enum and translation artifacts with stable ownership`() {
+    fun `aggregate planner emits shared enum and local enum artifacts with stable ownership`() {
         val planner = AggregateArtifactPlanner()
         val config = aggregateConfig()
         val model = CanonicalModel(
@@ -2731,7 +2723,6 @@ class AggregateArtifactPlannerTest {
                 SharedEnumDefinition(
                     typeName = "Status",
                     packageName = "shared",
-                    generateTranslation = true,
                     items = listOf(
                         EnumItemModel(0, "DRAFT", "Draft"),
                         EnumItemModel(1, "PUBLISHED", "Published"),
@@ -2799,17 +2790,6 @@ class AggregateArtifactPlannerTest {
 
         assertTrue(items.any { it.templateId == "aggregate/enum.kt.peb" && it.outputPath.endsWith("/domain/shared/enums/Status.kt") })
         assertTrue(items.any { it.templateId == "aggregate/enum.kt.peb" && it.outputPath.endsWith("/domain/aggregates/video_post/enums/VideoPostVisibility.kt") })
-        assertTrue(items.any { it.templateId == "aggregate/enum_translation.kt.peb" && it.outputPath.endsWith("/adapter/domain/translation/shared/StatusTranslation.kt") })
-        assertTrue(items.any { it.templateId == "aggregate/enum_translation.kt.peb" && it.outputPath.endsWith("/adapter/domain/translation/video_post/VideoPostVisibilityTranslation.kt") })
-        val sharedTranslationPlan = items.single {
-            it.templateId == "aggregate/enum_translation.kt.peb" &&
-                it.outputPath.endsWith("/adapter/domain/translation/shared/StatusTranslation.kt")
-        }
-        val localTranslationPlan = items.single {
-            it.templateId == "aggregate/enum_translation.kt.peb" &&
-                it.outputPath.endsWith("/adapter/domain/translation/video_post/VideoPostVisibilityTranslation.kt")
-        }
-
         val entityPlan = items.single { it.templateId == "aggregate/entity.kt.peb" }
         val schemaPlan = items.single { it.templateId == "aggregate/schema.kt.peb" }
         @Suppress("UNCHECKED_CAST")
@@ -2826,10 +2806,6 @@ class AggregateArtifactPlannerTest {
             "com.acme.demo.domain.aggregates.video_post.enums.VideoPostVisibility",
             schemaFields.single { it["name"] == "visibility" }["type"]
         )
-        assertEquals("STATUS_CODE_TO_DESC", sharedTranslationPlan.context["translationTypeConst"])
-        assertEquals("status_code_to_desc", sharedTranslationPlan.context["translationTypeValue"])
-        assertEquals("VIDEO_POST_VIDEO_POST_VISIBILITY_CODE_TO_DESC", localTranslationPlan.context["translationTypeConst"])
-        assertEquals("video_post_video_post_visibility_code_to_desc", localTranslationPlan.context["translationTypeValue"])
     }
 
     @Test
@@ -2842,7 +2818,6 @@ class AggregateArtifactPlannerTest {
                 defaultPackage = "shared",
                 packageSuffix = "types",
             ),
-            aggregateEnumTranslation = PackageLayout("adapter.enum_text"),
         )
         val entity = EntityModel(
             name = "VideoPost",
@@ -2866,7 +2841,6 @@ class AggregateArtifactPlannerTest {
                 SharedEnumDefinition(
                     typeName = "Status",
                     packageName = "",
-                    generateTranslation = true,
                     items = listOf(
                         EnumItemModel(0, "DRAFT", "Draft"),
                         EnumItemModel(1, "PUBLISHED", "Published"),
@@ -2899,14 +2873,6 @@ class AggregateArtifactPlannerTest {
             it.templateId == "aggregate/enum.kt.peb" &&
                 it.context["typeName"] == "Visibility"
         }
-        val sharedTranslation = items.single {
-            it.templateId == "aggregate/enum_translation.kt.peb" &&
-                it.context["typeName"] == "StatusTranslation"
-        }
-        val localTranslation = items.single {
-            it.templateId == "aggregate/enum_translation.kt.peb" &&
-                it.context["typeName"] == "VisibilityTranslation"
-        }
         val entityPlan = items.single { it.templateId == "aggregate/entity.kt.peb" }
         val schemaPlan = items.single { it.templateId == "aggregate/schema.kt.peb" }
         @Suppress("UNCHECKED_CAST")
@@ -2924,16 +2890,6 @@ class AggregateArtifactPlannerTest {
             localEnum.outputPath,
         )
         assertEquals("com.acme.demo.domain.model.video_post.enums", localEnum.context["packageName"])
-        assertEquals(
-            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/enum_text/shared/StatusTranslation.kt",
-            sharedTranslation.outputPath,
-        )
-        assertEquals("com.acme.demo.adapter.enum_text.shared", sharedTranslation.context["packageName"])
-        assertEquals(
-            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/enum_text/video_post/VisibilityTranslation.kt",
-            localTranslation.outputPath,
-        )
-        assertEquals("com.acme.demo.adapter.enum_text.video_post", localTranslation.context["packageName"])
         assertEquals(
             "com.acme.demo.domain.catalog.shared.types.Status",
             entityFields.single { it["name"] == "status" }["type"],
@@ -2953,89 +2909,6 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `local enum translations under different aggregate owners use different translation keys`() {
-        val planner = AggregateArtifactPlanner()
-        val config = aggregateConfig()
-        val model = CanonicalModel(
-            entities = listOf(
-                EntityModel(
-                    name = "VideoPost",
-                    packageName = "com.acme.demo.domain.aggregates.video_post",
-                    tableName = "video_post",
-                    comment = "video post",
-                    fields = listOf(
-                        FieldModel(
-                            name = "visibility",
-                            type = "Int",
-                            typeBinding = "Visibility",
-                            enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden")),
-                        ),
-                    ),
-                    idField = FieldModel(name = "id", type = "Long"),
-                ),
-                EntityModel(
-                    name = "ArticlePost",
-                    packageName = "com.acme.demo.domain.aggregates.article_post",
-                    tableName = "article_post",
-                    comment = "article post",
-                    fields = listOf(
-                        FieldModel(
-                            name = "visibility",
-                            type = "Int",
-                            typeBinding = "Visibility",
-                            enumItems = listOf(EnumItemModel(1, "PUBLIC", "Public")),
-                        ),
-                    ),
-                    idField = FieldModel(name = "id", type = "Long"),
-                ),
-            ),
-            aggregateEntityJpa = listOf(
-                AggregateEntityJpaModel(
-                    entityName = "VideoPost",
-                    entityPackageName = "com.acme.demo.domain.aggregates.video_post",
-                    entityEnabled = true,
-                    tableName = "video_post",
-                    columns = listOf(
-                        AggregateColumnJpaModel("visibility", "visibility", false, null),
-                    ),
-                ),
-                AggregateEntityJpaModel(
-                    entityName = "ArticlePost",
-                    entityPackageName = "com.acme.demo.domain.aggregates.article_post",
-                    entityEnabled = true,
-                    tableName = "article_post",
-                    columns = listOf(
-                        AggregateColumnJpaModel("visibility", "visibility", false, null),
-                    ),
-                ),
-            ),
-        )
-
-        val items = planner.plan(config, model)
-        val videoTranslation = items.single {
-            it.templateId == "aggregate/enum_translation.kt.peb" &&
-                it.outputPath.endsWith("/adapter/domain/translation/video_post/VisibilityTranslation.kt")
-        }
-        val articleTranslation = items.single {
-            it.templateId == "aggregate/enum_translation.kt.peb" &&
-                it.outputPath.endsWith("/adapter/domain/translation/article_post/VisibilityTranslation.kt")
-        }
-
-        assertNotEquals(
-            videoTranslation.context["translationTypeConst"],
-            articleTranslation.context["translationTypeConst"],
-        )
-        assertNotEquals(
-            videoTranslation.context["translationTypeValue"],
-            articleTranslation.context["translationTypeValue"],
-        )
-        assertEquals("VIDEO_POST_VISIBILITY_CODE_TO_DESC", videoTranslation.context["translationTypeConst"])
-        assertEquals("video_post_visibility_code_to_desc", videoTranslation.context["translationTypeValue"])
-        assertEquals("ARTICLE_POST_VISIBILITY_CODE_TO_DESC", articleTranslation.context["translationTypeConst"])
-        assertEquals("article_post_visibility_code_to_desc", articleTranslation.context["translationTypeValue"])
-    }
-
-    @Test
     fun `shared enum planning stays stable when no entities are present`() {
         val planner = AggregateArtifactPlanner()
         val config = aggregateConfig()
@@ -3046,7 +2919,6 @@ class AggregateArtifactPlannerTest {
                     SharedEnumDefinition(
                         typeName = "Status",
                         packageName = "shared",
-                        generateTranslation = true,
                         items = listOf(
                             EnumItemModel(0, "DRAFT", "Draft"),
                             EnumItemModel(1, "PUBLISHED", "Published"),
@@ -3057,18 +2929,12 @@ class AggregateArtifactPlannerTest {
         )
 
         val enumPlan = items.single { it.templateId == "aggregate/enum.kt.peb" }
-        val translationPlan = items.single { it.templateId == "aggregate/enum_translation.kt.peb" }
 
         assertEquals(
             "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt",
             enumPlan.outputPath,
         )
         assertEquals("com.acme.demo.domain.shared.enums", enumPlan.context["packageName"])
-        assertEquals(
-            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/domain/translation/shared/StatusTranslation.kt",
-            translationPlan.outputPath,
-        )
-        assertEquals("com.acme.demo.adapter.domain.translation.shared", translationPlan.context["packageName"])
     }
 
     @Test
@@ -3774,7 +3640,6 @@ class AggregateArtifactPlannerTest {
             "artifact.factory" to true,
             "artifact.specification" to true,
             "artifact.unique" to true,
-            "artifact.enumTranslation" to true,
         )
 
     private fun defaultAggregateEntityJpa(entity: EntityModel): AggregateEntityJpaModel =

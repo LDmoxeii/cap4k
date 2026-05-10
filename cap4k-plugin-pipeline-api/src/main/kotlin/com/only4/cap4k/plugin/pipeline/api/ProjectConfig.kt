@@ -65,7 +65,6 @@ data class ArtifactLayoutConfig(
         defaultPackage = "shared",
         packageSuffix = "enums",
     ),
-    val aggregateEnumTranslation: PackageLayout = PackageLayout("adapter.domain.translation"),
     val aggregateUniqueQuery: PackageLayout = PackageLayout(
         packageRoot = "application.queries",
         packageSuffix = "unique",

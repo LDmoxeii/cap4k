@@ -20,7 +20,6 @@ class AggregateArtifactPlanner : GeneratorProvider {
         UniqueValidatorArtifactPlanner(),
         SharedEnumArtifactPlanner(),
         LocalEnumArtifactPlanner(),
-        EnumTranslationArtifactPlanner(),
     )
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
@@ -35,8 +34,6 @@ class AggregateArtifactPlanner : GeneratorProvider {
                 is UniqueQueryHandlerArtifactPlanner,
                 is UniqueValidatorArtifactPlanner ->
                     if (selection.uniqueEnabled) delegate.plan(config, model) else emptyList()
-                is EnumTranslationArtifactPlanner ->
-                    if (selection.enumTranslationEnabled) delegate.plan(config, model) else emptyList()
                 else -> delegate.plan(config, model)
             }
         }

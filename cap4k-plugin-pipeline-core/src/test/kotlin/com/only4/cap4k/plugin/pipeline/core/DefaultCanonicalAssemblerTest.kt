@@ -1515,7 +1515,6 @@ class DefaultCanonicalAssemblerTest {
                         SharedEnumDefinition(
                             typeName = "Status",
                             packageName = "shared",
-                            generateTranslation = true,
                             items = listOf(
                                 EnumItemModel(0, "DRAFT", "Draft"),
                                 EnumItemModel(1, "PUBLISHED", "Published"),
@@ -1632,13 +1631,11 @@ class DefaultCanonicalAssemblerTest {
                         SharedEnumDefinition(
                             typeName = "MessageStatus",
                             packageName = "shared",
-                            generateTranslation = true,
                             items = listOf(EnumItemModel(0, "DRAFT", "Draft")),
                         ),
                         SharedEnumDefinition(
                             typeName = "MessageKind",
                             packageName = "com.external.enums",
-                            generateTranslation = true,
                             items = listOf(EnumItemModel(0, "DIRECT", "Direct")),
                         )
                     )
@@ -1755,7 +1752,6 @@ class DefaultCanonicalAssemblerTest {
                         SharedEnumDefinition(
                             typeName = "Status",
                             packageName = "shared",
-                            generateTranslation = true,
                             items = listOf(EnumItemModel(0, "DRAFT", "Draft")),
                         )
                     )
@@ -1854,7 +1850,6 @@ class DefaultCanonicalAssemblerTest {
                             SharedEnumDefinition(
                                 typeName = "Status",
                                 packageName = "shared",
-                                generateTranslation = true,
                                 items = listOf(EnumItemModel(0, "DRAFT", "Draft")),
                             )
                         )
@@ -1901,7 +1896,6 @@ class DefaultCanonicalAssemblerTest {
                             SharedEnumDefinition(
                                 typeName = "Status",
                                 packageName = "shared",
-                                generateTranslation = true,
                                 items = listOf(EnumItemModel(0, "DRAFT", "Draft")),
                             )
                         )

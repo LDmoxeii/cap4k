@@ -47,7 +47,6 @@ class PipelineModelsTest {
                 SharedEnumDefinition(
                     typeName = "SampleStatus",
                     packageName = "com.acme.demo.shared.enums",
-                    generateTranslation = true,
                     items = emptyList(),
                 )
             )

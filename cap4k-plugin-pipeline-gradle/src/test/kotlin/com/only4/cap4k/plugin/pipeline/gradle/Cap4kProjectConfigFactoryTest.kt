@@ -39,7 +39,6 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.generators.aggregate.artifacts.factory.get())
         assertFalse(extension.generators.aggregate.artifacts.specification.get())
         assertFalse(extension.generators.aggregate.artifacts.unique.get())
-        assertFalse(extension.generators.aggregate.artifacts.enumTranslation.get())
         assertFalse(extension.generators.drawingBoard.enabled.get())
         assertFalse(extension.generators.flow.enabled.get())
         assertEquals("ddd-default", extension.templates.preset.get())
@@ -56,7 +55,6 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals("domain.aggregates", extension.layout.aggregate.packageRoot.get())
         assertEquals("domain._share.meta", extension.layout.aggregateSchema.packageRoot.get())
         assertEquals("adapter.domain.repositories", extension.layout.aggregateRepository.packageRoot.get())
-        assertEquals("adapter.domain.translation", extension.layout.aggregateEnumTranslation.packageRoot.get())
         assertEquals("flows", extension.layout.flow.outputRoot.get())
         assertEquals("design", extension.layout.drawingBoard.outputRoot.get())
         assertEquals("domain.aggregates", extension.layout.designDomainEvent.packageRoot.get())
@@ -1330,7 +1328,6 @@ class Cap4kProjectConfigFactoryTest {
                     factory.set(true)
                     specification.set(true)
                     unique.set(true)
-                    enumTranslation.set(true)
                 }
             }
         }
@@ -1341,7 +1338,7 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals(true, options["artifact.factory"])
         assertEquals(true, options["artifact.specification"])
         assertEquals(true, options["artifact.unique"])
-        assertEquals(true, options["artifact.enumTranslation"])
+        assertFalse(options.containsKey("artifact.enum" + "Translation"))
         assertFalse(options.containsKey("artifact.wrapper"))
     }
 

@@ -1376,7 +1376,6 @@ class PipelinePluginFunctionalTest {
         assertFalse(planContent.contains("\"templateId\": \"aggregate/unique_query.kt.peb\""))
         assertFalse(planContent.contains("\"templateId\": \"aggregate/unique_query_handler.kt.peb\""))
         assertFalse(planContent.contains("\"templateId\": \"aggregate/unique_validator.kt.peb\""))
-        assertFalse(planContent.contains("\"templateId\": \"aggregate/enum_translation.kt.peb\""))
         assertFalse(planContent.contains("\"templateId\": \"aggregate/schema_base.kt.peb\""))
         assertTrue(
             projectDir.resolve(
@@ -2000,7 +1999,6 @@ class PipelinePluginFunctionalTest {
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.toFile().exists())
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/enum.kt.peb\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/enum_translation.kt.peb\""))
         assertTrue(
             projectDir.resolve(
                 generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt")
@@ -2010,18 +2008,6 @@ class PipelinePluginFunctionalTest {
             projectDir.resolve(
                 generatedSource(
                     "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"
-                )
-            ).toFile().exists()
-        )
-        assertTrue(
-            projectDir.resolve(
-                generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/translation/shared/StatusTranslation.kt")
-            ).toFile().exists()
-        )
-        assertTrue(
-            projectDir.resolve(
-                generatedSource(
-                    "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/translation/video_post/VideoPostVisibilityTranslation.kt"
                 )
             ).toFile().exists()
         )

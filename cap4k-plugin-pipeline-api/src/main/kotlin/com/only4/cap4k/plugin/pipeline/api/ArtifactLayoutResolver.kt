@@ -28,9 +28,6 @@ class ArtifactLayoutResolver(
     fun aggregateSharedEnumPackage(entityPackage: String): String =
         packageFromLayout(artifactLayout.aggregateSharedEnum, entityPackage)
 
-    fun aggregateEnumTranslationPackage(entityPackage: String): String =
-        packageFromLayout(artifactLayout.aggregateEnumTranslation, entityPackage)
-
     fun aggregateUniqueQueryPackage(entityPackage: String): String =
         packageFromLayout(artifactLayout.aggregateUniqueQuery, entityPackage)
 
@@ -133,7 +130,6 @@ class ArtifactLayoutResolver(
         "aggregateSchema" to artifactLayout.aggregateSchema,
         "aggregateRepository" to artifactLayout.aggregateRepository,
         "aggregateSharedEnum" to artifactLayout.aggregateSharedEnum,
-        "aggregateEnumTranslation" to artifactLayout.aggregateEnumTranslation,
         "aggregateUniqueQuery" to artifactLayout.aggregateUniqueQuery,
         "aggregateUniqueQueryHandler" to artifactLayout.aggregateUniqueQueryHandler,
         "aggregateUniqueValidator" to artifactLayout.aggregateUniqueValidator,

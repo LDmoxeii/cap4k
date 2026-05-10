@@ -35,9 +35,6 @@ cap4k {
             specialFields {
                 idDefaultStrategy.set("snowflake-long")
             }
-            artifacts {
-                enumTranslation.set(true)
-            }
         }
     }
 }

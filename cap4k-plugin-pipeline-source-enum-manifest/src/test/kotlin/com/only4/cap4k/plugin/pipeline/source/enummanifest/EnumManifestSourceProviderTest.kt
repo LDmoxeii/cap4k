@@ -23,7 +23,6 @@ class EnumManifestSourceProviderTest {
               {
                 "name": "Status",
                 "package": "shared",
-                "generateTranslation": true,
                 "items": [
                   { "value": 0, "name": "DRAFT", "desc": "Draft" },
                   { "value": 1, "name": "PUBLISHED", "desc": "Published" }
@@ -52,7 +51,6 @@ class EnumManifestSourceProviderTest {
 
         assertEquals("enum-manifest", snapshot.id)
         assertEquals(listOf("Status"), snapshot.definitions.map { it.typeName })
-        assertEquals(true, snapshot.definitions.single().generateTranslation)
         assertEquals(listOf("DRAFT", "PUBLISHED"), snapshot.definitions.single().items.map { it.name })
     }
 
@@ -89,5 +87,50 @@ class EnumManifestSourceProviderTest {
         }
 
         assertEquals("duplicate shared enum definition: Status", error.message)
+    }
+
+    @Test
+    fun `enum manifest rejects deprecated translation generation flag`() {
+        val projectDir = Files.createTempDirectory("enum-manifest-source-deprecated-translation")
+        val manifest = projectDir.resolve("shared-enums.json")
+        val removedFlag = "generate" + "Translation"
+        manifest.writeText(
+            """
+            [
+              {
+                "name": "OrderStatus",
+                "package": "shared",
+                "$removedFlag": true,
+                "items": [
+                  { "value": 1, "name": "OPEN", "desc": "open" }
+                ]
+              }
+            ]
+            """.trimIndent()
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            EnumManifestSourceProvider().collect(
+                ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    typeRegistry = emptyMap(),
+                    sources = mapOf(
+                        "enum-manifest" to SourceConfig(
+                            enabled = true,
+                            options = mapOf("files" to listOf(manifest.toAbsolutePath().toString()))
+                        )
+                    ),
+                    generators = emptyMap(),
+                    templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                )
+            )
+        }
+
+        assertEquals(
+            "enum manifest field $removedFlag is removed; install an enum translation addon instead.",
+            error.message,
+        )
     }
 }
