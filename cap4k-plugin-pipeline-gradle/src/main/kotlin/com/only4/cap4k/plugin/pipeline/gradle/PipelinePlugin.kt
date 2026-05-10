@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.google.gson.GsonBuilder
+import com.only4.cap4k.plugin.pipeline.api.ArtifactAddonProvider
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
@@ -8,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.BootstrapRunner
 import com.only4.cap4k.plugin.pipeline.api.BootstrapConfig
+import com.only4.cap4k.plugin.pipeline.api.PipelineResult
 import com.only4.cap4k.plugin.pipeline.api.PipelineRunner
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
@@ -47,6 +49,7 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.TaskProvider
 import java.io.File
+import java.net.URLClassLoader
 import java.nio.file.Path
 import java.security.MessageDigest
 
@@ -55,6 +58,12 @@ class PipelinePlugin : Plugin<Project> {
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
         val configFactory = Cap4kProjectConfigFactory()
         val bootstrapConfigFactory = Cap4kBootstrapConfigFactory()
+
+        project.configurations.create(CAP4K_ADDON_CONFIGURATION_NAME) { configuration ->
+            configuration.isCanBeConsumed = false
+            configuration.isCanBeResolved = true
+            configuration.description = "Build-time cap4k artifact addon dependencies."
+        }
 
         project.tasks.register("cap4kBootstrapPlan", Cap4kBootstrapPlanTask::class.java) { task ->
             task.group = "cap4k"
@@ -133,6 +142,7 @@ internal fun shouldInferPipelineDependencies(extension: Cap4kExtension): Boolean
 private const val JAKARTA_PERSISTENCE_GROUP = "jakarta.persistence"
 private const val JAKARTA_PERSISTENCE_NAME = "jakarta.persistence-api"
 private const val JAKARTA_PERSISTENCE_COORDINATE = "$JAKARTA_PERSISTENCE_GROUP:$JAKARTA_PERSISTENCE_NAME:3.1.0"
+private const val CAP4K_ADDON_CONFIGURATION_NAME = "cap4kAddon"
 private val SOURCE_TASK_SOURCE_IDS = setOf("db", "enum-manifest", "design-json", "ksp-metadata")
 private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "design-command",
@@ -150,6 +160,10 @@ private val GENERATED_SOURCE_TASK_SOURCE_IDS = setOf("db", "enum-manifest")
 private val GENERATED_SOURCE_TASK_GENERATOR_IDS = setOf("aggregate")
 private val ANALYSIS_TASK_SOURCE_IDS = setOf("ir-analysis")
 private val ANALYSIS_TASK_GENERATOR_IDS = setOf("flow", "drawing-board")
+
+internal fun artifactAddonClasspath(project: Project): FileCollection =
+    project.configurations.findByName(CAP4K_ADDON_CONFIGURATION_NAME)
+        ?: project.files()
 
 private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf(
     extension.sources.designJson.enabled,
@@ -556,7 +570,8 @@ internal fun buildSourceRunner(
     exportEnabled: Boolean,
     generatedSourcesOnly: Boolean = false,
 ): PipelineRunner {
-    return DefaultPipelineRunner(
+    val addonRuntime = loadArtifactAddonRuntime(project)
+    val runner = DefaultPipelineRunner(
         sources = listOf(
             DbSchemaSourceProvider(),
             EnumManifestSourceProvider(),
@@ -580,6 +595,7 @@ internal fun buildSourceRunner(
             PresetTemplateResolver(
                 preset = config.templates.preset,
                 overrideDirs = config.templates.overrideDirs,
+                addonTemplateClassLoaders = addonRuntime.templateClassLoaders,
             )
         ),
         exporter = if (exportEnabled) {
@@ -600,11 +616,14 @@ internal fun buildSourceRunner(
         } else {
             { true }
         },
+        addonProviders = addonRuntime.providers,
     )
+    return runner.closeAfterRun(addonRuntime)
 }
 
 internal fun buildAnalysisRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner {
-    return DefaultPipelineRunner(
+    val addonRuntime = loadArtifactAddonRuntime(project)
+    val runner = DefaultPipelineRunner(
         sources = listOf(
             IrAnalysisSourceProvider(),
         ),
@@ -617,6 +636,7 @@ internal fun buildAnalysisRunner(project: Project, config: ProjectConfig, export
             PresetTemplateResolver(
                 preset = config.templates.preset,
                 overrideDirs = config.templates.overrideDirs,
+                addonTemplateClassLoaders = addonRuntime.templateClassLoaders,
             )
         ),
         exporter = if (exportEnabled) {
@@ -624,7 +644,125 @@ internal fun buildAnalysisRunner(project: Project, config: ProjectConfig, export
         } else {
             NoopArtifactExporter()
         },
+        addonProviders = addonRuntime.providers,
     )
+    return runner.closeAfterRun(addonRuntime)
+}
+
+internal data class ArtifactAddonRuntime(
+    val providers: List<ArtifactAddonProvider>,
+    val templateClassLoaders: Map<String, ClassLoader>,
+    val closeables: List<AutoCloseable>,
+)
+
+private fun loadArtifactAddonRuntime(project: Project): ArtifactAddonRuntime {
+    val configuration = project.configurations.findByName(CAP4K_ADDON_CONFIGURATION_NAME)
+        ?: return emptyArtifactAddonRuntime()
+    return loadArtifactAddonRuntime(
+        files = configuration.files,
+        parent = ArtifactAddonLoader::class.java.classLoader,
+    )
+}
+
+internal fun loadArtifactAddonRuntime(
+    files: Collection<File>,
+    parent: ClassLoader,
+    classLoaderFactory: (Collection<File>, ClassLoader) -> URLClassLoader = ArtifactAddonLoader::classLoader,
+    providerLoader: (ClassLoader) -> List<ArtifactAddonProvider> = ArtifactAddonLoader::load,
+    templateClassLoaderFactory: (ArtifactAddonProvider) -> URLClassLoader = ArtifactAddonLoader::templateClassLoader,
+): ArtifactAddonRuntime {
+    if (files.isEmpty()) {
+        return emptyArtifactAddonRuntime()
+    }
+    val classLoader = classLoaderFactory(files, parent)
+    val providers = try {
+        providerLoader(classLoader)
+    } catch (failure: Throwable) {
+        closeAfterLoadFailure(classLoader, failure)
+        throw failure
+    }
+    val closeables = mutableListOf<AutoCloseable>(classLoader)
+    val templateClassLoaders = linkedMapOf<String, ClassLoader>()
+    try {
+        providers.forEach { provider ->
+            val templateClassLoader = templateClassLoaderFactory(provider)
+            closeables += templateClassLoader
+            templateClassLoaders[provider.id] = templateClassLoader
+        }
+    } catch (failure: Throwable) {
+        closeAfterLoadFailure(closeables.asReversed(), failure)
+        throw failure
+    }
+    return ArtifactAddonRuntime(
+        providers = providers,
+        templateClassLoaders = templateClassLoaders,
+        closeables = closeables,
+    )
+}
+
+private fun emptyArtifactAddonRuntime(): ArtifactAddonRuntime =
+    ArtifactAddonRuntime(
+        providers = emptyList(),
+        templateClassLoaders = emptyMap(),
+        closeables = emptyList(),
+    )
+
+private fun closeAfterLoadFailure(closeable: AutoCloseable, failure: Throwable) {
+    closeAfterLoadFailure(listOf(closeable), failure)
+}
+
+private fun closeAfterLoadFailure(closeables: Iterable<AutoCloseable>, failure: Throwable) {
+    closeables.forEach { closeable ->
+        try {
+            closeable.close()
+        } catch (closeFailure: Throwable) {
+            failure.addSuppressed(closeFailure)
+        }
+    }
+}
+
+private fun PipelineRunner.closeAfterRun(runtime: ArtifactAddonRuntime): PipelineRunner =
+    if (runtime.closeables.isEmpty()) {
+        this
+    } else {
+        CloseablePipelineRunner(this, runtime.closeables)
+    }
+
+internal class CloseablePipelineRunner(
+    private val delegate: PipelineRunner,
+    private val closeables: List<AutoCloseable>,
+) : PipelineRunner {
+    override fun run(config: ProjectConfig): PipelineResult {
+        var primaryFailure: Throwable? = null
+        try {
+            return delegate.run(config)
+        } catch (failure: Throwable) {
+            primaryFailure = failure
+            throw failure
+        } finally {
+            closeAll(primaryFailure)
+        }
+    }
+
+    private fun closeAll(primaryFailure: Throwable?) {
+        var closeFailure: Throwable? = null
+        closeables.asReversed().forEach { closeable ->
+            try {
+                closeable.close()
+            } catch (failure: Throwable) {
+                if (primaryFailure != null) {
+                    primaryFailure.addSuppressed(failure)
+                } else if (closeFailure == null) {
+                    closeFailure = failure
+                } else {
+                    closeFailure.addSuppressed(failure)
+                }
+            }
+        }
+        if (primaryFailure == null && closeFailure != null) {
+            throw closeFailure
+        }
+    }
 }
 
 internal fun buildGeneratedSourceRunner(project: Project, config: ProjectConfig): PipelineRunner =

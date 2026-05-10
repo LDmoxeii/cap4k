@@ -55,7 +55,7 @@ class PresetTemplateResolverTest {
             val resolver = PresetTemplateResolver(
                 preset = "ddd-default-bootstrap",
                 overrideDirs = listOf(overrideDir.toString()),
-                addonClassLoaders = listOf(addonClassLoader)
+                addonTemplateClassLoaders = mapOf("sample-addon" to addonClassLoader)
             )
 
             val resolved = resolver.resolve(templateId)
@@ -75,7 +75,7 @@ class PresetTemplateResolverTest {
             val resolver = PresetTemplateResolver(
                 preset = "ddd-default-bootstrap",
                 overrideDirs = emptyList(),
-                addonClassLoaders = listOf(addonClassLoader)
+                addonTemplateClassLoaders = mapOf("sample-addon" to addonClassLoader)
             )
 
             val resolved = resolver.resolve(templateId)
@@ -85,18 +85,59 @@ class PresetTemplateResolverTest {
     }
 
     @Test
-    fun `resolve fails fast for missing addon template without preset fallback`() {
+    fun `resolve rejects addon template when addon id is not registered`() {
         val templateId = "addons/sample-addon/missing.kt.peb"
         val resolver = PresetTemplateResolver(
             preset = "ddd-default-bootstrap",
             overrideDirs = emptyList()
         )
 
-        val exception = assertThrows(IllegalStateException::class.java) {
+        val exception = assertThrows(IllegalArgumentException::class.java) {
             resolver.resolve(templateId)
         }
 
-        assertTrue(exception.message!!.contains("Addon template not found: cap4k/$templateId"))
+        assertEquals("Template references addon 'sample-addon' but no addon provider is loaded.", exception.message)
+    }
+
+    @Test
+    fun `resolve rejects addon template for different registered addon namespace`() {
+        val templateId = "addons/missing-addon/sample.kt.peb"
+        val addonResourceDir = Files.createTempDirectory("addon-resource")
+        addonResourceDir.resolve("cap4k/$templateId").parent.createDirectories()
+        addonResourceDir.resolve("cap4k/$templateId").writeText("jar addon template")
+
+        URLClassLoader(arrayOf(addonResourceDir.toUri().toURL()), null).use { addonClassLoader ->
+            val resolver = PresetTemplateResolver(
+                preset = "ddd-default-bootstrap",
+                overrideDirs = emptyList(),
+                addonTemplateClassLoaders = mapOf("sample-addon" to addonClassLoader)
+            )
+
+            val exception = assertThrows(IllegalArgumentException::class.java) {
+                resolver.resolve(templateId)
+            }
+
+            assertEquals(
+                "Template references addon 'missing-addon' but no addon provider is loaded.",
+                exception.message,
+            )
+        }
+    }
+
+    @Test
+    fun `resolve fails fast for missing addon template without preset fallback`() {
+        val templateId = "addons/sample-addon/missing.kt.peb"
+        val resolver = PresetTemplateResolver(
+            preset = "ddd-default-bootstrap",
+            overrideDirs = emptyList(),
+            addonTemplateClassLoaders = mapOf("sample-addon" to javaClass.classLoader)
+        )
+
+        val exception = assertThrows(IllegalArgumentException::class.java) {
+            resolver.resolve(templateId)
+        }
+
+        assertEquals("Addon template not found: cap4k/$templateId", exception.message)
     }
 
     @Test

@@ -4,6 +4,8 @@ import com.google.gson.GsonBuilder
 import com.only4.cap4k.plugin.pipeline.api.PlanReport
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.FileCollection
+import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 
@@ -13,6 +15,10 @@ abstract class Cap4kPlanTask : DefaultTask() {
 
     @get:Internal
     lateinit var configFactory: Cap4kProjectConfigFactory
+
+    @get:Classpath
+    val addonClasspath: FileCollection
+        get() = artifactAddonClasspath(project)
 
     @TaskAction
     fun runPlan() {

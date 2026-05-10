@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.pipeline.gradle
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.FileCollection
+import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Internal
@@ -38,6 +39,10 @@ abstract class Cap4kGenerateSourcesTask : DefaultTask() {
             extension = extension,
             config = generatedSourceTaskConfig(configFactory.build(project, extension)),
         )
+
+    @get:Classpath
+    val addonClasspath: FileCollection
+        get() = artifactAddonClasspath(project)
 
     @get:OutputDirectories
     val outputDirectories: FileCollection

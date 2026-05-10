@@ -6,10 +6,10 @@ import java.io.File
 class PresetTemplateResolver(
     private val preset: String,
     private val overrideDirs: List<String>,
-    private val addonClassLoaders: List<ClassLoader> = emptyList(),
+    private val addonTemplateClassLoaders: Map<String, ClassLoader> = emptyMap(),
 ) : TemplateResolver {
 
-    constructor(preset: String, overrideDirs: List<String>) : this(preset, overrideDirs, emptyList())
+    constructor(preset: String, overrideDirs: List<String>) : this(preset, overrideDirs, emptyMap())
 
     override fun resolve(templateId: String): String {
         if (templateId.isNotBlank()) {
@@ -26,15 +26,14 @@ class PresetTemplateResolver(
             }
         }
 
-        if (templateId.startsWith("addons/")) {
+        val addonId = addonId(templateId)
+        if (addonId != null) {
+            val classLoader = addonTemplateClassLoaders[addonId]
+                ?: throw IllegalArgumentException("Template references addon '$addonId' but no addon provider is loaded.")
             val resourcePath = "cap4k/$templateId"
-            for (classLoader in addonClassLoaders) {
-                val resource = classLoader.getResource(resourcePath)
-                if (resource != null) {
-                    return resource.readText()
-                }
-            }
-            error("Addon template not found: $resourcePath")
+            val resource = classLoader.getResource(resourcePath)
+                ?: throw IllegalArgumentException("Addon template not found: $resourcePath")
+            return resource.readText()
         }
 
         val resourcePath = "presets/$preset/$templateId"
@@ -42,4 +41,12 @@ class PresetTemplateResolver(
             ?: error("Template not found: $resourcePath")
         return resource.readText()
     }
+}
+
+private fun addonId(templateId: String): String? {
+    val prefix = "addons/"
+    if (!templateId.startsWith(prefix)) {
+        return null
+    }
+    return templateId.removePrefix(prefix).substringBefore('/').takeIf { it.isNotBlank() }
 }
