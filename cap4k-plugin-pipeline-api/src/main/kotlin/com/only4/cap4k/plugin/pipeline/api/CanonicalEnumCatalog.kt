@@ -1,7 +1,10 @@
 package com.only4.cap4k.plugin.pipeline.api
 
+import java.util.Locale
+
 data class CanonicalEnumDescriptor(
     val ownerPackageName: String?,
+    val ownerScope: String?,
     val typeName: String,
     val fqn: String,
     val items: List<EnumItemModel>,
@@ -122,6 +125,7 @@ class CanonicalEnumCatalog private constructor(
                 sharedEnums = sharedEnumDefinitions.values.map { definition ->
                     CanonicalEnumDescriptor(
                         ownerPackageName = null,
+                        ownerScope = null,
                         typeName = definition.typeName,
                         fqn = definition.fqn,
                         items = definition.enumItems,
@@ -131,6 +135,7 @@ class CanonicalEnumCatalog private constructor(
                 localEnums = localEnumDefinitions.map { (key, definition) ->
                     CanonicalEnumDescriptor(
                         ownerPackageName = key.ownerPackageName,
+                        ownerScope = definition.ownerScope,
                         typeName = key.typeBinding,
                         fqn = definition.fqn,
                         items = definition.enumItems,
@@ -192,6 +197,7 @@ class CanonicalEnumCatalog private constructor(
                             typeBinding = typeBinding,
                         ) to LocalEnumDefinition(
                             fqn = buildLocalEnumFqn(entity, typeBinding, artifactLayout),
+                            ownerScope = entity.tableName.lowercase(Locale.ROOT),
                             enumItems = field.enumItems,
                         )
                     }
@@ -222,6 +228,7 @@ private data class LocalEnumOwnerKey(
 
 private data class LocalEnumDefinition(
     val fqn: String,
+    val ownerScope: String,
     val enumItems: List<EnumItemModel>,
 )
 

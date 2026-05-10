@@ -29,6 +29,7 @@ class CanonicalEnumCatalogTest {
         assertEquals(
             CanonicalEnumDescriptor(
                 ownerPackageName = null,
+                ownerScope = null,
                 typeName = "Status",
                 fqn = "com.acme.demo.domain.shared.enums.Status",
                 items = sharedItems,
@@ -39,6 +40,7 @@ class CanonicalEnumCatalogTest {
         assertEquals(
             CanonicalEnumDescriptor(
                 ownerPackageName = entity.packageName,
+                ownerScope = "video_post",
                 typeName = "Visibility",
                 fqn = "com.acme.demo.domain.aggregates.video_post.enums.Visibility",
                 items = localItems,
@@ -48,7 +50,9 @@ class CanonicalEnumCatalogTest {
         )
         assertEquals(catalog.sharedEnums + catalog.localEnums, catalog.allEnums)
         assertNull(catalog.sharedEnums.single().ownerPackageName)
+        assertNull(catalog.sharedEnums.single().ownerScope)
         assertTrue(catalog.sharedEnums.single().shared)
+        assertEquals("video_post", catalog.localEnums.single().ownerScope)
         assertFalse(catalog.localEnums.single().shared)
     }
 
