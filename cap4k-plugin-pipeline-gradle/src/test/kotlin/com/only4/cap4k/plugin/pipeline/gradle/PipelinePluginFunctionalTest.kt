@@ -2128,7 +2128,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(generatedSharedTranslation.toFile().exists())
         assertTrue(generatedLocalTranslation.toFile().exists())
         assertTrue(generatedSharedTranslationContent.contains("class StatusTranslation"))
-        assertFalse(generatedSharedTranslationContent.contains("TranslationInterface"))
+        assertFalse(generatedSharedTranslationContent.contains("Translation" + "Interface"))
     }
 
     @OptIn(ExperimentalPathApi::class)
