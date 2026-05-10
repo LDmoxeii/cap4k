@@ -58,7 +58,7 @@
 - `CHECKED_IN_SOURCE` + `src/main/kotlin`：这是写进版本库源码目录的计划产物；是否可改取决于它是不是明确留给作者补充的文件，以及这项产物当前使用什么 `conflictPolicy`，不能只看目录位置。
 - `OUTPUT_ARTIFACT`：这是非源码产物，不要把它当成业务代码入口。
 
-一个关键例子是 aggregate 默认行为骨架：`aggregate/behavior.kt.peb` 会以 checked-in source 形式进入 `src/main/kotlin/.../<AggregateRootName>Behavior.kt`。这类文件是明确留给作者补业务行为的文件；而大量 aggregate 主体骨架则会通过 `GENERATED_SOURCE` 进入模块本地 `build/generated/cap4k/main/kotlin`。如果你不读 `outputKind`、`resolvedOutputRoot` 和 `conflictPolicy`，很容易把“输出根位置”误判成“作者是否可以直接改”。
+一个关键例子是 aggregate 默认行为骨架：`aggregate/behavior.kt.peb` 会以 checked-in source 形式进入 `src/main/kotlin/.../<AggregateRootName>Behavior.kt`，并默认带出 `onCreate`、`onUpdate`、`onDelete` 生命周期行为扩展骨架。这类文件是明确留给作者补业务行为的文件；而大量 aggregate 主体骨架则会通过 `GENERATED_SOURCE` 进入模块本地 `build/generated/cap4k/main/kotlin`。如果你不读 `outputKind`、`resolvedOutputRoot` 和 `conflictPolicy`，很容易把“输出根位置”误判成“作者是否可以直接改”。
 
 ## `CHECKED_IN_SOURCE` 落到 `src/main/kotlin` 时怎么判断
 
@@ -77,7 +77,7 @@
 
 | family | 当前用途 | `conflictPolicy` 规则 | 作者怎么对待 |
 | --- | --- | --- | --- |
-| `behavior` | 聚合根行为补充点 | 固定 `SKIP` | 这是明确的作者维护文件；补聚合行为就在这里 |
+| `behavior` | 聚合根行为补充点 | 固定 `SKIP` | 这是明确的作者维护文件；聚合行为和生命周期扩展就在这里 |
 | `factory` | 可选聚合构造骨架，模板默认给出 `TODO("Implement aggregate construction")` | 跟随 `templates.conflictPolicy` | 只有在 `SKIP` 下，才把它当作者维护 scaffold；否则仍按计划产物看待 |
 | `specification` | 可选聚合规格骨架，模板默认给出 `Result.pass()` 占位实现 | 跟随 `templates.conflictPolicy` | 只有在 `SKIP` 下，才把它当作者维护 scaffold；否则仍按计划产物看待 |
 直接规则：

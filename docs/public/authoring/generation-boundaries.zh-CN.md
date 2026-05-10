@@ -12,7 +12,7 @@
 | 产物类型 | 默认归属 | 说明 |
 | --- | --- | --- |
 | 生成的聚合骨架 | 生成主面 | 例如 `Content`、`MediaProcessingTask` 的结构骨架由生成器落出；作者在手写文件中补行为，不直接改写由生成器负责的文件 |
-| aggregate `*Behavior.kt` | 手写补充点 | 这是当前明确留给作者补聚合行为的 checked-in scaffold，计划里固定使用 `ConflictPolicy.SKIP` |
+| aggregate `*Behavior.kt` | 手写补充点 | 这是当前明确留给作者补聚合行为的 checked-in scaffold，计划里固定使用 `ConflictPolicy.SKIP`，默认带出 `onCreate` / `onUpdate` / `onDelete` 生命周期行为扩展骨架 |
 | aggregate `factory` / `specification` scaffold | 条件性手写补充点 | 这两类文件虽然是 `CHECKED_IN_SOURCE`，但是否可当作者维护骨架取决于 `templates.conflictPolicy`；`SKIP` 时可作为作者维护 scaffold，`OVERWRITE` / `FAIL` 时仍按计划产物对待 |
 | 生成的命令 / 查询契约骨架 | 生成主面 | `CreateContentDraftCmd`、`GetContentDetailQry` 这类契约骨架可生成；手写逻辑放在 handler 或 adapter 侧 |
 | query / client handler family | 条件性计划产物 | `*QryHandler.kt`、`*CliHandler.kt` 在当前默认 layout 下常落在 `adapter.application.*`；它们承担 application 级调度责任，但 ownership 仍要先看 `plan.json` |
@@ -41,7 +41,7 @@
 
 | 文件族 | 当前合同 |
 | --- | --- |
-| `aggregate/behavior.kt.peb` | 明确的作者维护补充点；固定 `ConflictPolicy.SKIP`，生成后可以在文件内补聚合行为 |
+| `aggregate/behavior.kt.peb` | 明确的作者维护补充点；固定 `ConflictPolicy.SKIP`，生成后可以在文件内补聚合行为，包括 `onCreate`、`onUpdate`、`onDelete` 生命周期扩展 |
 | `aggregate/factory.kt.peb` | 可选构造骨架；只有在 `templates.conflictPolicy=SKIP` 时，才把它当作者维护 scaffold |
 | `aggregate/specification.kt.peb` | 可选规格骨架；只有在 `templates.conflictPolicy=SKIP` 时，才把它当作者维护 scaffold |
 - 如果 checked-in aggregate 文件是 `behavior`，可以把它当作者维护文件。

@@ -17,7 +17,7 @@
 
 ## 这一层可以写什么
 
-- `ContentBehavior.kt`、`MediaProcessingTaskBehavior.kt` 这类明确留给作者补聚合行为的 checked-in 文件。
+- `ContentBehavior.kt`、`MediaProcessingTaskBehavior.kt` 这类明确留给作者补聚合行为的 checked-in 文件；生命周期入口优先写成 `fun Content.onCreate()`、`fun Content.onUpdate()`、`fun Content.onDelete()` 这类行为扩展，而不是改生成聚合主体。
 - `Content` 聚合根与 `MediaProcessingTask` 聚合根真正的业务行为，例如创建草稿、提交送审、接受审核结论、记录外部任务标识、标记处理中、标记成功、标记失败、准备重试。
 - `ContentStatus`、`ReviewStatus`、`MediaProcessingStatus` 这类能直接表达生命周期阶段的值。
 - 聚合内部使用的值对象，例如标题、失败原因、处理结果摘要、外部任务标识。
@@ -113,4 +113,4 @@
 - `Content` 是否仍只负责内容生命周期，`MediaProcessingTask` 是否仍只负责媒体处理生命周期，没有互相吞并。
 - callback 主路径和 polling 备用路径进入领域层之后，是否都已经收敛成同一套内部业务语义，而不是把入口差异带进聚合。
 - 在编辑 `Content.kt`、`MediaProcessingTask.kt`、`*DomainEvent.kt`、`Agg*.kt`、`*Factory.kt`、`*Specification.kt` 之前，是否先检查了 `build/cap4k/plan.json` 的 `outputKind`、`templateId`、`conflictPolicy`，确认它是不是作者面。
-- 如果当前文件是计划产物，作者逻辑是否已经回到 `*Behavior.kt` 或其他明确的手写领域文件，而不是继续堆在 plan-managed 文件里。
+- 如果当前文件是计划产物，作者逻辑是否已经回到 `*Behavior.kt` 或其他明确的手写领域文件；生命周期逻辑是否优先落在 `onCreate`、`onUpdate`、`onDelete` 行为扩展里，而不是继续堆在 plan-managed 文件里。
