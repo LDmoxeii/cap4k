@@ -1,6 +1,8 @@
 package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
+import com.only4.cap4k.plugin.pipeline.api.ArtifactAddonContext
+import com.only4.cap4k.plugin.pipeline.api.ArtifactAddonProvider
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
@@ -29,6 +31,137 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class DefaultPipelineRunnerTest {
+
+    @Test
+    fun `addon provider contributes plan item after built-in generator item`() {
+        val builtInItem = ArtifactPlanItem(
+            generatorId = "design-command",
+            moduleRole = "app",
+            templateId = "design/command.kt.peb",
+            outputPath = "generated/CreateOrderCmd.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        val addonItem = ArtifactPlanItem(
+            generatorId = "sample-addon",
+            moduleRole = "adapter",
+            templateId = "addons/sample-addon/sample.kt.peb",
+            outputPath = "generated/SampleAddon.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = listOf(builtInItem),
+            addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
+            config = enabledConfig(),
+        )
+
+        assertEquals(listOf(builtInItem, addonItem), result.rendererReceivedPlanItems)
+        assertEquals(listOf(builtInItem, addonItem), result.pipelineResult.planItems)
+    }
+
+    @Test
+    fun `addon receives assembled canonical model and project config`() {
+        val assembledModel = CanonicalModel()
+        val config = enabledConfig()
+        var receivedContext: ArtifactAddonContext? = null
+        val addon = object : ArtifactAddonProvider {
+            override val id: String = "sample-addon"
+
+            override fun plan(context: ArtifactAddonContext): List<ArtifactPlanItem> {
+                receivedContext = context
+                return emptyList()
+            }
+        }
+
+        runWithCapturedPlanItems(
+            plannedItems = emptyList(),
+            addonProviders = listOf(addon),
+            config = config,
+            assembledModel = assembledModel,
+        )
+
+        assertEquals(config, receivedContext?.config)
+        assertEquals(assembledModel, receivedContext?.model)
+        assertEquals(emptyMap<String, Any?>(), receivedContext?.options)
+    }
+
+    @Test
+    fun `addon plan item passes through transform include and conflict policy`() {
+        val includedAddonItem = ArtifactPlanItem(
+            generatorId = "sample-addon",
+            moduleRole = "adapter",
+            templateId = "addons/sample-addon/original.kt.peb",
+            outputPath = "generated/SampleAddon.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        val excludedAddonItem = includedAddonItem.copy(outputPath = "generated/ExcludedAddon.kt")
+        val transformedIncludedItem = includedAddonItem.copy(
+            templateId = "addons/sample-addon/transformed.kt.peb",
+            context = mapOf("transformed" to true),
+        )
+        val expectedResolvedItem = transformedIncludedItem.copy(conflictPolicy = ConflictPolicy.OVERWRITE)
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = emptyList(),
+            addonProviders = listOf(addonProvider("sample-addon", listOf(includedAddonItem, excludedAddonItem))),
+            config = enabledConfig(
+                templates = TemplateConfig(
+                    preset = "default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.SKIP,
+                    templateConflictPolicies = mapOf(
+                        "addons/sample-addon/transformed.kt.peb" to ConflictPolicy.OVERWRITE,
+                    ),
+                ),
+            ),
+            transformPlanItem = {
+                it.copy(
+                    templateId = "addons/sample-addon/transformed.kt.peb",
+                    context = it.context + ("transformed" to true),
+                )
+            },
+            includePlanItem = { it.outputPath == "generated/SampleAddon.kt" },
+        )
+
+        assertEquals(listOf(expectedResolvedItem), result.rendererReceivedPlanItems)
+        assertEquals(listOf(expectedResolvedItem), result.pipelineResult.planItems)
+    }
+
+    @Test
+    fun `duplicate addon provider ids fail fast`() {
+        val first = addonProvider("duplicate-addon", emptyList())
+        val second = addonProvider("duplicate-addon", emptyList())
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = listOf(first, second),
+                config = enabledConfig(),
+            )
+        }
+
+        assertEquals("duplicate artifact addon provider id: duplicate-addon", error.message)
+    }
+
+    @Test
+    fun `addon ids are not treated as configured generator ids`() {
+        val addonItem = ArtifactPlanItem(
+            generatorId = "sample-addon",
+            moduleRole = "adapter",
+            templateId = "addons/sample-addon/sample.kt.peb",
+            outputPath = "generated/SampleAddon.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = emptyList(),
+            addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
+            config = enabledConfig(generators = emptyMap()),
+        )
+
+        assertEquals(listOf(addonItem), result.rendererReceivedPlanItems)
+        assertEquals(listOf(addonItem), result.pipelineResult.planItems)
+    }
 
     @Test
     fun `template conflict override beats planner default for checked-in source items`() {
@@ -473,6 +606,9 @@ class DefaultPipelineRunnerTest {
     private fun runWithCapturedPlanItems(
         plannedItems: List<ArtifactPlanItem>,
         config: ProjectConfig,
+        addonProviders: List<ArtifactAddonProvider> = emptyList(),
+        assembledModel: CanonicalModel = CanonicalModel(),
+        transformPlanItem: (ArtifactPlanItem) -> ArtifactPlanItem = { it },
         includePlanItem: (ArtifactPlanItem) -> Boolean = { true },
     ): CapturedPlanItemsResult {
         val capturedPlanItems = mutableListOf<ArtifactPlanItem>()
@@ -487,14 +623,14 @@ class DefaultPipelineRunnerTest {
             ),
             generators = listOf(
                 object : GeneratorProvider {
-                    override val id: String = config.generators.keys.single()
+                    override val id: String = config.generators.keys.firstOrNull() ?: "design-command"
 
                     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> = plannedItems
                 }
-            ),
+            ).filter { it.id in config.generators },
             assembler = object : CanonicalAssembler {
                 override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult =
-                    CanonicalAssemblyResult(CanonicalModel())
+                    CanonicalAssemblyResult(assembledModel)
             },
             renderer = object : ArtifactRenderer {
                 override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> {
@@ -503,7 +639,9 @@ class DefaultPipelineRunnerTest {
                 }
             },
             exporter = NoopArtifactExporter(),
+            transformPlanItem = transformPlanItem,
             includePlanItem = includePlanItem,
+            addonProviders = addonProviders,
         )
 
         return CapturedPlanItemsResult(
@@ -528,6 +666,14 @@ class DefaultPipelineRunnerTest {
             generators = generators,
             templates = templates,
         )
+    }
+
+    private fun addonProvider(id: String, plannedItems: List<ArtifactPlanItem>): ArtifactAddonProvider {
+        return object : ArtifactAddonProvider {
+            override val id: String = id
+
+            override fun plan(context: ArtifactAddonContext): List<ArtifactPlanItem> = plannedItems
+        }
     }
 
     private data class CapturedPlanItemsResult(

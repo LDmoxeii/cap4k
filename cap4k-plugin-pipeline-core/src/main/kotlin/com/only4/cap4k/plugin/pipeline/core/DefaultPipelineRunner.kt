@@ -1,5 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.core
 
+import com.only4.cap4k.plugin.pipeline.api.ArtifactAddonContext
+import com.only4.cap4k.plugin.pipeline.api.ArtifactAddonProvider
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
@@ -18,8 +20,11 @@ class DefaultPipelineRunner(
     private val exporter: ArtifactExporter,
     private val transformPlanItem: (ArtifactPlanItem) -> ArtifactPlanItem = { it },
     private val includePlanItem: (ArtifactPlanItem) -> Boolean = { true },
+    private val addonProviders: List<ArtifactAddonProvider> = emptyList(),
 ) : PipelineRunner {
     override fun run(config: ProjectConfig): PipelineResult {
+        validateAddonProviderIds()
+
         val enabledGeneratorIds = config.generators.asSequence()
             .filter { it.value.enabled }
             .map { it.key }
@@ -39,9 +44,21 @@ class DefaultPipelineRunner(
         val assembly = assembler.assemble(config, snapshots)
         val model = assembly.model
 
-        val planItems = generators
+        val builtInPlanItems = generators
             .filter { config.generators[it.id]?.enabled == true }
             .flatMap { it.plan(config, model) }
+
+        val addonPlanItems = addonProviders.flatMap { provider ->
+            provider.plan(
+                ArtifactAddonContext(
+                    config = config,
+                    model = model,
+                    options = emptyMap(),
+                )
+            )
+        }
+
+        val planItems = (builtInPlanItems + addonPlanItems)
             .map(transformPlanItem)
             .filter(includePlanItem)
             .map { resolveConflictPolicy(it, config) }
@@ -57,6 +74,19 @@ class DefaultPipelineRunner(
             aggregateSpecialFieldResolvedPolicies = model.aggregateSpecialFieldResolvedPolicies,
             diagnostics = assembly.diagnostics,
         )
+    }
+
+    private fun validateAddonProviderIds() {
+        val duplicate = addonProviders
+            .groupingBy { it.id }
+            .eachCount()
+            .entries
+            .firstOrNull { it.value > 1 }
+            ?.key
+
+        require(duplicate == null) {
+            "duplicate artifact addon provider id: $duplicate"
+        }
     }
 
     private fun resolveConflictPolicy(item: ArtifactPlanItem, config: ProjectConfig): ArtifactPlanItem {
