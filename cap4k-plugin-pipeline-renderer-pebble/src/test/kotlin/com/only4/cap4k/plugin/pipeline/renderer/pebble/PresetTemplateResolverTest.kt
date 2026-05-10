@@ -12,6 +12,16 @@ import org.junit.jupiter.api.Test
 class PresetTemplateResolverTest {
 
     @Test
+    fun `resolver keeps two argument jvm constructor for existing callers`() {
+        val constructor = PresetTemplateResolver::class.java.getConstructor(String::class.java, List::class.java)
+        val resolver = constructor.newInstance("ddd-default-bootstrap", emptyList<String>())
+
+        val resolved = resolver.resolve("bootstrap/root/settings.gradle.kts.peb")
+
+        assertTrue(resolved.contains("rootProject.name"))
+    }
+
+    @Test
     fun `resolve prefers absolute direct file before override and resource templates`() {
         val directFile = Files.createTempFile("bootstrap-direct-template", ".peb")
         directFile.writeText("direct={{ projectName }}")

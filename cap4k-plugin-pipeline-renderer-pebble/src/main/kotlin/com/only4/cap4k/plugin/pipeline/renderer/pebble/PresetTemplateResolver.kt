@@ -9,6 +9,8 @@ class PresetTemplateResolver(
     private val addonClassLoaders: List<ClassLoader> = emptyList(),
 ) : TemplateResolver {
 
+    constructor(preset: String, overrideDirs: List<String>) : this(preset, overrideDirs, emptyList())
+
     override fun resolve(templateId: String): String {
         if (templateId.isNotBlank()) {
             val directFile = File(templateId)
