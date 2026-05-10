@@ -1,6 +1,11 @@
 package com.only4.cap4k.ddd.core.domain.repo.impl
 
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
+import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithBehaviorDeleteAndMemberRemove
+import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithBehaviorHooks
+import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithBehaviorRemoveOnly
+import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithMemberAndBehaviorHooks
+import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithThrowingBehaviorHook
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import java.lang.reflect.InvocationTargetException
@@ -56,7 +61,7 @@ class DefaultEntityInlinePersistListenerTest {
             listener.onCreate(entity2)
 
             // then
-            val cacheKey = "${TestEntityWithHandlers::class.java.name}.onCreate"
+            val cacheKey = "member:${TestEntityWithHandlers::class.java.name}.onCreate"
             assert(DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.containsKey(cacheKey))
             assertEquals(2, entity1.onCreateCallCount + entity2.onCreateCallCount)
         }
@@ -68,6 +73,37 @@ class DefaultEntityInlinePersistListenerTest {
             val entity = TestEntityWithExceptionHandlers()
 
             // when & then
+            assertThrows<InvocationTargetException> {
+                listener.onCreate(entity)
+            }
+        }
+
+        @Test
+        @DisplayName("应该调用行为扩展的onCreate方法")
+        fun `should call behavior extension onCreate method`() {
+            val entity = TestEntityWithBehaviorHooks()
+
+            listener.onCreate(entity)
+
+            assertEquals(1, entity.onCreateCallCount)
+        }
+
+        @Test
+        @DisplayName("实体onCreate方法应该优先于行为扩展onCreate方法")
+        fun `should prefer entity onCreate method over behavior extension onCreate method`() {
+            val entity = TestEntityWithMemberAndBehaviorHooks()
+
+            listener.onCreate(entity)
+
+            assertEquals(1, entity.memberCreateCallCount)
+            assertEquals(0, entity.behaviorCreateCallCount)
+        }
+
+        @Test
+        @DisplayName("行为扩展方法调用异常应该向上传播")
+        fun `should propagate behavior extension invocation exceptions`() {
+            val entity = TestEntityWithThrowingBehaviorHook()
+
             assertThrows<InvocationTargetException> {
                 listener.onCreate(entity)
             }
@@ -99,6 +135,16 @@ class DefaultEntityInlinePersistListenerTest {
 
             // when & then - 不应该抛出异常
             listener.onUpdate(entity)
+        }
+
+        @Test
+        @DisplayName("应该调用行为扩展的onUpdate方法")
+        fun `should call behavior extension onUpdate method`() {
+            val entity = TestEntityWithBehaviorHooks()
+
+            listener.onUpdate(entity)
+
+            assertEquals(1, entity.onUpdateCallCount)
         }
     }
 
@@ -141,6 +187,37 @@ class DefaultEntityInlinePersistListenerTest {
 
             // when & then - 不应该抛出异常
             listener.onDelete(entity)
+        }
+
+        @Test
+        @DisplayName("应该调用行为扩展的onDelete方法")
+        fun `should call behavior extension onDelete method`() {
+            val entity = TestEntityWithBehaviorHooks()
+
+            listener.onDelete(entity)
+
+            assertEquals(1, entity.onDeleteCallCount)
+        }
+
+        @Test
+        @DisplayName("行为扩展onDelete应该优先于实体onRemove方法")
+        fun `should prefer behavior onDelete before entity onRemove fallback`() {
+            val entity = TestEntityWithBehaviorDeleteAndMemberRemove()
+
+            listener.onDelete(entity)
+
+            assertEquals(1, entity.behaviorDeleteCallCount)
+            assertEquals(0, entity.memberRemoveCallCount)
+        }
+
+        @Test
+        @DisplayName("当onDelete不存在时应该调用行为扩展onRemove方法")
+        fun `should call behavior onRemove when onDelete is absent`() {
+            val entity = TestEntityWithBehaviorRemoveOnly()
+
+            listener.onDelete(entity)
+
+            assertEquals(1, entity.behaviorRemoveCallCount)
         }
     }
 
@@ -186,8 +263,21 @@ class DefaultEntityInlinePersistListenerTest {
             assertEquals(1, entity2.onCreateCallCount)
             // 验证缓存被使用（只有一个缓存条目）
             val createCacheEntries = DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.keys
-                .filter { it.endsWith(".onCreate") }
+                .filter { it == "member:${TestEntityWithHandlers::class.java.name}.onCreate" }
             assertEquals(1, createCacheEntries.size)
+        }
+
+        @Test
+        @DisplayName("行为扩展方法查找应该使用独立缓存键")
+        fun `behavior extension lookup should use distinct cache key`() {
+            val entity = TestEntityWithBehaviorHooks()
+            val entityClass = TestEntityWithBehaviorHooks::class.java
+            val behaviorClassName = "${entityClass.`package`.name}.${entityClass.simpleName}BehaviorKt"
+
+            listener.onCreate(entity)
+
+            val cacheKey = "behavior:$behaviorClassName.onCreate(${entityClass.name})"
+            assert(DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.containsKey(cacheKey))
         }
     }
 
