@@ -1,7 +1,7 @@
 package com.only4.cap4k.ddd.core.domain.repo.impl
 
 import java.lang.reflect.Method
-import java.util.concurrent.ConcurrentHashMap
+import java.util.Collections
 
 /**
  * 默认实体内联持久化监听器
@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap
 class DefaultEntityInlinePersistListener : AbstractPersistListener<Any>() {
 
     companion object {
-        val HANDLER_METHOD_CACHE: MutableMap<String, Method?> = ConcurrentHashMap()
+        val HANDLER_METHOD_CACHE: MutableMap<String, Method?> = Collections.synchronizedMap(mutableMapOf())
     }
 
     override fun onCreate(entity: Any) {
@@ -53,7 +53,7 @@ class DefaultEntityInlinePersistListener : AbstractPersistListener<Any>() {
 
     private fun getMemberHandlerMethod(clazz: Class<*>, methodName: String): Method? {
         val key = "member:${clazz.name}.$methodName"
-        return HANDLER_METHOD_CACHE.computeIfAbsent(key) {
+        return getCachedHandlerMethod(key) {
             try {
                 clazz.getMethod(methodName)
             } catch (ex: Exception) {
@@ -64,15 +64,30 @@ class DefaultEntityInlinePersistListener : AbstractPersistListener<Any>() {
     }
 
     private fun getBehaviorHandlerMethod(clazz: Class<*>, methodName: String): Method? {
-        val behaviorClassName = behaviorClassName(clazz)
-        val key = "behavior:$behaviorClassName.$methodName(${clazz.name})"
-        return HANDLER_METHOD_CACHE.computeIfAbsent(key) {
-            try {
-                Class.forName(behaviorClassName, true, clazz.classLoader).getMethod(methodName, clazz)
-            } catch (ex: Exception) {
-                // 方法不存在时忽略异常
-                null
+        return behaviorLookupClasses(clazz)
+            .firstNotNullOfOrNull { behaviorTargetClass ->
+                val behaviorClassName = behaviorClassName(behaviorTargetClass)
+                val key = "behavior:$behaviorClassName.$methodName(${behaviorTargetClass.name})"
+                getCachedHandlerMethod(key) {
+                    try {
+                        Class.forName(behaviorClassName, false, behaviorTargetClass.classLoader)
+                            .getMethod(methodName, behaviorTargetClass)
+                    } catch (ex: Exception) {
+                        // 方法不存在时忽略异常
+                        null
+                    }
+                }
             }
+    }
+
+    private fun getCachedHandlerMethod(key: String, lookup: () -> Method?): Method? {
+        synchronized(HANDLER_METHOD_CACHE) {
+            if (HANDLER_METHOD_CACHE.containsKey(key)) {
+                return HANDLER_METHOD_CACHE[key]
+            }
+            val resolved = lookup()
+            HANDLER_METHOD_CACHE[key] = resolved
+            return resolved
         }
     }
 
@@ -84,4 +99,8 @@ class DefaultEntityInlinePersistListener : AbstractPersistListener<Any>() {
             "$packageName.${clazz.simpleName}BehaviorKt"
         }
     }
+
+    private fun behaviorLookupClasses(clazz: Class<*>): Sequence<Class<*>> =
+        generateSequence(clazz) { it.superclass }
+            .takeWhile { it != Any::class.java }
 }

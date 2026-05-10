@@ -3,9 +3,12 @@ package com.only4.cap4k.ddd.core.domain.repo.impl
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithBehaviorDeleteAndMemberRemove
 import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithBehaviorHooks
+import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithBehaviorHooksProxy
 import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithBehaviorRemoveOnly
+import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithInitializingBehaviorFile
 import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithMemberAndBehaviorHooks
 import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithThrowingBehaviorHook
+import com.only4.cap4k.ddd.core.domain.repo.impl.lifecycle.TestEntityWithoutBehaviorHooks
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import java.lang.reflect.InvocationTargetException
@@ -86,6 +89,24 @@ class DefaultEntityInlinePersistListenerTest {
             listener.onCreate(entity)
 
             assertEquals(1, entity.onCreateCallCount)
+        }
+
+        @Test
+        @DisplayName("应该为实体子类调用父类约定的行为扩展onCreate方法")
+        fun `should resolve superclass behavior extension for subclassed entity`() {
+            val entity = TestEntityWithBehaviorHooksProxy()
+
+            listener.onCreate(entity)
+
+            assertEquals(1, entity.onCreateCallCount)
+        }
+
+        @Test
+        @DisplayName("查找不存在的行为扩展方法不应该初始化行为文件")
+        fun `should not initialize behavior file when behavior hook is absent`() {
+            val entity = TestEntityWithInitializingBehaviorFile()
+
+            listener.onCreate(entity)
         }
 
         @Test
@@ -278,6 +299,21 @@ class DefaultEntityInlinePersistListenerTest {
 
             val cacheKey = "behavior:$behaviorClassName.onCreate(${entityClass.name})"
             assert(DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.containsKey(cacheKey))
+        }
+
+        @Test
+        @DisplayName("缺失的生命周期处理方法也应该缓存查找结果")
+        fun `missing lifecycle handler lookup should be cached`() {
+            val entity = TestEntityWithoutBehaviorHooks()
+            val entityClass = TestEntityWithoutBehaviorHooks::class.java
+            val behaviorClassName = "${entityClass.`package`.name}.${entityClass.simpleName}BehaviorKt"
+
+            listener.onCreate(entity)
+
+            val memberCacheKey = "member:${entityClass.name}.onCreate"
+            val behaviorCacheKey = "behavior:$behaviorClassName.onCreate(${entityClass.name})"
+            assert(DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.containsKey(memberCacheKey))
+            assert(DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.containsKey(behaviorCacheKey))
         }
     }
 
