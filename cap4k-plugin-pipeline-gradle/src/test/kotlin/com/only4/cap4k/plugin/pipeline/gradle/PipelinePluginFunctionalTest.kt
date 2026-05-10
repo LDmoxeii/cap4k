@@ -1976,7 +1976,7 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kPlan and cap4kGenerate produce shared and local aggregate enum artifacts`() {
+    fun `no addon means no enum translation artifacts`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-enum")
         copyFixture(projectDir, "aggregate-enum-sample")
 
@@ -1998,7 +1998,10 @@ class PipelinePluginFunctionalTest {
         assertTrue(planResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.toFile().exists())
-        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/enum.kt.peb\""))
+        val planContent = planFile.readText()
+        assertTrue(planContent.contains("\"templateId\": \"aggregate/enum.kt.peb\""))
+        assertFalse(planContent.contains("Translation.kt"))
+        assertFalse(planContent.contains("only-engine-enum-translation"))
         assertTrue(
             projectDir.resolve(
                 generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt")
@@ -2038,6 +2041,94 @@ class PipelinePluginFunctionalTest {
         assertFalse(generatedEntity.contains("@DynamicInsert"))
         assertTrue(generatedEntity.contains("var status: com.acme.demo.domain.shared.enums.Status = status"))
         assertFalse(generatedEntity.contains("class Status("))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate renders enum translation addon artifacts through normal plan semantics`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-enum-addon")
+        copyFixture(projectDir, "aggregate-enum-sample")
+
+        val templateId = "addons/only-engine-enum-translation/aggregate/enum_translation.kt.peb"
+        val overrideTemplate = projectDir.resolve("cap4k-templates").resolve(templateId)
+        Files.createDirectories(overrideTemplate.parent)
+        overrideTemplate.writeText(
+            """
+            |package {{ packageName }}
+            |
+            |class {{ typeName }}
+            """.trimMargin()
+        )
+
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
+        buildFile.writeText(
+            buildFileContent
+                .replace(
+                    """
+                    |plugins {
+                    |    id("com.only4.cap4k.plugin.pipeline")
+                    |}
+                    """.trimMargin(),
+                    """
+                    |plugins {
+                    |    id("com.only4.cap4k.plugin.pipeline")
+                    |}
+                    |
+                    |repositories {
+                    |    mavenLocal()
+                    |    mavenCentral()
+                    |}
+                    |
+                    |dependencies {
+                    |    cap4kAddon("com.only4:engine-cap4k-addon:0.1.12-SNAPSHOT")
+                    |}
+                    """.trimMargin(),
+                )
+                .replace(
+                    """
+                    |    generators {
+                    """.trimMargin(),
+                    """
+                    |    templates {
+                    |        overrideDirs.from("cap4k-templates")
+                    |        templateConflictPolicies.put("$templateId", "OVERWRITE")
+                    |    }
+                    |    generators {
+                    """.trimMargin(),
+                )
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan", "cap4kGenerate")
+            .build()
+
+        val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
+        val generatedSharedTranslation = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/translation/shared/StatusTranslation.kt"
+        )
+        val generatedLocalTranslation = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/translation/video_post/VideoPostVisibilityTranslation.kt"
+        )
+        val generatedSharedTranslationContent = generatedSharedTranslation.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(planContent.contains("only-engine-enum-translation"))
+        assertTrue(planContent.contains(templateId))
+        assertPlanItemMetadata(
+            planContent = planContent,
+            templateId = templateId,
+            outputPathSuffix = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/translation/shared/StatusTranslation.kt",
+            outputKind = "CHECKED_IN_SOURCE",
+            resolvedOutputRoot = "demo-adapter/src/main/kotlin",
+            conflictPolicy = "OVERWRITE",
+        )
+        assertTrue(generatedSharedTranslation.toFile().exists())
+        assertTrue(generatedLocalTranslation.toFile().exists())
+        assertTrue(generatedSharedTranslationContent.contains("class StatusTranslation"))
+        assertFalse(generatedSharedTranslationContent.contains("TranslationInterface"))
     }
 
     @OptIn(ExperimentalPathApi::class)
