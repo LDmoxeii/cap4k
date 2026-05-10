@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.jar.JarEntry
+import java.util.jar.JarOutputStream
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
@@ -2045,20 +2047,12 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kGenerate renders enum translation addon artifacts through normal plan semantics`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-enum-addon")
+    fun `cap4kGenerate renders addon artifacts through normal plan semantics`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-addon")
         copyFixture(projectDir, "aggregate-enum-sample")
+        functionalAddonJar(projectDir)
 
-        val templateId = "addons/only-engine-enum-translation/aggregate/enum_translation.kt.peb"
-        val overrideTemplate = projectDir.resolve("cap4k-templates").resolve(templateId)
-        Files.createDirectories(overrideTemplate.parent)
-        overrideTemplate.writeText(
-            """
-            |package {{ packageName }}
-            |
-            |class {{ typeName }}
-            """.trimMargin()
-        )
+        val templateId = "addons/functional-test-addon/aggregate/addon_marker.kt.peb"
 
         val buildFile = projectDir.resolve("build.gradle.kts")
         val buildFileContent = buildFile.readText().replace("\r\n", "\n")
@@ -2075,13 +2069,8 @@ class PipelinePluginFunctionalTest {
                     |    id("com.only4.cap4k.plugin.pipeline")
                     |}
                     |
-                    |repositories {
-                    |    mavenLocal()
-                    |    mavenCentral()
-                    |}
-                    |
                     |dependencies {
-                    |    cap4kAddon("com.only4:engine-cap4k-addon:0.1.12-SNAPSHOT")
+                    |    cap4kAddon(files("local-addons/functional-test-addon.jar"))
                     |}
                     """.trimMargin(),
                 )
@@ -2091,7 +2080,6 @@ class PipelinePluginFunctionalTest {
                     """.trimMargin(),
                     """
                     |    templates {
-                    |        overrideDirs.from("cap4k-templates")
                     |        templateConflictPolicies.put("$templateId", "OVERWRITE")
                     |    }
                     |    generators {
@@ -2106,29 +2094,55 @@ class PipelinePluginFunctionalTest {
             .build()
 
         val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
-        val generatedSharedTranslation = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/translation/shared/StatusTranslation.kt"
+        val generatedAddonArtifact = projectDir.resolve(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/addon/AddonGeneratedMarker.kt"
         )
-        val generatedLocalTranslation = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/translation/video_post/VideoPostVisibilityTranslation.kt"
-        )
-        val generatedSharedTranslationContent = generatedSharedTranslation.readText()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(planContent.contains("only-engine-enum-translation"))
+        assertTrue(planContent.contains("functional-test-addon"))
         assertTrue(planContent.contains(templateId))
         assertPlanItemMetadata(
             planContent = planContent,
             templateId = templateId,
-            outputPathSuffix = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/translation/shared/StatusTranslation.kt",
+            outputPathSuffix = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/addon/AddonGeneratedMarker.kt",
             outputKind = "CHECKED_IN_SOURCE",
             resolvedOutputRoot = "demo-adapter/src/main/kotlin",
             conflictPolicy = "OVERWRITE",
         )
-        assertTrue(generatedSharedTranslation.toFile().exists())
-        assertTrue(generatedLocalTranslation.toFile().exists())
-        assertTrue(generatedSharedTranslationContent.contains("class StatusTranslation"))
-        assertFalse(generatedSharedTranslationContent.contains("Translation" + "Interface"))
+        assertTrue(generatedAddonArtifact.toFile().exists())
+        assertTrue(generatedAddonArtifact.readText().contains("val source: String = \"addon-jar\""))
+
+        val overrideTemplate = projectDir.resolve("cap4k-templates").resolve(templateId)
+        Files.createDirectories(overrideTemplate.parent)
+        overrideTemplate.writeText(
+            """
+            |package {{ packageName }}
+            |
+            |class {{ typeName }} {
+            |    val source: String = "project-override"
+            |}
+            """.trimMargin()
+        )
+        buildFile.writeText(
+            buildFile.readText().replace(
+                """
+                |    templates {
+                """.trimMargin(),
+                """
+                |    templates {
+                |        overrideDirs.from("cap4k-templates")
+                """.trimMargin(),
+            )
+        )
+
+        val overrideResult = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kGenerate")
+            .build()
+
+        assertTrue(overrideResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generatedAddonArtifact.readText().contains("val source: String = \"project-override\""))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -3585,6 +3599,47 @@ class PipelinePluginFunctionalTest {
         assertTrue(uniquePhysicalName.contains("_INDEX_"))
     }
 
+    private fun functionalAddonJar(projectDir: Path): Path {
+        val jar = projectDir.resolve("local-addons/functional-test-addon.jar")
+        Files.createDirectories(jar.parent)
+        JarOutputStream(Files.newOutputStream(jar)).use { output ->
+            output.writeClassEntry(FunctionalTestArtifactAddonProvider::class.java)
+            output.writeTextEntry(
+                "META-INF/services/com.only4.cap4k.plugin.pipeline.api.ArtifactAddonProvider",
+                FunctionalTestArtifactAddonProvider::class.java.name,
+            )
+            output.writeTextEntry(
+                "cap4k/addons/functional-test-addon/aggregate/addon_marker.kt.peb",
+                """
+                |package {{ packageName }}
+                |
+                |class {{ typeName }} {
+                |    val source: String = "addon-jar"
+                |}
+                """.trimMargin(),
+            )
+        }
+        return jar
+    }
+
+    private fun JarOutputStream.writeClassEntry(type: Class<*>) {
+        val path = type.name.replace('.', '/') + ".class"
+        val bytes = requireNotNull(type.classLoader.getResourceAsStream(path)) {
+            "provider class resource not found: $path"
+        }.readBytes()
+        writeBytesEntry(path, bytes)
+    }
+
+    private fun JarOutputStream.writeTextEntry(path: String, content: String) {
+        writeBytesEntry(path, content.toByteArray(Charsets.UTF_8))
+    }
+
+    private fun JarOutputStream.writeBytesEntry(path: String, bytes: ByteArray) {
+        putNextEntry(JarEntry(path))
+        write(bytes)
+        closeEntry()
+    }
+
     private fun generatedSource(relativePath: String): String =
         relativePath.replace("/src/main/kotlin/", "/build/generated/cap4k/main/kotlin/")
 
@@ -3600,4 +3655,34 @@ class PipelinePluginFunctionalTest {
         )
     }
 
+}
+
+class FunctionalTestArtifactAddonProvider : com.only4.cap4k.plugin.pipeline.api.ArtifactAddonProvider {
+    override val id: String = "functional-test-addon"
+
+    override fun plan(
+        context: com.only4.cap4k.plugin.pipeline.api.ArtifactAddonContext,
+    ): List<com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem> {
+        val adapterModule = context.config.modules["adapter"] ?: return emptyList()
+        val templateId = "addons/functional-test-addon/aggregate/addon_marker.kt.peb"
+        val packageName = "${context.config.basePackage}.adapter.addon"
+        val typeName = "AddonGeneratedMarker"
+        val sourceRoot = "$adapterModule/src/main/kotlin"
+        return listOf(
+            com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem(
+                generatorId = id,
+                moduleRole = "adapter",
+                templateId = templateId,
+                outputPath = "$sourceRoot/${packageName.replace('.', '/')}/$typeName.kt",
+                context = mapOf(
+                    "packageName" to packageName,
+                    "typeName" to typeName,
+                ),
+                conflictPolicy = context.config.templates.templateConflictPolicies[templateId]
+                    ?: context.config.templates.conflictPolicy,
+                outputKind = com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind.CHECKED_IN_SOURCE,
+                resolvedOutputRoot = sourceRoot,
+            )
+        )
+    }
 }
