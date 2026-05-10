@@ -12,6 +12,12 @@ interface GeneratorProvider {
     fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem>
 }
 
+interface ArtifactAddonProvider {
+    val id: String
+
+    fun plan(context: ArtifactAddonContext): List<ArtifactPlanItem>
+}
+
 interface PipelineRunner {
     fun run(config: ProjectConfig): PipelineResult
 }

@@ -566,6 +566,12 @@ data class ArtifactPlanItem(
     val resolvedOutputRoot: String = "",
 )
 
+data class ArtifactAddonContext(
+    val config: ProjectConfig,
+    val model: CanonicalModel,
+    val options: Map<String, Any?> = emptyMap(),
+)
+
 data class RenderedArtifact(
     val outputPath: String,
     val content: String,

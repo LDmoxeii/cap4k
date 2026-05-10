@@ -8,6 +8,51 @@ import org.junit.jupiter.api.Test
 class PipelineModelsTest {
 
     @Test
+    fun `artifact addon provider can create plan items from canonical context`() {
+        val provider = object : ArtifactAddonProvider {
+            override val id: String = "sample-addon"
+
+            override fun plan(context: ArtifactAddonContext): List<ArtifactPlanItem> =
+                listOf(
+                    ArtifactPlanItem(
+                        generatorId = id,
+                        moduleRole = "adapter",
+                        templateId = "addons/sample-addon/sample.kt.peb",
+                        outputPath = "demo-adapter/src/main/kotlin/com/acme/Sample.kt",
+                        context = mapOf("basePackage" to context.config.basePackage),
+                        conflictPolicy = ConflictPolicy.SKIP,
+                    )
+                )
+        }
+
+        val config = ProjectConfig(
+            basePackage = "com.acme.demo",
+            layout = ProjectLayout.MULTI_MODULE,
+            modules = mapOf("adapter" to "demo-adapter"),
+            sources = emptyMap(),
+            generators = emptyMap(),
+            templates = TemplateConfig(
+                preset = "ddd-default",
+                overrideDirs = emptyList(),
+                conflictPolicy = ConflictPolicy.SKIP,
+            ),
+        )
+
+        val items = provider.plan(
+            ArtifactAddonContext(
+                config = config,
+                model = CanonicalModel(),
+                options = emptyMap(),
+            )
+        )
+
+        assertEquals("sample-addon", provider.id)
+        assertEquals("sample-addon", items.single().generatorId)
+        assertEquals("addons/sample-addon/sample.kt.peb", items.single().templateId)
+        assertEquals("com.acme.demo", items.single().context["basePackage"])
+    }
+
+    @Test
     fun `artifact plan item defaults to checked in source ownership`() {
         val item = ArtifactPlanItem(
             generatorId = "aggregate",
