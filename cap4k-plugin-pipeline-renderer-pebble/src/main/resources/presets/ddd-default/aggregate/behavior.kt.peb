@@ -6,3 +6,11 @@ import {{ import }}
 /**
  * Place behavior for {{ rootName }} and its owned entities here.
  */
+fun {{ rootName }}.onCreate() {
+}
+
+fun {{ rootName }}.onUpdate() {
+}
+
+fun {{ rootName }}.onDelete() {
+}

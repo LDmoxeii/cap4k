@@ -323,7 +323,10 @@ class PebbleArtifactRendererTest {
 
         assertTrue(content.startsWith("package com.acme.demo.domain.aggregates.category"))
         assertTrue(content.contains("Place behavior for Category"))
-        assertFalse(content.contains("fun Category."))
+        assertTrue(content.contains("fun Category.onCreate()"))
+        assertTrue(content.contains("fun Category.onUpdate()"))
+        assertTrue(content.contains("fun Category.onDelete()"))
+        assertFalse(content.contains("fun Category.onRemove()"))
         assertFalse(content.contains("managed-begin"))
     }
 
