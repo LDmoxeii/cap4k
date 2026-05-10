@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.core.domain.repo.impl
 
 import java.lang.reflect.Method
+import java.lang.ref.WeakReference
 import java.util.Collections
 
 /**
@@ -12,7 +13,8 @@ import java.util.Collections
 class DefaultEntityInlinePersistListener : AbstractPersistListener<Any>() {
 
     companion object {
-        val HANDLER_METHOD_CACHE: MutableMap<String, Method?> = Collections.synchronizedMap(mutableMapOf())
+        val HANDLER_METHOD_CACHE: MutableMap<HandlerMethodCacheKey, WeakReference<Method>?> =
+            Collections.synchronizedMap(mutableMapOf())
     }
 
     override fun onCreate(entity: Any) {
@@ -52,7 +54,13 @@ class DefaultEntityInlinePersistListener : AbstractPersistListener<Any>() {
     }
 
     private fun getMemberHandlerMethod(clazz: Class<*>, methodName: String): Method? {
-        val key = "member:${clazz.name}.$methodName"
+        val key = HandlerMethodCacheKey(
+            kind = "member",
+            targetClassName = clazz.name,
+            targetClassIdentity = System.identityHashCode(clazz),
+            targetClassLoaderIdentity = System.identityHashCode(clazz.classLoader),
+            methodName = methodName,
+        )
         return getCachedHandlerMethod(key) {
             try {
                 clazz.getMethod(methodName)
@@ -67,7 +75,14 @@ class DefaultEntityInlinePersistListener : AbstractPersistListener<Any>() {
         return behaviorLookupClasses(clazz)
             .firstNotNullOfOrNull { behaviorTargetClass ->
                 val behaviorClassName = behaviorClassName(behaviorTargetClass)
-                val key = "behavior:$behaviorClassName.$methodName(${behaviorTargetClass.name})"
+                val key = HandlerMethodCacheKey(
+                    kind = "behavior",
+                    targetClassName = behaviorTargetClass.name,
+                    targetClassIdentity = System.identityHashCode(behaviorTargetClass),
+                    targetClassLoaderIdentity = System.identityHashCode(behaviorTargetClass.classLoader),
+                    methodName = methodName,
+                    behaviorClassName = behaviorClassName,
+                )
                 getCachedHandlerMethod(key) {
                     try {
                         Class.forName(behaviorClassName, false, behaviorTargetClass.classLoader)
@@ -80,13 +95,17 @@ class DefaultEntityInlinePersistListener : AbstractPersistListener<Any>() {
             }
     }
 
-    private fun getCachedHandlerMethod(key: String, lookup: () -> Method?): Method? {
+    private fun getCachedHandlerMethod(key: HandlerMethodCacheKey, lookup: () -> Method?): Method? {
         synchronized(HANDLER_METHOD_CACHE) {
             if (HANDLER_METHOD_CACHE.containsKey(key)) {
-                return HANDLER_METHOD_CACHE[key]
+                val cached = HANDLER_METHOD_CACHE[key]
+                val method = cached?.get()
+                if (cached == null || method != null) {
+                    return method
+                }
             }
             val resolved = lookup()
-            HANDLER_METHOD_CACHE[key] = resolved
+            HANDLER_METHOD_CACHE[key] = resolved?.let(::WeakReference)
             return resolved
         }
     }
@@ -103,4 +122,13 @@ class DefaultEntityInlinePersistListener : AbstractPersistListener<Any>() {
     private fun behaviorLookupClasses(clazz: Class<*>): Sequence<Class<*>> =
         generateSequence(clazz) { it.superclass }
             .takeWhile { it != Any::class.java }
+
+    data class HandlerMethodCacheKey(
+        val kind: String,
+        val targetClassName: String,
+        val targetClassIdentity: Int,
+        val targetClassLoaderIdentity: Int,
+        val methodName: String,
+        val behaviorClassName: String? = null,
+    )
 }

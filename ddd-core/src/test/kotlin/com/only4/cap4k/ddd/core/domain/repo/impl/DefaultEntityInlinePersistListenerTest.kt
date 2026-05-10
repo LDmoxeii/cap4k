@@ -64,8 +64,14 @@ class DefaultEntityInlinePersistListenerTest {
             listener.onCreate(entity2)
 
             // then
-            val cacheKey = "member:${TestEntityWithHandlers::class.java.name}.onCreate"
-            assert(DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.containsKey(cacheKey))
+            assert(
+                DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.keys.any {
+                    it.kind == "member" &&
+                        it.targetClassName == TestEntityWithHandlers::class.java.name &&
+                        it.targetClassIdentity == System.identityHashCode(TestEntityWithHandlers::class.java) &&
+                        it.methodName == "onCreate"
+                }
+            )
             assertEquals(2, entity1.onCreateCallCount + entity2.onCreateCallCount)
         }
 
@@ -92,8 +98,8 @@ class DefaultEntityInlinePersistListenerTest {
         }
 
         @Test
-        @DisplayName("应该为实体子类调用父类约定的行为扩展onCreate方法")
-        fun `should resolve superclass behavior extension for subclassed entity`() {
+        @DisplayName("应该为运行时代理类调用聚合根约定的行为扩展onCreate方法")
+        fun `should resolve aggregate behavior extension for runtime proxy class`() {
             val entity = TestEntityWithBehaviorHooksProxy()
 
             listener.onCreate(entity)
@@ -284,7 +290,12 @@ class DefaultEntityInlinePersistListenerTest {
             assertEquals(1, entity2.onCreateCallCount)
             // 验证缓存被使用（只有一个缓存条目）
             val createCacheEntries = DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.keys
-                .filter { it == "member:${TestEntityWithHandlers::class.java.name}.onCreate" }
+                .filter {
+                    it.kind == "member" &&
+                        it.targetClassName == TestEntityWithHandlers::class.java.name &&
+                        it.targetClassIdentity == System.identityHashCode(TestEntityWithHandlers::class.java) &&
+                        it.methodName == "onCreate"
+                }
             assertEquals(1, createCacheEntries.size)
         }
 
@@ -297,8 +308,38 @@ class DefaultEntityInlinePersistListenerTest {
 
             listener.onCreate(entity)
 
-            val cacheKey = "behavior:$behaviorClassName.onCreate(${entityClass.name})"
-            assert(DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.containsKey(cacheKey))
+            assert(
+                DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.keys.any {
+                    it.kind == "behavior" &&
+                        it.targetClassName == entityClass.name &&
+                        it.targetClassIdentity == System.identityHashCode(entityClass) &&
+                        it.methodName == "onCreate" &&
+                        it.behaviorClassName == behaviorClassName
+                }
+            )
+        }
+
+        @Test
+        @DisplayName("同名实体在不同ClassLoader下不应该复用旧行为扩展方法")
+        fun `same entity fqn loaded by different classloaders should not reuse old behavior method`() {
+            val parentEntity = TestEntityWithBehaviorHooks()
+            listener.onCreate(parentEntity)
+            assertEquals(1, parentEntity.onCreateCallCount)
+
+            val entityClassName = TestEntityWithBehaviorHooks::class.java.name
+            val behaviorClassName = "${TestEntityWithBehaviorHooks::class.java.`package`.name}.${TestEntityWithBehaviorHooks::class.java.simpleName}BehaviorKt"
+            val loader = ChildFirstClassLoader(
+                parentLoader = javaClass.classLoader,
+                childFirstClassNames = setOf(entityClassName, behaviorClassName),
+            )
+            val entityClass = loader.loadClass(entityClassName)
+            val entity = entityClass.getDeclaredConstructor().newInstance()
+
+            listener.onCreate(entity)
+
+            val onCreateCallCount = entityClass.getDeclaredField("onCreateCallCount")
+            onCreateCallCount.isAccessible = true
+            assertEquals(1, onCreateCallCount.get(entity))
         }
 
         @Test
@@ -310,10 +351,23 @@ class DefaultEntityInlinePersistListenerTest {
 
             listener.onCreate(entity)
 
-            val memberCacheKey = "member:${entityClass.name}.onCreate"
-            val behaviorCacheKey = "behavior:$behaviorClassName.onCreate(${entityClass.name})"
-            assert(DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.containsKey(memberCacheKey))
-            assert(DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.containsKey(behaviorCacheKey))
+            assert(
+                DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.keys.any {
+                    it.kind == "member" &&
+                        it.targetClassName == entityClass.name &&
+                        it.targetClassIdentity == System.identityHashCode(entityClass) &&
+                        it.methodName == "onCreate"
+                }
+            )
+            assert(
+                DefaultEntityInlinePersistListener.HANDLER_METHOD_CACHE.keys.any {
+                    it.kind == "behavior" &&
+                        it.targetClassName == entityClass.name &&
+                        it.targetClassIdentity == System.identityHashCode(entityClass) &&
+                        it.methodName == "onCreate" &&
+                        it.behaviorClassName == behaviorClassName
+                }
+            )
         }
     }
 
@@ -364,6 +418,30 @@ class DefaultEntityInlinePersistListenerTest {
 
         fun onDelete() {
             throw RuntimeException("onDelete failed")
+        }
+    }
+
+    private class ChildFirstClassLoader(
+        private val parentLoader: ClassLoader,
+        private val childFirstClassNames: Set<String>,
+    ) : ClassLoader(parentLoader) {
+        override fun loadClass(name: String, resolve: Boolean): Class<*> {
+            if (name !in childFirstClassNames) {
+                return super.loadClass(name, resolve)
+            }
+
+            val loadedClass = findLoadedClass(name) ?: findClass(name)
+            if (resolve) {
+                resolveClass(loadedClass)
+            }
+            return loadedClass
+        }
+
+        override fun findClass(name: String): Class<*> {
+            val resourceName = name.replace('.', '/') + ".class"
+            val bytes = parentLoader.getResourceAsStream(resourceName)?.use { it.readBytes() }
+                ?: throw ClassNotFoundException(name)
+            return defineClass(name, bytes, 0, bytes.size)
         }
     }
 }
