@@ -18,6 +18,14 @@
 - domain events are registered and released by aggregate roots
 - `cli` is an anti-corruption boundary, not the truth source of the process
 
+## Author Role Positioning
+
+cap4k is designed for AI-assisted implementation, but framework positioning and business boundaries remain human decisions.
+
+- human authors decide whether a business concept belongs on the public main path
+- human authors decide whether an advanced concept is truly needed in the current slice
+- AI can assist implementation and verification, but must not turn a local project convention into a framework default promise
+
 ## Background Concepts
 
 These concepts matter, but they sit behind the public first-screen story and usually become relevant after the default path is clear.

@@ -21,6 +21,15 @@
 4. release domain events from the aggregate root when process continuation is needed
 5. treat controller, job, and event handlers as coordination points, not the place where business truth lives
 
+## Minimal Audit During AI Collaboration
+
+AI can draft designs, implement code, and run verification, but human authors should confirm before accepting the result:
+
+- the domain flow still follows the minimal workflow above
+- generated and handwritten boundaries are clear
+- the AI provided reproducible test, compile, generation, or analysis evidence
+- unsupported or incomplete capabilities are explicitly marked as gaps
+
 ## Start Conservatively
 
 - use the default happy path first

@@ -10,7 +10,20 @@ Phase one keeps deep guide bodies Chinese-first. This page is the English naviga
 
 - gives project authors a direct way to start writing cap4k projects
 - gives reviewers a stable Default Happy Path audit baseline
-- provides a durable upstream writing model for later AI collaboration guidance
+- keeps human authors responsible for domain decisions, path choices, and final audit during AI-assisted work
+
+## Human And AI Collaboration Boundary
+
+This authoring guide is the human-facing decision and audit entrypoint. It helps human authors decide:
+
+- which cap4k tactical object should carry a business behavior
+- when to stay on the Default Happy Path and when to allow a bounded deviation
+- which code should be generated, handwritten, copied as a generation snapshot, or customized through templates
+- how to audit AI-assisted output before accepting it
+
+AI agents may assist decisions, implement most changes, and run tests, compile, generation, analysis, and link checks before final audit. They do not replace human judgment over the domain flow, architecture tradeoffs, or final code shape.
+
+AI authoring rules are maintained as an independent skill. The public authoring docs are not a runtime dependency of that skill; the two surfaces share project discipline but serve different users.
 
 ## Reading Paths
 
@@ -48,3 +61,25 @@ Phase one keeps deep guide bodies Chinese-first. This page is the English naviga
 - [Generation / Handwritten Boundary](generation-boundaries.zh-CN.md)
 - [Example Contract](example-contract.zh-CN.md)
 - [Testing Contract](testing-contract.zh-CN.md)
+
+## Audit Focus
+
+Before accepting AI-assisted work, human reviewers should check:
+
+- whether the business process is still expressed through aggregate roots, commands, queries, domain events, and orchestration surfaces
+- whether write behavior stays in command handling instead of controller, job, or transport glue
+- whether generated artifacts, handwritten artifacts, template overrides, and copied generation snapshots are clearly separated
+- whether the `domain` and `application` happy path has behavior evidence that follows the testing contract
+- whether the AI provided reproducible test, compile, generation, analysis, or link-check evidence
+- whether gaps were recorded explicitly instead of being hidden behind local conventions
+
+## Current Gaps And Extension Points
+
+These topics can be discussed or demonstrated, but should not be treated as complete default capabilities in this v1 guide:
+
+- value object, Saga, and Domain Service authoring qualification will continue to improve
+- value object, Saga, Domain Service, and integration-event generator support needs later slices
+- layered model and public tactical model qualification will continue to converge
+- design-driven support for command, query, cli, domain event, integration event, value object, and domain service will continue to expand
+- `drawing_board.json` remains a later extension point for cross-service integration-event communication
+- addon / SPI authoring rules for advanced users should grow after more real usage
