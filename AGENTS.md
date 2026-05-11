@@ -8,6 +8,18 @@ When continuing work in `cap4k`, read this file first, then read:
 - the relevant GitHub issue that now acts as backlog source of truth
 - the most recent relevant spec or plan under `docs/superpowers/`
 
+## AI Authoring Skill
+
+When a task involves cap4k project authoring, AI-assisted DDD implementation, generated-vs-handwritten ownership, tactical model placement, testing-contract evidence, or issue lifecycle updates for project-authoring work, route through the repo-local formal skill.
+
+| Task | Read | Workflow |
+|---|---|---|
+| Decide or review cap4k authoring direction | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/role-boundary.md](skills/cap4k-authoring/rules/role-boundary.md) | [skills/cap4k-authoring/workflows/design-before-code.md](skills/cap4k-authoring/workflows/design-before-code.md) |
+| Implement a cap4k project slice | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/layering-and-tactical-model.md](skills/cap4k-authoring/rules/layering-and-tactical-model.md), [skills/cap4k-authoring/rules/generator-ownership.md](skills/cap4k-authoring/rules/generator-ownership.md) | [skills/cap4k-authoring/workflows/implement-cap4k-project-slice.md](skills/cap4k-authoring/workflows/implement-cap4k-project-slice.md) |
+| Finish with evidence and issue update | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/verification-contract.md](skills/cap4k-authoring/rules/verification-contract.md), [skills/cap4k-authoring/references/issue-lifecycle.md](skills/cap4k-authoring/references/issue-lifecycle.md) | [skills/cap4k-authoring/workflows/close-task-with-evidence.md](skills/cap4k-authoring/workflows/close-task-with-evidence.md) |
+
+Keep this file as a routing shell. Do not duplicate the skill's rules here.
+
 ## What This Project Is Doing
 
 `cap4k` is in a breaking redesign from the old mixed Gradle/codegen/plugin model to a fixed-stage pipeline.
