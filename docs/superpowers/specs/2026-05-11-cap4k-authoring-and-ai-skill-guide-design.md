@@ -178,10 +178,10 @@ The index should remain navigational. It should not absorb every detail from qui
 
 ## AI Authoring Skill Design
 
-The AI guidance should be delivered as a repo-local skill:
+The AI guidance should be delivered as a repo-local formal skill folder:
 
 ```text
-.agents/skills/cap4k-authoring/
+skills/cap4k-authoring/
   SKILL.md
   rules/
     role-boundary.md
@@ -199,6 +199,18 @@ The AI guidance should be delivered as a repo-local skill:
     known-gaps.md
     issue-lifecycle.md
 ```
+
+Harness-specific entries should be thin shells with inline routing, not duplicate rulebooks:
+
+```text
+.agents/skills/cap4k-authoring/SKILL.md
+.cursor/skills/cap4k-authoring/SKILL.md
+AGENTS.md
+```
+
+The `.cursor/skills/...` entry is required so Cursor can discover the skill. The `.agents/skills/...` entry is a thin compatibility shell for agent harnesses that discover skills from `.agents`. `AGENTS.md` should route tasks to the formal skill with an inline table near the top of the file.
+
+The full skill structure is justified here because `#17` has multiple routed tasks: design-before-code, project-slice implementation, generated-output review, final evidence closure, and known-gotcha activation.
 
 ### SKILL.md responsibilities
 
@@ -274,9 +286,10 @@ The implementation should verify:
 3. README links point into `docs/public/authoring`.
 4. Moved documents have correct relative links.
 5. The AI skill has a concise `SKILL.md` and separates rules, workflows, and references.
-6. The skill does not instruct agents to load `docs/public/authoring` or `cap4k-reference-content-studio` as normal runtime context.
-7. Known gaps are explicitly documented in the skill.
-8. No framework runtime or generator implementation files are changed.
+6. `.agents/skills/cap4k-authoring/SKILL.md`, `.cursor/skills/cap4k-authoring/SKILL.md`, and `AGENTS.md` are thin routing shells.
+7. The skill does not instruct agents to load `docs/public/authoring` or `cap4k-reference-content-studio` as normal runtime context.
+8. Known gaps are explicitly documented in the skill.
+9. No framework runtime or generator implementation files are changed.
 
 ## Risks
 
@@ -310,6 +323,7 @@ Mitigation: list missing capabilities as known gaps and future extension points.
 - Root-level quick-start and framework-positioning docs are removed after their content is moved.
 - READMEs no longer reference removed root-level docs.
 - AI authoring guidance is delivered as a repo-local skill with progressive disclosure.
+- Formal skill content lives under `skills/cap4k-authoring`; harness entries remain thin shells with inline routing.
 - The AI skill is self-contained at runtime and does not depend on loading human authoring docs or the reference project.
 - Known missing capabilities are visible as extension points.
 - The work remains documentation and skill guidance only.

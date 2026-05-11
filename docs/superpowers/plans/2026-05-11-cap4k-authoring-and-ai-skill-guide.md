@@ -4,7 +4,7 @@
 
 **Goal:** Consolidate human-facing authoring docs under `docs/public/authoring`, and add a self-contained repo-local AI authoring skill for cap4k project work.
 
-**Architecture:** Human guidance remains public documentation under one authoring tree. AI guidance is a repo-local skill with a thin `SKILL.md`, stable rules in `rules/`, procedural workflows in `workflows/`, and lower-frequency material in `references/`; the skill is self-contained at runtime and does not require agents to load public docs or example repositories.
+**Architecture:** Human guidance remains public documentation under one authoring tree. AI guidance uses skill-based architecture: formal content lives in `skills/cap4k-authoring`, harness-specific entries are thin shells with inline routing, and lower-frequency material is pulled through task routes only. The skill is self-contained at runtime and does not require agents to load public docs or example repositories.
 
 **Tech Stack:** Markdown documentation, Codex/agent skill folder conventions, Git, PowerShell validation commands.
 
@@ -33,21 +33,26 @@ Do not modify framework runtime, generator, Gradle plugin, test fixture, or refe
 - Modify: `README.zh-CN.md`
 - Modify: `README.md`
 
-### AI Authoring Skill
+### Formal AI Authoring Skill
+
+- Create: `skills/cap4k-authoring/SKILL.md`
+- Create: `skills/cap4k-authoring/rules/role-boundary.md`
+- Create: `skills/cap4k-authoring/rules/layering-and-tactical-model.md`
+- Create: `skills/cap4k-authoring/rules/generator-ownership.md`
+- Create: `skills/cap4k-authoring/rules/verification-contract.md`
+- Create: `skills/cap4k-authoring/workflows/design-before-code.md`
+- Create: `skills/cap4k-authoring/workflows/implement-cap4k-project-slice.md`
+- Create: `skills/cap4k-authoring/workflows/review-generated-output.md`
+- Create: `skills/cap4k-authoring/workflows/close-task-with-evidence.md`
+- Create: `skills/cap4k-authoring/references/gotchas.md`
+- Create: `skills/cap4k-authoring/references/public-tactical-model.md`
+- Create: `skills/cap4k-authoring/references/known-gaps.md`
+- Create: `skills/cap4k-authoring/references/issue-lifecycle.md`
+
+### Thin Harness Shells
 
 - Create: `.agents/skills/cap4k-authoring/SKILL.md`
-- Create: `.agents/skills/cap4k-authoring/rules/role-boundary.md`
-- Create: `.agents/skills/cap4k-authoring/rules/layering-and-tactical-model.md`
-- Create: `.agents/skills/cap4k-authoring/rules/generator-ownership.md`
-- Create: `.agents/skills/cap4k-authoring/rules/verification-contract.md`
-- Create: `.agents/skills/cap4k-authoring/workflows/design-before-code.md`
-- Create: `.agents/skills/cap4k-authoring/workflows/implement-cap4k-project-slice.md`
-- Create: `.agents/skills/cap4k-authoring/workflows/review-generated-output.md`
-- Create: `.agents/skills/cap4k-authoring/workflows/close-task-with-evidence.md`
-- Create: `.agents/skills/cap4k-authoring/references/gotchas.md`
-- Create: `.agents/skills/cap4k-authoring/references/public-tactical-model.md`
-- Create: `.agents/skills/cap4k-authoring/references/known-gaps.md`
-- Create: `.agents/skills/cap4k-authoring/references/issue-lifecycle.md`
+- Create: `.cursor/skills/cap4k-authoring/SKILL.md`
 - Modify: `AGENTS.md`
 
 ---
@@ -294,26 +299,26 @@ git commit -m "docs: consolidate public authoring entrypoints"
 
 Expected: commit succeeds with only README and `docs/public` files changed.
 
-### Task 3: Create The cap4k Authoring Skill Shell
+### Task 3: Create The Formal cap4k Authoring Skill
 
 **Files:**
-- Create: `.agents/skills/cap4k-authoring/SKILL.md`
+- Create: `skills/cap4k-authoring/SKILL.md`
 
 - [ ] **Step 1: Create the skill directory**
 
 Run:
 
 ```powershell
-New-Item -ItemType Directory -Force .agents/skills/cap4k-authoring/rules
-New-Item -ItemType Directory -Force .agents/skills/cap4k-authoring/workflows
-New-Item -ItemType Directory -Force .agents/skills/cap4k-authoring/references
+New-Item -ItemType Directory -Force skills/cap4k-authoring/rules
+New-Item -ItemType Directory -Force skills/cap4k-authoring/workflows
+New-Item -ItemType Directory -Force skills/cap4k-authoring/references
 ```
 
 Expected: the three subdirectories exist.
 
 - [ ] **Step 2: Create `SKILL.md` with trigger routing**
 
-Create `.agents/skills/cap4k-authoring/SKILL.md`:
+Create `skills/cap4k-authoring/SKILL.md`:
 
 ```markdown
 ---
@@ -330,6 +335,10 @@ description: >
 # Cap4k Authoring
 
 Use this skill to help an AI author implement and review cap4k-based project work without loading public docs or example repositories as runtime context.
+
+## Structure Rationale
+
+This uses the full skill structure because cap4k authoring has routed design, implementation, generated-output review, closure workflows, and a gotcha log.
 
 ## When To Use
 
@@ -368,29 +377,40 @@ Use this skill to help an AI author implement and review cap4k-based project wor
 4. Existing repository patterns
 
 When a framework capability is missing, record the gap instead of implying support.
+
+## Session Discipline
+
+- Re-read this `SKILL.md` when a new distinct cap4k authoring task starts.
+- Re-read this `SKILL.md` after `/clear`, `/compact`, context summarization, or a long interruption.
+- Route each task through the Common Tasks table instead of relying on memory from a previous task.
 ```
 
-- [ ] **Step 3: Validate skill shell line count**
+- [ ] **Step 3: Validate formal skill line count and routing**
 
 Run:
 
 ```powershell
-(Get-Content .agents/skills/cap4k-authoring/SKILL.md).Count
+(Get-Content skills/cap4k-authoring/SKILL.md).Count
+rg -n "^## Always Read|^## Common Tasks|^## Session Discipline|rules/|workflows/|references/" skills/cap4k-authoring/SKILL.md
 ```
 
-Expected: result is under `100`.
+Expected:
+
+- line count is under `100`
+- `Always Read` has 3 entries
+- `Common Tasks` routes to `rules/`, `workflows/`, and `references/`
 
 ### Task 4: Add Stable Skill Rules
 
 **Files:**
-- Create: `.agents/skills/cap4k-authoring/rules/role-boundary.md`
-- Create: `.agents/skills/cap4k-authoring/rules/layering-and-tactical-model.md`
-- Create: `.agents/skills/cap4k-authoring/rules/generator-ownership.md`
-- Create: `.agents/skills/cap4k-authoring/rules/verification-contract.md`
+- Create: `skills/cap4k-authoring/rules/role-boundary.md`
+- Create: `skills/cap4k-authoring/rules/layering-and-tactical-model.md`
+- Create: `skills/cap4k-authoring/rules/generator-ownership.md`
+- Create: `skills/cap4k-authoring/rules/verification-contract.md`
 
 - [ ] **Step 1: Create role boundary rules**
 
-Create `.agents/skills/cap4k-authoring/rules/role-boundary.md`:
+Create `skills/cap4k-authoring/rules/role-boundary.md`:
 
 ```markdown
 # Role Boundary
@@ -417,7 +437,7 @@ Create `.agents/skills/cap4k-authoring/rules/role-boundary.md`:
 
 - [ ] **Step 2: Create layering and tactical model rules**
 
-Create `.agents/skills/cap4k-authoring/rules/layering-and-tactical-model.md`:
+Create `skills/cap4k-authoring/rules/layering-and-tactical-model.md`:
 
 ```markdown
 # Layering And Tactical Model
@@ -447,7 +467,7 @@ Create `.agents/skills/cap4k-authoring/rules/layering-and-tactical-model.md`:
 
 - [ ] **Step 3: Create generator ownership rules**
 
-Create `.agents/skills/cap4k-authoring/rules/generator-ownership.md`:
+Create `skills/cap4k-authoring/rules/generator-ownership.md`:
 
 ```markdown
 # Generator Ownership
@@ -479,7 +499,7 @@ Create `.agents/skills/cap4k-authoring/rules/generator-ownership.md`:
 
 - [ ] **Step 4: Create verification contract rules**
 
-Create `.agents/skills/cap4k-authoring/rules/verification-contract.md`:
+Create `skills/cap4k-authoring/rules/verification-contract.md`:
 
 ```markdown
 # Verification Contract
@@ -510,7 +530,7 @@ Create `.agents/skills/cap4k-authoring/rules/verification-contract.md`:
 Run:
 
 ```powershell
-rg -n "cap4k-reference-content-studio|read docs/public/authoring|load docs/public/authoring|example repositories" .agents/skills/cap4k-authoring/rules
+rg -n "cap4k-reference-content-studio|read docs/public/authoring|load docs/public/authoring|example repositories" skills/cap4k-authoring/rules
 ```
 
 Expected: no output, except no match is acceptable with exit code `1`.
@@ -518,14 +538,14 @@ Expected: no output, except no match is acceptable with exit code `1`.
 ### Task 5: Add Skill Workflows
 
 **Files:**
-- Create: `.agents/skills/cap4k-authoring/workflows/design-before-code.md`
-- Create: `.agents/skills/cap4k-authoring/workflows/implement-cap4k-project-slice.md`
-- Create: `.agents/skills/cap4k-authoring/workflows/review-generated-output.md`
-- Create: `.agents/skills/cap4k-authoring/workflows/close-task-with-evidence.md`
+- Create: `skills/cap4k-authoring/workflows/design-before-code.md`
+- Create: `skills/cap4k-authoring/workflows/implement-cap4k-project-slice.md`
+- Create: `skills/cap4k-authoring/workflows/review-generated-output.md`
+- Create: `skills/cap4k-authoring/workflows/close-task-with-evidence.md`
 
 - [ ] **Step 1: Create design-before-code workflow**
 
-Create `.agents/skills/cap4k-authoring/workflows/design-before-code.md`:
+Create `skills/cap4k-authoring/workflows/design-before-code.md`:
 
 ```markdown
 # Design Before Code
@@ -543,7 +563,7 @@ Output should name the layer and tactical object for every meaningful behavior.
 
 - [ ] **Step 2: Create implementation workflow**
 
-Create `.agents/skills/cap4k-authoring/workflows/implement-cap4k-project-slice.md`:
+Create `skills/cap4k-authoring/workflows/implement-cap4k-project-slice.md`:
 
 ```markdown
 # Implement Cap4k Project Slice
@@ -562,7 +582,7 @@ Create `.agents/skills/cap4k-authoring/workflows/implement-cap4k-project-slice.m
 
 - [ ] **Step 3: Create generated-output review workflow**
 
-Create `.agents/skills/cap4k-authoring/workflows/review-generated-output.md`:
+Create `skills/cap4k-authoring/workflows/review-generated-output.md`:
 
 ```markdown
 # Review Generated Output
@@ -579,7 +599,7 @@ Create `.agents/skills/cap4k-authoring/workflows/review-generated-output.md`:
 
 - [ ] **Step 4: Create close-task workflow**
 
-Create `.agents/skills/cap4k-authoring/workflows/close-task-with-evidence.md`:
+Create `skills/cap4k-authoring/workflows/close-task-with-evidence.md`:
 
 ```markdown
 # Close Task With Evidence
@@ -595,6 +615,15 @@ Create `.agents/skills/cap4k-authoring/workflows/close-task-with-evidence.md`:
    - results
    - known gaps
    - whether the issue can continue, merge, or close
+
+## AAR Gate
+
+Answer these before marking the task done:
+
+1. Did this task reveal a reusable gotcha?
+2. Should any rule, workflow, or reference in this skill change?
+3. Did any issue lifecycle state change?
+4. Is there a new gap that should be recorded or linked?
 ```
 
 - [ ] **Step 5: Validate workflows route to known gaps and evidence**
@@ -602,7 +631,7 @@ Create `.agents/skills/cap4k-authoring/workflows/close-task-with-evidence.md`:
 Run:
 
 ```powershell
-rg -n "known-gaps|evidence|Mediator\.uow|generation|analysis" .agents/skills/cap4k-authoring/workflows
+rg -n "known-gaps|evidence|Mediator\.uow|generation|analysis|AAR Gate" skills/cap4k-authoring/workflows
 ```
 
 Expected: output shows matches in the workflows created above.
@@ -610,14 +639,14 @@ Expected: output shows matches in the workflows created above.
 ### Task 6: Add Skill References
 
 **Files:**
-- Create: `.agents/skills/cap4k-authoring/references/gotchas.md`
-- Create: `.agents/skills/cap4k-authoring/references/public-tactical-model.md`
-- Create: `.agents/skills/cap4k-authoring/references/known-gaps.md`
-- Create: `.agents/skills/cap4k-authoring/references/issue-lifecycle.md`
+- Create: `skills/cap4k-authoring/references/gotchas.md`
+- Create: `skills/cap4k-authoring/references/public-tactical-model.md`
+- Create: `skills/cap4k-authoring/references/known-gaps.md`
+- Create: `skills/cap4k-authoring/references/issue-lifecycle.md`
 
 - [ ] **Step 1: Create gotchas reference**
 
-Create `.agents/skills/cap4k-authoring/references/gotchas.md`:
+Create `skills/cap4k-authoring/references/gotchas.md`:
 
 ```markdown
 # Gotchas
@@ -645,11 +674,24 @@ Handler and factory skeletons that are meant to receive handwritten logic should
 ## Unsupported Capability Drift
 
 If value object, saga, domain service, or integration-event generation is not supported by the current generator, record that as a gap instead of inventing a local convention and calling it framework behavior.
+
+## Thin Shell Drift
+
+Do not put formal rules in `AGENTS.md`, `.agents/skills`, or `.cursor/skills`. Those entries are routing shells. The formal rulebook lives under `skills/cap4k-authoring`.
+
+## Rationalizations To Reject
+
+| Rationalization | Reject Because |
+|---|---|
+| "The skill can just read the public docs." | Runtime context becomes too large and the AI line is no longer self-contained. |
+| "A shell can just point to SKILL.md." | Soft pointers disappear in long sessions; shells need inline routing tables. |
+| "Gotchas can live only in references." | Stored gotchas are not activated unless normal task paths route to them. |
+| "This is cap4k-specific, so project narrative is fine." | Records should still be reusable patterns inside cap4k work, not one-off incident reports. |
 ```
 
 - [ ] **Step 2: Create public tactical model reference**
 
-Create `.agents/skills/cap4k-authoring/references/public-tactical-model.md`:
+Create `skills/cap4k-authoring/references/public-tactical-model.md`:
 
 ```markdown
 # Public Tactical Model
@@ -685,7 +727,7 @@ Use advanced concepts only when the business process needs them or the issue exp
 
 - [ ] **Step 3: Create known gaps reference**
 
-Create `.agents/skills/cap4k-authoring/references/known-gaps.md`:
+Create `skills/cap4k-authoring/references/known-gaps.md`:
 
 ```markdown
 # Known Gaps
@@ -717,7 +759,7 @@ These gaps must be surfaced during design and review. Do not present them as com
 
 - [ ] **Step 4: Create issue lifecycle reference**
 
-Create `.agents/skills/cap4k-authoring/references/issue-lifecycle.md`:
+Create `skills/cap4k-authoring/references/issue-lifecycle.md`:
 
 ```markdown
 # Issue Lifecycle
@@ -750,65 +792,133 @@ An issue can close only when its accepted scope is implemented, verified, and no
 Run:
 
 ```powershell
-rg -n "Value object|Saga|Domain service|Integration event|drawing_board|Addon|SPI|Layered|Public tactical" .agents/skills/cap4k-authoring/references/known-gaps.md
+rg -n "Value object|Saga|Domain service|Integration event|drawing_board|Addon|SPI|Layered|Public tactical" skills/cap4k-authoring/references/known-gaps.md
 ```
 
 Expected: every listed extension area has a match.
 
-### Task 7: Add Thin AGENTS Routing And Validate Skill Shape
+### Task 7: Add Thin Harness Shells And Validate Skill Shape
 
 **Files:**
 - Modify: `AGENTS.md`
-- All `.agents/skills/cap4k-authoring/**`
+- Create: `.agents/skills/cap4k-authoring/SKILL.md`
+- Create: `.cursor/skills/cap4k-authoring/SKILL.md`
+- All `skills/cap4k-authoring/**`
 
-- [ ] **Step 1: Add a thin AI authoring skill route to `AGENTS.md`**
+- [ ] **Step 1: Add a thin AI authoring route near the top of `AGENTS.md`**
 
-Add this section after "Continuing Work" or before "Current Planning State":
+Add this section immediately after the "First Read" list so the routing table appears within the first 40 lines:
 
 ```markdown
 ## AI Authoring Skill
 
-When a task involves cap4k project authoring, AI-assisted DDD implementation, generated-vs-handwritten ownership, tactical model placement, testing-contract evidence, or issue lifecycle updates for project-authoring work, use the repo-local skill:
+When a task involves cap4k project authoring, AI-assisted DDD implementation, generated-vs-handwritten ownership, tactical model placement, testing-contract evidence, or issue lifecycle updates for project-authoring work, route through the repo-local formal skill.
 
-- [.agents/skills/cap4k-authoring/SKILL.md](.agents/skills/cap4k-authoring/SKILL.md)
+| Task | Read | Workflow |
+|---|---|---|
+| Decide or review cap4k authoring direction | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/role-boundary.md](skills/cap4k-authoring/rules/role-boundary.md) | [skills/cap4k-authoring/workflows/design-before-code.md](skills/cap4k-authoring/workflows/design-before-code.md) |
+| Implement a cap4k project slice | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/layering-and-tactical-model.md](skills/cap4k-authoring/rules/layering-and-tactical-model.md), [skills/cap4k-authoring/rules/generator-ownership.md](skills/cap4k-authoring/rules/generator-ownership.md) | [skills/cap4k-authoring/workflows/implement-cap4k-project-slice.md](skills/cap4k-authoring/workflows/implement-cap4k-project-slice.md) |
+| Finish with evidence and issue update | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/verification-contract.md](skills/cap4k-authoring/rules/verification-contract.md), [skills/cap4k-authoring/references/issue-lifecycle.md](skills/cap4k-authoring/references/issue-lifecycle.md) | [skills/cap4k-authoring/workflows/close-task-with-evidence.md](skills/cap4k-authoring/workflows/close-task-with-evidence.md) |
 
 Keep this file as a routing shell. Do not duplicate the skill's rules here.
 ```
 
-- [ ] **Step 2: Validate `SKILL.md` is a router, not a full guide**
+- [ ] **Step 2: Add `.agents` and `.cursor` discovery shells**
 
 Run:
 
 ```powershell
-(Get-Content .agents/skills/cap4k-authoring/SKILL.md).Count
-rg -n "^## Common Tasks|rules/|workflows/|references/" .agents/skills/cap4k-authoring/SKILL.md
+New-Item -ItemType Directory -Force .agents/skills/cap4k-authoring
+New-Item -ItemType Directory -Force .cursor/skills/cap4k-authoring
+```
+
+Create both files:
+
+```text
+.agents/skills/cap4k-authoring/SKILL.md
+.cursor/skills/cap4k-authoring/SKILL.md
+```
+
+Use this exact content in both files:
+
+```markdown
+---
+name: cap4k-authoring
+description: >
+  Use this when working on cap4k-based project authoring, AI-assisted DDD implementation,
+  generated-vs-handwritten ownership, cap4k tactical modeling, or requests such as
+  "build a cap4k project", "write cap4k application/domain code", "review cap4k generated output",
+  "apply the cap4k testing contract", or "update cap4k issue evidence". Activate when the task
+  involves cap4k project code, docs, specs, plans, generator output, or final verification before
+  human audit.
+---
+
+# Cap4k Authoring Shell
+
+This is a thin discovery shell. Formal skill content lives at [../../../skills/cap4k-authoring/SKILL.md](../../../skills/cap4k-authoring/SKILL.md).
+
+## Routing
+
+| Task | Read | Workflow |
+|---|---|---|
+| Clarify a requested cap4k change before code | `../../../skills/cap4k-authoring/SKILL.md`, `../../../skills/cap4k-authoring/rules/role-boundary.md` | `../../../skills/cap4k-authoring/workflows/design-before-code.md` |
+| Implement a cap4k project slice | `../../../skills/cap4k-authoring/SKILL.md`, `../../../skills/cap4k-authoring/rules/layering-and-tactical-model.md`, `../../../skills/cap4k-authoring/rules/generator-ownership.md` | `../../../skills/cap4k-authoring/workflows/implement-cap4k-project-slice.md` |
+| Review generated output | `../../../skills/cap4k-authoring/SKILL.md`, `../../../skills/cap4k-authoring/rules/generator-ownership.md`, `../../../skills/cap4k-authoring/references/gotchas.md` | `../../../skills/cap4k-authoring/workflows/review-generated-output.md` |
+| Finish with evidence | `../../../skills/cap4k-authoring/SKILL.md`, `../../../skills/cap4k-authoring/rules/verification-contract.md`, `../../../skills/cap4k-authoring/references/issue-lifecycle.md` | `../../../skills/cap4k-authoring/workflows/close-task-with-evidence.md` |
+```
+
+- [ ] **Step 3: Validate formal `SKILL.md` is a router, not a full guide**
+
+Run:
+
+```powershell
+(Get-Content skills/cap4k-authoring/SKILL.md).Count
+rg -n "^## Always Read|^## Common Tasks|^## Session Discipline|rules/|workflows/|references/" skills/cap4k-authoring/SKILL.md
 ```
 
 Expected:
 
 - line count is under `100`
+- `Always Read` has 3 entries
 - routing entries point one level deep to `rules/`, `workflows/`, and `references/`
 
-- [ ] **Step 3: Validate skill does not depend on public docs or example repositories**
+- [ ] **Step 4: Validate thin shells have inline routing**
 
 Run:
 
 ```powershell
-rg -n "cap4k-reference-content-studio|read docs/public/authoring|load docs/public/authoring|example repositories" .agents/skills/cap4k-authoring AGENTS.md
+(Get-Content .agents/skills/cap4k-authoring/SKILL.md).Count
+(Get-Content .cursor/skills/cap4k-authoring/SKILL.md).Count
+Get-Content AGENTS.md -TotalCount 40 | rg -n "AI Authoring Skill|\| Task \| Read \| Workflow \|"
+rg -n "\| Task \| Read \| Workflow \||skills/cap4k-authoring" .agents/skills/cap4k-authoring/SKILL.md .cursor/skills/cap4k-authoring/SKILL.md
+```
+
+Expected:
+
+- both shell files are under `100` lines
+- `AGENTS.md` shows the AI Authoring Skill heading and a routing table within the first 40 lines
+- both discovery shells contain an inline routing table
+
+- [ ] **Step 5: Validate skill does not depend on public docs or example repositories**
+
+Run:
+
+```powershell
+rg -n "cap4k-reference-content-studio|read docs/public/authoring|load docs/public/authoring|example repositories" skills/cap4k-authoring .agents/skills/cap4k-authoring .cursor/skills/cap4k-authoring AGENTS.md
 ```
 
 Expected: no output, except an explicit prohibition in `references/gotchas.md` is acceptable. If the command finds an instruction to load those sources, rewrite it.
 
-- [ ] **Step 4: Commit Tasks 3 through 7**
+- [ ] **Step 6: Commit Tasks 3 through 7**
 
 Run:
 
 ```powershell
-git add AGENTS.md .agents/skills/cap4k-authoring
+git add AGENTS.md skills/cap4k-authoring .agents/skills/cap4k-authoring .cursor/skills/cap4k-authoring
 git commit -m "docs: add cap4k authoring agent skill"
 ```
 
-Expected: commit succeeds with only `AGENTS.md` and `.agents/skills/cap4k-authoring/**` changed.
+Expected: commit succeeds with only `AGENTS.md`, `skills/cap4k-authoring/**`, `.agents/skills/cap4k-authoring/**`, and `.cursor/skills/cap4k-authoring/**` changed.
 
 ### Task 8: Final Validation And Issue Evidence
 
@@ -830,7 +940,7 @@ Expected: no output and exit code `0`.
 Run:
 
 ```powershell
-rg -n "docs/public/(getting-started|framework-positioning)" README.md README.zh-CN.md docs/public AGENTS.md .agents/skills/cap4k-authoring
+rg -n "docs/public/(getting-started|framework-positioning)" README.md README.zh-CN.md docs/public AGENTS.md skills/cap4k-authoring .agents/skills/cap4k-authoring .cursor/skills/cap4k-authoring
 ```
 
 Expected: no output.
@@ -853,7 +963,7 @@ Expected: all four commands print `False`.
 Run:
 
 ```powershell
-git diff --name-only HEAD~2..HEAD | rg -v "^(README\.md|README\.zh-CN\.md|AGENTS\.md|docs/public/authoring/|\.agents/skills/cap4k-authoring/)"
+git diff --name-only HEAD~2..HEAD | rg -v "^(README\.md|README\.zh-CN\.md|AGENTS\.md|docs/public/authoring/|skills/cap4k-authoring/|\.agents/skills/cap4k-authoring/|\.cursor/skills/cap4k-authoring/)"
 ```
 
 Expected: no output. If the plan file or spec commit is included in the range, adjust the range or accept only `docs/superpowers/` as an additional documentation path.
@@ -868,13 +978,14 @@ Implemented #17-v1 local docs/skill slice.
 - Human authoring guidance is now consolidated under `docs/public/authoring`.
 - Root-level `getting-started*` and `framework-positioning*` docs were moved into authoring.
 - README navigation now points to authoring.
-- Added repo-local AI authoring skill under `.agents/skills/cap4k-authoring`.
+- Added repo-local formal AI authoring skill under `skills/cap4k-authoring`.
+- Added thin discovery shells under `.agents/skills/cap4k-authoring` and `.cursor/skills/cap4k-authoring`.
 - Skill is self-contained at runtime and does not require loading public docs or example repositories.
 - Known gaps remain explicit in `references/known-gaps.md`.
 
 Validation:
 - `git diff --check HEAD~2..HEAD`
-- `rg -n "docs/public/(getting-started|framework-positioning)" README.md README.zh-CN.md docs/public AGENTS.md .agents/skills/cap4k-authoring`
+- `rg -n "docs/public/(getting-started|framework-positioning)" README.md README.zh-CN.md docs/public AGENTS.md skills/cap4k-authoring .agents/skills/cap4k-authoring .cursor/skills/cap4k-authoring`
 - `Test-Path ...` for removed root docs
 - `git diff --name-only HEAD~2..HEAD | rg -v ...` to confirm no runtime/generator changes
 ```
