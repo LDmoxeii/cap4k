@@ -16,20 +16,25 @@ Phase one keeps deep guide bodies Chinese-first. This page is the English naviga
 
 ### Project Authors
 
-1. [Default Happy Path](default-happy-path.md)
-2. [Generator Guide](generator/index.zh-CN.md)
-3. [Domain Authoring Guide](domain.zh-CN.md)
-4. [Application Authoring Guide](application.zh-CN.md)
-5. [Adapter Authoring Guide](adapter.zh-CN.md)
-6. [Advanced Concepts Guide](advanced/index.zh-CN.md)
+1. [Framework Positioning](framework-positioning.md)
+2. [Getting Started](getting-started.md)
+3. [Default Happy Path](default-happy-path.md)
+4. [Generator Guide](generator/index.zh-CN.md)
+5. [Domain Authoring Guide](domain.zh-CN.md)
+6. [Application Authoring Guide](application.zh-CN.md)
+7. [Testing Contract](testing-contract.zh-CN.md)
+8. [Adapter Authoring Guide](adapter.zh-CN.md)
+9. [Advanced Concepts Guide](advanced/index.zh-CN.md)
 
 ### Deep Users / Framework Contributors
 
 - start with this overview and Default Happy Path
 - then move into horizontal contracts and reference material as needed
 
-## Guide Families
+## Guide Entrypoints
 
+- [Framework Positioning](framework-positioning.md)
+- [Getting Started](getting-started.md)
 - [Default Happy Path](default-happy-path.md)
 - [Generator Guide](generator/index.zh-CN.md)
 - [Domain Authoring Guide](domain.zh-CN.md)
@@ -42,3 +47,4 @@ Phase one keeps deep guide bodies Chinese-first. This page is the English naviga
 - [Naming And Layout](naming-and-layout.zh-CN.md)
 - [Generation / Handwritten Boundary](generation-boundaries.zh-CN.md)
 - [Example Contract](example-contract.zh-CN.md)
+- [Testing Contract](testing-contract.zh-CN.md)

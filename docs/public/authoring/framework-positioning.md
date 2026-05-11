@@ -54,5 +54,5 @@ These are real landing surfaces in the codebase, but they support the framework 
 
 ## From Positioning to Authoring
 
-- [Authoring Guide Overview](authoring/index.md)
-- [Default Happy Path](authoring/default-happy-path.md)
+- [Authoring Guide Overview](index.md)
+- [Default Happy Path](default-happy-path.md)

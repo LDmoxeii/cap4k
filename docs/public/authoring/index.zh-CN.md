@@ -14,21 +14,25 @@
 
 ### 项目作者
 
-1. [Default Happy Path](default-happy-path.zh-CN.md)
-2. [生成器指南](generator/index.zh-CN.md)
-3. [领域层指南](domain.zh-CN.md)
-4. [应用层指南](application.zh-CN.md)
-5. [测试合同](testing-contract.zh-CN.md)
-6. [适配器层指南](adapter.zh-CN.md)
-7. [高级概念指南](advanced/index.zh-CN.md)
+1. [框架定位](framework-positioning.zh-CN.md)
+2. [快速开始](getting-started.zh-CN.md)
+3. [Default Happy Path](default-happy-path.zh-CN.md)
+4. [生成器指南](generator/index.zh-CN.md)
+5. [领域层指南](domain.zh-CN.md)
+6. [应用层指南](application.zh-CN.md)
+7. [测试合同](testing-contract.zh-CN.md)
+8. [适配器层指南](adapter.zh-CN.md)
+9. [高级概念指南](advanced/index.zh-CN.md)
 
 ### 深度用户 / 框架贡献者
 
 - 先完整阅读本页和 Default Happy Path
 - 再按需阅读横切规范与 generator reference
 
-## 六大主题
+## 主题入口
 
+- [框架定位](framework-positioning.zh-CN.md)
+- [快速开始](getting-started.zh-CN.md)
 - [Default Happy Path](default-happy-path.zh-CN.md)
 - [Generator Guide](generator/index.zh-CN.md)
 - [Domain Authoring Guide](domain.zh-CN.md)

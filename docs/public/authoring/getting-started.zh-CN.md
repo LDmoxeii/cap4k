@@ -9,7 +9,7 @@
 
 ## 推荐阅读顺序
 
-1. [README.zh-CN.md](../../README.zh-CN.md)
+1. [README.zh-CN.md](../../../README.zh-CN.md)
 2. 先用下面的最小工作流跑一个小聚合片段
 3. 需要更清楚的概念边界时，再读 [框架定位](framework-positioning.zh-CN.md)
 
@@ -31,6 +31,6 @@
 ## 下一步阅读
 
 - [框架定位](framework-positioning.zh-CN.md)
-- [编写指南总览](authoring/index.zh-CN.md)
-- [Default Happy Path](authoring/default-happy-path.zh-CN.md)
-- [测试合同](authoring/testing-contract.zh-CN.md)
+- [编写指南总览](index.zh-CN.md)
+- [Default Happy Path](default-happy-path.zh-CN.md)
+- [测试合同](testing-contract.zh-CN.md)

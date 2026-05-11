@@ -9,7 +9,7 @@
 
 ## Read in This Order
 
-1. [README](../../README.md)
+1. [README](../../../README.md)
 2. work through the minimal workflow below on a small aggregate slice
 3. read [Framework Positioning](framework-positioning.md) when you need clearer concept boundaries
 
@@ -30,5 +30,5 @@
 ## Next Reading
 
 - [Framework Positioning](framework-positioning.md)
-- [Authoring Guide Overview](authoring/index.md)
-- [Default Happy Path](authoring/default-happy-path.md)
+- [Authoring Guide Overview](index.md)
+- [Default Happy Path](default-happy-path.md)

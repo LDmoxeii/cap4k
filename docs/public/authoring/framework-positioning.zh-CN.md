@@ -54,5 +54,5 @@
 
 ## 从定位到编写
 
-- [编写指南总览](authoring/index.zh-CN.md)
-- [Default Happy Path](authoring/default-happy-path.zh-CN.md)
+- [编写指南总览](index.zh-CN.md)
+- [Default Happy Path](default-happy-path.zh-CN.md)
