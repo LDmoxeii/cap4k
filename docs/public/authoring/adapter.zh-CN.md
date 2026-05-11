@@ -4,6 +4,8 @@
 
 当前 Spring + JPA 现实下，adapter 的默认物理落点有几条是比较固定的：仓储 family 在 `adapter.domain.repositories`，query / client handler family 常在 `adapter.application.*`，payload family 常在 `adapter.portal.api.payload`。这些文件即使落在 `src/main/kotlin`，也仍然可能是 plan-managed 产物；改之前先看 `build/cap4k/plan.json`，不要把目录位置误判成 ownership。
 
+query handler、client/cli handler 和 adapter 边界的责任说明见 [公开战术模型](tactical-model.zh-CN.md)。当前默认要点是：query/client/cli handler 物理上通常在 adapter 侧，但实现的是 application 请求契约。
+
 ## 这一层负责什么
 
 - 提供 controller、RPC、message listener 等外部入口，把请求转换成内部命令或查询。

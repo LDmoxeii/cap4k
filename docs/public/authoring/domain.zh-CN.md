@@ -4,6 +4,8 @@
 
 当前 cap4k 的一个关键现实是：聚合主体文件本身经常是计划产物，不应该被当成稳定手写入口。作者默认应该把聚合行为补在 checked-in 的 `ContentBehavior.kt`、`MediaProcessingTaskBehavior.kt` 这类手写补充点里；在改 `Content.kt`、`MediaProcessingTask.kt`、`Agg*.kt`、`*Factory.kt`、`*Specification.kt` 之前，先回到 `build/cap4k/plan.json` 看它到底是不是这次生成要接管的文件。
 
+聚合行为、工厂、生命周期、规约和领域服务的统一使用方式见 [公开战术模型](tactical-model.zh-CN.md)。
+
 ## 这一层负责什么
 
 - 承载 `Content` 与 `MediaProcessingTask` 两个聚合根各自的业务真相。

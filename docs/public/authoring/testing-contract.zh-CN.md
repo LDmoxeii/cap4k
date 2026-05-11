@@ -3,6 +3,7 @@
 ## 何时阅读本页
 
 - 当你已经按 [Default Happy Path](./default-happy-path.zh-CN.md) 确定 `domain` / `application` 主链路，并准备给项目建立第一版默认测试形态时，读本页。
+- 当你需要把测试、本地运行、analysis 和最终人类审计串成一个交付顺序时，同时阅读 [项目编写工作流](project-authoring-workflow.zh-CN.md#6-测试与本地运行) 与 [analysis 步骤](project-authoring-workflow.zh-CN.md#7-生成-analysis-和流程图)。
 - 如果你还没有先讲清 `Content`、`MediaProcessingTask`、`MediaProcessingCli`、callback 主路径和 polling 备用路径，先回到[参考项目总览](./examples/reference-project-overview.zh-CN.md)以及默认主路径相关页面，包括[内容草稿到发布主链路](./examples/content-draft-to-publish.zh-CN.md)、[媒体处理 callback 主路径](./examples/media-processing-callback.zh-CN.md) 和 [媒体处理 polling 备用路径](./examples/media-processing-polling.zh-CN.md)。
 
 ## 这份合同解决什么问题

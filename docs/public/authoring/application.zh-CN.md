@@ -4,6 +4,8 @@
 
 当前 cap4k 的另一个关键现实是：application 层的“责任”与“文件 ownership”不是一回事。`*Cmd.kt`、`*Qry.kt` 这类请求契约经常是 plan-managed 产物；`*QryHandler.kt`、`*CliHandler.kt`，甚至某些 `*DomainEventSubscriber.kt` family 也可能是计划写出的 checked-in 文件。作者在改这些文件之前，必须先看 `build/cap4k/plan.json`，不要因为它们位于 `src/main/kotlin` 就自动把它们当普通手写文件。
 
+命令处理器、流程编排、订阅器和 `Mediator.cmd` / `Mediator.qry` / `Mediator.requests` 的默认协作方式见 [公开战术模型](tactical-model.zh-CN.md)。
+
 ## 这一层负责什么
 
 - 定义 Command / Query 契约，给外部入口和内部流程一个稳定的应用层表面。

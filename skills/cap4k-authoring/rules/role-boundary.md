@@ -1,20 +1,25 @@
 # Role Boundary
 
-## Human Author
+## Reader
 
-- Owns domain decisions, final architecture decisions, and final audit.
-- Decides whether a missing capability becomes a follow-up issue.
-- Reviews whether the implementation still matches the intended business flow.
+This skill serves an AI author implementing a business project using cap4k. It is not a framework-maintainer guide.
 
-## AI Author
+## Human Responsibilities
 
-- Assists decision-making by surfacing tradeoffs and missing information.
-- Implements the main change once the direction is approved.
-- Runs TDD, compile, generation, analysis, and focused verification before final audit.
-- Reports evidence, residual risk, and follow-up gaps plainly.
+- Own business decisions, domain vocabulary, aggregate boundaries, and final tradeoff choices.
+- Approve DDL, design JSON, generated-output ownership, and technical design before high-impact implementation.
+- Perform final audit of generated code, handwritten code, tests, and reported evidence.
 
-## Guardrails
+## AI Responsibilities
 
-- Do not treat AI output as final audit.
-- Do not hide missing cap4k support behind local project conventions.
-- Do not require extra runtime documentation sources to use this skill.
+- Clarify missing domain details before code when decisions are ambiguous.
+- Draft DDL, design JSON, technical方案, and implementation plans for human review.
+- Run plan tasks before generation and inspect planned outputs before writing files.
+- Implement generated skeletons and handwritten project code within the agreed layer boundaries.
+- Run focused compile, tests, generation, and analysis checks; report exact commands and outcomes.
+
+## Out Of Scope
+
+- Do not govern cap4k framework issue lifecycle from this skill.
+- Do not decide whether cap4k itself should accept, close, or release framework issues.
+- Do not edit runtime, generator, plugin, or reference project internals unless the user explicitly assigns that scope.

@@ -1,25 +1,20 @@
 # Known Gaps
 
-These gaps must be surfaced during design and review. Do not present them as completed framework capabilities.
+These are cap4k product or authoring gaps that business-project AI authors must keep visible.
 
-## Authoring And Generator Gaps
+## Design Source Gaps
 
-- Value object authoring needs stronger public qualification.
-- Value object generator support is not complete.
-- Saga authoring needs stronger public qualification.
-- Saga generator support is not complete.
-- Domain service generator support is not complete.
-- Integration event generator support is not complete.
-- Design support for integration events needs issue tracking if absent in the current slice.
-- Design support for value objects and domain services needs issue tracking if absent in the current slice.
+- No design support for `integration_event`; external integration event contracts cannot yet be generated from design.
+- No design support for `value_object`; value objects remain DB-first or handwritten modeling today.
+- No design support for `domain_service`; domain services remain handwritten and should not be invented as generated support.
 
-## Modeling Gaps
+## Runtime And Generator Gaps
 
-- Layered model qualification needs continued refinement.
-- Public tactical model qualification needs continued refinement.
-- Command, query, cli, domain event, integration event, value object, and domain service should eventually be driven by design where supported.
+- Lifecycle recognition has known limitations; teach intended `onCreate`, `onUpdate`, and `onDelete` usage without claiming every subclass or child-entity case works.
+- Enum translation is addon-owned and not a core aggregate DSL toggle.
+- Integration event HTTP-JPA requires the subscriber registry table when that adapter is used; local H2 examples need compatible table DDL.
 
-## External Collaboration Gaps
+## Addon Boundary
 
-- `drawing_board.json` can become a later integration-event communication surface.
-- Addon and SPI guidance exists as a direction, but advanced authoring rules should expand only after real use.
+- Business-project users add addon dependencies, inspect plans, override addon templates, and set conflict policies.
+- Addon authoring guidance is separate from this skill.

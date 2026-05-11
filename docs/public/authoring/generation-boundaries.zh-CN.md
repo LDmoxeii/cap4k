@@ -7,6 +7,8 @@
 
 本页说明 cap4k 项目里哪些产物默认交给生成器，哪些责任必须回到手写主面。教学主场景仍然是 `Content`、`MediaProcessingTask` 与 `MediaProcessingCli` 组成的内容发布与处理项目。
 
+完整端到端顺序见 [项目编写工作流](project-authoring-workflow.zh-CN.md)，DB / design / enum manifest / KSP / IR 输入细节见 [生成输入源](generator/input-sources.zh-CN.md)。
+
 ## 全局边界矩阵
 
 | 产物类型 | 默认归属 | 说明 |
@@ -36,6 +38,7 @@
   - `adapter.domain.repositories/**` 更常出现 repository-side generated artifacts；
   - `adapter.portal.api.payload/**` 更常出现 payload family。
   这些路径都不能单靠目录推断为“稳定手写家”，仍要回到 `plan.json` 判断 ownership。
+- 复制到 `src-generated/main/kotlin` 的内容只是审计快照，不是活跃生成输出；活跃生成源码仍在模块本地 `build/generated/cap4k/main/kotlin`。详见 [项目编写工作流](project-authoring-workflow.zh-CN.md#4-区分生成物骨架快照手写代码)。
 
 ## 当前 checked-in aggregate 文件合同
 

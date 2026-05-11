@@ -1,10 +1,11 @@
 # Review Generated Output
 
-1. Identify the source of each changed generated file: DB input, design input, addon, or template override.
-2. Check whether the artifact should be active generated output, handwritten source, or copied snapshot.
-3. Verify conflict policy for skeleton artifacts that users are expected to edit.
-4. Verify template overrides are project-local and do not hide framework gaps.
-5. Compare generated package names and file paths with the intended layered model.
-6. Flag unused generated artifacts when they add no value to the example or project slice; remove them only when the current task explicitly allows file edits.
-7. For read-only review, report the relevant generator plan/generate commands or inspect existing evidence. For implementation or verification tasks, run the relevant generator plan and generate tasks.
-8. Report changed generated artifacts separately from handwritten logic.
+1. Identify the generator task and source inputs used for the output.
+2. Read the plan output before file review when available.
+3. For each relevant item, inspect `generatorId`, `templateId`, `outputPath`, `outputKind`, `conflictPolicy`, and `resolvedOutputRoot`.
+4. Classify the target as build-owned generated source, checked-in skeleton, copied snapshot, template override, or handwritten source.
+5. Check that checked-in skeletons preserve user edits through `SKIP` or an equivalent policy.
+6. Check DB annotations, design tags, enum manifest references, and addon template IDs against the intended contract.
+7. Verify copied snapshots are labeled as audit/learning snapshots, not active generator output.
+8. Run targeted compile/tests or explain why this is review-only.
+9. Report exact findings, changed ownership assumptions, and follow-up decisions for human audit.

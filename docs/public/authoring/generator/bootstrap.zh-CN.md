@@ -2,6 +2,8 @@
 
 > bootstrap 解决的是“把已受 bootstrap 管理的工程根和模块骨架准备好”，不是“把业务代码生成完”。
 
+端到端项目顺序见 [项目编写工作流](../project-authoring-workflow.zh-CN.md)。bootstrap 之后的生成物 ownership 判断见 [生成 / 手写边界](../generation-boundaries.zh-CN.md)。
+
 ## 什么时候使用 bootstrap
 
 - 新项目还没有 cap4k 已受管理的工程根时，先用 bootstrap 建立根与模块骨架。

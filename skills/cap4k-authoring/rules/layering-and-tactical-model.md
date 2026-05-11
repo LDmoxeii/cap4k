@@ -1,23 +1,27 @@
 # Layering And Tactical Model
 
-## Layer Rules
+## Layer Responsibilities
 
-- Domain owns aggregate behavior, entity behavior, value concepts, domain events, and invariant language.
-- Application owns command/query/cli handlers, process orchestration, subscribers, and transaction-facing use-case work.
-- Adapter owns HTTP, persistence adapters, external callbacks, jobs, and transport bridges.
-- Infrastructure details must not become the public tactical model.
+- Domain owns the model and behavior: aggregates, entities, value concepts, invariants, domain events, domain services, factories, and specifications.
+- Application owns request contracts, write-side command handling, orchestration, subscribers, validators, jobs/process intent, and use-case flow.
+- Adapter owns HTTP, persistence adapters, query handlers, client/cli handlers, controllers, external bridges, and transport-facing mapping.
+- Query handlers and client/cli handlers are adapter-side physical handlers by default, even when they implement application request contracts.
 
-## Write-Side Rules
+## Command Handling
 
-- Commands own write-side business behavior.
-- A command should normally mutate one aggregate root.
-- Repository, factory, domain service, and unit of work usage belongs in command handling.
-- Use `Mediator.cmd` for command dispatch and `Mediator.uow` for unit-of-work execution when persistence is involved.
+- Command handlers are the normal write-use-case boundary.
+- They may load aggregates through repositories, create aggregate roots through factories, call domain services, apply domain behavior, and persist through UoW.
+- They may call client/cli requests only when the command result depends on the external capability result.
+- They should avoid using queries for normal write decisions when repository access is the clearer tactical contract.
 
-## Orchestration Rules
+## Query And Client/CLI Handling
 
-- Process orchestration may use command, query, and cli boundaries.
-- Domain-event and integration-event subscribers are orchestration entry points when they continue a business process.
-- A subscriber with meaningful business work should use a semantic handler method name, not a generic default name.
-- Command handlers should not use queries unless a fresh issue explicitly accepts that exception.
-- Command handlers should avoid cli calls unless the command depends on an external capability result.
+- Query handlers wrap read-side repository, JPA, or query infrastructure and are good boundaries for controllers, jobs, and orchestration needing read information.
+- Client/cli handlers wrap external systems or simulated external capabilities.
+- Jobs and controllers should not become direct business persistence surfaces; route writes through commands and reads through queries when that boundary is clearer.
+
+## Orchestration
+
+- Process orchestration belongs in application-facing flow code: command handlers for focused write cases, domain/integration subscribers for follow-up work, jobs for scheduled work, or explicit process services when needed.
+- Orchestration code may use `Mediator.cmd`, `Mediator.qry`, and `Mediator.requests` to compose steps.
+- Subscriber method names should be semantic once they contain business logic; a generated placeholder is acceptable only before implementation.

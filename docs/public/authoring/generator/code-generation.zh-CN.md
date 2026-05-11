@@ -2,6 +2,8 @@
 
 > 这页定义项目作者默认应如何使用 `cap4kPlan` 与 `cap4kGenerate`，以及何时必须读 `build/cap4k/plan.json`。
 
+生成前先确认输入源：DB / design / enum manifest / KSP / IR 见 [生成输入源](input-sources.zh-CN.md)。端到端生成物 ownership 见 [项目编写工作流](../project-authoring-workflow.zh-CN.md#4-区分生成物骨架快照手写代码)。
+
 ## 何时先跑 `cap4kPlan`
 
 以下场景先跑 `cap4kPlan`，不要直接 `cap4kGenerate`：

@@ -37,6 +37,8 @@
 ## 阅读顺序
 
 1. [Bootstrap](bootstrap.zh-CN.md)
-2. [Code Generation](code-generation.zh-CN.md)
-3. [Code Analysis](code-analysis.zh-CN.md)
-4. [Generator DSL Reference](../../reference/generator-dsl.zh-CN.md)
+2. [输入源：DB / design / enum manifest / KSP / IR](input-sources.zh-CN.md)
+3. [Code Generation](code-generation.zh-CN.md)
+4. [Code Analysis](code-analysis.zh-CN.md)
+5. [Addon 与 SPI 使用](addons-and-spi.zh-CN.md)
+6. [Generator DSL Reference](../../reference/generator-dsl.zh-CN.md)

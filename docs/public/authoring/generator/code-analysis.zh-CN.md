@@ -2,6 +2,8 @@
 
 > analysis 任务族是观察与导出链路。它帮助你看清流程和设计结果，不替代默认的业务源码生成。
 
+analysis 在项目交付顺序中的位置见 [项目编写工作流](../project-authoring-workflow.zh-CN.md#7-生成-analysis-和流程图)。
+
 ## 何时进入 `cap4kAnalysisPlan`
 
 只有在下面这种需求成立时，才进入 `cap4kAnalysisPlan`：

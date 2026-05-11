@@ -1,35 +1,22 @@
 ---
 name: cap4k-authoring
 description: >
-  Use this when working on cap4k-based project authoring, AI-assisted DDD implementation,
-  generated-vs-handwritten ownership, cap4k tactical modeling, or requests such as
-  "build a cap4k project", "write cap4k application/domain code", "review cap4k generated output",
-  "apply the cap4k testing contract", or "update cap4k issue evidence". Activate when the task
-  involves cap4k project code, docs, specs, plans, generator output, or final verification before
-  human audit.
+  Use this for AI authors implementing business projects using cap4k, including
+  requests such as "build a cap4k project", "derive cap4k DDD design", "generate
+  cap4k code from DB or design", "implement a cap4k project slice", "review cap4k
+  generated output", or "run cap4k analysis". Activate when the task is business
+  project authoring with cap4k, not cap4k framework maintenance.
 ---
 
-# Cap4k Authoring
+# Cap4k Business Project Authoring
 
-Use this skill to help an AI author implement and review cap4k-based project work from self-contained repo-local rules.
+This skill is for AI authors implementing business projects using cap4k. It helps turn agreed business intent, DDL, design JSON, and generated skeletons into runnable project code with evidence for human audit.
 
-## Structure Rationale
+## Boundaries
 
-This uses the full skill structure because cap4k authoring has routed design, implementation, generated-output review, closure workflows, and a gotcha log.
-
-## When To Use
-
-- Building or changing a cap4k project slice
-- Deciding where command, query, cli, domain event, integration event, factory, repository, or domain service code belongs
-- Reviewing generated output, template overrides, conflict policy, or `src-generated` snapshots
-- Preparing final evidence before human review
-- Updating issue status after spec, plan, implementation, or verification
-
-## When Not To Use
-
-- Generic Kotlin, Spring, or DDD explanations not tied to cap4k
-- Framework runtime implementation inside cap4k itself unless the issue explicitly targets project-authoring rules
-- Pure frontend work with no cap4k boundary
+- Use this for business-project modeling, generation, implementation, review, testing, and analysis.
+- Do not use it to govern cap4k framework issue lifecycle or maintain cap4k runtime/generator internals unless the user explicitly changes scope.
+- Human users own domain decisions and final audit; AI authors assist, implement, verify, and report evidence.
 
 ## Always Read
 
@@ -37,26 +24,23 @@ This uses the full skill structure because cap4k authoring has routed design, im
 2. [rules/layering-and-tactical-model.md](rules/layering-and-tactical-model.md)
 3. [rules/generator-ownership.md](rules/generator-ownership.md)
 
-## Common Tasks
+## Common Routes
 
 | Task | Read | Workflow |
 |---|---|---|
-| Clarify a requested cap4k change before code | `rules/role-boundary.md`, `references/public-tactical-model.md`, `references/known-gaps.md` | `workflows/design-before-code.md` |
-| Implement a cap4k project slice | `rules/layering-and-tactical-model.md`, `rules/generator-ownership.md`, `rules/verification-contract.md`, `references/gotchas.md` | `workflows/implement-cap4k-project-slice.md` |
-| Review generated output or template overrides | `rules/generator-ownership.md`, `references/gotchas.md` | `workflows/review-generated-output.md` |
-| Finish work before human audit | `rules/verification-contract.md`, `references/issue-lifecycle.md`, `references/known-gaps.md` | `workflows/close-task-with-evidence.md` |
+| Clarify domain/design before code | `rules/role-boundary.md`, `references/capability-index.md`, `references/known-gaps.md` | `workflows/clarify-domain-design.md` |
+| Bootstrap a minimal project | `rules/generator-ownership.md`, `rules/testing-and-verification.md` | `workflows/bootstrap-minimal-project.md` |
+| Generate from DB | `rules/generator-ownership.md`, `references/gotchas.md` | `workflows/generate-from-db.md` |
+| Generate from design | `rules/generator-ownership.md`, `references/known-gaps.md` | `workflows/generate-from-design.md` |
+| Implement a project slice | `rules/layering-and-tactical-model.md`, `rules/runtime-tactical-contract.md`, `rules/testing-and-verification.md` | `workflows/implement-project-slice.md` |
+| Review generated output | `rules/generator-ownership.md`, `rules/testing-and-verification.md`, `references/gotchas.md` | `workflows/review-generated-output.md` |
+| Run analysis and flow review | `rules/testing-and-verification.md`, `references/capability-index.md` | `workflows/run-analysis-and-flow-review.md` |
 
 ## Priority
 
-1. Current user instruction
-2. Active GitHub issue and latest approved spec/plan
-3. This skill's rules
-4. Existing repository patterns
+1. Current user instruction and project scope.
+2. Agreed business model, DDL, design JSON, spec, or plan.
+3. This skill's rules and workflows.
+4. Existing project conventions.
 
-When a framework capability is missing, record the gap instead of implying support.
-
-## Session Discipline
-
-- Re-read this `SKILL.md` when a new distinct cap4k authoring task starts.
-- Re-read this `SKILL.md` after `/clear`, `/compact`, context summarization, or a long interruption.
-- Route each task through the Common Tasks table instead of relying on memory from a previous task.
+When cap4k does not support a requested authoring capability, call it a gap and offer a local project choice instead of implying framework support.

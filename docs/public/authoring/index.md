@@ -80,6 +80,6 @@ These topics can be discussed or demonstrated, but should not be treated as comp
 - value object, Saga, and Domain Service authoring qualification will continue to improve
 - value object, Saga, Domain Service, and integration-event generator support needs later slices
 - layered model and public tactical model qualification will continue to converge
-- design-driven support for command, query, cli, domain event, integration event, value object, and domain service will continue to expand
+- design-driven support for command, query, client, and domain_event contracts will continue to improve; `integration_event`, `value_object`, and `domain_service` remain follow-up extension points
 - `drawing_board.json` remains a later extension point for cross-service integration-event communication
 - addon / SPI authoring rules for advanced users should grow after more real usage
