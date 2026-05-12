@@ -3,6 +3,7 @@
 ## Layer Responsibilities
 
 - Domain owns the model and behavior: aggregates, entities, value concepts, invariants, domain events, domain services, factories, and specifications.
+- Value concepts may be primitive wrappers, composite values, JSON-backed fields, inline fields, or table-backed `@VO`; classify the domain concept before choosing the persistence carrier.
 - Application owns request contracts, write-side command handling, orchestration, subscribers, validators, jobs/process intent, and use-case flow.
 - Adapter owns HTTP, persistence adapters, query handlers, client/cli handlers, controllers, external bridges, and transport-facing mapping.
 - Query handlers and client/cli handlers are adapter-side physical handlers by default, even when they implement application request contracts.

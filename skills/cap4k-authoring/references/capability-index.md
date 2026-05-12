@@ -13,6 +13,7 @@
 ## Inputs
 
 - DB input models aggregates, relations, enum bindings, generated IDs, versions, soft delete, managed/exposed fields, and uniqueness.
+- DB input can bind custom value types with `@T` and a type registry; table-backed `@VO` is a heavier persistence shape, not the default way to model every value object.
 - Design input models command, query, client, api_payload, domain_event, and validator contracts.
 - Enum manifest supplies shared enums referenced by DB type annotations.
 - KSP metadata supports design-driven generation from aggregate metadata.
@@ -30,6 +31,13 @@
 - Application owns request contracts, command handling, orchestration, subscribers, validators, and process intent.
 - Adapter owns HTTP, persistence adapters, query handlers, client/cli handlers, controllers, and external bridges.
 - Static `Mediator.*` usage is the normal project path.
+
+## Custom Value Types
+
+- Treat value objects as domain values first and persistence carriers second.
+- JSON-backed or inline composite values are normally handwritten Kotlin types plus explicit converters.
+- Generated aggregate fields may consume `@T` / `types.registryFile`, but constructor, validation, normalization, equality, and converter behavior stay in project-owned code.
+- Do not separately persist aggregate-owned JSON-backed values through `Mediator.uow`; save the aggregate root.
 
 ## Integration Events
 

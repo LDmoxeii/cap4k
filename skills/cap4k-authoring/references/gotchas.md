@@ -24,6 +24,14 @@ Handlers, factories, specifications, and behavior skeletons that receive handwri
 
 Do not use unsupported design tags such as `integration_event`, `value_object`, or `domain_service` as if cap4k will generate them.
 
+## Value Object Persistence Confusion
+
+Do not treat `@VO` as the default value-object path. JSON-backed and inline value objects normally use `@T`, `types.registryFile`, a handwritten Kotlin type, and an explicit converter.
+
+## Value Object UoW Confusion
+
+Do not call `Mediator.uow.persist(valueObject)` for a value owned by an aggregate field. Save the aggregate root and let the mapping carry the value.
+
 ## Integration Event Table Surprise
 
 When the HTTP-JPA integration event adapter is present, the project needs the framework subscriber registry table. Local examples must include compatible DDL for the chosen database.

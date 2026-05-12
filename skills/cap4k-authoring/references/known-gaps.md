@@ -5,7 +5,7 @@ These are cap4k product or authoring gaps that business-project AI authors must 
 ## Design Source Gaps
 
 - No design support for `integration_event`; external integration event contracts cannot yet be generated from design.
-- No design support for `value_object`; value objects remain DB-first or handwritten modeling today.
+- No design support for first-class `value_object`; general value objects remain handwritten domain types today. DB can express table-backed `@VO` and `@T` custom type bindings, but that is not full value-object generation.
 - No design support for `domain_service`; domain services remain handwritten and should not be invented as generated support.
 
 ## Runtime And Generator Gaps

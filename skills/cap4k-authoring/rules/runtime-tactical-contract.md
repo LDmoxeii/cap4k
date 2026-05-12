@@ -30,6 +30,8 @@ Use static `Mediator.*` access in business code:
 
 - Use `Mediator.uow.save()` as the canonical write persistence boundary.
 - UoW handles persist/remove intentions, specifications, lifecycle listeners, attached events, and transaction execution.
+- Persist aggregate roots, not aggregate-owned JSON-backed or inline value objects. A composite value such as `MediaProcessingResultSnapshot` is saved through its owning aggregate field.
+- Only use table-backed value-object persistence when the model intentionally chose that heavier carrier; do not infer it from the existence of a value object.
 - Aggregate behavior may define `onCreate`, `onUpdate`, and `onDelete`; document lifecycle recognition limits when they matter.
 
 ## Events
