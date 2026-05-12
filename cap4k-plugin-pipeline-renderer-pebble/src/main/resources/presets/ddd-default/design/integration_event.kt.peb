@@ -1,0 +1,31 @@
+package {{ packageName }}
+
+{{ use("com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent") -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+
+/**
+ * {{ descriptionCommentText | raw }}
+ */
+@IntegrationEvent(
+    value = "{{ eventName }}",
+    subscriber = {% if inbound %}"${spring.application.name:}"{% else %}IntegrationEvent.NONE_SUBSCRIBER{% endif %}
+)
+data class {{ typeName }}(
+{%- for field in fields %}
+    val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+) {
+    companion object {
+        const val EVENT_NAME = "{{ eventName }}"
+    }
+{%- for nestedType in nestedTypes %}
+
+    data class {{ nestedType.name }}(
+{%- for field in nestedType.fields %}
+        val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+    )
+{%- endfor %}
+}

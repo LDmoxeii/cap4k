@@ -5717,6 +5717,148 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `integration event preset renders event annotation with literal event name and role subscribers`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-integration-event")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-integration-event",
+                    moduleRole = "application",
+                    templateId = "design/integration_event.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/events/integration/inbound/order/OrderCreatedIntegrationEvent.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.events.integration.inbound.order",
+                        "typeName" to "OrderCreatedIntegrationEvent",
+                        "description" to "order */ \"created\" event",
+                        "descriptionText" to "order */ \"created\" event",
+                        "descriptionCommentText" to "order * / \"created\" event",
+                        "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" event\"",
+                        "role" to "inbound",
+                        "eventName" to "order.created",
+                        "inbound" to true,
+                        "outbound" to false,
+                        "imports" to listOf("java.util.UUID"),
+                        "fields" to listOf(
+                            mapOf("name" to "orderId", "renderedType" to "UUID", "nullable" to false),
+                        ),
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                ),
+                ArtifactPlanItem(
+                    generatorId = "design-integration-event",
+                    moduleRole = "application",
+                    templateId = "design/integration_event.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/events/integration/outbound/billing/InvoicePaidIntegrationEvent.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.events.integration.outbound.billing",
+                        "typeName" to "InvoicePaidIntegrationEvent",
+                        "description" to "invoice paid event",
+                        "descriptionText" to "invoice paid event",
+                        "descriptionCommentText" to "invoice paid event",
+                        "descriptionKotlinStringLiteral" to "\"invoice paid event\"",
+                        "role" to "outbound",
+                        "eventName" to "invoice.paid",
+                        "inbound" to false,
+                        "outbound" to true,
+                        "imports" to emptyList<String>(),
+                        "fields" to emptyList<Map<String, Any?>>(),
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val inboundContent = rendered[0].content
+        assertTrue(inboundContent.contains("@IntegrationEvent("))
+        assertTrue(inboundContent.contains("value = \"order.created\""))
+        assertFalse(inboundContent.contains("value = EVENT_NAME"))
+        assertTrue(inboundContent.contains("subscriber = \"\${spring.application.name:}\""))
+        assertTrue(inboundContent.contains("const val EVENT_NAME = \"order.created\""))
+        assertTrue(inboundContent.contains("data class OrderCreatedIntegrationEvent("))
+        assertTrue(inboundContent.contains("val orderId: UUID"))
+
+        val outboundContent = rendered[1].content
+        assertTrue(outboundContent.contains("value = \"invoice.paid\""))
+        assertTrue(outboundContent.contains("subscriber = IntegrationEvent.NONE_SUBSCRIBER"))
+    }
+
+    @Test
+    fun `integration event subscriber preset renders spring event listener without EventSubscriber contract`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-integration-event-subscriber")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-integration-event-subscriber",
+                    moduleRole = "application",
+                    templateId = "design/integration_event_subscriber.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/order/OrderCreatedIntegrationEventSubscriber.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.application.subscribers.integration.inbound.order",
+                        "typeName" to "OrderCreatedIntegrationEventSubscriber",
+                        "eventTypeName" to "OrderCreatedIntegrationEvent",
+                        "eventType" to "com.acme.demo.application.events.integration.inbound.order.OrderCreatedIntegrationEvent",
+                        "eventName" to "order.created",
+                        "role" to "inbound",
+                        "inbound" to true,
+                        "outbound" to false,
+                        "description" to "order */ created event",
+                        "descriptionCommentText" to "order * / created event",
+                        "imports" to listOf("com.acme.demo.application.events.integration.inbound.order.OrderCreatedIntegrationEvent"),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("@Service"))
+        assertTrue(content.contains("@EventListener(OrderCreatedIntegrationEvent::class)"))
+        assertTrue(content.contains("fun on(event: OrderCreatedIntegrationEvent)"))
+        assertFalse(content.contains("import com.only4.cap4k.ddd.core.application.event.EventSubscriber"))
+        assertFalse(content.contains(": EventSubscriber"))
+    }
+
+    @Test
     fun `domain event presets support override template resolution for event and handler templates`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-design-domain-event-family")
         val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))

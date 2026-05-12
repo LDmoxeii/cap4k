@@ -1,0 +1,18 @@
+package {{ packageName }}
+
+{{ use("org.springframework.context.event.EventListener") -}}
+{{ use("org.springframework.stereotype.Service") -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+
+/**
+ * {{ descriptionCommentText | raw }}
+ */
+@Service
+class {{ typeName }} {
+
+    @EventListener({{ eventTypeName }}::class)
+    fun on(event: {{ eventTypeName }}) {
+    }
+}
