@@ -1,654 +1,434 @@
-# cap4k Advanced Weak-reference Projection Design
+# cap4k Adapter Aggregate Projection Generation Design
 
 Date: 2026-05-12
 
 Status: Proposed
 
-Scope: expand `#23` from a generator-only weak-reference template-context issue into an advanced, built-in cap4k weak-reference projection capability that includes DB metadata, runtime projection access through `Mediator.prj`, a first JPA provider, and opt-in generated projection artifacts.
+Scope: replace the earlier runtime projection proposal for `#23` with a generation-only capability. cap4k will generate adapter-owned aggregate projection classes from DB/canonical aggregate metadata. The default template emits JPA-style projection entities. Projects that want Jimmer or another read-side technology can override the same neutral projection template.
 
 Out of scope:
 
-- changing repository or unit-of-work semantics
-- making weak references part of command-side aggregate invariants
-- allowing weak-reference fields to participate in predicates or ordering
-- adding Jimmer as a first-version built-in provider
-- replacing query handlers with projections
-- making weak-reference projection generation part of the default happy path
-- generating a single unified write/read class
+- adding `ProjectionSupervisor`, `Mediator.prj`, `ReadShape`, or a read-model runtime;
+- wrapping `KSqlClient`, `EntityManager`, or other query clients behind cap4k APIs;
+- generating Jimmer projection types as a built-in default;
+- controlling Jimmer fetcher/DTO object graph shape;
+- adding weak-reference predicate or ordering support;
+- changing repository, unit-of-work, command, query, or request-supervisor semantics;
+- generating query handler implementations that perform real read-side queries.
 
 ## Backlog Source
 
 This design covers:
 
-- `#23` generator: support advanced read-write model split with read-only weak-reference template context
+- `#23` generator: support advanced read/write model split with read-only weak-reference template context.
 
-The issue is intentionally expanded. The weak-reference output is not useful enough if cap4k only emits metadata and leaves every project to invent its own read-side access pattern. The accepted direction is one issue that defines both:
+The earlier direction expanded this into runtime projection access through `Mediator.prj`. That is no longer the accepted direction. Existing cap4k runtime already lets Spring-managed query handlers be invoked through `Mediator.qry` because commands, queries, and clients all ride on `RequestParam` plus `RequestHandler`.
 
-- the generator artifact surface
-- the standard runtime consumption surface
+The new capability is intentionally smaller:
+
+```text
+DB/canonical aggregate metadata
+  -> adapter aggregate projection template context
+  -> generated adapter projection classes
+  -> user-maintained QueryHandler uses JPA, Jimmer, SQL, or another tool directly
+  -> Mediator.qry continues to call the QueryHandler
+```
 
 ## Background
 
-The current default cap4k model separates write and read responsibilities:
+cap4k currently separates these concerns:
 
-- write models are aggregate-root-centered domain models
-- repositories load and track write aggregates
-- `JpaUnitOfWork` records and saves write-side entity changes
-- query handlers read and compose read information, often directly through JPA, Jimmer, SQL, or another read technology
+- domain aggregate entities are write-side business models;
+- query contracts are generated under the application query family;
+- query handlers are physically generated into adapter packages by default and implement application request contracts;
+- `Mediator.qry`, `Mediator.cmd`, and `Mediator.requests` are aliases over the request supervisor;
+- `Mediator.ioc` already exposes the Spring `ApplicationContext` for exceptional direct bean access.
 
-`#15` and later advanced-modeling discussions established that read-only weak references are valid only as an advanced modeling mode. The user-facing purpose is not cross-aggregate mutation. The purpose is to make read/navigation results more expressive while keeping the write model unchanged.
+The project does not need a new projection runtime to let users use Jimmer. A query handler can inject `KSqlClient` directly:
 
-The earlier issue wording focused on exposing weak-reference metadata to templates. That was too narrow. A project author should not have to distinguish between "cap4k built-in artifact" and "external addon artifact" to consume this. cap4k should own the core capability, but keep it disabled by default.
+```kotlin
+class CategoryExistsByIdQryHandler(
+    private val sqlClient: KSqlClient,
+) : Query<CategoryExistsByIdQry.Request, CategoryExistsByIdQry.Response> {
+
+    override fun exec(request: CategoryExistsByIdQry.Request): CategoryExistsByIdQry.Response {
+        val exists = sqlClient.exists(CategoryProjection::class) {
+            where(table.id eq request.categoryId)
+        }
+        return CategoryExistsByIdQry.Response(exists = exists)
+    }
+}
+```
+
+cap4k should help by generating stable adapter projection classes and rich template context, not by abstracting Jimmer or rebuilding a query DSL.
 
 ## Problem
 
-Today an aggregate may store only an ID for an associated object:
+Projects that want a read-side model currently have to choose between several weak options:
+
+- reuse domain aggregate entities in query handlers, coupling read queries to write-model mapping choices;
+- handwrite JPA/Jimmer query model classes for every table, duplicating DB metadata already parsed by cap4k;
+- override broad aggregate templates just to get read-side artifacts;
+- introduce a runtime projection abstraction that duplicates JPA/Jimmer responsibilities.
+
+The actual missing capability is generator-side:
 
 ```text
-Content
-  reviewerId
+Given a parsed aggregate/table model, generate an adapter-owned projection class that query handlers can use.
 ```
 
-The default write model is correct: `reviewerId` is scalar state owned by `Content`, not a writable `Reviewer` object graph.
-
-For read/navigation results, however, callers often need:
-
-```text
-ContentProjection
-  reviewerId
-  reviewer: ReviewerRef
-```
-
-Without a standard cap4k concept, projects drift into one of several bad shapes:
-
-- query handlers inject raw `EntityManager`, `KSqlClient`, or SQL clients everywhere
-- weak references become ad hoc DTO fragments with inconsistent names
-- read-side helper classes start looking like repositories
-- repository contracts are widened to load read models
-- weak-reference joins leak into filtering or ordering APIs
-
-The missing capability is a constrained read-side projection access model:
-
-```text
-query -> Mediator.prj -> projection provider -> projection result with select-only weak refs
-```
-
-This should feel familiar to repository users, but it must not become another write-model repository or a generic query framework.
+This should stay mechanical and template-driven. The generated class is an adapter implementation artifact, not an application contract and not a domain model.
 
 ## Goals
 
-1. Add explicit DB metadata for weak-reference-only fields.
-2. Treat existing strong `@Reference` fields as weak-reference metadata sources too.
-3. Add a runtime projection abstraction that can be reached through `Mediator.projections` / `Mediator.prj`.
-4. Keep projection access read-only and detached from `UnitOfWork`.
-5. Add a first built-in JPA projection provider.
-6. Leave Jimmer and custom providers as future or project-provided extensions.
-7. Generate weak-reference projection artifacts only when explicitly enabled.
-8. Generate projection results where weak references appear only in the returned object graph.
-9. Keep weak-reference fields out of predicate and ordering surfaces forever.
-10. Preserve repository semantics as write-model-only.
+1. Add an opt-in `aggregateProjection` generator family.
+2. Generate projection artifacts only into the adapter module.
+3. Fix the package root to `adapter.application.projections`.
+4. Emit build-owned generated source by default.
+5. Use a neutral template ID: `aggregate_projection/entity.kt.peb`.
+6. Keep the built-in template JPA-flavored.
+7. Provide enough template context for projects to override the same template to Jimmer.
+8. Keep query execution inside user-maintained query handlers.
+9. Preserve existing `Mediator.qry` and `RequestHandler` behavior.
+10. Avoid object graph expansion by default: first-version built-in projection output contains scalar table fields only.
 
 ## Non-Goals
 
 - Do not add `ReadRepository`.
-- Do not rename or weaken the existing repository contract.
-- Do not let projections call `Mediator.uow`.
-- Do not auto-persist projection results.
-- Do not let commands depend on projections by default.
-- Do not let controllers bypass queries and call projections as the normal API path.
-- Do not make projection predicates a route for weak-reference filtering.
-- Do not support weak-reference ordering.
-- Do not make Jimmer a cap4k default dependency.
-- Do not force projects to generate projections when they only need default command/query artifacts.
+- Do not add `Projection`, `ProjectionPredicate`, or `ProjectionSupervisor`.
+- Do not add `Mediator.projections`, `Mediator.prj`, or `Mediator.ext`.
+- Do not abstract `KSqlClient`.
+- Do not generate provider-specific Jimmer artifacts in the default preset.
+- Do not generate relation object graphs in the default JPA projection template.
+- Do not let projection generation alter domain aggregate ownership, cascade behavior, or repository loading.
+- Do not make projection generation part of the default happy path.
 
 ## Options Considered
 
-### Option 1: metadata-only generator context
+### Option 1: runtime Projection API
 
-Expose weak-reference metadata in template context and let projects decide how to consume it.
+Add `ProjectionSupervisor`, `Mediator.prj`, provider implementations, projection predicates, and generated schema helpers.
 
 Pros:
 
-- smallest generator-only change
-- no runtime surface
+- one cap4k-owned read access surface;
+- could eventually support multiple providers behind one API.
 
 Cons:
 
-- does not solve consumption
-- every project invents its own projection naming and access pattern
-- fails to make this feel like a cap4k built-in capability
+- large runtime surface;
+- duplicates mature query tools;
+- risks recreating a query DSL;
+- harder to control object graph expansion than simply requiring users to use Jimmer/JPA explicitly in query handlers;
+- unnecessary because `RequestHandler` binding already lets query handlers call external query clients.
 
 Decision: reject.
 
-### Option 2: split runtime projection into a separate issue
+### Option 2: built-in Jimmer read-model provider
 
-Keep `#23` focused on generator metadata and create a separate issue for `Mediator.prj`.
-
-Pros:
-
-- smaller individual issues
-- runtime work can be reviewed independently
-
-Cons:
-
-- generated artifacts and runtime consumption are inseparable for this feature
-- `#23` would land a partial capability
-- sequencing would become artificial
-
-Decision: reject.
-
-### Option 3: one advanced built-in weak-reference projection capability
-
-Expand `#23` to include metadata, runtime projection access, JPA provider, and opt-in generator artifacts.
+Generate Jimmer projection types or wrap `KSqlClient` directly.
 
 Pros:
 
-- one coherent author experience
-- keeps weak-reference projection as a cap4k built-in advanced capability
-- prevents projects from inventing incompatible consumption patterns
-- keeps repository boundaries explicit
-- leaves room for future Jimmer/custom providers without making them first-version scope
+- aligns with Jimmer's explicit fetcher/DTO strengths;
+- convenient for projects already using Jimmer.
 
 Cons:
 
-- larger than a pure generator issue
-- touches runtime, starter wiring, generator API, DB source parsing, renderer templates, and docs
+- makes Jimmer a cap4k default concern;
+- still leaves JPA users needing another path;
+- exposes provider choice in core generator semantics;
+- template override is already a simpler extension point.
+
+Decision: reject as built-in default.
+
+### Option 3: adapter projection generation with neutral template context
+
+Generate adapter-owned projection classes from aggregate metadata. Default template emits JPA-style projection entities. Jimmer users override the neutral template.
+
+Pros:
+
+- small generator-only capability;
+- reuses existing template override mechanics;
+- avoids new runtime APIs;
+- keeps provider-specific query code in query handlers;
+- lets Jimmer users consume the same metadata without cap4k depending on Jimmer.
+
+Cons:
+
+- does not standardize query execution;
+- users must still implement query handlers;
+- Jimmer support depends on project template overrides.
 
 Decision: choose this option.
 
 ## Chosen Design
 
-The chosen capability is:
+Add a new generator family:
+
+```kotlin
+generators {
+    aggregateProjection {
+        enabled.set(true)
+    }
+}
+```
+
+It is disabled by default.
+
+For each canonical aggregate entity/table that is eligible for projection generation, the generator emits:
 
 ```text
-DB @WeakReference / @Reference
-  -> canonical weak-reference metadata
-  -> opt-in projection artifacts
-  -> JPA projection provider
-  -> Mediator.prj
-  -> projection result with select-only Ref fragments
+<adapter-module>/build/generated/cap4k/main/kotlin/
+  <basePackage>/adapter/application/projections/<aggregate-package>/<EntityName>Projection.kt
 ```
-
-The projection result is a read model, not a write aggregate.
-
-Example shape:
-
-```kotlin
-data class ContentProjection(
-    val id: UUID,
-    val title: String,
-    val reviewerId: UUID?,
-    val reviewer: ReviewerRef?,
-)
-
-data class ReviewerRef(
-    val id: UUID,
-    val displayName: String?,
-)
-```
-
-The query handler can read this through:
-
-```kotlin
-val content = Mediator.prj.findOne(SContentProjection.predicateById(contentId))
-```
-
-But the weak-reference fragment must not become a query surface:
-
-```kotlin
-// Permanently unsupported.
-SContentProjection.predicate { s ->
-    s.reviewer.displayName like "%alice%"
-}
-
-// Permanently unsupported.
-SContentProjection.orderBy { s ->
-    s.reviewer.displayName.asc()
-}
-```
-
-The JPA provider may join the reviewer table internally to select `ReviewerRef` fields. That internal join is an implementation detail for select enrichment only.
-
-## DB Annotation Contract
-
-Add a DB column-level annotation:
-
-```sql
-reviewer_id uuid comment '@WeakReference=user_profile;'
-```
-
-Alias:
-
-```sql
-reviewer_id uuid comment '@WeakRef=user_profile;'
-```
-
-Rules:
-
-- The annotation value is a table name, matching the existing DB-source convention used by `@Reference`.
-- The target table must exist in the DB source and map to a canonical entity.
-- The annotated column remains a scalar field on the generated entity.
-- `@WeakReference` does not generate a JPA relation field.
-- `@Reference` continues to generate the existing relation path and also contributes weak-reference metadata.
-- `@Reference` and `@WeakReference` are not mutually exclusive.
-- If both annotations appear on the same column with the same target, the weak-reference metadata is deduplicated.
-- If both annotations appear with different targets, generation fails fast.
 
 Example:
 
-```sql
--- Strong relation plus weak-reference metadata.
-author_id uuid comment '@Reference=user_profile;@Relation=ManyToOne;'
-
--- Weak-reference metadata only.
-reviewer_id uuid comment '@WeakReference=user_profile;'
+```text
+demo-adapter/build/generated/cap4k/main/kotlin/
+  com/acme/demo/adapter/application/projections/category/CategoryProjection.kt
 ```
 
-## Canonical Model
-
-Add a distinct canonical model for weak references. Do not overload `AggregateRelationModel`, because relation models currently represent fields that may be rendered as JPA relation members.
-
-Conceptual model:
-
-```kotlin
-data class AggregateWeakReferenceModel(
-    val ownerEntityName: String,
-    val ownerEntityPackageName: String,
-    val ownerAggregateRootName: String,
-    val fieldName: String,
-    val columnName: String,
-    val fieldType: String,
-    val nullable: Boolean,
-    val targetTableName: String,
-    val targetEntityName: String,
-    val targetEntityPackageName: String,
-    val targetAggregateRootName: String,
-    val sourceKind: WeakReferenceSourceKind,
-    val generatesRelation: Boolean,
-)
-
-enum class WeakReferenceSourceKind {
-    REFERENCE,
-    WEAK_REFERENCE,
-    BOTH,
-}
-```
-
-`generatesRelation` is true only when the source includes `@Reference`.
-
-This model is read-side metadata. It must not change aggregate ownership, repository loading, cascade behavior, or `JpaUnitOfWork`.
-
-## Runtime Projection Core
-
-Add application-side projection abstractions under `ddd-core`.
-
-Conceptual package:
+The package root is fixed:
 
 ```text
-com.only4.cap4k.ddd.core.application.projection
+adapter.application.projections
 ```
 
-Core interfaces:
+It is not configurable in the first version. Projection artifacts are adapter-owned implementation artifacts because the built-in template uses persistence/query annotations and project overrides may use Jimmer annotations.
 
-```kotlin
-interface ProjectionPredicate<MODEL : Any>
+## Template ID And Default Output
 
-interface Projection<MODEL : Any> {
-    fun supportPredicateClass(): Class<*>
-
-    fun find(
-        predicate: ProjectionPredicate<MODEL>,
-        orders: Collection<OrderInfo> = emptyList(),
-    ): List<MODEL>
-
-    fun findOne(predicate: ProjectionPredicate<MODEL>): MODEL?
-
-    fun findFirst(
-        predicate: ProjectionPredicate<MODEL>,
-        orders: Collection<OrderInfo> = emptyList(),
-    ): MODEL?
-
-    fun findPage(
-        predicate: ProjectionPredicate<MODEL>,
-        pageParam: PageParam,
-    ): PageData<MODEL>
-
-    fun count(predicate: ProjectionPredicate<MODEL>): Long
-
-    fun exists(predicate: ProjectionPredicate<MODEL>): Boolean
-}
-```
-
-Supervisor:
-
-```kotlin
-interface ProjectionSupervisor {
-    fun <MODEL : Any> find(
-        predicate: ProjectionPredicate<MODEL>,
-        orders: Collection<OrderInfo> = emptyList(),
-    ): List<MODEL>
-
-    fun <MODEL : Any> findOne(predicate: ProjectionPredicate<MODEL>): MODEL?
-
-    fun <MODEL : Any> findFirst(
-        predicate: ProjectionPredicate<MODEL>,
-        orders: Collection<OrderInfo> = emptyList(),
-    ): MODEL?
-
-    fun <MODEL : Any> findPage(
-        predicate: ProjectionPredicate<MODEL>,
-        pageParam: PageParam,
-    ): PageData<MODEL>
-
-    fun <MODEL : Any> count(predicate: ProjectionPredicate<MODEL>): Long
-
-    fun <MODEL : Any> exists(predicate: ProjectionPredicate<MODEL>): Boolean
-}
-```
-
-`DefaultProjectionSupervisor` should:
-
-- collect `Projection<*>` beans
-- dispatch by projection model class and predicate class
-- fail fast when no compatible projection exists
-- never interact with `UnitOfWork`
-- never persist returned objects
-- never require JPA or Jimmer types
-
-`Mediator` should expose:
-
-```kotlin
-Mediator.projections
-Mediator.prj
-```
-
-`X` should mirror the shortcut for consistency if `X` continues to mirror `Mediator` surfaces.
-
-## JPA Projection Provider
-
-First-version built-in provider: JPA only.
-
-Preferred module:
+Use a neutral template ID:
 
 ```text
-ddd-application-projection-jpa
+aggregate_projection/entity.kt.peb
 ```
 
-The provider should contain JPA-specific predicate and projection helpers, for example:
+The template ID names the artifact, not the default technology. The built-in `ddd-default` preset emits JPA-flavored projection classes, for example:
 
 ```kotlin
-class JpaProjectionPredicate<MODEL : Any>(...)
+package com.acme.demo.adapter.application.projections.category
 
-abstract class AbstractJpaProjection<MODEL : Any> : Projection<MODEL>
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.Id
+import jakarta.persistence.Table
+
+@Entity
+@Table(name = "category")
+class CategoryProjection(
+    @Id
+    @Column(name = "id")
+    val id: Long = 0,
+
+    @Column(name = "name")
+    val name: String = "",
+)
 ```
 
-Generated projection artifacts should not import `com.only4.cap4k.ddd.domain.repo.JpaPredicate`, because that name belongs to write-model repository access.
+The exact Kotlin constructor/property style should follow existing aggregate template conventions during implementation. The design requirement is that the default template is build-owned, mechanical, scalar-only, and adapter-owned.
 
-It is acceptable for first-version JPA projection helpers to mirror the existing repository `S`-class authoring experience. The package names and type names must make the read-side ownership clear.
+## Jimmer Override Path
 
-Jimmer is not a first-version built-in provider. The runtime abstraction must allow a project or later cap4k module to provide:
+Jimmer is supported through template override, not through a cap4k provider:
 
 ```text
-ddd-application-projection-jimmer
+<override-dir>/aggregate_projection/entity.kt.peb
 ```
 
-but that module is not part of this issue's implementation scope.
-
-## Projection Schema And `S` Class Experience
-
-Repository ergonomics currently depend on generated `S` classes:
+A project override may emit:
 
 ```kotlin
-Mediator.repo.findOne(SContent.predicateById(contentId))
+package com.acme.demo.adapter.application.projections.category
 
-Mediator.repo.findFirst(
-    SContent.predicate { s ->
-        s.title like "%cap4k%"
-    }
-)
-```
+import org.babyfish.jimmer.sql.Entity
+import org.babyfish.jimmer.sql.Id
+import org.babyfish.jimmer.sql.Table
 
-Projection should preserve the same author habit:
-
-```kotlin
-Mediator.prj.findOne(SContentProjection.predicateById(contentId))
-
-Mediator.prj.findFirst(
-    SContentProjection.predicate { s ->
-        s.title like "%cap4k%"
-    }
-)
-```
-
-But projection `S` classes must obey the select-only weak-reference boundary.
-
-Allowed:
-
-- root projection scalar fields
-- fields from the projection root shape
-- provider-supported owned/root navigation needed to query the projection root
-- scalar weak-reference ID fields, because they are owned by the root row
-
-Permanently unsupported:
-
-- weak-reference object fields as predicate fields
-- weak-reference object fields as order fields
-- generated schema navigation from a weak ref into target fields
-
-Example:
-
-```kotlin
-data class ContentProjection(
-    val id: UUID,
-    val reviewerId: UUID?,
-    val reviewer: ReviewerRef?,
-)
-```
-
-Allowed:
-
-```kotlin
-SContentProjection.predicate { s ->
-    s.reviewerId eq reviewerId
+@Entity
+@Table(name = "category")
+interface CategoryProjection {
+    @Id
+    val id: Long
+    val name: String
 }
 ```
 
-Unsupported:
+Query handlers remain user-maintained:
 
 ```kotlin
-SContentProjection.predicate { s ->
-    s.reviewer.displayName like "%alice%"
-}
-```
+class CategoryExistsByIdQryHandler(
+    private val sqlClient: KSqlClient,
+) : Query<CategoryExistsByIdQry.Request, CategoryExistsByIdQry.Response> {
 
-The template must not generate `s.reviewer.displayName` or equivalent field-builder access.
-
-## Generator Artifact Surface
-
-The capability is built into cap4k, but disabled by default.
-
-Recommended DSL:
-
-```kotlin
-cap4k {
-    aggregate {
-        artifacts {
-            weakReferenceProjections.set(true)
+    override fun exec(request: CategoryExistsByIdQry.Request): CategoryExistsByIdQry.Response {
+        val exists = sqlClient.exists(CategoryProjection::class) {
+            where(table.id eq request.categoryId)
         }
+        return CategoryExistsByIdQry.Response(exists = exists)
     }
 }
 ```
 
-Rationale:
+cap4k does not control Jimmer fetcher shape. Object graph control remains the user's responsibility in Jimmer query code.
 
-- the weak-reference metadata comes from aggregate/DB source modeling
-- the generated files include application and adapter artifacts
-- the name says what is enabled without implying default behavior
+## Template Context
 
-The first version does not need a provider selector because JPA is the only built-in provider. Future Jimmer support can add a provider switch or a separate artifact family after the second provider exists.
+The projection render context should expose provider-neutral metadata. The built-in JPA template may use only part of it, but overrides should not need to re-parse DB metadata.
 
-Generated artifacts should include:
+Minimum context:
 
-```text
-application projection model:
-  <application-module>/src/main/kotlin/<base>/application/projections/<owner>/<OwnerProjection>.kt
+- `packageName`;
+- `typeName`, such as `CategoryProjection`;
+- `entityName`;
+- `aggregateRootName`;
+- `tableName`;
+- `description`;
+- `imports`;
+- `fields`;
+- `relations`;
+- `weakReferences` if weak-reference metadata is implemented in this slice.
 
-application projection schema:
-  <application-module>/src/main/kotlin/<base>/application/projections/<owner>/S<OwnerProjection>.kt
+Each field model should include:
 
-weak-reference ref fragment:
-  <application-module>/src/main/kotlin/<base>/application/projections/<owner>/<TargetRef>.kt
+- `name`;
+- `columnName`;
+- `type`;
+- `renderedType`;
+- `nullable`;
+- `id`;
+- `version`;
+- `deleted`;
+- `managed`;
+- `exposed`;
+- `insertable`;
+- `updatable`;
+- enum/custom type binding metadata when available.
 
-adapter JPA projection implementation:
-  <adapter-module>/src/main/kotlin/<base>/adapter/application/projections/<owner>/<OwnerProjection>JpaProjection.kt
-```
+Each relation model should include:
 
-Exact naming may be normalized in the plan, but the placement rules are fixed:
+- source field/column;
+- target table;
+- target entity;
+- target aggregate root;
+- relation type;
+- nullable;
+- lazy flag if available;
+- whether the relation is generated on the domain aggregate entity.
 
-- projection result types are application read models
-- JPA implementation lives in adapter
-- weak-reference fragments are read-side return fragments
-- domain aggregate files are not changed to hold weak-reference objects
-
-Recommended template ids:
-
-```text
-application/projection/model.kt.peb
-application/projection/schema.kt.peb
-application/projection/ref.kt.peb
-adapter/projection/jpa_projection.kt.peb
-```
-
-Conflict policy:
-
-- generated read-model skeletons should default to `SKIP` if they are meant to be project-maintained
-- purely generated snapshots may use generated output roots, but the author-facing default should be conservative
-
-The implementation plan should inspect existing output-kind patterns before finalizing the exact `SOURCE` versus `GENERATED_SOURCE` split.
+Default JPA projection generation should not render relation object fields in the first version. Relation metadata exists for template overrides such as Jimmer.
 
 ## Data Flow
 
-Command/write flow remains unchanged:
+Generation flow:
 
 ```text
-CommandHandler
-  -> Mediator.repo
-  -> Repository
-  -> aggregate whole load
-  -> aggregate behavior
-  -> Mediator.uow
+DB source / canonical aggregate model
+  -> aggregateProjection planner
+  -> aggregate_projection/entity.kt.peb
+  -> adapter build-owned projection source
 ```
 
-Read/projection flow:
+Runtime query flow:
 
 ```text
-QueryHandler
-  -> Mediator.prj
-  -> ProjectionSupervisor
-  -> JPA Projection
-  -> projection result with weak-reference Ref fragments
+Controller / Job / Subscriber
+  -> Mediator.qry
+  -> QueryHandler Spring bean
+  -> user-selected query client (JPA, Jimmer, SQL, etc.)
   -> Query Response
 ```
 
-Controllers still call queries:
+No new runtime surface is introduced.
+
+## Ownership And Conflict Policy
+
+Projection artifacts are build-owned generated source:
 
 ```text
-Controller -> Mediator.qry -> QueryHandler
+outputKind = GENERATED_SOURCE
+conflictPolicy = OVERWRITE
 ```
 
-They should not call `Mediator.prj` as the normal API entry.
+Users should customize projection generation through template overrides, not by editing generated files.
+
+Generated query handlers remain checked-in author surfaces controlled by the existing `designQueryHandler` family and normal template conflict policy. Projects may disable query handler generation and handwrite handlers.
 
 ## Hard Boundaries
 
-The following are permanent design boundaries, not first-version limitations:
-
-- Weak-reference objects appear only in projection return values.
-- Weak-reference object fields are never predicate fields.
-- Weak-reference object fields are never order fields.
-- Weak-reference objects are never command inputs for business decisions.
-- Weak-reference objects are never domain aggregate members.
-- Weak-reference joins are provider-internal select-enrichment details.
-- Repository remains write-model-only.
-- Unit of work remains write-model-only.
-- Projection results are never auto-persisted.
-
-If a project needs filtering or sorting by target object fields, that is a separate read-model/query design. It is not weak-reference projection.
+- Projection classes are adapter-owned.
+- Projection package root is fixed to `adapter.application.projections`.
+- Projection classes are not application contracts.
+- Projection classes are not domain aggregate entities.
+- Projection generation does not change repository or UoW behavior.
+- Default projection output is scalar-only.
+- Relation and weak-reference metadata may be available to templates, but default output does not expand object graphs.
+- Jimmer support is by template override only.
+- Query execution belongs in query handlers.
 
 ## Error Handling
 
 Fail fast when:
 
-- `@WeakReference` has no value
-- `@WeakReference` value is blank
-- `@WeakReference` target table is unknown
-- the target table cannot be mapped to a canonical entity
-- `@Reference` and `@WeakReference` on the same column point to different targets
-- `Mediator.prj` is used with no configured `ProjectionSupervisor`
-- no projection supports the predicate/model pair
-- multiple projections claim the same model and predicate pair
+- `aggregateProjection` is enabled but `project.adapterModulePath` is missing;
+- a projection output path cannot be derived;
+- a field type cannot be rendered;
+- duplicate projection output paths are planned;
+- weak-reference metadata is enabled and references an unknown target table;
+- template context contains unresolved relation target metadata required by an enabled template path.
 
-Diagnostics should name the table, column, annotation, and target where possible.
+Diagnostics should name the table, entity, projection type, and output path where possible.
 
 ## Compatibility
 
 Existing projects are unaffected because:
 
-- the artifact switch defaults to disabled
-- `@WeakReference` is new metadata
-- `@Reference` keeps its existing relation behavior
-- repository and unit-of-work contracts are unchanged
-- default entity templates do not consume weak-reference projection objects
-
-The only behavior added for existing `@Reference` columns is additional canonical weak-reference metadata. That metadata should not change default output unless the advanced artifact switch is enabled.
+- the new generator is disabled by default;
+- no runtime API is added or changed;
+- `Mediator.qry`, `Mediator.ioc`, repositories, and UoW keep their current behavior;
+- generated projection files live under adapter build-owned generated source;
+- Jimmer remains an opt-in project template override choice.
 
 ## Documentation Updates
 
 Implementation should update public authoring docs after code lands:
 
-- DB input-source annotation table
-- tactical model page for `Mediator.prj`
-- advanced read-only weak-reference page
-- generator DSL reference
+- generator DSL reference: `generators.aggregateProjection`;
+- generator input/output guide: adapter projection artifact ownership;
+- adapter authoring guide: projections live under adapter and support query handlers;
+- tactical model guide: query contracts stay in application, projection classes stay in adapter;
+- template override guide: override `aggregate_projection/entity.kt.peb` for Jimmer.
 
-The docs must emphasize:
-
-- advanced mode
-- default off
-- JPA-only first provider
-- weak refs are select-only return fragments
-- no weak-ref predicate/order support
+The docs must explicitly say that cap4k does not provide a read-model runtime or control Jimmer fetcher shape.
 
 ## Testing Strategy
 
 Tests should cover:
 
-- DB parser accepts `@WeakReference` and `@WeakRef`
-- DB parser rejects blank/missing weak-reference values
-- DB parser strips recognized annotations from comments
-- canonical assembly records weak references from `@WeakReference`
-- canonical assembly records weak references from `@Reference`
-- same-column `@Reference` + `@WeakReference` same target deduplicates
-- same-column `@Reference` + `@WeakReference` target mismatch fails
-- default aggregate/entity generation remains unchanged when artifact switch is disabled
-- enabled weak-reference projections generate application projection model, schema, ref fragment, and adapter JPA projection skeleton
-- generated projection schema exposes root scalar fields but does not expose weak-ref object fields for predicate/order
-- `DefaultProjectionSupervisor` dispatches to a compatible projection
-- `DefaultProjectionSupervisor` fails on missing or duplicate projection matches
-- `Mediator.prj` exposes the projection supervisor
-- JPA projection provider returns projection results without persisting them
+- `aggregateProjection` is disabled by default;
+- enabling it requires an adapter module path;
+- generated plan items use template ID `aggregate_projection/entity.kt.peb`;
+- generated plan items target `adapter.application.projections`;
+- generated plan items are build-owned generated source with overwrite behavior;
+- default template renders scalar JPA projection fields;
+- relation metadata is present in template context but not rendered by the default scalar-only template;
+- project template override can replace `aggregate_projection/entity.kt.peb`;
+- query and query-handler generation remain unchanged;
+- no `ProjectionSupervisor`, `Mediator.prj`, or Jimmer dependency is introduced.
 
-Functional tests should include one weak-only reference and one strong `@Reference` that also contributes weak-reference metadata.
+Functional tests should include a small aggregate with scalar fields, ID, version/deleted metadata, and one relation so both default scalar rendering and override context are exercised.
 
 ## Acceptance Criteria
 
-- `#23` is implemented as an advanced built-in cap4k capability.
-- `@WeakReference/@WeakRef=<table>` works as DB column metadata.
-- `@Reference` also contributes weak-reference metadata without changing existing relation output.
-- `Mediator.prj` is available as the standard projection access surface.
-- Runtime projection access is read-only and does not interact with `UnitOfWork`.
-- First-version built-in provider is JPA only.
-- Weak-reference projection generation is disabled by default.
-- When enabled, generated projection results can include weak-reference Ref fragments.
-- Generated projection schemas do not expose weak-reference object fields for predicate/order.
-- Repository semantics remain write-model-only.
-- Public docs clearly distinguish projection from repository and query.
+- `generators.aggregateProjection.enabled` exists and defaults to false.
+- When enabled, cap4k plans adapter projection artifacts from canonical aggregate metadata.
+- Projection artifacts are generated under `adapter.application.projections`.
+- Projection artifacts are build-owned generated source.
+- Built-in template ID is `aggregate_projection/entity.kt.peb`.
+- Built-in template emits JPA-flavored scalar projection classes.
+- Template context is rich enough for a project to override the template to Jimmer.
+- cap4k adds no projection runtime API.
+- cap4k adds no Jimmer default dependency.
+- Query handlers continue to use existing `Query` / `RequestHandler` / `Mediator.qry` mechanics.
