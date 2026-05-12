@@ -29,7 +29,8 @@ class DesignIntegrationEventArtifactPlannerTest {
                         role = IntegrationEventRole.OUTBOUND,
                         packageName = "billing",
                         typeName = "InvoicePaidIntegrationEvent",
-                        eventName = "invoice.paid",
+                        eventName = "invoice.\$paid\\completed",
+                        fields = listOf(FieldModel("invoiceId", "java.util.UUID")),
                     ),
                 ),
             ),
@@ -49,6 +50,7 @@ class DesignIntegrationEventArtifactPlannerTest {
         assertEquals("com.acme.demo.application.subscribers.integration.inbound.order", inbound.context["packageName"])
         assertEquals("OrderCreatedIntegrationEvent", inbound.context["typeName"])
         assertEquals("order.created", inbound.context["eventName"])
+        assertEquals("\"order.created\"", inbound.context["eventNameKotlinStringLiteral"])
         assertEquals("inbound", inbound.context["role"])
         assertEquals(true, inbound.context["inbound"])
         assertEquals(false, inbound.context["outbound"])
@@ -66,6 +68,8 @@ class DesignIntegrationEventArtifactPlannerTest {
             outbound.outputPath,
         )
         assertEquals("com.acme.demo.application.subscribers.integration.outbound.billing", outbound.context["packageName"])
+        assertEquals("invoice.\$paid\\completed", outbound.context["eventName"])
+        assertEquals("\"invoice.\\\$paid\\\\completed\"", outbound.context["eventNameKotlinStringLiteral"])
         assertEquals("outbound", outbound.context["role"])
         assertEquals(false, outbound.context["inbound"])
         assertEquals(true, outbound.context["outbound"])
@@ -76,13 +80,14 @@ class DesignIntegrationEventArtifactPlannerTest {
         packageName: String = "order",
         typeName: String = "OrderCreatedIntegrationEvent",
         eventName: String = "order.created",
+        fields: List<FieldModel> = listOf(FieldModel("orderId", "UUID")),
     ) = IntegrationEventModel(
         packageName = packageName,
         typeName = typeName,
         description = "order */ \"created\" event",
         role = role,
         eventName = eventName,
-        fields = listOf(FieldModel("orderId", "UUID")),
+        fields = fields,
     )
 
     private fun projectConfig(modules: Map<String, String>) = ProjectConfig(

@@ -5742,6 +5742,7 @@ class PebbleArtifactRendererTest {
                         "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" event\"",
                         "role" to "inbound",
                         "eventName" to "order.created",
+                        "eventNameKotlinStringLiteral" to "\"order.created\"",
                         "inbound" to true,
                         "outbound" to false,
                         "imports" to listOf("java.util.UUID"),
@@ -5765,11 +5766,14 @@ class PebbleArtifactRendererTest {
                         "descriptionCommentText" to "invoice paid event",
                         "descriptionKotlinStringLiteral" to "\"invoice paid event\"",
                         "role" to "outbound",
-                        "eventName" to "invoice.paid",
+                        "eventName" to "invoice.\$paid\\completed",
+                        "eventNameKotlinStringLiteral" to "\"invoice.\\\$paid\\\\completed\"",
                         "inbound" to false,
                         "outbound" to true,
-                        "imports" to emptyList<String>(),
-                        "fields" to emptyList<Map<String, Any?>>(),
+                        "imports" to listOf("java.util.UUID"),
+                        "fields" to listOf(
+                            mapOf("name" to "invoiceId", "renderedType" to "UUID", "nullable" to false),
+                        ),
                         "nestedTypes" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
@@ -5793,13 +5797,15 @@ class PebbleArtifactRendererTest {
         assertTrue(inboundContent.contains("@IntegrationEvent("))
         assertTrue(inboundContent.contains("value = \"order.created\""))
         assertFalse(inboundContent.contains("value = EVENT_NAME"))
-        assertTrue(inboundContent.contains("subscriber = \"\${spring.application.name:}\""))
+        assertTrue(inboundContent.contains("subscriber = \"\\\${spring.application.name:}\""))
         assertTrue(inboundContent.contains("const val EVENT_NAME = \"order.created\""))
         assertTrue(inboundContent.contains("data class OrderCreatedIntegrationEvent("))
         assertTrue(inboundContent.contains("val orderId: UUID"))
 
         val outboundContent = rendered[1].content
-        assertTrue(outboundContent.contains("value = \"invoice.paid\""))
+        assertTrue(outboundContent.contains("value = \"invoice.\\\$paid\\\\completed\""))
+        assertTrue(outboundContent.contains("const val EVENT_NAME = \"invoice.\\\$paid\\\\completed\""))
+        assertTrue(outboundContent.contains("val invoiceId: UUID"))
         assertTrue(outboundContent.contains("subscriber = IntegrationEvent.NONE_SUBSCRIBER"))
     }
 

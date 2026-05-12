@@ -152,7 +152,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     description = entry.description,
                     role = entry.integrationEventRole(),
                     eventName = entry.integrationEventName(),
-                    fields = entry.requestFields,
+                    fields = entry.integrationEventRequestFields(),
                 )
             }
             .toList()
@@ -528,6 +528,13 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     private fun DesignSpecEntry.integrationEventName(): String {
         return eventName?.takeIf { it.isNotBlank() }
             ?: throw IllegalArgumentException("integration_event $name must declare eventName.")
+    }
+
+    private fun DesignSpecEntry.integrationEventRequestFields(): List<FieldModel> {
+        require(requestFields.isNotEmpty()) {
+            "integration_event $name must declare at least one requestField."
+        }
+        return requestFields
     }
 
     private fun String.normalizeUpperCamelTypeName(): String {

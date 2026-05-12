@@ -14,6 +14,7 @@ internal fun DesignRenderModel.toIntegrationEventContextMap(
     "descriptionKotlinStringLiteral" to descriptionKotlinStringLiteral,
     "role" to event.role.contextValue(),
     "eventName" to event.eventName,
+    "eventNameKotlinStringLiteral" to event.eventName.toKotlinStringLiteral(),
     "inbound" to (event.role == IntegrationEventRole.INBOUND),
     "outbound" to (event.role == IntegrationEventRole.OUTBOUND),
     "imports" to imports,

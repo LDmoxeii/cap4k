@@ -9,8 +9,8 @@ import {{ import }}
  * {{ descriptionCommentText | raw }}
  */
 @IntegrationEvent(
-    value = "{{ eventName }}",
-    subscriber = {% if inbound %}"${spring.application.name:}"{% else %}IntegrationEvent.NONE_SUBSCRIBER{% endif %}
+    value = {{ eventNameKotlinStringLiteral | raw }},
+    subscriber = {% if inbound %}"\${spring.application.name:}"{% else %}IntegrationEvent.NONE_SUBSCRIBER{% endif %}
 )
 data class {{ typeName }}(
 {%- for field in fields %}
@@ -18,7 +18,7 @@ data class {{ typeName }}(
 {%- endfor %}
 ) {
     companion object {
-        const val EVENT_NAME = "{{ eventName }}"
+        const val EVENT_NAME = {{ eventNameKotlinStringLiteral | raw }}
     }
 {%- for nestedType in nestedTypes %}
 
