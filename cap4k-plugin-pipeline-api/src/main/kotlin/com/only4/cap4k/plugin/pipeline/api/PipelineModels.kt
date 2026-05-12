@@ -99,6 +99,8 @@ data class DesignElementSnapshot(
     val targets: List<String> = emptyList(),
     val valueType: String? = null,
     val parameters: List<ValidatorParameterModel> = emptyList(),
+    val role: String? = null,
+    val eventName: String? = null,
 )
 
 data class AggregateMetadataRecord(

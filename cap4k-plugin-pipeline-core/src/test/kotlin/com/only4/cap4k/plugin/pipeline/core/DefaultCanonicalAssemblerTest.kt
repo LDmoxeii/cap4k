@@ -27,6 +27,7 @@ import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
+import com.only4.cap4k.plugin.pipeline.api.IntegrationEventRole
 import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -167,6 +168,56 @@ class DefaultCanonicalAssemblerTest {
 
         assertEquals(setOf(RequestTrait.PAGE), result.model.queries.single().traits)
         assertEquals(setOf(RequestTrait.PAGE), result.model.apiPayloads.single().traits)
+    }
+
+    @Test
+    fun `assembler carries integration events into canonical model`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val result = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "integration_event",
+                            packageName = "order.events",
+                            name = "order_created",
+                            description = "order created inbound",
+                            aggregates = emptyList(),
+                            requestFields = listOf(
+                                FieldModel(name = "orderId", type = "Long"),
+                                FieldModel(name = "buyerId", type = "Long"),
+                            ),
+                            responseFields = emptyList(),
+                            role = "inbound",
+                            eventName = "order.created",
+                        ),
+                        DesignSpecEntry(
+                            tag = "integration_event",
+                            packageName = "order.events",
+                            name = "OrderPaid",
+                            description = "order paid outbound",
+                            aggregates = emptyList(),
+                            requestFields = listOf(
+                                FieldModel(name = "paymentId", type = "String"),
+                            ),
+                            responseFields = emptyList(),
+                            role = "outbound",
+                            eventName = "order.paid",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val integrationEvents = result.model.integrationEvents
+        assertEquals(2, integrationEvents.size)
+        assertEquals(listOf(IntegrationEventRole.INBOUND, IntegrationEventRole.OUTBOUND), integrationEvents.map { it.role })
+        assertEquals(listOf("order.created", "order.paid"), integrationEvents.map { it.eventName })
+        assertEquals(listOf("OrderCreated", "OrderPaid"), integrationEvents.map { it.typeName })
+        assertEquals(listOf("orderId", "buyerId"), integrationEvents.first().fields.map { it.name })
+        assertEquals(listOf("paymentId"), integrationEvents[1].fields.map { it.name })
     }
 
     @Test
@@ -1462,6 +1513,44 @@ class DefaultCanonicalAssemblerTest {
         val board = requireNotNull(result.model.drawingBoard)
         assertEquals(listOf("FindOrder"), board.elements.map { it.name })
         assertEquals(listOf("query"), board.elementsByTag.keys.toList())
+    }
+
+    @Test
+    fun `drawing board accepts integration event elements`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val result = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                IrAnalysisSnapshot(
+                    inputDirs = emptyList(),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                    designElements = listOf(
+                        DesignElementSnapshot(
+                            tag = "integration_event",
+                            packageName = "order.events",
+                            name = "OrderCreated",
+                            description = "order created integration event",
+                            requestFields = listOf(
+                                DesignFieldSnapshot(name = "orderId", type = "Long"),
+                                DesignFieldSnapshot(name = "buyerId", type = "Long"),
+                            ),
+                            role = "inbound",
+                            eventName = "order.created",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val board = requireNotNull(result.model.drawingBoard)
+        val integrationEvent = board.elements.single()
+        assertEquals("integration_event", integrationEvent.tag)
+        assertEquals("inbound", integrationEvent.role)
+        assertEquals("order.created", integrationEvent.eventName)
+        assertEquals(listOf("orderId", "buyerId"), integrationEvent.requestFields.map { it.name })
+        assertEquals(listOf("integration_event"), board.elementsByTag.keys.toList())
     }
 
     @Test

@@ -26,6 +26,8 @@ import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.EnumManifestSnapshot
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
+import com.only4.cap4k.plugin.pipeline.api.IntegrationEventModel
+import com.only4.cap4k.plugin.pipeline.api.IntegrationEventRole
 import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -136,6 +138,22 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     requestFields = entry.requestFields,
                     responseFields = entry.responseFields,
                     traits = entry.traits,
+                )
+            }
+            .toList()
+
+        val integrationEvents = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag == "integration_event" }
+            .map { entry ->
+                IntegrationEventModel(
+                    packageName = entry.packageName,
+                    typeName = entry.name.normalizeUpperCamelTypeName(),
+                    description = entry.description,
+                    role = entry.integrationEventRole(),
+                    eventName = entry.eventName
+                        ?: throw IllegalArgumentException("integration_event ${entry.name} must declare eventName."),
+                    fields = entry.requestFields,
                 )
             }
             .toList()
@@ -392,6 +410,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 aggregatePersistenceProviderControls = aggregatePersistenceProviderControls,
                 aggregateIdPolicyControls = aggregateIdPolicyControls,
                 aggregateSpecialFieldResolvedPolicies = specialFieldResolution.resolvedPolicies,
+                integrationEvents = integrationEvents,
             ),
             diagnostics = diagnostics,
         )
@@ -467,6 +486,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     defaultValue = field.defaultValue,
                 )
             },
+            role = role,
+            eventName = eventName,
         )
     }
 
@@ -477,6 +498,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "client" -> "client"
             "api_payload" -> "api_payload"
             "domain_event" -> "domain_event"
+            "integration_event" -> "integration_event"
             "validator" -> "validator"
             else -> null
         }
@@ -494,6 +516,14 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return normalizedTargets
             .distinct()
             .sortedBy { ValidatorTargetOrder[it] ?: Int.MAX_VALUE }
+    }
+
+    private fun DesignSpecEntry.integrationEventRole(): IntegrationEventRole {
+        return when (role) {
+            "inbound" -> IntegrationEventRole.INBOUND
+            "outbound" -> IntegrationEventRole.OUTBOUND
+            else -> throw IllegalArgumentException("integration_event $name must declare role inbound or outbound.")
+        }
     }
 
     private fun String.normalizeUpperCamelTypeName(): String {
@@ -587,7 +617,15 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
     private companion object {
-        val SupportedDrawingBoardTags = setOf("command", "query", "client", "api_payload", "domain_event", "validator")
+        val SupportedDrawingBoardTags = setOf(
+            "command",
+            "query",
+            "client",
+            "api_payload",
+            "domain_event",
+            "integration_event",
+            "validator",
+        )
         val ValidatorTargetOrder = mapOf("CLASS" to 0, "FIELD" to 1, "VALUE_PARAMETER" to 2)
         val UpperCamelSplitRegex = Regex("(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+")
 
