@@ -136,6 +136,17 @@ class IrAnalysisSourceProviderTest {
                 "responseFields": []
               },
               {
+                "tag": "integration_event",
+                "package": "orders.events",
+                "name": "OrderCreated",
+                "desc": "order created integration event",
+                "role": "inbound",
+                "eventName": "order.created",
+                "requestFields": [
+                  {"name": "orderId", "type": "Long"}
+                ]
+              },
+              {
                 "tag": " ",
                 "package": "ignored",
                 "name": "Ignored",
@@ -147,7 +158,7 @@ class IrAnalysisSourceProviderTest {
 
         val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString())) as IrAnalysisSnapshot
 
-        assertEquals(4, snapshot.designElements.size)
+        assertEquals(5, snapshot.designElements.size)
         assertEquals("command", snapshot.designElements.first().tag)
         assertEquals("orders", snapshot.designElements.first().packageName)
         assertEquals("SubmitOrder", snapshot.designElements.first().name)
@@ -163,6 +174,10 @@ class IrAnalysisSourceProviderTest {
         assertEquals("Boolean", snapshot.designElements.first().responseFields.first().type)
         val pageQuery = snapshot.designElements.single { it.name == "FindOrderPage" }
         assertEquals(setOf(RequestTrait.PAGE), pageQuery.traits)
+        val integrationEvent = snapshot.designElements.single { it.tag == "integration_event" }
+        assertEquals("inbound", integrationEvent.role)
+        assertEquals("order.created", integrationEvent.eventName)
+        assertEquals(listOf("orderId"), integrationEvent.requestFields.map { it.name })
         val domainEvent = snapshot.designElements.single { it.tag == "domain_event" }
         assertEquals("", domainEvent.packageName)
         assertEquals("OrderCreated", domainEvent.name)

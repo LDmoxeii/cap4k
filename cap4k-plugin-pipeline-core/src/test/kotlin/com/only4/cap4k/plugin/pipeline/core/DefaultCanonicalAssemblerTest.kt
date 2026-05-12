@@ -221,6 +221,34 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler rejects integration event with blank event name`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "integration_event",
+                                packageName = "order.events",
+                                name = "OrderCreated",
+                                description = "order created inbound",
+                                aggregates = emptyList(),
+                                requestFields = emptyList(),
+                                responseFields = emptyList(),
+                                role = "inbound",
+                                eventName = " ",
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals("integration_event OrderCreated must declare eventName.", error.message)
+    }
+
+    @Test
     fun `client design tags map into canonical clients`() {
         val assembler = DefaultCanonicalAssembler()
 

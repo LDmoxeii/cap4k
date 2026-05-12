@@ -151,8 +151,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     typeName = entry.name.normalizeUpperCamelTypeName(),
                     description = entry.description,
                     role = entry.integrationEventRole(),
-                    eventName = entry.eventName
-                        ?: throw IllegalArgumentException("integration_event ${entry.name} must declare eventName."),
+                    eventName = entry.integrationEventName(),
                     fields = entry.requestFields,
                 )
             }
@@ -524,6 +523,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "outbound" -> IntegrationEventRole.OUTBOUND
             else -> throw IllegalArgumentException("integration_event $name must declare role inbound or outbound.")
         }
+    }
+
+    private fun DesignSpecEntry.integrationEventName(): String {
+        return eventName?.takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("integration_event $name must declare eventName.")
     }
 
     private fun String.normalizeUpperCamelTypeName(): String {

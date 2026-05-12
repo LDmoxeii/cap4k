@@ -114,6 +114,8 @@ class IrAnalysisSourceProvider : SourceProvider {
                 targets = obj.stringList("targets"),
                 valueType = obj.stringValue("valueType"),
                 parameters = parseValidatorParameters(obj.jsonArrayOrEmpty("parameters")),
+                role = obj.stringValue("role"),
+                eventName = obj.stringValue("eventName"),
             )
         }
     }

@@ -31,12 +31,14 @@ class DrawingBoardArtifactPlannerTest {
                 "drawing_board_client",
                 "drawing_board_api_payload",
                 "drawing_board_domain_event",
+                "drawing_board_integration_event",
                 "drawing_board_validator",
             ),
             plan.map { it.outputPath.removePrefix("design/").removeSuffix(".json") }
         )
         assertEquals(
             listOf(
+                "drawing-board/document.json.peb",
                 "drawing-board/document.json.peb",
                 "drawing-board/document.json.peb",
                 "drawing-board/document.json.peb",
@@ -53,7 +55,8 @@ class DrawingBoardArtifactPlannerTest {
         assertEquals("client", plan[2].context["drawingBoardTag"])
         assertEquals("api_payload", plan[3].context["drawingBoardTag"])
         assertEquals("domain_event", plan[4].context["drawingBoardTag"])
-        assertEquals("validator", plan[5].context["drawingBoardTag"])
+        assertEquals("integration_event", plan[5].context["drawingBoardTag"])
+        assertEquals("validator", plan[6].context["drawingBoardTag"])
     }
 
     @Test
@@ -179,6 +182,14 @@ class DrawingBoardArtifactPlannerTest {
                         packageName = "orders.domain",
                         name = "OrderEntity",
                         description = "domain entity",
+                    ),
+                    DrawingBoardElementModel(
+                        tag = "integration_event",
+                        packageName = "orders.events",
+                        name = "OrderCreated",
+                        description = "order created",
+                        role = "inbound",
+                        eventName = "order.created",
                     ),
                     DrawingBoardElementModel(
                         tag = "validator",
