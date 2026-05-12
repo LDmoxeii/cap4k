@@ -34,6 +34,12 @@
       }{% if not loop.last %}, {% endif %}{% endfor %}
     ]
 {%- endif %},
+{%- if element.role is not null %}
+    "role": {{ element.role | json | raw }},
+{%- endif %}
+{%- if element.eventName is not null %}
+    "eventName": {{ element.eventName | json | raw }},
+{%- endif %}
     "requestFields": [{% for field in element.designJsonRequestFields %}
       {
         "name": {{ field.name | json | raw }},

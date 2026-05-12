@@ -3895,6 +3895,64 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `renders integration event drawing board metadata`() {
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = emptyList()
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "drawing-board",
+                    moduleRole = "project",
+                    templateId = "drawing-board/document.json.peb",
+                    outputPath = "design/drawing_board_integration_event.json",
+                    context = mapOf(
+                        "elements" to listOf(
+                            DrawingBoardElementModel(
+                                tag = "integration_event",
+                                packageName = "contentstudio.events",
+                                name = "MediaProcessingSucceeded",
+                                description = "media processing succeeded",
+                                requestFields = listOf(
+                                    DrawingBoardFieldModel(name = "mediaId", type = "Long"),
+                                ),
+                                responseFields = emptyList(),
+                                role = "inbound",
+                                eventName = "cap4k.reference.contentstudio.media-processing.succeeded",
+                            )
+                        )
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("\"role\": \"inbound\""))
+        assertTrue(content.contains("\"eventName\": \"cap4k.reference.contentstudio.media-processing.succeeded\""))
+
+        val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
+        assertEquals("inbound", element["role"].asString)
+        assertEquals("cap4k.reference.contentstudio.media-processing.succeeded", element["eventName"].asString)
+    }
+
+    @Test
     fun `use helper merges explicit imports with computed imports`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-helper-use-merge")
         val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
