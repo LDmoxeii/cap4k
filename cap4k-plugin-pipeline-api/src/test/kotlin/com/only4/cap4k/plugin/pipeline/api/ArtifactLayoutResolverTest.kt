@@ -56,6 +56,24 @@ class ArtifactLayoutResolverTest {
     }
 
     @Test
+    fun `resolves integration event packages with lowercase role segments`() {
+        val resolver = ArtifactLayoutResolver("com.acme")
+
+        assertEquals(
+            "com.acme.application.subscribers.integration.inbound.media.processing",
+            resolver.designIntegrationEventPackage(IntegrationEventRole.INBOUND, "media.processing"),
+        )
+        assertEquals(
+            "com.acme.application.subscribers.integration.outbound.content",
+            resolver.designIntegrationEventPackage(IntegrationEventRole.OUTBOUND, "content"),
+        )
+        assertEquals(
+            "com.acme.application.subscribers.integration.inbound.media.processing",
+            resolver.designIntegrationEventSubscriberPackage(IntegrationEventRole.INBOUND, "media.processing"),
+        )
+    }
+
+    @Test
     fun `resolves default output roots`() {
         assertEquals("flows", resolver.flowOutputRoot())
         assertEquals("design", resolver.drawingBoardOutputRoot())

@@ -376,8 +376,6 @@ data class DrawingBoardElementModel(
     val aggregates: List<String> = emptyList(),
     val entity: String? = null,
     val persist: Boolean? = null,
-    val role: String? = null,
-    val eventName: String? = null,
     val traits: Set<RequestTrait> = emptySet(),
     val requestFields: List<DrawingBoardFieldModel> = emptyList(),
     val responseFields: List<DrawingBoardFieldModel> = emptyList(),
@@ -385,6 +383,8 @@ data class DrawingBoardElementModel(
     val targets: List<String> = emptyList(),
     val valueType: String? = null,
     val parameters: List<ValidatorParameterModel> = emptyList(),
+    val role: String? = null,
+    val eventName: String? = null,
 ) {
     val designJsonRequestFields: List<DrawingBoardFieldModel>
         get() = if (tag == "domain_event") {
@@ -520,7 +520,6 @@ data class CanonicalModel(
     val clients: List<ClientModel> = emptyList(),
     val validators: List<ValidatorModel> = emptyList(),
     val domainEvents: List<DomainEventModel> = emptyList(),
-    val integrationEvents: List<IntegrationEventModel> = emptyList(),
     val schemas: List<SchemaModel> = emptyList(),
     val entities: List<EntityModel> = emptyList(),
     val repositories: List<RepositoryModel> = emptyList(),
@@ -535,6 +534,7 @@ data class CanonicalModel(
     val aggregatePersistenceProviderControls: List<AggregatePersistenceProviderControl> = emptyList(),
     val aggregateIdPolicyControls: List<AggregateIdPolicyControl> = emptyList(),
     val aggregateSpecialFieldResolvedPolicies: List<AggregateSpecialFieldResolvedPolicy> = emptyList(),
+    val integrationEvents: List<IntegrationEventModel> = emptyList(),
 )
 
 data class UnsupportedAggregateTable(
