@@ -14,6 +14,7 @@
 | 产物类型 | 默认归属 | 说明 |
 | --- | --- | --- |
 | 生成的聚合骨架 | 生成主面 | 例如 `Content`、`MediaProcessingTask` 的结构骨架由生成器落出；作者在手写文件中补行为，不直接改写由生成器负责的文件 |
+| custom value object class / converter / type registry | 手写主面 / 配置面 | JSON-backed 或 inline 的 Value Object 由作者手写类型、构造规则与 converter；生成器只消费 `@T` / `types.registryFile` 生成聚合字段映射 |
 | aggregate `*Behavior.kt` | 手写补充点 | 这是当前明确留给作者补聚合行为的 checked-in scaffold，计划里固定使用 `ConflictPolicy.SKIP`，默认带出 `onCreate` / `onUpdate` / `onDelete` 生命周期行为扩展骨架 |
 | aggregate `factory` / `specification` scaffold | 条件性手写补充点 | 这两类文件虽然是 `CHECKED_IN_SOURCE`，但是否可当作者维护骨架取决于 `templates.conflictPolicy`；`SKIP` 时可作为作者维护 scaffold，`OVERWRITE` / `FAIL` 时仍按计划产物对待 |
 | 生成的命令 / 查询契约骨架 | 生成主面 | `CreateContentDraftCmd`、`GetContentDetailQry` 这类契约骨架可生成；手写逻辑放在 handler 或 adapter 侧 |

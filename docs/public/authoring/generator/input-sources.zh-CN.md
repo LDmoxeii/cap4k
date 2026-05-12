@@ -8,7 +8,7 @@
 
 DB 输入适合表达：
 
-- 聚合根、子实体和值对象表；
+- 聚合根、子实体、table-backed 值对象表，以及通过 `@T` 绑定的自定义值类型字段；
 - 字段类型、ID 策略、软删除、版本号；
 - 表间引用关系；
 - 聚合内唯一约束；
@@ -24,7 +24,7 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 | --- | --- |
 | `@Parent` / `@P=<table>` | 当前表属于父聚合 |
 | `@AggregateRoot` / `@Root` / `@R=true\|false` | 显式聚合根标记 |
-| `@ValueObject` / `@VO` | 值对象表标记 |
+| `@ValueObject` / `@VO` | table-backed 值对象表标记，不是所有 Value Object 的默认写法 |
 | `@Ignore` / `@I` | 忽略该表 |
 | `@DynamicInsert=true\|false` | provider dynamic insert |
 | `@DynamicUpdate=true\|false` | provider dynamic update |
@@ -55,6 +55,12 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 - `@Enum` 需要配合 `@Type` / `@T`。
 - `@Managed` 与 `@Exposed` 互斥。
 - 旧的 `@IdGenerator` 和 `@SoftDeleteColumn` 已被拒绝，不应继续使用。
+
+自定义值类型字段规则：
+
+- 对 JSON-backed 或 inline 值对象，优先在列上使用 `@T=<TypeName>`，并在 `types.registryFile` 注册 FQN 与 converter。
+- 生成器只会把字段类型和 JPA converter 映射到聚合；值对象类、构造 / 校验 / 归一化、converter 仍由作者维护。
+- `@VO` 表只表示 separate-table / table-backed 值对象，适用面更重；不要为了“使用值对象”而默认建独立表。
 
 ## DB relation annotations
 
@@ -117,7 +123,7 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 - `value_object`
 - `domain_service`
 
-这些是明确缺口，不是隐藏能力。需要集成事件、值对象或领域服务时，当前应通过 DB / 手写模型 / 后续 addon 或未来生成能力处理，并在项目审计中记录。
+这些是明确缺口，不是隐藏能力。需要集成事件、值对象或领域服务时，当前应通过 DB `@T` 类型绑定、必要时的 table-backed `@VO` 表、手写模型、后续 addon 或未来生成能力处理，并在项目审计中记录。
 
 ## enum manifest
 
