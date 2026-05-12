@@ -14,10 +14,11 @@ internal fun generatedKotlinArtifact(
     typeName: String,
     templateId: String,
     context: Map<String, Any?>,
+    generatorId: String = "aggregate",
 ): ArtifactPlanItem {
     val moduleRoot = requireRelativeModule(config, moduleRole)
     return ArtifactPlanItem(
-        generatorId = "aggregate",
+        generatorId = generatorId,
         moduleRole = moduleRole,
         templateId = templateId,
         outputPath = artifactLayout.generatedKotlinSourcePath(moduleRoot, packageName, typeName),

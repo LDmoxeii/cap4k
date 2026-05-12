@@ -308,11 +308,19 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             entities = entities,
             schema = dbSnapshot,
         )
-        val specialFieldResolution = AggregateSpecialFieldPolicyResolver.resolve(
-            config = config,
-            entities = entities,
-            tables = supportedTables,
-        )
+        val specialFieldResolution = if (config.isAggregateProjectionOnly()) {
+            AggregateSpecialFieldResolutionResult(
+                resolvedPolicies = emptyList(),
+                idControls = emptyList(),
+                providerControls = emptyList(),
+            )
+        } else {
+            AggregateSpecialFieldPolicyResolver.resolve(
+                config = config,
+                entities = entities,
+                tables = supportedTables,
+            )
+        }
         val aggregatePersistenceProviderControls = specialFieldResolution.providerControls
         val aggregateIdPolicyControls = specialFieldResolution.idControls
 
@@ -596,4 +604,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             return head + tail
         }
     }
+
+    private fun ProjectConfig.isAggregateProjectionOnly(): Boolean =
+        generators["aggregate-projection"]?.enabled == true &&
+            generators["aggregate"]?.enabled != true
 }

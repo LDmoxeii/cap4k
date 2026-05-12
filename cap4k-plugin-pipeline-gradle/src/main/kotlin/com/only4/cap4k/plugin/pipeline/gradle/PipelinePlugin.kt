@@ -42,6 +42,7 @@ import com.only4.cap4k.plugin.pipeline.source.designjson.DesignJsonSourceProvide
 import com.only4.cap4k.plugin.pipeline.source.enummanifest.EnumManifestSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ir.IrAnalysisSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ksp.KspMetadataSourceProvider
+import com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateProjectionArtifactPlanner
 import org.gradle.api.file.FileCollection
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
@@ -115,6 +116,7 @@ class PipelinePlugin : Plugin<Project> {
             }
             val config = configFactory.build(project, extension)
             ensureAggregateDomainJpaDependency(project, config)
+            ensureAggregateProjectionAdapterJpaDependency(project, config)
             val inferredSourceDependencies = inferSourceDependencies(project, config)
             if (inferredSourceDependencies.isNotEmpty()) {
                 planTask.configure { task -> task.dependsOn(inferredSourceDependencies) }
@@ -155,9 +157,10 @@ private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "design-domain-event",
     "design-domain-event-handler",
     "aggregate",
+    "aggregate-projection",
 )
 private val GENERATED_SOURCE_TASK_SOURCE_IDS = setOf("db", "enum-manifest")
-private val GENERATED_SOURCE_TASK_GENERATOR_IDS = setOf("aggregate")
+private val GENERATED_SOURCE_TASK_GENERATOR_IDS = setOf("aggregate", "aggregate-projection")
 private val ANALYSIS_TASK_SOURCE_IDS = setOf("ir-analysis")
 private val ANALYSIS_TASK_GENERATOR_IDS = setOf("flow", "drawing-board")
 
@@ -184,6 +187,7 @@ private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean = lis
     extension.generators.designDomainEvent.enabled,
     extension.generators.designDomainEventHandler.enabled,
     extension.generators.aggregate.enabled,
+    extension.generators.aggregateProjection.enabled,
     extension.generators.drawingBoard.enabled,
     extension.generators.flow.enabled,
 ).any { it.orNull == true }
@@ -210,26 +214,40 @@ internal fun ensureAggregateDomainJpaDependency(project: Project, config: Projec
     if (!config.enabledGeneratorIds().contains("aggregate")) {
         return
     }
-    val domainModulePath = config.modules["domain"] ?: return
-    val domainProject = resolveModuleProject(project.rootProject, domainModulePath) ?: return
-    val implementationConfiguration = domainProject.configurations.findByName("implementation") ?: return
+    ensureJpaDependency(project, config, moduleRole = "domain")
+}
+
+internal fun ensureAggregateProjectionAdapterJpaDependency(project: Project, config: ProjectConfig) {
+    if (!config.enabledGeneratorIds().contains("aggregate-projection")) {
+        return
+    }
+    ensureJpaDependency(project, config, moduleRole = "adapter")
+}
+
+private fun ensureJpaDependency(project: Project, config: ProjectConfig, moduleRole: String) {
+    val modulePath = config.modules[moduleRole] ?: return
+    val moduleProject = resolveModuleProject(project.rootProject, modulePath) ?: return
+    val implementationConfiguration = moduleProject.configurations.findByName("implementation") ?: return
     val hasDependency = implementationConfiguration.dependencies.any { dependency ->
         dependency.group == JAKARTA_PERSISTENCE_GROUP && dependency.name == JAKARTA_PERSISTENCE_NAME
     }
     if (!hasDependency) {
-        domainProject.dependencies.add("implementation", JAKARTA_PERSISTENCE_COORDINATE)
+        moduleProject.dependencies.add("implementation", JAKARTA_PERSISTENCE_COORDINATE)
     }
 }
 
 internal fun generatedSourceModuleRoles(config: ProjectConfig): Set<String> {
-    val aggregate = config.generators["aggregate"] ?: return emptySet()
-    if (!aggregate.enabled) {
-        return emptySet()
+    val roles = linkedSetOf<String>()
+    val aggregate = config.generators["aggregate"]
+    if (aggregate?.enabled == true) {
+        roles += "domain"
+        roles += "adapter"
+        if (aggregate.options["artifact.unique"] as? Boolean == true) {
+            roles += "application"
+        }
     }
-
-    val roles = linkedSetOf("domain", "adapter")
-    if (aggregate.options["artifact.unique"] as? Boolean == true) {
-        roles += "application"
+    if (config.generators["aggregate-projection"]?.enabled == true) {
+        roles += "adapter"
     }
     return roles.filterTo(linkedSetOf()) { role -> role in config.modules }
 }
@@ -427,6 +445,7 @@ internal fun generatedSourceTaskInputSnapshot(rootProject: Project, config: Proj
                 ),
                 "generators" to linkedMapOf(
                     "aggregate" to sanitizedGeneratorSnapshot(config.generators["aggregate"]),
+                    "aggregateProjection" to sanitizedGeneratorSnapshot(config.generators["aggregate-projection"]),
                 ),
                 "artifactLayout" to config.artifactLayout,
                 "templates" to linkedMapOf(
@@ -589,6 +608,7 @@ internal fun buildSourceRunner(
             DesignDomainEventArtifactPlanner(),
             DesignDomainEventHandlerArtifactPlanner(),
             AggregateArtifactPlanner(),
+            AggregateProjectionArtifactPlanner(),
         ),
         assembler = DefaultCanonicalAssembler(),
         renderer = PebbleArtifactRenderer(

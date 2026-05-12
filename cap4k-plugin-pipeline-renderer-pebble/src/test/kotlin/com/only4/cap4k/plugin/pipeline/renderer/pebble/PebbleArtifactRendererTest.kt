@@ -265,6 +265,126 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `aggregate projection template renders scalar jpa projection without relation graph`() {
+        val content = renderTemplate(
+            templateId = "aggregate_projection/entity.kt.peb",
+            outputPath = "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/application/projections/category/CategoryProjection.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.adapter.application.projections.category",
+                "typeName" to "CategoryProjection",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to "category",
+                ),
+                "hasConverterFields" to true,
+                "hasVersionFields" to true,
+                "imports" to emptyList<String>(),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "type" to "Long",
+                        "nullable" to false,
+                        "columnName" to "id",
+                        "isId" to true,
+                        "isVersion" to false,
+                        "converterClassRef" to null,
+                    ),
+                    mapOf(
+                        "name" to "name",
+                        "type" to "String",
+                        "nullable" to false,
+                        "columnName" to "name",
+                        "isId" to false,
+                        "isVersion" to false,
+                        "converterClassRef" to "com.acme.demo.NameConverter",
+                    ),
+                    mapOf(
+                        "name" to "version",
+                        "type" to "Int",
+                        "nullable" to false,
+                        "columnName" to "version",
+                        "isId" to false,
+                        "isVersion" to true,
+                        "converterClassRef" to null,
+                    ),
+                ),
+                "relationFields" to listOf(
+                    mapOf(
+                        "name" to "parent",
+                        "relationType" to "MANY_TO_ONE",
+                        "targetTypeRef" to "CategoryProjection",
+                    )
+                ),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertMaintainableTemplateSource("aggregate_projection/entity.kt.peb")
+        assertTrue(content.contains("@Entity"))
+        assertTrue(content.contains("""@Table(name = "category")"""))
+        assertTrue(content.contains("@Id"))
+        assertTrue(content.contains("@Version"))
+        assertTrue(content.contains("""@Column(name = "name")"""))
+        assertTrue(content.contains("@Convert(converter = com.acme.demo.NameConverter::class)"))
+        assertTrue(content.contains("var name: String = name"))
+        assertFalse(content.contains("ManyToOne"))
+        assertFalse(content.contains("OneToMany"))
+        assertFalse(content.contains("OneToOne"))
+        assertFalse(content.contains("var parent"))
+    }
+
+    @Test
+    fun `aggregate projection template respects disabled jpa entity metadata`() {
+        val content = renderTemplate(
+            templateId = "aggregate_projection/entity.kt.peb",
+            outputPath = "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/application/projections/category/CategoryProjection.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.adapter.application.projections.category",
+                "typeName" to "CategoryProjection",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to false,
+                    "tableName" to "category",
+                ),
+                "hasConverterFields" to true,
+                "hasVersionFields" to true,
+                "imports" to emptyList<String>(),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "type" to "Long",
+                        "nullable" to false,
+                        "columnName" to "id",
+                        "isId" to true,
+                        "isVersion" to false,
+                        "converterClassRef" to null,
+                    ),
+                    mapOf(
+                        "name" to "name",
+                        "type" to "String",
+                        "nullable" to false,
+                        "columnName" to "name",
+                        "isId" to false,
+                        "isVersion" to true,
+                        "converterClassRef" to "com.acme.demo.NameConverter",
+                    ),
+                ),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertFalse(content.contains("jakarta.persistence"))
+        assertFalse(content.contains("@Entity"))
+        assertFalse(content.contains("@Table"))
+        assertFalse(content.contains("@Id"))
+        assertFalse(content.contains("@Version"))
+        assertFalse(content.contains("@Column"))
+        assertFalse(content.contains("@Convert"))
+        assertTrue(content.contains("class CategoryProjection("))
+        assertTrue(content.contains("var name: String = name"))
+    }
+
+    @Test
     fun `aggregate entity template keeps explicit column flags for application side id fields`() {
         val content = renderTemplate(
             templateId = "aggregate/entity.kt.peb",

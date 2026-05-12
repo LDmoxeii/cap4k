@@ -280,6 +280,8 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
     val designDomainEventHandler: DesignDomainEventHandlerGeneratorExtension =
         objects.newInstance(DesignDomainEventHandlerGeneratorExtension::class.java)
     val aggregate: AggregateGeneratorExtension = objects.newInstance(AggregateGeneratorExtension::class.java)
+    val aggregateProjection: AggregateProjectionGeneratorExtension =
+        objects.newInstance(AggregateProjectionGeneratorExtension::class.java)
     val drawingBoard: DrawingBoardGeneratorExtension = objects.newInstance(DrawingBoardGeneratorExtension::class.java)
     val flow: FlowGeneratorExtension = objects.newInstance(FlowGeneratorExtension::class.java)
 
@@ -321,6 +323,10 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
 
     fun aggregate(block: AggregateGeneratorExtension.() -> Unit) {
         aggregate.block()
+    }
+
+    fun aggregateProjection(block: AggregateProjectionGeneratorExtension.() -> Unit) {
+        aggregateProjection.block()
     }
 
     fun drawingBoard(block: DrawingBoardGeneratorExtension.() -> Unit) {
@@ -423,6 +429,10 @@ open class AggregateGeneratorArtifactsExtension @Inject constructor(objects: Obj
     val factory: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
     val specification: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
     val unique: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+}
+
+open class AggregateProjectionGeneratorExtension @Inject constructor(objects: ObjectFactory) {
+    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }
 
 open class DrawingBoardGeneratorExtension @Inject constructor(objects: ObjectFactory) {

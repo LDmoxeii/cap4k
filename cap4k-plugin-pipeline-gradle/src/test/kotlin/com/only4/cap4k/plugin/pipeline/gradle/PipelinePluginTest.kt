@@ -259,6 +259,10 @@ class PipelinePluginTest {
         extension.sources.irAnalysis.enabled.set(false)
         extension.generators.flow.enabled.set(true)
         assertTrue(shouldInferPipelineDependencies(extension))
+
+        extension.generators.flow.enabled.set(false)
+        extension.generators.aggregateProjection.enabled.set(true)
+        assertTrue(shouldInferPipelineDependencies(extension))
     }
 
     @Test
@@ -337,10 +341,20 @@ class PipelinePluginTest {
                 )
             )
         )
+        assertEquals(
+            setOf("adapter"),
+            generatedSourceModuleRoles(
+                projectConfig(
+                    modules = mapOf("adapter" to "demo-adapter"),
+                    sources = mapOf("db" to SourceConfig(enabled = true)),
+                    generators = mapOf("aggregate-projection" to GeneratorConfig(enabled = true)),
+                )
+            )
+        )
     }
 
     @Test
-    fun `generated source task config keeps only aggregate generation inputs`() {
+    fun `generated source task config keeps only generated source generation inputs`() {
         val config = projectConfig(
             sources = mapOf(
                 "db" to SourceConfig(enabled = true),
@@ -351,6 +365,7 @@ class PipelinePluginTest {
             ),
             generators = mapOf(
                 "aggregate" to GeneratorConfig(enabled = true),
+                "aggregate-projection" to GeneratorConfig(enabled = true),
                 "design-query" to GeneratorConfig(enabled = true),
                 "design-query-handler" to GeneratorConfig(enabled = true),
                 "drawing-board" to GeneratorConfig(enabled = true),
@@ -361,7 +376,7 @@ class PipelinePluginTest {
         val generatedConfig = generatedSourceTaskConfig(config)
 
         assertEquals(setOf("db", "enum-manifest"), generatedConfig.sources.keys)
-        assertEquals(setOf("aggregate"), generatedConfig.generators.keys)
+        assertEquals(setOf("aggregate", "aggregate-projection"), generatedConfig.generators.keys)
     }
 
     @Test
@@ -441,6 +456,29 @@ class PipelinePluginTest {
                 domainProject.layout.buildDirectory.dir("generated/cap4k/main/kotlin").get().asFile.canonicalFile,
                 adapterProject.layout.buildDirectory.dir("generated/cap4k/main/kotlin").get().asFile.canonicalFile,
             ),
+            task.outputs.files.files.map { it.canonicalFile }.toSet(),
+        )
+    }
+
+    @Test
+    fun `cap4kGenerateSources declares adapter output directory when only aggregate projection is enabled`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-aggregate-projection-generated-source-outputs")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val adapterProject = ProjectBuilder.builder()
+            .withName("demo-adapter")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-adapter"))
+            .build()
+        rootProject.pluginManager.apply(PipelinePlugin::class.java)
+        val extension = rootProject.extensions.getByType(Cap4kExtension::class.java)
+        configureValidAggregateProjectionGeneration(extension)
+
+        val task = rootProject.tasks.named("cap4kGenerateSources", Cap4kGenerateSourcesTask::class.java).get()
+
+        assertEquals(
+            setOf(adapterProject.layout.buildDirectory.dir("generated/cap4k/main/kotlin").get().asFile.canonicalFile),
             task.outputs.files.files.map { it.canonicalFile }.toSet(),
         )
     }
@@ -546,7 +584,8 @@ class PipelinePluginTest {
                         "unsupportedTablePolicy" to "FAIL",
                         "artifact.unique" to true,
                     ),
-                )
+                ),
+                "aggregate-projection" to GeneratorConfig(enabled = true),
             ),
         ).copy(
             typeRegistry = mapOf("Money" to TypeRegistryEntry("com.acme.Money")),
@@ -561,6 +600,7 @@ class PipelinePluginTest {
         assertTrue(snapshot.contains("video_post"))
         assertTrue(snapshot.contains("com.acme.Money"))
         assertTrue(snapshot.contains("artifact.unique"))
+        assertTrue(snapshot.contains("aggregateProjection"))
         assertTrue(snapshot.contains("demo-domain/build/generated/cap4k/main/kotlin"))
     }
 
@@ -961,6 +1001,36 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `aggregate projection generation wires jakarta persistence api into resolved adapter module`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-aggregate-projection-adapter-dependency-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val adapterProject = ProjectBuilder.builder()
+            .withName("demo-adapter")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-adapter"))
+            .build()
+        adapterProject.configurations.create("implementation")
+
+        ensureAggregateProjectionAdapterJpaDependency(
+            rootProject,
+            projectConfig(
+                modules = mapOf("adapter" to "demo-adapter"),
+                sources = mapOf("db" to SourceConfig(enabled = true)),
+                generators = mapOf("aggregate-projection" to GeneratorConfig(enabled = true)),
+            )
+        )
+
+        val implementationDependencies = adapterProject.configurations.getByName("implementation").dependencies
+        assertTrue(
+            implementationDependencies.any { dependency ->
+                dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
+            }
+        )
+    }
+
+    @Test
     fun `ir analysis input dir does not match sibling project build dir by string prefix`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-prefix-root")
         val rootProject = ProjectBuilder.builder()
@@ -1121,6 +1191,26 @@ class PipelinePluginTest {
         }
         extension.generators {
             aggregate {
+                enabled.set(true)
+            }
+        }
+    }
+
+    private fun configureValidAggregateProjectionGeneration(extension: Cap4kExtension) {
+        extension.project {
+            basePackage.set("com.acme.demo")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:demo")
+                username.set("sa")
+                password.set("")
+            }
+        }
+        extension.generators {
+            aggregateProjection {
                 enabled.set(true)
             }
         }

@@ -44,6 +44,7 @@ class Cap4kProjectConfigFactory {
             designDomainEventEnabled = extension.generators.designDomainEvent.enabled.get(),
             designDomainEventHandlerEnabled = extension.generators.designDomainEventHandler.enabled.get(),
             aggregateEnabled = extension.generators.aggregate.enabled.get(),
+            aggregateProjectionEnabled = extension.generators.aggregateProjection.enabled.get(),
             flowEnabled = extension.generators.flow.enabled.get(),
             drawingBoardEnabled = extension.generators.drawingBoard.enabled.get(),
         )
@@ -142,6 +143,12 @@ class Cap4kProjectConfigFactory {
                 )
             }
         }
+        if (generators.aggregateProjectionEnabled) {
+            extension.project.adapterModulePath.requiredWhenEnabled(
+                "project.adapterModulePath",
+                "aggregateProjection"
+            )
+        }
     }
 
     private fun buildModules(
@@ -178,6 +185,9 @@ class Cap4kProjectConfigFactory {
         if (generators.aggregateEnabled) {
             put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
             put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
+            put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
+        }
+        if (generators.aggregateProjectionEnabled) {
             put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
         }
     }
@@ -307,6 +317,9 @@ class Cap4kProjectConfigFactory {
                 )
             )
         }
+        if (states.aggregateProjectionEnabled) {
+            put("aggregate-projection", GeneratorConfig(enabled = true))
+        }
         if (states.flowEnabled) {
             put("flow", GeneratorConfig(enabled = true))
         }
@@ -434,6 +447,9 @@ class Cap4kProjectConfigFactory {
         if (generators.aggregateEnabled && !sources.dbEnabled) {
             throw IllegalArgumentException("aggregate generator requires enabled db source.")
         }
+        if (generators.aggregateProjectionEnabled && !sources.dbEnabled) {
+            throw IllegalArgumentException("aggregateProjection generator requires enabled db source.")
+        }
         if (generators.flowEnabled && !sources.irAnalysisEnabled) {
             throw IllegalArgumentException("flow generator requires enabled irAnalysis source.")
         }
@@ -485,6 +501,7 @@ private data class GeneratorStates(
     val designDomainEventEnabled: Boolean,
     val designDomainEventHandlerEnabled: Boolean,
     val aggregateEnabled: Boolean,
+    val aggregateProjectionEnabled: Boolean,
     val flowEnabled: Boolean,
     val drawingBoardEnabled: Boolean,
 )

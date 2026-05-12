@@ -64,6 +64,14 @@ Example:
 <override-dir>/addons/only-engine-enum-translation/aggregate/enum_translation.kt.peb
 ```
 
+Built-in templates use the same override directory precedence without the `addons/<addon-id>` prefix. For aggregate projections the neutral template id is:
+
+```text
+aggregate_projection/entity.kt.peb
+```
+
+Jimmer read-model support should be documented as a project template override of that neutral template. It should not ask users to override `jpa_projection`, `projection/jpa_projection`, or a Jimmer-specific built-in template, because cap4k does not ship a Jimmer generator or runtime projection abstraction in this slice.
+
 ## Conflict Policy Compatibility
 
 Per-template policies work for addon artifacts the same way they work for built-in artifacts:
@@ -105,6 +113,7 @@ The business authoring skill should cover the first row only. Addon-author guida
 | Tactical model not unified in docs | Users miss `Mediator`, factories, built-in repositories, UoW, lifecycle hooks, specifications, and domain services |
 | Layer responsibility is easy to misstate | Query/client handlers are physically adapter-side while still serving application request contracts |
 | Generated output ownership needs repetition | Users need to distinguish build-owned generated source, checked-in skeleton, and copied snapshot |
+| Read-model generation boundary | Users need to know `aggregateProjection` is scalar JPA generated source by default, while Jimmer is a template override path |
 | Integration event mechanism is hard to infer | Users need framework flow diagrams, adapter endpoint rules, DB table requirements, and contract-sharing guidance |
 | Testing guidance needs examples | Users need to know which tests teach behavior and which tests are implementation residue |
 | Analysis workflow needs a ladder | Users need compile, IR input dirs, analysis plan, analysis generate, and flow/drawing-board review in order |

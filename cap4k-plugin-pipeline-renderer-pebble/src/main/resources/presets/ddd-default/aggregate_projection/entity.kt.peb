@@ -1,0 +1,47 @@
+package {{ packageName }}
+
+{% if entityJpa.entityEnabled -%}
+{{ use("jakarta.persistence.Column") -}}
+{{ use("jakarta.persistence.Entity") -}}
+{{ use("jakarta.persistence.Id") -}}
+{{ use("jakarta.persistence.Table") -}}
+{% if hasVersionFields -%}
+{{ use("jakarta.persistence.Version") -}}
+{% endif -%}
+{% if hasConverterFields -%}
+{{ use("jakarta.persistence.Convert") -}}
+{% endif -%}
+{% endif -%}
+{% for import in imports -%}
+{{ use(import) -}}
+{% endfor -%}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+{% if entityJpa.entityEnabled %}
+@Entity
+@Table(name = "{{ entityJpa.tableName }}")
+{% endif -%}
+class {{ typeName }}(
+{% for field in scalarFields -%}
+{{ "    " }}{{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
+{% endfor -%}
+) {
+{% for field in scalarFields %}
+{% if entityJpa.entityEnabled %}
+{% if field.isId %}
+    @Id
+{% endif %}
+{% if field.isVersion %}
+    @Version
+{% endif %}
+    @Column(name = "{{ field.columnName }}")
+{% if field.converterClassRef %}
+    @Convert(converter = {{ field.converterClassRef }}::class)
+{% endif %}
+{% endif %}
+    var {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %} = {{ field.name }}
+        internal set
+
+{% endfor -%}
+}

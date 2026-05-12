@@ -2255,6 +2255,27 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `aggregate projection only does not validate write model id strategy`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7").copy(
+                generators = mapOf("aggregate-projection" to GeneratorConfig(enabled = true)),
+            ),
+            tables = listOf(
+                table(
+                    name = "video",
+                    columns = listOf(column("id", "BIGINT", "Long", false, primaryKey = true)),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        assertEquals(listOf("Video"), result.model.entities.map { it.name })
+        assertTrue(result.model.aggregateSpecialFieldResolvedPolicies.isEmpty())
+        assertTrue(result.model.aggregateIdPolicyControls.isEmpty())
+    }
+
+    @Test
     fun `generated value marker uses DSL default strategy with DB explicit source`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "snowflake-long"),

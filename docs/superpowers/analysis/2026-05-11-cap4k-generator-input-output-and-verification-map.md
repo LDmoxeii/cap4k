@@ -122,6 +122,18 @@ Built-in aggregate planning covers:
 - shared enum;
 - local enum.
 
+Built-in aggregate projection planning is separate from aggregate generation:
+
+- DSL block: `generators.aggregateProjection.enabled`;
+- default: disabled;
+- source requirement: enabled `sources.db`;
+- generator id: `aggregate-projection`;
+- output root: adapter module `build/generated/cap4k/main/kotlin`;
+- fixed package root: `<basePackage>.adapter.application.projections`;
+- template id: `aggregate_projection/entity.kt.peb`.
+
+The built-in template emits JPA-flavored scalar projection classes only. It exposes relation metadata in template context for overrides, but it does not render relation object graph fields by default.
+
 Output ownership:
 
 | Output kind | Root | Conflict policy |
@@ -132,6 +144,7 @@ Output ownership:
 Important artifact boundaries:
 
 - Entity/schema/repository are generated source when produced by `cap4kGenerateSources`.
+- Aggregate projection classes are generated source under the adapter module when `aggregateProjection` is enabled.
 - Behavior is checked-in author surface and fixed to `SKIP`.
 - Factory and specification are optional checked-in skeletons and should be `SKIP` when intended for human implementation.
 - Factory generation is important for aggregate-root creation; only aggregate roots should have factories.
@@ -181,6 +194,7 @@ A business reference project should demonstrate:
 - DB annotations for enum, relation, generated ID, version, soft delete, managed fields, and uniqueness when used;
 - design JSON for command/query/client/api_payload/domain_event/handler families;
 - `cap4kGenerateSources` for build-owned source;
+- optional `aggregateProjection` output when the project wants generated adapter read models;
 - checked-in handlers/factories as user-maintained code;
 - generated snapshot copy only for audit;
 - analysis output generated after compile.

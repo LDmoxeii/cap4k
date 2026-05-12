@@ -32,6 +32,7 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.generators.designDomainEvent.enabled.get())
         assertFalse(extension.generators.designDomainEventHandler.enabled.get())
         assertFalse(extension.generators.aggregate.enabled.get())
+        assertFalse(extension.generators.aggregateProjection.enabled.get())
         assertEquals("FAIL", extension.generators.aggregate.unsupportedTablePolicy.get())
         assertEquals("uuid7", extension.generators.aggregate.specialFields.idDefaultStrategy.get())
         assertEquals("", extension.generators.aggregate.specialFields.deletedDefaultColumn.get())
@@ -1376,6 +1377,80 @@ class Cap4kProjectConfigFactoryTest {
             config.modules
         )
         assertEquals(setOf("aggregate"), config.enabledGeneratorIds())
+    }
+
+    @Test
+    fun `factory includes adapter module and aggregate projection generator when enabled`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:test")
+                username.set("sa")
+                password.set("secret")
+            }
+        }
+        extension.generators {
+            aggregateProjection { enabled.set(true) }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(mapOf("adapter" to "demo-adapter"), config.modules)
+        assertEquals(setOf("aggregate-projection"), config.enabledGeneratorIds())
+    }
+
+    @Test
+    fun `aggregate projection generator requires adapter module path`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:test")
+                username.set("sa")
+                password.set("secret")
+            }
+        }
+        extension.generators {
+            aggregateProjection { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("project.adapterModulePath is required when aggregateProjection is enabled.", error.message)
+    }
+
+    @Test
+    fun `aggregate projection generator requires enabled db source`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.generators {
+            aggregateProjection { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("aggregateProjection generator requires enabled db source.", error.message)
     }
 
     @Test

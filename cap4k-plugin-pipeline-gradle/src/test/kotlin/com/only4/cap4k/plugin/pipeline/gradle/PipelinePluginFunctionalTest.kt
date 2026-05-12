@@ -1523,6 +1523,52 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kGenerateSources writes aggregate projection generated source when enabled alone`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-projection-generated-sources")
+        copyFixture(projectDir, "aggregate-minimal-sample")
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText()
+                .replace("\r\n", "\n")
+                .replace(
+                    """        aggregate {
+            enabled.set(true)
+            specialFields {
+                idDefaultStrategy.set("snowflake-long")
+            }
+        }""",
+                    """        aggregateProjection {
+            enabled.set(true)
+        }""",
+                )
+        )
+
+        val result = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerateSources")
+            .build()
+
+        val projectionFile = projectDir.resolve(
+            generatedSource(
+                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/projections/video_post/VideoPostProjection.kt"
+            )
+        )
+        val entityFile = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
+        )
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(projectionFile.toFile().exists())
+        assertFalse(entityFile.toFile().exists())
+        val projectionContent = projectionFile.readText()
+        assertTrue(projectionContent.contains("package com.acme.demo.adapter.application.projections.video_post"))
+        assertTrue(projectionContent.contains("@Entity"))
+        assertTrue(projectionContent.contains("class VideoPostProjection("))
+        assertTrue(projectionContent.contains("slug: String"))
+        assertFalse(projectionContent.contains("ManyToOne"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kGenerateSources does not depend on design ksp metadata`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-generated-sources-no-ksp")
         copyFixture(projectDir, "aggregate-minimal-sample")
