@@ -376,6 +376,8 @@ data class DrawingBoardElementModel(
     val aggregates: List<String> = emptyList(),
     val entity: String? = null,
     val persist: Boolean? = null,
+    val role: String? = null,
+    val eventName: String? = null,
     val traits: Set<RequestTrait> = emptySet(),
     val requestFields: List<DrawingBoardFieldModel> = emptyList(),
     val responseFields: List<DrawingBoardFieldModel> = emptyList(),
@@ -498,12 +500,27 @@ data class DomainEventModel(
     val fields: List<FieldModel> = emptyList(),
 )
 
+enum class IntegrationEventRole {
+    INBOUND,
+    OUTBOUND,
+}
+
+data class IntegrationEventModel(
+    val packageName: String,
+    val typeName: String,
+    val description: String,
+    val role: IntegrationEventRole,
+    val eventName: String,
+    val fields: List<FieldModel> = emptyList(),
+)
+
 data class CanonicalModel(
     val commands: List<CommandModel> = emptyList(),
     val queries: List<QueryModel> = emptyList(),
     val clients: List<ClientModel> = emptyList(),
     val validators: List<ValidatorModel> = emptyList(),
     val domainEvents: List<DomainEventModel> = emptyList(),
+    val integrationEvents: List<IntegrationEventModel> = emptyList(),
     val schemas: List<SchemaModel> = emptyList(),
     val entities: List<EntityModel> = emptyList(),
     val repositories: List<RepositoryModel> = emptyList(),

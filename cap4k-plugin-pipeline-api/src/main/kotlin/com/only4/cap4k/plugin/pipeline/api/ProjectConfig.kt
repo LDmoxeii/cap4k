@@ -94,6 +94,14 @@ data class ArtifactLayoutConfig(
         packageRoot = "application.subscribers.domain",
         packageSuffix = "",
     ),
+    val designIntegrationEvent: PackageLayout = PackageLayout(
+        packageRoot = "application.subscribers.integration",
+        packageSuffix = "",
+    ),
+    val designIntegrationEventSubscriber: PackageLayout = PackageLayout(
+        packageRoot = "application.subscribers.integration",
+        packageSuffix = "",
+    ),
 )
 
 data class PackageLayout(

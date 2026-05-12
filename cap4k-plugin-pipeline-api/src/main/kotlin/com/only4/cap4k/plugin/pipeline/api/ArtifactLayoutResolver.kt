@@ -73,6 +73,12 @@ class ArtifactLayoutResolver(
     fun designDomainEventHandlerPackage(designPackage: String): String =
         packageFromLayout(artifactLayout.designDomainEventHandler, designPackage)
 
+    fun designIntegrationEventPackage(role: String, designPackage: String): String =
+        packageFromLayout(artifactLayout.designIntegrationEvent, joinPackage(role, designPackage))
+
+    fun designIntegrationEventSubscriberPackage(role: String, designPackage: String): String =
+        packageFromLayout(artifactLayout.designIntegrationEventSubscriber, joinPackage(role, designPackage))
+
     fun flowOutputRoot(): String =
         normalizeOutputRoot(artifactLayout.flow.outputRoot, "flow")
 
@@ -142,6 +148,8 @@ class ArtifactLayoutResolver(
         "designApiPayload" to artifactLayout.designApiPayload,
         "designDomainEvent" to artifactLayout.designDomainEvent,
         "designDomainEventHandler" to artifactLayout.designDomainEventHandler,
+        "designIntegrationEvent" to artifactLayout.designIntegrationEvent,
+        "designIntegrationEventSubscriber" to artifactLayout.designIntegrationEventSubscriber,
     )
 
     private fun outputRootLayouts(): List<Pair<String, OutputRootLayout>> = listOf(
