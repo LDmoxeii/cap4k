@@ -22,9 +22,11 @@ class DesignJsonSourceProvider : SourceProvider {
         "client",
         "api_payload",
         "domain_event",
+        "integration_event",
         "validator",
     )
     private val requestTraitTags = setOf("query", "api_payload")
+    private val integrationEventRoles = setOf("inbound", "outbound")
     private val selfToken = Regex("""(?<![A-Za-z0-9_.])self(?![A-Za-z0-9_])""", RegexOption.IGNORE_CASE)
     private val supportedValidatorTargets = setOf("CLASS", "FIELD", "VALUE_PARAMETER")
     private val validatorTargetOrder = mapOf("CLASS" to 0, "FIELD" to 1, "VALUE_PARAMETER" to 2)
@@ -144,6 +146,9 @@ class DesignJsonSourceProvider : SourceProvider {
             val requestFields = parseFields(obj["requestFields"]?.asJsonArray)
             val responseFields = parseFields(obj["responseFields"]?.asJsonArray)
             val traits = parseTraits(obj, tag, name)
+            val role = parseIntegrationEventRole(obj, tag, name)
+            val eventName = parseIntegrationEventName(obj, tag, name)
+            validateIntegrationEventResponseFields(tag, name, responseFields)
             val validator = tag == "validator"
             val targets = if (validator) parseValidatorTargets(obj, name) else emptyList()
             val valueType = if (validator) parseValidatorValueType(obj, name, targets) else null
@@ -164,6 +169,8 @@ class DesignJsonSourceProvider : SourceProvider {
                 targets = targets,
                 valueType = valueType,
                 parameters = parameters,
+                role = role,
+                eventName = eventName,
             )
         }
     }
@@ -194,6 +201,44 @@ class DesignJsonSourceProvider : SourceProvider {
         }.toSet()
 
         return traits
+    }
+
+    private fun parseIntegrationEventRole(obj: JsonObject, tag: String, name: String): String? {
+        if (tag != "integration_event") {
+            return null
+        }
+        val role = obj["role"]?.asString?.trim()?.lowercase(Locale.ROOT)
+        require(!role.isNullOrEmpty()) {
+            "integration_event $name must declare role inbound or outbound."
+        }
+        require(role in integrationEventRoles) {
+            "integration_event $name has unsupported role: $role"
+        }
+        return role
+    }
+
+    private fun parseIntegrationEventName(obj: JsonObject, tag: String, name: String): String? {
+        if (tag != "integration_event") {
+            return null
+        }
+        val eventName = obj["eventName"]?.asString?.trim()
+        require(!eventName.isNullOrEmpty()) {
+            "integration_event $name must declare eventName."
+        }
+        return eventName
+    }
+
+    private fun validateIntegrationEventResponseFields(
+        tag: String,
+        name: String,
+        responseFields: List<FieldModel>,
+    ) {
+        if (tag != "integration_event") {
+            return
+        }
+        require(responseFields.isEmpty()) {
+            "integration_event $name must not declare responseFields."
+        }
     }
 
     private fun parseValidatorTargets(obj: JsonObject, validatorName: String): List<String> {

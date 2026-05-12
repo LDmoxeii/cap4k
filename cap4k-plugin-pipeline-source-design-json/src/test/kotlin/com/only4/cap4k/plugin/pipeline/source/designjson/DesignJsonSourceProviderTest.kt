@@ -294,6 +294,167 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
+    fun `reads integration event role and event name`() {
+        val tempFile = tempDir.resolve("integration-event.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "integration_event",
+                    "package": "content",
+                    "name": "ContentPublishedIntegrationEvent",
+                    "desc": "content published integration event",
+                    "role": "OUTBOUND",
+                    "eventName": "content.published",
+                    "requestFields": [
+                      { "name": "contentId", "type": "Long" }
+                    ],
+                    "responseFields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
+        val entry = snapshot.entries.single()
+
+        assertEquals("integration_event", entry.tag)
+        assertEquals("outbound", entry.role)
+        assertEquals("content.published", entry.eventName)
+        assertEquals("contentId", entry.requestFields.single().name)
+    }
+
+    @Test
+    fun `rejects integration event missing role`() {
+        val tempFile = tempDir.resolve("integration-event-missing-role.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "integration_event",
+                    "package": "content",
+                    "name": "ContentPublishedIntegrationEvent",
+                    "desc": "content published integration event",
+                    "eventName": "content.published",
+                    "requestFields": [],
+                    "responseFields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals(
+            "integration_event ContentPublishedIntegrationEvent must declare role inbound or outbound.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `rejects integration event unsupported role`() {
+        val tempFile = tempDir.resolve("integration-event-unsupported-role.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "integration_event",
+                    "package": "content",
+                    "name": "ContentPublishedIntegrationEvent",
+                    "desc": "content published integration event",
+                    "role": "producer",
+                    "eventName": "content.published",
+                    "requestFields": [],
+                    "responseFields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals(
+            "integration_event ContentPublishedIntegrationEvent has unsupported role: producer",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `rejects integration event missing event name`() {
+        val tempFile = tempDir.resolve("integration-event-missing-event-name.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "integration_event",
+                    "package": "content",
+                    "name": "ContentPublishedIntegrationEvent",
+                    "desc": "content published integration event",
+                    "role": "inbound",
+                    "requestFields": [],
+                    "responseFields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals(
+            "integration_event ContentPublishedIntegrationEvent must declare eventName.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `rejects integration event response fields`() {
+        val tempFile = tempDir.resolve("integration-event-response-fields.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "integration_event",
+                    "package": "content",
+                    "name": "ContentPublishedIntegrationEvent",
+                    "desc": "content published integration event",
+                    "role": "outbound",
+                    "eventName": "content.published",
+                    "requestFields": [],
+                    "responseFields": [
+                      { "name": "accepted", "type": "Boolean" }
+                    ]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals(
+            "integration_event ContentPublishedIntegrationEvent must not declare responseFields.",
+            error.message,
+        )
+    }
+
+    @Test
     fun `reads expanded validator structural fields`() {
         val tempFile = tempDir.resolve("validator-expanded.json")
         Files.writeString(
