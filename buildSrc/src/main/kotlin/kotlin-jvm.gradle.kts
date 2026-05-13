@@ -1,6 +1,8 @@
 // The code in this file is a convention plugin - a Gradle mechanism for sharing reusable build logic.
 package buildsrc.convention
 
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import java.time.Duration
 
@@ -21,6 +23,30 @@ java {
 }
 
 publishing {
+    publications.withType<MavenPublication>().configureEach {
+        pom {
+            name.set(project.name)
+            description.set("cap4k module ${project.name}")
+            url.set("https://github.com/LDmoxeii/cap4k")
+            licenses {
+                license {
+                    name.set("MIT License")
+                    url.set("https://github.com/LDmoxeii/cap4k/blob/master/LICENSE")
+                }
+            }
+            developers {
+                developer {
+                    id.set("LDmoxeii")
+                    name.set("LDmoxeii")
+                }
+            }
+            scm {
+                connection.set("scm:git:https://github.com/LDmoxeii/cap4k.git")
+                developerConnection.set("scm:git:https://github.com/LDmoxeii/cap4k.git")
+                url.set("https://github.com/LDmoxeii/cap4k")
+            }
+        }
+    }
     repositories {
         maven {
             name = "CentralPortal"
@@ -44,28 +70,6 @@ afterEvaluate {
                     groupId = project.group.toString()
                     artifactId = project.name
                     version = project.version.toString()
-                    pom {
-                        name.set(project.name)
-                        description.set("cap4k module ${project.name}")
-                        url.set("https://github.com/LDmoxeii/cap4k")
-                        licenses {
-                            license {
-                                name.set("MIT License")
-                                url.set("https://github.com/LDmoxeii/cap4k/blob/master/LICENSE")
-                            }
-                        }
-                        developers {
-                            developer {
-                                id.set("LDmoxeii")
-                                name.set("LDmoxeii")
-                            }
-                        }
-                        scm {
-                            connection.set("scm:git:https://github.com/LDmoxeii/cap4k.git")
-                            developerConnection.set("scm:git:https://github.com/LDmoxeii/cap4k.git")
-                            url.set("https://github.com/LDmoxeii/cap4k")
-                        }
-                    }
                 }
             }
         }
@@ -81,6 +85,13 @@ afterEvaluate {
             useInMemoryPgpKeys(signingKey, signingPassword)
             sign(publishing.publications)
         }
+    }
+}
+
+tasks.withType<PublishToMavenRepository>().configureEach {
+    // Plugin marker publications keep legacy com.only4-derived coordinates; Central only verifies io.github.ldmoxeii.
+    if (name.endsWith("PluginMarkerMavenPublicationToCentralPortalRepository")) {
+        enabled = false
     }
 }
 
