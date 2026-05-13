@@ -33,6 +33,23 @@ afterEvaluate {
     }
 }
 
+publishing {
+    repositories {
+        maven {
+            name = "AliYunMaven"
+            url = uri("https://packages.aliyun.com/67053c6149e9309ce56b9e9e/maven/cap4k")
+            credentials {
+                username = providers.gradleProperty("aliyun.maven.username").orNull
+                    ?: System.getenv("ALIYUN_MAVEN_USERNAME")
+                    ?: "defaultUsername"
+                password = providers.gradleProperty("aliyun.maven.password").orNull
+                    ?: System.getenv("ALIYUN_MAVEN_PASSWORD")
+                    ?: "defaultPassword"
+            }
+        }
+    }
+}
+
 kotlin {
     jvmToolchain(17)
 }
