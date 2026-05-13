@@ -18,19 +18,6 @@ java {
     withSourcesJar()
 }
 
-publishing {
-    repositories {
-        maven {
-            name = "AliYunMaven"
-            url = uri("https://packages.aliyun.com/67053c6149e9309ce56b9e9e/maven/cap4k")
-            credentials {
-                username = providers.gradleProperty("aliyun.maven.username").orNull ?: "defaultUsername"
-                password = providers.gradleProperty("aliyun.maven.password").orNull ?: "defaultPassword"
-            }
-        }
-    }
-}
-
 afterEvaluate {
     if (!pluginManager.hasPlugin("java-gradle-plugin")) {
         publishing {
