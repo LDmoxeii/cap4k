@@ -145,4 +145,4 @@ fun Entity.onDelete()
 - 不要让聚合直接了解 HTTP payload、第三方 DTO、轮询响应或消息协议。
 - 不要给非聚合根生成工厂。
 - 不要把 `src-generated/main/kotlin` 当成活跃生成输出。
-- 不要把 design 暂不支持的 `integration_event`、`value_object`、`domain_service` 当成已经可生成能力。
+- 不要把 design 暂不支持的 `value_object`、`domain_service` 当成已经可生成能力；`integration_event` 只支持契约和 inbound `@EventListener` subscriber 骨架，不包含 MQ 专用代码生成。

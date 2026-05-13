@@ -93,6 +93,8 @@ generators {
     designApiPayload { enabled.set(true) }
     designDomainEvent { enabled.set(true) }
     designDomainEventHandler { enabled.set(true) }
+    designIntegrationEvent { enabled.set(true) }
+    designIntegrationEventSubscriber { enabled.set(true) }
     aggregate { enabled.set(true) }
     flow { enabled.set(true) }
     drawingBoard { enabled.set(true) }
@@ -101,10 +103,12 @@ generators {
 
 | generator family | 说明 | 主要任务 |
 | --- | --- | --- |
-| design family | 命令、查询、client、validator、api payload、domain event 相关源码 | `cap4kPlan` / `cap4kGenerate` |
+| design family | 命令、查询、client、validator、api payload、domain event、integration event 相关源码 | `cap4kPlan` / `cap4kGenerate` |
 | aggregate | 聚合骨架及相关产物 | `cap4kPlan` / `cap4kGenerate` |
 | `flow` | 流程观察材料 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
 | `drawingBoard` | 设计 / 文档观察材料 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
+
+`designIntegrationEvent` 生成 `tag = "integration_event"` 的事件契约类，要求启用 `sources.designJson` 且配置 `project.applicationModulePath`。`designIntegrationEventSubscriber` 依赖 `designIntegrationEvent`，只为 `role = "inbound"` 的事件生成 Spring `@EventListener` subscriber；`role = "outbound"` 只生成事件契约，不生成 subscriber。
 
 ## `aggregate { }`
 
@@ -208,6 +212,19 @@ project { basePackage.set("com.acme.demo"); applicationModulePath.set("demo-appl
 sources { designJson { enabled.set(true); files.from("design/design.json") } }
 generators { designCommand { enabled.set(true) } }
 ```
+
+integration event：
+
+```kotlin
+project { basePackage.set("com.acme.demo"); applicationModulePath.set("demo-application") }
+sources { designJson { enabled.set(true); files.from("design/design.json") } }
+generators {
+    designIntegrationEvent { enabled.set(true) }
+    designIntegrationEventSubscriber { enabled.set(true) }
+}
+```
+
+默认布局会把契约和 subscriber 放到 application 层的 `application.subscribers.integration` 下，并自动追加 `inbound` / `outbound` role 段。模板覆盖文件名是 `design/integration_event.kt.peb` 和 `design/integration_event_subscriber.kt.peb`。
 
 aggregate family：
 

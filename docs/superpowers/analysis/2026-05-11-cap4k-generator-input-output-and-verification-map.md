@@ -9,7 +9,7 @@ This file maps generator inputs, generated artifacts, and review checks for busi
 | Source | DSL key | Main use |
 |---|---|---|
 | DB schema | `sources.db` | Aggregate model, relations, enums, repositories, schema metadata, factories/specifications/unique helpers |
-| Design JSON | `sources.designJson` | Commands, queries, clients, payloads, validators, domain events, handlers |
+| Design JSON | `sources.designJson` | Commands, queries, clients, payloads, validators, domain events, integration events, handlers |
 | Enum manifest | `sources.enumManifest` | Shared enum definitions referenced by DB `@Type` |
 | KSP metadata | `sources.kspMetadata` | Aggregate metadata for design-driven artifacts |
 | IR analysis | `sources.irAnalysis` | Flow and drawing-board analysis artifacts |
@@ -74,6 +74,7 @@ Supported `tag` values:
 | `client` | external client/cli request |
 | `api_payload` | adapter API payload |
 | `domain_event` | domain event payload |
+| `integration_event` | application integration event contract and inbound subscriber skeleton |
 | `validator` | validation annotation and validator |
 
 Common fields include `package`, `name`, `desc`, `aggregates`, `requestFields`, and `responseFields`.
@@ -83,16 +84,18 @@ Additional support:
 - `query` and `api_payload` support request trait `page`.
 - `domain_event` supports `persist`.
 - `domain_event` can omit package and can use reserved request field `entity`.
+- `integration_event` requires `role` (`inbound` or `outbound`) and non-blank `eventName`.
+- `integration_event` request fields become the event payload. `responseFields` must be empty.
+- `integration_event` with `role = inbound` can generate a Spring `@EventListener` subscriber; `role = outbound` generates only the event contract.
 - `validator` supports `message`, `targets`, `valueType`, and `parameters`.
 - Manifest-file mode reads a list of design files relative to the manifest and rejects path escape/duplicates.
 
 Unsupported design tags today:
 
-- `integration_event`
 - `value_object`
 - `domain_service`
 
-These unsupported tags are important future backlog candidates because business authors want design-driven commands, queries, clients, domain events, integration events, value objects, and domain services to be equally explicit.
+These unsupported tags are important future backlog candidates because business authors want value objects and domain services to be as explicit as the supported command, query, client, domain event, and integration event contracts.
 
 ## Enum Manifest
 
@@ -164,8 +167,12 @@ Design generator families:
 - `designApiPayload`
 - `designDomainEvent`
 - `designDomainEventHandler`
+- `designIntegrationEvent`
+- `designIntegrationEventSubscriber`
 
 Handler skeletons are author-maintained code. If generated into active source roots, their conflict policy should preserve user edits after the first generation.
+
+Integration event contracts are generated under `<basePackage>.application.subscribers.integration.<role>.<designPackage>`. Subscriber skeletons are generated only for inbound events and use Spring `@EventListener`; outbound events expose the contract but do not subscribe to themselves.
 
 ## Verification Workflow
 
@@ -192,7 +199,7 @@ Snapshot rule:
 A business reference project should demonstrate:
 
 - DB annotations for enum, relation, generated ID, version, soft delete, managed fields, and uniqueness when used;
-- design JSON for command/query/client/api_payload/domain_event/handler families;
+- design JSON for command/query/client/api_payload/domain_event/integration_event/handler families;
 - `cap4kGenerateSources` for build-owned source;
 - optional `aggregateProjection` output when the project wants generated adapter read models;
 - checked-in handlers/factories as user-maintained code;

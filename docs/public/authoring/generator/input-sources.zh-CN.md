@@ -112,6 +112,7 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 - `query` 和 `api_payload` 支持 request trait `page`；
 - `domain_event` 支持 `persist`；
 - `domain_event` 可以省略 package，并可使用保留 request field `entity`；
+- `integration_event` 支持 `role`（`inbound` / `outbound`）和 `eventName`；`inbound` 可生成 `@EventListener` subscriber 骨架，`outbound` 只生成事件契约；
 - `validator` 支持 `message`、`targets`、`valueType`、`parameters`；
 - manifest-file 模式读取相对 manifest 的 design 文件列表，并拒绝路径逃逸和重复项。
 
@@ -119,11 +120,10 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 
 当前 design JSON 暂不支持：
 
-- `integration_event`
 - `value_object`
 - `domain_service`
 
-这些是明确缺口，不是隐藏能力。需要集成事件、值对象或领域服务时，当前应通过 DB `@T` 类型绑定、必要时的 table-backed `@VO` 表、手写模型、后续 addon 或未来生成能力处理，并在项目审计中记录。
+这些是明确缺口，不是隐藏能力。需要值对象或领域服务时，当前应通过 DB `@T` 类型绑定、必要时的 table-backed `@VO` 表、手写模型、后续 addon 或未来生成能力处理，并在项目审计中记录。需要集成事件时，使用 `integration_event` 设计契约；MQ 绑定和外部协议适配仍由项目手写。
 
 ## enum manifest
 

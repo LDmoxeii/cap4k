@@ -78,8 +78,8 @@ Before accepting AI-assisted work, human reviewers should check:
 These topics can be discussed or demonstrated, but should not be treated as complete default capabilities in this v1 guide:
 
 - value object, Saga, and Domain Service authoring qualification will continue to improve
-- value object, Saga, Domain Service, and integration-event generator support needs later slices
+- value object, Saga, and Domain Service generator support needs later slices
 - layered model and public tactical model qualification will continue to converge
-- design-driven support for command, query, client, and domain_event contracts will continue to improve; `integration_event`, `value_object`, and `domain_service` remain follow-up extension points
+- design-driven support for command, query, client, domain_event, and integration_event contracts will continue to improve; `value_object` and `domain_service` remain follow-up extension points
 - `drawing_board.json` remains a later extension point for cross-service integration-event communication
 - addon / SPI authoring rules for advanced users should grow after more real usage
