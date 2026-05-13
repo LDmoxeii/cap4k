@@ -11,13 +11,6 @@ dependencyResolutionManagement {
         maven {
             url = uri("https://maven.aliyun.com/repository/public")
         }
-        maven {
-            credentials {
-                username = providers.gradleProperty("aliyun.maven.username").orNull ?: "defaultUsername"
-                password = providers.gradleProperty("aliyun.maven.password").orNull ?: "defaultPassword"
-            }
-            url = uri("https://packages.aliyun.com/67053c6149e9309ce56b9e9e/maven/cap4k")
-        }
     }
 }
 
