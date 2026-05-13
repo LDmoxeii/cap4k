@@ -141,7 +141,7 @@ open class DefaultDomainEventSupervisor(
         val now = LocalDateTime.now()
 
         for (eventPayload in eventPayloads) {
-            val deliverTime = getDeliverTime(eventPayload)
+            val deliverTime = getDeliverTime(eventPayload, now)
             val event = eventRecordRepository.create()
             event.init(
                 eventPayload,
@@ -238,11 +238,15 @@ open class DefaultDomainEventSupervisor(
      * 获取事件发送时间
      */
     fun getDeliverTime(eventPayload: Any): LocalDateTime {
+        return getDeliverTime(eventPayload, LocalDateTime.now())
+    }
+
+    private fun getDeliverTime(eventPayload: Any, defaultDeliverTime: LocalDateTime): LocalDateTime {
         val eventScheduleMap = TL_EVENT_SCHEDULE_MAP.get()
         return if (eventScheduleMap != null && eventScheduleMap.containsKey(eventPayload)) {
             eventScheduleMap[eventPayload]!!
         } else {
-            LocalDateTime.now()
+            defaultDeliverTime
         }
     }
 }
