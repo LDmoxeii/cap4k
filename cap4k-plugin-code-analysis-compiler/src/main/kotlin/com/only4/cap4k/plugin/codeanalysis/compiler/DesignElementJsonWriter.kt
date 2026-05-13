@@ -14,8 +14,14 @@ class DesignElementJsonWriter {
                 append('{')
                 append("\"tag\":\"").append(escape(element.tag)).append("\",")
                 append("\"package\":\"").append(escape(element.`package`)).append("\",")
-                append("\"name\":\"").append(escape(element.name)).append("\",")
-                append("\"desc\":\"").append(escape(element.desc)).append("\"")
+                append("\"name\":\"").append(escape(element.name)).append("\"")
+                element.role?.takeIf { it.isNotBlank() }?.let { value ->
+                    append(",\"role\":\"").append(escape(value)).append("\"")
+                }
+                element.eventName?.takeIf { it.isNotBlank() }?.let { value ->
+                    append(",\"eventName\":\"").append(escape(value)).append("\"")
+                }
+                append(",\"desc\":\"").append(escape(element.desc)).append("\"")
                 if (element.aggregates.isNotEmpty()) {
                     append(",\"aggregates\":")
                     appendStringList(element.aggregates)

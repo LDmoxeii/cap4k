@@ -67,4 +67,26 @@ class DesignElementJsonWriterTest {
         assertTrue(json.contains("\"parameters\":[{\"name\":\"danmukuIdField\""))
         assertTrue(json.contains("\"defaultValue\":\"danmuku\\r\\t\\b\\f\""))
     }
+
+    @Test
+    fun `serializes integration event metadata`() {
+        val elements = listOf(
+            DesignElement(
+                tag = "integration_event",
+                `package` = "media.processing",
+                name = "MediaProcessingCallbackIntegrationEvent",
+                desc = "",
+                role = "inbound",
+                eventName = "cap4k.reference.contentstudio.media-processing.succeeded",
+                requestFields = listOf(DesignField("externalTaskId", "String", false, null)),
+                responseFields = emptyList(),
+            )
+        )
+
+        val json = DesignElementJsonWriter().write(elements)
+
+        assertTrue(json.contains("\"tag\":\"integration_event\""))
+        assertTrue(json.contains("\"role\":\"inbound\""))
+        assertTrue(json.contains("\"eventName\":\"cap4k.reference.contentstudio.media-processing.succeeded\""))
+    }
 }

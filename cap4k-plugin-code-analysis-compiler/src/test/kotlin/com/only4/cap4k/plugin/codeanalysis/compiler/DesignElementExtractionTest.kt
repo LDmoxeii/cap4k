@@ -31,6 +31,13 @@ class DesignElementExtractionTest {
                 """.trimIndent()
             ),
             SourceFile.kotlin(
+                "IntegrationEvent.kt",
+                """
+                    package com.only4.cap4k.ddd.core.application.event.annotation
+                    annotation class IntegrationEvent(val value: String = "", val subscriber: String = "[none]")
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
                 "Aggregate.kt",
                 """
                     package com.only4.cap4k.ddd.core.domain.aggregate.annotation
@@ -145,6 +152,33 @@ class DesignElementExtractionTest {
                 """.trimIndent()
             ),
             SourceFile.kotlin(
+                "MediaProcessingCallbackIntegrationEvent.kt",
+                """
+                    package com.acme.application.subscribers.integration.inbound.media.processing
+                    import java.time.LocalDateTime
+
+                    @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
+                        value = "cap4k.reference.contentstudio.media-processing.succeeded",
+                        subscriber = "\${'$'}{spring.application.name:}"
+                    )
+                    data class MediaProcessingCallbackIntegrationEvent(
+                        val externalTaskId: String,
+                        val completedAt: LocalDateTime,
+                    )
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "IgnoredRuntimeIntegrationEvent.kt",
+                """
+                    package com.acme.application.events
+
+                    @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
+                        value = "cap4k.reference.ignored"
+                    )
+                    data class IgnoredRuntimeIntegrationEvent(val externalTaskId: String)
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
                 "BatchSaveAccountList.kt",
                 """
                     package demo.adapter.portal.api.payload.account
@@ -211,6 +245,14 @@ class DesignElementExtractionTest {
         val userCreated = findObject(objects, "domain_event", "UserCreated")
         assertTrue(userCreated.contains("\"package\":\"user\""))
         assertTrue(userCreated.contains("\"responseFields\":[]"))
+        val mediaProcessing = findObject(objects, "integration_event", "MediaProcessingCallbackIntegrationEvent")
+        assertTrue(mediaProcessing.contains("\"package\":\"media.processing\""))
+        assertTrue(mediaProcessing.contains("\"role\":\"inbound\""))
+        assertTrue(mediaProcessing.contains("\"eventName\":\"cap4k.reference.contentstudio.media-processing.succeeded\""))
+        assertTrue(mediaProcessing.contains("\"name\":\"externalTaskId\""))
+        assertTrue(mediaProcessing.contains("\"type\":\"String\""))
+        assertTrue(mediaProcessing.contains("\"responseFields\":[]"))
+        assertFalse(json.contains("IgnoredRuntimeIntegrationEvent"))
         assertFalse(json.contains("\"package\":\"account.BatchSaveAccountList.Converter\""))
         assertFalse(json.contains("\"name\":\"companion\""))
     }

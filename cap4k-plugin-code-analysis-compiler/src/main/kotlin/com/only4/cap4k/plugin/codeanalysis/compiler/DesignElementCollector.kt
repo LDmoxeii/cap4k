@@ -52,6 +52,7 @@ class DesignElementCollector(
     private val requestParamFq = FqName(options.requestParamFq)
     private val pageRequestFq = FqName(options.pageRequestFq)
     private val domainEventAnnFq = FqName(options.domainEventAnnFq)
+    private val integrationEventAnnFq = FqName(options.integrationEventAnnFq)
     private val aggregateAnnFq = FqName(options.aggregateAnnFq)
     private val constraintAnnFq = FqName(options.constraintAnnFq)
     private val constraintValidatorFq = FqName(options.constraintValidatorFq)
@@ -76,6 +77,8 @@ class DesignElementCollector(
                     collectPayloadElement(declaration, fqcn)
                 declaration.hasAnnotation(domainEventAnnFq) || declaration.readAggregateInfo(aggregateAnnFq)?.type == AGG_TYPE_DOMAIN_EVENT ->
                     collectDomainEventElement(declaration, fqcn)
+                declaration.hasAnnotation(integrationEventAnnFq) ->
+                    collectIntegrationEventElement(declaration, fqcn)
                 declaration.kind == ClassKind.ANNOTATION_CLASS && declaration.hasAnnotation(constraintAnnFq) ->
                     collectValidatorElement(declaration, fqcn)
             }
@@ -180,6 +183,29 @@ class DesignElementCollector(
                 persist = persist,
                 requestFields = requestFields,
                 responseFields = emptyList()
+            )
+        )
+    }
+
+    private fun collectIntegrationEventElement(declaration: IrClass, fqcn: String) {
+        val role = inferIntegrationEventRole(fqcn) ?: return
+        val ann = declaration.findAnnotation(integrationEventAnnFq) ?: return
+        val nestedTypes = collectNestedTypes(declaration)
+        val requestFields = collectFields(
+            declaration,
+            nestedTypes,
+            DefaultValueContext("integration_event ${declaration.name.asString()} request field"),
+        )
+        addElement(
+            DesignElement(
+                tag = "integration_event",
+                `package` = extractPackage(fqcn, listOf(".application.subscribers.integration.$role"), null),
+                name = declaration.name.asString(),
+                desc = "",
+                requestFields = requestFields,
+                responseFields = emptyList(),
+                role = role,
+                eventName = ann.getStringArg("value"),
             )
         )
     }
@@ -680,6 +706,14 @@ class DesignElementCollector(
             (packageName.endsWith(".unique") || packageName.contains(".unique."))
     }
 
+    private fun inferIntegrationEventRole(fqcn: String): String? {
+        return when {
+            fqcn.contains(".application.subscribers.integration.inbound.") -> "inbound"
+            fqcn.contains(".application.subscribers.integration.outbound.") -> "outbound"
+            else -> null
+        }
+    }
+
     private fun IrClass.isOrImplements(fqName: FqName, visited: MutableSet<IrClass> = mutableSetOf()): Boolean {
         val currentFq = fqNameWhenAvailable
         if (currentFq == fqName) return true
@@ -692,7 +726,7 @@ class DesignElementCollector(
     }
 
     private fun IrClass.readAggregateInfo(aggregateAnn: FqName): AggregateInfo? {
-        val ann = annotations.firstOrNull { it.symbol.owner.parentAsClass.fqNameWhenAvailable == aggregateAnn }
+        val ann = findAnnotation(aggregateAnn)
             ?: return null
         val aggregateName = ann.getStringArg("aggregate") ?: ""
         val type = ann.getStringArg("type") ?: ""
@@ -701,9 +735,13 @@ class DesignElementCollector(
     }
 
     private fun IrClass.readDomainEventPersist(domainEventAnn: FqName): Boolean? {
-        val ann = annotations.firstOrNull { it.symbol.owner.parentAsClass.fqNameWhenAvailable == domainEventAnn }
+        val ann = findAnnotation(domainEventAnn)
             ?: return null
         return ann.getBooleanArg("persist") ?: false
+    }
+
+    private fun IrClass.findAnnotation(fqName: FqName): IrConstructorCall? {
+        return annotations.firstOrNull { it.symbol.owner.parentAsClass.fqNameWhenAvailable == fqName }
     }
 
     private fun IrConstructorCall.getStringArg(name: String): String? {

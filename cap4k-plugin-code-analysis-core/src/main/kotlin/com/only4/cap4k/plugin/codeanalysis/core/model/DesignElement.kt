@@ -15,6 +15,8 @@ data class DesignElement(
     val targets: List<String> = emptyList(),
     val valueType: String? = null,
     val parameters: List<DesignParameter> = emptyList(),
+    val role: String? = null,
+    val eventName: String? = null,
 )
 
 data class DesignField(
