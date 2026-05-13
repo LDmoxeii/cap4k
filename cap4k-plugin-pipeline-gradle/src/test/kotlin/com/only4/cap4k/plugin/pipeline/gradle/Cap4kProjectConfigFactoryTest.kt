@@ -31,6 +31,8 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.generators.designApiPayload.enabled.get())
         assertFalse(extension.generators.designDomainEvent.enabled.get())
         assertFalse(extension.generators.designDomainEventHandler.enabled.get())
+        assertFalse(extension.generators.designIntegrationEvent.enabled.get())
+        assertFalse(extension.generators.designIntegrationEventSubscriber.enabled.get())
         assertFalse(extension.generators.aggregate.enabled.get())
         assertFalse(extension.generators.aggregateProjection.enabled.get())
         assertEquals("FAIL", extension.generators.aggregate.unsupportedTablePolicy.get())
@@ -62,6 +64,10 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals("events", extension.layout.designDomainEvent.packageSuffix.get())
         assertEquals("application.subscribers.domain", extension.layout.designDomainEventHandler.packageRoot.get())
         assertEquals("", extension.layout.designDomainEventHandler.packageSuffix.get())
+        assertEquals("application.subscribers.integration", extension.layout.designIntegrationEvent.packageRoot.get())
+        assertEquals("", extension.layout.designIntegrationEvent.packageSuffix.get())
+        assertEquals("application.subscribers.integration", extension.layout.designIntegrationEventSubscriber.packageRoot.get())
+        assertEquals("", extension.layout.designIntegrationEventSubscriber.packageSuffix.get())
         assertEquals("adapter.application.queries", extension.layout.designQueryHandler.packageRoot.get())
     }
 
@@ -176,6 +182,14 @@ class Cap4kProjectConfigFactoryTest {
                 packageRoot.set("domain.model")
                 packageSuffix.set("events")
             }
+            designIntegrationEvent {
+                packageRoot.set("application.integration")
+                packageSuffix.set("events")
+            }
+            designIntegrationEventSubscriber {
+                packageRoot.set("application.integration")
+                packageSuffix.set("subscribers")
+            }
         }
 
         val config = Cap4kProjectConfigFactory().build(project, extension)
@@ -190,6 +204,10 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals("build/cap4k/design", config.artifactLayout.drawingBoard.outputRoot)
         assertEquals("domain.model", config.artifactLayout.designDomainEvent.packageRoot)
         assertEquals("events", config.artifactLayout.designDomainEvent.packageSuffix)
+        assertEquals("application.integration", config.artifactLayout.designIntegrationEvent.packageRoot)
+        assertEquals("events", config.artifactLayout.designIntegrationEvent.packageSuffix)
+        assertEquals("application.integration", config.artifactLayout.designIntegrationEventSubscriber.packageRoot)
+        assertEquals("subscribers", config.artifactLayout.designIntegrationEventSubscriber.packageSuffix)
     }
 
     @Test
@@ -390,6 +408,65 @@ class Cap4kProjectConfigFactoryTest {
             config.modules,
         )
         assertEquals(setOf("design-domain-event", "design-domain-event-handler"), config.enabledGeneratorIds())
+    }
+
+    @Test
+    fun `build includes design integration event generator`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            applicationModulePath.set("demo-application")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            designIntegrationEvent { enabled.set(true) }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(mapOf("application" to "demo-application"), config.modules)
+        assertEquals(setOf("design-integration-event"), config.enabledGeneratorIds())
+        assertEquals("application.subscribers.integration", config.artifactLayout.designIntegrationEvent.packageRoot)
+    }
+
+    @Test
+    fun `build includes design integration event subscriber generator when both enabled`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            applicationModulePath.set("demo-application")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            designIntegrationEvent { enabled.set(true) }
+            designIntegrationEventSubscriber { enabled.set(true) }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(mapOf("application" to "demo-application"), config.modules)
+        assertEquals(
+            setOf("design-integration-event", "design-integration-event-subscriber"),
+            config.enabledGeneratorIds(),
+        )
+        assertEquals(
+            "application.subscribers.integration",
+            config.artifactLayout.designIntegrationEventSubscriber.packageRoot,
+        )
     }
 
     @Test
@@ -596,6 +673,80 @@ class Cap4kProjectConfigFactoryTest {
         }
 
         assertEquals("designDomainEventHandler generator requires enabled designDomainEvent generator.", error.message)
+    }
+
+    @Test
+    fun `design integration event generator requires application module path`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            designIntegrationEvent { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("project.applicationModulePath is required when designIntegrationEvent is enabled.", error.message)
+    }
+
+    @Test
+    fun `design integration event generator requires enabled design json source`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            applicationModulePath.set("demo-application")
+        }
+        extension.generators {
+            designIntegrationEvent { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals("designIntegrationEvent generator requires enabled designJson source.", error.message)
+    }
+
+    @Test
+    fun `design integration event subscriber requires design integration event`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            applicationModulePath.set("demo-application")
+        }
+        extension.sources {
+            designJson {
+                enabled.set(true)
+                files.from(project.file("design/design.json"))
+            }
+        }
+        extension.generators {
+            designIntegrationEventSubscriber { enabled.set(true) }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            Cap4kProjectConfigFactory().build(project, extension)
+        }
+
+        assertEquals(
+            "designIntegrationEventSubscriber generator requires enabled designIntegrationEvent generator.",
+            error.message,
+        )
     }
 
     @Test

@@ -100,6 +100,10 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
         .convention(packageRoot = "domain.aggregates", packageSuffix = "events")
     val designDomainEventHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention("application.subscribers.domain")
+    val designIntegrationEvent: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("application.subscribers.integration")
+    val designIntegrationEventSubscriber: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("application.subscribers.integration")
 
     fun aggregate(block: PackageLayoutExtension.() -> Unit) {
         aggregate.block()
@@ -171,6 +175,14 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
 
     fun designDomainEventHandler(block: PackageLayoutExtension.() -> Unit) {
         designDomainEventHandler.block()
+    }
+
+    fun designIntegrationEvent(block: PackageLayoutExtension.() -> Unit) {
+        designIntegrationEvent.block()
+    }
+
+    fun designIntegrationEventSubscriber(block: PackageLayoutExtension.() -> Unit) {
+        designIntegrationEventSubscriber.block()
     }
 }
 
@@ -279,6 +291,10 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
         objects.newInstance(DesignDomainEventGeneratorExtension::class.java)
     val designDomainEventHandler: DesignDomainEventHandlerGeneratorExtension =
         objects.newInstance(DesignDomainEventHandlerGeneratorExtension::class.java)
+    val designIntegrationEvent: DesignIntegrationEventGeneratorExtension =
+        objects.newInstance(DesignIntegrationEventGeneratorExtension::class.java)
+    val designIntegrationEventSubscriber: DesignIntegrationEventSubscriberGeneratorExtension =
+        objects.newInstance(DesignIntegrationEventSubscriberGeneratorExtension::class.java)
     val aggregate: AggregateGeneratorExtension = objects.newInstance(AggregateGeneratorExtension::class.java)
     val aggregateProjection: AggregateProjectionGeneratorExtension =
         objects.newInstance(AggregateProjectionGeneratorExtension::class.java)
@@ -319,6 +335,14 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
 
     fun designDomainEventHandler(block: DesignDomainEventHandlerGeneratorExtension.() -> Unit) {
         designDomainEventHandler.block()
+    }
+
+    fun designIntegrationEvent(block: DesignIntegrationEventGeneratorExtension.() -> Unit) {
+        designIntegrationEvent.block()
+    }
+
+    fun designIntegrationEventSubscriber(block: DesignIntegrationEventSubscriberGeneratorExtension.() -> Unit) {
+        designIntegrationEventSubscriber.block()
     }
 
     fun aggregate(block: AggregateGeneratorExtension.() -> Unit) {
@@ -371,6 +395,14 @@ open class DesignDomainEventGeneratorExtension @Inject constructor(objects: Obje
 }
 
 open class DesignDomainEventHandlerGeneratorExtension @Inject constructor(objects: ObjectFactory) {
+    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+}
+
+open class DesignIntegrationEventGeneratorExtension @Inject constructor(objects: ObjectFactory) {
+    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+}
+
+open class DesignIntegrationEventSubscriberGeneratorExtension @Inject constructor(objects: ObjectFactory) {
     val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }
 

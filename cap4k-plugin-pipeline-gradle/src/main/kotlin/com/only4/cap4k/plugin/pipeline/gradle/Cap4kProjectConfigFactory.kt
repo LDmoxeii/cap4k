@@ -43,6 +43,8 @@ class Cap4kProjectConfigFactory {
             designApiPayloadEnabled = extension.generators.designApiPayload.enabled.get(),
             designDomainEventEnabled = extension.generators.designDomainEvent.enabled.get(),
             designDomainEventHandlerEnabled = extension.generators.designDomainEventHandler.enabled.get(),
+            designIntegrationEventEnabled = extension.generators.designIntegrationEvent.enabled.get(),
+            designIntegrationEventSubscriberEnabled = extension.generators.designIntegrationEventSubscriber.enabled.get(),
             aggregateEnabled = extension.generators.aggregate.enabled.get(),
             aggregateProjectionEnabled = extension.generators.aggregateProjection.enabled.get(),
             flowEnabled = extension.generators.flow.enabled.get(),
@@ -133,6 +135,18 @@ class Cap4kProjectConfigFactory {
                 "designDomainEventHandler"
             )
         }
+        if (generators.designIntegrationEventEnabled) {
+            extension.project.applicationModulePath.requiredWhenEnabled(
+                "project.applicationModulePath",
+                "designIntegrationEvent"
+            )
+        }
+        if (generators.designIntegrationEventSubscriberEnabled) {
+            extension.project.applicationModulePath.requiredWhenEnabled(
+                "project.applicationModulePath",
+                "designIntegrationEventSubscriber"
+            )
+        }
         if (generators.aggregateEnabled) {
             val missingDomain = extension.project.domainModulePath.optionalValue() == null
             val missingApplication = extension.project.applicationModulePath.optionalValue() == null
@@ -180,6 +194,12 @@ class Cap4kProjectConfigFactory {
             put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
         }
         if (generators.designDomainEventHandlerEnabled) {
+            put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
+        }
+        if (generators.designIntegrationEventEnabled) {
+            put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
+        }
+        if (generators.designIntegrationEventSubscriberEnabled) {
             put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
         }
         if (generators.aggregateEnabled) {
@@ -299,6 +319,12 @@ class Cap4kProjectConfigFactory {
         if (states.designDomainEventHandlerEnabled) {
             put("design-domain-event-handler", GeneratorConfig(enabled = true))
         }
+        if (states.designIntegrationEventEnabled) {
+            put("design-integration-event", GeneratorConfig(enabled = true))
+        }
+        if (states.designIntegrationEventSubscriberEnabled) {
+            put("design-integration-event-subscriber", GeneratorConfig(enabled = true))
+        }
         if (states.aggregateEnabled) {
             val aggregate = extension.generators.aggregate
             put(
@@ -353,6 +379,10 @@ class Cap4kProjectConfigFactory {
             designDomainEvent = extension.layout.designDomainEvent.toPackageLayout("designDomainEvent"),
             designDomainEventHandler = extension.layout.designDomainEventHandler.toPackageLayout(
                 "designDomainEventHandler"
+            ),
+            designIntegrationEvent = extension.layout.designIntegrationEvent.toPackageLayout("designIntegrationEvent"),
+            designIntegrationEventSubscriber = extension.layout.designIntegrationEventSubscriber.toPackageLayout(
+                "designIntegrationEventSubscriber"
             ),
         )
         ArtifactLayoutResolver(basePackage = basePackage, artifactLayout = artifactLayout)
@@ -444,6 +474,12 @@ class Cap4kProjectConfigFactory {
         if (generators.designDomainEventHandlerEnabled && !generators.designDomainEventEnabled) {
             throw IllegalArgumentException("designDomainEventHandler generator requires enabled designDomainEvent generator.")
         }
+        if (generators.designIntegrationEventEnabled && !sources.designJsonEnabled) {
+            throw IllegalArgumentException("designIntegrationEvent generator requires enabled designJson source.")
+        }
+        if (generators.designIntegrationEventSubscriberEnabled && !generators.designIntegrationEventEnabled) {
+            throw IllegalArgumentException("designIntegrationEventSubscriber generator requires enabled designIntegrationEvent generator.")
+        }
         if (generators.aggregateEnabled && !sources.dbEnabled) {
             throw IllegalArgumentException("aggregate generator requires enabled db source.")
         }
@@ -500,6 +536,8 @@ private data class GeneratorStates(
     val designApiPayloadEnabled: Boolean,
     val designDomainEventEnabled: Boolean,
     val designDomainEventHandlerEnabled: Boolean,
+    val designIntegrationEventEnabled: Boolean,
+    val designIntegrationEventSubscriberEnabled: Boolean,
     val aggregateEnabled: Boolean,
     val aggregateProjectionEnabled: Boolean,
     val flowEnabled: Boolean,

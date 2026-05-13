@@ -29,6 +29,8 @@ import com.only4.cap4k.plugin.pipeline.generator.design.DesignClientHandlerArtif
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignCommandArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainEventArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainEventHandlerArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventSubscriberArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryHandlerArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignValidatorArtifactPlanner
@@ -156,6 +158,8 @@ private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "design-api-payload",
     "design-domain-event",
     "design-domain-event-handler",
+    "design-integration-event",
+    "design-integration-event-subscriber",
     "aggregate",
     "aggregate-projection",
 )
@@ -186,6 +190,8 @@ private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean = lis
     extension.generators.designApiPayload.enabled,
     extension.generators.designDomainEvent.enabled,
     extension.generators.designDomainEventHandler.enabled,
+    extension.generators.designIntegrationEvent.enabled,
+    extension.generators.designIntegrationEventSubscriber.enabled,
     extension.generators.aggregate.enabled,
     extension.generators.aggregateProjection.enabled,
     extension.generators.drawingBoard.enabled,
@@ -607,6 +613,8 @@ internal fun buildSourceRunner(
             DesignApiPayloadArtifactPlanner(),
             DesignDomainEventArtifactPlanner(),
             DesignDomainEventHandlerArtifactPlanner(),
+            DesignIntegrationEventArtifactPlanner(),
+            DesignIntegrationEventSubscriberArtifactPlanner(),
             AggregateArtifactPlanner(),
             AggregateProjectionArtifactPlanner(),
         ),

@@ -15,6 +15,8 @@ import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import com.only4.cap4k.plugin.pipeline.core.BootstrapFilesystemArtifactExporter
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventSubscriberArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleBootstrapRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
 import org.gradle.api.file.FileCollection
@@ -263,6 +265,10 @@ class PipelinePluginTest {
         extension.generators.flow.enabled.set(false)
         extension.generators.aggregateProjection.enabled.set(true)
         assertTrue(shouldInferPipelineDependencies(extension))
+
+        extension.generators.aggregateProjection.enabled.set(false)
+        extension.generators.designIntegrationEvent.enabled.set(true)
+        assertTrue(shouldInferPipelineDependencies(extension))
     }
 
     @Test
@@ -368,6 +374,8 @@ class PipelinePluginTest {
                 "aggregate-projection" to GeneratorConfig(enabled = true),
                 "design-query" to GeneratorConfig(enabled = true),
                 "design-query-handler" to GeneratorConfig(enabled = true),
+                "design-integration-event" to GeneratorConfig(enabled = true),
+                "design-integration-event-subscriber" to GeneratorConfig(enabled = true),
                 "drawing-board" to GeneratorConfig(enabled = true),
                 "flow" to GeneratorConfig(enabled = true),
             ),
@@ -377,6 +385,41 @@ class PipelinePluginTest {
 
         assertEquals(setOf("db", "enum-manifest"), generatedConfig.sources.keys)
         assertEquals(setOf("aggregate", "aggregate-projection"), generatedConfig.generators.keys)
+    }
+
+    @Test
+    fun `source task config keeps checked in source design integration event generators`() {
+        val config = projectConfig(
+            sources = mapOf(
+                "design-json" to SourceConfig(enabled = true),
+                "ksp-metadata" to SourceConfig(enabled = true),
+                "ir-analysis" to SourceConfig(enabled = true),
+            ),
+            generators = mapOf(
+                "design-integration-event" to GeneratorConfig(enabled = true),
+                "design-integration-event-subscriber" to GeneratorConfig(enabled = true),
+                "drawing-board" to GeneratorConfig(enabled = true),
+                "flow" to GeneratorConfig(enabled = true),
+            ),
+        )
+
+        val sourceConfig = sourceTaskConfig(config)
+
+        assertEquals(setOf("design-json", "ksp-metadata"), sourceConfig.sources.keys)
+        assertEquals(
+            setOf("design-integration-event", "design-integration-event-subscriber"),
+            sourceConfig.generators.keys,
+        )
+    }
+
+    @Test
+    fun `source runner includes design integration event planners`() {
+        val project = ProjectBuilder.builder().build()
+
+        val runner = buildSourceRunner(project, minimalConfig(), exportEnabled = false)
+
+        assertTrue(generatorProviderTypes(runner).contains(DesignIntegrationEventArtifactPlanner::class.java))
+        assertTrue(generatorProviderTypes(runner).contains(DesignIntegrationEventSubscriberArtifactPlanner::class.java))
     }
 
     @Test
@@ -1090,6 +1133,12 @@ class PipelinePluginTest {
         return providers.map { provider ->
             readInternalProperty(provider!!, "id").toString()
         }
+    }
+
+    private fun generatorProviderTypes(runner: Any): Set<Class<*>> {
+        val effectiveRunner = runCatching { readInternalProperty(runner, "delegate") }.getOrNull() ?: runner
+        val providers = readInternalProperty(effectiveRunner, "generators") as List<*>
+        return providers.map { it!!::class.java }.toSet()
     }
 
     private fun addonProviderJar(projectDir: File, name: String = "plugin-test-addon.jar"): File {
