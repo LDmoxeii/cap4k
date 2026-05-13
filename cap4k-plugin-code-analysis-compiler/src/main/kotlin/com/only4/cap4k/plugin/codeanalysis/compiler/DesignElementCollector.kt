@@ -190,6 +190,10 @@ class DesignElementCollector(
     private fun collectIntegrationEventElement(declaration: IrClass, fqcn: String) {
         val role = inferIntegrationEventRole(fqcn) ?: return
         val ann = declaration.findAnnotation(integrationEventAnnFq) ?: return
+        val eventName = ann.getStringArg("value")?.takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException(
+                "integration_event ${declaration.name.asString()} must declare non-blank @IntegrationEvent value.",
+            )
         val nestedTypes = collectNestedTypes(declaration)
         val requestFields = collectFields(
             declaration,
@@ -205,7 +209,7 @@ class DesignElementCollector(
                 requestFields = requestFields,
                 responseFields = emptyList(),
                 role = role,
-                eventName = ann.getStringArg("value"),
+                eventName = eventName,
             )
         )
     }

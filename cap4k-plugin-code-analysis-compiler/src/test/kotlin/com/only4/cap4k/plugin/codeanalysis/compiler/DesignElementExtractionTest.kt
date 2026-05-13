@@ -179,6 +179,18 @@ class DesignElementExtractionTest {
                 """.trimIndent()
             ),
             SourceFile.kotlin(
+                "ContentPublishedIntegrationEvent.kt",
+                """
+                    package com.acme.application.subscribers.integration.outbound.content
+
+                    @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
+                        value = "cap4k.reference.content.published",
+                        subscriber = "[none]"
+                    )
+                    data class ContentPublishedIntegrationEvent(val contentId: Long)
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
                 "BatchSaveAccountList.kt",
                 """
                     package demo.adapter.portal.api.payload.account
@@ -252,6 +264,10 @@ class DesignElementExtractionTest {
         assertTrue(mediaProcessing.contains("\"name\":\"externalTaskId\""))
         assertTrue(mediaProcessing.contains("\"type\":\"String\""))
         assertTrue(mediaProcessing.contains("\"responseFields\":[]"))
+        val contentPublished = findObject(objects, "integration_event", "ContentPublishedIntegrationEvent")
+        assertTrue(contentPublished.contains("\"package\":\"content\""))
+        assertTrue(contentPublished.contains("\"role\":\"outbound\""))
+        assertTrue(contentPublished.contains("\"eventName\":\"cap4k.reference.content.published\""))
         assertFalse(json.contains("IgnoredRuntimeIntegrationEvent"))
         assertFalse(json.contains("\"package\":\"account.BatchSaveAccountList.Converter\""))
         assertFalse(json.contains("\"name\":\"companion\""))
@@ -467,6 +483,36 @@ class DesignElementExtractionTest {
         assertTrue(
             messages.contains(
                 "api_payload legacyPayload must define nested Response; legacy nested Item is not supported by analysis projection.",
+            ),
+        )
+    }
+
+    @Test
+    fun `rejects integration event without event name in role package`() {
+        val sources = listOf(
+            SourceFile.kotlin(
+                "IntegrationEvent.kt",
+                """
+                    package com.only4.cap4k.ddd.core.application.event.annotation
+                    annotation class IntegrationEvent(val value: String = "", val subscriber: String = "[none]")
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "MissingEventNameIntegrationEvent.kt",
+                """
+                    package demo.application.subscribers.integration.inbound.media
+
+                    @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+                    data class MissingEventNameIntegrationEvent(val externalTaskId: String)
+                """.trimIndent()
+            )
+        )
+
+        val messages = compileWithCap4kPluginExpectingFailure(sources)
+
+        assertTrue(
+            messages.contains(
+                "integration_event MissingEventNameIntegrationEvent must declare non-blank @IntegrationEvent value.",
             ),
         )
     }
