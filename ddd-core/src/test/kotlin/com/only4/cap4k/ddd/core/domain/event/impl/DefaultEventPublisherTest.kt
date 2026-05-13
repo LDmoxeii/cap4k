@@ -174,12 +174,9 @@ class DefaultEventPublisherTest {
             // when
             publisher.publish(eventRecord)
 
-            // Wait for async execution to complete
-            Thread.sleep(100)
-
             // then
-            verify { eventSubscriberManager.dispatch(any()) }
-            verify { eventRecordRepository.save(any()) }
+            verify(timeout = 5_000) { eventSubscriberManager.dispatch(any()) }
+            verify(timeout = 5_000) { eventRecordRepository.save(any()) }
         }
 
         @Test
@@ -348,13 +345,13 @@ class DefaultEventPublisherTest {
             publisher.publish(eventRecord)
 
             // then
-            verify { messageInterceptor.initPublish(any()) }
-            verify { messageInterceptor.prePublish(any()) }
-            verify { messageInterceptor.postPublish(any()) }
-            verify { domainInterceptor.preRelease(any()) }
-            verify { domainInterceptor.postRelease(any()) }
-            verify { domainInterceptor.prePersist(any()) }
-            verify { domainInterceptor.postPersist(any()) }
+            verify(timeout = 5_000) { messageInterceptor.initPublish(any()) }
+            verify(timeout = 5_000) { messageInterceptor.prePublish(any()) }
+            verify(timeout = 5_000) { messageInterceptor.postPublish(any()) }
+            verify(timeout = 5_000) { domainInterceptor.preRelease(any()) }
+            verify(timeout = 5_000) { domainInterceptor.postRelease(any()) }
+            verify(timeout = 5_000) { domainInterceptor.prePersist(any()) }
+            verify(timeout = 5_000) { domainInterceptor.postPersist(any()) }
         }
 
         @Test

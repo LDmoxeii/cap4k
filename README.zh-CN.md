@@ -1,5 +1,11 @@
 # cap4k
 
+[![CI](https://github.com/LDmoxeii/cap4k/actions/workflows/ci.yml/badge.svg)](https://github.com/LDmoxeii/cap4k/actions/workflows/ci.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.ldmoxeii/ddd-core)](https://central.sonatype.com/artifact/io.github.ldmoxeii/ddd-core)
+[![GitHub Release](https://img.shields.io/github/v/release/LDmoxeii/cap4k)](https://github.com/LDmoxeii/cap4k/releases)
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/LDmoxeii/cap4k/blob/master/LICENSE)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/LDmoxeii/cap4k)
+
 [English](README.md)
 
 cap4k 是一套面向 AI 驱动实现与人工审阅的简化版 DDD 战术框架。
