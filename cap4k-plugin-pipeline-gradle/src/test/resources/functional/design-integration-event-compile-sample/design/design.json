@@ -1,0 +1,31 @@
+[
+  {
+    "tag": "integration_event",
+    "package": "media.processing",
+    "name": "MediaProcessingCallbackIntegrationEvent",
+    "desc": "media processing callback",
+    "role": "inbound",
+    "eventName": "cap4k.reference.contentstudio.media-processing.succeeded",
+    "requestFields": [
+      { "name": "externalTaskId", "type": "String" },
+      { "name": "completedAt", "type": "java.time.LocalDateTime" },
+      { "name": "file", "type": "FileInfo" },
+      { "name": "file.fileId", "type": "java.util.UUID" },
+      { "name": "file.variants", "type": "List<Variant>" },
+      { "name": "file.variants[].quality", "type": "String" }
+    ],
+    "responseFields": []
+  },
+  {
+    "tag": "integration_event",
+    "package": "content",
+    "name": "ContentPublishedIntegrationEvent",
+    "desc": "content published",
+    "role": "outbound",
+    "eventName": "cap4k.reference.content.published",
+    "requestFields": [
+      { "name": "contentId", "type": "Long" }
+    ],
+    "responseFields": []
+  }
+]

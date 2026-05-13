@@ -338,6 +338,54 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
+    fun `integration event generation participates in application compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-integration-event-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-integration-event-compile-sample")
+
+        val beforeGenerateApplicationCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-application:compileKotlin")
+            .buildAndFail()
+        assertTrue(beforeGenerateApplicationCompileResult.output.contains("MediaProcessingCallbackIntegrationEvent"))
+
+        val generateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
+        val applicationCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-application:compileKotlin")
+            .build()
+        val inboundEvent = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/media/processing/MediaProcessingCallbackIntegrationEvent.kt"
+        ).readText()
+        val inboundSubscriber = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/media/processing/MediaProcessingCallbackIntegrationEventSubscriber.kt"
+        ).readText()
+        val outboundEvent = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/outbound/content/ContentPublishedIntegrationEvent.kt"
+        ).readText()
+
+        assertGeneratedFilesExist(
+            projectDir,
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/media/processing/MediaProcessingCallbackIntegrationEvent.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/media/processing/MediaProcessingCallbackIntegrationEventSubscriber.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/outbound/content/ContentPublishedIntegrationEvent.kt",
+        )
+        assertFalse(
+            projectDir.resolve(
+                "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/outbound/content/ContentPublishedIntegrationEventSubscriber.kt"
+            ).toFile().exists()
+        )
+        assertTrue(inboundEvent.contains("value = \"cap4k.reference.contentstudio.media-processing.succeeded\""))
+        assertTrue(inboundEvent.contains("subscriber = \"\\${'$'}{spring.application.name:}\""))
+        assertTrue(inboundEvent.contains("val externalTaskId: String"))
+        assertTrue(inboundEvent.contains("data class FileInfo("))
+        assertTrue(inboundSubscriber.contains("@EventListener(MediaProcessingCallbackIntegrationEvent::class)"))
+        assertTrue(outboundEvent.contains("value = \"cap4k.reference.content.published\""))
+        assertTrue(outboundEvent.contains("subscriber = IntegrationEvent.NONE_SUBSCRIBER"))
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(applicationCompileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
     fun `aggregate factory and specification generation participates in domain compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
