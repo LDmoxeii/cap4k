@@ -94,10 +94,16 @@ application.subscribers.integration.inbound.<design package>
 application.subscribers.integration.outbound.<design package>
 ```
 
-For the sample above, generated files land under:
+For the sample above, generated event contracts land under:
 
 ```text
 application.subscribers.integration.inbound.media.processing
+```
+
+Generated inbound subscriber skeletons land directly under:
+
+```text
+application.subscribers.integration
 ```
 
 This keeps subscriber classes under `application.subscribers.integration` while separating event contracts consumed by this service from event contracts published by this service.

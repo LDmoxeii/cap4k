@@ -148,7 +148,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             .map { entry ->
                 IntegrationEventModel(
                     packageName = entry.packageName,
-                    typeName = entry.name.normalizeUpperCamelTypeName(),
+                    typeName = entry.name.toIntegrationEventTypeName(),
                     description = entry.description,
                     role = entry.integrationEventRole(),
                     eventName = entry.integrationEventName(),
@@ -556,6 +556,15 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val candidate = when {
             rawName.endsWith("Evt") || rawName.endsWith("Event") -> rawName
             else -> "${rawName}DomainEvent"
+        }
+        return candidate.normalizeUpperCamelTypeName()
+    }
+
+    private fun String.toIntegrationEventTypeName(): String {
+        val rawName = trim()
+        val candidate = when {
+            rawName.endsWith("Evt") || rawName.endsWith("Event") -> rawName
+            else -> "${rawName}IntegrationEvent"
         }
         return candidate.normalizeUpperCamelTypeName()
     }

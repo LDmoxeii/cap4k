@@ -76,8 +76,8 @@ class ArtifactLayoutResolver(
     fun designIntegrationEventPackage(role: IntegrationEventRole, designPackage: String): String =
         packageFromLayout(artifactLayout.designIntegrationEvent, joinPackage(role.packageSegment(), designPackage))
 
-    fun designIntegrationEventSubscriberPackage(role: IntegrationEventRole, designPackage: String): String =
-        packageFromLayout(artifactLayout.designIntegrationEventSubscriber, joinPackage(role.packageSegment(), designPackage))
+    fun designIntegrationEventSubscriberPackage(): String =
+        packageFromLayout(artifactLayout.designIntegrationEventSubscriber, "")
 
     fun flowOutputRoot(): String =
         normalizeOutputRoot(artifactLayout.flow.outputRoot, "flow")

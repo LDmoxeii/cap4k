@@ -17,7 +17,7 @@ class DesignIntegrationEventSubscriberArtifactPlanner : GeneratorProvider {
         return model.integrationEvents
             .filter { event -> event.role == IntegrationEventRole.INBOUND }
             .map { event ->
-                val packageName = artifactLayout.designIntegrationEventSubscriberPackage(event.role, event.packageName)
+                val packageName = artifactLayout.designIntegrationEventSubscriberPackage()
                 val eventType = "${artifactLayout.designIntegrationEventPackage(event.role, event.packageName)}.${event.typeName}"
                 ArtifactPlanItem(
                     generatorId = id,

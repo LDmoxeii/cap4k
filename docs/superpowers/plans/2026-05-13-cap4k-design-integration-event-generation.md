@@ -1535,7 +1535,7 @@ Add layout entries:
 
 ```markdown
 | `designIntegrationEvent` | `application.subscribers.integration` | 生成器会自动追加 `inbound` 或 `outbound` |
-| `designIntegrationEventSubscriber` | `application.subscribers.integration` | 仅对 inbound 事件生成订阅者 |
+| `designIntegrationEventSubscriber` | `application.subscribers.integration` | 仅对 inbound 事件生成订阅者，不追加 role/design package |
 ```
 
 - [ ] **Step 2: Update input source docs**
@@ -1558,7 +1558,7 @@ Include the JSON sample from the spec.
 In `tactical-model.zh-CN.md`, clarify:
 
 ```markdown
-集成事件订阅者的标准作者入口是 Spring `@EventListener` 方法。`EventSubscriber<T>` 是运行时 SPI，不是生成器默认产物。生成器会把 inbound 集成事件放到 `application.subscribers.integration.inbound`，把 outbound 集成事件放到 `application.subscribers.integration.outbound`。
+集成事件订阅者的标准作者入口是 Spring `@EventListener` 方法。`EventSubscriber<T>` 是运行时 SPI，不是生成器默认产物。生成器会把 inbound 集成事件契约放到 `application.subscribers.integration.inbound`，把 outbound 集成事件契约放到 `application.subscribers.integration.outbound`；inbound subscriber 骨架直接放到 `application.subscribers.integration`。
 ```
 
 - [ ] **Step 4: Commit**

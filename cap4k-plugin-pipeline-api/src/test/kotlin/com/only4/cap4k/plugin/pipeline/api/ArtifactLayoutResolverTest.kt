@@ -68,8 +68,8 @@ class ArtifactLayoutResolverTest {
             resolver.designIntegrationEventPackage(IntegrationEventRole.OUTBOUND, "content"),
         )
         assertEquals(
-            "com.acme.application.subscribers.integration.inbound.media.processing",
-            resolver.designIntegrationEventSubscriberPackage(IntegrationEventRole.INBOUND, "media.processing"),
+            "com.acme.application.subscribers.integration",
+            resolver.designIntegrationEventSubscriberPackage(),
         )
     }
 

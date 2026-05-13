@@ -172,7 +172,7 @@ Design generator families:
 
 Handler skeletons are author-maintained code. If generated into active source roots, their conflict policy should preserve user edits after the first generation.
 
-Integration event contracts are generated under `<basePackage>.application.subscribers.integration.<role>.<designPackage>`. Subscriber skeletons are generated only for inbound events and use Spring `@EventListener`; outbound events expose the contract but do not subscribe to themselves.
+Integration event contracts are generated under `<basePackage>.application.subscribers.integration.<role>.<designPackage>`. Subscriber skeletons are generated only for inbound events under `<basePackage>.application.subscribers.integration` and use Spring `@EventListener`; outbound events expose the contract but do not subscribe to themselves.
 
 ## Verification Workflow
 

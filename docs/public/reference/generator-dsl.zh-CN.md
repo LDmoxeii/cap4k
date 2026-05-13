@@ -224,7 +224,7 @@ generators {
 }
 ```
 
-默认布局会把契约和 subscriber 放到 application 层的 `application.subscribers.integration` 下，并自动追加 `inbound` / `outbound` role 段。模板覆盖文件名是 `design/integration_event.kt.peb` 和 `design/integration_event_subscriber.kt.peb`。
+默认布局会把事件契约放到 application 层的 `application.subscribers.integration.<role>.<designPackage>` 下，把 inbound subscriber 骨架放到 `application.subscribers.integration` 下。模板覆盖文件名是 `design/integration_event.kt.peb` 和 `design/integration_event_subscriber.kt.peb`。
 
 aggregate family：
 

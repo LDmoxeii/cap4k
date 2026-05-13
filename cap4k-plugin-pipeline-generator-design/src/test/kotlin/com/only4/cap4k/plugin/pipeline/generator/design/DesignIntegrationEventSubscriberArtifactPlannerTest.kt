@@ -36,12 +36,12 @@ class DesignIntegrationEventSubscriberArtifactPlannerTest {
         assertEquals("design-integration-event-subscriber", subscriber.generatorId)
         assertEquals("design/integration_event_subscriber.kt.peb", subscriber.templateId)
         assertEquals(
-            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/order/OrderCreatedIntegrationEventSubscriber.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/OrderCreatedIntegrationEventSubscriber.kt",
             subscriber.outputPath,
         )
         assertEquals("application", subscriber.moduleRole)
         assertEquals(ConflictPolicy.SKIP, subscriber.conflictPolicy)
-        assertEquals("com.acme.demo.application.subscribers.integration.inbound.order", subscriber.context["packageName"])
+        assertEquals("com.acme.demo.application.subscribers.integration", subscriber.context["packageName"])
         assertEquals("OrderCreatedIntegrationEventSubscriber", subscriber.context["typeName"])
         assertEquals("OrderCreatedIntegrationEvent", subscriber.context["eventTypeName"])
         assertEquals(

@@ -215,7 +215,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(2, integrationEvents.size)
         assertEquals(listOf(IntegrationEventRole.INBOUND, IntegrationEventRole.OUTBOUND), integrationEvents.map { it.role })
         assertEquals(listOf("order.created", "order.paid"), integrationEvents.map { it.eventName })
-        assertEquals(listOf("OrderCreated", "OrderPaid"), integrationEvents.map { it.typeName })
+        assertEquals(listOf("OrderCreatedIntegrationEvent", "OrderPaidIntegrationEvent"), integrationEvents.map { it.typeName })
         assertEquals(listOf("orderId", "buyerId"), integrationEvents.first().fields.map { it.name })
         assertEquals(listOf("paymentId"), integrationEvents[1].fields.map { it.name })
     }

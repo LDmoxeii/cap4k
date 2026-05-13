@@ -357,7 +357,7 @@ class PipelinePluginCompileFunctionalTest {
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/media/processing/MediaProcessingCallbackIntegrationEvent.kt"
         ).readText()
         val inboundSubscriber = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/media/processing/MediaProcessingCallbackIntegrationEventSubscriber.kt"
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/MediaProcessingCallbackIntegrationEventSubscriber.kt"
         ).readText()
         val outboundEvent = projectDir.resolve(
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/outbound/content/ContentPublishedIntegrationEvent.kt"
@@ -366,7 +366,7 @@ class PipelinePluginCompileFunctionalTest {
         assertGeneratedFilesExist(
             projectDir,
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/media/processing/MediaProcessingCallbackIntegrationEvent.kt",
-            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/media/processing/MediaProcessingCallbackIntegrationEventSubscriber.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/MediaProcessingCallbackIntegrationEventSubscriber.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/outbound/content/ContentPublishedIntegrationEvent.kt",
         )
         assertFalse(
