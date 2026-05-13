@@ -5794,6 +5794,8 @@ class PebbleArtifactRendererTest {
         )
 
         val inboundContent = rendered[0].content
+        assertTrue(inboundContent.contains("import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent"))
+        assertTrue(inboundContent.contains("import java.util.UUID"))
         assertTrue(inboundContent.contains("@IntegrationEvent("))
         assertTrue(inboundContent.contains("value = \"order.created\""))
         assertFalse(inboundContent.contains("value = EVENT_NAME"))
@@ -5803,6 +5805,8 @@ class PebbleArtifactRendererTest {
         assertTrue(inboundContent.contains("val orderId: UUID"))
 
         val outboundContent = rendered[1].content
+        assertTrue(outboundContent.contains("import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent"))
+        assertTrue(outboundContent.contains("import java.util.UUID"))
         assertTrue(outboundContent.contains("value = \"invoice.\\\$paid\\\\completed\""))
         assertTrue(outboundContent.contains("const val EVENT_NAME = \"invoice.\\\$paid\\\\completed\""))
         assertTrue(outboundContent.contains("val invoiceId: UUID"))
@@ -5857,6 +5861,9 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
+        assertTrue(content.contains("import com.acme.demo.application.events.integration.inbound.order.OrderCreatedIntegrationEvent"))
+        assertTrue(content.contains("import org.springframework.context.event.EventListener"))
+        assertTrue(content.contains("import org.springframework.stereotype.Service"))
         assertTrue(content.contains("@Service"))
         assertTrue(content.contains("@EventListener(OrderCreatedIntegrationEvent::class)"))
         assertTrue(content.contains("fun on(event: OrderCreatedIntegrationEvent)"))
