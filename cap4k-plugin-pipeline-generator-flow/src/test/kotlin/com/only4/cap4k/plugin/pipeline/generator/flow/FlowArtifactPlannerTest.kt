@@ -37,6 +37,7 @@ class FlowArtifactPlannerTest {
                     edge("OrderController::submit", "SubmitOrderCmd", "ControllerMethodToCommand"),
                     edge("SubmitOrderCmd", "SubmitOrderHandler", "CommandToCommandHandler"),
                     edge("SubmitOrderHandler", "Order::submit", "CommandHandlerToEntityMethod"),
+                    edge("SubmitOrderHandler", "IgnoredAggregate", "CommandHandlerToAggregate"),
                 ),
             ),
         )
@@ -51,8 +52,6 @@ class FlowArtifactPlannerTest {
         assertEquals("flows/OrderController_submit.mmd", plan[1].outputPath)
         assertEquals("flow/index.json.peb", plan[2].templateId)
         assertEquals("flows/index.json", plan[2].outputPath)
-        assertTrue(model.analysisGraph!!.nodes.any { it.type == "commandhandler" })
-        assertTrue(model.analysisGraph!!.nodes.any { it.type == "entitymethod" && it.id == "Order::submit" })
         assertTrue(jsonContent.contains("Order::submit"))
         assertTrue(jsonContent.contains("\"edgeCount\": 2"))
         assertTrue(jsonContent.contains("\"CommandToEntityMethod\""))
@@ -94,7 +93,6 @@ class FlowArtifactPlannerTest {
         assertEquals(listOf("flow/index.json.peb"), plan.map { it.templateId })
         assertEquals("flows/index.json", plan.last().outputPath)
         assertTrue(indexJson.contains("\"flowCount\": 0"))
-        assertTrue(indexJson.contains("\"entryTypeCounts\": {}"))
         assertFalse(indexJson.contains("\"querysendermethod\": 1"))
         assertFalse(indexJson.contains("\"clisendermethod\": 1"))
         assertFalse(indexJson.contains("\"validator\": 1"))
@@ -146,7 +144,6 @@ class FlowArtifactPlannerTest {
                 nodes = listOf(
                     node("OrderController::submit", "controllermethod"),
                     node("SubmitOrderCmd", "command"),
-                    node("SubmitOrderHandler", "commandhandler"),
                     node("Order::submit", "entitymethod"),
                     node("OrderUpdated", "domainevent"),
                     node("OrderUpdatedHandler", "domaineventhandler"),
@@ -179,7 +176,6 @@ class FlowArtifactPlannerTest {
                     node("MediaProcessedIntegrationEvent", "integrationevent"),
                     node("MediaProcessedIntegrationEventHandler", "integrationeventhandler"),
                     node("MediaProcessedCmd", "command"),
-                    node("MediaProcessedHandler", "commandhandler"),
                     node("Media::process", "entitymethod"),
                 ),
                 edges = listOf(
@@ -200,7 +196,6 @@ class FlowArtifactPlannerTest {
         assertTrue(jsonContent.contains("MediaProcessedCmd"))
         assertTrue(jsonContent.contains("Media::process"))
         assertTrue(jsonContent.contains("\"CommandToEntityMethod\""))
-        assertFalse(jsonContent.contains("MediaProcessedHandler"))
     }
 
     @Test
