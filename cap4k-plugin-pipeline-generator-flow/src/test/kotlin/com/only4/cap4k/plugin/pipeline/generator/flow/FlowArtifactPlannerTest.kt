@@ -99,6 +99,64 @@ class FlowArtifactPlannerTest {
     }
 
     @Test
+    fun `does not emit controller query roots without causal outgoing edges`() {
+        val planner = FlowArtifactPlanner()
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("app/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    node("QueryController::getContent", "controllermethod"),
+                    node("GetContentQuery", "query"),
+                    node("GetContentQueryHandler", "queryhandler"),
+                ),
+                edges = listOf(
+                    edge("QueryController::getContent", "GetContentQuery", "ControllerMethodToQuery"),
+                    edge("GetContentQuery", "GetContentQueryHandler", "QueryToQueryHandler"),
+                ),
+            ),
+        )
+
+        val plan = planner.plan(config(), model)
+        val indexJson = plan.last().context["jsonContent"] as String
+
+        assertEquals(1, plan.size)
+        assertEquals(listOf("flow/index.json.peb"), plan.map { it.templateId })
+        assertEquals("flows/index.json", plan.last().outputPath)
+        assertTrue(indexJson.contains("\"flowCount\": 0"))
+        assertFalse(indexJson.contains("QueryController::getContent"))
+        assertFalse(indexJson.contains("\"controllermethod\": 1"))
+    }
+
+    @Test
+    fun `does not emit controller cli roots without causal outgoing edges`() {
+        val planner = FlowArtifactPlanner()
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("app/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    node("OpsController::rebuildIndex", "controllermethod"),
+                    node("RebuildIndexCli", "cli"),
+                    node("RebuildIndexCliHandler", "clihandler"),
+                ),
+                edges = listOf(
+                    edge("OpsController::rebuildIndex", "RebuildIndexCli", "ControllerMethodToCli"),
+                    edge("RebuildIndexCli", "RebuildIndexCliHandler", "CliToCliHandler"),
+                ),
+            ),
+        )
+
+        val plan = planner.plan(config(), model)
+        val indexJson = plan.last().context["jsonContent"] as String
+
+        assertEquals(1, plan.size)
+        assertEquals(listOf("flow/index.json.peb"), plan.map { it.templateId })
+        assertEquals("flows/index.json", plan.last().outputPath)
+        assertTrue(indexJson.contains("\"flowCount\": 0"))
+        assertFalse(indexJson.contains("OpsController::rebuildIndex"))
+        assertFalse(indexJson.contains("\"controllermethod\": 1"))
+    }
+
+    @Test
     fun `does not emit integration event as separate flow when it has upstream causal edge`() {
         val planner = FlowArtifactPlanner()
         val model = CanonicalModel(
@@ -257,8 +315,13 @@ class FlowArtifactPlannerTest {
                         fullName = "OrderController submit",
                         type = "controllermethod",
                     ),
+                    node("SubmitOrderCmdA", "command"),
+                    node("SubmitOrderCmdB", "command"),
                 ),
-                edges = emptyList(),
+                edges = listOf(
+                    edge("OrderController::submit", "SubmitOrderCmdA", "ControllerMethodToCommand"),
+                    edge("OrderController submit", "SubmitOrderCmdB", "ControllerMethodToCommand"),
+                ),
             ),
         )
 
@@ -294,8 +357,11 @@ class FlowArtifactPlannerTest {
                         fullName = "OrderController::submit",
                         type = "controllermethod",
                     ),
+                    node("SubmitOrderCmd", "command"),
                 ),
-                edges = emptyList(),
+                edges = listOf(
+                    edge("OrderController::submit", "SubmitOrderCmd", "ControllerMethodToCommand"),
+                ),
             ),
         )
 

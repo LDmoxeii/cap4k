@@ -179,10 +179,14 @@ private fun selectRootEntryNodes(
     val nodesWithUpstream = edges
         .map { it.toId }
         .toSet()
+    val nodesWithOutgoing = edges
+        .map { it.fromId }
+        .toSet()
 
     return nodesById.values
         .filter { it.type.lowercase() in entryNodeTypes }
         .filterNot { it.id in nodesWithUpstream }
+        .filter { it.id in nodesWithOutgoing }
         .sortedBy { it.id }
 }
 
