@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -28,11 +27,25 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
+      - name: Derive release version
+        shell: bash
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          if [[ ! "${TAG_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected tag format v<major>.<minor>.<patch>, got ${TAG_NAME}" >&2
+            exit 1
+          fi
+          echo "RELEASE_VERSION=${TAG_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Test buildSrc
+        working-directory: buildSrc
+        run: ../gradlew test
+
       - name: Check
         run: ./gradlew check
 
       - name: Publish
-        run: ./gradlew publish
+        run: ./gradlew publish -Prelease.version="${RELEASE_VERSION}"
         env:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
@@ -40,7 +53,6 @@ jobs:
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
 
       - name: Upload staging repository to Central Portal
-        if: startsWith(github.ref, 'refs/tags/')
         run: |
           curl --fail --request POST \
             --user "${CENTRAL_USERNAME}:${CENTRAL_PASSWORD}" \
@@ -50,5 +62,6 @@ jobs:
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
