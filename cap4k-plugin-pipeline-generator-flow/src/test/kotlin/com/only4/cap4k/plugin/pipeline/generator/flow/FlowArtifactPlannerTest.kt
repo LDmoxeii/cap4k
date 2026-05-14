@@ -204,6 +204,41 @@ class FlowArtifactPlannerTest {
     }
 
     @Test
+    fun `projects raw command handler chain after event handler into entity method`() {
+        val planner = FlowArtifactPlanner()
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("app/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    node("MediaProcessedIntegrationEvent", "integrationevent"),
+                    node("MediaProcessedIntegrationEventHandler", "integrationeventhandler"),
+                    node("MediaProcessedCmd", "command"),
+                    node("MediaProcessedCmdHandler", "commandhandler"),
+                    node("Media::process", "entitymethod"),
+                ),
+                edges = listOf(
+                    edge("MediaProcessedIntegrationEvent", "MediaProcessedIntegrationEventHandler", "IntegrationEventToHandler"),
+                    edge("MediaProcessedIntegrationEventHandler", "MediaProcessedCmd", "IntegrationEventHandlerToCommand"),
+                    edge("MediaProcessedCmd", "MediaProcessedCmdHandler", "CommandToCommandHandler"),
+                    edge("MediaProcessedCmdHandler", "Media::process", "CommandHandlerToEntityMethod"),
+                ),
+            ),
+        )
+
+        val plan = planner.plan(config(), model)
+        val jsonContent = plan[0].context["jsonContent"] as String
+
+        assertEquals("flows/MediaProcessedIntegrationEvent.json", plan[0].outputPath)
+        assertTrue(jsonContent.contains("MediaProcessedIntegrationEventHandler"))
+        assertTrue(jsonContent.contains("MediaProcessedCmd"))
+        assertTrue(jsonContent.contains("Media::process"))
+        assertTrue(jsonContent.contains("\"CommandToEntityMethod\""))
+        assertFalse(jsonContent.contains("MediaProcessedCmdHandler"))
+        assertFalse(jsonContent.contains("CommandToCommandHandler"))
+        assertFalse(jsonContent.contains("CommandHandlerToEntityMethod"))
+    }
+
+    @Test
     fun `adds digest suffix when slugified entry ids collide`() {
         val planner = FlowArtifactPlanner()
         val model = CanonicalModel(
