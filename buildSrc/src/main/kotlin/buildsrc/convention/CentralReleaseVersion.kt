@@ -2,7 +2,7 @@ package buildsrc.convention
 
 internal object CentralReleaseVersion {
     const val groupId = "io.github.ldmoxeii"
-    const val baselineVersion = "0.5.0-dev"
+    const val baselineVersion = "0.6.0-dev"
     const val releaseVersionProperty = "release.version"
     const val releaseVersionEnvironment = "RELEASE_VERSION"
 
