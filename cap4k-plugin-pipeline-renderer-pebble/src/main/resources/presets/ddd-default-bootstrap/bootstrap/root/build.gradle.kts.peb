@@ -1,7 +1,7 @@
 import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
 
 plugins {
-    id("com.only4.cap4k.plugin.pipeline")
+    id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
 // [cap4k-bootstrap:managed-begin:root-host]
