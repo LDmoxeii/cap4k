@@ -274,7 +274,7 @@ class PipelinePluginTest {
     @Test
     fun `plugin registers bootstrap tasks`() {
         val project = ProjectBuilder.builder().build()
-        project.pluginManager.apply("com.only4.cap4k.plugin.pipeline")
+        project.pluginManager.apply("io.github.ldmoxeii.cap4k.pipeline")
 
         assertNotNull(project.tasks.findByName("cap4kBootstrapPlan"))
         assertNotNull(project.tasks.findByName("cap4kBootstrap"))
@@ -283,7 +283,7 @@ class PipelinePluginTest {
     @Test
     fun `plugin registers source and analysis task families`() {
         val project = ProjectBuilder.builder().build()
-        project.pluginManager.apply("com.only4.cap4k.plugin.pipeline")
+        project.pluginManager.apply("io.github.ldmoxeii.cap4k.pipeline")
 
         assertNotNull(project.tasks.findByName("cap4kPlan"))
         assertNotNull(project.tasks.findByName("cap4kGenerate"))
@@ -295,7 +295,7 @@ class PipelinePluginTest {
     @Test
     fun `analysis tasks use dedicated task classes`() {
         val project = ProjectBuilder.builder().build()
-        project.pluginManager.apply("com.only4.cap4k.plugin.pipeline")
+        project.pluginManager.apply("io.github.ldmoxeii.cap4k.pipeline")
 
         assertTrue(project.tasks.named("cap4kAnalysisPlan").get() is Cap4kAnalysisPlanTask)
         assertTrue(project.tasks.named("cap4kAnalysisGenerate").get() is Cap4kAnalysisGenerateTask)
@@ -1269,7 +1269,7 @@ class PipelinePluginTest {
         projectDir.resolve("build.gradle.kts").writeText(
             """
                 plugins {
-                    id("com.only4.cap4k.plugin.pipeline")
+                    id("io.github.ldmoxeii.cap4k.pipeline")
                 }
 
                 // [cap4k-bootstrap:managed-begin:root-host]

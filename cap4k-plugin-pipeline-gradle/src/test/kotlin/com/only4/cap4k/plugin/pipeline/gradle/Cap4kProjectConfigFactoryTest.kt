@@ -634,7 +634,7 @@ class Cap4kProjectConfigFactoryTest {
     @Test
     fun `design domain event generator does not require enabled ksp metadata source`() {
         val project = ProjectBuilder.builder().build()
-        project.pluginManager.apply("com.only4.cap4k.plugin.pipeline")
+        project.pluginManager.apply("io.github.ldmoxeii.cap4k.pipeline")
         val extension = project.extensions.getByType(Cap4kExtension::class.java)
 
         extension.project.basePackage.set("com.acme.demo")

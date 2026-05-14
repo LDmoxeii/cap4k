@@ -2107,12 +2107,12 @@ class PipelinePluginFunctionalTest {
                 .replace(
                     """
                     |plugins {
-                    |    id("com.only4.cap4k.plugin.pipeline")
+                    |    id("io.github.ldmoxeii.cap4k.pipeline")
                     |}
                     """.trimMargin(),
                     """
                     |plugins {
-                    |    id("com.only4.cap4k.plugin.pipeline")
+                    |    id("io.github.ldmoxeii.cap4k.pipeline")
                     |}
                     |
                     |dependencies {
