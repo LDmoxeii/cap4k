@@ -53,6 +53,7 @@ class FlowArtifactPlannerTest {
         assertEquals("flows/index.json", plan[2].outputPath)
         assertTrue(model.analysisGraph!!.nodes.any { it.type == "commandhandler" })
         assertTrue(model.analysisGraph!!.nodes.any { it.type == "entitymethod" && it.id == "Order::submit" })
+        assertTrue(jsonContent.contains("Order::submit"))
         assertTrue(jsonContent.contains("\"edgeCount\": 2"))
         assertTrue(jsonContent.contains("\"CommandToEntityMethod\""))
         assertFalse(jsonContent.contains("SubmitOrderHandler"))
@@ -107,25 +108,19 @@ class FlowArtifactPlannerTest {
                 nodes = listOf(
                     node("OrderController::submit", "controllermethod"),
                     node("SubmitOrderCmd", "command"),
-                    node("SubmitOrderHandler", "commandhandler"),
                     node("Order::submit", "entitymethod"),
                     node("OrderUpdated", "domainevent"),
                     node("MediaProcessedIntegrationEvent", "integrationevent"),
                     node("MediaProcessedIntegrationEventHandler", "integrationeventhandler"),
-                    node("MediaProcessedCmd", "command"),
-                    node("MediaProcessedHandler", "commandhandler"),
-                    node("Media::process", "entitymethod"),
                 ),
                 edges = listOf(
                     edge("OrderController::submit", "SubmitOrderCmd", "ControllerMethodToCommand"),
-                    edge("SubmitOrderCmd", "SubmitOrderHandler", "CommandToCommandHandler"),
-                    edge("SubmitOrderHandler", "Order::submit", "CommandHandlerToEntityMethod"),
+                    edge("SubmitOrderCmd", "Order::submit", "CommandToEntityMethod"),
                     edge("Order::submit", "OrderUpdated", "EntityMethodToDomainEvent"),
                     edge("OrderUpdated", "MediaProcessedIntegrationEvent", "DomainEventToIntegrationEvent"),
                     edge("MediaProcessedIntegrationEvent", "MediaProcessedIntegrationEventHandler", "IntegrationEventToHandler"),
                     edge("MediaProcessedIntegrationEventHandler", "MediaProcessedCmd", "IntegrationEventHandlerToCommand"),
-                    edge("MediaProcessedCmd", "MediaProcessedHandler", "CommandToCommandHandler"),
-                    edge("MediaProcessedHandler", "Media::process", "CommandHandlerToEntityMethod"),
+                    edge("MediaProcessedCmd", "Media::process", "CommandToEntityMethod"),
                 ),
             ),
         )
@@ -148,15 +143,13 @@ class FlowArtifactPlannerTest {
                 nodes = listOf(
                     node("OrderController::submit", "controllermethod"),
                     node("SubmitOrderCmd", "command"),
-                    node("SubmitOrderHandler", "commandhandler"),
                     node("Order::submit", "entitymethod"),
                     node("OrderUpdated", "domainevent"),
                     node("OrderUpdatedHandler", "domaineventhandler"),
                 ),
                 edges = listOf(
                     edge("OrderController::submit", "SubmitOrderCmd", "ControllerMethodToCommand"),
-                    edge("SubmitOrderCmd", "SubmitOrderHandler", "CommandToCommandHandler"),
-                    edge("SubmitOrderHandler", "Order::submit", "CommandHandlerToEntityMethod"),
+                    edge("SubmitOrderCmd", "Order::submit", "CommandToEntityMethod"),
                     edge("Order::submit", "OrderUpdated", "EntityMethodToDomainEvent"),
                     edge("OrderUpdated", "OrderUpdatedHandler", "DomainEventToHandler"),
                 ),
@@ -182,14 +175,12 @@ class FlowArtifactPlannerTest {
                     node("MediaProcessedIntegrationEvent", "integrationevent"),
                     node("MediaProcessedIntegrationEventHandler", "integrationeventhandler"),
                     node("MediaProcessedCmd", "command"),
-                    node("MediaProcessedHandler", "commandhandler"),
                     node("Media::process", "entitymethod"),
                 ),
                 edges = listOf(
                     edge("MediaProcessedIntegrationEvent", "MediaProcessedIntegrationEventHandler", "IntegrationEventToHandler"),
                     edge("MediaProcessedIntegrationEventHandler", "MediaProcessedCmd", "IntegrationEventHandlerToCommand"),
-                    edge("MediaProcessedCmd", "MediaProcessedHandler", "CommandToCommandHandler"),
-                    edge("MediaProcessedHandler", "Media::process", "CommandHandlerToEntityMethod"),
+                    edge("MediaProcessedCmd", "Media::process", "CommandToEntityMethod"),
                 ),
             ),
         )
@@ -204,7 +195,6 @@ class FlowArtifactPlannerTest {
         assertTrue(jsonContent.contains("MediaProcessedCmd"))
         assertTrue(jsonContent.contains("Media::process"))
         assertTrue(jsonContent.contains("\"CommandToEntityMethod\""))
-        assertFalse(jsonContent.contains("MediaProcessedHandler"))
     }
 
     @Test
