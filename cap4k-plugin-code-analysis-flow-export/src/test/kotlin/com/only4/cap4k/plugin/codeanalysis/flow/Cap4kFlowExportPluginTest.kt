@@ -3,11 +3,27 @@ package com.only4.cap4k.plugin.codeanalysis.flow
 import org.gradle.api.GradleException
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import java.io.File
 
 class Cap4kFlowExportPluginTest {
+
+    @Test
+    fun `published flow-export plugin id applies plugin and registers flow tasks`() {
+        val root = ProjectBuilder.builder()
+            .withName("sample")
+            .build()
+
+        root.pluginManager.apply("io.github.ldmoxeii.cap4k.codeanalysis.flow-export")
+
+        assertNotNull(root.extensions.findByName("cap4kFlow"))
+        assertNotNull(root.tasks.findByName("cap4kFlowExport"))
+        assertNotNull(root.tasks.findByName("cap4kFlowClean"))
+        assertNotNull(root.tasks.findByName("cap4kFlowCompile"))
+        assertNotNull(root.tasks.findByName("cap4kFlow"))
+    }
 
     @Test
     fun `resolve module projects uses explicit pipeline module paths`() {

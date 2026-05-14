@@ -112,6 +112,50 @@ class PebbleBootstrapRendererTest {
     }
 
     @Test
+    fun `render default domain module build with bumped generated code dependency versions`() {
+        val item = BootstrapPlanItem(
+            presetId = "ddd-multi-module",
+            templateId = "bootstrap/module/domain-build.gradle.kts.peb",
+            outputPath = "only-danmuku/only-danmuku-domain/build.gradle.kts",
+            conflictPolicy = ConflictPolicy.FAIL,
+            context = mapOf("basePackage" to "edu.only4.danmuku"),
+        )
+
+        val renderer = PebbleBootstrapRenderer(
+            PresetTemplateResolver("ddd-default-bootstrap", emptyList())
+        )
+
+        val artifact = renderer.render(listOf(item)).single()
+
+        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-core:0.6.0-dev\")"))
+        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-domain-repo-jpa:0.6.0-dev\")"))
+    }
+
+    @Test
+    fun `render default adapter module build with bumped generated code dependency versions`() {
+        val item = BootstrapPlanItem(
+            presetId = "ddd-multi-module",
+            templateId = "bootstrap/module/adapter-build.gradle.kts.peb",
+            outputPath = "only-danmuku/only-danmuku-adapter/build.gradle.kts",
+            conflictPolicy = ConflictPolicy.FAIL,
+            context = mapOf(
+                "basePackage" to "edu.only4.danmuku",
+                "domainModuleName" to "only-danmuku-domain",
+                "applicationModuleName" to "only-danmuku-application",
+            ),
+        )
+
+        val renderer = PebbleBootstrapRenderer(
+            PresetTemplateResolver("ddd-default-bootstrap", emptyList())
+        )
+
+        val artifact = renderer.render(listOf(item)).single()
+
+        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-core:0.6.0-dev\")"))
+        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-domain-repo-jpa:0.6.0-dev\")"))
+    }
+
+    @Test
     fun `render root build applies published pipeline plugin id`() {
         val item = BootstrapPlanItem(
             presetId = "ddd-multi-module",
