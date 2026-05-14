@@ -185,7 +185,6 @@ class FlowArtifactPlannerTest {
                 edges = listOf(
                     edge("MediaProcessedIntegrationEvent", "MediaProcessedIntegrationEventHandler", "IntegrationEventToHandler"),
                     edge("MediaProcessedIntegrationEventHandler", "MediaProcessedCmd", "IntegrationEventHandlerToCommand"),
-                    edge("MediaProcessedCmd", "MediaProcessedHandler", "CommandToCommandHandler"),
                     edge("MediaProcessedCmd", "Media::process", "CommandToEntityMethod"),
                 ),
             ),
