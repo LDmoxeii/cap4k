@@ -67,6 +67,50 @@ Expected outcome:
 - `ddd-core` publishes to Maven Local with version `0.5.0`.
 - The branch proves that release coordinates can be injected from `-Prelease.version=...` without using the remote Central repository.
 
+## 0.6.0 Plugin Marker Verification
+
+Before tagging `v0.6.0`, generate marker publications locally and verify:
+
+- `cap4k-plugin-pipeline-gradle/build/publications/cap4kPipelinePluginMarkerMaven/pom-default.xml`
+- `cap4k-plugin-code-analysis-flow-export/build/publications/cap4kFlowExportPluginMarkerMaven/pom-default.xml`
+
+Generate the marker POMs with the release coordinate:
+
+```powershell
+.\gradlew.bat :cap4k-plugin-pipeline-gradle:generatePomFileForCap4kPipelinePluginMarkerMavenPublication :cap4k-plugin-code-analysis-flow-export:generatePomFileForCap4kFlowExportPluginMarkerMavenPublication "-Prelease.version=0.6.0"
+```
+
+Expected marker coordinates:
+
+```xml
+<groupId>io.github.ldmoxeii.cap4k.pipeline</groupId>
+<artifactId>io.github.ldmoxeii.cap4k.pipeline.gradle.plugin</artifactId>
+<version>0.6.0</version>
+```
+
+```xml
+<groupId>io.github.ldmoxeii.cap4k.codeanalysis.flow-export</groupId>
+<artifactId>io.github.ldmoxeii.cap4k.codeanalysis.flow-export.gradle.plugin</artifactId>
+<version>0.6.0</version>
+```
+
+Then run a release-shaped local publish:
+
+```powershell
+.\gradlew.bat check publishToMavenLocal "-Prelease.version=0.6.0"
+```
+
+Confirm Maven Local contains the implementation module and both marker publications:
+
+- `%USERPROFILE%\.m2\repository\io\github\ldmoxeii\cap4k-plugin-pipeline-gradle\0.6.0\`
+- `%USERPROFILE%\.m2\repository\io\github\ldmoxeii\cap4k\pipeline\io.github.ldmoxeii.cap4k.pipeline.gradle.plugin\0.6.0\`
+- `%USERPROFILE%\.m2\repository\io\github\ldmoxeii\cap4k\codeanalysis\flow-export\io.github.ldmoxeii.cap4k.codeanalysis.flow-export.gradle.plugin\0.6.0\`
+
+After the Central release, confirm the live marker POMs:
+
+- `https://repo1.maven.org/maven2/io/github/ldmoxeii/cap4k/pipeline/io.github.ldmoxeii.cap4k.pipeline.gradle.plugin/0.6.0/io.github.ldmoxeii.cap4k.pipeline.gradle.plugin-0.6.0.pom`
+- `https://repo1.maven.org/maven2/io/github/ldmoxeii/cap4k/codeanalysis/flow-export/io.github.ldmoxeii.cap4k.codeanalysis.flow-export.gradle.plugin/0.6.0/io.github.ldmoxeii.cap4k.codeanalysis.flow-export.gradle.plugin-0.6.0.pom`
+
 ## First Remote Central Verification Steps
 
 The first real release verification is tag-driven. The workflow runs from whatever commit the pushed tag points to. Keeping `publish/maven-central` as the canonical release channel branch is still recommended, and the workflow now enforces that the tagged commit must be contained in `origin/publish/maven-central`. Pushing that branch by itself still does not trigger a release.

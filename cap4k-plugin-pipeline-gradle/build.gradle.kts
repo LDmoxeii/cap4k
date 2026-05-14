@@ -37,7 +37,7 @@ dependencies {
 gradlePlugin {
     plugins {
         create("cap4kPipeline") {
-            id = "com.only4.cap4k.plugin.pipeline"
+            id = "io.github.ldmoxeii.cap4k.pipeline"
             implementationClass = "com.only4.cap4k.plugin.pipeline.gradle.PipelinePlugin"
             displayName = "Cap4k Pipeline Plugin"
             description = "Runs the minimal Cap4k pipeline vertical slice."
