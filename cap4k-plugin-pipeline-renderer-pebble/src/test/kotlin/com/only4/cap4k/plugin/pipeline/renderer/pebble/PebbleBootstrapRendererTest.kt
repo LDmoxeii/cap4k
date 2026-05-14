@@ -105,7 +105,7 @@ class PebbleBootstrapRendererTest {
         val artifact = renderer.render(listOf(item)).single()
 
         assertTrue(artifact.content.contains("implementation(project(\":only-danmuku-domain\"))"))
-        assertTrue(artifact.content.contains("implementation(\"com.only4:ddd-core:0.5.0-SNAPSHOT\")"))
+        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-core:0.5.0-dev\")"))
         assertTrue(artifact.content.contains("implementation(\"jakarta.validation:jakarta.validation-api:3.0.2\")"))
         assertTrue(artifact.content.contains("implementation(\"org.jetbrains.kotlin:kotlin-reflect:2.2.20\")"))
         assertTrue(artifact.content.contains("implementation(\"org.springframework:spring-context\")"))
