@@ -164,6 +164,8 @@ class FlowArtifactPlannerTest {
         assertTrue(jsonContent.contains("OrderUpdatedHandler"))
         assertTrue(jsonContent.contains("\"edgeCount\": 4"))
         assertFalse(jsonContent.contains("SubmitOrderHandler"))
+        assertFalse(jsonContent.contains("CommandToCommandHandler"))
+        assertFalse(jsonContent.contains("CommandHandlerToEntityMethod"))
     }
 
     @Test
@@ -196,6 +198,9 @@ class FlowArtifactPlannerTest {
         assertTrue(jsonContent.contains("MediaProcessedCmd"))
         assertTrue(jsonContent.contains("Media::process"))
         assertTrue(jsonContent.contains("\"CommandToEntityMethod\""))
+        assertFalse(jsonContent.contains("MediaProcessedHandler"))
+        assertFalse(jsonContent.contains("CommandToCommandHandler"))
+        assertFalse(jsonContent.contains("CommandHandlerToEntityMethod"))
     }
 
     @Test
