@@ -96,6 +96,7 @@ private val rawCausalEdgeTypes = setOf(
     CommandSenderMethodToCommand,
     CommandToCommandHandler,
     CommandHandlerToEntityMethod,
+    CommandToEntityMethod,
     EntityMethodToEntityMethod,
     EntityMethodToDomainEvent,
     DomainEventToHandler,
@@ -119,9 +120,7 @@ internal fun buildPlannedFlows(graph: AnalysisGraphModel): PlannedFlowSet {
 
     val edges = projectCausalEdges(graph.edges)
     val adjacency = edges.groupBy { it.fromId }
-    val entryNodes = nodesById.values
-        .filter { it.type.lowercase() in entryNodeTypes }
-        .sortedBy { it.id }
+    val entryNodes = selectRootEntryNodes(nodesById, edges)
 
     val usedSlugs = linkedSetOf<String>()
     val plannedEntries = entryNodes.map { entry ->
@@ -171,6 +170,20 @@ internal fun buildPlannedFlows(graph: AnalysisGraphModel): PlannedFlowSet {
             ),
         ),
     )
+}
+
+private fun selectRootEntryNodes(
+    nodesById: Map<String, AnalysisNodeModel>,
+    edges: List<AnalysisEdgeModel>,
+): List<AnalysisNodeModel> {
+    val nodesWithUpstream = edges
+        .map { it.toId }
+        .toSet()
+
+    return nodesById.values
+        .filter { it.type.lowercase() in entryNodeTypes }
+        .filterNot { it.id in nodesWithUpstream }
+        .sortedBy { it.id }
 }
 
 private fun projectCausalEdges(edges: List<AnalysisEdgeModel>): List<AnalysisEdgeModel> {
