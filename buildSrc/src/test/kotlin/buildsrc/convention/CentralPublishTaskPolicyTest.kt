@@ -38,4 +38,28 @@ class CentralPublishTaskPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `allows only selected plugin marker Central portal publish tasks`() {
+        assertTrue(
+            CentralPublishTaskPolicy.isAllowedPluginMarkerCentralPortalPublishTask(
+                "publishCap4kPipelinePluginMarkerMavenPublicationToCentralPortalRepository"
+            )
+        )
+        assertTrue(
+            CentralPublishTaskPolicy.isAllowedPluginMarkerCentralPortalPublishTask(
+                "publishCap4kFlowExportPluginMarkerMavenPublicationToCentralPortalRepository"
+            )
+        )
+        assertFalse(
+            CentralPublishTaskPolicy.isAllowedPluginMarkerCentralPortalPublishTask(
+                "publishCap4kPluginPluginMarkerMavenPublicationToCentralPortalRepository"
+            )
+        )
+        assertFalse(
+            CentralPublishTaskPolicy.isAllowedPluginMarkerCentralPortalPublishTask(
+                "publishMavenPublicationToCentralPortalRepository"
+            )
+        )
+    }
 }

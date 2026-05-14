@@ -8,8 +8,8 @@ class CentralReleaseVersionTest {
 
     @Test
     fun `resolve uses baseline version when release version is missing`() {
-        assertEquals("0.5.0-dev", CentralReleaseVersion.resolve(null))
-        assertEquals("0.5.0-dev", CentralReleaseVersion.resolve("   "))
+        assertEquals("0.6.0-dev", CentralReleaseVersion.resolve(null))
+        assertEquals("0.6.0-dev", CentralReleaseVersion.resolve("   "))
     }
 
     @Test
