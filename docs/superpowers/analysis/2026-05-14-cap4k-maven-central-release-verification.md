@@ -105,7 +105,7 @@ Expected remote verification results:
 - The workflow runs the repository state from the commit referenced by `v0.5.0`.
 - The workflow derives `RELEASE_VERSION=0.5.0`.
 - The workflow fails before publish if the tagged commit is not contained in `origin/publish/maven-central`.
-- The workflow completes `buildSrc` tests, `check`, `publish`, uploads the compatibility repository to Central Portal, waits for the Portal deployment to reach `PUBLISHED`, and only then creates the GitHub Release.
+- The workflow completes `buildSrc` tests, `check`, `publish`, uploads the compatibility repository to Central Portal with automatic publishing, and then creates the GitHub Release.
 - Central shows the published artifact page for `io.github.ldmoxeii/ddd-core`.
 - GitHub shows a release page for tag `v0.5.0`.
 
@@ -168,11 +168,9 @@ If a correctly formatted tag points to a commit outside `origin/publish/maven-ce
 - Verify `CENTRAL_USERNAME` and `CENTRAL_PASSWORD`.
 - Verify `SIGNING_KEY` and `SIGNING_PASSWORD`.
 - Inspect the `Publish` step logs before retrying with another tag.
-- Inspect the compatibility upload call to `https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.ldmoxeii?publishing_type=portal_api`.
+- Inspect the compatibility upload call to `https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.ldmoxeii?publishing_type=automatic`.
 - Verify the compatibility API uses `Authorization: Bearer <base64(username:password)>` instead of Basic Auth.
-- Inspect the released compatibility repository lookup at `https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?profile_id=io.github.ldmoxeii&state=released&ip=client`.
-- Inspect the Portal deployment status polling at `https://central.sonatype.com/api/v1/publisher/status?id=<deployment-id>`.
-- If the deployment reaches `VALIDATED` but not `PUBLISHED`, inspect the publish call to `https://central.sonatype.com/api/v1/publisher/deployment/<deployment-id>`.
+- If the upload call returns an error body, inspect that payload before retrying with another tag.
 
 ### Release page or Central page missing after successful workflow completion
 
