@@ -258,6 +258,38 @@ class DefaultDomainEventSupervisorTest {
             verify { eventRecordRepository.create() }
             verify { eventPublisher.publish(any()) }
         }
+
+        @Test
+        @DisplayName("没有显式调度时间的Spring Data领域事件不应该被误判为延迟事件")
+        fun `unscheduled Spring Data domain events should not be treated as delayed events`() {
+            // given
+            val springEntity = TestSpringAggregateRoot()
+            springEntity.addDomainEvent(TestDomainEvent("spring event"))
+            val releaseTime = LocalDateTime.of(2026, 1, 1, 0, 0)
+
+            val mockEventRecord = mockk<EventRecord>()
+            every { eventRecordRepository.create() } returns mockEventRecord
+            every { mockEventRecord.init(any(), any(), any(), any(), any()) } just Runs
+            every { mockEventRecord.markPersist(any()) } just Runs
+            every { eventRecordRepository.save(any()) } just Runs
+
+            mockkStatic(LocalDateTime::class)
+            every { LocalDateTime.now() } returnsMany listOf(
+                releaseTime,
+                releaseTime.plusNanos(1)
+            )
+
+            try {
+                // when
+                supervisor.release(setOf(springEntity))
+
+                // then
+                verify { eventPublisher.publish(mockEventRecord) }
+                verify(exactly = 0) { eventRecordRepository.save(any()) }
+            } finally {
+                unmockkStatic(LocalDateTime::class)
+            }
+        }
     }
 
     @Nested

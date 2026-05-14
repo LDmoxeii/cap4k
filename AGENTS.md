@@ -52,6 +52,38 @@ There are three kinds of work in this repo now:
 2. Real-project integration boundary work
 3. Bootstrap or arch-template migration work
 
+## Branch And Release Policy
+
+`cap4k` does not use a long-lived `develop` branch as a standard integration stage. Do not introduce or revive a `feature -> develop -> master -> publish` flow for normal work.
+
+Use these branch roles instead:
+
+- `feature/*`: short-lived implementation branches for normal code changes
+- `master`: the main integration branch for framework development
+- `publish/maven-central`: the Central release channel branch
+- `publish/aliyun-private`: optional self-use private-repository release branch
+- `verify/*`: temporary verification branches for release-pipeline or publication-flow changes
+
+Expected promotion flow:
+
+1. `feature/* -> master`
+2. `master -> publish/maven-central`
+3. `publish/maven-central` commit -> `v*` tag -> Maven Central release
+
+Pull request policy:
+
+- `feature/* -> master`: use a pull request by default
+- `verify/* -> publish/*`: use a pull request by default
+- `master -> publish/maven-central`: a pull request is optional when this is only a clean promotion of already-verified code and does not change release-pipeline behavior
+
+Release safety rules:
+
+- `master` should stay free of mandatory Central or private-repository publishing credentials
+- Central release workflow changes belong on `verify/maven-central` first, then promote into `publish/maven-central`
+- Maven Central release is tag-driven, not branch-push-driven
+- only push release tags for commits that are contained in `origin/publish/maven-central`
+- do not use `develop` as the default base branch for new work, release prep, or issue execution
+
 ## Continuing Work
 
 - If the user says "continue the original mainline", use the current GitHub issues plus the newest relevant spec/plan to identify the active slice.
