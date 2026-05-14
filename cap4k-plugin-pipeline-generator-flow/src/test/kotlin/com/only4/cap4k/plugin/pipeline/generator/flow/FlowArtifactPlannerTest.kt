@@ -113,6 +113,8 @@ class FlowArtifactPlannerTest {
                     node("OrderUpdated", "domainevent"),
                     node("MediaProcessedIntegrationEvent", "integrationevent"),
                     node("MediaProcessedIntegrationEventHandler", "integrationeventhandler"),
+                    node("MediaProcessedCmd", "command"),
+                    node("Media::process", "entitymethod"),
                 ),
                 edges = listOf(
                     edge("OrderController::submit", "SubmitOrderCmd", "ControllerMethodToCommand"),
@@ -151,7 +153,6 @@ class FlowArtifactPlannerTest {
                 ),
                 edges = listOf(
                     edge("OrderController::submit", "SubmitOrderCmd", "ControllerMethodToCommand"),
-                    edge("SubmitOrderCmd", "SubmitOrderHandler", "CommandToCommandHandler"),
                     edge("SubmitOrderCmd", "Order::submit", "CommandToEntityMethod"),
                     edge("Order::submit", "OrderUpdated", "EntityMethodToDomainEvent"),
                     edge("OrderUpdated", "OrderUpdatedHandler", "DomainEventToHandler"),
