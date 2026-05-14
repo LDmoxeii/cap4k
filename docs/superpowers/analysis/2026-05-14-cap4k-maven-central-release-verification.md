@@ -20,6 +20,10 @@ Value format notes:
 - `SIGNING_KEY`: the full armored ASCII private PGP key block consumed by `useInMemoryPgpKeys(...)`, including the `-----BEGIN PGP PRIVATE KEY BLOCK-----` and `-----END PGP PRIVATE KEY BLOCK-----` lines. Do not store a key id, fingerprint, or file path here.
 - `SIGNING_PASSWORD`: the passphrase for the private key stored in `SIGNING_KEY`. Leave it empty only if the private key itself has no passphrase.
 
+Operational prerequisite:
+
+- Publish the matching public key to a Sonatype-supported public key server before the first Central release. The Sonatype signing requirements list `keyserver.ubuntu.com`, `keys.openpgp.org`, and `pgp.mit.edu` as supported key servers. Do not assume that having the private key in GitHub secrets is enough for Central signature validation.
+
 ## Local Structural Verification Commands
 
 Run these commands from the `verify/maven-central` worktree to validate the branch structure before the first real release:
@@ -167,6 +171,7 @@ If a correctly formatted tag points to a commit outside `origin/publish/maven-ce
 
 - Verify `CENTRAL_USERNAME` and `CENTRAL_PASSWORD`.
 - Verify `SIGNING_KEY` and `SIGNING_PASSWORD`.
+- Verify the matching public key is already retrievable from a Sonatype-supported public key server before retrying the tag.
 - Inspect the `Publish` step logs before retrying with another tag.
 - Inspect the compatibility upload call to `https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.ldmoxeii?publishing_type=automatic`.
 - Verify the compatibility API uses `Authorization: Bearer <base64(username:password)>` instead of Basic Auth.

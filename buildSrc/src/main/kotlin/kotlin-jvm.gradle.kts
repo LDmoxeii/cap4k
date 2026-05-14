@@ -66,6 +66,14 @@ publishing {
     publications.withType<MavenPublication>().configureEach {
         applyProjectCoordinates()
         configurePomMetadata()
+        versionMapping {
+            usage("java-api") {
+                fromResolutionOf("runtimeClasspath")
+            }
+            usage("java-runtime") {
+                fromResolutionResult()
+            }
+        }
     }
     repositories {
         maven {
