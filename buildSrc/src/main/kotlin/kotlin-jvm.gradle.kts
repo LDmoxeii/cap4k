@@ -93,7 +93,9 @@ afterEvaluate {
     signing {
         setRequired {
             isCentralRelease && gradle.taskGraph.allTasks.any { task ->
-                task is PublishToMavenRepository && task.repository.name == "CentralPortal"
+                task is PublishToMavenRepository &&
+                    CentralPublishTaskPolicy.isCentralPortalPublishTask(task.name) &&
+                    !CentralPublishTaskPolicy.isPluginMarkerCentralPortalPublishTask(task.name)
             }
         }
         if (!signingKey.isNullOrBlank()) {
@@ -102,12 +104,12 @@ afterEvaluate {
         sign(publishing.publications)
     }
     tasks.withType<PublishToMavenRepository>().configureEach {
-        if (name.endsWith("PluginMarkerMavenPublicationToCentralPortalRepository")) {
+        if (CentralPublishTaskPolicy.isPluginMarkerCentralPortalPublishTask(name)) {
             enabled = false
             return@configureEach
         }
 
-        if (repository.name == "CentralPortal") {
+        if (CentralPublishTaskPolicy.isCentralPortalPublishTask(name)) {
             enabled = isCentralRelease
         }
     }
