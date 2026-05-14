@@ -12,6 +12,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -26,40 +27,22 @@ class FlowArtifactPlannerTest {
             analysisGraph = AnalysisGraphModel(
                 inputDirs = listOf("app/build/cap4k-code-analysis"),
                 nodes = listOf(
-                    AnalysisNodeModel(
-                        id = "OrderController::submit",
-                        name = "OrderController::submit",
-                        fullName = "OrderController::submit",
-                        type = "controllermethod",
-                    ),
-                    AnalysisNodeModel(
-                        id = "SubmitOrderCmd",
-                        name = "SubmitOrderCmd",
-                        fullName = "SubmitOrderCmd",
-                        type = "command",
-                    ),
-                    AnalysisNodeModel(
-                        id = "SubmitOrderHandler",
-                        name = "SubmitOrderHandler",
-                        fullName = "SubmitOrderHandler",
-                        type = "commandhandler",
-                    ),
-                    AnalysisNodeModel(
-                        id = "IgnoredAggregate",
-                        name = "IgnoredAggregate",
-                        fullName = "IgnoredAggregate",
-                        type = "aggregate",
-                    ),
+                    node("OrderController::submit", "controllermethod"),
+                    node("SubmitOrderCmd", "command"),
+                    node("SubmitOrderHandler", "commandhandler"),
+                    node("Order::submit", "entitymethod"),
+                    node("IgnoredAggregate", "aggregate"),
                 ),
                 edges = listOf(
-                    AnalysisEdgeModel("OrderController::submit", "SubmitOrderCmd", "ControllerMethodToCommand"),
-                    AnalysisEdgeModel("SubmitOrderCmd", "SubmitOrderHandler", "CommandToCommandHandler"),
-                    AnalysisEdgeModel("SubmitOrderHandler", "IgnoredAggregate", "CommandHandlerToAggregate"),
+                    edge("OrderController::submit", "SubmitOrderCmd", "ControllerMethodToCommand"),
+                    edge("SubmitOrderCmd", "SubmitOrderHandler", "CommandToCommandHandler"),
+                    edge("SubmitOrderHandler", "Order::submit", "CommandHandlerToEntityMethod"),
                 ),
             ),
         )
 
         val plan = planner.plan(config(), model)
+        val jsonContent = plan[0].context["jsonContent"] as String
 
         assertEquals(3, plan.size)
         assertEquals("flow/entry.json.peb", plan[0].templateId)
@@ -68,10 +51,160 @@ class FlowArtifactPlannerTest {
         assertEquals("flows/OrderController_submit.mmd", plan[1].outputPath)
         assertEquals("flow/index.json.peb", plan[2].templateId)
         assertEquals("flows/index.json", plan[2].outputPath)
-        assertTrue((plan[0].context["jsonContent"] as String).contains("\"edgeCount\": 2"))
+        assertTrue(model.analysisGraph!!.nodes.any { it.type == "commandhandler" })
+        assertTrue(model.analysisGraph!!.nodes.any { it.type == "entitymethod" && it.id == "Order::submit" })
+        assertTrue(jsonContent.contains("\"edgeCount\": 2"))
+        assertTrue(jsonContent.contains("\"CommandToEntityMethod\""))
+        assertFalse(jsonContent.contains("SubmitOrderHandler"))
+        assertFalse(jsonContent.contains("IgnoredAggregate"))
         assertTrue((plan[1].context["mermaidText"] as String).contains("flowchart TD"))
         assertTrue((plan[2].context["jsonContent"] as String).contains("\"flowCount\": 1"))
-        assertTrue(!(plan[0].context["jsonContent"] as String).contains("IgnoredAggregate"))
+    }
+
+    @Test
+    fun `excludes query cli and validator paths from default causal chain`() {
+        val planner = FlowArtifactPlanner()
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("app/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    node("SearchOrdersQuerySender", "querysendermethod"),
+                    node("SearchOrdersQuery", "query"),
+                    node("SearchOrdersQueryHandler", "queryhandler"),
+                    node("ExportOrdersCliSender", "clisendermethod"),
+                    node("ExportOrdersCli", "cli"),
+                    node("ExportOrdersCliHandler", "clihandler"),
+                    node("SearchOrdersValidator", "validator"),
+                ),
+                edges = listOf(
+                    edge("SearchOrdersQuerySender", "SearchOrdersQuery", "QuerySenderMethodToQuery"),
+                    edge("SearchOrdersQuery", "SearchOrdersQueryHandler", "QueryToQueryHandler"),
+                    edge("ExportOrdersCliSender", "ExportOrdersCli", "CliSenderMethodToCli"),
+                    edge("ExportOrdersCli", "ExportOrdersCliHandler", "CliToCliHandler"),
+                    edge("SearchOrdersValidator", "SearchOrdersQuery", "ValidatorToQuery"),
+                ),
+            ),
+        )
+
+        val plan = planner.plan(config(), model)
+        assertEquals(1, plan.size)
+        val indexJson = plan.last().context["jsonContent"] as String
+
+        assertEquals(listOf("flow/index.json.peb"), plan.map { it.templateId })
+        assertEquals("flows/index.json", plan.last().outputPath)
+        assertTrue(indexJson.contains("\"flowCount\": 0"))
+        assertFalse(indexJson.contains("\"querysendermethod\""))
+        assertFalse(indexJson.contains("\"clisendermethod\""))
+        assertFalse(indexJson.contains("\"validator\""))
+    }
+
+    @Test
+    fun `does not emit integration event as separate flow when it has upstream causal edge`() {
+        val planner = FlowArtifactPlanner()
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("app/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    node("OrderController::submit", "controllermethod"),
+                    node("SubmitOrderCmd", "command"),
+                    node("SubmitOrderHandler", "commandhandler"),
+                    node("Order::submit", "entitymethod"),
+                    node("OrderUpdated", "domainevent"),
+                    node("MediaProcessedIntegrationEvent", "integrationevent"),
+                    node("MediaProcessedIntegrationEventHandler", "integrationeventhandler"),
+                    node("MediaProcessedCmd", "command"),
+                    node("MediaProcessedHandler", "commandhandler"),
+                    node("Media::process", "entitymethod"),
+                ),
+                edges = listOf(
+                    edge("OrderController::submit", "SubmitOrderCmd", "ControllerMethodToCommand"),
+                    edge("SubmitOrderCmd", "SubmitOrderHandler", "CommandToCommandHandler"),
+                    edge("SubmitOrderHandler", "Order::submit", "CommandHandlerToEntityMethod"),
+                    edge("Order::submit", "OrderUpdated", "EntityMethodToDomainEvent"),
+                    edge("OrderUpdated", "MediaProcessedIntegrationEvent", "DomainEventToIntegrationEvent"),
+                    edge("MediaProcessedIntegrationEvent", "MediaProcessedIntegrationEventHandler", "IntegrationEventToHandler"),
+                    edge("MediaProcessedIntegrationEventHandler", "MediaProcessedCmd", "IntegrationEventHandlerToCommand"),
+                    edge("MediaProcessedCmd", "MediaProcessedHandler", "CommandToCommandHandler"),
+                    edge("MediaProcessedHandler", "Media::process", "CommandHandlerToEntityMethod"),
+                ),
+            ),
+        )
+
+        val plan = planner.plan(config(), model)
+
+        assertEquals(3, plan.size)
+        assertEquals(1, plan.count { it.templateId == "flow/entry.json.peb" })
+        assertEquals("flows/OrderController_submit.json", plan.first { it.templateId == "flow/entry.json.peb" }.outputPath)
+        assertFalse(plan.any { it.outputPath == "flows/MediaProcessedIntegrationEvent.json" })
+        assertTrue((plan.last().context["jsonContent"] as String).contains("\"flowCount\": 1"))
+    }
+
+    @Test
+    fun `keeps empty domain event handler visible and stops naturally`() {
+        val planner = FlowArtifactPlanner()
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("app/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    node("OrderController::submit", "controllermethod"),
+                    node("SubmitOrderCmd", "command"),
+                    node("SubmitOrderHandler", "commandhandler"),
+                    node("Order::submit", "entitymethod"),
+                    node("OrderUpdated", "domainevent"),
+                    node("OrderUpdatedHandler", "domaineventhandler"),
+                ),
+                edges = listOf(
+                    edge("OrderController::submit", "SubmitOrderCmd", "ControllerMethodToCommand"),
+                    edge("SubmitOrderCmd", "SubmitOrderHandler", "CommandToCommandHandler"),
+                    edge("SubmitOrderHandler", "Order::submit", "CommandHandlerToEntityMethod"),
+                    edge("Order::submit", "OrderUpdated", "EntityMethodToDomainEvent"),
+                    edge("OrderUpdated", "OrderUpdatedHandler", "DomainEventToHandler"),
+                ),
+            ),
+        )
+
+        val plan = planner.plan(config(), model)
+        val jsonContent = plan[0].context["jsonContent"] as String
+
+        assertEquals(3, plan.size)
+        assertTrue(jsonContent.contains("OrderUpdatedHandler"))
+        assertTrue(jsonContent.contains("\"edgeCount\": 4"))
+        assertFalse(jsonContent.contains("SubmitOrderHandler"))
+    }
+
+    @Test
+    fun `keeps integration event handler visible when inbound event sends command`() {
+        val planner = FlowArtifactPlanner()
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("app/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    node("MediaProcessedIntegrationEvent", "integrationevent"),
+                    node("MediaProcessedIntegrationEventHandler", "integrationeventhandler"),
+                    node("MediaProcessedCmd", "command"),
+                    node("MediaProcessedHandler", "commandhandler"),
+                    node("Media::process", "entitymethod"),
+                ),
+                edges = listOf(
+                    edge("MediaProcessedIntegrationEvent", "MediaProcessedIntegrationEventHandler", "IntegrationEventToHandler"),
+                    edge("MediaProcessedIntegrationEventHandler", "MediaProcessedCmd", "IntegrationEventHandlerToCommand"),
+                    edge("MediaProcessedCmd", "MediaProcessedHandler", "CommandToCommandHandler"),
+                    edge("MediaProcessedHandler", "Media::process", "CommandHandlerToEntityMethod"),
+                ),
+            ),
+        )
+
+        val plan = planner.plan(config(), model)
+        val jsonContent = plan[0].context["jsonContent"] as String
+        val indexJson = plan.last().context["jsonContent"] as String
+
+        assertEquals("flows/MediaProcessedIntegrationEvent.json", plan[0].outputPath)
+        assertTrue(indexJson.contains("\"integrationevent\": 1"))
+        assertTrue(jsonContent.contains("MediaProcessedIntegrationEventHandler"))
+        assertTrue(jsonContent.contains("MediaProcessedCmd"))
+        assertTrue(jsonContent.contains("Media::process"))
+        assertTrue(jsonContent.contains("\"CommandToEntityMethod\""))
+        assertFalse(jsonContent.contains("MediaProcessedHandler"))
     }
 
     @Test
@@ -256,5 +389,21 @@ class FlowArtifactPlannerTest {
             ),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             artifactLayout = ArtifactLayoutConfig(flow = OutputRootLayout(outputRoot)),
+        )
+
+    private fun node(id: String, type: String): AnalysisNodeModel =
+        AnalysisNodeModel(
+            id = id,
+            name = id,
+            fullName = id,
+            type = type,
+        )
+
+    private fun edge(fromId: String, toId: String, type: String, label: String? = null): AnalysisEdgeModel =
+        AnalysisEdgeModel(
+            fromId = fromId,
+            toId = toId,
+            type = type,
+            label = label,
         )
 }
