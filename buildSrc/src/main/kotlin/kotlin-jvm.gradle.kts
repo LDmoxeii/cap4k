@@ -3,6 +3,7 @@ package buildsrc.convention
 
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
+import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import java.time.Duration
 
@@ -14,8 +15,47 @@ plugins {
     signing
 }
 
-group = "io.github.ldmoxeii"
-version = "0.5.0-SNAPSHOT"
+fun MavenPublication.applyProjectCoordinates() {
+    groupId = project.group.toString()
+    artifactId = project.name
+    version = project.version.toString()
+}
+
+fun MavenPublication.configurePomMetadata() {
+    pom {
+        name.set(project.name)
+        description.set("cap4k module ${project.name}")
+        url.set("https://github.com/LDmoxeii/cap4k")
+        licenses {
+            license {
+                name.set("MIT License")
+                url.set("https://github.com/LDmoxeii/cap4k/blob/master/LICENSE")
+            }
+        }
+        developers {
+            developer {
+                id.set("LDmoxeii")
+                name.set("LDmoxeii")
+            }
+        }
+        scm {
+            connection.set("scm:git:https://github.com/LDmoxeii/cap4k.git")
+            developerConnection.set("scm:git:https://github.com/LDmoxeii/cap4k.git")
+            url.set("https://github.com/LDmoxeii/cap4k")
+        }
+    }
+}
+
+val releaseVersionInput = providers.gradleProperty(CentralReleaseVersion.releaseVersionProperty).orNull
+    ?: System.getenv(CentralReleaseVersion.releaseVersionEnvironment)
+val centralUsername = providers.gradleProperty("central.username").orNull ?: System.getenv("CENTRAL_USERNAME")
+val centralPassword = providers.gradleProperty("central.password").orNull ?: System.getenv("CENTRAL_PASSWORD")
+val signingKey = providers.gradleProperty("signingKey").orNull ?: System.getenv("SIGNING_KEY")
+val signingPassword = providers.gradleProperty("signingPassword").orNull ?: System.getenv("SIGNING_PASSWORD")
+val isCentralRelease = CentralReleaseVersion.isReleaseBuild(releaseVersionInput)
+
+group = CentralReleaseVersion.groupId
+version = CentralReleaseVersion.resolve(releaseVersionInput)
 
 java {
     withSourcesJar()
@@ -24,38 +64,16 @@ java {
 
 publishing {
     publications.withType<MavenPublication>().configureEach {
-        pom {
-            name.set(project.name)
-            description.set("cap4k module ${project.name}")
-            url.set("https://github.com/LDmoxeii/cap4k")
-            licenses {
-                license {
-                    name.set("MIT License")
-                    url.set("https://github.com/LDmoxeii/cap4k/blob/master/LICENSE")
-                }
-            }
-            developers {
-                developer {
-                    id.set("LDmoxeii")
-                    name.set("LDmoxeii")
-                }
-            }
-            scm {
-                connection.set("scm:git:https://github.com/LDmoxeii/cap4k.git")
-                developerConnection.set("scm:git:https://github.com/LDmoxeii/cap4k.git")
-                url.set("https://github.com/LDmoxeii/cap4k")
-            }
-        }
+        applyProjectCoordinates()
+        configurePomMetadata()
     }
     repositories {
         maven {
             name = "CentralPortal"
-            val releasesRepoUrl = uri("https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/")
-            val snapshotsRepoUrl = uri("https://central.sonatype.com/repository/maven-snapshots/")
-            url = if (version.toString().endsWith("-SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl
+            url = uri("https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/")
             credentials {
-                username = providers.gradleProperty("central.username").orNull ?: System.getenv("CENTRAL_USERNAME")
-                password = providers.gradleProperty("central.password").orNull ?: System.getenv("CENTRAL_PASSWORD")
+                username = centralUsername
+                password = centralPassword
             }
         }
     }
@@ -67,31 +85,31 @@ afterEvaluate {
             publications {
                 create<MavenPublication>("maven") {
                     from(components["java"])
-                    groupId = project.group.toString()
-                    artifactId = project.name
-                    version = project.version.toString()
                 }
             }
         }
     }
 
     signing {
-        val signingKey = providers.gradleProperty("signingKey").orNull ?: System.getenv("SIGNING_KEY")
-        val signingPassword = providers.gradleProperty("signingPassword").orNull ?: System.getenv("SIGNING_PASSWORD")
         setRequired {
-            !version.toString().endsWith("-SNAPSHOT") && gradle.taskGraph.allTasks.any { it.name.startsWith("publish") }
+            isCentralRelease && gradle.taskGraph.allTasks.any { task ->
+                task is PublishToMavenRepository && task.repository.name == "CentralPortal"
+            }
         }
         if (!signingKey.isNullOrBlank()) {
             useInMemoryPgpKeys(signingKey, signingPassword)
-            sign(publishing.publications)
         }
+        sign(publishing.publications)
     }
-}
+    tasks.withType<PublishToMavenRepository>().configureEach {
+        if (name.endsWith("PluginMarkerMavenPublicationToCentralPortalRepository")) {
+            enabled = false
+            return@configureEach
+        }
 
-tasks.withType<PublishToMavenRepository>().configureEach {
-    // Plugin marker publications keep legacy com.only4-derived coordinates; Central only verifies io.github.ldmoxeii.
-    if (name.endsWith("PluginMarkerMavenPublicationToCentralPortalRepository")) {
-        enabled = false
+        if (repository.name == "CentralPortal") {
+            enabled = isCentralRelease
+        }
     }
 }
 
