@@ -65,9 +65,87 @@ jobs:
 
       - name: Upload staging repository to Central Portal
         run: |
-          curl --fail --request POST \
-            --user "${CENTRAL_USERNAME}:${CENTRAL_PASSWORD}" \
-            https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.ldmoxeii
+          set -euo pipefail
+
+          central_bearer_token="$(printf '%s:%s' "${CENTRAL_USERNAME}" "${CENTRAL_PASSWORD}" | base64 | tr -d '\n')"
+
+          curl --fail-with-body --silent --show-error --request POST \
+            --header "Authorization: Bearer ${central_bearer_token}" \
+            "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.ldmoxeii?publishing_type=portal_api"
+
+          repository_search_response="$(
+            curl --fail-with-body --silent --show-error \
+              --header "Authorization: Bearer ${central_bearer_token}" \
+              "https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?profile_id=io.github.ldmoxeii&state=released&ip=client"
+          )"
+
+          repository_count="$(jq '.repositories | length' <<< "${repository_search_response}")"
+          if [[ "${repository_count}" -ne 1 ]]; then
+            echo "Expected exactly one released compatibility repository for this runner IP, found ${repository_count}." >&2
+            jq . <<< "${repository_search_response}"
+            exit 1
+          fi
+
+          deployment_id="$(jq -r '.repositories[0].portal_deployment_id // empty' <<< "${repository_search_response}")"
+          if [[ -z "${deployment_id}" ]]; then
+            echo "Central deployment ID was not returned after uploading the compatibility repository." >&2
+            jq . <<< "${repository_search_response}"
+            exit 1
+          fi
+
+          publish_requested=false
+          max_attempts=90
+
+          for (( attempt = 1; attempt <= max_attempts; attempt++ )); do
+            deployment_status_json="$(
+              curl --fail-with-body --silent --show-error --request POST \
+                --header "Authorization: Bearer ${central_bearer_token}" \
+                "https://central.sonatype.com/api/v1/publisher/status?id=${deployment_id}"
+            )"
+
+            deployment_state="$(jq -r '.deploymentState' <<< "${deployment_status_json}")"
+            echo "Central deployment ${deployment_id} status: ${deployment_state} (attempt ${attempt}/${max_attempts})"
+
+            case "${deployment_state}" in
+              PENDING|VALIDATING|PUBLISHING)
+                sleep 10
+                ;;
+              VALIDATED)
+                if [[ "${publish_requested}" == false ]]; then
+                  curl --fail-with-body --silent --show-error --request POST \
+                    --header "Authorization: Bearer ${central_bearer_token}" \
+                    "https://central.sonatype.com/api/v1/publisher/deployment/${deployment_id}"
+                  publish_requested=true
+                fi
+                sleep 10
+                ;;
+              PUBLISHED)
+                break
+                ;;
+              FAILED)
+                echo "Central deployment ${deployment_id} failed." >&2
+                jq . <<< "${deployment_status_json}"
+                exit 1
+                ;;
+              *)
+                echo "Unexpected Central deployment state: ${deployment_state}" >&2
+                jq . <<< "${deployment_status_json}"
+                exit 1
+                ;;
+            esac
+          done
+
+          deployment_status_json="$(
+            curl --fail-with-body --silent --show-error --request POST \
+              --header "Authorization: Bearer ${central_bearer_token}" \
+              "https://central.sonatype.com/api/v1/publisher/status?id=${deployment_id}"
+          )"
+          deployment_state="$(jq -r '.deploymentState' <<< "${deployment_status_json}")"
+          if [[ "${deployment_state}" != "PUBLISHED" ]]; then
+            echo "Central deployment ${deployment_id} did not reach PUBLISHED within the timeout window." >&2
+            jq . <<< "${deployment_status_json}"
+            exit 1
+          fi
         env:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
