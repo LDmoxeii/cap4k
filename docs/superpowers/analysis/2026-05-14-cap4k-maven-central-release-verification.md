@@ -65,16 +65,17 @@ Expected outcome:
 
 ## First Remote Central Verification Steps
 
-The first real release verification is tag-driven. The workflow runs from whatever commit the pushed tag points to. Keeping `publish/maven-central` as the canonical release channel branch is still recommended, but pushing that branch by itself does not trigger a release.
+The first real release verification is tag-driven. The workflow runs from whatever commit the pushed tag points to. Keeping `publish/maven-central` as the canonical release channel branch is still recommended, and the workflow now enforces that the tagged commit must be contained in `origin/publish/maven-central`. Pushing that branch by itself still does not trigger a release.
 
 1. Merge `verify/maven-central` into `publish/maven-central`.
 2. Push `publish/maven-central` so the canonical release branch contains the intended release commit.
 3. Identify the exact commit to release and tag that commit explicitly.
 4. Verify locally that the tag points to the intended commit before pushing the tag.
-5. Push the release tag such as `v0.5.0`.
-6. Watch the release workflow with `gh`.
-7. Verify the Central artifact page.
-8. Verify the GitHub release page.
+5. Verify that the tagged commit is reachable from `origin/publish/maven-central`.
+6. Push the release tag such as `v0.5.0`.
+7. Watch the release workflow with `gh`.
+8. Verify the Central artifact page.
+9. Verify the GitHub release page.
 
 Suggested commands:
 
@@ -85,6 +86,7 @@ git push origin publish/maven-central
 git rev-parse HEAD
 git tag v0.5.0 <commit-sha>
 git show --no-patch --decorate v0.5.0
+git branch -r --contains <commit-sha>
 git push origin v0.5.0
 gh run list --repo LDmoxeii/cap4k --workflow "Maven Central Release" --limit 5
 gh run view <run-id> --repo LDmoxeii/cap4k
@@ -95,12 +97,14 @@ Operator check:
 - If the intended release commit is `HEAD` on `publish/maven-central`, replace `<commit-sha>` with the value from `git rev-parse HEAD`.
 - If the intended release commit is not `HEAD`, tag that exact commit instead of assuming the branch tip is correct.
 - Do not push the tag until `git show --no-patch --decorate v0.5.0` confirms the tag target is the commit you intend to release.
+- Do not push the tag until `git branch -r --contains <commit-sha>` shows `origin/publish/maven-central`.
 
 Expected remote verification results:
 
 - The `Maven Central Release` workflow starts from the pushed `v0.5.0` tag.
 - The workflow runs the repository state from the commit referenced by `v0.5.0`.
 - The workflow derives `RELEASE_VERSION=0.5.0`.
+- The workflow fails before publish if the tagged commit is not contained in `origin/publish/maven-central`.
 - The workflow completes `buildSrc` tests, `check`, `publish`, the Central upload call, and GitHub Release creation successfully.
 - Central shows the published artifact page for `io.github.ldmoxeii/ddd-core`.
 - GitHub shows a release page for tag `v0.5.0`.
@@ -116,6 +120,7 @@ Reference pages:
 
 - Workflow trigger: any pushed tag beginning with `v`
 - Job gate: `Derive release version` requires exact `v<major>.<minor>.<patch>` format
+- Branch gate: `Verify tagged commit is on publish branch` requires the tagged commit to be contained in `origin/publish/maven-central`
 
 Examples:
 
@@ -126,6 +131,8 @@ Examples:
 - rejected by the job: `version-0.5.0`
 
 This means a tag like `v0.5.0-rc1` can still trigger the workflow because it matches `v*`, but the job should fail immediately during version derivation instead of publishing anything.
+
+If a correctly formatted tag points to a commit outside `origin/publish/maven-central`, the workflow should also fail immediately before any publish or upload step runs.
 
 ## Failure Triage Notes
 
@@ -152,7 +159,9 @@ This means a tag like `v0.5.0-rc1` can still trigger the workflow because it mat
 - Inspect the `Derive release version` step first.
 - Confirm the pushed tag is exactly `v<major>.<minor>.<patch>`.
 - Confirm the tag points to the intended release commit.
-- Confirm the tagged commit contains the expected `publish/maven-central` content after the merge.
+- Inspect `Verify tagged commit is on publish branch` next.
+- Confirm `origin/publish/maven-central` was pushed before the tag.
+- Confirm the tagged commit contains the expected `publish/maven-central` content after the merge and is reachable from that remote branch.
 
 ### Remote workflow publish or upload failure
 

@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -36,6 +38,15 @@ jobs:
             exit 1
           fi
           echo "RELEASE_VERSION=${TAG_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Verify tagged commit is on publish branch
+        shell: bash
+        run: |
+          git fetch --no-tags origin publish/maven-central:refs/remotes/origin/publish/maven-central
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" "origin/publish/maven-central"; then
+            echo "Tag ${GITHUB_REF_NAME} points to ${GITHUB_SHA}, which is not contained in origin/publish/maven-central." >&2
+            exit 1
+          fi
 
       - name: Test buildSrc
         working-directory: buildSrc
