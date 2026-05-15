@@ -8,7 +8,7 @@ kotlin {
 
 dependencies {
     implementation(project(":demo-application"))
-    implementation("com.only4:ddd-core:0.5.0-SNAPSHOT")
+    implementation("io.github.ldmoxeii:ddd-core:0.5.0-dev")
     implementation("org.springframework:spring-context")
 }
 

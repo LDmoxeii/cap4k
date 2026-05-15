@@ -47,3 +47,6 @@ bin/
 
 ### Git Worktrees ###
 .worktrees/
+
+### Local agent scratch ###
+.superpowers/

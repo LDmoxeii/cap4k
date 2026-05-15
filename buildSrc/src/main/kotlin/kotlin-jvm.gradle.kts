@@ -11,8 +11,8 @@ plugins {
     `maven-publish`
 }
 
-group = "com.only4"
-version = "0.5.0-SNAPSHOT"
+group = "io.github.ldmoxeii"
+version = "0.5.0-dev"
 
 java {
     withSourcesJar()

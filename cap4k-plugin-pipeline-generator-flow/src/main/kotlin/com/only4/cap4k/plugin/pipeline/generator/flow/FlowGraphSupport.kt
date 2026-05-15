@@ -78,37 +78,37 @@ private val gson = GsonBuilder()
     .disableHtmlEscaping()
     .create()
 
-private val allowedEdgeTypes = setOf(
-    "ControllerMethodToCommand",
-    "ControllerMethodToQuery",
-    "ControllerMethodToCli",
-    "CommandSenderMethodToCommand",
-    "QuerySenderMethodToQuery",
-    "CliSenderMethodToCli",
-    "ValidatorToQuery",
-    "CommandToCommandHandler",
-    "QueryToQueryHandler",
-    "CliToCliHandler",
-    "CommandHandlerToEntityMethod",
-    "EntityMethodToEntityMethod",
-    "EntityMethodToDomainEvent",
-    "DomainEventToHandler",
-    "DomainEventHandlerToCommand",
-    "DomainEventHandlerToQuery",
-    "DomainEventHandlerToCli",
-    "DomainEventToIntegrationEvent",
-    "IntegrationEventToHandler",
-    "IntegrationEventHandlerToCommand",
-    "IntegrationEventHandlerToQuery",
-    "IntegrationEventHandlerToCli",
+private const val ControllerMethodToCommand = "ControllerMethodToCommand"
+private const val CommandSenderMethodToCommand = "CommandSenderMethodToCommand"
+private const val CommandToCommandHandler = "CommandToCommandHandler"
+private const val CommandHandlerToEntityMethod = "CommandHandlerToEntityMethod"
+private const val CommandToEntityMethod = "CommandToEntityMethod"
+private const val EntityMethodToEntityMethod = "EntityMethodToEntityMethod"
+private const val EntityMethodToDomainEvent = "EntityMethodToDomainEvent"
+private const val DomainEventToHandler = "DomainEventToHandler"
+private const val DomainEventHandlerToCommand = "DomainEventHandlerToCommand"
+private const val DomainEventToIntegrationEvent = "DomainEventToIntegrationEvent"
+private const val IntegrationEventToHandler = "IntegrationEventToHandler"
+private const val IntegrationEventHandlerToCommand = "IntegrationEventHandlerToCommand"
+
+private val rawCausalEdgeTypes = setOf(
+    ControllerMethodToCommand,
+    CommandSenderMethodToCommand,
+    CommandToCommandHandler,
+    CommandHandlerToEntityMethod,
+    CommandToEntityMethod,
+    EntityMethodToEntityMethod,
+    EntityMethodToDomainEvent,
+    DomainEventToHandler,
+    DomainEventHandlerToCommand,
+    DomainEventToIntegrationEvent,
+    IntegrationEventToHandler,
+    IntegrationEventHandlerToCommand,
 )
 
 private val entryNodeTypes = setOf(
     "controllermethod",
     "commandsendermethod",
-    "querysendermethod",
-    "clisendermethod",
-    "validator",
     "integrationevent",
 )
 
@@ -118,13 +118,9 @@ internal fun buildPlannedFlows(graph: AnalysisGraphModel): PlannedFlowSet {
         nodesById.putIfAbsent(node.id, node)
     }
 
-    val edges = graph.edges
-        .filter { it.type in allowedEdgeTypes }
-        .distinctBy { EdgeKey(it.fromId, it.toId, it.type, it.label) }
+    val edges = projectCausalEdges(graph.edges)
     val adjacency = edges.groupBy { it.fromId }
-    val entryNodes = nodesById.values
-        .filter { it.type.lowercase() in entryNodeTypes }
-        .sortedBy { it.id }
+    val entryNodes = selectRootEntryNodes(nodesById, edges)
 
     val usedSlugs = linkedSetOf<String>()
     val plannedEntries = entryNodes.map { entry ->
@@ -174,6 +170,59 @@ internal fun buildPlannedFlows(graph: AnalysisGraphModel): PlannedFlowSet {
             ),
         ),
     )
+}
+
+private fun selectRootEntryNodes(
+    nodesById: Map<String, AnalysisNodeModel>,
+    edges: List<AnalysisEdgeModel>,
+): List<AnalysisNodeModel> {
+    val nodesWithUpstream = edges
+        .map { it.toId }
+        .toSet()
+    val nodesWithOutgoing = edges
+        .map { it.fromId }
+        .toSet()
+
+    return nodesById.values
+        .filter { it.type.lowercase() in entryNodeTypes }
+        .filterNot { it.id in nodesWithUpstream }
+        .filter { it.id in nodesWithOutgoing }
+        .sortedBy { it.id }
+}
+
+private fun projectCausalEdges(edges: List<AnalysisEdgeModel>): List<AnalysisEdgeModel> {
+    val rawEdges = edges
+        .filter { it.type in rawCausalEdgeTypes }
+        .distinctBy { EdgeKey(it.fromId, it.toId, it.type, it.label) }
+
+    val commandHandlerTargets = rawEdges
+        .filter { it.type == CommandHandlerToEntityMethod }
+        .groupBy { it.fromId }
+
+    val visibleEdges = rawEdges.filterNot {
+        it.type == CommandToCommandHandler || it.type == CommandHandlerToEntityMethod
+    }
+
+    val projectedEdges = rawEdges
+        .asSequence()
+        .filter { it.type == CommandToCommandHandler }
+        .flatMap { commandToHandler ->
+            commandHandlerTargets[commandToHandler.toId].orEmpty()
+                .asSequence()
+                .filter { it.toId.isNotBlank() }
+                .map { entityMethod ->
+                    AnalysisEdgeModel(
+                        fromId = commandToHandler.fromId,
+                        toId = entityMethod.toId,
+                        type = CommandToEntityMethod,
+                        label = entityMethod.label,
+                    )
+                }
+        }
+        .toList()
+
+    return (visibleEdges + projectedEdges)
+        .distinctBy { EdgeKey(it.fromId, it.toId, it.type, it.label) }
 }
 
 private fun collectFlow(

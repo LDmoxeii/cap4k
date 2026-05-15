@@ -9,8 +9,8 @@ kotlin {
 dependencies {
     implementation(project(":demo-domain"))
     implementation(project(":demo-application"))
-    implementation("com.only4:ddd-core:0.5.0-SNAPSHOT")
-    implementation("com.only4:ddd-domain-repo-jpa:0.5.0-SNAPSHOT")
+    implementation("io.github.ldmoxeii:ddd-core:0.5.0-dev")
+    implementation("io.github.ldmoxeii:ddd-domain-repo-jpa:0.5.0-dev")
     implementation("jakarta.persistence:jakarta.persistence-api:3.1.0")
     implementation("org.springframework:spring-context")
     implementation("org.springframework.data:spring-data-jpa")
