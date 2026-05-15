@@ -84,6 +84,22 @@ Release safety rules:
 - only push release tags for commits that are contained in `origin/publish/maven-central`
 - do not use `develop` as the default base branch for new work, release prep, or issue execution
 
+Long-lived branch roles are intentionally split:
+
+- `master`: main development line, no publishing automation
+- `publish/maven-central`: formal release line, tag-driven Maven Central publishing only
+- `publish/aliyun-private`: private preview line, source-controlled `*-SNAPSHOT` version and Aliyun private Maven publishing only
+
+Operator rules for `publish/aliyun-private`:
+
+- pushing to `publish/aliyun-private` is a publish action
+- the branch must keep an explicit `*-SNAPSHOT` version in source
+- the branch must not carry GitHub Release or Maven Central behavior
+- the workflow uses only `ALIYUN_MAVEN_USERNAME` and `ALIYUN_MAVEN_PASSWORD`
+- generated bootstrap templates on this branch may include Aliyun private Maven resolution wiring when they consume `com.only4:*` snapshots
+
+Do not copy these private-preview rules back into `master`.
+
 ## Continuing Work
 
 - If the user says "continue the original mainline", use the current GitHub issues plus the newest relevant spec/plan to identify the active slice.
