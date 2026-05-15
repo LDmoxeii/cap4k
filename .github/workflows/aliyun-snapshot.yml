@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -31,6 +31,14 @@ jobs:
 
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
+
+      - name: Preflight Aliyun publish credentials
+        env:
+          ALIYUN_MAVEN_USERNAME: ${{ secrets.ALIYUN_MAVEN_USERNAME }}
+          ALIYUN_MAVEN_PASSWORD: ${{ secrets.ALIYUN_MAVEN_PASSWORD }}
+        run: |
+          test -n "$ALIYUN_MAVEN_USERNAME" || { echo "Missing secret: ALIYUN_MAVEN_USERNAME"; exit 1; }
+          test -n "$ALIYUN_MAVEN_PASSWORD" || { echo "Missing secret: ALIYUN_MAVEN_PASSWORD"; exit 1; }
 
       - name: Check
         run: ./gradlew check

@@ -1,6 +1,7 @@
 // The code in this file is a convention plugin - a Gradle mechanism for sharing reusable build logic.
 package buildsrc.convention
 
+import org.gradle.api.GradleException
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import java.time.Duration
 
@@ -45,6 +46,30 @@ publishing {
                     ?: System.getenv("ALIYUN_MAVEN_PASSWORD")
             }
         }
+    }
+}
+
+val missingAliyunCredentialsMessage =
+    "Aliyun Maven publish requires credentials. " +
+        "Set aliyun.maven.username/aliyun.maven.password Gradle properties " +
+        "or ALIYUN_MAVEN_USERNAME/ALIYUN_MAVEN_PASSWORD environment variables."
+
+val aliyunPublishRequested = gradle.startParameter.taskNames.any { taskName ->
+    taskName == "publish" ||
+        taskName.endsWith(":publish") ||
+        taskName.contains("ToAliYunMavenRepository")
+}
+
+if (aliyunPublishRequested) {
+    val username = providers.gradleProperty("aliyun.maven.username")
+        .orElse(providers.environmentVariable("ALIYUN_MAVEN_USERNAME"))
+        .orNull
+    val password = providers.gradleProperty("aliyun.maven.password")
+        .orElse(providers.environmentVariable("ALIYUN_MAVEN_PASSWORD"))
+        .orNull
+
+    if (username.isNullOrBlank() || password.isNullOrBlank()) {
+        throw GradleException(missingAliyunCredentialsMessage)
     }
 }
 
