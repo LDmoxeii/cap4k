@@ -11,8 +11,8 @@ plugins {
     `maven-publish`
 }
 
-group = "io.github.ldmoxeii"
-version = "0.5.0-dev"
+group = "com.only4"
+version = "0.6.1-SNAPSHOT"
 
 java {
     withSourcesJar()
@@ -41,10 +41,8 @@ publishing {
             credentials {
                 username = providers.gradleProperty("aliyun.maven.username").orNull
                     ?: System.getenv("ALIYUN_MAVEN_USERNAME")
-                    ?: "defaultUsername"
                 password = providers.gradleProperty("aliyun.maven.password").orNull
                     ?: System.getenv("ALIYUN_MAVEN_PASSWORD")
-                    ?: "defaultPassword"
             }
         }
     }
