@@ -26,6 +26,9 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         val generatedMarker = fixtureDir.resolve(
             "bootstrap-preview/only-danmuku-domain/src/main/kotlin/edu/only4/danmuku/domain/SmokeDomainMarker.kt"
         )
+        val generatedApplicationBuild = fixtureDir.resolve(
+            "bootstrap-preview/only-danmuku-application/build.gradle.kts"
+        ).readText()
         val generatedStartApplication = fixtureDir.resolve(
             "bootstrap-preview/only-danmuku-start/src/main/kotlin/edu/only4/danmuku/StartApplication.kt"
         )
@@ -40,6 +43,9 @@ class PipelinePluginBootstrapGeneratedProjectFunctionalTest {
         assertTrue(generatedBuildResult.output.contains("Tasks runnable from root project"))
         assertTrue(generatedReadme.toFile().exists())
         assertTrue(generatedMarker.toFile().exists())
+        assertTrue(generatedApplicationBuild.contains("url = uri(\"https://packages.aliyun.com/67053c6149e9309ce56b9e9e/maven/cap4k\")"))
+        assertTrue(generatedApplicationBuild.contains("providers.gradleProperty(\"aliyun.maven.username\").orNull"))
+        assertTrue(generatedApplicationBuild.contains("System.getenv(\"ALIYUN_MAVEN_PASSWORD\")"))
         assertTrue(generatedStartApplication.toFile().exists())
         assertFalse(rootReadme.toFile().exists())
         assertFalse(generatedFlatMarker.toFile().exists())
