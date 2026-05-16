@@ -53,7 +53,7 @@ The current `skills/cap4k-authoring` draft mixes these readers. Anything about c
 
 | Gap | Current state | Authoring consequence |
 |---|---|---|
-| Design input for integration events | No `integration_event` tag in `DesignJsonSourceProvider` | External integration event contract generation remains future work |
+| Design input for integration events | `integration_event` design tag, role/eventName validation, contract generation, inbound subscriber skeleton, and drawing-board integration are supported | Teach integration-event contracts as design-driven generation; keep cross-service contract sharing guidance explicit |
 | Design input for value objects/domain services | No `value_object` or `domain_service` design tags | These concepts are manual/modeling guidance today |
 | Lifecycle recognition | Behavior template exposes `onCreate`/`onUpdate`/`onDelete`, but discovery behavior has known limitations | Keep lifecycle usage documented, but track framework defect separately |
 | Enum translation | Removed from core aggregate artifact options; expected via addon | Reference projects must stop using stale core DSL and use addon path when needed |

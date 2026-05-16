@@ -129,6 +129,12 @@ Core annotations/classes:
 - `IntegrationEventPublisher`;
 - `IntegrationEventInterceptorManager`.
 
+Runtime bridge:
+
+- `EventSubscriberManager` scans integration event classes and registers an in-process subscriber that republishes the payload through Spring `ApplicationEventPublisher`;
+- generated inbound subscriber skeletons use Spring `@EventListener`, so HTTP/Rabbit/Rocket consumption reaches `application.subscribers.integration` through this bridge;
+- handwritten subscribers can still implement `EventSubscriber<Event>` directly when a project wants the lower-level runtime contract.
+
 HTTP adapter endpoints:
 
 | Endpoint | Purpose |

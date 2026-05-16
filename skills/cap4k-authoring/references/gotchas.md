@@ -22,7 +22,7 @@ Handlers, factories, specifications, and behavior skeletons that receive handwri
 
 ## Design Tag Overreach
 
-Do not use unsupported design tags such as `integration_event`, `value_object`, or `domain_service` as if cap4k will generate them.
+Do not use unsupported design tags such as first-class `value_object` or `domain_service` as if cap4k will generate them. Use `integration_event` only with its required `role`, `eventName`, request payload fields, and empty `responseFields`.
 
 ## Value Object Persistence Confusion
 

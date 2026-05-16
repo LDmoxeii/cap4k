@@ -103,6 +103,7 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 | `client` | external client/cli request |
 | `api_payload` | adapter API payload |
 | `domain_event` | domain event payload |
+| `integration_event` | application integration event contract and inbound subscriber skeleton |
 | `validator` | validation annotation and validator |
 
 常见字段包括 `package`、`name`、`desc`、`aggregates`、`requestFields`、`responseFields`。
@@ -112,7 +113,7 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 - `query` 和 `api_payload` 支持 request trait `page`；
 - `domain_event` 支持 `persist`；
 - `domain_event` 可以省略 package，并可使用保留 request field `entity`；
-- `integration_event` 支持 `role`（`inbound` / `outbound`）和 `eventName`；`inbound` 可生成 `@EventListener` subscriber 骨架，`outbound` 只生成事件契约；
+- `integration_event` 支持 `role`（`inbound` / `outbound`）和 `eventName`，必须至少声明一个 `requestFields` 字段，且 `responseFields` 必须为空；`inbound` 可生成 `@EventListener` subscriber 骨架，`outbound` 只生成事件契约；
 - `validator` 支持 `message`、`targets`、`valueType`、`parameters`；
 - manifest-file 模式读取相对 manifest 的 design 文件列表，并拒绝路径逃逸和重复项。
 

@@ -134,6 +134,8 @@ fun Entity.onDelete()
 
 集成事件表达跨边界消息，可通过 `Mediator.events.attach` 或 publish 进入 integration event supervisor，再由 HTTP、RabbitMQ、RocketMQ 等 adapter 传输。集成事件订阅器默认位于 `application.subscribers.integration`，收到外部事实后应转换成内部命令、查询或 client 请求。
 
+运行时会扫描集成事件类，并由 `EventSubscriberManager` 把消费到的事件 payload 桥接到 Spring `ApplicationEventPublisher`。因此生成的 inbound subscriber 使用 `@EventListener` 即可接收事件；如果项目需要更底层的运行时合同，也可以手写 `EventSubscriber<Event>`。
+
 不要把外部回调伪装成领域事件。外部输入应先作为集成事件或 adapter 输入进入系统，再由 application 层翻译成内部状态推进。
 
 ## 不要误用

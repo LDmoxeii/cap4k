@@ -2,8 +2,8 @@
 
 1. Confirm design JSON is the source of truth for use-case and interface contracts.
 2. Use supported tags only: `command`, `query`, `client`, `api_payload`, `domain_event`, and `validator`.
-3. Preserve unsupported tags as gaps, not local framework behavior: `integration_event`, first-class `value_object`, and `domain_service`.
-4. Check common fields such as package, name, desc, aggregates, requestFields, and responseFields.
+3. Preserve unsupported tags as gaps, not local framework behavior: first-class `value_object` and `domain_service`.
+4. Check common fields such as package, name, desc, aggregates, requestFields, and responseFields. For `integration_event`, require role, eventName, at least one requestField, and empty responseFields.
 5. Check tag-specific rules: paged query/api payload traits, persisted domain events, validator targets/value type/parameters, and manifest path safety.
 6. Run the generation plan before generation.
 7. Inspect `generatorId`, `templateId`, `outputPath`, `outputKind`, `conflictPolicy`, and `resolvedOutputRoot`.

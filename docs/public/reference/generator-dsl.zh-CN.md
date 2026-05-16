@@ -108,7 +108,7 @@ generators {
 | `flow` | 流程观察材料 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
 | `drawingBoard` | 设计 / 文档观察材料 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
 
-`designIntegrationEvent` 生成 `tag = "integration_event"` 的事件契约类，要求启用 `sources.designJson` 且配置 `project.applicationModulePath`。`designIntegrationEventSubscriber` 依赖 `designIntegrationEvent`，只为 `role = "inbound"` 的事件生成 Spring `@EventListener` subscriber；`role = "outbound"` 只生成事件契约，不生成 subscriber。
+`designIntegrationEvent` 生成 `tag = "integration_event"` 的事件契约类，要求启用 `sources.designJson` 且配置 `project.applicationModulePath`。对应 design entry 必须声明 `role`、`eventName`、至少一个 `requestFields` 字段，并保持 `responseFields` 为空。`designIntegrationEventSubscriber` 依赖 `designIntegrationEvent`，只为 `role = "inbound"` 的事件生成 Spring `@EventListener` subscriber；`role = "outbound"` 只生成事件契约，不生成 subscriber。
 
 ## `aggregate { }`
 
