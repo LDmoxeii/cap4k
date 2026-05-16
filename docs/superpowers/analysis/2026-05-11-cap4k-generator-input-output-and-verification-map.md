@@ -85,7 +85,7 @@ Additional support:
 - `domain_event` supports `persist`.
 - `domain_event` can omit package and can use reserved request field `entity`.
 - `integration_event` requires `role` (`inbound` or `outbound`) and non-blank `eventName`.
-- `integration_event` request fields become the event payload. `responseFields` must be empty.
+- `integration_event` must declare at least one request field; request fields become the event payload. `responseFields` must be empty.
 - `integration_event` with `role = inbound` can generate a Spring `@EventListener` subscriber; `role = outbound` generates only the event contract.
 - `validator` supports `message`, `targets`, `valueType`, and `parameters`.
 - Manifest-file mode reads a list of design files relative to the manifest and rejects path escape/duplicates.

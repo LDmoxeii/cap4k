@@ -21,7 +21,7 @@ import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * 基于RocketMq的领域事件订阅管理器
+ * 默认事件订阅管理器，负责领域事件和集成事件的本地订阅分发与 Spring 事件桥接
  *
  * @author LD_moxeii
  * @date 2025/07/24

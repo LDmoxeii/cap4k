@@ -107,7 +107,7 @@ Future authoring target:
 - service B uses the shared design to generate local event class/subscriber skeleton;
 - both services avoid depending on each other's application module.
 
-This future path depends on integration-event design support that does not exist today.
+The design-time `integration_event` tag, event contract generation, inbound subscriber skeleton, and drawing-board integration are now available. The remaining authoring work is to document cross-service contract sharing and verification patterns with runnable examples.
 
 ## Verification Commands
 
