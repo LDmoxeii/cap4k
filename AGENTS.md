@@ -8,19 +8,24 @@ When continuing work in `cap4k`, read this file first, then read:
 - the relevant GitHub issue that now acts as backlog source of truth
 - the most recent relevant spec or plan under `docs/superpowers/`
 
-## AI Authoring Skill
+## Cap4k Skill Routing
 
-When a task involves cap4k business-project authoring, AI-assisted DDD implementation, generated-vs-handwritten ownership, tactical model placement, or testing/analysis evidence for project-authoring work, route through the repo-local formal skill.
+When a task involves cap4k business-project authoring, use the repo-local skill router first:
 
-| Task | Read | Workflow |
-|---|---|---|
-| Clarify domain/design before code | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/role-boundary.md](skills/cap4k-authoring/rules/role-boundary.md) | [skills/cap4k-authoring/workflows/clarify-domain-design.md](skills/cap4k-authoring/workflows/clarify-domain-design.md) |
-| Bootstrap a minimal project | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/generator-ownership.md](skills/cap4k-authoring/rules/generator-ownership.md) | [skills/cap4k-authoring/workflows/bootstrap-minimal-project.md](skills/cap4k-authoring/workflows/bootstrap-minimal-project.md) |
-| Generate from DB or design | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/generator-ownership.md](skills/cap4k-authoring/rules/generator-ownership.md) | [skills/cap4k-authoring/workflows/generate-from-db.md](skills/cap4k-authoring/workflows/generate-from-db.md) or [skills/cap4k-authoring/workflows/generate-from-design.md](skills/cap4k-authoring/workflows/generate-from-design.md) |
-| Implement a cap4k project slice | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/layering-and-tactical-model.md](skills/cap4k-authoring/rules/layering-and-tactical-model.md), [skills/cap4k-authoring/rules/runtime-tactical-contract.md](skills/cap4k-authoring/rules/runtime-tactical-contract.md) | [skills/cap4k-authoring/workflows/implement-project-slice.md](skills/cap4k-authoring/workflows/implement-project-slice.md) |
-| Review generated output or analysis | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/testing-and-verification.md](skills/cap4k-authoring/rules/testing-and-verification.md) | [skills/cap4k-authoring/workflows/review-generated-output.md](skills/cap4k-authoring/workflows/review-generated-output.md) or [skills/cap4k-authoring/workflows/run-analysis-and-flow-review.md](skills/cap4k-authoring/workflows/run-analysis-and-flow-review.md) |
+- [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md)
 
-Keep this file as a routing shell. Do not duplicate the skill's rules here.
+Then route to the focused skill:
+
+| Task | Focused skill |
+|---|---|
+| Business modeling, aggregate boundaries, events, value concepts | [skills/cap4k-modeling/SKILL.md](skills/cap4k-modeling/SKILL.md) |
+| Bootstrap, DB/design generation, plan review, templates, addons | [skills/cap4k-generation/SKILL.md](skills/cap4k-generation/SKILL.md) |
+| Command/query/subscriber/job/controller implementation | [skills/cap4k-implementation/SKILL.md](skills/cap4k-implementation/SKILL.md) |
+| Integration events, callbacks, request/event runtime, framework tables | [skills/cap4k-runtime-integration/SKILL.md](skills/cap4k-runtime-integration/SKILL.md) |
+| Tests, compile, analysis, flow/drawing-board, evidence | [skills/cap4k-verification/SKILL.md](skills/cap4k-verification/SKILL.md) |
+| Generated output, ownership, plan.json review | [skills/cap4k-generated-output-review/SKILL.md](skills/cap4k-generated-output-review/SKILL.md) |
+
+Keep this file as a routing shell. Do not duplicate focused skill rules here.
 
 ## What This Project Is Doing
 
