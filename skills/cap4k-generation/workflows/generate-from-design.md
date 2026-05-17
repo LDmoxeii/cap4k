@@ -6,6 +6,15 @@
 4. Check common fields: package, name, desc, aggregates, requestFields, and responseFields.
 5. For `integration_event`, require role, eventName, at least one request field, and empty response fields.
 6. Check tag-specific rules: page traits, persisted domain events, validator fields, and manifest path safety.
+
+## Surface Ownership Gate
+
+- [ ] New command surfaces are represented in `design.json` when generation supports them.
+- [ ] New query surfaces are represented in `design.json` when generation supports them.
+- [ ] New domain event or subscriber surfaces are represented in `design.json` when generation supports them.
+- [ ] New client, validator, and API payload surfaces are represented in `design.json` when generation supports them.
+- [ ] Any handwritten surface has a stated reason why generation is not available for that surface.
+
 7. Run `cap4kPlan`.
 8. Review `plan.json` using `workflows/review-plan-json.md`.
 9. Generate only after deciding which handlers and subscribers are project-owned.

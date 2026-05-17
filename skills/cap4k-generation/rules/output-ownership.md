@@ -7,3 +7,11 @@
 - Inspect `generatorId`, `templateId`, `outputPath`, `outputKind`, `conflictPolicy`, and `resolvedOutputRoot` before writing files.
 - Use `SKIP` for handlers, behavior, factory, specification, and subscriber skeletons that receive project logic.
 - Use `OVERWRITE` only for build-owned generated source or intentional regenerated artifacts.
+
+### Generated-Capable Surfaces
+
+- Before adding event, subscriber, command, query, client, validator, or API payload surfaces, decide whether `design.json` can generate that surface.
+- If the generator supports the surface, update `design.json` first and regenerate.
+- Do not quietly handwrite generator-supported surfaces.
+- If a surface cannot be generated, state the reason in review notes or final notes.
+- Do not delete generated subscriber shells simply because they are empty. Implement business logic inside the generated boundary when the behavior is ready.

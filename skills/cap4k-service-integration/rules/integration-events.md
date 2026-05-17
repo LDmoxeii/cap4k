@@ -8,3 +8,10 @@
 - Do not model external callbacks as domain events.
 - Do not let aggregate roots own cross-service protocol details.
 - Event contract stability depends on event name, payload schema, subscriber identity, and serialization behavior.
+
+### Integration Event Payload Boundary
+
+- Outbound integration events publish stable business language, not internal persistence structure.
+- Do not expose non-aggregate-root technical IDs as standalone resource identities.
+- If consumers need child-level information, prefer aggregate-scoped child keys, deltas, or read-model links.
+- External callbacks and inbound messages are external facts. Route writes from them into commands.
