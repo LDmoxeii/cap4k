@@ -67,7 +67,7 @@ AI authoring rules are maintained as an independent skill. The public authoring 
 Before accepting AI-assisted work, human reviewers should check:
 
 - whether the business process is still expressed through aggregate roots, commands, queries, domain events, and orchestration surfaces
-- whether write behavior stays in command handling instead of controller, job, or transport glue
+- whether write behavior stays in command handling instead of Open Host Service entries, external fact entries, or internal trigger glue
 - whether generated artifacts, handwritten artifacts, template overrides, and copied generation snapshots are clearly separated
 - whether the `domain` and `application` happy path has behavior evidence that follows the testing contract
 - whether the AI provided reproducible test, compile, generation, analysis, or link-check evidence

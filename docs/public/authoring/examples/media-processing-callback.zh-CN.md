@@ -25,8 +25,8 @@
 
 从层归位上看，这个例子同时说明三件事：
 
-- `MediaProcessingCli` 负责外部能力边界，不负责决定内部状态机。
-- callback controller、event bridge、`IntegrationEventSubscriber` 负责把外部返回接进来。
+- `MediaProcessingCli` 负责外部能力端口，不负责决定内部状态机。
+- 外部事实入口负责把外部处理结果接进来；callback controller、event bridge、`IntegrationEventSubscriber` 都只是实现形态。
 - 进入内部后，真正推进状态的仍然是 application 命令链和 `MediaProcessingTask` 聚合行为。
 
 ## Recommended shape
@@ -46,8 +46,8 @@ StartMediaProcessingCmd
   -> MediaProcessingTask.recordExternalTaskIdAndStart(...)
 
 external callback / integration event
-  -> callback controller or event bridge
-  -> IntegrationEventSubscriber
+  -> external fact entry implementation
+  -> IntegrationEventSubscriber or equivalent application entry point
   -> CompleteMediaProcessingCmd or FailMediaProcessingCmd
   -> corresponding command handler
   -> MediaProcessingTask.markCompleted() / markFailed()
@@ -68,7 +68,7 @@ external callback / integration event
 
 ## Non-example / misuse
 
-- callback controller 收到结果后直接调用仓储，把 `MediaProcessingTask.status` 改成成功或失败。
+- 外部事实入口收到结果后直接调用仓储，把 `MediaProcessingTask.status` 改成成功或失败。
 - `ApproveContentCmd` 一完成就让 `Content` 直接 new `MediaProcessingTask` 或直接发起 `MediaProcessingCli.start(...)`，绕开单独的 `StartMediaProcessingCmd` 交接缝。
 - `MediaProcessingCli` 在发起请求时顺手注册“完成后自动发布内容”的业务流程，把边界实现写成流程编排器。
 - callback 路径走一套 `CompleteMediaProcessingCmd`，事件总线路径又另外造一套“媒体成功同步逻辑”，没有统一命令语义。

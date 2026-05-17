@@ -1,46 +1,37 @@
 ---
 name: cap4k-authoring
 description: >
-  Use this for AI authors implementing business projects using cap4k, including
-  requests such as "build a cap4k project", "derive cap4k DDD design", "generate
-  cap4k code from DB or design", "implement a cap4k project slice", "review cap4k
-  generated output", or "run cap4k analysis". Activate when the task is business
-  project authoring with cap4k, not cap4k framework maintenance.
+  Route cap4k business-project AI authoring tasks to focused skills. Use when
+  the user asks to model a cap4k business project, generate cap4k code from DB
+  or design JSON, implement a cap4k project slice, design cap4k service
+  integration, verify cap4k work, or review generated cap4k output.
 ---
 
-# Cap4k Business Project Authoring
+# Cap4k Authoring Router
 
-This skill is for AI authors implementing business projects using cap4k. It helps turn agreed business intent, DDL, design JSON, and generated skeletons into runnable project code with evidence for human audit.
+This is a router, not the rulebook. Pick the focused skill that matches the current task and read that skill before acting.
+
+If a task matches multiple rows, read `references/route-map.md` before choosing or chaining focused skills.
 
 ## Boundaries
 
-- Use this for business-project modeling, generation, implementation, review, testing, and analysis.
-- Do not use it to govern cap4k framework issue lifecycle or maintain cap4k runtime/generator internals unless the user explicitly changes scope.
-- Human users own domain decisions and final audit; AI authors assist, implement, verify, and report evidence.
+- Use these skills for business projects built with cap4k.
+- Do not load public docs as runtime instructions unless the user asks for public documentation work.
 
-## Always Read
+## Routes
 
-1. [rules/role-boundary.md](rules/role-boundary.md)
-2. [rules/layering-and-tactical-model.md](rules/layering-and-tactical-model.md)
-3. [rules/generator-ownership.md](rules/generator-ownership.md)
-
-## Common Routes
-
-| Task | Read | Workflow |
-|---|---|---|
-| Clarify domain/design before code | `rules/role-boundary.md`, `references/capability-index.md`, `references/known-gaps.md` | `workflows/clarify-domain-design.md` |
-| Bootstrap a minimal project | `rules/generator-ownership.md`, `rules/testing-and-verification.md` | `workflows/bootstrap-minimal-project.md` |
-| Generate from DB | `rules/generator-ownership.md`, `references/gotchas.md` | `workflows/generate-from-db.md` |
-| Generate from design | `rules/generator-ownership.md`, `references/known-gaps.md` | `workflows/generate-from-design.md` |
-| Implement a project slice | `rules/layering-and-tactical-model.md`, `rules/runtime-tactical-contract.md`, `rules/testing-and-verification.md` | `workflows/implement-project-slice.md` |
-| Review generated output | `rules/generator-ownership.md`, `rules/testing-and-verification.md`, `references/gotchas.md` | `workflows/review-generated-output.md` |
-| Run analysis and flow review | `rules/testing-and-verification.md`, `references/capability-index.md` | `workflows/run-analysis-and-flow-review.md` |
+| Task | Use Skill |
+|---|---|
+| Clarify business intent, aggregate boundaries, DDD concepts, events | `cap4k-modeling` |
+| Bootstrap or generate from DB/design/enum/KSP/addon inputs | `cap4k-generation` |
+| Implement command/query/subscriber/job/controller project code | `cap4k-implementation` |
+| Design or implement service-boundary interaction | `cap4k-service-integration` |
+| Run tests, compile, analysis, flow/drawing-board, final evidence | `cap4k-verification` |
+| Review generated output, plan output, or ownership | `cap4k-generated-output-review` |
 
 ## Priority
 
-1. Current user instruction and project scope.
-2. Agreed business model, DDL, design JSON, spec, or plan.
-3. This skill's rules and workflows.
-4. Existing project conventions.
-
-When cap4k does not support a requested authoring capability, call it a gap and offer a local project choice instead of implying framework support.
+1. Current user instruction and explicit project scope.
+2. Focused skill rules for the routed task.
+3. Existing project conventions.
+4. Human audit remains required for domain decisions.

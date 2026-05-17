@@ -18,14 +18,14 @@
 | 规则 | 强度 | 核心约束 |
 | --- | --- | --- |
 | 单命令单聚合根变更 | `Must` | 一个命令处理路径内只允许一个聚合根进入持久化变更边界 |
-| 状态变更收敛到命令处理路径 | `Must` | controller / job / subscriber 不直接改聚合 |
-| 聚合根是唯一写入主面 | `Must` | 子实体不作为外部写入目标 |
+| 状态变更收敛到命令处理路径 | `Must` | 开放服务入口、外部事实入口、内部触发入口都不直接改聚合 |
+| 聚合根是唯一写入主面 | `Must` | UoW 只保存聚合根，子实体和值对象通过聚合根持久化 |
 | 领域事件由聚合根统一登记和发出 | `Must` | 事件可以描述子实体变化，但归属和登记主体属于聚合根 |
 | 默认禁止跨聚合写模型强引用 | `Default` | 只读弱引用属于高级模式 |
 | 多 handler 顺序不保证 | `Default` | 顺序依赖应拆成阶段化流程 |
 | 单一主动作 | `Default` | 写入口一次只推进一个命令，查入口一次只推进一个查询 |
 | 查询观察不反向污染写模型 | `Must` | 查询路径只观察，不反向修复或污染写模型 |
-| cli 是防腐边界，不是主流程真相源 | `Must` | 外部能力必须先穿过边界 |
+| 外部能力端口是防腐边界，不是主流程真相源 | `Must` | 外部能力调用必须先穿过 client 防腐层 |
 
 这张表是审阅入口，不是速查口号。下面的流向展开会把每条规则落回同一个教学项目，避免每页都换例子。
 
@@ -86,14 +86,14 @@ Audit cues：
 强度：`Must`
 
 Why：
-默认路径要求所有状态变更都能追溯到明确的命令处理。示例项目里，无论是 Web 入口、回调入口还是轮询 job，最终都要转换为 `CreateContentDraftCmd`、`SubmitContentForReviewCmd`、`StartMediaProcessingCmd`、`PublishContentCmd` 这类内部命令，再由 handler 驱动聚合行为。
+默认路径要求所有状态变更都能追溯到明确的命令处理。示例项目里，无论是开放服务入口、外部事实入口还是内部触发入口，最终都要转换为 `CreateContentDraftCmd`、`SubmitContentForReviewCmd`、`StartMediaProcessingCmd`、`PublishContentCmd` 这类内部命令，再由 handler 驱动聚合行为。
 
 Non-example：
 controller 直接调用仓储改 `Content`，job 直接把 `MediaProcessingTask` 标成成功，或者 subscriber 在事件回调里绕过命令层直接写库。
 
 Audit cues：
 
-- controller / job / subscriber 是否只是做输入转换和调度
+- 开放服务入口、外部事实入口、内部触发入口是否只是做输入转换和调度
 - 所有状态变更是否都能指向一个明确的内部命令
 - 写入前是否先进入 handler，再进入聚合行为
 
@@ -169,12 +169,14 @@ Audit cues：
 
 ## 集成边界
 
-### cli 是防腐边界
+### 外部能力端口是防腐边界
 
 强度：`Must`
 
 Why：
-示例项目中的媒体处理系统是外部能力，默认只能通过 `MediaProcessingCli` 这类边界对象进入内部模型。无论是发起处理、接收回调还是轮询状态，外部协议都必须先被转换成内部命令或查询，不能把外部 DTO 当成流程真相源。
+示例项目中的媒体处理系统是外部能力。发起处理、轮询状态或查询处理结果属于内部主动消费外部能力，默认只能通过 `MediaProcessingCli` 这类 client 防腐边界完成，并把外部协议翻译成内部业务语言。
+
+接收媒体处理回调不是 client 调用，而是外部事实入口。callback controller 或 inbound subscriber 只负责接收已经发生的外部事实；会推进状态的 payload 必须翻译成内部命令，纯观察类回传才可以进入 query 或明确的 application entry point，不能把外部 DTO 当成流程真相源。
 
 Non-example：
 应用层直接依赖第三方 SDK 对象推进业务流程，或者 subscriber 直接拿外部回调 payload 改聚合，不经过边界转换。
@@ -182,7 +184,7 @@ Non-example：
 Audit cues：
 
 - 外部协议是否先被转换成内部命令 / 查询
-- `cli` 是否只承担防腐和能力边界职责，而不是自己保存业务真相
+- client 是否只承担防腐和能力边界职责，而不是自己保存业务真相
 - callback 主路径与 polling 备用路径是否都遵守同一内部命令边界
 
 ## 最小工作流合同

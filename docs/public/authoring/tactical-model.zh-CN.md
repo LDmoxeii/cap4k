@@ -7,11 +7,22 @@
 | 层 / 模块 | 默认责任 | 常见内容 |
 | --- | --- | --- |
 | `domain` | 业务模型与领域决策 | 聚合、实体、值对象、领域事件、领域服务、行为、工厂、规约 |
-| `application` | 用例边界与流程编排 | 命令、命令处理器、查询/client 请求契约、校验器、订阅器、job、流程编排 |
-| `adapter` | 技术适配和传输边界 | controller、API payload、JPA repository、查询处理器、client/cli 处理器、外部系统桥接 |
+| `application` | 用例边界与流程编排 | 命令、命令处理器、查询/client 请求契约、校验器、订阅器、内部流程编排 |
+| `adapter` | 技术适配和边界入口 | 开放服务入口实现、外部事实入口实现、API payload、JPA repository、查询处理器、client handler、外部协议桥接 |
 | `start` | 运行时装配 | Spring Boot 应用、运行时配置、本地 DB/script wiring |
 
-责任与物理包位置相关，但不完全等同。query/client/cli handler 默认物理生成在 adapter 侧，因为它们经常触碰读模型、外部协议或技术适配；它们仍然实现 application 请求契约。
+责任与物理包位置相关，但不完全等同。query/client handler 默认物理生成在 adapter 侧，因为它们经常触碰读模型、外部协议或技术适配；它们仍然实现 application 请求契约。
+
+## 边界入口与对外交互
+
+cap4k authoring 不以 controller、RPC endpoint、callback handler、message listener 这些实现形态作为架构中心。它们首先属于边界入口。
+
+- 开放服务入口（Open Host Service）表示外部系统或前端以同步方式消费本系统能力。HTTP controller、RPC endpoint、gRPC service 都只是实现形态。开放服务入口使用发布语言（Published Language）表达稳定请求、响应、错误与状态语义。
+- 外部能力端口 / client 防腐层表示内部主动消费外部能力，例如对象存储、支付、短信、媒体处理、权限资料或兄弟服务查询。client contract 应使用内部业务语言，外部协议、SDK、bucket、objectKey、第三方状态码留在 adapter handler 内。
+- 外部事实入口表示外部已经发生的事实进入内部。callback controller、message listener、inbound integration event subscriber 都只是实现形态。外部事实入口不直接修改聚合；会推进状态的事实必须翻译成内部 command，纯观察类事实可以翻译成 query 或明确的 application entry point。
+- 内部事实发布表示本系统把内部已经发生的跨边界事实发布给外部。outbound integration event 是常见实现形态，通常由领域事实或 application process 派生，不建议聚合根直接承担跨服务发布协议。
+
+前端-facing HTTP API 也按开放服务入口规则审计。严格 DDD 语义中的 Open Host Service 更偏跨系统公开契约，但 cap4k 默认规则要求所有同步入口都遵守同一条边界：入口只翻译请求，写操作进入 command，读操作进入 query。
 
 ## Mediator
 
@@ -35,30 +46,31 @@
 
 1. 读取命令参数。
 2. 通过 `Mediator.repositories` 加载聚合，或通过 `Mediator.factories` 创建聚合根。
-3. 调用聚合行为或 `Mediator.services` 中的领域服务。
-4. 必要时登记领域事件或集成事件。
-5. 调用 `Mediator.uow.save()` 作为写入事务边界。
+3. 在写用例需要外部能力返回时，通过 client 请求调用外部能力端口。
+4. 调用聚合行为或 `Mediator.services` 中的领域服务。
+5. 必要时登记领域事件，或把内部事实交给 application process 转换为集成事件。
+6. 调用 `Mediator.uow.save()` 作为写入持久化边界。
 
-命令处理器可以使用 repository、factory、domain service 和 UoW。只有当命令结果依赖外部能力返回时，才应在命令处理器中调用 client/cli 请求；普通写入决策不要随意穿过外部边界。
+命令处理器可以使用 repository、factory、domain service、client 请求和 UoW。只有当写用例确实依赖外部能力返回时，才应在命令处理器中调用 client；普通写入决策不要随意穿过外部边界。入口层不编排“先调 client，再补 command”的写流程。
 
-## 查询和 client/cli 处理器
+## 查询处理器与外部能力端口
 
 查询处理器默认物理落在 adapter 侧，通常包装读模型、JPA 读取或投影组装。它适合 controller、job 或编排代码读取信息，而不是承载写入。
 
-client/cli 处理器默认物理落在 adapter 侧，用来包装外部系统或本地模拟外部能力。它们通过 request supervisor 被发送，与命令、查询共享底层 request 机制。
+client handler 默认物理落在 adapter 侧，用来包装外部系统或本地模拟外部能力。它们通过 request supervisor 被发送，与命令、查询共享底层 request 机制。
 
-当前运行时核心是 `RequestParam` 与 `RequestHandler`。design tag 支持 `command`、`query`、`client`、`api_payload`、`domain_event`、`validator`；其中 `client` 可以代表外部 client/cli 请求，并在生成器布局中形成对应 handler 形态。不要把 client/cli 命名约定误解成独立的 `cli` design tag。
+当前运行时核心是 `RequestParam` 与 `RequestHandler`。`client` 表达的是外部能力端口，不等同于 RPC，也不只服务于兄弟服务调用。对象存储、支付、短信、媒体处理、权限资料查询都可以是 client 背后的外部能力。
 
 ## 流程编排
 
-流程编排属于 application-facing 代码，例如：
+流程编排属于 application-facing 代码，不属于开放服务入口或外部事实入口本身。常见形态包括：
 
 - `application.subscribers.domain` 下的领域事件订阅器；
 - `application.subscribers.integration` 下的集成事件订阅器；
-- job；
+- 内部 job / scheduler 触发后的 application 推进点；
 - 必要时显式编写的流程 / application service。
 
-编排代码可以使用 `Mediator.cmd`、`Mediator.qry` 和 `Mediator.requests` 组合步骤。job 或订阅器需要读取信息时，优先考虑查询边界；需要推进状态时，发送命令，而不是直接把仓储写入散落在入口代码中。
+编排代码可以使用 `Mediator.cmd`、`Mediator.qry` 和 `Mediator.requests` 组合步骤。开放服务入口、外部事实入口、内部触发入口需要读取信息时，优先考虑查询边界；需要推进状态时，发送命令，而不是直接把仓储写入散落在入口代码中。
 
 ## 内置仓储
 
@@ -96,6 +108,8 @@ client/cli 处理器默认物理落在 adapter 侧，用来包装外部系统或
 
 命令处理器应调用 `Mediator.uow.save()` 完成持久化。不要把手写事务注解当成默认主写入模型。
 
+UoW 只保存聚合根。子实体、值对象、inline value、JSON-backed value 都通过聚合根持久化，不作为独立 UoW 保存目标。
+
 ## 生命周期
 
 聚合行为可以定义：
@@ -130,21 +144,20 @@ fun Entity.onDelete()
 
 ## 领域事件与集成事件
 
-领域事件表达领域内部已经发生的事实，通常由聚合行为登记。领域事件订阅器默认位于 `application.subscribers.domain`，负责后续应用层推进。
+领域事件表达领域内部已经发生的有意义事实，通常由聚合行为登记。领域事件可以同步参与当前事务，也可以异步发布；同步或异步是运行时策略，不改变它的领域事实身份。领域事件订阅器默认位于 `application.subscribers.domain`，负责后续应用层推进。
 
-集成事件表达跨边界消息，可通过 `Mediator.events.attach` 或 publish 进入 integration event supervisor，再由 HTTP、RabbitMQ、RocketMQ 等 adapter 传输。集成事件订阅器默认位于 `application.subscribers.integration`，收到外部事实后应转换成内部命令、查询或 client 请求。
+集成事件表达跨边界事实，可通过 `Mediator.events.attach` 或 publish 进入 integration event supervisor，再由 HTTP、RabbitMQ、RocketMQ 等 adapter 传输。集成事件订阅器默认位于 `application.subscribers.integration`，收到会推进状态的外部事实后应转换成内部命令；纯观察类输入才进入查询，需要调用外部能力时也要经过明确的 client request 边界。
 
 运行时会扫描集成事件类，并由 `EventSubscriberManager` 把消费到的事件 payload 桥接到 Spring `ApplicationEventPublisher`。因此生成的 inbound subscriber 使用 `@EventListener` 即可接收事件；如果项目需要更底层的运行时合同，也可以手写 `EventSubscriber<Event>`。
 
-不要把外部回调伪装成领域事件。外部输入应先作为集成事件或 adapter 输入进入系统，再由 application 层翻译成内部状态推进。
+不要把外部事实入口伪装成领域事件。外部输入应先作为外部事实或 adapter 输入进入系统，再由 application 层翻译成内部状态推进。对外发布集成事件时，优先从领域事实或 application process 派生，不建议由聚合根直接承担跨服务协议。
 
 ## 不要误用
 
-- 不要让 controller、job 或 message listener 直接成为写入主面。
+- 不要让开放服务入口、外部事实入口或内部触发入口直接成为写入主面。
 - 不要在查询处理器里偷偷修改状态。
-- 不要把 query/client/cli handler 说成默认物理位于 application module；当前默认物理落点是 adapter 侧。
-- 不要让命令处理器随意依赖外部 client/cli，除非命令结果确实依赖外部返回。
+- 不要把 query/client handler 说成默认物理位于 application module；当前默认物理落点是 adapter 侧。
+- 不要让命令处理器随意依赖外部 client，除非写用例确实依赖外部返回。
+- 不要让入口层先调用外部能力，再调用 command 补内部状态。
 - 不要让聚合直接了解 HTTP payload、第三方 DTO、轮询响应或消息协议。
 - 不要给非聚合根生成工厂。
-- 不要把 `src-generated/main/kotlin` 当成活跃生成输出。
-- 不要把 design 暂不支持的 `value_object`、`domain_service` 当成已经可生成能力；`integration_event` 只支持契约和 inbound `@EventListener` subscriber 骨架，不包含 MQ 专用代码生成。

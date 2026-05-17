@@ -12,7 +12,7 @@
 
 本例聚焦统一教学项目里的备用返回路径：系统已经通过 `MediaProcessingCli` 发起外部处理，并保存了外部任务标识；但由于第三方平台不支持 callback、callback 可靠性不足，或集成链路暂时不可用，系统只能通过定时 job 按外部任务 ID 轮询状态，再把结果同步回内部。
 
-和 callback 主路径一样，这里也默认前面已经走过 `ApproveContentCmd -> StartMediaProcessingCmd -> StartMediaProcessingCommandHandler` 的交接缝：`Content` 审核通过后，由 application 层创建 / 启动独立的 `MediaProcessingTask`，polling 只负责把那个已存在外部任务的最新状态补回内部。
+和 callback 主路径一样，这里也默认前面已经走过 `ApproveContentCmd -> StartMediaProcessingCmd -> StartMediaProcessingCommandHandler` 的交接缝：`Content` 审核通过后，由 application 层创建 / 启动独立的 `MediaProcessingTask`。polling 是内部触发入口的一种实现。它可以定时观察外部任务状态，但只负责把观察结果翻译成内部命令，不取得聚合写入特权。
 
 这个例子的前提非常重要：polling 不是和 callback 并列的默认设计，而是 callback 不可用时的 fallback。它解决的是兼容性问题，不是替代默认主路径。
 
@@ -21,7 +21,7 @@
 这个示例要说明的不是“polling 能不能做”，而是“polling 为什么只能做备用”。原因通常有三类：
 
 - 它天然更慢，结果可见性依赖调度周期，而不是外部事实一到就回推。
-- 它更容易把 job 写成主流程真相源，导致边界、重试、幂等和状态判断全都挤在 adapter 侧。
+- 它更容易把内部触发入口写成主流程真相源，导致边界、重试、幂等和状态判断全都挤在 adapter 侧。
 - 它如果不收敛回同一套内部命令语义，就会和 callback 路径长出两套事实机。
 
 因此，文档必须把 polling 讲清楚，但又不能把它讲成推荐默认路径。它是“保持内部模型一致时，如何接纳较差外部条件”的示例。

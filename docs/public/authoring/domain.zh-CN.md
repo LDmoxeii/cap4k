@@ -27,13 +27,13 @@
 - 不变量校验与拒绝逻辑，例如“未送审不能批准”“未开始处理不能标记成功”“已经发布的内容不能再次回到草稿”。
 - 当 `plan.json` 明确显示某些 checked-in scaffold 归作者维护时，再在 `*Factory.kt`、`*Specification.kt` 这类文件中补构造或规格逻辑；安全默认仍然是优先把聚合行为放在 `*Behavior.kt`。
 
-作者可以把领域层理解成“只回答业务上是否成立”。它不关心这个动作是从 Web 请求进来的，还是从回调、消息、轮询 job 进来的；它只关心当 `Content` 或 `MediaProcessingTask` 收到一个内部动作时，状态迁移是否合法。
+作者可以把领域层理解成“只回答业务上是否成立”。它不关心这个动作来自开放服务入口、外部事实入口，还是内部触发入口；它只关心当 `Content` 或 `MediaProcessingTask` 收到一个内部动作时，状态迁移是否合法。
 
 落地时再多加一条 ownership 规则：如果一个领域文件是 `plan.json` 里的 recurring plan item，先把它当计划产物看待；只有文档或计划明确把它留作作者补充点时，才把它当长期手写入口。
 
 ## 这一层不能写什么
 
-- controller、job、subscriber 的流程推进代码，包括 callback 主路径与 polling 备用路径的入口调度。
+- 开放服务入口、外部事实入口、内部触发入口的推进代码，包括 callback 主路径与 polling 备用路径的入口调度。
 - `MediaProcessingCli`、第三方媒体服务 DTO、回调 payload、轮询结果等外部协议转换逻辑。
 - `GetContentDetailQry`、`GetMediaProcessingProgressQry` 这类查询投影、列表组装、详情组装逻辑。
 - 一个聚合根直接修改另一个聚合根的内部状态，或在写模型中持有对方的可写强引用。
