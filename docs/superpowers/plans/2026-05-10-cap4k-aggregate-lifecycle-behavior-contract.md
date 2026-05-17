@@ -42,11 +42,11 @@
   - Emits lifecycle extension skeletons.
 - Modify `cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt`
   - Updates behavior scaffold assertions.
-- Modify `docs/public/authoring/domain.zh-CN.md`
+- Modify `docs/public/authoring/domain.md`
   - Names lifecycle hooks as behavior-file completion points.
-- Modify `docs/public/authoring/generation-boundaries.zh-CN.md`
+- Modify `docs/public/authoring/generation-boundaries.md`
   - Keeps generation/handwritten ownership guidance aligned with the new behavior skeleton.
-- Modify `docs/public/authoring/generator/code-generation.zh-CN.md`
+- Modify `docs/public/authoring/generator/code-generation.md`
   - Keeps `plan.json` guidance aligned with lifecycle hook skeletons.
 
 Do not modify `cap4k-reference-content-studio` in this issue. It can consume the released framework capability in its own follow-up.
@@ -544,13 +544,13 @@ git commit -m "feat: generate aggregate lifecycle behavior skeletons"
 ### Task 4: Update Public Authoring Guidance
 
 **Files:**
-- Modify: `docs/public/authoring/domain.zh-CN.md`
-- Modify: `docs/public/authoring/generation-boundaries.zh-CN.md`
-- Modify: `docs/public/authoring/generator/code-generation.zh-CN.md`
+- Modify: `docs/public/authoring/domain.md`
+- Modify: `docs/public/authoring/generation-boundaries.md`
+- Modify: `docs/public/authoring/generator/code-generation.md`
 
 - [ ] **Step 1: Update domain authoring guidance**
 
-In `docs/public/authoring/domain.zh-CN.md`, under `## 这一层可以写什么`, replace this bullet:
+In `docs/public/authoring/domain.md`, under `## 这一层可以写什么`, replace this bullet:
 
 ```markdown
 - `ContentBehavior.kt`、`MediaProcessingTaskBehavior.kt` 这类明确留给作者补聚合行为的 checked-in 文件。
@@ -576,7 +576,7 @@ with:
 
 - [ ] **Step 2: Update generation boundary guidance**
 
-In `docs/public/authoring/generation-boundaries.zh-CN.md`, replace the matrix row:
+In `docs/public/authoring/generation-boundaries.md`, replace the matrix row:
 
 ```markdown
 | aggregate `*Behavior.kt` | 手写补充点 | 这是当前明确留给作者补聚合行为的 checked-in scaffold，计划里固定使用 `ConflictPolicy.SKIP` |
@@ -602,7 +602,7 @@ with:
 
 - [ ] **Step 3: Update code generation guide**
 
-In `docs/public/authoring/generator/code-generation.zh-CN.md`, replace this sentence:
+In `docs/public/authoring/generator/code-generation.md`, replace this sentence:
 
 ```markdown
 一个关键例子是 aggregate 默认行为骨架：`aggregate/behavior.kt.peb` 会以 checked-in source 形式进入 `src/main/kotlin/.../<AggregateRootName>Behavior.kt`。这类文件是明确留给作者补业务行为的文件；而大量 aggregate 主体骨架则会通过 `GENERATED_SOURCE` 进入模块本地 `build/generated/cap4k/main/kotlin`。如果你不读 `outputKind`、`resolvedOutputRoot` 和 `conflictPolicy`，很容易把“输出根位置”误判成“作者是否可以直接改”。
@@ -631,7 +631,7 @@ with:
 Run:
 
 ```powershell
-rg -n "onCreate|onUpdate|onDelete|生命周期行为扩展|Behavior.kt" docs/public/authoring/domain.zh-CN.md docs/public/authoring/generation-boundaries.zh-CN.md docs/public/authoring/generator/code-generation.zh-CN.md
+rg -n "onCreate|onUpdate|onDelete|生命周期行为扩展|Behavior.kt" docs/public/authoring/domain.md docs/public/authoring/generation-boundaries.md docs/public/authoring/generator/code-generation.md
 ```
 
 Expected: output includes only the narrow authoring guidance above. It must not claim new DSL options, annotations, runtime services, or entity template overrides.
@@ -641,9 +641,9 @@ Expected: output includes only the narrow authoring guidance above. It must not 
 Run:
 
 ```powershell
-git add docs/public/authoring/domain.zh-CN.md `
-  docs/public/authoring/generation-boundaries.zh-CN.md `
-  docs/public/authoring/generator/code-generation.zh-CN.md
+git add docs/public/authoring/domain.md `
+  docs/public/authoring/generation-boundaries.md `
+  docs/public/authoring/generator/code-generation.md
 git commit -m "docs: document aggregate lifecycle behavior hooks"
 ```
 

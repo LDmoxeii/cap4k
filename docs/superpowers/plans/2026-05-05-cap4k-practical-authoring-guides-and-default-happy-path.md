@@ -15,69 +15,69 @@
 ### Public entry docs to modify
 
 - `README.md` - English public entry; add authoring-guide navigation
-- `README.zh-CN.md` - Chinese public entry; add authoring-guide navigation
+- `README.md` - Chinese public entry; add authoring-guide navigation
 - `docs/public/getting-started.md` - English quick-start path; point to authoring overview and Happy Path
-- `docs/public/getting-started.zh-CN.md` - Chinese quick-start path; point to authoring overview and Happy Path
+- `docs/public/getting-started.md` - Chinese quick-start path; point to authoring overview and Happy Path
 - `docs/public/framework-positioning.md` - English positioning doc; link authoring-system responsibilities
-- `docs/public/framework-positioning.zh-CN.md` - Chinese positioning doc; link authoring-system responsibilities
+- `docs/public/framework-positioning.md` - Chinese positioning doc; link authoring-system responsibilities
 
 ### New authoring overview and normative center
 
-- `docs/public/authoring/index.zh-CN.md` - Chinese overview and reading paths
-- `docs/public/authoring/index.md` - English overview and reading paths
-- `docs/public/authoring/default-happy-path.zh-CN.md` - Chinese normative center
-- `docs/public/authoring/default-happy-path.md` - English normative center
+- `docs/public/authoring/index.md` - Chinese overview and reading paths
+- `docs/public/authoring/index.en.md` - English overview and reading paths
+- `docs/public/authoring/default-happy-path.md` - Chinese normative center
+- `docs/public/authoring/default-happy-path.en.md` - English normative center
 
 ### New horizontal contract docs
 
-- `docs/public/authoring/naming-and-layout.zh-CN.md`
-- `docs/public/authoring/generation-boundaries.zh-CN.md`
-- `docs/public/authoring/example-contract.zh-CN.md`
+- `docs/public/authoring/naming-and-layout.md`
+- `docs/public/authoring/generation-boundaries.md`
+- `docs/public/authoring/example-contract.md`
 
 ### New generator guide family
 
-- `docs/public/authoring/generator/index.zh-CN.md`
-- `docs/public/authoring/generator/bootstrap.zh-CN.md`
-- `docs/public/authoring/generator/code-generation.zh-CN.md`
-- `docs/public/authoring/generator/code-analysis.zh-CN.md`
-- `docs/public/reference/generator-dsl.zh-CN.md`
+- `docs/public/authoring/generator/index.md`
+- `docs/public/authoring/generator/bootstrap.md`
+- `docs/public/authoring/generator/code-generation.md`
+- `docs/public/authoring/generator/code-analysis.md`
+- `docs/public/reference/generator-dsl.md`
 - `cap4k-plugin-pipeline-gradle/README.md` - reduce to thin pointer instead of primary authoring manual
 
 ### New layer guides
 
-- `docs/public/authoring/domain.zh-CN.md`
-- `docs/public/authoring/application.zh-CN.md`
-- `docs/public/authoring/adapter.zh-CN.md`
+- `docs/public/authoring/domain.md`
+- `docs/public/authoring/application.md`
+- `docs/public/authoring/adapter.md`
 
 ### New advanced concept guides
 
-- `docs/public/authoring/advanced/index.zh-CN.md`
-- `docs/public/authoring/advanced/value-object.zh-CN.md`
-- `docs/public/authoring/advanced/domain-service.zh-CN.md`
-- `docs/public/authoring/advanced/saga.zh-CN.md`
-- `docs/public/authoring/advanced/strong-id.zh-CN.md`
-- `docs/public/authoring/advanced/read-only-weak-reference.zh-CN.md`
+- `docs/public/authoring/advanced/index.md`
+- `docs/public/authoring/advanced/value-object.md`
+- `docs/public/authoring/advanced/domain-service.md`
+- `docs/public/authoring/advanced/saga.md`
+- `docs/public/authoring/advanced/strong-id.md`
+- `docs/public/authoring/advanced/read-only-weak-reference.md`
 
 ### New example appendix
 
-- `docs/public/authoring/examples/reference-project-overview.zh-CN.md`
-- `docs/public/authoring/examples/content-draft-to-publish.zh-CN.md`
-- `docs/public/authoring/examples/media-processing-callback.zh-CN.md`
-- `docs/public/authoring/examples/media-processing-polling.zh-CN.md`
+- `docs/public/authoring/examples/reference-project-overview.md`
+- `docs/public/authoring/examples/content-draft-to-publish.md`
+- `docs/public/authoring/examples/media-processing-callback.md`
+- `docs/public/authoring/examples/media-processing-polling.md`
 
 ---
 
 ### Task 1: Create the authoring overview and wire the public entry docs to it
 
 **Files:**
-- Create: `docs/public/authoring/index.zh-CN.md`
 - Create: `docs/public/authoring/index.md`
+- Create: `docs/public/authoring/index.en.md`
 - Modify: `README.md`
-- Modify: `README.zh-CN.md`
+- Modify: `README.md`
 - Modify: `docs/public/getting-started.md`
-- Modify: `docs/public/getting-started.zh-CN.md`
+- Modify: `docs/public/getting-started.md`
 - Modify: `docs/public/framework-positioning.md`
-- Modify: `docs/public/framework-positioning.zh-CN.md`
+- Modify: `docs/public/framework-positioning.md`
 - Test: authoring navigation verification with `rg`
 
 - [ ] **Step 1: Verify the current public entry docs do not yet expose the full authoring system**
@@ -85,7 +85,7 @@
 Run:
 
 ```powershell
-rg -n "authoring|Default Happy Path Guide|Generator Guide|Domain Authoring Guide|Application Authoring Guide|Adapter Authoring Guide|Advanced Concepts Guide" README.md README.zh-CN.md docs/public/getting-started.md docs/public/getting-started.zh-CN.md docs/public/framework-positioning.md docs/public/framework-positioning.zh-CN.md
+rg -n "authoring|Default Happy Path Guide|Generator Guide|Domain Authoring Guide|Application Authoring Guide|Adapter Authoring Guide|Advanced Concepts Guide" README.md README.md docs/public/getting-started.md docs/public/getting-started.md docs/public/framework-positioning.md docs/public/framework-positioning.md
 ```
 
 Expected:
@@ -95,7 +95,7 @@ Expected:
 
 - [ ] **Step 2: Create the Chinese authoring overview**
 
-Write `docs/public/authoring/index.zh-CN.md` with this structure:
+Write `docs/public/authoring/index.md` with this structure:
 
 ```markdown
 # Cap4k 编写指南总览
@@ -114,12 +114,12 @@ Write `docs/public/authoring/index.zh-CN.md` with this structure:
 
 ### 项目作者
 
-1. [Default Happy Path](default-happy-path.zh-CN.md)
-2. [生成器指南](generator/index.zh-CN.md)
-3. [领域层指南](domain.zh-CN.md)
-4. [应用层指南](application.zh-CN.md)
-5. [适配器层指南](adapter.zh-CN.md)
-6. [高级概念指南](advanced/index.zh-CN.md)
+1. [Default Happy Path](default-happy-path.md)
+2. [生成器指南](generator/index.md)
+3. [领域层指南](domain.md)
+4. [应用层指南](application.md)
+5. [适配器层指南](adapter.md)
+6. [高级概念指南](advanced/index.md)
 
 ### 深度用户 / 框架贡献者
 
@@ -128,18 +128,18 @@ Write `docs/public/authoring/index.zh-CN.md` with this structure:
 
 ## 六大主题
 
-- [Default Happy Path](default-happy-path.zh-CN.md)
-- [Generator Guide](generator/index.zh-CN.md)
-- [Domain Authoring Guide](domain.zh-CN.md)
-- [Application Authoring Guide](application.zh-CN.md)
-- [Adapter Authoring Guide](adapter.zh-CN.md)
-- [Advanced Concepts Guide](advanced/index.zh-CN.md)
+- [Default Happy Path](default-happy-path.md)
+- [Generator Guide](generator/index.md)
+- [Domain Authoring Guide](domain.md)
+- [Application Authoring Guide](application.md)
+- [Adapter Authoring Guide](adapter.md)
+- [Advanced Concepts Guide](advanced/index.md)
 
 ## 横切规范
 
-- [命名与目录规范](naming-and-layout.zh-CN.md)
-- [生成 / 手写边界](generation-boundaries.zh-CN.md)
-- [示例合同](example-contract.zh-CN.md)
+- [命名与目录规范](naming-and-layout.md)
+- [生成 / 手写边界](generation-boundaries.md)
+- [示例合同](example-contract.md)
 ```
 
 Constraints:
@@ -150,12 +150,12 @@ Constraints:
 
 - [ ] **Step 3: Create the English authoring overview**
 
-Write `docs/public/authoring/index.md` with the matching structure:
+Write `docs/public/authoring/index.en.md` with the matching structure:
 
 ```markdown
 # Cap4k Authoring Guide Overview
 
-[中文](index.zh-CN.md)
+[中文](index.md)
 
 > This guide system defines how cap4k projects are expected to be written, reviewed, and intentionally extended beyond the default path.
 
@@ -170,11 +170,11 @@ Write `docs/public/authoring/index.md` with the matching structure:
 ### Project Authors
 
 1. [Default Happy Path](default-happy-path.md)
-2. [Generator Guide](generator/index.zh-CN.md)
-3. [Domain Authoring Guide](domain.zh-CN.md)
-4. [Application Authoring Guide](application.zh-CN.md)
-5. [Adapter Authoring Guide](adapter.zh-CN.md)
-6. [Advanced Concepts Guide](advanced/index.zh-CN.md)
+2. [Generator Guide](generator/index.md)
+3. [Domain Authoring Guide](domain.md)
+4. [Application Authoring Guide](application.md)
+5. [Adapter Authoring Guide](adapter.md)
+6. [Advanced Concepts Guide](advanced/index.md)
 
 ### Deep Users / Framework Contributors
 
@@ -184,11 +184,11 @@ Write `docs/public/authoring/index.md` with the matching structure:
 ## Guide Families
 
 - [Default Happy Path](default-happy-path.md)
-- [Generator Guide](generator/index.zh-CN.md)
-- [Domain Authoring Guide](domain.zh-CN.md)
-- [Application Authoring Guide](application.zh-CN.md)
-- [Adapter Authoring Guide](adapter.zh-CN.md)
-- [Advanced Concepts Guide](advanced/index.zh-CN.md)
+- [Generator Guide](generator/index.md)
+- [Domain Authoring Guide](domain.md)
+- [Application Authoring Guide](application.md)
+- [Adapter Authoring Guide](adapter.md)
+- [Advanced Concepts Guide](advanced/index.md)
 ```
 
 Constraints:
@@ -201,12 +201,12 @@ Constraints:
 Apply these edits:
 
 ```markdown
-<!-- README.md and README.zh-CN.md -->
+<!-- README.md and README.md -->
 ## Documentation Map
 
 - [Getting Started](docs/public/getting-started.md)
 - [Framework Positioning](docs/public/framework-positioning.md)
-- [Authoring Guide Overview](docs/public/authoring/index.md)
+- [Authoring Guide Overview](docs/public/authoring/index.en.md)
 ```
 
 ```markdown
@@ -219,12 +219,12 @@ Apply these edits:
 ```
 
 ```markdown
-<!-- docs/public/getting-started.zh-CN.md -->
+<!-- docs/public/getting-started.md -->
 ## 下一步阅读
 
-- [框架定位](framework-positioning.zh-CN.md)
-- [编写指南总览](authoring/index.zh-CN.md)
-- [Default Happy Path](authoring/default-happy-path.zh-CN.md)
+- [框架定位](framework-positioning.md)
+- [编写指南总览](authoring/index.md)
+- [Default Happy Path](authoring/default-happy-path.md)
 ```
 
 ```markdown
@@ -243,7 +243,7 @@ Add one short section near the end:
 Run:
 
 ```powershell
-rg -n "Authoring Guide Overview|编写指南总览|Default Happy Path|Generator Guide|Domain Authoring Guide|Application Authoring Guide|Adapter Authoring Guide|Advanced Concepts Guide" README.md README.zh-CN.md docs/public/getting-started.md docs/public/getting-started.zh-CN.md docs/public/framework-positioning.md docs/public/framework-positioning.zh-CN.md docs/public/authoring/index.md docs/public/authoring/index.zh-CN.md
+rg -n "Authoring Guide Overview|编写指南总览|Default Happy Path|Generator Guide|Domain Authoring Guide|Application Authoring Guide|Adapter Authoring Guide|Advanced Concepts Guide" README.md README.md docs/public/getting-started.md docs/public/getting-started.md docs/public/framework-positioning.md docs/public/framework-positioning.md docs/public/authoring/index.en.md docs/public/authoring/index.md
 ```
 
 Expected:
@@ -256,7 +256,7 @@ Expected:
 Run:
 
 ```bash
-git add README.md README.zh-CN.md docs/public/getting-started.md docs/public/getting-started.zh-CN.md docs/public/framework-positioning.md docs/public/framework-positioning.zh-CN.md docs/public/authoring/index.md docs/public/authoring/index.zh-CN.md
+git add README.md README.md docs/public/getting-started.md docs/public/getting-started.md docs/public/framework-positioning.md docs/public/framework-positioning.md docs/public/authoring/index.en.md docs/public/authoring/index.md
 git commit -m "docs: add authoring overview and entry navigation"
 ```
 
@@ -267,16 +267,16 @@ Expected:
 ### Task 2: Write the normative center and the horizontal contracts
 
 **Files:**
-- Create: `docs/public/authoring/default-happy-path.zh-CN.md`
 - Create: `docs/public/authoring/default-happy-path.md`
-- Create: `docs/public/authoring/naming-and-layout.zh-CN.md`
-- Create: `docs/public/authoring/generation-boundaries.zh-CN.md`
-- Create: `docs/public/authoring/example-contract.zh-CN.md`
+- Create: `docs/public/authoring/default-happy-path.en.md`
+- Create: `docs/public/authoring/naming-and-layout.md`
+- Create: `docs/public/authoring/generation-boundaries.md`
+- Create: `docs/public/authoring/example-contract.md`
 - Test: heading and rule verification with `rg`
 
 - [ ] **Step 1: Create the Chinese Default Happy Path guide**
 
-Write `docs/public/authoring/default-happy-path.zh-CN.md` with this structure:
+Write `docs/public/authoring/default-happy-path.md` with this structure:
 
 ```markdown
 # Default Happy Path
@@ -374,12 +374,12 @@ Constraints:
 
 - [ ] **Step 2: Create the English Default Happy Path guide**
 
-Write `docs/public/authoring/default-happy-path.md` with the matching structure:
+Write `docs/public/authoring/default-happy-path.en.md` with the matching structure:
 
 ```markdown
 # Default Happy Path
 
-[中文](default-happy-path.zh-CN.md)
+[中文](default-happy-path.md)
 
 ## Rule Strengths
 
@@ -416,7 +416,7 @@ Constraints:
 
 - [ ] **Step 3: Create the naming and layout contract**
 
-Write `docs/public/authoring/naming-and-layout.zh-CN.md` with these sections:
+Write `docs/public/authoring/naming-and-layout.md` with these sections:
 
 ```markdown
 # 命名与目录规范
@@ -460,7 +460,7 @@ Write `docs/public/authoring/naming-and-layout.zh-CN.md` with these sections:
 
 - [ ] **Step 4: Create the generation-boundaries and example-contract docs**
 
-Write `docs/public/authoring/generation-boundaries.zh-CN.md` with this structure:
+Write `docs/public/authoring/generation-boundaries.md` with this structure:
 
 ```markdown
 # 生成 / 手写边界
@@ -489,7 +489,7 @@ Write `docs/public/authoring/generation-boundaries.zh-CN.md` with this structure
 - override 漂移诊断
 ```
 
-Write `docs/public/authoring/example-contract.zh-CN.md` with this structure:
+Write `docs/public/authoring/example-contract.md` with this structure:
 
 ```markdown
 # 示例合同
@@ -514,10 +514,10 @@ Write `docs/public/authoring/example-contract.zh-CN.md` with this structure:
 Run:
 
 ```powershell
-rg -n "单命令单聚合根变更|状态变更收敛到命令处理路径|聚合根是唯一写入主面|领域事件由聚合根统一登记和发出|多 handler 顺序不保证|单一主动作" docs/public/authoring/default-happy-path.zh-CN.md
-rg -n "最小工作流合同|cap4kPlan|cap4kGenerate|cap4kAnalysis" docs/public/authoring/default-happy-path.zh-CN.md
-rg -n "overrideDirs|Current Reality|Future Strengthening Directions" docs/public/authoring/generation-boundaries.zh-CN.md
-rg -n "Scenario|Why this layer / concept|Recommended shape|Non-example / misuse|Audit cues" docs/public/authoring/example-contract.zh-CN.md
+rg -n "单命令单聚合根变更|状态变更收敛到命令处理路径|聚合根是唯一写入主面|领域事件由聚合根统一登记和发出|多 handler 顺序不保证|单一主动作" docs/public/authoring/default-happy-path.md
+rg -n "最小工作流合同|cap4kPlan|cap4kGenerate|cap4kAnalysis" docs/public/authoring/default-happy-path.md
+rg -n "overrideDirs|Current Reality|Future Strengthening Directions" docs/public/authoring/generation-boundaries.md
+rg -n "Scenario|Why this layer / concept|Recommended shape|Non-example / misuse|Audit cues" docs/public/authoring/example-contract.md
 ```
 
 Expected:
@@ -532,7 +532,7 @@ Expected:
 Run:
 
 ```bash
-git add docs/public/authoring/default-happy-path.zh-CN.md docs/public/authoring/default-happy-path.md docs/public/authoring/naming-and-layout.zh-CN.md docs/public/authoring/generation-boundaries.zh-CN.md docs/public/authoring/example-contract.zh-CN.md
+git add docs/public/authoring/default-happy-path.md docs/public/authoring/default-happy-path.en.md docs/public/authoring/naming-and-layout.md docs/public/authoring/generation-boundaries.md docs/public/authoring/example-contract.md
 git commit -m "docs: add authoring rules and default happy path"
 ```
 
@@ -543,11 +543,11 @@ Expected:
 ### Task 3: Deliver the generator guide family and migrate module-local guidance upward
 
 **Files:**
-- Create: `docs/public/authoring/generator/index.zh-CN.md`
-- Create: `docs/public/authoring/generator/bootstrap.zh-CN.md`
-- Create: `docs/public/authoring/generator/code-generation.zh-CN.md`
-- Create: `docs/public/authoring/generator/code-analysis.zh-CN.md`
-- Create: `docs/public/reference/generator-dsl.zh-CN.md`
+- Create: `docs/public/authoring/generator/index.md`
+- Create: `docs/public/authoring/generator/bootstrap.md`
+- Create: `docs/public/authoring/generator/code-generation.md`
+- Create: `docs/public/authoring/generator/code-analysis.md`
+- Create: `docs/public/reference/generator-dsl.md`
 - Modify: `cap4k-plugin-pipeline-gradle/README.md`
 - Test: task-family, DSL-reference, and pointer verification with `rg`
 
@@ -566,7 +566,7 @@ Expected:
 
 - [ ] **Step 2: Create the generator overview**
 
-Write `docs/public/authoring/generator/index.zh-CN.md` with this structure:
+Write `docs/public/authoring/generator/index.md` with this structure:
 
 ```markdown
 # Generator Guide
@@ -587,15 +587,15 @@ Write `docs/public/authoring/generator/index.zh-CN.md` with this structure:
 
 ## 阅读顺序
 
-1. [Bootstrap](bootstrap.zh-CN.md)
-2. [Code Generation](code-generation.zh-CN.md)
-3. [Code Analysis](code-analysis.zh-CN.md)
-4. [Generator DSL Reference](../../reference/generator-dsl.zh-CN.md)
+1. [Bootstrap](bootstrap.md)
+2. [Code Generation](code-generation.md)
+3. [Code Analysis](code-analysis.md)
+4. [Generator DSL Reference](../../reference/generator-dsl.md)
 ```
 
 - [ ] **Step 3: Create the bootstrap, code-generation, and code-analysis guides**
 
-Write `docs/public/authoring/generator/bootstrap.zh-CN.md` with sections:
+Write `docs/public/authoring/generator/bootstrap.md` with sections:
 
 ```markdown
 # Bootstrap Guide
@@ -608,7 +608,7 @@ Write `docs/public/authoring/generator/bootstrap.zh-CN.md` with sections:
 ## 最低验证
 ```
 
-Write `docs/public/authoring/generator/code-generation.zh-CN.md` with sections:
+Write `docs/public/authoring/generator/code-generation.md` with sections:
 
 ```markdown
 # Code Generation Guide
@@ -621,7 +621,7 @@ Write `docs/public/authoring/generator/code-generation.zh-CN.md` with sections:
 ## 最低验证
 ```
 
-Write `docs/public/authoring/generator/code-analysis.zh-CN.md` with sections:
+Write `docs/public/authoring/generator/code-analysis.md` with sections:
 
 ```markdown
 # Code Analysis Guide
@@ -636,7 +636,7 @@ Write `docs/public/authoring/generator/code-analysis.zh-CN.md` with sections:
 
 - [ ] **Step 4: Create the DSL reference and slim the deep module README into a pointer**
 
-Write `docs/public/reference/generator-dsl.zh-CN.md` with at least:
+Write `docs/public/reference/generator-dsl.md` with at least:
 
 ```markdown
 # Generator DSL Reference
@@ -659,11 +659,11 @@ This module provides the Gradle integration for the cap4k pipeline.
 
 For project-author usage guidance, read:
 
-- `docs/public/authoring/generator/index.zh-CN.md`
-- `docs/public/authoring/generator/bootstrap.zh-CN.md`
-- `docs/public/authoring/generator/code-generation.zh-CN.md`
-- `docs/public/authoring/generator/code-analysis.zh-CN.md`
-- `docs/public/reference/generator-dsl.zh-CN.md`
+- `docs/public/authoring/generator/index.md`
+- `docs/public/authoring/generator/bootstrap.md`
+- `docs/public/authoring/generator/code-generation.md`
+- `docs/public/authoring/generator/code-analysis.md`
+- `docs/public/reference/generator-dsl.md`
 
 This module README is no longer the primary public authoring manual.
 ```
@@ -677,7 +677,7 @@ Constraint:
 Run:
 
 ```powershell
-rg -n "cap4kPlan|cap4kGenerate|cap4kAnalysisPlan|cap4kAnalysisGenerate|plan.json|fixed-stage pipeline" docs/public/authoring/generator/index.zh-CN.md docs/public/authoring/generator/code-generation.zh-CN.md docs/public/authoring/generator/code-analysis.zh-CN.md
+rg -n "cap4kPlan|cap4kGenerate|cap4kAnalysisPlan|cap4kAnalysisGenerate|plan.json|fixed-stage pipeline" docs/public/authoring/generator/index.md docs/public/authoring/generator/code-generation.md docs/public/authoring/generator/code-analysis.md
 rg -n "primary public authoring manual|Generator Guide|generator-dsl" cap4k-plugin-pipeline-gradle/README.md
 ```
 
@@ -691,7 +691,7 @@ Expected:
 Run:
 
 ```bash
-git add docs/public/authoring/generator/index.zh-CN.md docs/public/authoring/generator/bootstrap.zh-CN.md docs/public/authoring/generator/code-generation.zh-CN.md docs/public/authoring/generator/code-analysis.zh-CN.md docs/public/reference/generator-dsl.zh-CN.md cap4k-plugin-pipeline-gradle/README.md
+git add docs/public/authoring/generator/index.md docs/public/authoring/generator/bootstrap.md docs/public/authoring/generator/code-generation.md docs/public/authoring/generator/code-analysis.md docs/public/reference/generator-dsl.md cap4k-plugin-pipeline-gradle/README.md
 git commit -m "docs: add generator authoring guides"
 ```
 
@@ -702,14 +702,14 @@ Expected:
 ### Task 4: Deliver the domain, application, and adapter authoring guides
 
 **Files:**
-- Create: `docs/public/authoring/domain.zh-CN.md`
-- Create: `docs/public/authoring/application.zh-CN.md`
-- Create: `docs/public/authoring/adapter.zh-CN.md`
+- Create: `docs/public/authoring/domain.md`
+- Create: `docs/public/authoring/application.md`
+- Create: `docs/public/authoring/adapter.md`
 - Test: guide-skeleton verification with `rg`
 
 - [ ] **Step 1: Create the domain guide using the shared guide skeleton**
 
-Write `docs/public/authoring/domain.zh-CN.md` with this structure:
+Write `docs/public/authoring/domain.md` with this structure:
 
 ```markdown
 # Domain Authoring Guide
@@ -757,7 +757,7 @@ Write `docs/public/authoring/domain.zh-CN.md` with this structure:
 
 - [ ] **Step 2: Create the application guide using the shared guide skeleton**
 
-Write `docs/public/authoring/application.zh-CN.md` with this structure:
+Write `docs/public/authoring/application.md` with this structure:
 
 ```markdown
 # Application Authoring Guide
@@ -803,7 +803,7 @@ Write `docs/public/authoring/application.zh-CN.md` with this structure:
 
 - [ ] **Step 3: Create the adapter guide using the shared guide skeleton**
 
-Write `docs/public/authoring/adapter.zh-CN.md` with this structure:
+Write `docs/public/authoring/adapter.md` with this structure:
 
 ```markdown
 # Adapter Authoring Guide
@@ -853,7 +853,7 @@ Write `docs/public/authoring/adapter.zh-CN.md` with this structure:
 Run:
 
 ```powershell
-rg -n "^## 这一层负责什么$|^## 这一层可以写什么$|^## 这一层不能写什么$|^## 典型目录与文件骨架$|^## 常见反例$|^## 最低验证与审计检查点$" docs/public/authoring/domain.zh-CN.md docs/public/authoring/application.zh-CN.md docs/public/authoring/adapter.zh-CN.md
+rg -n "^## 这一层负责什么$|^## 这一层可以写什么$|^## 这一层不能写什么$|^## 典型目录与文件骨架$|^## 常见反例$|^## 最低验证与审计检查点$" docs/public/authoring/domain.md docs/public/authoring/application.md docs/public/authoring/adapter.md
 ```
 
 Expected:
@@ -866,7 +866,7 @@ Expected:
 Run:
 
 ```bash
-git add docs/public/authoring/domain.zh-CN.md docs/public/authoring/application.zh-CN.md docs/public/authoring/adapter.zh-CN.md
+git add docs/public/authoring/domain.md docs/public/authoring/application.md docs/public/authoring/adapter.md
 git commit -m "docs: add layer authoring guides"
 ```
 
@@ -877,17 +877,17 @@ Expected:
 ### Task 5: Deliver the advanced concepts guide family
 
 **Files:**
-- Create: `docs/public/authoring/advanced/index.zh-CN.md`
-- Create: `docs/public/authoring/advanced/value-object.zh-CN.md`
-- Create: `docs/public/authoring/advanced/domain-service.zh-CN.md`
-- Create: `docs/public/authoring/advanced/saga.zh-CN.md`
-- Create: `docs/public/authoring/advanced/strong-id.zh-CN.md`
-- Create: `docs/public/authoring/advanced/read-only-weak-reference.zh-CN.md`
+- Create: `docs/public/authoring/advanced/index.md`
+- Create: `docs/public/authoring/advanced/value-object.md`
+- Create: `docs/public/authoring/advanced/domain-service.md`
+- Create: `docs/public/authoring/advanced/saga.md`
+- Create: `docs/public/authoring/advanced/strong-id.md`
+- Create: `docs/public/authoring/advanced/read-only-weak-reference.md`
 - Test: decision-entry and concept coverage verification with `rg`
 
 - [ ] **Step 1: Create the advanced overview as a deviation-from-default decision page**
 
-Write `docs/public/authoring/advanced/index.zh-CN.md` with this structure:
+Write `docs/public/authoring/advanced/index.md` with this structure:
 
 ```markdown
 # Advanced Concepts Guide
@@ -899,11 +899,11 @@ Write `docs/public/authoring/advanced/index.zh-CN.md` with this structure:
 
 ## 决策入口
 
-- 什么时候需要更完整的值语义 -> [Value Object](value-object.zh-CN.md)
-- 什么时候行为不自然属于某个聚合 -> [Domain Service](domain-service.zh-CN.md)
-- 什么时候进入长流程协调 -> [Saga](saga.zh-CN.md)
-- 什么时候需要更强的 ID 类型安全 -> [Strong ID](strong-id.zh-CN.md)
-- 什么时候需要只读弱引用统一表达 -> [Read-only Weak Reference](read-only-weak-reference.zh-CN.md)
+- 什么时候需要更完整的值语义 -> [Value Object](value-object.md)
+- 什么时候行为不自然属于某个聚合 -> [Domain Service](domain-service.md)
+- 什么时候进入长流程协调 -> [Saga](saga.md)
+- 什么时候需要更强的 ID 类型安全 -> [Strong ID](strong-id.md)
+- 什么时候需要只读弱引用统一表达 -> [Read-only Weak Reference](read-only-weak-reference.md)
 
 ## 默认前提
 
@@ -928,31 +928,31 @@ Each of the five concept pages must include:
 Concept-specific anchors:
 
 ```markdown
-<!-- value-object.zh-CN.md -->
+<!-- value-object.md -->
 - 区分 enum、primitive、复合值对象
 - 解释为什么“JSON 字段”只是承载方式，不是值对象定义本身
 ```
 
 ```markdown
-<!-- domain-service.zh-CN.md -->
+<!-- domain-service.md -->
 - 解释什么叫“明显属于领域，但不自然属于某个聚合或值对象”
 - 明确它不是 application orchestration 垃圾桶
 ```
 
 ```markdown
-<!-- saga.zh-CN.md -->
+<!-- saga.md -->
 - 解释它是长流程/最终一致性协调概念
 - 明确它不是默认路径前排
 ```
 
 ```markdown
-<!-- strong-id.zh-CN.md -->
+<!-- strong-id.md -->
 - 解释它是工程强化概念而非 DDD 核心 building block
 - 明确后续应与 wrapper 脱钩
 ```
 
 ```markdown
-<!-- read-only-weak-reference.zh-CN.md -->
+<!-- read-only-weak-reference.md -->
 - 明确 repository 仍只感知写模型
 - 只统一类型表达和导航 surface
 - 第一阶段推荐“两套类、统一上下文”
@@ -963,7 +963,7 @@ Concept-specific anchors:
 Run:
 
 ```powershell
-rg -n "什么时候默认路径已经不够|先用 Default Happy Path|什么时候需要它|为什么默认路径不够|推荐形态|常见误用|审计检查点" docs/public/authoring/advanced/index.zh-CN.md docs/public/authoring/advanced/value-object.zh-CN.md docs/public/authoring/advanced/domain-service.zh-CN.md docs/public/authoring/advanced/saga.zh-CN.md docs/public/authoring/advanced/strong-id.zh-CN.md docs/public/authoring/advanced/read-only-weak-reference.zh-CN.md
+rg -n "什么时候默认路径已经不够|先用 Default Happy Path|什么时候需要它|为什么默认路径不够|推荐形态|常见误用|审计检查点" docs/public/authoring/advanced/index.md docs/public/authoring/advanced/value-object.md docs/public/authoring/advanced/domain-service.md docs/public/authoring/advanced/saga.md docs/public/authoring/advanced/strong-id.md docs/public/authoring/advanced/read-only-weak-reference.md
 ```
 
 Expected:
@@ -976,7 +976,7 @@ Expected:
 Run:
 
 ```bash
-git add docs/public/authoring/advanced/index.zh-CN.md docs/public/authoring/advanced/value-object.zh-CN.md docs/public/authoring/advanced/domain-service.zh-CN.md docs/public/authoring/advanced/saga.zh-CN.md docs/public/authoring/advanced/strong-id.zh-CN.md docs/public/authoring/advanced/read-only-weak-reference.zh-CN.md
+git add docs/public/authoring/advanced/index.md docs/public/authoring/advanced/value-object.md docs/public/authoring/advanced/domain-service.md docs/public/authoring/advanced/saga.md docs/public/authoring/advanced/strong-id.md docs/public/authoring/advanced/read-only-weak-reference.md
 git commit -m "docs: add advanced concept guides"
 ```
 
@@ -987,19 +987,19 @@ Expected:
 ### Task 6: Deliver the shared example appendix and the minimum verification surface
 
 **Files:**
-- Create: `docs/public/authoring/examples/reference-project-overview.zh-CN.md`
-- Create: `docs/public/authoring/examples/content-draft-to-publish.zh-CN.md`
-- Create: `docs/public/authoring/examples/media-processing-callback.zh-CN.md`
-- Create: `docs/public/authoring/examples/media-processing-polling.zh-CN.md`
-- Modify: `docs/public/authoring/domain.zh-CN.md`
-- Modify: `docs/public/authoring/application.zh-CN.md`
-- Modify: `docs/public/authoring/adapter.zh-CN.md`
-- Modify: `docs/public/authoring/advanced/index.zh-CN.md`
+- Create: `docs/public/authoring/examples/reference-project-overview.md`
+- Create: `docs/public/authoring/examples/content-draft-to-publish.md`
+- Create: `docs/public/authoring/examples/media-processing-callback.md`
+- Create: `docs/public/authoring/examples/media-processing-polling.md`
+- Modify: `docs/public/authoring/domain.md`
+- Modify: `docs/public/authoring/application.md`
+- Modify: `docs/public/authoring/adapter.md`
+- Modify: `docs/public/authoring/advanced/index.md`
 - Test: example-contract and cross-link verification with `rg`
 
 - [ ] **Step 1: Create the reference-project overview example**
 
-Write `docs/public/authoring/examples/reference-project-overview.zh-CN.md` with this structure:
+Write `docs/public/authoring/examples/reference-project-overview.md` with this structure:
 
 ```markdown
 # 内容发布与处理示例项目总览
@@ -1031,7 +1031,7 @@ Write `docs/public/authoring/examples/reference-project-overview.zh-CN.md` with 
 
 - [ ] **Step 2: Create the three scenario slices**
 
-Write `content-draft-to-publish.zh-CN.md` with:
+Write `content-draft-to-publish.md` with:
 
 ```markdown
 # 从内容草稿到发布
@@ -1047,7 +1047,7 @@ Write `content-draft-to-publish.zh-CN.md` with:
 ## Audit cues
 ```
 
-Write `media-processing-callback.zh-CN.md` with:
+Write `media-processing-callback.md` with:
 
 ```markdown
 # 媒体处理回调主路径
@@ -1063,7 +1063,7 @@ Write `media-processing-callback.zh-CN.md` with:
 ## Audit cues
 ```
 
-Write `media-processing-polling.zh-CN.md` with:
+Write `media-processing-polling.md` with:
 
 ```markdown
 # 媒体处理轮询替代路径
@@ -1083,35 +1083,35 @@ Write `media-processing-polling.zh-CN.md` with:
 Add short “See also” style sections:
 
 ```markdown
-<!-- domain.zh-CN.md -->
+<!-- domain.md -->
 ## 对应示例
 
-- [内容发布与处理示例项目总览](authoring/examples/reference-project-overview.zh-CN.md)
-- [从内容草稿到发布](authoring/examples/content-draft-to-publish.zh-CN.md)
+- [内容发布与处理示例项目总览](authoring/examples/reference-project-overview.md)
+- [从内容草稿到发布](authoring/examples/content-draft-to-publish.md)
 ```
 
 ```markdown
-<!-- application.zh-CN.md -->
+<!-- application.md -->
 ## 对应示例
 
-- [从内容草稿到发布](authoring/examples/content-draft-to-publish.zh-CN.md)
-- [媒体处理回调主路径](authoring/examples/media-processing-callback.zh-CN.md)
-- [媒体处理轮询替代路径](authoring/examples/media-processing-polling.zh-CN.md)
+- [从内容草稿到发布](authoring/examples/content-draft-to-publish.md)
+- [媒体处理回调主路径](authoring/examples/media-processing-callback.md)
+- [媒体处理轮询替代路径](authoring/examples/media-processing-polling.md)
 ```
 
 ```markdown
-<!-- adapter.zh-CN.md -->
+<!-- adapter.md -->
 ## 对应示例
 
-- [媒体处理回调主路径](authoring/examples/media-processing-callback.zh-CN.md)
-- [媒体处理轮询替代路径](authoring/examples/media-processing-polling.zh-CN.md)
+- [媒体处理回调主路径](authoring/examples/media-processing-callback.md)
+- [媒体处理轮询替代路径](authoring/examples/media-processing-polling.md)
 ```
 
 ```markdown
-<!-- advanced/index.zh-CN.md -->
+<!-- advanced/index.md -->
 ## 参考主场景
 
-- [内容发布与处理示例项目总览](../examples/reference-project-overview.zh-CN.md)
+- [内容发布与处理示例项目总览](../examples/reference-project-overview.md)
 ```
 
 Use correct relative links when writing each file.
@@ -1121,8 +1121,8 @@ Use correct relative links when writing each file.
 Run:
 
 ```powershell
-rg -n "^## Scenario$|^## Why this layer / concept$|^## Recommended shape$|^## Non-example / misuse$|^## Audit cues$" docs/public/authoring/examples/*.zh-CN.md
-rg -n "对应示例|参考主场景" docs/public/authoring/domain.zh-CN.md docs/public/authoring/application.zh-CN.md docs/public/authoring/adapter.zh-CN.md docs/public/authoring/advanced/index.zh-CN.md
+rg -n "^## Scenario$|^## Why this layer / concept$|^## Recommended shape$|^## Non-example / misuse$|^## Audit cues$" docs/public/authoring/examples/*.md
+rg -n "对应示例|参考主场景" docs/public/authoring/domain.md docs/public/authoring/application.md docs/public/authoring/adapter.md docs/public/authoring/advanced/index.md
 ```
 
 Expected:
@@ -1135,7 +1135,7 @@ Expected:
 Run:
 
 ```bash
-git add docs/public/authoring/examples/reference-project-overview.zh-CN.md docs/public/authoring/examples/content-draft-to-publish.zh-CN.md docs/public/authoring/examples/media-processing-callback.zh-CN.md docs/public/authoring/examples/media-processing-polling.zh-CN.md docs/public/authoring/domain.zh-CN.md docs/public/authoring/application.zh-CN.md docs/public/authoring/adapter.zh-CN.md docs/public/authoring/advanced/index.zh-CN.md
+git add docs/public/authoring/examples/reference-project-overview.md docs/public/authoring/examples/content-draft-to-publish.md docs/public/authoring/examples/media-processing-callback.md docs/public/authoring/examples/media-processing-polling.md docs/public/authoring/domain.md docs/public/authoring/application.md docs/public/authoring/adapter.md docs/public/authoring/advanced/index.md
 git commit -m "docs: add shared authoring examples"
 ```
 
@@ -1155,7 +1155,7 @@ Run:
 
 ```powershell
 Get-ChildItem -Path docs/public/authoring -Recurse -File | Select-Object -ExpandProperty FullName
-rg -n "^# " docs/public/authoring/index.zh-CN.md docs/public/authoring/default-happy-path.zh-CN.md docs/public/authoring/domain.zh-CN.md docs/public/authoring/application.zh-CN.md docs/public/authoring/adapter.zh-CN.md docs/public/authoring/generator/index.zh-CN.md docs/public/authoring/advanced/index.zh-CN.md docs/public/reference/generator-dsl.zh-CN.md
+rg -n "^# " docs/public/authoring/index.md docs/public/authoring/default-happy-path.md docs/public/authoring/domain.md docs/public/authoring/application.md docs/public/authoring/adapter.md docs/public/authoring/generator/index.md docs/public/authoring/advanced/index.md docs/public/reference/generator-dsl.md
 ```
 
 Expected:
@@ -1168,7 +1168,7 @@ Expected:
 Run:
 
 ```powershell
-rg -n "Default Happy Path|Generator Guide|Domain Authoring Guide|Application Authoring Guide|Adapter Authoring Guide|Advanced Concepts Guide|命名与目录规范|生成 / 手写边界|示例合同" docs/public/authoring/**/*.md docs/public/authoring/*.md README.md README.zh-CN.md docs/public/getting-started*.md docs/public/framework-positioning*.md
+rg -n "Default Happy Path|Generator Guide|Domain Authoring Guide|Application Authoring Guide|Adapter Authoring Guide|Advanced Concepts Guide|命名与目录规范|生成 / 手写边界|示例合同" docs/public/authoring/**/*.md docs/public/authoring/*.md README.md README.md docs/public/getting-started*.md docs/public/framework-positioning*.md
 ```
 
 Expected:
@@ -1190,7 +1190,7 @@ Expected:
 - if verification produced a last docs-only edit set, commit it with:
 
 ```bash
-git add README.md README.zh-CN.md docs/public/getting-started.md docs/public/getting-started.zh-CN.md docs/public/framework-positioning.md docs/public/framework-positioning.zh-CN.md docs/public/authoring docs/public/reference/generator-dsl.zh-CN.md cap4k-plugin-pipeline-gradle/README.md
+git add README.md README.md docs/public/getting-started.md docs/public/getting-started.md docs/public/framework-positioning.md docs/public/framework-positioning.md docs/public/authoring docs/public/reference/generator-dsl.md cap4k-plugin-pipeline-gradle/README.md
 git commit -m "docs: finalize practical authoring guides"
 ```
 
@@ -1212,7 +1212,7 @@ Implementation merged.
 - Spec: `docs/superpowers/specs/2026-05-05-cap4k-practical-authoring-guides-and-default-happy-path-design.md`
 - Plan: `docs/superpowers/plans/2026-05-05-cap4k-practical-authoring-guides-and-default-happy-path.md`
 - Public authoring tree: `docs/public/authoring/`
-- Generator DSL reference: `docs/public/reference/generator-dsl.zh-CN.md`
+- Generator DSL reference: `docs/public/reference/generator-dsl.md`
 
 This closes the first-phase authoring-guide system and establishes the human-facing writing model that later AI-collaboration guidance (`#17`) can depend on.
 ```

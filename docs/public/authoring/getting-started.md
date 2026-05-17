@@ -1,43 +1,49 @@
-# Getting Started
+# 快速开始
 
-[中文](getting-started.zh-CN.md)
+[English](getting-started.en.md)
 
-## Who This Path Is For
+## 适用对象
 
-- teams that want to land DDD without a heavy framework story
-- teams that want a strong default path before touching advanced concepts
+- 想落地 DDD，但不想先搭一套过重框架叙事的团队
+- 希望先按默认主路径推进，再考虑高级概念的团队
 
-## Read in This Order
+## 推荐阅读顺序
 
-1. [README](../../../README.md)
-2. work through the minimal workflow below on a small aggregate slice
-3. read [Framework Positioning](framework-positioning.md) when you need clearer concept boundaries
+1. [README.md](../../../README.md)
+2. 先用下面的最小工作流跑一个小聚合片段
+3. 需要端到端 authoring 顺序时，读 [项目编写工作流](project-authoring-workflow.md)
+4. 需要建立项目骨架时，读 [Bootstrap](generator/bootstrap.md)
+5. 需要更清楚的概念边界时，再读 [框架定位](framework-positioning.md)
 
-## Minimal Workflow
+## 最小工作流
 
-1. identify the aggregate root and entity boundary
-2. define command and query intent separately
-3. let mutation converge into command handling
-4. release domain events from the aggregate root when process continuation is needed
-5. treat controller, job, and event handlers as coordination points, not the place where business truth lives
+1. 先识别聚合根与实体边界
+2. 分别定义命令意图与查询意图
+3. 让状态变更收敛到命令处理路径
+4. 需要流程继续时，由聚合根发出领域事件
+5. 把开放服务入口、外部事实入口、内部触发入口看作边界协同点，而不是业务真相所在
+6. 先为 `domain` 和 `application` 主链路补行为测试，再决定是否需要更重的基础设施测试
 
-## Minimal Audit During AI Collaboration
+## AI 协作时的最小审计
 
-AI can draft designs, implement code, and run verification, but human authors should confirm before accepting the result:
+AI 可以负责草拟设计、实现代码和运行验证，但人类作者需要在接受结果前确认：
 
-- the domain flow still follows the minimal workflow above
-- generated and handwritten boundaries are clear
-- the AI provided reproducible test, compile, generation, or analysis evidence
-- unsupported or incomplete capabilities are explicitly marked as gaps
+- 领域流程是否仍然符合上面的最小工作流
+- 生成 / 手写边界是否清楚
+- AI 是否给出可复核的测试、编译、生成或分析证据
+- 不支持或未完成的能力是否被明确标成缺口
 
-## Start Conservatively
+## 先走保守路径
 
-- use the default happy path first
-- do not start with advanced read/write modeling
-- do not start with Saga, Strong ID, or Domain Service unless the problem really requires them
+- 先走默认 happy path
+- 不要一开始就使用高级读写建模
+- 没有明确问题前，不要先上 Saga、Strong ID、Domain Service
 
-## Next Reading
+## 下一步阅读
 
-- [Framework Positioning](framework-positioning.md)
-- [Authoring Guide Overview](index.md)
+- [项目编写工作流](project-authoring-workflow.md)
+- [Bootstrap](generator/bootstrap.md)
+- [框架定位](framework-positioning.md)
+- [编写指南总览](index.md)
 - [Default Happy Path](default-happy-path.md)
+- [测试合同](testing-contract.md)

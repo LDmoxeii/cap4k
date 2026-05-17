@@ -24,13 +24,13 @@ Do not modify framework runtime, generator, Gradle plugin, test fixture, or refe
 
 ### Human Authoring Docs
 
-- Move: `docs/public/getting-started.zh-CN.md` -> `docs/public/authoring/getting-started.zh-CN.md`
 - Move: `docs/public/getting-started.md` -> `docs/public/authoring/getting-started.md`
-- Move: `docs/public/framework-positioning.zh-CN.md` -> `docs/public/authoring/framework-positioning.zh-CN.md`
+- Move: `docs/public/getting-started.md` -> `docs/public/authoring/getting-started.en.md`
 - Move: `docs/public/framework-positioning.md` -> `docs/public/authoring/framework-positioning.md`
-- Modify: `docs/public/authoring/index.zh-CN.md`
+- Move: `docs/public/framework-positioning.md` -> `docs/public/authoring/framework-positioning.en.md`
 - Modify: `docs/public/authoring/index.md`
-- Modify: `README.zh-CN.md`
+- Modify: `docs/public/authoring/index.en.md`
+- Modify: `README.md`
 - Modify: `README.md`
 
 ### Formal AI Authoring Skill
@@ -60,66 +60,66 @@ Do not modify framework runtime, generator, Gradle plugin, test fixture, or refe
 ### Task 1: Move Public Entry Docs Into Authoring
 
 **Files:**
-- Move: `docs/public/getting-started.zh-CN.md`
 - Move: `docs/public/getting-started.md`
-- Move: `docs/public/framework-positioning.zh-CN.md`
+- Move: `docs/public/getting-started.md`
 - Move: `docs/public/framework-positioning.md`
-- Modify: `docs/public/authoring/getting-started.zh-CN.md`
+- Move: `docs/public/framework-positioning.md`
 - Modify: `docs/public/authoring/getting-started.md`
-- Modify: `docs/public/authoring/framework-positioning.zh-CN.md`
+- Modify: `docs/public/authoring/getting-started.en.md`
 - Modify: `docs/public/authoring/framework-positioning.md`
+- Modify: `docs/public/authoring/framework-positioning.en.md`
 
 - [ ] **Step 1: Move the four public entry files with Git history**
 
 Run from the repository root:
 
 ```powershell
-git mv docs/public/getting-started.zh-CN.md docs/public/authoring/getting-started.zh-CN.md
 git mv docs/public/getting-started.md docs/public/authoring/getting-started.md
-git mv docs/public/framework-positioning.zh-CN.md docs/public/authoring/framework-positioning.zh-CN.md
+git mv docs/public/getting-started.md docs/public/authoring/getting-started.en.md
 git mv docs/public/framework-positioning.md docs/public/authoring/framework-positioning.md
+git mv docs/public/framework-positioning.md docs/public/authoring/framework-positioning.en.md
 ```
 
 Expected: `git status --short` shows four renamed files, not delete/add pairs unless Git reports them that way after content edits.
 
 - [ ] **Step 2: Fix moved Chinese quick-start links**
 
-In `docs/public/authoring/getting-started.zh-CN.md`, make these link targets relative to the new location:
+In `docs/public/authoring/getting-started.md`, make these link targets relative to the new location:
 
 ```markdown
 [English](getting-started.md)
 
-1. [README.zh-CN.md](../../../README.zh-CN.md)
+1. [README.md](../../../README.md)
 2. 先用下面的最小工作流跑一个小聚合片段
-3. 需要更清楚的概念边界时，再读 [框架定位](framework-positioning.zh-CN.md)
+3. 需要更清楚的概念边界时，再读 [框架定位](framework-positioning.md)
 
-- [框架定位](framework-positioning.zh-CN.md)
-- [编写指南总览](index.zh-CN.md)
-- [Default Happy Path](default-happy-path.zh-CN.md)
-- [测试合同](testing-contract.zh-CN.md)
+- [框架定位](framework-positioning.md)
+- [编写指南总览](index.md)
+- [Default Happy Path](default-happy-path.md)
+- [测试合同](testing-contract.md)
 ```
 
 Expected: the moved file no longer links to `authoring/...` from inside `docs/public/authoring`.
 
 - [ ] **Step 3: Fix moved Chinese framework-positioning links**
 
-In `docs/public/authoring/framework-positioning.zh-CN.md`, make the ending links:
+In `docs/public/authoring/framework-positioning.md`, make the ending links:
 
 ```markdown
 [English](framework-positioning.md)
 
-- [编写指南总览](index.zh-CN.md)
-- [Default Happy Path](default-happy-path.zh-CN.md)
+- [编写指南总览](index.md)
+- [Default Happy Path](default-happy-path.md)
 ```
 
-Expected: no links in this file point to `authoring/index.zh-CN.md` or `authoring/default-happy-path.zh-CN.md`.
+Expected: no links in this file point to `authoring/index.md` or `authoring/default-happy-path.md`.
 
 - [ ] **Step 4: Fix moved English quick-start links**
 
-In `docs/public/authoring/getting-started.md`, make equivalent English links:
+In `docs/public/authoring/getting-started.en.md`, make equivalent English links:
 
 ```markdown
-[中文](getting-started.zh-CN.md)
+[中文](getting-started.md)
 
 1. [README.md](../../../README.md)
 2. Run the minimal workflow below on one aggregate slice.
@@ -134,10 +134,10 @@ If the current English page has shorter wording, keep that wording but use the l
 
 - [ ] **Step 5: Fix moved English framework-positioning links**
 
-In `docs/public/authoring/framework-positioning.md`, make equivalent English links:
+In `docs/public/authoring/framework-positioning.en.md`, make equivalent English links:
 
 ```markdown
-[中文](framework-positioning.zh-CN.md)
+[中文](framework-positioning.md)
 
 - [Authoring Guide Overview](index.md)
 - [Default Happy Path](default-happy-path.md)
@@ -150,9 +150,9 @@ Expected: moved English files link within authoring or back to the root README w
 Run:
 
 ```powershell
-Test-Path docs/public/getting-started.zh-CN.md
 Test-Path docs/public/getting-started.md
-Test-Path docs/public/framework-positioning.zh-CN.md
+Test-Path docs/public/getting-started.md
+Test-Path docs/public/framework-positioning.md
 Test-Path docs/public/framework-positioning.md
 rg -n "authoring/(index|default-happy-path|testing-contract|framework-positioning|getting-started)" docs/public/authoring/getting-started*.md docs/public/authoring/framework-positioning*.md
 ```
@@ -165,51 +165,51 @@ Expected:
 ### Task 2: Update Authoring Indexes And README Navigation
 
 **Files:**
-- Modify: `docs/public/authoring/index.zh-CN.md`
 - Modify: `docs/public/authoring/index.md`
-- Modify: `README.zh-CN.md`
+- Modify: `docs/public/authoring/index.en.md`
+- Modify: `README.md`
 - Modify: `README.md`
 
 - [ ] **Step 1: Update Chinese authoring index reading path**
 
-In `docs/public/authoring/index.zh-CN.md`, change the project-author reading path to include positioning and quick start first:
+In `docs/public/authoring/index.md`, change the project-author reading path to include positioning and quick start first:
 
 ```markdown
 ### 项目作者
 
-1. [框架定位](framework-positioning.zh-CN.md)
-2. [快速开始](getting-started.zh-CN.md)
-3. [Default Happy Path](default-happy-path.zh-CN.md)
-4. [生成器指南](generator/index.zh-CN.md)
-5. [领域层指南](domain.zh-CN.md)
-6. [应用层指南](application.zh-CN.md)
-7. [测试合同](testing-contract.zh-CN.md)
-8. [适配器层指南](adapter.zh-CN.md)
-9. [高级概念指南](advanced/index.zh-CN.md)
+1. [框架定位](framework-positioning.md)
+2. [快速开始](getting-started.md)
+3. [Default Happy Path](default-happy-path.md)
+4. [生成器指南](generator/index.md)
+5. [领域层指南](domain.md)
+6. [应用层指南](application.md)
+7. [测试合同](testing-contract.md)
+8. [适配器层指南](adapter.md)
+9. [高级概念指南](advanced/index.md)
 ```
 
 - [ ] **Step 2: Update Chinese authoring index guide families**
 
-In `docs/public/authoring/index.zh-CN.md`, make the guide list include the moved entry pages:
+In `docs/public/authoring/index.md`, make the guide list include the moved entry pages:
 
 ```markdown
 ## 主题入口
 
-- [框架定位](framework-positioning.zh-CN.md)
-- [快速开始](getting-started.zh-CN.md)
-- [Default Happy Path](default-happy-path.zh-CN.md)
-- [Generator Guide](generator/index.zh-CN.md)
-- [Domain Authoring Guide](domain.zh-CN.md)
-- [Application Authoring Guide](application.zh-CN.md)
-- [Adapter Authoring Guide](adapter.zh-CN.md)
-- [Advanced Concepts Guide](advanced/index.zh-CN.md)
+- [框架定位](framework-positioning.md)
+- [快速开始](getting-started.md)
+- [Default Happy Path](default-happy-path.md)
+- [Generator Guide](generator/index.md)
+- [Domain Authoring Guide](domain.md)
+- [Application Authoring Guide](application.md)
+- [Adapter Authoring Guide](adapter.md)
+- [Advanced Concepts Guide](advanced/index.md)
 ```
 
 Keep the existing horizontal-contract links after this section.
 
 - [ ] **Step 3: Update English authoring index**
 
-In `docs/public/authoring/index.md`, mirror the navigation structure:
+In `docs/public/authoring/index.en.md`, mirror the navigation structure:
 
 ```markdown
 ### Project Authors
@@ -217,12 +217,12 @@ In `docs/public/authoring/index.md`, mirror the navigation structure:
 1. [Framework Positioning](framework-positioning.md)
 2. [Getting Started](getting-started.md)
 3. [Default Happy Path](default-happy-path.md)
-4. [Generator Guide](generator/index.zh-CN.md)
-5. [Domain Authoring Guide](domain.zh-CN.md)
-6. [Application Authoring Guide](application.zh-CN.md)
-7. [Testing Contract](testing-contract.zh-CN.md)
-8. [Adapter Authoring Guide](adapter.zh-CN.md)
-9. [Advanced Concepts Guide](advanced/index.zh-CN.md)
+4. [Generator Guide](generator/index.md)
+5. [Domain Authoring Guide](domain.md)
+6. [Application Authoring Guide](application.md)
+7. [Testing Contract](testing-contract.md)
+8. [Adapter Authoring Guide](adapter.md)
+9. [Advanced Concepts Guide](advanced/index.md)
 ```
 
 Also rename the guide-family section to `## Guide Entrypoints` and include:
@@ -231,29 +231,29 @@ Also rename the guide-family section to `## Guide Entrypoints` and include:
 - [Framework Positioning](framework-positioning.md)
 - [Getting Started](getting-started.md)
 - [Default Happy Path](default-happy-path.md)
-- [Generator Guide](generator/index.zh-CN.md)
-- [Domain Authoring Guide](domain.zh-CN.md)
-- [Application Authoring Guide](application.zh-CN.md)
-- [Adapter Authoring Guide](adapter.zh-CN.md)
-- [Advanced Concepts Guide](advanced/index.zh-CN.md)
+- [Generator Guide](generator/index.md)
+- [Domain Authoring Guide](domain.md)
+- [Application Authoring Guide](application.md)
+- [Adapter Authoring Guide](adapter.md)
+- [Advanced Concepts Guide](advanced/index.md)
 ```
 
 - [ ] **Step 4: Update Chinese README links**
 
-In `README.zh-CN.md`, replace the "如何开始" links with:
+In `README.md`, replace the "如何开始" links with:
 
 ```markdown
 1. 先阅读本 README 中的默认 happy path。
-2. 然后阅读 [快速开始](docs/public/authoring/getting-started.zh-CN.md)。
-3. 在把高级概念或运行时承载面当作默认承诺之前，再阅读 [框架定位](docs/public/authoring/framework-positioning.zh-CN.md)。
+2. 然后阅读 [快速开始](docs/public/authoring/getting-started.md)。
+3. 在把高级概念或运行时承载面当作默认承诺之前，再阅读 [框架定位](docs/public/authoring/framework-positioning.md)。
 ```
 
 Replace the document navigation with:
 
 ```markdown
-- [编写指南总览](docs/public/authoring/index.zh-CN.md)
-- [快速开始](docs/public/authoring/getting-started.zh-CN.md)
-- [框架定位](docs/public/authoring/framework-positioning.zh-CN.md)
+- [编写指南总览](docs/public/authoring/index.md)
+- [快速开始](docs/public/authoring/getting-started.md)
+- [框架定位](docs/public/authoring/framework-positioning.md)
 ```
 
 - [ ] **Step 5: Update English README links**
@@ -262,16 +262,16 @@ In `README.md`, replace the "How to Start" links with:
 
 ```markdown
 1. Read the default happy path in this README.
-2. Continue with [Getting Started](docs/public/authoring/getting-started.md).
-3. Read [Framework Positioning](docs/public/authoring/framework-positioning.md) before treating advanced concepts or runtime surfaces as default promises.
+2. Continue with [Getting Started](docs/public/authoring/getting-started.en.md).
+3. Read [Framework Positioning](docs/public/authoring/framework-positioning.en.md) before treating advanced concepts or runtime surfaces as default promises.
 ```
 
 Replace the document map with:
 
 ```markdown
-- [Authoring Guide Overview](docs/public/authoring/index.md)
-- [Getting Started](docs/public/authoring/getting-started.md)
-- [Framework Positioning](docs/public/authoring/framework-positioning.md)
+- [Authoring Guide Overview](docs/public/authoring/index.en.md)
+- [Getting Started](docs/public/authoring/getting-started.en.md)
+- [Framework Positioning](docs/public/authoring/framework-positioning.en.md)
 ```
 
 - [ ] **Step 6: Validate README and authoring navigation**
@@ -279,8 +279,8 @@ Replace the document map with:
 Run:
 
 ```powershell
-rg -n "docs/public/(getting-started|framework-positioning)" README.md README.zh-CN.md docs/public
-rg -n "framework-positioning|getting-started" docs/public/authoring/index.md docs/public/authoring/index.zh-CN.md README.md README.zh-CN.md
+rg -n "docs/public/(getting-started|framework-positioning)" README.md README.md docs/public
+rg -n "framework-positioning|getting-started" docs/public/authoring/index.en.md docs/public/authoring/index.md README.md README.md
 ```
 
 Expected:
@@ -293,7 +293,7 @@ Expected:
 Run:
 
 ```powershell
-git add README.md README.zh-CN.md docs/public/authoring docs/public/getting-started.md docs/public/getting-started.zh-CN.md docs/public/framework-positioning.md docs/public/framework-positioning.zh-CN.md
+git add README.md README.md docs/public/authoring docs/public/getting-started.md docs/public/getting-started.md docs/public/framework-positioning.md docs/public/framework-positioning.md
 git commit -m "docs: consolidate public authoring entrypoints"
 ```
 
@@ -940,7 +940,7 @@ Expected: no output and exit code `0`.
 Run:
 
 ```powershell
-rg -n "docs/public/(getting-started|framework-positioning)" README.md README.zh-CN.md docs/public AGENTS.md skills/cap4k-authoring .agents/skills/cap4k-authoring .cursor/skills/cap4k-authoring
+rg -n "docs/public/(getting-started|framework-positioning)" README.md README.md docs/public AGENTS.md skills/cap4k-authoring .agents/skills/cap4k-authoring .cursor/skills/cap4k-authoring
 ```
 
 Expected: no output.
@@ -950,9 +950,9 @@ Expected: no output.
 Run:
 
 ```powershell
-Test-Path docs/public/getting-started.zh-CN.md
 Test-Path docs/public/getting-started.md
-Test-Path docs/public/framework-positioning.zh-CN.md
+Test-Path docs/public/getting-started.md
+Test-Path docs/public/framework-positioning.md
 Test-Path docs/public/framework-positioning.md
 ```
 
@@ -985,7 +985,7 @@ Implemented #17-v1 local docs/skill slice.
 
 Validation:
 - `git diff --check HEAD~2..HEAD`
-- `rg -n "docs/public/(getting-started|framework-positioning)" README.md README.zh-CN.md docs/public AGENTS.md skills/cap4k-authoring .agents/skills/cap4k-authoring .cursor/skills/cap4k-authoring`
+- `rg -n "docs/public/(getting-started|framework-positioning)" README.md README.md docs/public AGENTS.md skills/cap4k-authoring .agents/skills/cap4k-authoring .cursor/skills/cap4k-authoring`
 - `Test-Path ...` for removed root docs
 - `git diff --name-only HEAD~2..HEAD | rg -v ...` to confirm no runtime/generator changes
 ```

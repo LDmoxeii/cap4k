@@ -116,27 +116,27 @@ The public human docs should be reshaped around authoring capability, not around
 Add focused pages:
 
 ```text
-docs/public/authoring/project-authoring-workflow.zh-CN.md
-docs/public/authoring/tactical-model.zh-CN.md
-docs/public/authoring/generator/input-sources.zh-CN.md
-docs/public/authoring/generator/addons-and-spi.zh-CN.md
+docs/public/authoring/project-authoring-workflow.md
+docs/public/authoring/tactical-model.md
+docs/public/authoring/generator/input-sources.md
+docs/public/authoring/generator/addons-and-spi.md
 ```
 
 Update existing pages to route to these pages instead of duplicating all details:
 
 ```text
-docs/public/authoring/index.zh-CN.md
-docs/public/authoring/getting-started.zh-CN.md
-docs/public/authoring/framework-positioning.zh-CN.md
-docs/public/authoring/domain.zh-CN.md
-docs/public/authoring/application.zh-CN.md
-docs/public/authoring/adapter.zh-CN.md
-docs/public/authoring/generation-boundaries.zh-CN.md
-docs/public/authoring/testing-contract.zh-CN.md
-docs/public/authoring/generator/index.zh-CN.md
-docs/public/authoring/generator/bootstrap.zh-CN.md
-docs/public/authoring/generator/code-generation.zh-CN.md
-docs/public/authoring/generator/code-analysis.zh-CN.md
+docs/public/authoring/index.md
+docs/public/authoring/getting-started.md
+docs/public/authoring/framework-positioning.md
+docs/public/authoring/domain.md
+docs/public/authoring/application.md
+docs/public/authoring/adapter.md
+docs/public/authoring/generation-boundaries.md
+docs/public/authoring/testing-contract.md
+docs/public/authoring/generator/index.md
+docs/public/authoring/generator/bootstrap.md
+docs/public/authoring/generator/code-generation.md
+docs/public/authoring/generator/code-analysis.md
 ```
 
 Existing English entrypoints may receive minimal navigation fixes, but full English parity is not required in this slice.
