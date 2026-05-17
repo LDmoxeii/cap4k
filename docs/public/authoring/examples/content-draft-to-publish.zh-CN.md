@@ -93,7 +93,7 @@ Publish request
 - `ApproveContentCmd` handler 审核通过后，顺手调用 `PublishContentCmd` 逻辑，把批准和发布绑成一个主动作。
 - `Content.approve()` 内部直接 new `MediaProcessingTask`，或者直接调用 `MediaProcessingCli.start(...)` 发起外部处理。
 - `PublishContentCmd` handler 直接加载 `MediaProcessingTask` 并修改它的状态，试图一次事务里把两个聚合都收尾。
-- controller 直接调用仓储修改 `Content.status`，绕过 `Content` 聚合行为。
+- 开放服务入口直接调用仓储修改 `Content.status`，绕过 `Content` 聚合行为。
 - 为了省一个命令，把“查询详情时发现媒体已完成”写成查询路径里的补写逻辑，然后顺手自动发布内容。
 
 这些错法的共同问题是：把本来应该分阶段审计的内容生命周期，糊成了一个“能跑就行”的入口。

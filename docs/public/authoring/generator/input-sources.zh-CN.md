@@ -100,7 +100,7 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 | --- | --- |
 | `command` | command request / response / handler skeleton |
 | `query` | query request / response |
-| `client` | external client/cli request |
+| `client` | external capability client request |
 | `api_payload` | adapter API payload |
 | `domain_event` | domain event payload |
 | `integration_event` | application integration event contract and inbound subscriber skeleton |

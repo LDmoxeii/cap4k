@@ -2,6 +2,6 @@
 
 - Do not let table shape define aggregate boundaries without business consistency reasoning.
 - Do not create a domain service just because code feels procedural.
-- Do not call every small type a generated value object. First-class `value_object` design generation is not supported.
+- Do not choose a value object persistence carrier before modeling its business semantics.
 - Do not pretend external callbacks are domain events.
-- Do not define integration events without event name, role, and payload fields.
+- Do not choose transport or generation details before classifying the service interaction boundary.

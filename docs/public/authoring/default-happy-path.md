@@ -27,14 +27,14 @@ Interpretation:
 | Rule | Strength | Constraint |
 | --- | --- | --- |
 | single-command single-aggregate-root mutation | `Must` | one command path may only enter one aggregate-root persistence boundary |
-| mutation converges into command handling | `Must` | controller / job / subscriber surfaces do not directly mutate aggregates |
-| aggregate root is the only write-facing surface | `Must` | child entities are not external write targets |
+| mutation converges into command handling | `Must` | Open Host Service entries, external fact entries, and internal triggers do not directly mutate aggregates |
+| aggregate root is the only write surface | `Must` | UoW saves aggregate roots only; child entities and values persist through the aggregate root |
 | domain events are registered and released by aggregate roots | `Must` | event content may describe child change, but event ownership remains at the root |
 | cross-aggregate write-model strong reference is forbidden by default | `Default` | read-only weak reference is advanced only |
 | multiple handlers have no guaranteed order | `Default` | sequencing should be made explicit through staged flow |
 | one main action per surface | `Default` | write surfaces advance one command, read surfaces advance one query |
 | query observation does not back-pollute the write model | `Must` | query paths observe only; they do not repair or contaminate aggregate state |
-| cli is an anti-corruption boundary rather than process truth | `Must` | external capabilities must cross a boundary first |
+| client is an anti-corruption boundary rather than process truth | `Must` | external capabilities must cross a client boundary first |
 
 ## Modeling
 
@@ -44,7 +44,7 @@ Interpretation:
 
 ## Command
 
-- `mutation converges into command handling` means every write path, including controllers, callbacks, jobs, and subscribers, must convert into an internal command before aggregate state changes.
+- `mutation converges into command handling` means Open Host Service entries, external fact entries, and internal triggers must convert write intent or incoming facts into an internal command before aggregate state changes. Controllers, callbacks, jobs, and subscribers are implementation forms, not the write boundary.
 
 ## Event
 
@@ -64,7 +64,7 @@ Interpretation:
 
 ## Integration Boundary
 
-- `cli is an anti-corruption boundary rather than process truth` means external media-processing protocols must be translated before they enter the internal command or query path.
+- `client is an anti-corruption boundary rather than process truth` means external media-processing protocols must be translated before they enter the internal command or query path.
 - Callback / integration-event return is the preferred path. Polling is a compatibility fallback, not the main truth source.
 
 ## Minimum Workflow Contract

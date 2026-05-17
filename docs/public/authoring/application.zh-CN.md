@@ -10,19 +10,20 @@
 
 - 定义 Command / Query 契约，给外部入口和内部流程一个稳定的应用层表面。
 - 编写 handler，把一个主动作推进到对应聚合根，而不是直接在入口层里改状态。
-- 调度 domain、repository、`cli`、读模型或查询依赖，让“下一步做什么”在这里明确。
+- 调度 domain、repository、client、读模型或查询依赖，让“下一步做什么”在这里明确。
 - 承接领域事件或集成返回之后的流程推进，例如在媒体处理结果返回后触发内部命令更新 `MediaProcessingTask`。
 - 维护“一个入口推进一个主动作”的默认写法，让送审、启动处理、发布、查询详情都各自有清晰责任边界。
 - 在当前默认 layout 下，区分“逻辑属于 application”与“物理文件在 application module 还是 adapter module”：契约多在 application module，部分 handler family 会落到 adapter module，但它们承担的仍是 application 级调度责任。
 
 应用层的职责不是拥有业务真相，而是把各种入口意图整理成领域层能执行的内部动作，并把结果继续推进到下一个明确阶段。
+写用例中的外部能力调用属于 command handler 的编排责任；入口层不应该先调用 client 再补一个 command。
 
 ## 这一层可以写什么
 
 - 写命令契约，例如 `CreateContentDraftCmd`、`SubmitContentForReviewCmd`、`ApproveContentCmd`、`PublishContentCmd`。但编辑前先确认它们是不是本次计划产物。
 - 与媒体处理任务相关的写命令，例如 `StartMediaProcessingCmd`、`CompleteMediaProcessingCmd`、`FailMediaProcessingCmd`、`SyncMediaProcessingProgressCmd`。同样先看 ownership，再决定是改契约还是改手写完成面。
 - 读查询契约，例如 `GetContentDetailQry`、`GetMediaProcessingProgressQry`；这类 `*Qry.kt` 通常是 request-contract surface，不是塞项目特有编排的地方。
-- 手写 command handler 或其他 application 完成面：加载一个聚合根、调用一个主行为、保存该聚合根，并在需要时发起后续协作。只要文件不在 recurring plan item 里，它就是更安全的作者面。
+- 手写 command handler 或其他 application 完成面：加载一个聚合根、在写用例需要外部能力返回时调用 client、调用一个主行为、保存该聚合根，并在需要时发起后续协作。只要文件不在 recurring plan item 里，它就是更安全的作者面。
 - 用于推进后续动作的订阅器或应用层订阅逻辑，例如收到“媒体处理已完成”的内部事实后，触发下一个明确命令；如果某个 `*DomainEventSubscriber.kt` 是计划产物，就把项目特有逻辑继续下沉到你自己维护的手写 collaborator，而不是把一切都塞进生成壳里。
 - 为发布决策准备的只读判断，例如读取“媒体已完成”的投影或查询结果，再决定是否允许 `PublishContentCmd` 继续推进 `Content`。
 
@@ -95,6 +96,7 @@
 
 - 一个 `PublishContentCmd` handler 同时加载 `Content` 和 `MediaProcessingTask`，并在同一次事务里一起改状态，试图“一把推完所有事情”。
 - 因为想少写一个命令，就让 callback controller 或 polling job 直接改仓储，不经过应用层 handler。
+- 开放服务入口先调用 `MediaProcessingCli` 或 `ResourceStorageClient`，再调用 command 补写状态，把写用例拆散在入口层。
 - 在查询 handler 中顺手补写状态，例如“查详情时发现媒体已经完成，于是直接把 `Content` 标记成可发布”。
 - handler 直接解析第三方媒体平台状态码，并把这些外部枚举到处传递，导致应用层不再稳定。
 - callback 路径走 `CompleteMediaProcessingCmd`，polling 路径却直接写另外一套“轮询成功逻辑”，造成同一事实有两套推进方式。

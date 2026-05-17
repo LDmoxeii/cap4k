@@ -20,12 +20,16 @@ routes:
       - "write command handler"
       - "write query handler"
       - "实现 cap4k 业务切片"
-  - task: runtime-integration
-    skill: cap4k-runtime-integration
+  - task: service-integration
+    skill: cap4k-service-integration
     triggers:
+      - "open host service"
+      - "external capability client"
       - "integration event"
       - "external callback"
-      - "HTTP integration event"
+      - "服务交互"
+      - "开放服务入口"
+      - "外部事实入口"
       - "集成事件"
   - task: verification
     skill: cap4k-verification

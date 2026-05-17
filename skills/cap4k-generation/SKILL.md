@@ -20,6 +20,7 @@ Use this before writing or regenerating cap4k generated output.
 | Task | Read | Workflow |
 |---|---|---|
 | Bootstrap a project | `rules/template-and-addon-boundary.md` | `workflows/bootstrap-project.md` |
+| Bootstrap framework database tables | `references/framework-database-scripts.md` | `workflows/bootstrap-project.md` |
 | Generate from DB | `references/gotchas.md` | `workflows/generate-from-db.md` |
 | Generate from design JSON | `references/gotchas.md` | `workflows/generate-from-design.md` |
 | Inspect ownership before writing | `rules/output-ownership.md` | `workflows/review-plan-json.md` |

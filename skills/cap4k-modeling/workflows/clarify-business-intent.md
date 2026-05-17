@@ -24,7 +24,7 @@ Use this format:
 - Commands:
 - Queries:
 - Aggregates:
-- Value concepts:
+- Value objects:
 - Domain events:
 - Integration events:
 - External systems:

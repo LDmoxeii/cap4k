@@ -16,7 +16,7 @@
 - aggregate root as the write-facing surface
 - mutation converges into command handling
 - domain events are registered and released by aggregate roots
-- `cli` is an anti-corruption boundary, not the truth source of the process
+- client is the anti-corruption boundary for external capabilities, not the truth source of the process
 
 ## Author Role Positioning
 
@@ -34,7 +34,7 @@ These concepts matter, but they sit behind the public first-screen story and usu
 - Integration Event
 - Repository contract for aggregate loading and persistence boundaries
 - handler families for standard command/query execution
-- `cli` as the anti-corruption boundary for external capabilities
+- client as the anti-corruption boundary for external capabilities
 
 ## Advanced But Valid Concepts
 

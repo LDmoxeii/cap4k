@@ -18,10 +18,10 @@ Then route to the focused skill:
 
 | Task | Focused skill |
 |---|---|
-| Business modeling, aggregate boundaries, events, value concepts | [skills/cap4k-modeling/SKILL.md](skills/cap4k-modeling/SKILL.md) |
+| Business modeling, aggregate boundaries, events, value objects | [skills/cap4k-modeling/SKILL.md](skills/cap4k-modeling/SKILL.md) |
 | Bootstrap, DB/design generation, plan review, templates, addons | [skills/cap4k-generation/SKILL.md](skills/cap4k-generation/SKILL.md) |
 | Command/query/subscriber/job/controller implementation | [skills/cap4k-implementation/SKILL.md](skills/cap4k-implementation/SKILL.md) |
-| Integration events, callbacks, request/event runtime, framework tables | [skills/cap4k-runtime-integration/SKILL.md](skills/cap4k-runtime-integration/SKILL.md) |
+| Service-boundary interaction: read [skills/cap4k-service-integration/SKILL.md](skills/cap4k-service-integration/SKILL.md) before handling Open Host Service entries, external capability clients, external fact entries, callbacks, message listeners, or integration events. | [skills/cap4k-service-integration/SKILL.md](skills/cap4k-service-integration/SKILL.md) |
 | Tests, compile, analysis, flow/drawing-board, evidence | [skills/cap4k-verification/SKILL.md](skills/cap4k-verification/SKILL.md) |
 | Generated output, ownership, plan.json review | [skills/cap4k-generated-output-review/SKILL.md](skills/cap4k-generated-output-review/SKILL.md) |
 
