@@ -158,11 +158,11 @@ The documentation system is organized in three layers.
 Existing public entry documents remain:
 
 - `README.md`
-- `README.zh-CN.md`
+- `README.md`
 - `docs/public/getting-started.md`
-- `docs/public/getting-started.zh-CN.md`
+- `docs/public/getting-started.md`
 - `docs/public/framework-positioning.md`
-- `docs/public/framework-positioning.zh-CN.md`
+- `docs/public/framework-positioning.md`
 
 These documents remain entry and navigation surfaces only.
 They must not absorb the full authoring-guide responsibility.
@@ -179,39 +179,39 @@ Phase one must introduce:
 
 ```text
 docs/public/authoring/
-  index.zh-CN.md
+  index.md
   index.md
 
-  default-happy-path.zh-CN.md
+  default-happy-path.md
   default-happy-path.md
 
-  domain.zh-CN.md
-  application.zh-CN.md
-  adapter.zh-CN.md
+  domain.md
+  application.md
+  adapter.md
 
-  naming-and-layout.zh-CN.md
-  generation-boundaries.zh-CN.md
-  example-contract.zh-CN.md
+  naming-and-layout.md
+  generation-boundaries.md
+  example-contract.md
 
   generator/
-    index.zh-CN.md
-    bootstrap.zh-CN.md
-    code-generation.zh-CN.md
-    code-analysis.zh-CN.md
+    index.md
+    bootstrap.md
+    code-generation.md
+    code-analysis.md
 
   advanced/
-    index.zh-CN.md
-    value-object.zh-CN.md
-    domain-service.zh-CN.md
-    saga.zh-CN.md
-    strong-id.zh-CN.md
-    read-only-weak-reference.zh-CN.md
+    index.md
+    value-object.md
+    domain-service.md
+    saga.md
+    strong-id.md
+    read-only-weak-reference.md
 
   examples/
-    reference-project-overview.zh-CN.md
-    content-draft-to-publish.zh-CN.md
-    media-processing-callback.zh-CN.md
-    media-processing-polling.zh-CN.md
+    reference-project-overview.md
+    content-draft-to-publish.md
+    media-processing-callback.md
+    media-processing-polling.md
 ```
 
 ### Layer 3: Reference documents
@@ -222,7 +222,7 @@ Phase one therefore adds:
 
 ```text
 docs/public/reference/
-  generator-dsl.zh-CN.md
+  generator-dsl.md
 ```
 
 The main Generator Guide should explain usage and decision flow.

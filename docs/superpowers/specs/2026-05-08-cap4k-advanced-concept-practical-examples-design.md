@@ -8,14 +8,14 @@ Scope: add practical, cap4k-shaped usage examples for `Value Object`, `Domain Se
 
 - `docs/public/authoring/advanced/**`
 - `docs/public/authoring/examples/**`
-- `docs/public/authoring/example-contract.zh-CN.md`
+- `docs/public/authoring/example-contract.md`
 
 Out of scope:
 
 - wrapper cleanup or wrapper positioning rewrite
-- `docs/public/reference/generator-dsl.zh-CN.md`
-- `docs/public/authoring/generation-boundaries.zh-CN.md`
-- `docs/public/authoring/generator/code-generation.zh-CN.md`
+- `docs/public/reference/generator-dsl.md`
+- `docs/public/authoring/generation-boundaries.md`
+- `docs/public/authoring/generator/code-generation.md`
 - `docs/superpowers/capability-matrix.md`
 - runtime Saga feature work
 - broad Default Happy Path rewrite
@@ -47,9 +47,9 @@ Issue `#21` should close those gaps without turning into a documentation-system 
 
 The following pages already exist:
 
-- `docs/public/authoring/advanced/value-object.zh-CN.md`
-- `docs/public/authoring/advanced/domain-service.zh-CN.md`
-- `docs/public/authoring/advanced/saga.zh-CN.md`
+- `docs/public/authoring/advanced/value-object.md`
+- `docs/public/authoring/advanced/domain-service.md`
+- `docs/public/authoring/advanced/saga.md`
 
 They already cover:
 
@@ -65,16 +65,16 @@ That is useful, but still not enough to satisfy `#21`, because the issue specifi
 
 Current example pages include:
 
-- `content-draft-to-publish.zh-CN.md`
-- `media-processing-callback.zh-CN.md`
-- `media-processing-polling.zh-CN.md`
-- `reference-project-overview.zh-CN.md`
+- `content-draft-to-publish.md`
+- `media-processing-callback.md`
+- `media-processing-polling.md`
+- `reference-project-overview.md`
 
 This means the repository already has a stable “content publication and media processing” reference project that the new concept examples should reuse, instead of inventing a second sample universe.
 
 ### Example contract already defines a stable shape
 
-`docs/public/authoring/example-contract.zh-CN.md` already defines a five-part structure:
+`docs/public/authoring/example-contract.md` already defines a five-part structure:
 
 - `Scenario`
 - `Why this layer / concept`
@@ -186,19 +186,19 @@ Keep the `advanced` pages as the “should this concept exist at all?” layer, 
 
 ### Existing pages to keep and narrow-edit
 
-- `docs/public/authoring/advanced/value-object.zh-CN.md`
-- `docs/public/authoring/advanced/domain-service.zh-CN.md`
-- `docs/public/authoring/advanced/saga.zh-CN.md`
-- `docs/public/authoring/advanced/index.zh-CN.md`
-- `docs/public/authoring/examples/reference-project-overview.zh-CN.md`
-- `docs/public/authoring/example-contract.zh-CN.md`
+- `docs/public/authoring/advanced/value-object.md`
+- `docs/public/authoring/advanced/domain-service.md`
+- `docs/public/authoring/advanced/saga.md`
+- `docs/public/authoring/advanced/index.md`
+- `docs/public/authoring/examples/reference-project-overview.md`
+- `docs/public/authoring/example-contract.md`
 
 ### New pages to add
 
-- `docs/public/authoring/examples/advanced-concepts-overview.zh-CN.md`
-- `docs/public/authoring/examples/content-publication-value-object.zh-CN.md`
-- `docs/public/authoring/examples/content-publication-domain-service.zh-CN.md`
-- `docs/public/authoring/examples/content-publication-saga.zh-CN.md`
+- `docs/public/authoring/examples/advanced-concepts-overview.md`
+- `docs/public/authoring/examples/content-publication-value-object.md`
+- `docs/public/authoring/examples/content-publication-domain-service.md`
+- `docs/public/authoring/examples/content-publication-saga.md`
 
 ## Page Responsibilities
 
@@ -213,7 +213,7 @@ These pages should remain responsible for:
 
 They should not absorb full practical example narratives. Instead, each should point to one corresponding example page.
 
-### `examples/advanced-concepts-overview.zh-CN.md`
+### `examples/advanced-concepts-overview.md`
 
 This page should act as:
 
@@ -341,7 +341,7 @@ Non-examples should include:
 
 ## Example Contract Extension
 
-`docs/public/authoring/example-contract.zh-CN.md` should remain the baseline contract for all examples.
+`docs/public/authoring/example-contract.md` should remain the baseline contract for all examples.
 
 This issue should only add a narrow note:
 
@@ -351,17 +351,17 @@ This preserves compatibility with the rest of the examples tree while giving `#2
 
 ## Link Strategy
 
-### `advanced/index.zh-CN.md`
+### `advanced/index.md`
 
 Add one practical-examples entry that points to:
 
-- `../examples/advanced-concepts-overview.zh-CN.md`
+- `../examples/advanced-concepts-overview.md`
 
 ### Per-concept advanced pages
 
 Each concept page should add a lightweight “对应示例 / see practical example” link to its matching `examples` page.
 
-### `reference-project-overview.zh-CN.md`
+### `reference-project-overview.md`
 
 Add one short section that positions:
 
@@ -392,9 +392,9 @@ This slice is complete when all are true:
    - `Usage boundary`
    - `Audit cues`
    - an explicit explanation of why the default path is not enough
-3. `advanced/index.zh-CN.md` links to the new advanced-concepts overview page
+3. `advanced/index.md` links to the new advanced-concepts overview page
 4. each advanced concept page links to its practical example page
-5. `reference-project-overview.zh-CN.md` links back to the new advanced concept example chain
+5. `reference-project-overview.md` links back to the new advanced concept example chain
 6. no forbidden `#22` surfaces are modified
 
 ## Residual Risks

@@ -16,7 +16,7 @@
 
 - Create: `LICENSE` - standard MIT license.
 - Modify: `README.md` - add CI, Maven Central, GitHub Release, license, and DeepWiki badges.
-- Modify: `README.zh-CN.md` - add the same badge block for the Chinese README.
+- Modify: `README.md` - add the same badge block for the Chinese README.
 - Create: `.github/workflows/ci.yml` - main branch CI, no publish credentials.
 - Create: `.github/workflows/release.yml` - tag-triggered GitHub Release creation only, no Maven publish on main.
 - Modify on `publish/maven-central`: `buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts` - Maven Central coordinates, POM metadata, signing, Central repository.
@@ -35,7 +35,7 @@
 
 - Create: `LICENSE` - standard MIT license.
 - Modify: `README.md` - add CI, GitHub Release, license, and DeepWiki badges.
-- Modify: `README.zh-CN.md` - add the same badge block.
+- Modify: `README.md` - add the same badge block.
 - Create: `.github/workflows/ci.yml` - checkout `cap4k`, publish it to `mavenLocal()`, then run this repo's checks.
 - Create: `.github/workflows/release.yml` - repeat CI prerequisites, then create GitHub Release only.
 
@@ -46,12 +46,12 @@
 **Files:**
 - Create: `C:\Users\LD_moxeii\Documents\code\only-workspace\cap4k\LICENSE`
 - Modify: `C:\Users\LD_moxeii\Documents\code\only-workspace\cap4k\README.md`
-- Modify: `C:\Users\LD_moxeii\Documents\code\only-workspace\cap4k\README.zh-CN.md`
+- Modify: `C:\Users\LD_moxeii\Documents\code\only-workspace\cap4k\README.md`
 - Create: `C:\Users\LD_moxeii\Documents\code\only-workspace\only-engine\LICENSE`
 - Modify: `C:\Users\LD_moxeii\Documents\code\only-workspace\only-engine\README.md`
 - Create: `C:\Users\LD_moxeii\Documents\code\only-workspace\cap4k-reference-content-studio\LICENSE`
 - Modify: `C:\Users\LD_moxeii\Documents\code\only-workspace\cap4k-reference-content-studio\README.md`
-- Modify: `C:\Users\LD_moxeii\Documents\code\only-workspace\cap4k-reference-content-studio\README.zh-CN.md`
+- Modify: `C:\Users\LD_moxeii\Documents\code\only-workspace\cap4k-reference-content-studio\README.md`
 
 - [ ] **Step 1: Add MIT license to each repository**
 
@@ -81,7 +81,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-- [ ] **Step 2: Add badge block to `cap4k/README.md` and `cap4k/README.zh-CN.md`**
+- [ ] **Step 2: Add badge block to `cap4k/README.md` and `cap4k/README.md`**
 
 Insert immediately after the `# cap4k` heading:
 
@@ -130,7 +130,7 @@ Expected: Each README contains the correct badge labels, and each repository con
 Run in `cap4k`:
 
 ```powershell
-git add LICENSE README.md README.zh-CN.md
+git add LICENSE README.md README.md
 git commit -m "docs: add release badges and license"
 ```
 
@@ -144,7 +144,7 @@ git commit -m "docs: add release badges and license"
 Run in `cap4k-reference-content-studio`:
 
 ```powershell
-git add LICENSE README.md README.zh-CN.md
+git add LICENSE README.md README.md
 git commit -m "docs: add release badges and license"
 ```
 

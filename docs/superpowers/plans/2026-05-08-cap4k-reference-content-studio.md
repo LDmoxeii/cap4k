@@ -439,7 +439,7 @@ Expected:
 Run:
 
 ```powershell
-Get-Content C:\Users\LD_moxeii\Documents\code\only-workspace\cap4k\docs\public\reference\generator-dsl.zh-CN.md
+Get-Content C:\Users\LD_moxeii\Documents\code\only-workspace\cap4k\docs\public\reference\generator-dsl.md
 ```
 
 Expected:

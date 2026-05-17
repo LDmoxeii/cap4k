@@ -12,25 +12,25 @@
 
 ## File Map
 
-- Modify: `docs/public/authoring/example-contract.zh-CN.md`
+- Modify: `docs/public/authoring/example-contract.md`
   - Keep the five-part example contract as the baseline and add the narrow note that advanced concept examples may insert `Usage boundary`.
-- Modify: `docs/public/authoring/advanced/index.zh-CN.md`
+- Modify: `docs/public/authoring/advanced/index.md`
   - Add the practical examples entry point for the new overview page.
-- Modify: `docs/public/authoring/advanced/value-object.zh-CN.md`
+- Modify: `docs/public/authoring/advanced/value-object.md`
   - Add a lightweight link to the new value-object example page, without moving the page’s main conceptual framing into `examples`.
-- Modify: `docs/public/authoring/advanced/domain-service.zh-CN.md`
+- Modify: `docs/public/authoring/advanced/domain-service.md`
   - Add a lightweight link to the new domain-service example page.
-- Modify: `docs/public/authoring/advanced/saga.zh-CN.md`
+- Modify: `docs/public/authoring/advanced/saga.md`
   - Add a lightweight link to the new saga example page.
-- Modify: `docs/public/authoring/examples/reference-project-overview.zh-CN.md`
+- Modify: `docs/public/authoring/examples/reference-project-overview.md`
   - Add a short advanced-concept jump section that ties the three concept example pages back to the shared reference project.
-- Create: `docs/public/authoring/examples/advanced-concepts-overview.zh-CN.md`
+- Create: `docs/public/authoring/examples/advanced-concepts-overview.md`
   - Add the comparison page that helps authors/reviewers decide whether the problem still fits the default path or has crossed into one of the three advanced concepts.
-- Create: `docs/public/authoring/examples/content-publication-value-object.zh-CN.md`
+- Create: `docs/public/authoring/examples/content-publication-value-object.md`
   - Add the `Value Object` practical example and non-example page.
-- Create: `docs/public/authoring/examples/content-publication-domain-service.zh-CN.md`
+- Create: `docs/public/authoring/examples/content-publication-domain-service.md`
   - Add the `Domain Service` practical example and non-example page.
-- Create: `docs/public/authoring/examples/content-publication-saga.zh-CN.md`
+- Create: `docs/public/authoring/examples/content-publication-saga.md`
   - Add the `Saga` practical example and non-example page.
 
 ## Snippet Policy
@@ -48,18 +48,18 @@
 ## Task 1: Extend the example contract and add the new overview entry points
 
 **Files:**
-- Modify: `docs/public/authoring/example-contract.zh-CN.md`
-- Modify: `docs/public/authoring/advanced/index.zh-CN.md`
-- Modify: `docs/public/authoring/examples/reference-project-overview.zh-CN.md`
+- Modify: `docs/public/authoring/example-contract.md`
+- Modify: `docs/public/authoring/advanced/index.md`
+- Modify: `docs/public/authoring/examples/reference-project-overview.md`
 
 - [ ] **Step 1: Re-read the current contract and navigation anchors**
 
 Run:
 
 ```powershell
-Get-Content docs/public/authoring/example-contract.zh-CN.md
-Get-Content docs/public/authoring/advanced/index.zh-CN.md
-Get-Content docs/public/authoring/examples/reference-project-overview.zh-CN.md
+Get-Content docs/public/authoring/example-contract.md
+Get-Content docs/public/authoring/advanced/index.md
+Get-Content docs/public/authoring/examples/reference-project-overview.md
 ```
 
 Expected:
@@ -68,7 +68,7 @@ Expected:
 - `advanced/index` currently links concept pages but not a practical examples overview
 - `reference-project-overview` currently anchors the shared project but does not yet expose a dedicated advanced-concept example jump section
 
-- [ ] **Step 2: Update `example-contract.zh-CN.md` with the narrow advanced-concept extension**
+- [ ] **Step 2: Update `example-contract.md` with the narrow advanced-concept extension**
 
 Add a short section stating:
 
@@ -82,17 +82,17 @@ Expected result:
 - no broad contract rewrite
 - one explicit rule that supports `#21` without changing every existing example page
 
-- [ ] **Step 3: Update `advanced/index.zh-CN.md`**
+- [ ] **Step 3: Update `advanced/index.md`**
 
 Add a short line that introduces the new practical examples entry point, linking to:
 
-- `../examples/advanced-concepts-overview.zh-CN.md`
+- `../examples/advanced-concepts-overview.md`
 
 Expected result:
 
 - users can enter the advanced-concept example chain from the concept index without hunting through the examples directory manually
 
-- [ ] **Step 4: Update `reference-project-overview.zh-CN.md`**
+- [ ] **Step 4: Update `reference-project-overview.md`**
 
 Add a short section that says, in effect:
 
@@ -109,7 +109,7 @@ Expected result:
 Run:
 
 ```powershell
-git diff -- docs/public/authoring/example-contract.zh-CN.md docs/public/authoring/advanced/index.zh-CN.md docs/public/authoring/examples/reference-project-overview.zh-CN.md
+git diff -- docs/public/authoring/example-contract.md docs/public/authoring/advanced/index.md docs/public/authoring/examples/reference-project-overview.md
 ```
 
 Expected:
@@ -120,7 +120,7 @@ Expected:
 ## Task 2: Add the advanced concepts comparison overview page
 
 **Files:**
-- Create: `docs/public/authoring/examples/advanced-concepts-overview.zh-CN.md`
+- Create: `docs/public/authoring/examples/advanced-concepts-overview.md`
 
 - [ ] **Step 1: Create the page with a comparison-first structure**
 
@@ -152,9 +152,9 @@ Expected result:
 
 Add explicit links to:
 
-- `content-publication-value-object.zh-CN.md`
-- `content-publication-domain-service.zh-CN.md`
-- `content-publication-saga.zh-CN.md`
+- `content-publication-value-object.md`
+- `content-publication-domain-service.md`
+- `content-publication-saga.md`
 
 Expected result:
 
@@ -165,7 +165,7 @@ Expected result:
 Run:
 
 ```powershell
-rg -n 'Content|MediaProcessingTask|callback|polling|PublishContentCmd|StartMediaProcessingCmd' docs/public/authoring/examples/advanced-concepts-overview.zh-CN.md
+rg -n 'Content|MediaProcessingTask|callback|polling|PublishContentCmd|StartMediaProcessingCmd' docs/public/authoring/examples/advanced-concepts-overview.md
 ```
 
 Expected:
@@ -175,8 +175,8 @@ Expected:
 ## Task 3: Add the Value Object practical example page and wire the concept page to it
 
 **Files:**
-- Create: `docs/public/authoring/examples/content-publication-value-object.zh-CN.md`
-- Modify: `docs/public/authoring/advanced/value-object.zh-CN.md`
+- Create: `docs/public/authoring/examples/content-publication-value-object.md`
+- Modify: `docs/public/authoring/advanced/value-object.md`
 
 - [ ] **Step 1: Create the Value Object example page using the six-part advanced example shape**
 
@@ -211,7 +211,7 @@ Check the page for:
 Run:
 
 ```powershell
-rg -n '^```|ContentTitle|ProcessingResultSnapshot|Strong ID|JSON' docs/public/authoring/examples/content-publication-value-object.zh-CN.md
+rg -n '^```|ContentTitle|ProcessingResultSnapshot|Strong ID|JSON' docs/public/authoring/examples/content-publication-value-object.md
 ```
 
 Expected:
@@ -219,11 +219,11 @@ Expected:
 - the page still reads as an example narrative first
 - any snippet use is clearly bounded and directly tied to the positive example or misuse boundary
 
-- [ ] **Step 3: Add the practical example backlink from `advanced/value-object.zh-CN.md`**
+- [ ] **Step 3: Add the practical example backlink from `advanced/value-object.md`**
 
 Add one short “对应示例” style link to:
 
-- `../examples/content-publication-value-object.zh-CN.md`
+- `../examples/content-publication-value-object.md`
 
 Expected result:
 
@@ -235,8 +235,8 @@ Expected result:
 Run:
 
 ```powershell
-rg -n '^## ' docs/public/authoring/examples/content-publication-value-object.zh-CN.md
-rg -n '正例|误用|边界|默认路径|审计' docs/public/authoring/examples/content-publication-value-object.zh-CN.md
+rg -n '^## ' docs/public/authoring/examples/content-publication-value-object.md
+rg -n '正例|误用|边界|默认路径|审计' docs/public/authoring/examples/content-publication-value-object.md
 ```
 
 Expected:
@@ -247,8 +247,8 @@ Expected:
 ## Task 4: Add the Domain Service practical example page and wire the concept page to it
 
 **Files:**
-- Create: `docs/public/authoring/examples/content-publication-domain-service.zh-CN.md`
-- Modify: `docs/public/authoring/advanced/domain-service.zh-CN.md`
+- Create: `docs/public/authoring/examples/content-publication-domain-service.md`
+- Modify: `docs/public/authoring/advanced/domain-service.md`
 
 - [ ] **Step 1: Create the Domain Service example page**
 
@@ -297,25 +297,25 @@ The page must clearly separate:
 Run:
 
 ```powershell
-rg -n 'Saga|聚合|编排|资格|等待|恢复' docs/public/authoring/examples/content-publication-domain-service.zh-CN.md
+rg -n 'Saga|聚合|编排|资格|等待|恢复' docs/public/authoring/examples/content-publication-domain-service.md
 ```
 
 Expected:
 
 - the page explicitly distinguishes domain service from aggregate behavior, application orchestration, and Saga
 
-- [ ] **Step 4: Add the practical example backlink from `advanced/domain-service.zh-CN.md`**
+- [ ] **Step 4: Add the practical example backlink from `advanced/domain-service.md`**
 
 Add one short example link to:
 
-- `../examples/content-publication-domain-service.zh-CN.md`
+- `../examples/content-publication-domain-service.md`
 
 - [ ] **Step 5: Verify the page keeps callback and polling normalized before domain judgment**
 
 Run:
 
 ```powershell
-rg -n 'callback|polling|统一|内部事实|领域判断' docs/public/authoring/examples/content-publication-domain-service.zh-CN.md
+rg -n 'callback|polling|统一|内部事实|领域判断' docs/public/authoring/examples/content-publication-domain-service.md
 ```
 
 Expected:
@@ -325,8 +325,8 @@ Expected:
 ## Task 5: Add the Saga practical example page and wire the concept page to it
 
 **Files:**
-- Create: `docs/public/authoring/examples/content-publication-saga.zh-CN.md`
-- Modify: `docs/public/authoring/advanced/saga.zh-CN.md`
+- Create: `docs/public/authoring/examples/content-publication-saga.md`
+- Modify: `docs/public/authoring/advanced/saga.md`
 
 - [ ] **Step 1: Create the Saga example page**
 
@@ -371,25 +371,25 @@ Expected result:
 Run:
 
 ```powershell
-rg -n '默认链路|默认路径|仍然不用 Saga|受控扩展' docs/public/authoring/examples/content-publication-saga.zh-CN.md
+rg -n '默认链路|默认路径|仍然不用 Saga|受控扩展' docs/public/authoring/examples/content-publication-saga.md
 ```
 
 Expected:
 
 - the page clearly frames Saga as a controlled expansion of the reference project, not as the default publication model
 
-- [ ] **Step 4: Add the practical example backlink from `advanced/saga.zh-CN.md`**
+- [ ] **Step 4: Add the practical example backlink from `advanced/saga.md`**
 
 Add one short example link to:
 
-- `../examples/content-publication-saga.zh-CN.md`
+- `../examples/content-publication-saga.md`
 
 - [ ] **Step 5: Verify wrapper is not accidentally promoted**
 
 Run:
 
 ```powershell
-rg -n 'wrapper|Agg' docs/public/authoring/examples/content-publication-saga.zh-CN.md docs/public/authoring/examples/content-publication-domain-service.zh-CN.md docs/public/authoring/examples/content-publication-value-object.zh-CN.md
+rg -n 'wrapper|Agg' docs/public/authoring/examples/content-publication-saga.md docs/public/authoring/examples/content-publication-domain-service.md docs/public/authoring/examples/content-publication-value-object.md
 ```
 
 Expected:
@@ -407,10 +407,10 @@ Expected:
 Run:
 
 ```powershell
-Get-ChildItem docs/public/authoring/examples/advanced-concepts-overview.zh-CN.md
-Get-ChildItem docs/public/authoring/examples/content-publication-value-object.zh-CN.md
-Get-ChildItem docs/public/authoring/examples/content-publication-domain-service.zh-CN.md
-Get-ChildItem docs/public/authoring/examples/content-publication-saga.zh-CN.md
+Get-ChildItem docs/public/authoring/examples/advanced-concepts-overview.md
+Get-ChildItem docs/public/authoring/examples/content-publication-value-object.md
+Get-ChildItem docs/public/authoring/examples/content-publication-domain-service.md
+Get-ChildItem docs/public/authoring/examples/content-publication-saga.md
 ```
 
 Expected:
@@ -422,7 +422,7 @@ Expected:
 Run:
 
 ```powershell
-rg -n '^## ' docs/public/authoring/examples/content-publication-value-object.zh-CN.md docs/public/authoring/examples/content-publication-domain-service.zh-CN.md docs/public/authoring/examples/content-publication-saga.zh-CN.md
+rg -n '^## ' docs/public/authoring/examples/content-publication-value-object.md docs/public/authoring/examples/content-publication-domain-service.md docs/public/authoring/examples/content-publication-saga.md
 ```
 
 Expected:
@@ -440,7 +440,7 @@ Expected:
 Run:
 
 ```powershell
-rg -n 'advanced-concepts-overview|content-publication-value-object|content-publication-domain-service|content-publication-saga' docs/public/authoring/advanced docs/public/authoring/examples/reference-project-overview.zh-CN.md
+rg -n 'advanced-concepts-overview|content-publication-value-object|content-publication-domain-service|content-publication-saga' docs/public/authoring/advanced docs/public/authoring/examples/reference-project-overview.md
 ```
 
 Expected:

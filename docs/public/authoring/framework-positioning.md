@@ -1,66 +1,70 @@
-# Framework Positioning
+# 框架定位
 
-[中文](framework-positioning.zh-CN.md)
+[English](framework-positioning.en.md)
 
-## Foreground Concepts
+## 前景概念
 
-- Aggregate Root
-- Entity
-- Domain Event
-- Command
-- Query
+- 聚合根
+- 实体
+- 领域事件
+- 命令
+- 查询
 
-## Default Happy Path
+## 默认 Happy Path
 
-- single-command single-aggregate-root mutation
-- aggregate root as the write-facing surface
-- mutation converges into command handling
-- domain events are registered and released by aggregate roots
-- client is the anti-corruption boundary for external capabilities, not the truth source of the process
+- 单命令只变更一个聚合根
+- 聚合根是写入主面
+- 状态变更收敛到命令处理路径
+- 领域事件由聚合根统一登记与发出
+- client 是外部能力防腐层边界，不是主流程真相源
 
-## Author Role Positioning
+## 作者角色定位
 
-cap4k is designed for AI-assisted implementation, but framework positioning and business boundaries remain human decisions.
+cap4k 面向 AI 辅助实现，但框架定位和业务边界仍由人类作者最终判断。
 
-- human authors decide whether a business concept belongs on the public main path
-- human authors decide whether an advanced concept is truly needed in the current slice
-- AI can assist implementation and verification, but must not turn a local project convention into a framework default promise
+- 人类作者决定业务概念是否进入公开主路径
+- 人类作者决定高级概念是否真的需要进入当前切片
+- AI 可以辅助实现和验证，但不能把局部项目写法包装成框架默认承诺
 
-## Background Concepts
+## 背景概念
 
-These concepts matter, but they sit behind the public first-screen story and usually become relevant after the default path is clear.
+这些概念仍然重要，但它们位于公开第一屏叙事之后，通常要在默认主路径跑通后再进入视野。
 
-- Value Object
-- Integration Event
-- Repository contract for aggregate loading and persistence boundaries
-- handler families for standard command/query execution
-- client as the anti-corruption boundary for external capabilities
+- 值对象
+- 集成事件
+- 用于聚合装载与持久化边界的 Repository 契约
+- 用于标准命令 / 查询执行的 handler 家族
+- 作为外部能力防腐层边界的 client
 
-## Advanced But Valid Concepts
+这些概念在代码中的默认协作方式见 [公开战术模型](tactical-model.md)。当前未完整支持或仍在 addon 方向上的能力，应按该页和 [项目编写工作流](project-authoring-workflow.md#保留缺口) 的缺口说明审计。
+
+## 高级但有效的概念
 
 - Domain Service
 - Saga
 - Strong ID
 
-## Runtime And Infra Surfaces
+## 运行时与基础设施承载面
 
-These are real landing surfaces in the codebase, but they support the framework rather than define its public identity.
+这些都是代码现实中的正式落地承载面，但它们支撑框架落地，不定义框架的公开第一身份。
 
-- JPA-based repository and unit-of-work landing path
-- integration-event transport and persistence adapters
-- starter and auto-configuration modules for runtime wiring
-- other provider-specific runtime support where the host stack needs it
+- 基于 JPA 的 repository 与工作单元落地路径
+- 集成事件传输与持久化适配
+- 用于运行时装配的 starter 与自动配置模块
+- 宿主技术栈需要时的其他 provider 级运行时支持
 
-## Removed Or Deprecated Core Positioning
+## 已退出核心定位的概念
 
-- Wrapper is not part of the public core positioning anymore and should be treated as deprecated outside legacy cleanup work
+- Wrapper 不再属于公开核心定位，并应在遗留清理范围外视为已弃用
 
-## Advanced Modeling Note
+## 高级建模提示
 
-- advanced read/write model split with optional read-only reference context is non-default
-- repository remains write-model only
+- 带可选只读引用上下文的读写模型分离属于高级模式
+- repository 仍然只感知写模型
 
-## From Positioning to Authoring
+## 从定位到编写
 
-- [Authoring Guide Overview](index.md)
+- [项目编写工作流](project-authoring-workflow.md)
+- [公开战术模型](tactical-model.md)
+- [编写指南总览](index.md)
 - [Default Happy Path](default-happy-path.md)

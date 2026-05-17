@@ -1,85 +1,89 @@
-# Cap4k Authoring Guide Overview
+# Cap4k 编写指南总览
 
-[中文](index.zh-CN.md)
+[English](index.en.md)
 
-> This guide system defines how cap4k projects are expected to be written, reviewed, and intentionally extended beyond the default path.
+> 这套文档定义 cap4k 项目的默认编写方式、审计方式，以及偏离默认路径时的决策入口。
 
-Phase one keeps deep guide bodies Chinese-first. This page is the English navigation layer.
+## 这套文档解决什么问题
 
-## What This Guide System Solves
+- 让项目作者知道如何直接开始编写 cap4k 项目
+- 让审阅者知道如何按 Default Happy Path 审核项目
+- 让人类作者在 AI 协作中保留领域决策、路径取舍和最终审计权
 
-- gives project authors a direct way to start writing cap4k projects
-- gives reviewers a stable Default Happy Path audit baseline
-- keeps human authors responsible for domain decisions, path choices, and final audit during AI-assisted work
+## 人类作者与 AI 协作边界
 
-## Human And AI Collaboration Boundary
+这套 authoring 文档是给人类作者使用的决策和审计入口。它回答的是：
 
-This authoring guide is the human-facing decision and audit entrypoint. It helps human authors decide:
+- 当前业务应该放在哪个 DDD 战术对象上
+- 什么时候坚持 Default Happy Path，什么时候允许偏离
+- 哪些代码应该生成，哪些代码应该手写
+- AI 交付后，人类应该按什么规则做最终审计
 
-- which cap4k tactical object should carry a business behavior
-- when to stay on the Default Happy Path and when to allow a bounded deviation
-- which code should be generated, handwritten, copied as a generation snapshot, or customized through templates
-- how to audit AI-assisted output before accepting it
+AI 可以辅助梳理方案、实现主要代码，并在最终审计前完成测试、编译、生成和分析验证。但 AI 的结论不能替代人类对领域流程、架构取舍和最终代码形态的判断。
 
-AI agents may assist decisions, implement most changes, and run tests, compile, generation, analysis, and link checks before final audit. They do not replace human judgment over the domain flow, architecture tradeoffs, or final code shape.
+AI 作者规则以独立 skill 维护。authoring 文档不作为 AI skill 的运行时依赖；两者共享项目纪律，但服务对象不同。
 
-AI authoring rules are maintained as an independent skill. The public authoring docs are not a runtime dependency of that skill; the two surfaces share project discipline but serve different users.
+## 阅读路径
 
-## Reading Paths
+### 项目作者
 
-### Project Authors
+1. [框架定位](framework-positioning.md)
+2. [项目编写工作流](project-authoring-workflow.md)
+3. [快速开始](getting-started.md)
+4. [Default Happy Path](default-happy-path.md)
+5. [公开战术模型](tactical-model.md)
+6. [生成器指南](generator/index.md)
+7. [领域层指南](domain.md)
+8. [应用层指南](application.md)
+9. [测试合同](testing-contract.md)
+10. [适配器层指南](adapter.md)
+11. [高级概念指南](advanced/index.md)
 
-1. [Framework Positioning](framework-positioning.md)
-2. [Getting Started](getting-started.md)
-3. [Default Happy Path](default-happy-path.md)
-4. [Generator Guide](generator/index.zh-CN.md)
-5. [Domain Authoring Guide](domain.zh-CN.md)
-6. [Application Authoring Guide](application.zh-CN.md)
-7. [Testing Contract](testing-contract.zh-CN.md)
-8. [Adapter Authoring Guide](adapter.zh-CN.md)
-9. [Advanced Concepts Guide](advanced/index.zh-CN.md)
+### 深度用户 / 框架贡献者
 
-### Deep Users / Framework Contributors
+- 先完整阅读本页和 Default Happy Path
+- 再按需阅读横切规范与 generator reference
 
-- start with this overview and Default Happy Path
-- then move into horizontal contracts and reference material as needed
+## 主题入口
 
-## Guide Entrypoints
-
-- [Framework Positioning](framework-positioning.md)
-- [Getting Started](getting-started.md)
+- [框架定位](framework-positioning.md)
+- [快速开始](getting-started.md)
+- [项目编写工作流](project-authoring-workflow.md)
 - [Default Happy Path](default-happy-path.md)
-- [Generator Guide](generator/index.zh-CN.md)
-- [Domain Authoring Guide](domain.zh-CN.md)
-- [Application Authoring Guide](application.zh-CN.md)
-- [Adapter Authoring Guide](adapter.zh-CN.md)
-- [Advanced Concepts Guide](advanced/index.zh-CN.md)
+- [Generator Guide](generator/index.md)
+- [生成输入源](generator/input-sources.md)
+- [Addon 与 SPI 使用](generator/addons-and-spi.md)
+- [公开战术模型](tactical-model.md)
+- [Domain Authoring Guide](domain.md)
+- [Application Authoring Guide](application.md)
+- [Adapter Authoring Guide](adapter.md)
+- [Advanced Concepts Guide](advanced/index.md)
 
-## Horizontal Contracts
+## 横切规范
 
-- [Naming And Layout](naming-and-layout.zh-CN.md)
-- [Generation / Handwritten Boundary](generation-boundaries.zh-CN.md)
-- [Example Contract](example-contract.zh-CN.md)
-- [Testing Contract](testing-contract.zh-CN.md)
+- [命名与目录规范](naming-and-layout.md)
+- [生成 / 手写边界](generation-boundaries.md)
+- [示例合同](example-contract.md)
+- [测试合同](testing-contract.md)
 
-## Audit Focus
+## 审计重点
 
-Before accepting AI-assisted work, human reviewers should check:
+人类最终审计时，至少确认这些问题：
 
-- whether the business process is still expressed through aggregate roots, commands, queries, domain events, and orchestration surfaces
-- whether write behavior stays in command handling instead of Open Host Service entries, external fact entries, or internal trigger glue
-- whether generated artifacts, handwritten artifacts, template overrides, and copied generation snapshots are clearly separated
-- whether the `domain` and `application` happy path has behavior evidence that follows the testing contract
-- whether the AI provided reproducible test, compile, generation, analysis, or link-check evidence
-- whether gaps were recorded explicitly instead of being hidden behind local conventions
+- 业务流程是否仍然围绕聚合根、命令、查询、领域事件和编排面表达
+- 写入行为是否收敛在命令处理路径，而不是散落在开放服务入口、外部事实入口或内部触发入口中
+- 生成物、手写物、模板覆盖和生成快照是否清楚分界
+- `domain` / `application` 主链路是否有符合 [测试合同](testing-contract.md) 的行为验证
+- AI 是否给出了可复核的测试、编译、生成、分析或链接检查证据
+- 缺口是否被明确记录，而不是被局部约定伪装成框架能力
 
-## Current Gaps And Extension Points
+## 当前缺口与扩展位
 
-These topics can be discussed or demonstrated, but should not be treated as complete default capabilities in this v1 guide:
+这些主题可以被讨论和示范，但不能在当前文档中被当成完整默认能力：
 
-- value object, Saga, and Domain Service authoring qualification will continue to improve
-- value object, Saga, and Domain Service generator support needs later slices
-- layered model and public tactical model qualification will continue to converge
-- design-driven support for command, query, client, domain_event, and integration_event contracts will continue to improve; `value_object` and `domain_service` remain follow-up extension points
-- `drawing_board.json` remains a later extension point for cross-service integration-event communication
-- addon / SPI authoring rules for advanced users should grow after more real usage
+- 值对象、Saga、Domain Service 的作者定性仍会继续细化
+- 值对象、Saga、Domain Service 的生成器支持仍需要后续切片
+- 分层模型和公开战术模型还会继续收敛
+- design 对 command、query、client、domain_event、integration_event 等已支持契约会继续打磨；`value_object`、`domain_service` 仍是后续扩展位
+- `drawing_board.json` 面向跨服务集成事件沟通的用法留作后续扩展
+- addon / SPI 面向高级用户的作者规则会在更多真实使用后补强

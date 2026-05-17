@@ -30,9 +30,9 @@ These two surfaces may share conclusions, but they must not depend on each other
 
 The current public documentation still exposes multiple entry surfaces:
 
-- `docs/public/getting-started.zh-CN.md`
-- `docs/public/framework-positioning.zh-CN.md`
-- `docs/public/authoring/index.zh-CN.md`
+- `docs/public/getting-started.md`
+- `docs/public/framework-positioning.md`
+- `docs/public/authoring/index.md`
 
 This makes the human authoring path harder to reason about because project positioning, quick start, and authoring rules are split across peer-level public entries.
 
@@ -130,23 +130,23 @@ The target public structure is:
 
 ```text
 docs/public/authoring/
-  index.zh-CN.md
+  index.md
   index.md
 
-  getting-started.zh-CN.md
   getting-started.md
-  framework-positioning.zh-CN.md
+  getting-started.md
+  framework-positioning.md
   framework-positioning.md
 
-  default-happy-path.zh-CN.md
   default-happy-path.md
-  domain.zh-CN.md
-  application.zh-CN.md
-  adapter.zh-CN.md
-  naming-and-layout.zh-CN.md
-  generation-boundaries.zh-CN.md
-  testing-contract.zh-CN.md
-  example-contract.zh-CN.md
+  default-happy-path.md
+  domain.md
+  application.md
+  adapter.md
+  naming-and-layout.md
+  generation-boundaries.md
+  testing-contract.md
+  example-contract.md
   generator/
   advanced/
   examples/
@@ -155,13 +155,13 @@ docs/public/authoring/
 The root-level files should be removed after their content is moved:
 
 ```text
-docs/public/getting-started.zh-CN.md
 docs/public/getting-started.md
-docs/public/framework-positioning.zh-CN.md
+docs/public/getting-started.md
+docs/public/framework-positioning.md
 docs/public/framework-positioning.md
 ```
 
-`README.zh-CN.md` and `README.md` should point to the authoring tree, not to the removed root-level documents.
+`README.md` and `README.md` should point to the authoring tree, not to the removed root-level documents.
 
 The authoring index should act as the public decision hub:
 
@@ -261,17 +261,17 @@ Known gotchas must also be reachable from normal task routing. They must not be 
 
 ## README and Link Design
 
-`README.zh-CN.md` should point readers to:
-
-- `docs/public/authoring/index.zh-CN.md`
-- `docs/public/authoring/getting-started.zh-CN.md`
-- `docs/public/authoring/framework-positioning.zh-CN.md`
-
 `README.md` should point readers to:
 
 - `docs/public/authoring/index.md`
 - `docs/public/authoring/getting-started.md`
 - `docs/public/authoring/framework-positioning.md`
+
+`README.md` should point readers to:
+
+- `docs/public/authoring/index.en.md`
+- `docs/public/authoring/getting-started.en.md`
+- `docs/public/authoring/framework-positioning.en.md`
 
 Internal links from moved documents must be updated relative to their new location.
 

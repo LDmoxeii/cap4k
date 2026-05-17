@@ -36,7 +36,7 @@ Replace the boilerplate with a README shaped like this:
 ```markdown
 # cap4k
 
-[中文文档](README.zh-CN.md)
+[中文文档](README.md)
 
 > cap4k is a simplified DDD tactical framework designed for AI-assisted implementation and human review.
 
@@ -120,12 +120,12 @@ Expected:
 ### Task 2: Add the Chinese README entry with the same structure
 
 **Files:**
-- Create: `README.zh-CN.md`
-- Test: `README.zh-CN.md` content verification with `rg`
+- Create: `README.md`
+- Test: `README.md` content verification with `rg`
 
 - [ ] **Step 1: Create the Chinese README with the same section structure**
 
-Write `README.zh-CN.md` using this structure:
+Write `README.md` using this structure:
 
 ```markdown
 # cap4k
@@ -141,8 +141,8 @@ Write `README.zh-CN.md` using this structure:
 ## 如何开始
 
 1. 先阅读本 README 中的默认 happy path。
-2. 然后阅读 [快速开始](docs/public/getting-started.zh-CN.md)。
-3. 在把高级概念或运行时承载面当作默认承诺之前，再阅读 [框架定位](docs/public/framework-positioning.zh-CN.md)。
+2. 然后阅读 [快速开始](docs/public/getting-started.md)。
+3. 在把高级概念或运行时承载面当作默认承诺之前，再阅读 [框架定位](docs/public/framework-positioning.md)。
 
 ## cap4k 是什么
 
@@ -171,8 +171,8 @@ Write `README.zh-CN.md` using this structure:
 
 ## 文档导航
 
-- [快速开始](docs/public/getting-started.zh-CN.md)
-- [框架定位](docs/public/framework-positioning.zh-CN.md)
+- [快速开始](docs/public/getting-started.md)
+- [框架定位](docs/public/framework-positioning.md)
 - 仓库内部设计材料见 `docs/superpowers/`
 ```
 
@@ -187,7 +187,7 @@ Constraints:
 Run:
 
 ```powershell
-rg -n "^# cap4k$|^\[English\]|^## 主线$|^## 如何开始$|^## cap4k 是什么$|^## cap4k 不是什么$|^## 默认 Happy Path$|^## 文档导航$" README.zh-CN.md
+rg -n "^# cap4k$|^\[English\]|^## 主线$|^## 如何开始$|^## cap4k 是什么$|^## cap4k 不是什么$|^## 默认 Happy Path$|^## 文档导航$" README.md
 ```
 
 Expected:
@@ -200,7 +200,7 @@ Expected:
 Run:
 
 ```bash
-git add README.zh-CN.md
+git add README.md
 git commit -m "docs: add Chinese README entry"
 ```
 
@@ -212,7 +212,7 @@ Expected:
 
 **Files:**
 - Create: `docs/public/getting-started.md`
-- Create: `docs/public/getting-started.zh-CN.md`
+- Create: `docs/public/getting-started.md`
 - Test: section and link verification with `rg`
 
 - [ ] **Step 1: Create the English getting-started guide**
@@ -222,7 +222,7 @@ Write `docs/public/getting-started.md` with this structure:
 ```markdown
 # Getting Started
 
-[中文](getting-started.zh-CN.md)
+[中文](getting-started.md)
 
 ## Who This Path Is For
 
@@ -257,7 +257,7 @@ Write `docs/public/getting-started.md` with this structure:
 
 - [ ] **Step 2: Create the Chinese getting-started guide**
 
-Write `docs/public/getting-started.zh-CN.md` with the matching structure:
+Write `docs/public/getting-started.md` with the matching structure:
 
 ```markdown
 # 快速开始
@@ -271,8 +271,8 @@ Write `docs/public/getting-started.zh-CN.md` with the matching structure:
 
 ## 推荐阅读顺序
 
-1. `README.zh-CN.md`
-2. `docs/public/framework-positioning.zh-CN.md`
+1. `README.md`
+2. `docs/public/framework-positioning.md`
 3. 对应的 GitHub issue
 4. `docs/superpowers/` 下的相关 spec 或 plan
 
@@ -292,7 +292,7 @@ Write `docs/public/getting-started.zh-CN.md` with the matching structure:
 
 ## 下一步阅读
 
-- [框架定位](framework-positioning.zh-CN.md)
+- [框架定位](framework-positioning.md)
 ```
 
 - [ ] **Step 3: Verify the bilingual getting-started docs**
@@ -301,7 +301,7 @@ Run:
 
 ```powershell
 rg -n "^# Getting Started$|^\[中文\]|^## Who This Path Is For$|^## Read in This Order$|^## Minimal Workflow$|^## Start Conservatively$|^## Next Reading$" docs/public/getting-started.md
-rg -n "^# 快速开始$|^\[English\]|^## 适用对象$|^## 推荐阅读顺序$|^## 最小工作流$|^## 先走保守路径$|^## 下一步阅读$" docs/public/getting-started.zh-CN.md
+rg -n "^# 快速开始$|^\[English\]|^## 适用对象$|^## 推荐阅读顺序$|^## 最小工作流$|^## 先走保守路径$|^## 下一步阅读$" docs/public/getting-started.md
 ```
 
 Expected:
@@ -314,7 +314,7 @@ Expected:
 Run:
 
 ```bash
-git add docs/public/getting-started.md docs/public/getting-started.zh-CN.md
+git add docs/public/getting-started.md docs/public/getting-started.md
 git commit -m "docs: add public getting-started guides"
 ```
 
@@ -326,7 +326,7 @@ Expected:
 
 **Files:**
 - Create: `docs/public/framework-positioning.md`
-- Create: `docs/public/framework-positioning.zh-CN.md`
+- Create: `docs/public/framework-positioning.md`
 - Test: section verification with `rg`
 
 - [ ] **Step 1: Create the English framework-positioning doc**
@@ -336,7 +336,7 @@ Write `docs/public/framework-positioning.md` with this structure:
 ```markdown
 # Framework Positioning
 
-[中文](framework-positioning.zh-CN.md)
+[中文](framework-positioning.md)
 
 ## Foreground Concepts
 
@@ -387,7 +387,7 @@ Write `docs/public/framework-positioning.md` with this structure:
 
 - [ ] **Step 2: Create the Chinese framework-positioning doc**
 
-Write `docs/public/framework-positioning.zh-CN.md` with the matching structure:
+Write `docs/public/framework-positioning.md` with the matching structure:
 
 ```markdown
 # 框架定位
@@ -447,7 +447,7 @@ Run:
 
 ```powershell
 rg -n "^# Framework Positioning$|^\[中文\]|^## Foreground Concepts$|^## Default Happy Path$|^## Background Concepts$|^## Advanced But Valid Concepts$|^## Runtime And Infra Surfaces$|^## Removed Or Deprecated Core Positioning$|^## Advanced Modeling Note$" docs/public/framework-positioning.md
-rg -n "^# 框架定位$|^\[English\]|^## 前景概念$|^## 默认 Happy Path$|^## 背景概念$|^## 高级但有效的概念$|^## 运行时与基础设施承载面$|^## 已退出核心定位的概念$|^## 高级建模提示$" docs/public/framework-positioning.zh-CN.md
+rg -n "^# 框架定位$|^\[English\]|^## 前景概念$|^## 默认 Happy Path$|^## 背景概念$|^## 高级但有效的概念$|^## 运行时与基础设施承载面$|^## 已退出核心定位的概念$|^## 高级建模提示$" docs/public/framework-positioning.md
 ```
 
 Expected:
@@ -460,7 +460,7 @@ Expected:
 Run:
 
 ```bash
-git add docs/public/framework-positioning.md docs/public/framework-positioning.zh-CN.md
+git add docs/public/framework-positioning.md docs/public/framework-positioning.md
 git commit -m "docs: add public framework positioning guides"
 ```
 
@@ -480,8 +480,8 @@ Run:
 
 ```powershell
 rg -n "README\\.zh-CN\\.md|docs/public/getting-started\\.md|docs/public/framework-positioning\\.md" README.md
-rg -n "README\\.md|docs/public/getting-started\\.zh-CN\\.md|docs/public/framework-positioning\\.zh-CN\\.md" README.zh-CN.md
-rg -n "framework-positioning|getting-started" docs/public/getting-started.md docs/public/getting-started.zh-CN.md docs/public/framework-positioning.md docs/public/framework-positioning.zh-CN.md
+rg -n "README\\.md|docs/public/getting-started\\.zh-CN\\.md|docs/public/framework-positioning\\.zh-CN\\.md" README.md
+rg -n "framework-positioning|getting-started" docs/public/getting-started.md docs/public/getting-started.md docs/public/framework-positioning.md docs/public/framework-positioning.md
 ```
 
 Expected:

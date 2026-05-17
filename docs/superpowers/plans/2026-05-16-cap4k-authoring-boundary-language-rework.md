@@ -14,19 +14,19 @@
 
 The PR worktree is `C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/.worktrees/skills-rebuild-cap4k-authoring`.
 
-There is already one uncommitted change in `docs/public/authoring/tactical-model.zh-CN.md`. Task 1 starts by reviewing and finalizing that partial edit rather than discarding it.
+There is already one uncommitted change in `docs/public/authoring/tactical-model.md`. Task 1 starts by reviewing and finalizing that partial edit rather than discarding it.
 
 Do not edit `C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k` on `master`.
 
 ## File Structure
 
-- Modify `docs/public/authoring/tactical-model.zh-CN.md`: define boundary vocabulary and default command/UoW semantics.
-- Modify `docs/public/authoring/default-happy-path.zh-CN.md`: promote hard rules from implementation-name examples to boundary concepts.
-- Modify `docs/public/authoring/default-happy-path.md`: keep English default rule table aligned with the Chinese canonical page.
-- Modify `docs/public/authoring/application.zh-CN.md`: state that command handlers own write-use-case orchestration, including client calls when the write use case depends on external capability results.
-- Modify `docs/public/authoring/adapter.zh-CN.md`: classify controller/RPC/gRPC/HTTP API as Open Host Service implementations, callback/listener/inbound event subscribers as external fact entry implementations, and job/scheduler as internal trigger implementations.
-- Modify `docs/public/authoring/domain.zh-CN.md`, `docs/public/authoring/getting-started.zh-CN.md`, `docs/public/authoring/index.zh-CN.md`, `docs/public/authoring/index.md`, `docs/public/authoring/framework-positioning.zh-CN.md`, and `docs/public/authoring/framework-positioning.md`: remove controller-centered summaries and align audit cues.
-- Modify `docs/public/authoring/examples/media-processing-callback.zh-CN.md`, `docs/public/authoring/examples/media-processing-polling.zh-CN.md`, and `docs/public/authoring/examples/content-draft-to-publish.zh-CN.md`: use Open Host Service and external fact entry terminology in examples.
+- Modify `docs/public/authoring/tactical-model.md`: define boundary vocabulary and default command/UoW semantics.
+- Modify `docs/public/authoring/default-happy-path.md`: promote hard rules from implementation-name examples to boundary concepts.
+- Modify `docs/public/authoring/default-happy-path.en.md`: keep English default rule table aligned with the Chinese canonical page.
+- Modify `docs/public/authoring/application.md`: state that command handlers own write-use-case orchestration, including client calls when the write use case depends on external capability results.
+- Modify `docs/public/authoring/adapter.md`: classify controller/RPC/gRPC/HTTP API as Open Host Service implementations, callback/listener/inbound event subscribers as external fact entry implementations, and job/scheduler as internal trigger implementations.
+- Modify `docs/public/authoring/domain.md`, `docs/public/authoring/getting-started.md`, `docs/public/authoring/index.md`, `docs/public/authoring/index.en.md`, `docs/public/authoring/framework-positioning.md`, and `docs/public/authoring/framework-positioning.en.md`: remove controller-centered summaries and align audit cues.
+- Modify `docs/public/authoring/examples/media-processing-callback.md`, `docs/public/authoring/examples/media-processing-polling.md`, and `docs/public/authoring/examples/content-draft-to-publish.md`: use Open Host Service and external fact entry terminology in examples.
 - Modify `skills/cap4k-modeling/**`: remove generation-capability details from modeling routes and use `value object` wording.
 - Create `skills/cap4k-service-integration/**`: replace the old runtime-integration skill with service interaction rules.
 - Delete `skills/cap4k-runtime-integration/**`: remove the mixed runtime/dependency abstraction after the new skill is in place.
@@ -42,21 +42,21 @@ Do not edit `C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k` on `master`
 ### Task 1: Finalize Authoring Boundary Vocabulary
 
 **Files:**
-- Modify: `docs/public/authoring/tactical-model.zh-CN.md`
-- Modify: `docs/public/authoring/default-happy-path.zh-CN.md`
+- Modify: `docs/public/authoring/tactical-model.md`
 - Modify: `docs/public/authoring/default-happy-path.md`
+- Modify: `docs/public/authoring/default-happy-path.en.md`
 
 - [ ] **Step 1: Inspect the existing partial edit**
 
 Run:
 
 ```powershell
-git -C C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/.worktrees/skills-rebuild-cap4k-authoring diff -- docs/public/authoring/tactical-model.zh-CN.md
+git -C C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/.worktrees/skills-rebuild-cap4k-authoring diff -- docs/public/authoring/tactical-model.md
 ```
 
-Expected: diff only in `tactical-model.zh-CN.md`; no unrelated files.
+Expected: diff only in `tactical-model.md`; no unrelated files.
 
-- [ ] **Step 2: Finalize `tactical-model.zh-CN.md` boundary definitions**
+- [ ] **Step 2: Finalize `tactical-model.md` boundary definitions**
 
 Use `apply_patch` to ensure the page contains this exact conceptual block once:
 
@@ -73,7 +73,7 @@ cap4k authoring 不以 controller、RPC endpoint、callback handler、message li
 前端-facing HTTP API 也按开放服务入口规则审计。严格 DDD 语义中的 Open Host Service 更偏跨系统公开契约，但 cap4k 默认规则要求所有同步入口都遵守同一条边界：入口只翻译请求，写操作进入 command，读操作进入 query。
 ```
 
-- [ ] **Step 3: Finalize `tactical-model.zh-CN.md` write boundary language**
+- [ ] **Step 3: Finalize `tactical-model.md` write boundary language**
 
 Use `apply_patch` to ensure the page states:
 
@@ -83,7 +83,7 @@ Use `apply_patch` to ensure the page states:
 UoW 只保存聚合根。子实体、值对象、inline value、JSON-backed value 都通过聚合根持久化，不作为独立 UoW 保存目标。
 ```
 
-- [ ] **Step 4: Update `default-happy-path.zh-CN.md` hard rule table**
+- [ ] **Step 4: Update `default-happy-path.md` hard rule table**
 
 Use `apply_patch` to replace implementation-centered rule rows with:
 
@@ -93,7 +93,7 @@ Use `apply_patch` to replace implementation-centered rule rows with:
 | 外部能力端口是防腐边界，不是主流程真相源 | `Must` | 外部能力调用必须先穿过 client 防腐层 |
 ```
 
-- [ ] **Step 5: Update `default-happy-path.zh-CN.md` command section**
+- [ ] **Step 5: Update `default-happy-path.md` command section**
 
 Use `apply_patch` to replace controller/job/subscriber wording with:
 
@@ -101,7 +101,7 @@ Use `apply_patch` to replace controller/job/subscriber wording with:
 默认路径要求所有状态变更都能追溯到明确的命令处理。示例项目里，无论是开放服务入口、外部事实入口还是内部触发入口，最终都要转换为 `CreateContentDraftCmd`、`SubmitContentForReviewCmd`、`StartMediaProcessingCmd`、`PublishContentCmd` 这类内部命令，再由 handler 驱动聚合行为。
 ```
 
-- [ ] **Step 6: Update `default-happy-path.zh-CN.md` integration boundary section**
+- [ ] **Step 6: Update `default-happy-path.md` integration boundary section**
 
 Use `apply_patch` to rename `cli 是防腐边界` to:
 
@@ -130,7 +130,7 @@ Use `apply_patch` to update the English rule table rows to:
 Run:
 
 ```powershell
-rg -n "controller / job / subscriber|cli 是防腐边界|controller surfaces|job surfaces|subscriber surfaces" docs/public/authoring/tactical-model.zh-CN.md docs/public/authoring/default-happy-path.zh-CN.md docs/public/authoring/default-happy-path.md
+rg -n "controller / job / subscriber|cli 是防腐边界|controller surfaces|job surfaces|subscriber surfaces" docs/public/authoring/tactical-model.md docs/public/authoring/default-happy-path.md docs/public/authoring/default-happy-path.en.md
 ```
 
 Expected: no matches.
@@ -140,16 +140,16 @@ Expected: no matches.
 ### Task 2: Rework Layer Guides Around Boundary Concepts
 
 **Files:**
-- Modify: `docs/public/authoring/application.zh-CN.md`
-- Modify: `docs/public/authoring/adapter.zh-CN.md`
-- Modify: `docs/public/authoring/domain.zh-CN.md`
-- Modify: `docs/public/authoring/getting-started.zh-CN.md`
-- Modify: `docs/public/authoring/index.zh-CN.md`
+- Modify: `docs/public/authoring/application.md`
+- Modify: `docs/public/authoring/adapter.md`
+- Modify: `docs/public/authoring/domain.md`
+- Modify: `docs/public/authoring/getting-started.md`
 - Modify: `docs/public/authoring/index.md`
-- Modify: `docs/public/authoring/framework-positioning.zh-CN.md`
+- Modify: `docs/public/authoring/index.en.md`
 - Modify: `docs/public/authoring/framework-positioning.md`
+- Modify: `docs/public/authoring/framework-positioning.en.md`
 
-- [ ] **Step 1: Update `application.zh-CN.md` responsibilities**
+- [ ] **Step 1: Update `application.md` responsibilities**
 
 Use `apply_patch` to include this sentence in the responsibility section:
 
@@ -157,7 +157,7 @@ Use `apply_patch` to include this sentence in the responsibility section:
 写用例中的外部能力调用属于 command handler 的编排责任；入口层不应该先调用 client 再补一个 command。
 ```
 
-- [ ] **Step 2: Update `application.zh-CN.md` allowed code**
+- [ ] **Step 2: Update `application.md` allowed code**
 
 Use `apply_patch` to replace the command handler bullet with:
 
@@ -165,7 +165,7 @@ Use `apply_patch` to replace the command handler bullet with:
 - 手写 command handler 或其他 application 完成面：加载一个聚合根、在写用例需要外部能力返回时调用 client、调用一个主行为、保存该聚合根，并在需要时发起后续协作。只要文件不在 recurring plan item 里，它就是更安全的作者面。
 ```
 
-- [ ] **Step 3: Update `application.zh-CN.md` non-examples**
+- [ ] **Step 3: Update `application.md` non-examples**
 
 Use `apply_patch` to add this non-example:
 
@@ -173,7 +173,7 @@ Use `apply_patch` to add this non-example:
 - 开放服务入口先调用 `MediaProcessingCli` 或 `ResourceStorageClient`，再调用 command 补写状态，把写用例拆散在入口层。
 ```
 
-- [ ] **Step 4: Update `adapter.zh-CN.md` introduction**
+- [ ] **Step 4: Update `adapter.md` introduction**
 
 Use `apply_patch` to add this paragraph near the top:
 
@@ -181,7 +181,7 @@ Use `apply_patch` to add this paragraph near the top:
 adapter 文档不再把 controller 当作架构中心。controller、RPC endpoint、gRPC service 属于开放服务入口实现；callback controller、message listener、inbound integration event subscriber 属于外部事实入口实现；job、scheduler 属于内部触发入口实现。
 ```
 
-- [ ] **Step 5: Update `adapter.zh-CN.md` responsibility bullets**
+- [ ] **Step 5: Update `adapter.md` responsibility bullets**
 
 Use `apply_patch` to replace the first adapter responsibility bullet with:
 
@@ -195,7 +195,7 @@ Add this bullet immediately after it:
 - 提供外部事实入口实现，把 callback、message listener、inbound integration event 转换成内部命令、查询或明确 process step。
 ```
 
-- [ ] **Step 6: Update `adapter.zh-CN.md` non-examples**
+- [ ] **Step 6: Update `adapter.md` non-examples**
 
 Use `apply_patch` to replace controller-specific anti-patterns with:
 
@@ -205,7 +205,7 @@ Use `apply_patch` to replace controller-specific anti-patterns with:
 - 外部能力端口除了做协议调用，还顺便决定“媒体完成后立即发布内容”，把流程编排塞进边界实现。
 ```
 
-- [ ] **Step 7: Update `domain.zh-CN.md` boundary references**
+- [ ] **Step 7: Update `domain.md` boundary references**
 
 Use `apply_patch` to replace mentions of Web/callback/message/polling as direct concepts with:
 
@@ -221,7 +221,7 @@ Use `apply_patch` to update summary bullets:
 - 写入行为是否收敛在命令处理路径，而不是散落在开放服务入口、外部事实入口或内部触发入口中
 ```
 
-Apply this wording to `docs/public/authoring/index.zh-CN.md` and the English equivalent to `docs/public/authoring/index.md`:
+Apply this wording to `docs/public/authoring/index.md` and the English equivalent to `docs/public/authoring/index.en.md`:
 
 ```md
 - whether write behavior stays in command handling instead of Open Host Service entries, external fact entries, or internal trigger glue
@@ -246,7 +246,7 @@ For the English page:
 Run:
 
 ```powershell
-rg -n "controller.*业务真相|controller.*流程|controller.*写入主面|cli 是|`cli` 是|RPC、message listener" docs/public/authoring/application.zh-CN.md docs/public/authoring/adapter.zh-CN.md docs/public/authoring/domain.zh-CN.md docs/public/authoring/index.zh-CN.md docs/public/authoring/index.md docs/public/authoring/framework-positioning.zh-CN.md docs/public/authoring/framework-positioning.md
+rg -n "controller.*业务真相|controller.*流程|controller.*写入主面|cli 是|`cli` 是|RPC、message listener" docs/public/authoring/application.md docs/public/authoring/adapter.md docs/public/authoring/domain.md docs/public/authoring/index.md docs/public/authoring/index.en.md docs/public/authoring/framework-positioning.md docs/public/authoring/framework-positioning.en.md
 ```
 
 Expected: no stale controller-centered or cli-centered summary remains.
@@ -256,14 +256,14 @@ Expected: no stale controller-centered or cli-centered summary remains.
 ### Task 3: Align Examples With New Boundary Vocabulary
 
 **Files:**
-- Modify: `docs/public/authoring/examples/media-processing-callback.zh-CN.md`
-- Modify: `docs/public/authoring/examples/media-processing-polling.zh-CN.md`
-- Modify: `docs/public/authoring/examples/content-draft-to-publish.zh-CN.md`
-- Modify: `docs/public/authoring/examples/advanced-concepts-overview.zh-CN.md`
+- Modify: `docs/public/authoring/examples/media-processing-callback.md`
+- Modify: `docs/public/authoring/examples/media-processing-polling.md`
+- Modify: `docs/public/authoring/examples/content-draft-to-publish.md`
+- Modify: `docs/public/authoring/examples/advanced-concepts-overview.md`
 
 - [ ] **Step 1: Update callback example role list**
 
-Use `apply_patch` in `media-processing-callback.zh-CN.md` to replace role bullets with:
+Use `apply_patch` in `media-processing-callback.md` to replace role bullets with:
 
 ```md
 - `MediaProcessingCli` 负责外部能力端口，不负责决定内部状态机。
@@ -292,7 +292,7 @@ Use `apply_patch` to replace the direct callback controller anti-pattern with:
 
 - [ ] **Step 4: Update polling example**
 
-Use `apply_patch` in `media-processing-polling.zh-CN.md` to define polling as internal trigger:
+Use `apply_patch` in `media-processing-polling.md` to define polling as internal trigger:
 
 ```md
 polling 是内部触发入口的一种实现。它可以定时观察外部任务状态，但只负责把观察结果翻译成内部命令，不取得聚合写入特权。
@@ -300,7 +300,7 @@ polling 是内部触发入口的一种实现。它可以定时观察外部任务
 
 - [ ] **Step 5: Update content draft example**
 
-Use `apply_patch` in `content-draft-to-publish.zh-CN.md` to replace controller non-example with:
+Use `apply_patch` in `content-draft-to-publish.md` to replace controller non-example with:
 
 ```md
 - 开放服务入口直接调用仓储修改 `Content.status`，绕过 `Content` 聚合行为。
