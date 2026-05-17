@@ -7,3 +7,7 @@
 - Value objects owned by aggregates are saved through aggregate persistence.
 - Do not call external clients from entry implementations before routing state changes through command.
 - Inspect `build/cap4k/plan.json` before editing generated request, handler, or subscriber surfaces such as `*Cmd.kt`, `*Qry.kt`, `*QryHandler.kt`, and generated subscriber shells.
+
+## Hidden Listener Dispatch
+
+Strongly discouraged: one public `on(event)` listener method manually dispatches to several private business reaction methods. Use multiple independent `@EventListener` methods with business-semantic names. Cap4k does not guarantee ordering between multiple listeners, so commands triggered by listeners must be idempotent and zero-trust.

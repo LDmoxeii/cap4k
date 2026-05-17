@@ -10,3 +10,32 @@
 - External fact entries that advance state route to command.
 - Entry implementations never write repositories or aggregates directly.
 - Client handlers translate external capability protocols and must not decide aggregate state machines.
+
+### Two Directions Of External Interaction
+
+- Internal consumes external: model the dependency as an external capability client behind internal domain language. Examples: resource storage, media storage, payment gateway, moderation service.
+- External consumes internal: model the entry as open host service, external fact entry, published language, inbound message, callback, or integration event.
+- Do not collapse these directions into one transport term. Avoid using "RPC" as the domain-facing name for the concept.
+
+### Open Host Service Entry
+
+- Open host service entries expose internal use cases to external consumers through published language.
+- They are protocol translation and routing boundaries, not aggregate write boundaries by default.
+- Write operations from open host service entries must route into commands.
+- Read operations from open host service entries should route into queries or read-model APIs.
+- Do not pass transport payloads directly into aggregate behavior.
+
+### External Fact Entry
+
+- External fact entries represent facts observed from outside the bounded context: callbacks, inbound messages, polling results, webhooks, or inbound integration events.
+- Translate the external payload into internal published language before routing.
+- Every write path from an external fact entry must enter a command.
+- If one external fact appears to require multiple internal reactions, first consider command -> domain event fan-out.
+- Multiple routes from one external fact entry are allowed for now, but treat that as a boundary-review signal.
+
+### External Capability Client Invocation
+
+- A command may call an external capability client when the external side effect is part of the same write use case and the command will update aggregate state based on the result.
+- Prefer domain language names such as resource storage or media storage over provider names.
+- Keep provider-specific terms out of aggregate behavior unless they are part of the business published language.
+- Technical storage locator terms such as `objectKey` may appear inside infrastructure-facing contracts or media processing paths, but should not become aggregate identity or public business language by default.
