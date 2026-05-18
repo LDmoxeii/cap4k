@@ -9,6 +9,15 @@
 
 完整端到端顺序见 [项目编写工作流](project-authoring-workflow.md)，DB / design / enum manifest / KSP / IR 输入细节见 [生成输入源](generator/input-sources.md)。
 
+## 缺骨架时不手写替代
+
+| 场景 | 处理方式 |
+| --- | --- |
+| `design.json` 已能表达目标用例，但 `command` / `query` / `client` / payload / event / subscriber / validator skeleton 没落出来 | 停止 implementation，回到 generation |
+| DDL、`@T`、唯一约束等 aggregate 事实已经存在，但 aggregate / repository / factory / specification / enum / unique helper skeleton 没落出来 | 停止 implementation，回到 generation |
+| design entry、DDL 注释、enum manifest、`types.registryFile`、KSP metadata 本身缺失 | 停止 generation，回到 modeling |
+| generator 当前明确不支持该 surface | 允许手写，但必须记录“不支持生成”的原因 |
+
 ## 全局边界矩阵
 
 | 产物类型 | 默认归属 | 说明 |
@@ -65,6 +74,7 @@
 | `adapter.domain.repositories/**/*.kt` 下的 `*Repository.kt` / `*JpaRepositoryAdapter.kt` | 先视为 repository family；是否可改必须看 `plan.json`，不能只因是 Spring Data 落点就当纯手写文件 |
 
 如果某个 family 同时满足“位于 `src/main/kotlin`”和“出现在 `plan.json` recurring items”这两个条件，先把它当计划产物，而不是因为 checked in 就默认长期手写。
+如果缺的是 generator-capable skeleton，本页的默认动作也不是“先手写一个顶上”，而是回到 generation；只有当前 generator 明确不支持时，才允许手写并记录原因。
 
 ## 当前现实（Current Reality）
 

@@ -34,6 +34,7 @@
 - 它只执行 `cap4kPlan` 对应的源码生成链路。
 - 它不是 analysis 导出任务。
 - 它不是 bootstrap 任务。
+- 它不是 implementation 阶段临时补 skeleton 的替代品；如果 generator-supported surface 缺失，应回到输入合同和 `cap4kPlan` / `cap4kGenerate` 链路。
 - 它不是“先跑一次看看再说”的试探入口；试探应该留在 `cap4kPlan` 和 `plan.json` 阅读阶段完成。
 
 ## 如何阅读 `plan.json`

@@ -1,10 +1,10 @@
 # Default Happy Path
 
-[English](default-happy-path.en.md)
-
 > 本页是 cap4k 编写体系的规范中心。后续各层指南、生成器指南和审计检查都默认回到这一页。
 
 本页统一使用“内容发布与处理示例项目”作为教学主场景。默认链路固定为：创建草稿、送审、启动媒体处理、接收处理结果、满足条件后发布内容；处理失败时支持重试或回退。
+
+只要缺的是 generator-capable skeleton，就先回到 generation；只要缺的是 generation input contract，就先回到 modeling。
 
 ## 规则强度说明
 
@@ -192,7 +192,8 @@ Audit cues：
 1. 先判断当前工作是否需要先写 spec / plan；涉及新流程、新边界、新规则时，不跳过这一步。
 2. 先跑 `cap4kPlan`，确认这次会生成什么、覆盖什么、缺什么。
 3. 再跑 `cap4kGenerate`，把生成产物落到默认生成主面。
-4. 只有在分析链路明确需要时才进入 `cap4kAnalysis*`，不要把 analysis 当成默认主生成路径。
-5. 生成完成后再进入手写补全，把项目特有编排、边界转换、查询组装写在手写主面。
-6. 完成后必须验证，至少确认生成结果、目录归位、命令边界、聚合边界和最小运行检查都成立。
-7. 验证通过后再进入 review，由审阅者按本页规则表和审计线索判断是否仍在 Default Happy Path 内。
+4. 如果发现缺的是 generator-capable skeleton，不要在 implementation 里手写替代，先回到 generation；如果缺的是 design / DDL / enum manifest / `types.registryFile` / KSP metadata 这类输入合同，先回到 modeling。
+5. 只有在分析链路明确需要时才进入 `cap4kAnalysis*`，不要把 analysis 当成默认主生成路径。
+6. 生成完成后再进入手写补全，把项目特有编排、边界转换、查询组装写在手写主面。
+7. 完成后必须验证，至少确认生成结果、目录归位、命令边界、聚合边界和最小运行检查都成立。
+8. 验证通过后再进入 review，由审阅者按本页规则表和审计线索判断是否仍在 Default Happy Path 内。

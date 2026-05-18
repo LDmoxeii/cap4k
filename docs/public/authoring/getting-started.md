@@ -1,7 +1,5 @@
 # 快速开始
 
-[English](getting-started.en.md)
-
 ## 适用对象
 
 - 想落地 DDD，但不想先搭一套过重框架叙事的团队

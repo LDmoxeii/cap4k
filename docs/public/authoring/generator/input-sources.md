@@ -2,6 +2,8 @@
 
 本页说明业务项目作者如何准备 cap4k 生成器输入。输入源是生成器合同，不是随手写给工具看的备注。
 
+除 `sources {}` 里的 source provider 之外，`types.registryFile` 也属于 generation input contract。它不提供 use-case surface，也不替代 DDL / design；它负责补充 `@T` 绑定的自定义类型 FQN 与 converter 策略。
+
 ## DB source
 
 `sources.db` 读取 JDBC metadata，用数据库 schema 表达聚合结构、字段、关系、枚举、唯一约束和持久化细节。
@@ -61,6 +63,30 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 - 对 JSON-backed 或 inline 值对象，优先在列上使用 `@T=<TypeName>`，并在 `types.registryFile` 注册 FQN 与 converter。
 - 生成器只会把字段类型和 JPA converter 映射到聚合；值对象类、构造 / 校验 / 归一化、converter 仍由作者维护。
 - `@VO` 表只表示 separate-table / table-backed 值对象，适用面更重；不要为了“使用值对象”而默认建独立表。
+
+## types registry
+
+`types.registryFile` 位于 `types {}`，不是 `sources {}` block，但它仍会影响 aggregate 字段类型和 converter 映射。
+
+最小形状：
+
+```json
+{
+  "OrderId": { "fqn": "com.acme.order.OrderId" },
+  "Customer": { "fqn": "com.acme.customer.Customer", "converter": false },
+  "External": {
+    "fqn": "com.acme.external.ExternalValue",
+    "converter": "com.acme.external.ExternalValueConverter"
+  }
+}
+```
+
+规则：
+
+- key 使用 simple type name；
+- `fqn` 必填；
+- `converter` 只能是 `false`、`"nested"` 或 converter FQN；
+- 它负责类型与 converter 合同，不负责命令、查询、事件或聚合行为建模。
 
 ## DB relation annotations
 
