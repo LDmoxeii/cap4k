@@ -89,7 +89,8 @@ cap4k 项目中至少有四类产物：
 
 - 如果缺的是 `command`、`query`、`client`、`api_payload`、`domain_event`、`integration_event`、subscriber、validator、`*QryHandler.kt`、`*CliHandler.kt` 这类 generator-capable skeleton，停止 implementation，回到 generation。
 - 如果缺的是 aggregate、repository、factory、specification、enum、字段映射、关系、唯一 helper 这类 aggregate family skeleton，并且 DDL / type contract 已经存在，停止 implementation，回到 generation。
-- 如果缺的是 design entry、DDL 表列注释、enum manifest、`types.registryFile`、KSP metadata 这类 generation input contract，停止 generation，回到 modeling。
+- 如果缺的是 design entry、DDL 表列注释、enum manifest、`types.registryFile` 这类业务输入合同，停止 generation，回到 modeling。
+- 如果缺的是 generation 依赖的 KSP metadata 输出、配置或生产链路，先回到 generation / compile / setup，不要自动判成 modeling。
 - 只有当前 generator 明确不支持的 surface，才允许手写补齐，并且必须在审阅说明中写出“不支持生成”的原因。
 
 实现时按 [公开战术模型](tactical-model.md) 归位：

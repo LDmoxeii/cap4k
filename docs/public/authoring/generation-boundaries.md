@@ -15,7 +15,8 @@
 | --- | --- |
 | `design.json` 已能表达目标用例，但 `command` / `query` / `client` / payload / event / subscriber / validator skeleton 没落出来 | 停止 implementation，回到 generation |
 | DDL、`@T`、唯一约束等 aggregate 事实已经存在，但 aggregate / repository / factory / specification / enum / unique helper skeleton 没落出来 | 停止 implementation，回到 generation |
-| design entry、DDL 注释、enum manifest、`types.registryFile`、KSP metadata 本身缺失 | 停止 generation，回到 modeling |
+| design entry、DDL 注释、enum manifest、`types.registryFile` 本身缺失 | 停止 generation，回到 modeling |
+| generation 依赖的 KSP metadata 输出、配置或生产链路缺失 | 先回到 generation / compile / setup，不自动判成 modeling |
 | generator 当前明确不支持该 surface | 允许手写，但必须记录“不支持生成”的原因 |
 
 ## 全局边界矩阵

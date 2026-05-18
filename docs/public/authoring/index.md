@@ -2,7 +2,7 @@
 
 > 这套文档定义 cap4k 项目的默认编写方式、审计方式，以及偏离默认路径时的决策入口。
 
-默认硬边界是：能生成的骨架先回到 DDL / design / registry / metadata 合同与 `cap4kPlan`，implementation 不手写 generator-capable 替代物。
+默认硬边界是：能生成的骨架先回到 DDL / design / registry 合同与 `cap4kPlan`；如果 generation 依赖的 KSP metadata 还没产出，就先修 generation / compile / setup 链路；implementation 不手写 generator-capable 替代物。
 
 ## 这套文档解决什么问题
 
