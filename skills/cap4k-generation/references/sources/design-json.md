@@ -48,7 +48,7 @@ Minimal example:
 Rules:
 
 - `query` and `api_payload` may use request trait `page`.
-- `integration_event` requires `role`, `eventName`, at least one `requestField`, and empty `responseFields`.
+- `integration_event` requires `role`, `eventName`, at least one `requestFields` entry, and empty `responseFields`.
 - inbound `integration_event` entries can produce subscriber shells through `DesignIntegrationEventSubscriberArtifactPlanner`.
-- manifest-file mode is allowed and must stay inside the project directory.
+- manifest-file mode is allowed, and every manifest entry path must stay inside `projectDir`.
 - Tags outside the supported set are not part of this generation input; `value_object` and `domain_service` stay first-class modeling concepts.

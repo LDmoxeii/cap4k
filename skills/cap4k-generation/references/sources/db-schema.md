@@ -2,8 +2,8 @@
 
 Table annotations:
 
-- `@Parent` / `@P=<table>`
-- `@AggregateRoot` / `@Root` / `@R=true|false`
+- `@Parent=<table>` or `@P=<table>`
+- `@AggregateRoot=true|false` or `@Root=true|false` or `@R=true|false`
 - `@ValueObject` / `@VO`
 - `@Ignore` / `@I`
 - `@DynamicInsert=true|false`
@@ -11,8 +11,8 @@ Table annotations:
 
 Column annotations:
 
-- `@Type` / `@T=<TypeName>`
-- `@Enum` / `@E=...`
+- `@Type=<TypeName>` or `@T=<TypeName>`
+- `@Enum=...` or `@E=...`
 - `@GeneratedValue`
 - `@GeneratedValue=uuid7`
 - `@GeneratedValue=snowflake-long`
@@ -26,15 +26,15 @@ Column annotations:
 
 Relation annotations:
 
-- `@Reference` / `@Ref=<table>`
-- `@Relation` / `@Rel=ManyToOne|OneToOne|*:1|1:1`
-- `@Lazy` / `@L=true|false`
-- `@Count` / `@C=<hint>`
+- `@Reference=<table>` or `@Ref=<table>`
+- `@Relation=ManyToOne|OneToOne|*:1|1:1` or `@Rel=ManyToOne|OneToOne|*:1|1:1`
+- `@Lazy=true|false` or `@L=true|false`
+- `@Count=<hint>` or `@C=<hint>`
 
 Rules:
 
 - `@Relation`, `@Lazy`, and `@Count` require `@Reference`.
-- `@Enum` requires `@Type` / `@T`.
+- `@Enum=...` / `@E=...` requires `@Type=<TypeName>` / `@T=<TypeName>`.
 - `@Managed` and `@Exposed` are mutually exclusive.
 - many-to-many is unsupported.
 - unique constraints are the source for unique helpers; names must be stable and business-meaningful.

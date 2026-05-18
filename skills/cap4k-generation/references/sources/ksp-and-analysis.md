@@ -17,4 +17,5 @@ IR analysis:
 Rule:
 
 - KSP metadata is a generation input.
+- Missing KSP metadata is a generation/setup input problem, not a missing business fact to route to modeling.
 - IR analysis is not a normal business-source generation input.

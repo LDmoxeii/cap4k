@@ -6,7 +6,7 @@
 | `design.json` | `sources.designJson` | `command`, `query`, `client`, `api_payload`, `domain_event`, `integration_event`, inbound subscriber shells, validator surfaces | aggregate structure, DB carrier decisions | `cap4k-modeling` |
 | enum manifest | `sources.enumManifest` | shared enum definitions referenced by DB `@T` | aggregate behavior, enum translation addon artifacts | `cap4k-modeling` |
 | `types.registryFile` | `types {}` | custom type FQNs and converter policy for `@T`-bound fields | command/query/event contracts | `cap4k-modeling` |
-| KSP metadata | `sources.kspMetadata` | aggregate metadata that design-driven generation needs | main business flow analysis | `cap4k-modeling` |
+| KSP metadata | `sources.kspMetadata` | aggregate metadata that design-driven generation needs | main business flow analysis | generation/setup input problem; stay in `cap4k-generation` |
 | IR analysis | `sources.irAnalysis` | flow and drawing-board observation after compile | normal business-source generation | not part of business-source generation |
 | addon artifacts | `cap4kAddon` + `templates` | extra plan items and template-rendered artifacts | business modeling facts | not a modeling source |
 
