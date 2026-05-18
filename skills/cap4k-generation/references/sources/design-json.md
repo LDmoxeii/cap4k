@@ -48,6 +48,7 @@ Minimal example:
 Rules:
 
 - `query` and `api_payload` may use request trait `page`.
+- `domain_event` entries can produce domain-event subscriber/handler shells through `DesignDomainEventHandlerArtifactPlanner`.
 - `integration_event` requires `role`, `eventName`, at least one `requestFields` entry, and empty `responseFields`.
 - inbound `integration_event` entries can produce subscriber shells through `DesignIntegrationEventSubscriberArtifactPlanner`.
 - manifest-file mode is allowed, and every manifest entry path must stay inside `projectDir`.
