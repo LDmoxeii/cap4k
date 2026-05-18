@@ -7,6 +7,7 @@
 - Value objects owned by aggregates are saved through aggregate persistence.
 - Do not call external clients from entry implementations before routing state changes through command.
 - Inspect `build/cap4k/plan.json` before editing generated request, handler, or subscriber surfaces such as `*Cmd.kt`, `*Qry.kt`, `*QryHandler.kt`, and generated subscriber shells.
+- Do not handwrite generator-capable skeletons just because `plan.json` inspection showed a family you expected; missing generator output belongs to generation, and missing source facts belong to modeling.
 
 ## Hidden Listener Dispatch
 
