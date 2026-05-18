@@ -1,14 +1,15 @@
 # Implement Subscriber Or Internal Trigger
 
 1. Run the skeleton gate before writing code.
-2. Stop and return to `cap4k-generation` when the subscriber, inbound integration event, domain-event shell, command, query, client, validator, or payload surface is generator-capable but missing.
-3. Stop and return to `cap4k-modeling` when the missing piece is the design entry, DDL contract, enum manifest entry, `types.registryFile` entry, or KSP metadata that generation needs.
-4. Classify the entry as domain-event subscriber, external fact entry, or internal trigger.
-5. Use subscribers or jobs as routing points, not hidden aggregate persistence layers.
-6. Inspect `build/cap4k/plan.json` before editing generated subscriber shells.
-7. Route state changes to command.
-8. Route reads to query.
-9. Keep external protocol payloads out of aggregate behavior and domain events.
+2. Stop and return to `cap4k-generation` when the subscriber shell, inbound integration event, domain-event shell, `*Cmd.kt`, `*Qry.kt`, `*QryHandler.kt`, `*CliHandler.kt`, client, validator, or payload surface is generator-capable but missing, including generated handler surfaces.
+3. Stop and return to `cap4k-generation` when DDL, enum, or type-registry facts already exist but the aggregate, repository, factory, specification, enum, relation, field-mapping, or unique-helper skeleton is still missing.
+4. Stop and return to `cap4k-modeling` when the missing piece is the design entry, DDL contract, enum manifest entry, `types.registryFile` entry, or KSP metadata that generation needs.
+5. Classify the entry as domain-event subscriber, external fact entry, or internal trigger.
+6. Use subscribers or jobs as routing points, not hidden aggregate persistence layers.
+7. Inspect `build/cap4k/plan.json` before editing generated subscriber shells.
+8. Route state changes to command.
+9. Route reads to query.
+10. Keep external protocol payloads out of aggregate behavior and domain events.
 
 ## Listener Organization
 

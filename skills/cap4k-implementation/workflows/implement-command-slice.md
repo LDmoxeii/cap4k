@@ -2,7 +2,7 @@
 
 1. Run the skeleton gate before writing code.
 2. Stop and return to `cap4k-generation` when the write use case needs a missing `*Cmd.kt`, `*Qry.kt`, `*QryHandler.kt`, `*CliHandler.kt`, client, validator, payload, domain event, integration event, or subscriber skeleton that current generation supports.
-3. Stop and return to `cap4k-generation` when DDL, design, enum, or type-registry facts already exist but the aggregate, repository, factory, specification, enum, relation, field-mapping, or unique-helper skeleton is still missing.
+3. Stop and return to `cap4k-generation` when DDL, enum, or type-registry facts already exist but the aggregate, repository, factory, specification, enum, relation, field-mapping, or unique-helper skeleton is still missing.
 4. Stop and return to `cap4k-modeling` when the missing piece is a design entry, DDL annotation, enum manifest entry, `types.registryFile` entry, or KSP metadata.
 5. Confirm the command intent and aggregate root.
 6. Add or update a focused behavior/application test when feasible.

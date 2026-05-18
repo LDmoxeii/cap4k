@@ -8,7 +8,8 @@
 ## Generation Sources
 
 - SQL schema / DDL is the source of truth for aggregate, repository, factory, specification, enum, field mapping, relation, and unique-helper skeletons.
-- `design.json` is the source of truth for `command`, `query`, `client`, `api_payload`, `domain_event`, `integration_event`, subscriber, and validator surfaces.
+- `design.json` is the source of truth for supported design contracts such as `command`, `query`, `client`, `api_payload`, `domain_event`, `integration_event`, and validator surfaces.
+- Subscriber shells and generated handler shells are derived from supported request or event contracts rather than a standalone subscriber design tag.
 - `types.registryFile`, enum manifest, and KSP metadata are generation input contracts even though they are not all declared inside one `sources {}` block.
 
 ## Required Fallback
