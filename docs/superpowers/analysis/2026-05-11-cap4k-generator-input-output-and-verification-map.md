@@ -235,8 +235,13 @@ Return to `cap4k-modeling` when the missing piece is the fact contract generatio
 - a design entry;
 - a DDL annotation or DDL contract;
 - an enum manifest entry;
-- a `types.registryFile` entry;
-- KSP metadata.
+- a `types.registryFile` entry.
+
+Return to `cap4k-generation` / compile / setup when the business facts already exist but the design-generation pipeline is missing required derived output or setup, including:
+
+- KSP metadata output;
+- KSP metadata configuration;
+- the compile/setup path that produces KSP metadata for design generation.
 
 ## Reference-Project Checks
 
