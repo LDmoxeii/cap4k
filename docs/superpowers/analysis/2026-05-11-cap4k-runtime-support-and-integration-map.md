@@ -96,15 +96,19 @@ Runtime semantics confirmed from `DefaultSagaSupervisor` and the JPA Saga implem
 - `delay` is the `SagaSupervisor` default `schedule(request, LocalDateTime.now().plus(delay))` path and returns the saga ID.
 - `SagaHandler.execProcess(processCode, request)` executes a child request through `RequestSupervisor`.
 - an `EXECUTED` saga process is skipped on replay and its cached result is returned.
-- if a saga process throws, the process and saga are recorded as `EXCEPTION`; `retry` and scheduled `resume` re-enter the saga handler through `internalSend(param, saga)` and skip already executed process codes.
-- scheduled compensation scans valid sagas by `nextTryTime`, advances retry windows through `SagaManager.resume`, and reschedules execution only when the saga remains executing.
+- if a saga process throws, the process and saga are recorded as `EXCEPTION`.
+- `retry(uuid)` loads the persisted saga and re-enters execution directly through the retry path `internalSend(param, saga)`, so already executed process codes are skipped during the replayed handler run.
+- scheduled compensation scans valid sagas by `nextTryTime` and calls `SagaManager.resume`.
+- `resume(saga, minNextTryTime)` first advances saga timing/state with `beginSaga(...)`, saves the saga, validates it, and only reschedules execution when `saga.isExecuting` is still true.
+- if the saga is no longer runnable after `resume` advances state, `resume` stops after persisting state and does not re-enter the handler.
 - `/cap4k/console/saga/retry?uuid=...` calls `SagaManager.retry(uuid)` for manual/operator retry.
 
 Runtime consequences of this implementation:
 
-- retry/resume restarts the saga handler from the persisted saga param rather than resuming from a separate step pointer.
+- retry restarts the saga handler from the persisted saga param rather than resuming from a separate step pointer.
+- scheduled resume advances retry timing/state first and may stop without re-entering the handler when the saga is no longer executing.
 - successful `execProcess` calls are sticky by `processCode`; later retries return the cached result instead of re-sending the child request.
-- failed `execProcess` calls persist exception state and rethrow; the next retry/resume runs the handler again.
+- failed `execProcess` calls persist exception state and rethrow; the next direct retry can run the handler again, while scheduled resume only does so when the saga remains executing after its state update.
 - whole-saga recovery is exposed through scheduled `resume` and manual `retry(uuid)`; there is no separate callback-step API in this runtime surface.
 
 ## Unit Of Work Flow

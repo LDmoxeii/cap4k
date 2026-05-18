@@ -228,7 +228,7 @@ The current repository implementation workflows separate missing generation inpu
 Return to `cap4k-generation` when the business facts already exist but a supported generated surface is missing, including:
 
 - `*Cmd.kt`, `*Qry.kt`, `*QryHandler.kt`, `*CliHandler.kt`, client, validator, payload, domain event, integration event, or subscriber skeletons;
-- aggregate, repository, factory, specification, enum, relation, field-mapping, or unique-helper skeletons after DDL / enum / type-registry facts already exist.
+- aggregate/entity, repository, factory, specification, enum, or unique-helper generation surfaces after DDL / enum / type-registry facts already exist. Relation and field-mapping facts belong to the aggregate/entity generation inputs, not standalone plan outputs.
 
 Return to `cap4k-modeling` when the missing piece is the fact contract generation depends on, including:
 
