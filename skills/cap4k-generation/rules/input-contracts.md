@@ -1,7 +1,7 @@
 # Input Contracts
 
 - DB schema / DDL defines aggregate family generation: structure, relations, enum bindings, repositories, factories, specifications, and unique helpers.
-- `design.json` defines command, query, client, api payload, domain event, integration event, subscriber, and validator contracts.
+- `design.json` defines command, query, client, api payload, domain event, integration event, and validator contracts; inbound `integration_event` can derive subscriber shells.
 - Enum manifest supplies shared enums referenced by DB `@Type` / `@T`.
 - `types.registryFile` supplies custom type FQNs and converter policy for `@T`-bound fields.
 - KSP metadata supplies aggregate metadata for design-driven artifacts.
