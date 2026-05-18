@@ -21,9 +21,11 @@ Use this before writing or regenerating cap4k generated output.
 |---|---|---|
 | Bootstrap a project | `rules/template-and-addon-boundary.md` | `workflows/bootstrap-project.md` |
 | Bootstrap framework database tables | `references/framework-database-scripts.md` | `workflows/bootstrap-project.md` |
-| Generate from DB | `references/gotchas.md` | `workflows/generate-from-db.md` |
-| Generate from design JSON | `references/gotchas.md` | `workflows/generate-from-design.md` |
-| Inspect ownership before writing | `rules/output-ownership.md` | `workflows/review-plan-json.md` |
+| Generate aggregate skeletons from DB | `references/sources/db-schema.md`, `references/sources/source-map.md` | `workflows/generate-from-db.md` |
+| Generate use-case or interface surfaces from design JSON | `references/sources/design-json.md`, `references/sources/source-map.md` | `workflows/generate-from-design.md` |
+| Resolve enum or custom type input contract | `references/sources/enum-manifest.md`, `references/sources/types-registry.md`, `references/sources/source-map.md` | `workflows/generate-from-db.md` |
+| Check KSP, analysis, or addon confusion | `references/sources/ksp-and-analysis.md`, `references/sources/addons.md`, `references/sources/source-map.md` | `workflows/review-plan-json.md` |
+| Inspect ownership before writing | `rules/output-ownership.md`, `references/sources/source-map.md` | `workflows/review-plan-json.md` |
 
 ## Stop Conditions
 

@@ -31,10 +31,17 @@
 
 `cap4kGenerate` 的边界同样要守住：
 
-- 它只执行 `cap4kPlan` 对应的源码生成链路。
+- 它是默认的 planned source pipeline 生成任务，执行 `cap4kPlan` 对应的源码生成链路。
 - 它不是 analysis 导出任务。
 - 它不是 bootstrap 任务。
+- 它不是 implementation 阶段临时补 skeleton 的替代品；如果 generator-supported surface 缺失，应回到输入合同和 `cap4kPlan` / `cap4kGenerate` 链路。
 - 它不是“先跑一次看看再说”的试探入口；试探应该留在 `cap4kPlan` 和 `plan.json` 阅读阶段完成。
+
+如果你只需要 build-owned generated-source 输出，再单独走 `cap4kGenerateSources`：
+
+- 它只导出 `GENERATED_SOURCE` 计划项；
+- 当前主要对应 aggregate / aggregate-projection 家族；
+- 它不是完整的 planned source pipeline，不替代 `cap4kGenerate`。
 
 ## 如何阅读 `plan.json`
 
@@ -104,7 +111,9 @@
 - application 的编排、adapter 的协议转换、查询组装，不该靠去改那些会被计划再次生成的文件来实现。
 - aggregate 家族里，默认会同时存在“可能被重复生成覆盖的文件”和“明确留给作者补行为的文件”。`behavior` 属于后者，而且固定 `SKIP`；`factory` / `specification` 则要继续看 `conflictPolicy`，不能仅凭 checked in 就推断为作者长期维护文件。
 - JSON-backed 或 inline 自定义值对象不是完整生成对象本体。生成器可以消费 `@T` / `types.registryFile` 映射聚合字段和 converter；值对象 class、构造 / 校验 / 归一化、converter 仍属于作者手写主面。
+- `domain_event` 不是 payload-only 入口。当前 design 生成会同时规划 domain event 契约与对应 subscriber / handler 壳；如果这类 skeleton 缺失，默认动作是回到 generation，而不是先手写占位。
 - `integration_event` 是 application 层的设计契约。它必须声明 `role`、`eventName`、至少一个 `requestFields` 字段，并保持 `responseFields` 为空。`role = "inbound"` 会生成事件类和 `@EventListener` subscriber 骨架；`role = "outbound"` 只生成事件类。subscriber 身份不写入 design JSON，默认 inbound 模板使用 Spring placeholder `\${spring.application.name:}`。
+- relation 和字段映射事实属于 aggregate / entity generation input。它们会影响 aggregate 主体、JPA 映射和相关模板上下文，但不是独立 output family，也不该被当成单独的 implementation backlog 项。
 - 当 `plan.json` 里某个文件持续作为计划产物出现时，不要因为它落在 `src/main/kotlin` 就默认把它当成随意手写文件；先回到 [生成 / 手写边界](../generation-boundaries.md) 做判断。
 
 ## 常见生成误用

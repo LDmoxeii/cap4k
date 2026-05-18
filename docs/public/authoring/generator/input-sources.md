@@ -2,6 +2,8 @@
 
 本页说明业务项目作者如何准备 cap4k 生成器输入。输入源是生成器合同，不是随手写给工具看的备注。
 
+除 `sources {}` 里的 source provider 之外，`types.registryFile` 也属于 generation input contract。它不提供 use-case surface，也不替代 DDL / design；它负责补充 `@T` 绑定的自定义类型 FQN 与 converter 策略。
+
 ## DB source
 
 `sources.db` 读取 JDBC metadata，用数据库 schema 表达聚合结构、字段、关系、枚举、唯一约束和持久化细节。
@@ -22,10 +24,10 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 
 | 注解 | 含义 |
 | --- | --- |
-| `@Parent` / `@P=<table>` | 当前表属于父聚合 |
-| `@AggregateRoot` / `@Root` / `@R=true\|false` | 显式聚合根标记 |
-| `@ValueObject` / `@VO` | table-backed 值对象表标记，不是所有 Value Object 的默认写法 |
-| `@Ignore` / `@I` | 忽略该表 |
+| `@Parent=<table>` / `@P=<table>` | 当前表属于父聚合；必须显式给出父表名 |
+| `@AggregateRoot=true\|false` / `@Root=true\|false` / `@R=true\|false` | 显式聚合根标记；不带 `=true/false` 的 marker 形式无效 |
+| `@ValueObject` / `@VO` | table-backed 值对象表标记；marker-only，不接受显式值 |
+| `@Ignore` / `@I` | 忽略该表；marker-only，不接受显式值 |
 | `@DynamicInsert=true\|false` | provider dynamic insert |
 | `@DynamicUpdate=true\|false` | provider dynamic update |
 
@@ -37,23 +39,25 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 
 | 注解 | 含义 |
 | --- | --- |
-| `@Type` / `@T=<TypeName>` | 绑定到命名领域类型或枚举 |
-| `@Enum` / `@E=0:NAME:Desc\|...` | 内联枚举项；需要同时声明 `@T` |
-| `@GeneratedValue` | 使用默认 ID 生成 |
+| `@Type=<TypeName>` / `@T=<TypeName>` | 绑定到命名领域类型或枚举；有效写法是显式给出 type name，空值或 marker 形式会被忽略 |
+| `@Enum=<...>` / `@E=0:NAME:Desc\|...` | 内联枚举项；有效写法是显式给出枚举 payload，且该 payload 仍需要同时声明 `@T` |
+| `@GeneratedValue` | marker 形式表示使用默认 ID 生成 |
 | `@GeneratedValue=uuid7` | UUID7 策略 |
 | `@GeneratedValue=snowflake-long` | Snowflake long 策略 |
 | `@GeneratedValue=identity` | 数据库 identity 策略 |
-| `@Deleted` | 软删除字段 |
-| `@Version` | 乐观锁字段 |
-| `@Managed` | 框架管理字段 |
-| `@Exposed` | 对外暴露字段 |
+| `@GeneratedValue=database-identity` | `identity` 别名 |
+| `@Deleted` | 软删除字段；marker-only，不接受显式值 |
+| `@Version` | 乐观锁字段；marker-only，不接受显式值 |
+| `@Managed` | 框架管理字段；marker-only，不接受显式值 |
+| `@Exposed` | 对外暴露字段；marker-only，不接受显式值 |
 | `@Insertable=true\|false` | JPA insertability |
 | `@Updatable=true\|false` | JPA updatability |
 
 规则：
 
-- `@Enum` 需要配合 `@Type` / `@T`。
+- `@Enum=<...>` / `@E=<...>` 的显式 payload 需要配合 `@Type` / `@T`；空值或 marker 形式不会产生日志外的额外含义。
 - `@Managed` 与 `@Exposed` 互斥。
+- `@GeneratedValue` 既可只写 marker，也可显式写 `uuid7` / `snowflake-long` / `identity` / `database-identity`。
 - 旧的 `@IdGenerator` 和 `@SoftDeleteColumn` 已被拒绝，不应继续使用。
 
 自定义值类型字段规则：
@@ -62,16 +66,42 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 - 生成器只会把字段类型和 JPA converter 映射到聚合；值对象类、构造 / 校验 / 归一化、converter 仍由作者维护。
 - `@VO` 表只表示 separate-table / table-backed 值对象，适用面更重；不要为了“使用值对象”而默认建独立表。
 
+## types registry
+
+`types.registryFile` 位于 `types {}`，不是 `sources {}` block，但它仍会影响 aggregate 字段类型和 converter 映射。
+
+最小形状：
+
+```json
+{
+  "OrderId": { "fqn": "com.acme.order.OrderId" },
+  "Customer": { "fqn": "com.acme.customer.Customer", "converter": false },
+  "External": {
+    "fqn": "com.acme.external.ExternalValue",
+    "converter": "com.acme.external.ExternalValueConverter"
+  }
+}
+```
+
+规则：
+
+- key 必须是非空 simple type name，不能覆盖 `String`、`Long`、`List`、`Any` 等内建类型；
+- key 在 trim 归一化后不能重复；
+- entry value 必须是 object；
+- `fqn` 必填，且必须是 fully qualified name；
+- `converter` 只能是 `false`、`"nested"` 或 converter FQN；
+- 它负责类型与 converter 合同，不负责命令、查询、事件或聚合行为建模。
+
 ## DB relation annotations
 
 关系注释可使用这些注解：
 
 | 注解 | 含义 |
 | --- | --- |
-| `@Reference` / `@Ref=<table>` | 引用目标表 |
-| `@Relation` / `@Rel=ManyToOne\|OneToOne\|*:1\|1:1` | 关系类型 |
-| `@Lazy` / `@L=true\|false` | 懒加载 |
-| `@Count` / `@C=<hint>` | count hint |
+| `@Reference=<table>` / `@Ref=<table>` | 引用目标表；必须显式给出表名 |
+| `@Relation=<kind>` / `@Rel=ManyToOne\|OneToOne\|*:1\|1:1` | 关系类型；必须显式给出值 |
+| `@Lazy=<true\|false>` / `@L=true\|false` | 懒加载；必须显式给出值 |
+| `@Count=<hint>` / `@C=<hint>` | count hint；必须显式给出值 |
 
 规则：
 
@@ -99,10 +129,10 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 | Tag | 生成族 |
 | --- | --- |
 | `command` | command request / response / handler skeleton |
-| `query` | query request / response |
-| `client` | external capability client request |
+| `query` | query contract，以及配套 query handler family |
+| `client` | external capability client contract，以及配套 client handler family |
 | `api_payload` | adapter API payload |
-| `domain_event` | domain event payload |
+| `domain_event` | domain event contract，以及配套 subscriber / handler skeleton |
 | `integration_event` | application integration event contract and inbound subscriber skeleton |
 | `validator` | validation annotation and validator |
 
@@ -112,10 +142,10 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 
 - `query` 和 `api_payload` 支持 request trait `page`；
 - `domain_event` 支持 `persist`；
-- `domain_event` 可以省略 package，并可使用保留 request field `entity`；
+- `domain_event` 可以省略 package；它必须恰好声明一个 aggregate，保留 request field `entity` 不允许作者显式声明，因为它会从 `aggregates[0]` 派生。缺失或空 aggregate 都属于不完整 modeling input；
 - `integration_event` 支持 `role`（`inbound` / `outbound`）和 `eventName`，必须至少声明一个 `requestFields` 字段，且 `responseFields` 必须为空；`inbound` 可生成 `@EventListener` subscriber 骨架，`outbound` 只生成事件契约；
-- `validator` 支持 `message`、`targets`、`valueType`、`parameters`；
-- manifest-file 模式读取相对 manifest 的 design 文件列表，并拒绝路径逃逸和重复项。
+- `validator` 的 `targets` 只支持 `CLASS` / `FIELD` / `VALUE_PARAMETER`，`valueType` 只支持 `Any` / `String` / `Long` / `Int` / `Boolean`；`CLASS` target 只能配 `Any`。`parameters` 名称不能是 `message` / `groups` / `payload`，必须是合法 Kotlin 标识符、不可空、不可重复，类型只支持 `String` / `Int` / `Long` / `Boolean`，并且不能 nullable；
+- manifest-file 模式把 manifest 中的 design 文件 entry 解析为相对 `projectDir` 的路径，并拒绝空白 `manifestFile`、空 manifest、空白 entry、重复 entry，以及逃出 `projectDir` 的路径。
 
 ## unsupported design tags
 

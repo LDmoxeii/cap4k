@@ -12,17 +12,18 @@ Use this after modeling and generation boundaries are clear.
 
 ## Always Read
 
-1. `rules/layering.md`
-2. `rules/mediator-and-uow.md`
+1. `rules/source-of-truth-and-skeletons.md`
+2. `rules/layering.md`
+3. `rules/mediator-and-uow.md`
 
 ## Common Routes
 
 | Task | Read | Workflow |
 |---|---|---|
-| Implement write use case | `rules/value-types.md`, `references/gotchas.md` | `workflows/implement-command-slice.md` |
-| Implement read use case | `references/gotchas.md` | `workflows/implement-query-slice.md` |
-| Implement subscriber or job | `rules/layering.md`, `rules/mediator-and-uow.md` | `workflows/implement-subscriber-or-job.md` |
+| Implement write use case | `rules/source-of-truth-and-skeletons.md`, `rules/value-types.md`, `references/gotchas.md` | `workflows/implement-command-slice.md` |
+| Implement read use case | `rules/source-of-truth-and-skeletons.md`, `references/gotchas.md` | `workflows/implement-query-slice.md` |
+| Implement subscriber or job | `rules/source-of-truth-and-skeletons.md`, `rules/layering.md`, `rules/mediator-and-uow.md` | `workflows/implement-subscriber-or-job.md` |
 
 ## Stop Conditions
 
-Stop when aggregate boundaries are unclear, generated ownership is unclear, or a write path bypasses command/UoW without explicit human approval.
+Stop when aggregate boundaries are unclear, generated ownership is unclear, a required generator-capable skeleton is missing, a generation input contract is missing, or a write path bypasses command/UoW without explicit human approval.

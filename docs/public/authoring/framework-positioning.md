@@ -1,7 +1,5 @@
 # 框架定位
 
-[English](framework-positioning.en.md)
-
 ## 前景概念
 
 - 聚合根

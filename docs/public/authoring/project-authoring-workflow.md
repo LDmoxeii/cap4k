@@ -37,7 +37,7 @@
 
 - 聚合根、实体、值对象、生命周期和领域事件先由人类作者确认。
 - DDL 用表、列、关系、唯一约束和注释表达可生成的聚合结构。
-- design JSON 用 `command`、`query`、`client`、`api_payload`、`domain_event`、`validator` 表达用例和接口意图。
+- design JSON 用 `command`、`query`、`client`、`api_payload`、`domain_event`、`integration_event`、`validator` 表达用例和接口意图。
 - enum manifest 用于共享枚举定义，配合 DB `@Type` 使用。
 
 输入源细节见 [生成输入源](generator/input-sources.md)。如果某个概念不能被当前输入源表达，应先标成缺口，不要伪装成已有生成能力。
@@ -63,10 +63,15 @@
 
 ```powershell
 ./gradlew cap4kGenerate
+```
+
+`cap4kGenerate` 是默认的 planned source pipeline 生成任务；它按计划导出 design + aggregate 这条源码链路中的各类 artifact。只有当你明确只需要 build-owned `GENERATED_SOURCE` 输出时，才改走：
+
+```powershell
 ./gradlew cap4kGenerateSources
 ```
 
-bootstrap 也遵循同样原则：先 `cap4kBootstrapPlan`，再 `cap4kBootstrap`。
+`cap4kGenerateSources` 只导出 aggregate / aggregate-projection 家族里的 `GENERATED_SOURCE` 计划项，不负责完整的 planned source pipeline。bootstrap 也遵循同样原则：先 `cap4kBootstrapPlan`，再 `cap4kBootstrap`。
 
 ## 4. 区分生成物、骨架、快照、手写代码
 
@@ -84,6 +89,14 @@ cap4k 项目中至少有四类产物：
 更多 ownership 判断见 [生成 / 手写边界](generation-boundaries.md)。
 
 ## 5. 实现命令、查询、订阅、适配器
+
+在开始实现前先过一道骨架闸门：
+
+- 如果缺的是 `command`、`query`、`client`、`api_payload`、`domain_event`、`integration_event`、subscriber、validator、`*QryHandler.kt`、`*CliHandler.kt` 这类 generator-capable skeleton，停止 implementation，回到 generation。这里的 `domain_event` 不只是 payload；它还会生成对应 subscriber / handler 壳。`integration_event` 只有 inbound 会生成 subscriber 壳，outbound 只生成事件契约。
+- 如果缺的是 aggregate、entity、repository、factory、specification、enum、唯一 helper 这类 aggregate family skeleton，并且 DDL / type contract 已经存在，停止 implementation，回到 generation。关系和字段映射事实属于 aggregate / entity generation input，不是独立 plan item 或独立 skeleton 家族。
+- 如果缺的是 design entry、DDL 表列注释、enum manifest、`types.registryFile` 这类业务输入合同，停止 generation，回到 modeling。
+- 如果缺的是 generation 依赖的 KSP metadata 输出、配置或生产链路，先回到 generation / compile / setup，不要自动判成 modeling。
+- 只有当前 generator 明确不支持的 surface，才允许手写补齐，并且必须在审阅说明中写出“不支持生成”的原因。
 
 实现时按 [公开战术模型](tactical-model.md) 归位：
 
