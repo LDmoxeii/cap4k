@@ -17,8 +17,13 @@ Minimal shape:
 
 Rules:
 
-- keys must be simple type names, not fully qualified names.
-- each entry requires `fqn`.
+- keys must be non-blank simple type names, not dotted names or fully qualified names.
+- built-in type names cannot be overridden, for example `String`, `Long`, `List`, or `Any`.
+- each entry must be an object with `fqn`.
+- `fqn` must be a non-blank fully qualified class name.
 - `converter` may be `false`, `"nested"`, or an explicit converter FQN.
+- duplicate names after normalization are rejected, for example the same simple name after trimming whitespace.
+- duplicate fields, unsupported fields, and non-object values are rejected.
+- invalid converter values are rejected; only `false`, `"nested"`, or a converter FQN are allowed.
 - use this contract for JSON-backed or inline value carriers referenced by DB `@T`.
 - value-object classes, normalization rules, and business invariants still belong to handwritten modeling and implementation.

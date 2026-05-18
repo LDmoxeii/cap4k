@@ -25,11 +25,11 @@ Code-backed parser behavior is stricter than several skill/public/analysis pages
 Confirmed from `cap4k-plugin-pipeline-source-db`:
 
 - `@Parent` / `@P` require an explicit table value.
-- `@AggregateRoot` / `@Root` / `@R` accept explicit boolean values when present.
+- `@AggregateRoot=true|false` / `@Root=true|false` / `@R=true|false` are the accepted aggregate-root forms; marker form without an explicit boolean is invalid.
 - `@ValueObject` / `@VO` are marker-only and reject explicit values.
 - `@Ignore` / `@I` are marker-only and reject explicit values.
-- `@Type` / `@T` require an explicit type name.
-- `@Enum` / `@E` require `@T`.
+- `@Type` / `@T` only become meaningful with an explicit type name; blank or marker-only forms are ignored.
+- `@Enum` / `@E` only become meaningful with an explicit payload; explicit enum payload still requires `@T`, while blank or marker-only forms are ignored.
 - `@Reference` / `@Ref`, `@Relation` / `@Rel`, `@Lazy` / `@L`, and `@Count` / `@C` all require explicit values when present.
 - `@Relation`, `@Lazy`, and `@Count` require `@Reference`.
 - `@Deleted`, `@Version`, `@Managed`, and `@Exposed` are marker-only and reject explicit values.

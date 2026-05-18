@@ -25,10 +25,10 @@ Table comment annotations:
 
 | Annotation | Meaning |
 |---|---|
-| `@Parent` / `@P=<table>` | Child table belongs to parent aggregate |
-| `@AggregateRoot` / `@Root` / `@R=true|false` | Explicit aggregate-root marker |
-| `@ValueObject` / `@VO` | Value-object table marker |
-| `@Ignore` / `@I` | Ignore table |
+| `@Parent=<table>` / `@P=<table>` | Child table belongs to parent aggregate; explicit table value is required |
+| `@AggregateRoot=true|false` / `@Root=true|false` / `@R=true|false` | Explicit aggregate-root marker; marker form without `=true|false` is invalid |
+| `@ValueObject` / `@VO` | Value-object table marker; explicit values are rejected |
+| `@Ignore` / `@I` | Ignore table; explicit values are rejected |
 | `@DynamicInsert=true|false` | Provider dynamic insert |
 | `@DynamicUpdate=true|false` | Provider dynamic update |
 
@@ -36,16 +36,17 @@ Column comment annotations:
 
 | Annotation | Meaning |
 |---|---|
-| `@Type` / `@T=<TypeName>` | Bind DB column to named domain type/enum |
-| `@Enum` / `@E=0:NAME:Desc|...` | Inline enum items; requires `@T` |
-| `@GeneratedValue` | Use default ID generation |
+| `@Type=<TypeName>` / `@T=<TypeName>` | Bind DB column to named domain type/enum; explicit type names are meaningful, blank or marker-only forms are ignored |
+| `@Enum=<...>` / `@E=0:NAME:Desc|...` | Inline enum items; explicit enum payload requires `@T`, blank or marker-only forms are ignored |
+| `@GeneratedValue` | Marker form for default ID generation |
 | `@GeneratedValue=uuid7` | UUID7 strategy |
 | `@GeneratedValue=snowflake-long` | Snowflake long strategy |
 | `@GeneratedValue=identity` | Database identity strategy |
-| `@Deleted` | Soft delete marker |
-| `@Version` | Optimistic lock marker |
-| `@Managed` | Framework-managed field |
-| `@Exposed` | Exposed field |
+| `@GeneratedValue=database-identity` | Alias normalized to `identity` |
+| `@Deleted` | Soft delete marker; explicit values are rejected |
+| `@Version` | Optimistic lock marker; explicit values are rejected |
+| `@Managed` | Framework-managed field; explicit values are rejected |
+| `@Exposed` | Exposed field; explicit values are rejected |
 | `@Insertable=true|false` | JPA insertability |
 | `@Updatable=true|false` | JPA updatability |
 
@@ -53,10 +54,10 @@ Relation annotations:
 
 | Annotation | Meaning |
 |---|---|
-| `@Reference` / `@Ref=<table>` | Reference target table |
-| `@Relation` / `@Rel=ManyToOne|OneToOne|*:1|1:1` | Relation type |
-| `@Lazy` / `@L=true|false` | Lazy loading |
-| `@Count` / `@C=<hint>` | Count hint |
+| `@Reference=<table>` / `@Ref=<table>` | Reference target table; explicit value is required |
+| `@Relation=<kind>` / `@Rel=ManyToOne|OneToOne|*:1|1:1` | Relation type; explicit value is required |
+| `@Lazy=<true|false>` / `@L=true|false` | Lazy loading; explicit value is required |
+| `@Count=<hint>` / `@C=<hint>` | Count hint; explicit value is required |
 
 Rules:
 
@@ -64,6 +65,7 @@ Rules:
 - Many-to-many is unsupported.
 - Legacy `@IdGenerator` and `@SoftDeleteColumn` are rejected.
 - `@Managed` and `@Exposed` are mutually exclusive.
+- `@GeneratedValue` may be marker-only or use `uuid7`, `snowflake-long`, `identity`, or `database-identity`.
 - Unique constraints are the source for aggregate unique helper generation; names should be stable and meaningful.
 
 ## Design JSON Surface
@@ -73,10 +75,10 @@ Supported `tag` values:
 | Tag | Generated family |
 |---|---|
 | `command` | command request/response/handler skeleton |
-| `query` | query request/response |
-| `client` | external client/cli request |
+| `query` | query contract plus query-handler generation family |
+| `client` | external client contract plus client-handler generation family |
 | `api_payload` | adapter API payload |
-| `domain_event` | domain event payload |
+| `domain_event` | domain event contract plus subscriber/handler shell planning |
 | `integration_event` | application integration event contract and inbound subscriber skeleton |
 | `validator` | validation annotation and validator |
 
@@ -86,12 +88,12 @@ Additional support:
 
 - `query` and `api_payload` support request trait `page`.
 - `domain_event` supports `persist`.
-- `domain_event` can omit package and can use reserved request field `entity`.
+- `domain_event` can omit package and reserves request field `entity`; the field is derived from `aggregates[0]`, and canonical assembly requires exactly one aggregate entry.
 - `integration_event` requires `role` (`inbound` or `outbound`) and non-blank `eventName`.
 - `integration_event` must declare at least one request field; request fields become the event payload. `responseFields` must be empty.
 - `integration_event` with `role = inbound` can generate a Spring `@EventListener` subscriber; `role = outbound` generates only the event contract.
-- `validator` supports `message`, `targets`, `valueType`, and `parameters`.
-- Manifest-file mode reads a list of design files relative to the manifest and rejects path escape/duplicates.
+- `validator` targets are limited to `CLASS`, `FIELD`, and `VALUE_PARAMETER`; value types are limited to `Any`, `String`, `Long`, `Int`, and `Boolean`, and `CLASS` requires `Any`. Parameter names cannot reuse `message`, `groups`, or `payload`, must be valid Kotlin identifiers, cannot be nullable, and parameter types are limited to `String`, `Int`, `Long`, and `Boolean`.
+- Manifest-file mode resolves design entries relative to `projectDir` and rejects blank `manifestFile`, empty manifest arrays, blank entries, duplicate entries, and entries that escape `projectDir`.
 
 Unsupported design tags today:
 
@@ -114,12 +116,12 @@ It is used with DB `@T=<TypeName>`. Duplicate type names are rejected.
 
 ## Type Registry
 
-`types.registryFile` must point to a JSON object keyed by simple type name. Each value must provide:
+`types.registryFile` must point to a JSON object keyed by non-blank simple type name. Each value must be an object and must provide:
 
 - `fqn`;
 - optional `converter`, which may be `false`, `"nested"`, or a converter FQN.
 
-The config loader rejects blank keys, dotted keys, built-in type overrides, duplicate names after normalization, duplicate fields, unsupported fields, and non-FQN values. During canonical assembly, `CanonicalEnumCatalog` uses this registry when resolving field type bindings and rejects collisions with shared enums or local enums that use the same simple name.
+The config loader rejects blank keys, dotted keys, built-in type overrides, duplicate names after trim normalization, duplicate fields, unsupported fields, and non-FQN values. During canonical assembly, `CanonicalEnumCatalog` uses this registry when resolving field type bindings and rejects collisions with shared enums or local enums that use the same simple name.
 
 ## Aggregate Outputs
 
@@ -156,6 +158,11 @@ Output ownership:
 | `GENERATED_SOURCE` | module `build/generated/cap4k/main/kotlin` | `OVERWRITE` |
 | `CHECKED_IN_SOURCE` | configured source package roots | normally `SKIP` |
 
+Task routing:
+
+- `cap4kGenerate` is the normal source-generation task for the planned source pipeline. It uses the source-task runner path and exports planned design + aggregate artifacts across output kinds.
+- `cap4kGenerateSources` is the generated-source-only path. It uses the generated-source runner path and exports only `GENERATED_SOURCE` items, currently for aggregate / aggregate-projection families.
+
 Important artifact boundaries:
 
 - Entity/schema/repository are generated source when produced by `cap4kGenerateSources`.
@@ -182,7 +189,7 @@ Design generator families:
 - `designIntegrationEvent`
 - `designIntegrationEventSubscriber`
 
-Handler skeletons are author-maintained code. If generated into active source roots, their conflict policy should preserve user edits after the first generation.
+`design-domain-event-handler` plans subscriber files for each domain event, so `domain_event` is not payload-only. Handler skeletons are author-maintained code. If generated into active source roots, their conflict policy should preserve user edits after the first generation.
 
 Integration event contracts are generated under `<basePackage>.application.subscribers.integration.<role>.<designPackage>`. Subscriber skeletons are generated only for inbound events under `<basePackage>.application.subscribers.integration` and use Spring `@EventListener`; outbound events expose the contract but do not subscribe to themselves.
 
@@ -248,7 +255,7 @@ Return to `cap4k-generation` / compile / setup when the business facts already e
 A business reference project should demonstrate:
 
 - DB annotations for enum, relation, generated ID, version, soft delete, managed fields, and uniqueness when used;
-- design JSON for command/query/client/api_payload/domain_event/integration_event/handler families;
+- design JSON for supported tags such as command/query/client/api_payload/domain_event/integration_event, with handler families appearing as outputs of those supported tags where the corresponding generators are enabled;
 - `cap4kGenerateSources` for build-owned source;
 - optional `aggregateProjection` output when the project wants generated adapter read models;
 - checked-in handlers/factories as user-maintained code;
