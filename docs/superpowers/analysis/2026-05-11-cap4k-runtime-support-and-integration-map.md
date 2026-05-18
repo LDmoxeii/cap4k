@@ -61,6 +61,52 @@ flowchart TD
     Scheduler --> Supervisor
 ```
 
+## Saga Runtime Flow
+
+`SagaSupervisor` supports:
+
+- `send`;
+- `async`;
+- `schedule`;
+- `delay`;
+- `result`.
+
+Saga execution is persisted in `__saga` and `__saga_process` when the JPA Saga module is used. The runtime is a replay/retry coordinator, not a first-class "wait for external callback and resume at this step" state machine.
+
+```mermaid
+flowchart TD
+    Caller[Command / Job / System operation] --> SagaSupervisor[SagaSupervisor]
+    SagaSupervisor --> SagaRecord[(Saga record)]
+    SagaSupervisor --> Handler[SagaHandler]
+    Handler --> Process[execProcess processCode request]
+    Process --> RequestSupervisor[RequestSupervisor]
+    RequestSupervisor --> RequestHandler[Command / Query / Request handler]
+    Process --> SagaProcess[(Saga process record)]
+    Schedule[JpaSagaScheduleService] --> SagaManager[SagaManager.resume]
+    Console[/cap4k/console/saga/retry] --> SagaManagerRetry[SagaManager.retry]
+    SagaManager --> SagaSupervisor
+    SagaManagerRetry --> SagaSupervisor
+```
+
+Runtime semantics confirmed from `DefaultSagaSupervisor` and the JPA Saga implementation:
+
+- `send` creates a saga record and executes the handler immediately.
+- `schedule` creates a saga record and schedules execution; records scheduled within the local threshold are marked executing immediately.
+- `async` is the `SagaSupervisor` default `schedule(request, LocalDateTime.now())` path and returns the saga ID.
+- `delay` is the `SagaSupervisor` default `schedule(request, LocalDateTime.now().plus(delay))` path and returns the saga ID.
+- `SagaHandler.execProcess(processCode, request)` executes a child request through `RequestSupervisor`.
+- an `EXECUTED` saga process is skipped on replay and its cached result is returned.
+- if a saga process throws, the process and saga are recorded as `EXCEPTION`; `retry` and scheduled `resume` re-enter the saga handler through `internalSend(param, saga)` and skip already executed process codes.
+- scheduled compensation scans valid sagas by `nextTryTime`, advances retry windows through `SagaManager.resume`, and reschedules execution only when the saga remains executing.
+- `/cap4k/console/saga/retry?uuid=...` calls `SagaManager.retry(uuid)` for manual/operator retry.
+
+Runtime consequences of this implementation:
+
+- retry/resume restarts the saga handler from the persisted saga param rather than resuming from a separate step pointer.
+- successful `execProcess` calls are sticky by `processCode`; later retries return the cached result instead of re-sending the child request.
+- failed `execProcess` calls persist exception state and rethrow; the next retry/resume runs the handler again.
+- whole-saga recovery is exposed through scheduled `resume` and manual `retry(uuid)`; there is no separate callback-step API in this runtime surface.
+
 ## Unit Of Work Flow
 
 ```mermaid

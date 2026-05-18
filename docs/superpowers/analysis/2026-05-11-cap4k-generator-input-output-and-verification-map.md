@@ -13,8 +13,11 @@ This file maps generator inputs, generated artifacts, and review checks for busi
 | Enum manifest | `sources.enumManifest` | Shared enum definitions referenced by DB `@Type` |
 | KSP metadata | `sources.kspMetadata` | Aggregate metadata for design-driven artifacts |
 | IR analysis | `sources.irAnalysis` | Flow and drawing-board analysis artifacts |
+| Type registry | `types.registryFile` | Simple-name type bindings and converter policy loaded into `ProjectConfig.typeRegistry` for canonical type resolution |
 
-`sources.db` and `sources.enumManifest` feed generation from external specs. `sources.designJson` makes use-case/interface intent explicit. `sources.irAnalysis` is post-code observation, not code generation input for business source.
+`buildSourceRunner` registers `db`, `enum-manifest`, `design-json`, and `ksp-metadata` as source-generation providers. `buildAnalysisRunner` registers `ir-analysis` separately for `cap4kAnalysisPlan` and `cap4kAnalysisGenerate`.
+
+`types.registryFile` is outside `sources {}` and lives under `types {}` in the DSL, but it is still part of the source-generation input contract: `Cap4kProjectConfigFactory` loads it into `ProjectConfig.typeRegistry`, `generatedSourceTaskInputFiles(...)` includes the file as a tracked generation input, and `generatedSourceTaskInputSnapshot(...)` records the resolved registry in the task input snapshot.
 
 ## DB Annotation Surface
 
@@ -109,6 +112,15 @@ It is used with DB `@T=<TypeName>`. Duplicate type names are rejected.
 
 `generateTranslation` has been removed from enum manifest. Enum translation belongs to addon generation, not core aggregate generation.
 
+## Type Registry
+
+`types.registryFile` must point to a JSON object keyed by simple type name. Each value must provide:
+
+- `fqn`;
+- optional `converter`, which may be `false`, `"nested"`, or a converter FQN.
+
+The config loader rejects blank keys, dotted keys, built-in type overrides, duplicate names after normalization, duplicate fields, unsupported fields, and non-FQN values. During canonical assembly, `CanonicalEnumCatalog` uses this registry when resolving field type bindings and rejects collisions with shared enums or local enums that use the same simple name.
+
 ## Aggregate Outputs
 
 Built-in aggregate planning covers:
@@ -174,6 +186,21 @@ Handler skeletons are author-maintained code. If generated into active source ro
 
 Integration event contracts are generated under `<basePackage>.application.subscribers.integration.<role>.<designPackage>`. Subscriber skeletons are generated only for inbound events under `<basePackage>.application.subscribers.integration` and use Spring `@EventListener`; outbound events expose the contract but do not subscribe to themselves.
 
+## Addon Outputs
+
+Artifact addons are not business-modeling sources and do not participate in `SourceProvider.collect(...)`. They are loaded separately and receive `ArtifactAddonContext(config, model, options)` after canonical assembly.
+
+Addon plan items still appear in `cap4kPlan` as normal `ArtifactPlanItem`s. In `DefaultPipelineRunner`, built-in planner items and addon planner items are merged, then reviewed through the same ownership fields:
+
+- `generatorId`;
+- `templateId`;
+- `outputPath`;
+- `outputKind`;
+- `conflictPolicy`;
+- `resolvedOutputRoot`.
+
+Conflict-policy handling is also shared: generated-source items resolve to `OVERWRITE`; checked-in items use template-level overrides when present, otherwise the emitted item policy.
+
 ## Verification Workflow
 
 Before writing files:
@@ -193,6 +220,23 @@ Snapshot rule:
 - `src-generated/main/kotlin` is not the active generator output path.
 - Active generated code lives under each module's `build/generated/cap4k/main/kotlin`.
 - Snapshot copy tasks are project-specific teaching aids and should be explicitly named as such.
+
+## Boundary Fallback
+
+The current repository implementation workflows separate missing generation inputs from missing generator-capable skeletons.
+
+Return to `cap4k-generation` when the business facts already exist but a supported generated surface is missing, including:
+
+- `*Cmd.kt`, `*Qry.kt`, `*QryHandler.kt`, `*CliHandler.kt`, client, validator, payload, domain event, integration event, or subscriber skeletons;
+- aggregate, repository, factory, specification, enum, relation, field-mapping, or unique-helper skeletons after DDL / enum / type-registry facts already exist.
+
+Return to `cap4k-modeling` when the missing piece is the fact contract generation depends on, including:
+
+- a design entry;
+- a DDL annotation or DDL contract;
+- an enum manifest entry;
+- a `types.registryFile` entry;
+- KSP metadata.
 
 ## Reference-Project Checks
 
