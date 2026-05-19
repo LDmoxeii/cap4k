@@ -17,6 +17,7 @@ If a task matches multiple rows, read `references/route-map.md` before choosing 
 
 - Use these skills for business projects built with cap4k.
 - Do not load public docs as runtime instructions unless the user asks for public documentation work.
+- Focused skills carry the shared cap4k constraints; this router only chooses the task path.
 
 ## Routes
 

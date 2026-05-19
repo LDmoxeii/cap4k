@@ -12,9 +12,11 @@ Use this after modeling and generation boundaries are clear.
 
 ## Always Read
 
-1. `rules/source-of-truth-and-skeletons.md`
-2. `rules/layering.md`
-3. `rules/mediator-and-uow.md`
+1. `../shared/rules/default-path-and-write-boundaries.md`
+2. `../shared/rules/ownership-and-generation-flow.md`
+3. `rules/source-of-truth-and-skeletons.md`
+4. `rules/layering.md`
+5. `rules/mediator-and-uow.md`
 
 ## Common Routes
 

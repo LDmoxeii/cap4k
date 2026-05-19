@@ -13,8 +13,11 @@ Use this before generating or implementing when domain boundaries, events, invar
 
 ## Always Read
 
-1. `rules/domain-language.md`
-2. `rules/tactical-modeling.md`
+1. `../shared/rules/core-positioning.md`
+2. `../shared/rules/default-path-and-write-boundaries.md`
+3. `../shared/rules/advanced-mode-gates.md`
+4. `rules/domain-language.md`
+5. `rules/tactical-modeling.md`
 
 ## Common Routes
 

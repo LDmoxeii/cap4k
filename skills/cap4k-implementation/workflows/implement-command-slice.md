@@ -19,7 +19,8 @@ Every command must treat all callers as untrusted routing hints:
 - [ ] Treat query results, listener filters, job checks, Saga state, another command, and external entry validation as insufficient for writes.
 - [ ] Return an explicit no-op result for expected non-ready or already-applied states.
 - [ ] Throw a domain/application error for missing targets, invalid identities, wrong ownership, invalid child keys, and invariant violations.
-- [ ] Persist only aggregate roots through `Mediator.uow.save(...)`.
+- [ ] Read multiple aggregates or facts only for validation or fact observation.
+- [ ] Persist exactly one aggregate root through `Mediator.uow.save(...)`.
 
 10. Call aggregate behavior to record the internal state change.
 11. Save the aggregate root through `Mediator.uow.save()`.
