@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $skillDirs = Get-ChildItem -LiteralPath 'skills' -Directory |
-  Where-Object { $_.Name -ne 'scripts' }
+  Where-Object { $_.Name -notin @('scripts', 'shared') }
 
 if ($skillDirs.Count -lt 7) {
   throw "Expected at least 7 cap4k skill directories, found $($skillDirs.Count)."
@@ -50,6 +50,60 @@ if ($brokenLinks.Count -gt 0) {
   throw "Broken local markdown links: $($brokenLinks -join ', ')"
 }
 
+$sharedRulePaths = @(
+  'skills/shared/rules/core-positioning.md',
+  'skills/shared/rules/default-path-and-write-boundaries.md',
+  'skills/shared/rules/ownership-and-generation-flow.md',
+  'skills/shared/rules/naming-layout-and-testing.md',
+  'skills/shared/rules/advanced-mode-gates.md'
+)
+
+$missingSharedRules = $sharedRulePaths |
+  Where-Object { -not (Test-Path -LiteralPath $_) }
+
+if ($missingSharedRules.Count -gt 0) {
+  throw "Missing shared cap4k skill rules: $($missingSharedRules -join ', ')"
+}
+
+$requiredSkillRefs = @{
+  'cap4k-modeling' = @(
+    '../shared/rules/core-positioning.md',
+    '../shared/rules/default-path-and-write-boundaries.md',
+    '../shared/rules/advanced-mode-gates.md'
+  )
+  'cap4k-generation' = @(
+    '../shared/rules/core-positioning.md',
+    '../shared/rules/ownership-and-generation-flow.md'
+  )
+  'cap4k-implementation' = @(
+    '../shared/rules/default-path-and-write-boundaries.md',
+    '../shared/rules/ownership-and-generation-flow.md'
+  )
+  'cap4k-service-integration' = @(
+    '../shared/rules/default-path-and-write-boundaries.md',
+    '../shared/rules/naming-layout-and-testing.md'
+  )
+  'cap4k-verification' = @(
+    '../shared/rules/default-path-and-write-boundaries.md',
+    '../shared/rules/ownership-and-generation-flow.md',
+    '../shared/rules/naming-layout-and-testing.md'
+  )
+}
+
+foreach ($skillName in $requiredSkillRefs.Keys) {
+  $skillFile = Join-Path 'skills' (Join-Path $skillName 'SKILL.md')
+  if (-not (Test-Path -LiteralPath $skillFile)) {
+    throw "Missing required focused skill SKILL.md: $skillFile"
+  }
+
+  $skillText = Get-Content -LiteralPath $skillFile -Raw
+  foreach ($requiredRef in $requiredSkillRefs[$skillName]) {
+    if ($skillText -notlike "*$requiredRef*") {
+      throw "$skillName SKILL.md is missing shared rule reference: $requiredRef"
+    }
+  }
+}
+
 $skillTextFiles = Get-ChildItem -LiteralPath 'skills' -Recurse -File |
   Where-Object { $_.Extension -in '.md', '.yaml', '.yml' }
 
@@ -64,6 +118,27 @@ $allText = $staleScanFiles |
   ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }
 
 $combined = $allText -join "`n"
+
+$sharedCoreCombined = $sharedRulePaths |
+  ForEach-Object { Get-Content -LiteralPath $_ -Raw }
+
+$sharedCoreCombined = $sharedCoreCombined -join "`n"
+
+$requiredSharedCorePatterns = @(
+  'One command path may persist only one aggregate root',
+  'zero-trust validation',
+  '`cap4kPlan` establishes `plan.json` ownership before `cap4kGenerate`',
+  'Copied generated snapshots are evidence only',
+  'Start from the conservative cap4k default path',
+  'File name plus directory should make the role inferable',
+  'domain behavior tests and application orchestration tests'
+)
+
+foreach ($pattern in $requiredSharedCorePatterns) {
+  if (-not $sharedCoreCombined.Contains($pattern)) {
+    throw "Missing required shared core wording: $pattern"
+  }
+}
 
 $forbiddenPatterns = @(
   ('No design support for `integration_' + 'event`'),
