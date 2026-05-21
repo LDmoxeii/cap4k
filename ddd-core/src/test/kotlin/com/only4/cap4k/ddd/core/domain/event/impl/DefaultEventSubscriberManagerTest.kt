@@ -491,6 +491,33 @@ class DefaultEventSubscriberManagerTest {
             assertEquals(1, exception.failures.size)
             assertEquals(FailingStringSubscriber::class.java, exception.failures.single().subscriberClass)
         }
+
+        @Test
+        @DisplayName("诊断异常失败列表自身应该不可变")
+        fun `failures list itself cannot be mutated`() {
+            // given
+            val exception = EventDispatchException(
+                String::class.java,
+                null,
+                listOf(
+                    EventSubscriberFailure(FailingStringSubscriber::class.java, IllegalStateException("failed")),
+                    EventSubscriberFailure(
+                        AnotherFailingStringSubscriber::class.java,
+                        IllegalArgumentException("also failed")
+                    )
+                )
+            )
+
+            // when & then
+            assertThrows<UnsupportedOperationException> {
+                (exception.failures as MutableList<EventSubscriberFailure>).add(
+                    EventSubscriberFailure(
+                        TestEventSubscriber1::class.java,
+                        IllegalStateException("mutated")
+                    )
+                )
+            }
+        }
     }
 
     @Nested

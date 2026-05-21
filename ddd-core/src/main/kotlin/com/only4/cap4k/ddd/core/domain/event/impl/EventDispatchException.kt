@@ -14,7 +14,8 @@ class EventDispatchException(
     buildMessage(eventPayloadClass, requireFailures(failures)),
     requireFailures(failures).first().cause,
 ) {
-    val failures: List<EventSubscriberFailure> = failures.toList()
+    val failures: List<EventSubscriberFailure> =
+        java.util.Collections.unmodifiableList(requireFailures(failures).toList())
 
     init {
         this.failures.drop(1).forEach { addSuppressed(it.cause) }
