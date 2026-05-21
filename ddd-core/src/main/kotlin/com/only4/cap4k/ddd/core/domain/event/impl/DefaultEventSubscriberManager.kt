@@ -2,9 +2,6 @@ package com.only4.cap4k.ddd.core.domain.event.impl
 
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestSupervisor
-import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
-import com.only4.cap4k.ddd.core.application.event.annotation.AutoRelease
-import com.only4.cap4k.ddd.core.application.event.annotation.AutoReleases
 import com.only4.cap4k.ddd.core.application.event.annotation.AutoRequest
 import com.only4.cap4k.ddd.core.application.event.annotation.AutoRequests
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriber
@@ -17,7 +14,6 @@ import org.springframework.context.ApplicationEventPublisher
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.OrderUtils
 import org.springframework.core.convert.converter.Converter
-import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -75,9 +71,6 @@ class DefaultEventSubscriberManager(
                 applicationEventPublisher.publishEvent(event)
             }
 
-            // 自动实现 DomainEvent -> IntegrationEvent 适配
-            processAutoReleases(subscriberMap, integrationEventClass)
-
             // 自动实现 Event -> Request 转发
             processAutoRequests(subscriberMap, integrationEventClass)
         }
@@ -105,40 +98,6 @@ class DefaultEventSubscriberManager(
             subscribeInternal(map, eventClass) { event ->
                 val requestParam = converter.convert(event) as RequestParam<*>
                 RequestSupervisor.instance.send(requestParam)
-            }
-        }
-    }
-
-    private fun processAutoReleases(
-        map: MutableMap<Class<*>, MutableList<EventSubscriber<*>>>,
-        integrationEventClass: Class<*>
-    ) {
-        val autoReleases = mutableListOf<AutoRelease>()
-
-        integrationEventClass.getAnnotation(AutoRelease::class.java)?.let { autoReleases.add(it) }
-        integrationEventClass.getAnnotation(AutoReleases::class.java)?.let {
-            autoReleases.addAll(it.value)
-        }
-
-        autoReleases.forEach { autoRelease ->
-            val converterClass = when {
-                Converter::class.java.isAssignableFrom(integrationEventClass) -> integrationEventClass
-                Converter::class.java.isAssignableFrom(autoRelease.converterClass.java) -> autoRelease.converterClass.java
-                else -> null
-            }
-
-            val converter = newConverterInstance(
-                autoRelease.sourceDomainEventClass.java,
-                integrationEventClass,
-                converterClass
-            )
-
-            subscribeInternal(map, autoRelease.sourceDomainEventClass.java) { domainEvent ->
-                val integrationEvent = converter.convert(domainEvent)!!
-                IntegrationEventSupervisor.instance.publish(
-                    integrationEvent,
-                    Duration.ofSeconds(autoRelease.delayInSeconds)
-                )
             }
         }
     }

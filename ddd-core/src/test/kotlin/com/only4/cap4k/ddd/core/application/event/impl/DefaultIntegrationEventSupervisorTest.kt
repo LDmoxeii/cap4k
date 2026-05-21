@@ -8,6 +8,8 @@ import com.only4.cap4k.ddd.core.domain.event.EventInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
+import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeContext
+import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeScopeType
 import com.only4.cap4k.ddd.core.share.DomainException
 import io.mockk.*
 import org.junit.jupiter.api.*
@@ -92,6 +94,11 @@ class DefaultIntegrationEventSupervisorTest {
         DefaultIntegrationEventSupervisor.reset()
     }
 
+    @AfterEach
+    fun tearDown() {
+        DefaultIntegrationEventSupervisor.reset()
+    }
+
     @Nested
     @DisplayName("Attach Method Tests")
     inner class AttachMethodTests {
@@ -160,6 +167,36 @@ class DefaultIntegrationEventSupervisorTest {
                 mockIntegrationEventInterceptor.onAttach(event, any())
             }
         }
+
+        @Test
+        @DisplayName("供应商附加不应该按lambda对象校验并应该在释放时求值")
+        fun `supplier attach should not validate lambda object and should evaluate on release`() {
+            val event = TestIntegrationEvent("supplier-event", "from supplier")
+            val schedule = LocalDateTime.now().plusMinutes(10)
+            var invocationCount = 0
+
+            assertDoesNotThrow {
+                supervisor.attach(schedule) {
+                    invocationCount++
+                    event
+                }
+            }
+
+            assertEquals(0, invocationCount)
+
+            supervisor.release()
+
+            assertEquals(1, invocationCount)
+            verify {
+                mockEventRecord.init(
+                    event,
+                    testServiceName,
+                    schedule,
+                    Duration.ofMinutes(1440),
+                    200
+                )
+            }
+        }
     }
 
     @Nested
@@ -204,6 +241,29 @@ class DefaultIntegrationEventSupervisorTest {
 
             verify { mockIntegrationEventInterceptor.onDetach(event1) }
             verify(exactly = 0) { mockIntegrationEventInterceptor.onDetach(event2) }
+        }
+
+        @Test
+        @DisplayName("分离事件应该只影响当前作用域")
+        fun `detach should remove only matching payload from current scope`() {
+            val outerEvent = TestIntegrationEvent("outer", "data")
+            val innerEvent = TestIntegrationEvent("inner", "data")
+            val outerScope = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+
+            supervisor.attach(outerEvent)
+            val innerScope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
+            supervisor.attach(innerEvent)
+
+            supervisor.detach(outerEvent)
+            supervisor.release()
+            EventRuntimeContext.pop(innerScope)
+            supervisor.release()
+            EventRuntimeContext.pop(outerScope)
+
+            verify(exactly = 2) { eventRecordRepository.create() }
+            verify { mockEventRecord.init(innerEvent, testServiceName, any(), Duration.ofMinutes(1440), 200) }
+            verify { mockEventRecord.init(outerEvent, testServiceName, any(), Duration.ofMinutes(1440), 200) }
+            verify(exactly = 0) { mockIntegrationEventInterceptor.onDetach(outerEvent) }
         }
     }
 
@@ -300,82 +360,37 @@ class DefaultIntegrationEventSupervisorTest {
             // Should still be called twice total - once from first release, once from second
             verify(exactly = 2) {
                 applicationEventPublisher.publishEvent(any<IntegrationEventAttachedTransactionCommittedEvent>())
-            }
-        }
-    }
-
-    @Nested
-    @DisplayName("Publish Method Tests")
-    inner class PublishMethodTests {
-
-        @Test
-        @DisplayName("应该立即发布集成事件")
-        fun `should immediately publish integration event`() {
-            val event = TestIntegrationEvent("1", "test data")
-            val schedule = LocalDateTime.now().plusMinutes(30)
-
-            supervisor.publish(event, schedule)
-
-            verify { eventRecordRepository.create() }
-            verify {
-                mockEventRecord.init(
-                    event,
-                    testServiceName,
-                    schedule,
-                    Duration.ofMinutes(1440),
-                    200
-                )
-            }
-            verify { mockEventRecord.markPersist(true) }
-            verify { mockEventInterceptor.prePersist(mockEventRecord) }
-            verify { eventRecordRepository.save(mockEventRecord) }
-            verify { mockEventInterceptor.postPersist(mockEventRecord) }
-            verify {
-                applicationEventPublisher.publishEvent(
-                    match<IntegrationEventAttachedTransactionCommittedEvent> {
-                        it.events.size == 1 && it.events.contains(mockEventRecord)
-                    }
-                )
+                }
             }
         }
 
         @Test
-        @DisplayName("发布事件应该使用默认调度时间")
-        fun `should use default schedule time when publishing`() {
-            val event = TestIntegrationEvent("1", "test data")
-            supervisor.publish(event)
-            verify {
-                mockEventRecord.init(
-                    event,
-                    testServiceName,
-                    any<LocalDateTime>(), // Accept any LocalDateTime since timing is unpredictable
-                    Duration.ofMinutes(1440),
-                    200
-                )
-            }
-        }
-
-        @Test
-        @DisplayName("发布多个事件应该分别处理")
-        fun `should handle multiple event publications separately`() {
-            val event1 = TestIntegrationEvent("1", "data1")
-            val event2 = AnotherIntegrationEvent(42)
+        @DisplayName("相等的数据类事件重复附加应该释放为两条事件记录")
+        fun `duplicate equal integration payloads should release as two event records`() {
+            val event = TestIntegrationEvent("same", "payload")
+            val duplicateEqualEvent = event.copy()
             val mockEventRecord2 = mockk<EventRecord>()
 
             every { eventRecordRepository.create() } returnsMany listOf(mockEventRecord, mockEventRecord2)
             every { mockEventRecord2.init(any(), any(), any(), any(), any()) } just Runs
             every { mockEventRecord2.markPersist(any()) } just Runs
 
-            supervisor.publish(event1)
-            supervisor.publish(event2)
+            supervisor.attach(event)
+            supervisor.attach(duplicateEqualEvent)
+            supervisor.release()
 
             verify(exactly = 2) { eventRecordRepository.create() }
+            verify { mockEventRecord.init(event, testServiceName, any(), Duration.ofMinutes(1440), 200) }
+            verify { mockEventRecord2.init(duplicateEqualEvent, testServiceName, any(), Duration.ofMinutes(1440), 200) }
             verify(exactly = 2) { eventRecordRepository.save(any()) }
-            verify(exactly = 2) {
-                applicationEventPublisher.publishEvent(any<IntegrationEventAttachedTransactionCommittedEvent>())
+            verify {
+                applicationEventPublisher.publishEvent(
+                    match<IntegrationEventAttachedTransactionCommittedEvent> {
+                        it.events.size == 2
+                    }
+                )
             }
         }
-    }
 
     @Nested
     @DisplayName("Transaction Event Listener Tests")
@@ -423,130 +438,6 @@ class DefaultIntegrationEventSupervisorTest {
 //            verify { eventPublisher.publish(mockEventRecord) }
 //            verify { eventPublisher.publish(mockEventRecord2) }
 //        }
-    }
-
-    @Nested
-    @DisplayName("Protected Method Tests")
-    inner class ProtectedMethodTests {
-
-        @Test
-        @DisplayName("popEvents应该清空并返回当前线程的事件")
-        fun `popEvents should clear and return current thread events`() {
-            val event1 = TestIntegrationEvent("1", "data1")
-            val event2 = AnotherIntegrationEvent(42)
-
-            supervisor.attach(event1)
-            supervisor.attach(event2)
-
-            // Use reflection to access protected method
-            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents")
-            popEventsMethod.isAccessible = true
-
-            @Suppress("UNCHECKED_CAST")
-            val result = popEventsMethod.invoke(supervisor) as Set<Any>
-
-            assertEquals(2, result.size)
-            assertTrue(result.contains(event1))
-            assertTrue(result.contains(event2))
-
-            // Second call should return empty set
-            @Suppress("UNCHECKED_CAST")
-            val secondResult = popEventsMethod.invoke(supervisor) as Set<Any>
-            assertTrue(secondResult.isEmpty())
-        }
-
-        @Test
-        @DisplayName("popEvents应该正确调用Function0事件供应商")
-        fun `popEvents should correctly invoke Function0 event suppliers`() {
-            val actualEvent = TestIntegrationEvent("supplier-event", "from supplier")
-            val eventSupplier: () -> TestIntegrationEvent = { actualEvent }
-
-            // Manually add supplier to thread local using reflection to simulate the supplier scenario
-            val eventPayloadsField = DefaultIntegrationEventSupervisor::class.java.getDeclaredField("TL_EVENT_PAYLOADS")
-            eventPayloadsField.isAccessible = true
-            @Suppress("UNCHECKED_CAST")
-            val threadLocal = eventPayloadsField.get(null) as ThreadLocal<MutableSet<Any>>
-
-            val eventSet = mutableSetOf<Any>()
-            eventSet.add(eventSupplier)
-            threadLocal.set(eventSet)
-
-            // Use reflection to access protected method
-            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents")
-            popEventsMethod.isAccessible = true
-
-            @Suppress("UNCHECKED_CAST")
-            val result = popEventsMethod.invoke(supervisor) as Set<Any>
-
-            assertEquals(1, result.size)
-            assertTrue(result.contains(actualEvent))
-            assertFalse(result.contains(eventSupplier))
-        }
-
-        @Test
-        @DisplayName("popEvents应该处理混合的常规事件和Function0事件")
-        fun `popEvents should handle mixed regular events and Function0 events`() {
-            val regularEvent = TestIntegrationEvent("regular", "regular event")
-            val supplierEvent = AnotherIntegrationEvent(99)
-            val eventSupplier: () -> AnotherIntegrationEvent = { supplierEvent }
-
-            // Manually set up thread local with mixed events
-            val eventPayloadsField = DefaultIntegrationEventSupervisor::class.java.getDeclaredField("TL_EVENT_PAYLOADS")
-            eventPayloadsField.isAccessible = true
-            @Suppress("UNCHECKED_CAST")
-            val threadLocal = eventPayloadsField.get(null) as ThreadLocal<MutableSet<Any>>
-
-            val eventSet = mutableSetOf<Any>()
-            eventSet.add(regularEvent)
-            eventSet.add(eventSupplier)
-            threadLocal.set(eventSet)
-
-            // Use reflection to access protected method
-            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents")
-            popEventsMethod.isAccessible = true
-
-            @Suppress("UNCHECKED_CAST")
-            val result = popEventsMethod.invoke(supervisor) as Set<Any>
-
-            assertEquals(2, result.size)
-            assertTrue(result.contains(regularEvent))
-            assertTrue(result.contains(supplierEvent))
-            assertFalse(result.contains(eventSupplier))
-        }
-
-        @Test
-        @DisplayName("getDeliverTime应该返回正确的调度时间")
-        fun `getDeliverTime should return correct schedule time`() {
-            val event = TestIntegrationEvent("1", "test data")
-            val schedule = LocalDateTime.now().plusHours(2)
-
-            supervisor.attach(event, schedule)
-
-            // Use reflection to access protected method
-            val getDeliverTimeMethod = supervisor::class.java.getDeclaredMethod("getDeliverTime", Any::class.java)
-            getDeliverTimeMethod.isAccessible = true
-
-            val result = getDeliverTimeMethod.invoke(supervisor, event) as LocalDateTime
-
-            assertEquals(schedule, result)
-        }
-
-        @Test
-        @DisplayName("getDeliverTime应该返回当前时间如果没有设置调度时间")
-        fun `getDeliverTime should return current time when no schedule time set`() {
-            val event = TestIntegrationEvent("1", "test data")
-            val beforeTime = LocalDateTime.now()
-
-            // Use reflection to access protected method
-            val getDeliverTimeMethod = supervisor::class.java.getDeclaredMethod("getDeliverTime", Any::class.java)
-            getDeliverTimeMethod.isAccessible = true
-
-            val result = getDeliverTimeMethod.invoke(supervisor, event) as LocalDateTime
-            val afterTime = LocalDateTime.now()
-
-            assertTrue(result.isAfter(beforeTime.minusSeconds(1)))
-            assertTrue(result.isBefore(afterTime.plusSeconds(1)))
-        }
     }
 
     @Nested
@@ -600,14 +491,9 @@ class DefaultIntegrationEventSupervisorTest {
                     val event1 = TestIntegrationEvent("thread1", "data1")
                     supervisor.attach(event1)
 
-                    // Use reflection to get events for current thread
-                    val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents")
-                    popEventsMethod.isAccessible = true
-
-                    @Suppress("UNCHECKED_CAST")
-                    val result = popEventsMethod.invoke(supervisor) as Set<Any>
-                    events1.addAll(result)
+                    events1.addAll(EventRuntimeContext.current().integrationAttachments.map { it.resolve() })
                 } finally {
+                    DefaultIntegrationEventSupervisor.reset()
                     latch1.countDown()
                 }
             }
@@ -618,14 +504,9 @@ class DefaultIntegrationEventSupervisorTest {
                     val event2 = AnotherIntegrationEvent(42)
                     supervisor.attach(event2)
 
-                    // Use reflection to get events for current thread
-                    val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents")
-                    popEventsMethod.isAccessible = true
-
-                    @Suppress("UNCHECKED_CAST")
-                    val result = popEventsMethod.invoke(supervisor) as Set<Any>
-                    events2.addAll(result)
+                    events2.addAll(EventRuntimeContext.current().integrationAttachments.map { it.resolve() })
                 } finally {
+                    DefaultIntegrationEventSupervisor.reset()
                     latch2.countDown()
                 }
             }
@@ -681,9 +562,10 @@ class DefaultIntegrationEventSupervisorTest {
             every { eventRecordRepository.create() } throws RuntimeException("Creation error")
 
             val event = TestIntegrationEvent("1", "test data")
+            supervisor.attach(event)
 
             assertThrows<RuntimeException> {
-                supervisor.publish(event)
+                supervisor.release()
             }
         }
     }
@@ -700,13 +582,7 @@ class DefaultIntegrationEventSupervisorTest {
 
             DefaultIntegrationEventSupervisor.reset()
 
-            // Use reflection to check if thread local is cleared
-            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents")
-            popEventsMethod.isAccessible = true
-
-            @Suppress("UNCHECKED_CAST")
-            val result = popEventsMethod.invoke(supervisor) as Set<Any>
-            assertTrue(result.isEmpty())
+            assertFalse(EventRuntimeContext.hasScope())
         }
     }
 

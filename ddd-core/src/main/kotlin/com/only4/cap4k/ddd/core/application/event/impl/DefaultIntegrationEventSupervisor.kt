@@ -8,6 +8,8 @@ import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
+import com.only4.cap4k.ddd.core.domain.event.impl.EventAttachment
+import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeContext
 import com.only4.cap4k.ddd.core.share.DomainException
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.transaction.event.TransactionalEventListener
@@ -29,9 +31,6 @@ open class DefaultIntegrationEventSupervisor(
 ) : IntegrationEventSupervisor, IntegrationEventManager {
 
     companion object {
-        private val TL_EVENT_PAYLOADS = ThreadLocal<MutableSet<Any>>()
-        private val TL_EVENT_SCHEDULE_MAP = ThreadLocal<MutableMap<Any, LocalDateTime>>()
-
         /**
          * 默认事件过期时间（分钟）
          * 一天 60*24 = 1440
@@ -45,55 +44,45 @@ open class DefaultIntegrationEventSupervisor(
 
         @JvmStatic
         fun reset() {
-            TL_EVENT_PAYLOADS.remove()
-            TL_EVENT_SCHEDULE_MAP.remove()
+            EventRuntimeContext.reset()
         }
     }
 
     override fun <EVENT : Any> attach(eventPayload: EVENT, schedule: LocalDateTime) {
-        if (!eventPayload::class.java.isAnnotationPresent(IntegrationEvent::class.java)) {
-            throw DomainException("事件类型必须为集成事件")
-        }
-
-        val eventPayloads = TL_EVENT_PAYLOADS.get() ?: mutableSetOf<Any>().also {
-            TL_EVENT_PAYLOADS.set(it)
-        }
-
-        eventPayloads.add(eventPayload)
-        putDeliverTime(eventPayload, schedule)
+        validateIntegrationEvent(eventPayload)
+        EventRuntimeContext.currentOrCreateAmbient()
+            .attachIntegration(EventAttachment.eager(eventPayload, schedule))
 
         integrationEventInterceptorManager.orderedIntegrationEventInterceptors
             .forEach { interceptor -> interceptor.onAttach(eventPayload, schedule) }
     }
 
     override fun <EVENT : Any> attach(schedule: LocalDateTime, eventPayloadSupplier: () -> EVENT) {
-        attach(eventPayload = eventPayloadSupplier, schedule = schedule)
+        EventRuntimeContext.currentOrCreateAmbient()
+            .attachIntegration(EventAttachment.lazy(schedule, eventPayloadSupplier))
     }
 
     override fun <EVENT : Any> detach(eventPayload: EVENT) {
-        val eventPayloads = TL_EVENT_PAYLOADS.get() ?: return
-        eventPayloads.remove(eventPayload)
+        val attachments = EventRuntimeContext.currentOrNull()?.integrationAttachments ?: return
+        val removed = attachments.removeAll { attachment -> attachment.matches(eventPayload) }
+        if (!removed) return
 
         integrationEventInterceptorManager.orderedIntegrationEventInterceptors
             .forEach { interceptor -> interceptor.onDetach(eventPayload) }
     }
 
     override fun release() {
-        val eventPayloads = popEvents()
+        val attachments = popEvents()
         val persistedEvents = mutableListOf<EventRecord>()
 
-        for (eventPayload in eventPayloads) {
-            val deliverTime = getDeliverTime(eventPayload)
-            val event = persistEvent(eventPayload, deliverTime)
+        for (attachment in attachments) {
+            val eventPayload = attachment.resolve()
+            validateIntegrationEvent(eventPayload)
+            val event = persistEvent(eventPayload, attachment.schedule)
             persistedEvents.add(event)
         }
 
         publishCommittedEvent(persistedEvents)
-    }
-
-    override fun <EVENT : Any> publish(eventPayload: EVENT, schedule: LocalDateTime) {
-        val event = persistEvent(eventPayload, schedule)
-        publishCommittedEvent(listOf(event))
     }
 
     private fun persistEvent(eventPayload: Any, schedule: LocalDateTime): EventRecord {
@@ -133,23 +122,16 @@ open class DefaultIntegrationEventSupervisor(
         event.events.forEach(eventPublisher::publish)
     }
 
-    protected open fun popEvents(): Set<Any> {
-        val eventPayloads = TL_EVENT_PAYLOADS.get() ?: return emptySet()
-        TL_EVENT_PAYLOADS.remove()
-        return eventPayloads.map { if (it is Function0<*>) it.invoke()!! else it }.toSet()
-    }
-
-    protected open fun putDeliverTime(eventPayload: Any, schedule: LocalDateTime) {
-        val eventScheduleMap = TL_EVENT_SCHEDULE_MAP.get() ?: run {
-            val newMap = mutableMapOf<Any, LocalDateTime>()
-            TL_EVENT_SCHEDULE_MAP.set(newMap)
-            newMap
+    private fun popEvents(): List<EventAttachment<Any>> {
+        val attachments = EventRuntimeContext.currentOrNull()?.integrationAttachments ?: return emptyList()
+        return attachments.toList().also {
+            attachments.clear()
         }
-        eventScheduleMap[eventPayload] = schedule
     }
 
-    protected open fun getDeliverTime(eventPayload: Any): LocalDateTime {
-        val eventScheduleMap = TL_EVENT_SCHEDULE_MAP.get()
-        return eventScheduleMap?.get(eventPayload) ?: LocalDateTime.now()
+    private fun validateIntegrationEvent(eventPayload: Any) {
+        if (!eventPayload::class.java.isAnnotationPresent(IntegrationEvent::class.java)) {
+            throw DomainException("事件类型必须为集成事件")
+        }
     }
 }
