@@ -3,8 +3,6 @@ package com.only4.cap4k.ddd.core.domain.event.impl
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
-import com.only4.cap4k.ddd.core.application.event.annotation.AutoRelease
-import com.only4.cap4k.ddd.core.application.event.annotation.AutoRequest
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriber
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
@@ -20,7 +18,6 @@ import org.junit.jupiter.api.assertNotNull
 import org.junit.jupiter.api.assertThrows
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.core.Ordered
-import org.springframework.core.convert.converter.Converter
 import java.time.LocalDateTime
 
 /**
@@ -291,24 +288,6 @@ class DefaultEventSubscriberManagerTest {
             assertTrue(true)
         }
 
-        @Test
-        @DisplayName("AutoRequest注解不应该在初始化或分发时自动发送请求")
-        fun `AutoRequest annotations should not send requests automatically during initialization or dispatch`() {
-            // given
-            manager = DefaultEventSubscriberManager(
-                emptyList(),
-                applicationEventPublisher,
-                scanPath
-            )
-
-            // when
-            manager.init()
-            manager.dispatch(TestAutoRequestEvent("test"))
-
-            // then
-            verify(exactly = 0) { RequestSupervisor.instance.send(any<RequestParam<*>>()) }
-            verify { applicationEventPublisher.publishEvent(TestAutoRequestEvent("test")) }
-        }
     }
 
     @Nested
@@ -635,20 +614,10 @@ class DefaultEventSubscriberManagerTest {
 
     data class TestEntity(val id: String)
 
-    @AutoRequest(targetRequestClass = TestRequest::class)
     @DomainEvent
-    data class TestAutoRequestEvent(val message: String)
+    data class TestDomainOnlyEvent(val message: String)
 
-    @AutoRelease(sourceDomainEventClass = TestDomainEvent::class, delayInSeconds = 0)
     @IntegrationEvent
-    data class TestAutoReleaseEvent(val message: String)
+    data class TestIntegrationOnlyEvent(val message: String)
 
-    data class TestRequest(val message: String) : RequestParam<String>
-
-    // 测试用的转换器
-    class TestEventConverter : Converter<TestAutoRequestEvent, TestRequest> {
-        override fun convert(source: TestAutoRequestEvent): TestRequest {
-            return TestRequest(source.message)
-        }
-    }
 }

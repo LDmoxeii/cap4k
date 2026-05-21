@@ -1,17 +1,11 @@
 package com.only4.cap4k.ddd.core.domain.repo.impl
 
-import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
-import com.only4.cap4k.ddd.core.domain.event.annotation.AutoAttach
 import com.only4.cap4k.ddd.core.domain.repo.PersistListener
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
-import com.only4.cap4k.ddd.core.share.misc.findDomainEventClasses
-import com.only4.cap4k.ddd.core.share.misc.newConverterInstance
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.OrderUtils
-import org.springframework.core.convert.converter.Converter
-import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -22,7 +16,8 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class DefaultPersistListenerManager(
     private val persistListeners: List<PersistListener<*>>,
-    private val eventClassScanPath: String
+    @Suppress("UNUSED_PARAMETER")
+    eventClassScanPath: String
 ) : PersistListenerManager {
 
     private val persistListenersMap by lazy {
@@ -50,38 +45,6 @@ class DefaultPersistListenerManager(
             )
             subscribeInternal(map, entityClass, persistListener)
         }
-
-        // 处理自动附加领域事件的注解
-        findDomainEventClasses(eventClassScanPath)
-            .filter { it.isAnnotationPresent(AutoAttach::class.java) }
-            .forEach { domainEventClass ->
-                val autoAttach = domainEventClass.getAnnotation(AutoAttach::class.java)
-
-                val converterClass = when {
-                    Converter::class.java.isAssignableFrom(domainEventClass) -> domainEventClass
-                    Converter::class.java.isAssignableFrom(autoAttach.converterClass.java) -> autoAttach.converterClass.java
-                    else -> null
-                }
-
-                val converter = newConverterInstance(
-                    autoAttach.sourceEntityClass.java,
-                    domainEventClass,
-                    converterClass
-                )
-
-                subscribeInternal(map, autoAttach.sourceEntityClass.java) { entity, type ->
-                    if (type in autoAttach.persistType) {
-                        @Suppress("UNCHECKED_CAST")
-                        val domainEvent = converter.convert(entity)!!
-                        DomainEventSupervisor.instance.attach(
-                            domainEvent,
-                            entity,
-                            Duration.ofSeconds(autoAttach.delayInSeconds.toLong())
-                        )
-                        DomainEventSupervisor.manager.release(setOf(entity))
-                    }
-                }
-            }
     }
 
     /**

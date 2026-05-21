@@ -1,11 +1,8 @@
 package com.only4.cap4k.ddd.core.domain.repo.impl
 
-import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
-import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.repo.PersistListener
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import com.only4.cap4k.ddd.core.share.misc.findDomainEventClasses
-import com.only4.cap4k.ddd.core.share.misc.newConverterInstance
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import io.mockk.*
 import org.junit.jupiter.api.*
@@ -13,23 +10,17 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
 import org.springframework.core.annotation.OrderUtils
-import org.springframework.core.convert.converter.Converter
-import java.time.Duration
 
 @DisplayName("DefaultPersistListenerManager 测试")
 class DefaultPersistListenerManagerTest {
 
     private lateinit var manager: DefaultPersistListenerManager
-    private lateinit var mockDomainEventSupervisor: DomainEventSupervisor
-    private lateinit var mockDomainEventManager: DomainEventManager
 
     @AfterEach
     fun tearDown() {
         // 清理所有Mock
         unmockkStatic(::findDomainEventClasses)
         unmockkStatic(::resolveGenericTypeClass)
-        unmockkStatic(::newConverterInstance)
-        unmockkObject(DomainEventSupervisor.Companion)
         clearAllMocks()
     }
 
@@ -38,24 +29,11 @@ class DefaultPersistListenerManagerTest {
         // 清理调用记录
         TestPersistListenerBase.callOrder.clear()
 
-        mockDomainEventSupervisor = mockk()
-        mockDomainEventManager = mockk()
-
-        // Mock静态访问
-        mockkObject(DomainEventSupervisor.Companion)
-        every { DomainEventSupervisor.instance } returns mockDomainEventSupervisor
-        every { DomainEventSupervisor.manager } returns mockDomainEventManager
-
-        every { mockDomainEventSupervisor.attach<Any, Any>(any(), any(), any<Duration>()) } just Runs
-        every { mockDomainEventManager.release(any()) } just Runs
-
         // Mock扫描方法
         mockkStatic(::findDomainEventClasses)
         every { findDomainEventClasses(any()) } returns emptySet()
 
-        // Mock转换器创建
         mockkStatic(::resolveGenericTypeClass)
-        mockkStatic(::newConverterInstance)
         every { resolveGenericTypeClass(any(), any(), any(), any()) } returns TestEntity::class.java
     }
 
@@ -98,8 +76,8 @@ class DefaultPersistListenerManagerTest {
         }
 
         @Test
-        @DisplayName("应该只初始化一次")
-        fun `should initialize only once`() {
+        @DisplayName("初始化不应该扫描领域事件类")
+        fun `initialization should not scan domain event classes`() {
             // given
             val listener = TestPersistListenerWithOrder1()
             manager = DefaultPersistListenerManager(listOf(listener), "com.test")
@@ -110,8 +88,7 @@ class DefaultPersistListenerManagerTest {
             manager.init()
 
             // then
-            // 验证lazy初始化只执行一次
-            verify(exactly = 1) { findDomainEventClasses("com.test") }
+            verify(exactly = 0) { findDomainEventClasses(any()) }
         }
     }
 
@@ -191,59 +168,6 @@ class DefaultPersistListenerManagerTest {
     }
 
     @Nested
-    @DisplayName("AutoAttach注解处理测试")
-    inner class AutoAttachTests {
-
-        @Test
-        @DisplayName("应该处理AutoAttach注解的领域事件")
-        fun `should process AutoAttach annotated domain events`() {
-            // given - 简化测试，不需要复杂的注解mock
-            every { findDomainEventClasses("com.test") } returns emptySet() // 返回空集合
-
-            manager = DefaultPersistListenerManager(emptyList(), "com.test")
-            val entity = TestEntity()
-
-            // when - 直接测试onChange不会崩溃
-            manager.onChange(entity, PersistType.CREATE)
-
-            // then - 验证没有异常抛出即可
-            verify { findDomainEventClasses("com.test") }
-        }
-
-        @Test
-        @DisplayName("应该只在匹配的持久化类型时触发AutoAttach")
-        fun `should only trigger AutoAttach for matching persist types`() {
-            // given
-            every { findDomainEventClasses("com.test") } returns emptySet()
-
-            manager = DefaultPersistListenerManager(emptyList(), "com.test")
-            val entity = TestEntity()
-
-            // when
-            manager.onChange(entity, PersistType.CREATE)
-            manager.onChange(entity, PersistType.UPDATE)
-
-            // then - 验证扫描只执行一次（lazy初始化）
-            verify(exactly = 1) { findDomainEventClasses("com.test") }
-        }
-
-        @Test
-        @DisplayName("应该使用领域事件类作为转换器当其实现了Converter接口")
-        fun `should use domain event class as converter when it implements Converter`() {
-            // given
-            every { findDomainEventClasses("com.test") } returns emptySet()
-
-            manager = DefaultPersistListenerManager(emptyList(), "com.test")
-
-            // when
-            manager.onChange(TestEntity(), PersistType.CREATE)
-
-            // then
-            verify { findDomainEventClasses("com.test") }
-        }
-    }
-
-    @Nested
     @DisplayName("Lazy初始化测试")
     inner class LazyInitializationTests {
 
@@ -260,7 +184,7 @@ class DefaultPersistListenerManagerTest {
             manager.onChange(TestEntity(), PersistType.DELETE)
 
             // then
-            verify(exactly = 1) { findDomainEventClasses("com.test") }
+            verify(exactly = 0) { findDomainEventClasses(any()) }
         }
     }
 
@@ -268,12 +192,6 @@ class DefaultPersistListenerManagerTest {
     class TestEntity
 
     class TestDomainEvent
-
-    class TestDomainEventConverter : Converter<TestEntity, TestDomainEvent> {
-        override fun convert(source: TestEntity): TestDomainEvent {
-            return TestDomainEvent()
-        }
-    }
 
     // 测试持久化监听器基类，用于记录调用顺序
     abstract class TestPersistListenerBase : PersistListener<TestEntity> {
