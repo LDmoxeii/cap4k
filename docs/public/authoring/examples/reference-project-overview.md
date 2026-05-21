@@ -50,7 +50,7 @@
    `StartMediaProcessingCmd` -> 创建 / 启动 `MediaProcessingTask` -> `MediaProcessingCli` 发起外部处理 -> 内部持有外部任务标识 -> `MediaProcessingTask` 进入处理中 -> 结果回写成功 / 失败 / 重试
 
 3. 结果回传入口线  
-   callback 主路径：外部回调 / 集成事件 -> `IntegrationEventSubscriber` 或 callback bridge -> 内部命令推进  
+   callback 主路径：外部回调 / inbound integration event -> `IntegrationEventSubscriber` 或 callback bridge -> 内部命令推进
    polling 备用路径：外部任务 ID -> 定时 job 轮询 -> 内部命令推进
 
 其中最容易被作者写丢的是 `Content -> MediaProcessingTask` 的交接缝。推荐明确按下面的责任切开：
@@ -70,9 +70,11 @@
 
 - `Content` 不直接理解外部 callback payload。
 - `Content` 不直接创建或启动 `MediaProcessingTask`。
+- `Content` 不直接承担 outbound integration event 的跨服务协议；需要对外通知时由 application 层根据领域事实 `Mediator.events.attach(...)`。
 - `MediaProcessingTask` 不直接决定内容是否发布。
 - `MediaProcessingCli` 不自己编排发布流程。
 - callback 和 polling 虽然入口不同，但进入内部后都要收敛为同一批命令语义。
+- inbound integration event 只是外部事实入口形态，不是领域事件的替身。
 
 ## 高级概念观察视角
 
@@ -90,6 +92,7 @@
 
 - 每一页各用一个不同业务例子，导致 domain 页在讲订单、application 页在讲视频、adapter 页又在讲消息网关，读者无法建立统一边界。
 - 把参考项目写成“一个大对象负责全部流程”，让 `Content` 同时承担审核、媒体处理、发布编排，失去双聚合教学价值。
+- 让 `Content` 或 `MediaProcessingTask` 直接组装跨服务集成事件协议，或者把 inbound integration event 改名成 domain event 后进入内部。
 - 在 overview 里只写 `ApproveContentCmd` 之前和 `PublishContentCmd` 之后，却不交代谁发出 `StartMediaProcessingCmd`、谁创建 `MediaProcessingTask`，让作者自己脑补交接缝。
 - 在 overview 里把 callback 和 polling 讲成并列主路径，弱化“callback 主、polling 备”的默认规则。
 - 把 `MediaProcessingCli` 当成业务真相源，在 overview 里就暗示“外部平台说完成就代表系统发布完成”。
@@ -102,6 +105,8 @@
 - 看本页是否明确固定了 `Content`、`MediaProcessingTask`、`MediaProcessingCli`、callback 主路径、polling 备用路径这五个核心元素。
 - 看本页是否明确交代了 `StartMediaProcessingCmd` 由谁发出、`MediaProcessingTask` 在哪里被创建 / 启动，以及这条交接缝为什么不留在 `Content` 内部。
 - 看本页是否把内容生命周期线、媒体处理生命周期线、结果回传入口线区分开，而不是揉成一团。
+- 看对外集成事件是否由 application 层基于领域事实 attach，聚合没有直接承担跨服务协议。
+- 看 inbound integration event 是否仍作为外部事实入口进入内部命令链，没有伪装成 domain event。
 - 看其他页面是否都能自然链接回本页，并且继续沿用同一组对象与命令名。
 - 看 callback 是否始终被描述为首选返回路径，polling 是否始终被描述为 fallback。
 - 看 overview 是否足够具体，让审阅者能据此检查 [content-draft-to-publish](content-draft-to-publish.md)、[media-processing-callback](media-processing-callback.md)、[media-processing-polling](media-processing-polling.md) 三个附录没有各讲各的项目。

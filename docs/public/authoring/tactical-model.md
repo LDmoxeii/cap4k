@@ -38,7 +38,7 @@ cap4k authoring 不以 controller、RPC endpoint、callback handler、message li
 | `Mediator.services` | `Mediator.svc` | 获取领域服务 |
 | `Mediator.uow` | 无 | 工作单元持久化、删除、保存 |
 
-`Mediator.events` 可用于领域事件和集成事件的 attach / publish。`Mediator.aggregates` 可用于聚合 supervisor 操作，但日常业务代码更常使用仓储、工厂、服务和工作单元。
+`Mediator.events` 可用于把领域事件或对外集成事件附着到当前工作单元。业务作者对外发布集成事件时使用 `Mediator.events.attach(...)`；不要在业务代码中选择 publish 路径，也不要调用低层 `IntegrationEventSupervisor` 的 publish 能力。`Mediator.aggregates` 可用于聚合 supervisor 操作，但日常业务代码更常使用仓储、工厂、服务和工作单元。
 
 ## 命令处理器
 
@@ -146,11 +146,13 @@ fun Entity.onDelete()
 
 领域事件表达领域内部已经发生的有意义事实，通常由聚合行为登记。领域事件可以同步参与当前事务，也可以异步发布；同步或异步是运行时策略，不改变它的领域事实身份。领域事件订阅器默认位于 `application.subscribers.domain`，负责后续应用层推进。
 
-集成事件表达跨边界事实，可通过 `Mediator.events.attach` 或 publish 进入 integration event supervisor，再由 HTTP、RabbitMQ、RocketMQ 等 adapter 传输。集成事件订阅器默认位于 `application.subscribers.integration`，收到会推进状态的外部事实后应转换成内部命令；纯观察类输入才进入查询，需要调用外部能力时也要经过明确的 client request 边界。
+集成事件表达跨边界事实。对外发布集成事件时，业务作者只把事件通过 `Mediator.events.attach(...)` 附着到当前工作单元；runtime 会在领域事件派发完成后 release 由 listener 附着的 integration events，再由 HTTP、RabbitMQ、RocketMQ 等 adapter 传输。业务代码不选择 publish 策略，也不直接调用 `IntegrationEventSupervisor` 的 publish 能力。集成事件订阅器默认位于 `application.subscribers.integration`，收到会推进状态的外部事实后应转换成内部命令；纯观察类输入才进入查询，需要调用外部能力时也要经过明确的 client request 边界。
 
 运行时会扫描集成事件类，并由 `EventSubscriberManager` 把消费到的事件 payload 桥接到 Spring `ApplicationEventPublisher`。因此生成的 inbound subscriber 使用 `@EventListener` 即可接收事件；如果项目需要更底层的运行时合同，也可以手写 `EventSubscriber<Event>`。
 
-不要把外部事实入口伪装成领域事件。外部输入应先作为外部事实或 adapter 输入进入系统，再由 application 层翻译成内部状态推进。对外发布集成事件时，优先从领域事实或 application process 派生，不建议由聚合根直接承担跨服务协议。
+领域事件到集成事件的默认路径是：聚合登记领域事实，领域事件订阅器或 application process 根据这个事实构造 outbound integration event，并调用 `Mediator.events.attach(...)`。聚合不直接承担跨服务协议，也不需要知道外部事件名、传输和订阅方身份。
+
+不要把外部事实入口伪装成领域事件。inbound integration event 是外部事实入口；收到会推进状态的外部事实后，先由 adapter 或 integration subscriber 翻译成内部命令，再进入 application handler 和聚合行为。对外发布集成事件时，优先从领域事实或 application process 派生。
 
 ## 不要误用
 

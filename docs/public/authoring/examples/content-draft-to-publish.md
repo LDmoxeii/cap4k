@@ -53,7 +53,11 @@ Reviewer action / internal approval
   -> ApproveContentCmd
   -> ApproveContentCommandHandler
   -> Content.approve()
-  -> emit / observe approved fact
+  -> register approved domain fact
+
+domain-event subscriber / application process
+  -> observe approved domain fact
+  -> optionally Mediator.events.attach(outbound integration event)
 
 application follow-up
   -> StartMediaProcessingCmd
@@ -74,6 +78,7 @@ Publish request
 - `CreateContentDraftCmd` 负责创建最初的 `Content` 草稿，不顺手送审。
 - `SubmitContentForReviewCmd` 只负责把草稿推进到送审状态，不顺手批准。
 - `ApproveContentCmd` 只负责登记审核通过这件事实，不顺手发布。
+- 如果审核通过事实需要对外通知，由领域事件订阅器或 application process 通过 `Mediator.events.attach(...)` 附着 outbound integration event；`Content.approve()` 不承担跨服务协议。
 - `StartMediaProcessingCmd` 由 application 层后续流程发出，不是 `Content.approve()` 内部偷偷调用出来的。
 - `StartMediaProcessingCommandHandler` 负责创建 / 启动 `MediaProcessingTask`，并通过 `MediaProcessingCli` 向外部发起处理。
 - `PublishContentCmd` 只在前置条件已满足时推进发布，不顺手修复媒体处理状态。
@@ -92,6 +97,7 @@ Publish request
 - 一个 `UpsertContentCmd` 同时兼做创建草稿、送审、批准、发布，靠分支参数决定走哪一步。
 - `ApproveContentCmd` handler 审核通过后，顺手调用 `PublishContentCmd` 逻辑，把批准和发布绑成一个主动作。
 - `Content.approve()` 内部直接 new `MediaProcessingTask`，或者直接调用 `MediaProcessingCli.start(...)` 发起外部处理。
+- `Content.approve()` 内部直接组装 outbound integration event payload，或 handler 绕过 `Mediator.events.attach(...)` 调用低层发送能力。
 - `PublishContentCmd` handler 直接加载 `MediaProcessingTask` 并修改它的状态，试图一次事务里把两个聚合都收尾。
 - 开放服务入口直接调用仓储修改 `Content.status`，绕过 `Content` 聚合行为。
 - 为了省一个命令，把“查询详情时发现媒体已完成”写成查询路径里的补写逻辑，然后顺手自动发布内容。
@@ -102,6 +108,7 @@ Publish request
 
 - 看 `CreateContentDraftCmd`、`SubmitContentForReviewCmd`、`ApproveContentCmd`、`PublishContentCmd` 是否是四个语义清楚的主动作，而不是参数分支。
 - 看 `ApproveContentCmd` 之后是否明确还有一个 `StartMediaProcessingCmd` 交接缝，而不是把媒体处理启动逻辑塞回 `Content`。
+- 看审核通过事实如需对外通知，是否由领域事件订阅器或 application process attach integration event，而不是由聚合直接承担跨服务协议。
 - 看每个 handler 是否都只推进 `Content` 一个聚合根进入写边界。
 - 看 `StartMediaProcessingCommandHandler` 是否负责创建 / 启动 `MediaProcessingTask`，而不是让 `PublishContentCmd` 或 `Content.approve()` 接管这件事。
 - 看 `PublishContentCmd` 是否只消费媒体处理的只读事实，而没有顺手回写 `MediaProcessingTask`。

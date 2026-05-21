@@ -25,6 +25,8 @@
 - 读查询契约，例如 `GetContentDetailQry`、`GetMediaProcessingProgressQry`；这类 `*Qry.kt` 通常是 request-contract surface，不是塞项目特有编排的地方。
 - 手写 command handler 或其他 application 完成面：加载一个聚合根、在写用例需要外部能力返回时调用 client、调用一个主行为、保存该聚合根，并在需要时发起后续协作。只要文件不在 recurring plan item 里，它就是更安全的作者面。
 - 用于推进后续动作的订阅器或应用层订阅逻辑，例如收到“媒体处理已完成”的内部事实后，触发下一个明确命令；如果某个 `*DomainEventSubscriber.kt` 是计划产物，就把项目特有逻辑继续下沉到你自己维护的手写 collaborator，而不是把一切都塞进生成壳里。
+- 由领域事实派生 outbound integration event 的应用层逻辑，例如领域事件订阅器或 application process 根据 `ContentApprovedDomainEvent` 构造对外事实，并通过 `Mediator.events.attach(...)` 附着到当前工作单元。
+- inbound integration event 的应用层收敛逻辑，例如收到外部媒体处理完成事实后翻译成 `CompleteMediaProcessingCmd`，而不是把外部事件伪装成内部领域事件。
 - 为发布决策准备的只读判断，例如读取“媒体已完成”的投影或查询结果，再决定是否允许 `PublishContentCmd` 继续推进 `Content`。
 
 作者在这一层最常见的写法，是把一个入口意图翻译成“加载哪个聚合、调用哪个行为、保存哪个结果、是否触发下一个内部动作”。如果你写的代码主要在做这四件事，它通常就属于应用层。
@@ -42,6 +44,8 @@
 - 让一个入口同时推进多个主动作，例如在一次 handler 中既改 `Content` 又改 `MediaProcessingTask`。
 - 用查询流程偷偷承载写逻辑，例如在 `GetContentDetailQry` 里顺手修复状态。
 - 没有明确边界理由就直接依赖 `MediaProcessingCli`，把外部系统细节散落在各个 handler 中。
+- 调用低层 `IntegrationEventSupervisor` 的 publish 能力，或在业务代码里自行选择 publish 路径。对外集成事件只通过 `Mediator.events.attach(...)` 交给当前工作单元。
+- 把 inbound integration event 当成领域事件处理，绕过外部事实入口到内部命令的转换。
 - 把“callback 是主路径、polling 是备用路径”写成两套完全不同的业务规则。它们可以有不同入口，但不能有不同的内部真相。
 - 不看 `plan.json` 就直接改 `*Cmd.kt`、`*Qry.kt`、`*QryHandler.kt`、`*CliHandler.kt`、`*DomainEventSubscriber.kt`，把计划产物误当成长久手写家。
 
@@ -71,6 +75,9 @@
     subscribers/
       domain/
         MediaProcessingCompletedDomainEventSubscriber.kt
+        ContentApprovedDomainEventSubscriber.kt
+      integration/
+        MediaProcessingCompletedIntegrationEventSubscriber.kt
 <adapter-module>/
   src/main/kotlin/.../adapter/application/
     queries/
@@ -86,7 +93,8 @@
 
 - `commands/`、`queries/` 下首先放 request-contract surface；这些文件是否可直接编辑，要先看 `plan.json`。
 - `PublishContentCommandHandler.kt`、`SyncMediaProcessingProgressCommandHandler.kt` 这种不在 recurring plan 里的手写完成文件，才是默认更稳定的 application 作者面。
-- `subscribers/` 下放事件进入 application 层后的推进点，但订阅器推进的仍然应该是明确的内部命令，不是直接改聚合；如果某个 subscriber family 已由 generator 接管，同样先看 ownership。
+- `subscribers/domain` 下放领域事实进入 application 层后的推进点。它可以发出后续内部命令，也可以根据领域事实构造 outbound integration event 并调用 `Mediator.events.attach(...)`，但不让聚合直接承担跨服务协议。
+- `subscribers/integration` 下放外部事实进入 application 层后的收敛点。会推进状态的 inbound integration event 必须转换成内部命令，不是领域事件的替身，也不是直接写聚合的入口。
 - 当前 repo 默认会把部分 query / client handler family 放进 adapter module 的 `adapter.application.*` 路径下。看到它们落在 adapter module，不代表它们就变成了 adapter 业务真相文件；它们仍然是在执行 application 层调度，只是 ownership 依旧要先确认。
 - 媒体处理 callback 和 polling 进入 application 层之后，都应该落到 `media_processing_task/` 相关命令族，而不是各自长出一套独立写模型。
 
@@ -100,6 +108,8 @@
 - 在查询 handler 中顺手补写状态，例如“查详情时发现媒体已经完成，于是直接把 `Content` 标记成可发布”。
 - handler 直接解析第三方媒体平台状态码，并把这些外部枚举到处传递，导致应用层不再稳定。
 - callback 路径走 `CompleteMediaProcessingCmd`，polling 路径却直接写另外一套“轮询成功逻辑”，造成同一事实有两套推进方式。
+- 领域事件订阅器收到内部事实后直接调用低层 supervisor，或让聚合决定跨服务 event name 和 payload。
+- integration subscriber 收到外部事件后重新包装成 `MediaProcessingCompletedDomainEvent`，让系统误以为这是内部聚合刚刚产生的领域事实。
 - 因为文件就在 `src/main/kotlin`，就直接去改 `CreateContentDraftCmd.kt`、`GetContentDetailQry.kt` 或 `GetContentDetailQryHandler.kt`，没有先核对它是不是 plan-managed artifact。
 
 这些反例通常会让项目后期越来越难审计，因为写入边界、失败边界和重试边界会一起变模糊。
@@ -117,6 +127,8 @@
 - 写 handler 是否总是通过聚合行为推进状态，而不是直接改对象内部字段。
 - 查询路径是否保持只读，`GetContentDetailQry` 与 `GetMediaProcessingProgressQry` 是否没有偷偷承载写逻辑。
 - callback 主路径和 polling 备用路径进入应用层后，是否收敛为同一组内部命令语义，而不是各写各的真相。
+- 对外集成事件是否由领域事件订阅器或 application process 通过 `Mediator.events.attach(...)` 附着，没有业务代码自行选择 publish 路径或调用低层 supervisor。
+- inbound integration event 是否仍作为外部事实入口处理，并在推进状态前转换成内部命令。
 - 使用 `MediaProcessingCli` 的地方是否有明确边界理由，而且外部协议细节没有扩散进整个应用层。
 - 在编辑 `*Cmd.kt`、`*Qry.kt`、`*CommandHandler.kt`、`*QryHandler.kt`、`*CliHandler.kt`、`*DomainEventSubscriber.kt` 之前，是否先检查了 `build/cap4k/plan.json`，区分 request-contract plan item 与作者完成面。
 - 如果某个 application family 是计划产物，项目特有编排是否已经回到作者自己维护的手写完成文件，而不是继续塞进 generator-managed shell。

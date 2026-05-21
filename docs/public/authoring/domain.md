@@ -35,6 +35,8 @@
 
 - 开放服务入口、外部事实入口、内部触发入口的推进代码，包括 callback 主路径与 polling 备用路径的入口调度。
 - `MediaProcessingCli`、第三方媒体服务 DTO、回调 payload、轮询结果等外部协议转换逻辑。
+- outbound integration event 的事件名、订阅方身份、传输协议或跨服务 payload 组装。聚合只登记领域事实，后续可由领域事件订阅器或 application process 根据该事实 attach 对外集成事件。
+- inbound integration event 的接收与翻译。外部事实进入系统后应先转成内部 command，不要伪装成领域事件塞进聚合。
 - `GetContentDetailQry`、`GetMediaProcessingProgressQry` 这类查询投影、列表组装、详情组装逻辑。
 - 一个聚合根直接修改另一个聚合根的内部状态，或在写模型中持有对方的可写强引用。
 - 把跨聚合编排偷塞进聚合行为里，例如让 `Content` 直接去驱动外部媒体处理，或让 `MediaProcessingTask` 直接决定内容是否发布。
@@ -84,6 +86,7 @@
 - `content/` 目录只放和 `Content` 生命周期直接相关的聚合、状态、事件、值对象。
 - `media_processing_task/` 目录只放和媒体处理任务生命周期直接相关的对象。
 - `events/` 下的事件文件应该表达“已经发生了什么”，而不是“接下来想做什么”。
+- `events/` 下的领域事件不是跨服务协议。需要对外通知时，由 application 层根据领域事实附着 integration event。
 - `value/` 下的对象用来收敛业务值语义，不是为了包装一切字段。
 - `factory/`、`specification/` 是否当作者维护骨架使用，要先看 `plan.json` 里的 ownership 与 `conflictPolicy`；它们不是比 `*Behavior.kt` 更优先的默认业务入口。
 
@@ -92,6 +95,8 @@
 ## 常见反例
 
 - 把外部媒体处理调用直接写进 `Content` 聚合，导致聚合一边改状态一边依赖外部系统返回。
+- 在 `Content.approve()`、`MediaProcessingTask.markCompleted()` 这类聚合行为里直接组装 outbound integration event payload，或让聚合选择对外发送策略。
+- 把 inbound integration event 当成 `*DomainEvent` 交给聚合内部处理，混淆外部事实和领域事实。
 - 因为“发布前要等媒体完成”，就让 `Content` 直接持有并修改 `MediaProcessingTask`，把两个生命周期绑成一个聚合。
 - 把查询投影结构当成写模型使用，例如为了返回详情方便，直接把详情对象塞回领域层并参与状态判断。
 - 让子实体或状态片段成为外部命令目标，例如单独暴露一个“审核步骤对象”给外部修改，而不是通过 `Content` 根行为收敛。
@@ -111,6 +116,8 @@
 
 - `Content` 与 `MediaProcessingTask` 的状态迁移是否都只能通过聚合行为方法发生，而不是外部直接改字段。
 - 领域事件是否都由聚合根统一登记，事件内容表达的是事实而不是命令意图。
+- outbound integration event 是否由领域事件订阅器或 application process 根据领域事实附着，而不是由聚合直接承担跨服务协议。
+- inbound integration event 是否先转换成内部 command，没有伪装成领域事件进入领域层。
 - 领域层文件里是否没有出现 controller、job、外部回调 DTO、轮询结果对象这类边界概念。
 - `Content` 是否仍只负责内容生命周期，`MediaProcessingTask` 是否仍只负责媒体处理生命周期，没有互相吞并。
 - callback 主路径和 polling 备用路径进入领域层之后，是否都已经收敛成同一套内部业务语义，而不是把入口差异带进聚合。
