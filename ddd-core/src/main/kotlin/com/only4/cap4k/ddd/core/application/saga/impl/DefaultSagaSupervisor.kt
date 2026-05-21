@@ -440,8 +440,8 @@ open class DefaultSagaSupervisor(
                 sagaRecord.beginSagaCompensationProcess(now, processCode)
                 sagaRecordRepository.save(sagaRecord)
                 @Suppress("UNCHECKED_CAST")
-                RequestSupervisor.instance.send(compensationRequest as RequestParam<Any>)
-                sagaRecord.endSagaCompensationProcess(now, processCode, Unit)
+                val compensationResult = RequestSupervisor.instance.send(compensationRequest as RequestParam<Any>)
+                sagaRecord.endSagaCompensationProcess(now, processCode, compensationResult)
                 sagaRecordRepository.save(sagaRecord)
             } catch (throwable: Throwable) {
                 sagaRecord.sagaCompensationProcessOccurredException(now, processCode, throwable)

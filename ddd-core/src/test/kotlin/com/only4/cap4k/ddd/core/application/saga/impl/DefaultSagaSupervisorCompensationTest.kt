@@ -40,6 +40,7 @@ class DefaultSagaSupervisorCompensationTest {
     data class CreatePlanRequest(val planName: String) : RequestParam<CreatePlanResult>
     data class CreatePlanResult(val planId: String)
     data class CancelPlanRequest(val planId: String) : RequestParam<Unit>
+    data class CancelPlanWithReceiptRequest(val planId: String) : RequestParam<String>
 
     @BeforeEach
     fun setUp() {
@@ -200,6 +201,40 @@ class DefaultSagaSupervisorCompensationTest {
             mockSagaRecordRepository.save(mockSagaRecord)
             mockRequestSupervisor.send(CancelPlanRequest("plan-9"))
             mockSagaRecord.endSagaCompensationProcess(any(), "create-plan", Unit)
+        }
+    }
+
+    @Test
+    @DisplayName("requestCompensation should pass the real compensation result to saga record")
+    fun `requestCompensation passes real compensation result to saga record`() {
+        val request = RejectPaymentSagaParam("plan-9")
+        val compensationResult = "cancelled-plan-9"
+        val handler = object : SagaHandler<RejectPaymentSagaParam, String> {
+            override fun exec(request: RejectPaymentSagaParam): String {
+                execCompensableProcess(
+                    processCode = "create-plan",
+                    request = CreatePlanRequest(request.planName),
+                    compensationCode = "cancel-plan"
+                ) { response: CreatePlanResult ->
+                    CancelPlanWithReceiptRequest(response.planId)
+                }
+                requestCompensation("PAYMENT_REJECTED", "payment declined")
+            }
+        }
+        every { mockValidator.validate(request) } returns emptySet()
+        every { mockRequestSupervisor.send(CreatePlanRequest("plan-9")) } returns CreatePlanResult("plan-9")
+        every { mockSagaRecord.getSagaProcessCompensationRequest("create-plan") } returns
+            CancelPlanWithReceiptRequest("plan-9")
+        every { mockRequestSupervisor.send(CancelPlanWithReceiptRequest("plan-9")) } returns compensationResult
+
+        val supervisor = newSupervisor(handler)
+
+        assertThrows<DomainException> {
+            supervisor.send(request)
+        }
+
+        verify {
+            mockSagaRecord.endSagaCompensationProcess(any(), "create-plan", compensationResult)
         }
     }
 
