@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.beans.factory.support.BeanDefinitionBuilder
+import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.event.EventListener
 import org.springframework.transaction.event.TransactionalEventListener
 
@@ -27,6 +29,32 @@ class Cap4kEventListenerFactoryTest {
 
         assertTrue(factory.supportsMethod(listenerMethod("regularListener")))
         assertFalse(factory.supportsMethod(listenerMethod("transactionalListener")))
+    }
+
+    @Test
+    @DisplayName("Spring 事件监听处理应该优先选择 Cap4k 工厂")
+    fun `spring event listener processing selects cap4k factory before default factory`() {
+        AnnotationConfigApplicationContext().use { context ->
+            context.registerBeanDefinition(
+                "cap4kEventListenerFactory",
+                BeanDefinitionBuilder.genericBeanDefinition(Cap4kEventListenerFactory::class.java).beanDefinition,
+            )
+            context.registerBeanDefinition(
+                "springManagedListener",
+                BeanDefinitionBuilder.genericBeanDefinition(SpringManagedFailingListener::class.java).beanDefinition,
+            )
+            context.refresh()
+
+            val exception = assertThrows<EventListenerInvocationException> {
+                context.publishEvent(TestPayload("spring"))
+            }
+
+            assertEquals("springManagedListener", exception.listenerBeanName)
+            assertEquals(SpringManagedFailingListener::class.java, exception.listenerClass)
+            assertEquals("failingListener", exception.listenerMethod.name)
+            assertEquals(TestPayload::class.java, exception.eventPayloadClass)
+            assertSame(SpringManagedFailingListener.failure, exception.cause)
+        }
     }
 
     @Test
@@ -182,6 +210,17 @@ class Cap4kEventListenerFactoryTest {
 
         companion object {
             val failure = IllegalStateException("listener failed")
+        }
+    }
+
+    private class SpringManagedFailingListener {
+        @EventListener
+        fun failingListener(event: TestPayload) {
+            throw failure
+        }
+
+        companion object {
+            val failure = IllegalStateException("spring listener failed")
         }
     }
 
