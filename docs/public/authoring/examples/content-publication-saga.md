@@ -12,9 +12,9 @@
 
 本页不是换一个业务域重新讲 Saga，而是在共享的 content-publication / media-processing 教学项目里做一次受控扩展。默认参考项目仍然是：内容送审、审核通过、启动媒体处理、外部系统通过 callback 回传结果，polling 只是备用补位路径。
 
-这里额外加入一个明确跨时间等待点：媒体处理已经完成，但内容还不能立刻发布，因为平台还要等待“版权复核结果 + 发布时间窗 + 人工发布确认”中的一个或多个条件。也就是说，`Content` 已经具备发布候选资格，`MediaProcessingTask` 也已经完成，但系统还要把“等未来事实回来再继续”这件事跨时间保存下来。
+这里加入的不是“纯等待未来事实”的 workflow，而是一个补偿导向的发布切片：内容已经通过审核，媒体处理也已经完成，但真正对外发布前，平台还要先做几件可能需要回滚的动作，例如冻结创作者 payout、创建 entitlement plan、占用付费发布资格。只要后续发布裁决被拒绝、风控拦截或 operator 明确撤销，这些已完成步骤就必须有审计化的补偿路径。
 
-这个场景的重点不是证明当前默认链路已经需要 Saga。恰好相反，当前默认发布 / 媒体处理链路本身仍然不需要 Saga；Saga 只在这个受控扩展里，用来承接“媒体已完成之后，仍有额外长等待、恢复和补偿要求”的后半段协调。
+这个场景的重点不是证明当前默认链路已经需要 Saga。恰好相反，当前默认发布 / 媒体处理链路本身仍然不需要 Saga；Saga 只在这个受控扩展里，用来承接“媒体已完成之后，仍有额外 persisted coordination、恢复和补偿要求”的后半段协调。
 
 ## Why default path is not enough
 
@@ -23,10 +23,12 @@
 但在这个受控扩展里，问题不再只是“媒体处理结果有没有回来”，而是：
 
 - callback 已经把媒体完成事实带回来了；
-- 发布还要再等一个可能晚很多小时甚至几天才出现的外部或人工事实；
-- 等待过程中要能超时、恢复、人工接管，必要时还要撤销预留状态或终止发布。
+- 发布前还要先完成几个可能需要回滚的外部动作；
+- 其中一部分补偿请求依赖前向步骤的真实结果，例如 entitlement planId、holdId；
+- 一旦发布裁决失败或人工撤销，系统要明确停止 forward path，并把已完成的可补偿步骤按逆序回滚；
+- 如果某个已完成步骤本身不可补偿，其他可补偿步骤仍然要回滚，但最终态必须进入人工修复。
 
-这时如果还硬塞回普通短命令链，文档就很难回答几个关键问题：系统此刻到底在等什么、超时后怎么恢复、版权复核失败后补偿什么、人工确认迟迟不到时谁来停止继续发布。默认链路不是错，只是它不负责表达这种跨时间等待后的恢复 / 补偿边界。
+这时如果还硬塞回普通短命令链，文档就很难回答几个关键问题：哪些已完成步骤需要 runtime 持久化补偿请求、谁来发出明确补偿信号、补偿失败后如何继续恢复、哪些失败必须转人工修复。默认链路不是错，只是它不负责表达这种 persisted compensation / recovery 边界。
 
 ## Recommended shape
 
@@ -35,36 +37,91 @@
 - `Content` 继续只负责内容生命周期事实。
 - `MediaProcessingTask` 继续只负责媒体处理生命周期事实。
 - callback 仍然是媒体结果进入系统的主路径；polling 仍然只是 fallback，用来补同一条内部命令语义，不提升成主真相路径。
-- Saga 只负责记住“发布前还在等哪些跨时间条件”，以及条件满足、超时、失败时分别发什么下一条内部命令。
+- Saga 只负责把“哪些前向步骤需要补偿、何时显式进入补偿、补偿失败后如何恢复或转人工”持久化下来。
 
-一个足够短的阶段 / 恢复草图可以是：
+一个更贴近当前 runtime 的示例代码，可以写成：
 
-```text
-ApproveContentCmd
-  -> StartMediaProcessingCmd
-  -> external processing
-  -> callback returns completed
-  -> mark MediaProcessingTask completed
-  -> PublicationReleaseSaga enters waiting-for-release-readiness
+```kotlin
+class PublishPaidContentSaga :
+    SagaHandler<PublishPaidContentSaga.Request, PublishPaidContentSaga.Response> {
 
-waiting-for-release-readiness
-  -> wait copyright recheck passed
-  -> wait release window opens
-  -> wait manual release confirmation
-  -> then issue PublishContentCmd
+    override fun handle(param: Request): Response {
+        execProcess(
+            processCode = "assert-content-ready",
+            request = AssertPaidPublicationReadyCmd.Request(param.contentId)
+        )
 
-timeout / failure
-  -> stop further publish attempt
-  -> issue internal cancel / hold command if needed
-  -> leave auditable reason for manual recovery
+        val payoutHold = execCompensableProcess(
+            processCode = "create-payout-hold",
+            request = CreateCreatorPayoutHoldCmd.Request(param.contentId, param.orderId),
+            compensationCode = "release-payout-hold",
+            compensationRequest = { hold ->
+                ReleaseCreatorPayoutHoldCmd.Request(hold.holdId)
+            }
+        )
+
+        val entitlementPlan = execCompensableProcess(
+            processCode = "create-entitlement-plan",
+            request = CreateAccessEntitlementPlanCmd.Request(param.contentId, param.orderId),
+            compensationCode = "cancel-entitlement-plan",
+            compensationRequest = { plan ->
+                CancelEntitlementPlanCmd.Request(plan.planId)
+            }
+        )
+
+        val publish = execProcess(
+            processCode = "publish-content",
+            request = PublishPaidContentCmd.Request(
+                contentId = param.contentId,
+                payoutHoldId = payoutHold.holdId,
+                entitlementPlanId = entitlementPlan.planId
+            )
+        )
+
+        if (!publish.accepted) {
+            requestCompensation(
+                code = "PUBLISH_REJECTED",
+                reason = publish.reason
+            )
+        }
+
+        return Response(
+            publicationId = publish.publicationId
+        )
+    }
+
+    data class Request(
+        val contentId: String,
+        val orderId: String
+    ) : SagaParam<Response>
+
+    data class Response(
+        val publicationId: String
+    )
+}
 ```
 
-这个草图只是在说明边界，不是在暗示教学项目已经提供某个运行时 Saga 功能或教程实现。推荐读者从中看到的应该是：
+这个例子的重点是：
 
-- Saga 从媒体处理完成之后才开始变得有意义，而不是从默认审核到 callback 整条链路一上来就接管。
-- 等待条件必须是“未来才知道”的事实，而不是当前就能同步判断的前置校验。
-- 恢复点要具体，比如超时后转人工确认、版权复核失败后终止自动发布、发布时间窗错过后改为重新排程，而不是只写一个模糊的“稍后再试”。
-- 补偿也要具体，比如撤销预占发布槽位、取消待发布标记、记录停止原因，不能把补偿偷换成“重新轮询看看”。
+- `execCompensableProcess(...)` 只用于“前向成功后，需要保留 reverse compensation 能力”的步骤。
+- 补偿请求不是在失败时临时拼出来的；runtime 会在前向成功时就把最终 compensation request 持久化。
+- `requestCompensation(...)` 是显式控制信号。它的意思不是“再试一下”，而是“forward 目标不再继续，立刻转补偿”。
+- callback 仍然只负责把媒体处理结果带回主链；Saga 没有把 callback 变成 step-level resume engine。
+
+## Manual repair boundary
+
+补偿型示例必须把人工修复边界说死：
+
+- 如果某个已完成步骤是可补偿的，Saga 仍然应该尽量把它回滚。
+- 如果某个已完成步骤本身不可补偿，或者补偿重试后仍无法完成，Saga 不应该假装“一切已经恢复正常”。
+- 这类场景下，其他可补偿步骤仍然可以继续回滚，但 Saga 终态应进入 `MANUAL_REPAIR_REQUIRED`。
+
+例如：
+
+- payout hold 已成功释放；
+- entitlement plan 已成功取消；
+- 但某个已经对外生效、没有自动 reverse API 的发行登记步骤无法补偿；
+- 那么 Saga 不是成功发布，也不是完全补偿完成，而是 `MANUAL_REPAIR_REQUIRED`，等待运营或财务做人工修复。
 
 ## Non-example / misuse
 
@@ -72,7 +129,7 @@ timeout / failure
 - 把 Saga 写成一个 application 超级 handler，审核、媒体处理、发布判断、人工确认、补偿全塞进一个大类里。
 - 明明 callback 已经是主路径，却让 polling 变成真正的发布真相源，再把 callback 降成可有可无的旁路。
 - 还没出现跨时间等待，只是想把“以后可能会复杂”的担心预埋进去，就提前把默认链路整体包装成 Saga。
-- 用一个包装器把命令链重新套壳，却没有明确等待点、恢复点、补偿点，结果只是把原本清楚的边界讲乱。
+- 用一个包装器把命令链重新套壳，却没有明确哪些步骤需要 `execCompensableProcess(...)`、何时 `requestCompensation(...)`、何时转 `MANUAL_REPAIR_REQUIRED`，结果只是把原本清楚的边界讲乱。
 
 ## Usage boundary
 
@@ -80,15 +137,17 @@ timeout / failure
 
 - 当前默认 publication / media-processing 链路仍然不需要 Saga。
 - 这页只是同一参考项目里的受控扩展示例，不是建议把默认主链改写成 Saga。
-- 只有在媒体处理已经完成之后，仍然存在跨时间等待、超时恢复、失败补偿、人工接管这些要求时，Saga 才开始合理。
+- 只有在媒体处理已经完成之后，仍然存在 persisted compensation、恢复、人工接管这些要求时，Saga 才开始合理。
 - 如果条件都已经是已知事实，或者 callback 回来后只差一两条普通内部命令，那么继续用默认命令链即可。
+- waiting-style Saga、外部 callback-step resume 不在当前公开能力切片里。
 - callback 保持主路径，polling 保持 fallback；无论是否引入 Saga，都不应该把 polling 升格成主要真相来源。
 
 ## Audit cues
 
 - 文档是否明确写出“当前默认路径 / 默认链路仍然不需要 Saga”，而不是暗示默认设计不完整。
 - 示例是否被表述成同一 reference project 的受控扩展，而不是跳到新的业务域。
-- 等待点是否具体到“版权复核 / 发布时间窗 / 人工确认”这类未来事实，而不是泛泛写“等待其他系统”。
-- 恢复点和补偿点是否可审计，例如超时转人工、停止自动发布、撤销预留状态、记录原因，而不是空泛的重试口号。
+- 补偿步骤是否具体到 payout hold、entitlement plan 这类真实已完成动作，而不是泛泛写“失败了就回滚一下”。
+- 是否给出 `execCompensableProcess(...)` + `requestCompensation(...)` 的清晰写法，而不是继续鼓励手写 `try/catch` 补偿。
+- manual repair 边界是否明确写出：可补偿步骤仍然回滚，但不可补偿项会把 Saga 推到 `MANUAL_REPAIR_REQUIRED`。
 - callback 是否仍被描述为主路径，polling 是否仍只作为 fallback 收敛到同一内部命令语义。
 - 页面是否避免把 Saga 包装器本身写成中心角色，而是始终把注意力放在等待、恢复、补偿边界上。
