@@ -102,7 +102,7 @@ class DefaultEventSubscriberManager(
         if (failures.isNotEmpty()) {
             throw EventDispatchException(
                 eventPayload.javaClass,
-                EventRuntimeContext.currentOrNull(),
+                EventDispatchException.snapshot(EventRuntimeContext.currentOrNull()),
                 failures
             )
         }

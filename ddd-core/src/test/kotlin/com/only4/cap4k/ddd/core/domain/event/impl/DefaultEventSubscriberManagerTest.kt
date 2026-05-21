@@ -436,6 +436,61 @@ class DefaultEventSubscriberManagerTest {
             assertTrue(exception.message!!.contains(String::class.java.name))
             assertTrue(exception.message!!.contains(FailingStringSubscriber::class.java.name))
         }
+
+        @Test
+        @DisplayName("诊断快照应该在作用域丢弃后保留附件计数")
+        fun `diagnostic snapshot keeps attachment counts after runtime scope is discarded`() {
+            // given
+            val scope = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+            val entity = TestEntity("entity")
+            scope.attachDomain(entity, EventAttachment.eager(TestDomainEvent("domain-1")))
+            scope.attachDomain(entity, EventAttachment.eager(TestDomainEvent("domain-2")))
+            scope.attachIntegration(EventAttachment.eager(TestIntegrationEvent("integration")))
+
+            try {
+                manager = DefaultEventSubscriberManager(
+                    emptyList(),
+                    applicationEventPublisher,
+                    scanPath
+                )
+                manager.init()
+                manager.subscribe(String::class.java, FailingStringSubscriber("failed"))
+
+                // when
+                val exception = assertThrows<EventDispatchException> {
+                    manager.dispatch("test")
+                }
+                EventRuntimeContext.discard(scope)
+
+                // then
+                assertEquals("REQUEST", exception.diagnosticContext?.scopeType)
+                assertEquals(2, exception.diagnosticContext?.domainAttachmentCount)
+                assertEquals(1, exception.diagnosticContext?.integrationAttachmentCount)
+            } finally {
+                if (EventRuntimeContext.currentOrNull() === scope) {
+                    EventRuntimeContext.pop(scope)
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("诊断异常应该防御性复制失败列表")
+        fun `failures list cannot be externally mutated when constructed from mutable list`() {
+            // given
+            val failures = mutableListOf(
+                EventSubscriberFailure(FailingStringSubscriber::class.java, IllegalStateException("failed"))
+            )
+
+            // when
+            val exception = EventDispatchException(String::class.java, null, failures)
+            failures.add(
+                EventSubscriberFailure(AnotherFailingStringSubscriber::class.java, IllegalArgumentException("later"))
+            )
+
+            // then
+            assertEquals(1, exception.failures.size)
+            assertEquals(FailingStringSubscriber::class.java, exception.failures.single().subscriberClass)
+        }
     }
 
     @Nested
@@ -550,6 +605,8 @@ class DefaultEventSubscriberManagerTest {
 
     @IntegrationEvent
     data class TestIntegrationEvent(val message: String)
+
+    data class TestEntity(val id: String)
 
     @AutoRequest(targetRequestClass = TestRequest::class)
     @DomainEvent

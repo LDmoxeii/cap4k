@@ -1,18 +1,40 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
+data class EventDispatchDiagnostic(
+    val scopeType: String,
+    val domainAttachmentCount: Int,
+    val integrationAttachmentCount: Int,
+)
+
 class EventDispatchException(
     val eventPayloadClass: Class<*>,
-    val diagnosticContext: EventRuntimeScope?,
-    val failures: List<EventSubscriberFailure>,
+    val diagnosticContext: EventDispatchDiagnostic?,
+    failures: List<EventSubscriberFailure>,
 ) : RuntimeException(
-    buildMessage(eventPayloadClass, failures),
-    failures.firstOrNull()?.cause,
+    buildMessage(eventPayloadClass, requireFailures(failures)),
+    requireFailures(failures).first().cause,
 ) {
+    val failures: List<EventSubscriberFailure> = failures.toList()
+
     init {
-        failures.drop(1).forEach { addSuppressed(it.cause) }
+        this.failures.drop(1).forEach { addSuppressed(it.cause) }
     }
 
     companion object {
+        internal fun snapshot(scope: EventRuntimeScope?): EventDispatchDiagnostic? =
+            scope?.let {
+                EventDispatchDiagnostic(
+                    scopeType = it.type.name,
+                    domainAttachmentCount = it.domainAttachments.values.sumOf { attachments -> attachments.size },
+                    integrationAttachmentCount = it.integrationAttachments.size,
+                )
+            }
+
+        private fun requireFailures(failures: List<EventSubscriberFailure>): List<EventSubscriberFailure> {
+            require(failures.isNotEmpty()) { "EventDispatchException requires at least one failure" }
+            return failures
+        }
+
         private fun buildMessage(
             eventPayloadClass: Class<*>,
             failures: List<EventSubscriberFailure>
