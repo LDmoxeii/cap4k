@@ -428,6 +428,7 @@ class SagaRecordImplTest {
             val exception = assertThrows<DomainException> {
                 reloadedRecord.getResult<Map<String, Any>>()
             }
+            assertTrue(exception.message!!.contains("Saga compensation recorded"))
             assertTrue(exception.message!!.contains("ORDER_REJECTED"))
             assertTrue(exception.message!!.contains("payment failed"))
         }

@@ -59,7 +59,7 @@ class SagaRecordImpl : SagaRecord {
         ) {
             throw DomainException(
                 buildString {
-                    append("Saga compensation in progress: ")
+                    append("Saga compensation recorded: ")
                     append("code=").append(saga.compensationRequestCode)
                     append(", reason=").append(saga.compensationRequestReason)
                 }
@@ -168,7 +168,7 @@ class SagaRecordImpl : SagaRecord {
                     .thenByDescending { it.createAt }
                     .thenByDescending { it.id ?: Long.MIN_VALUE }
             )
-            .dropWhile { it.compensationState == SagaProcess.SagaCompensationState.COMPENSATED }
+            .filterNot { it.compensationState == SagaProcess.SagaCompensationState.COMPENSATED }
         return processes.map { it.processCode }
     }
 

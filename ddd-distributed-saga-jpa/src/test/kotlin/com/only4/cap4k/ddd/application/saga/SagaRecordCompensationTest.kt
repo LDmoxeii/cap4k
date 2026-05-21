@@ -124,6 +124,42 @@ class SagaRecordCompensationTest {
     }
 
     @Test
+    fun `hydrated reverse scan skips compensated step even when interleaved between runnable steps`() {
+        val earlierReady = SagaProcess().apply {
+            id = 1L
+            processCode = "reserve-hold"
+            processState = SagaProcess.SagaProcessState.EXECUTED
+            executedAt = null
+            createAt = now.plusMinutes(2)
+            compensationCode = "release-hold"
+            compensationState = SagaProcess.SagaCompensationState.READY
+        }
+        val middleCompensated = SagaProcess().apply {
+            id = 2L
+            processCode = "create-plan"
+            processState = SagaProcess.SagaProcessState.EXECUTED
+            executedAt = null
+            createAt = now.plusMinutes(3)
+            compensationCode = "cancel-plan"
+            compensationState = SagaProcess.SagaCompensationState.COMPENSATED
+        }
+        val latestNonCompensable = SagaProcess().apply {
+            id = 3L
+            processCode = "publish-content"
+            processState = SagaProcess.SagaProcessState.EXECUTED
+            executedAt = null
+            createAt = now.plusMinutes(4)
+            compensationCode = ""
+            compensationState = SagaProcess.SagaCompensationState.NONE
+        }
+        sagaRecord.saga.sagaProcesses = mutableListOf(earlierReady, middleCompensated, latestNonCompensable)
+
+        val reloadedRecord = reloadRecord(sagaRecord)
+
+        assertEquals(listOf("publish-content", "reserve-hold"), reloadedRecord.compensationProcessCodesToRun())
+    }
+
+    @Test
     fun `archive copies compensation fields from saga and process`() {
         val saga = Saga().apply {
             id = 99L
