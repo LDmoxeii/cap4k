@@ -45,15 +45,15 @@
 class PublishPaidContentSaga :
     SagaHandler<PublishPaidContentSaga.Request, PublishPaidContentSaga.Response> {
 
-    override fun handle(param: Request): Response {
+    override fun exec(request: Request): Response {
         execProcess(
-            processCode = "assert-content-ready",
-            request = AssertPaidPublicationReadyCmd.Request(param.contentId)
+            subCode = "assert-content-ready",
+            request = AssertPaidPublicationReadyCmd.Request(request.contentId)
         )
 
         val payoutHold = execCompensableProcess(
             processCode = "create-payout-hold",
-            request = CreateCreatorPayoutHoldCmd.Request(param.contentId, param.orderId),
+            request = CreateCreatorPayoutHoldCmd.Request(request.contentId, request.orderId),
             compensationCode = "release-payout-hold",
             compensationRequest = { hold ->
                 ReleaseCreatorPayoutHoldCmd.Request(hold.holdId)
@@ -62,7 +62,7 @@ class PublishPaidContentSaga :
 
         val entitlementPlan = execCompensableProcess(
             processCode = "create-entitlement-plan",
-            request = CreateAccessEntitlementPlanCmd.Request(param.contentId, param.orderId),
+            request = CreateAccessEntitlementPlanCmd.Request(request.contentId, request.orderId),
             compensationCode = "cancel-entitlement-plan",
             compensationRequest = { plan ->
                 CancelEntitlementPlanCmd.Request(plan.planId)
@@ -70,9 +70,9 @@ class PublishPaidContentSaga :
         )
 
         val publish = execProcess(
-            processCode = "publish-content",
+            subCode = "publish-content",
             request = PublishPaidContentCmd.Request(
-                contentId = param.contentId,
+                contentId = request.contentId,
                 payoutHoldId = payoutHold.holdId,
                 entitlementPlanId = entitlementPlan.planId
             )
@@ -113,15 +113,16 @@ class PublishPaidContentSaga :
 补偿型示例必须把人工修复边界说死：
 
 - 如果某个已完成步骤是可补偿的，Saga 仍然应该尽量把它回滚。
-- 如果某个已完成步骤本身不可补偿，或者补偿重试后仍无法完成，Saga 不应该假装“一切已经恢复正常”。
-- 这类场景下，其他可补偿步骤仍然可以继续回滚，但 Saga 终态应进入 `MANUAL_REPAIR_REQUIRED`。
+- 如果某个已完成步骤本身不可补偿，Saga 不应该假装“一切已经恢复正常”。
+- 当前 runtime 已实现的自动 `MANUAL_REPAIR_REQUIRED` 路径，是补偿扫描到某个已执行步骤需要回滚，但该步骤根本没有持久化 compensation request。
+- 这类场景下，其他可补偿步骤仍然可以继续回滚；`MANUAL_REPAIR_REQUIRED` 在文档里首先是设计边界和 operator 处理面，不应被表述成“补偿重试耗尽后自动进入”的既有行为。
 
 例如：
 
 - payout hold 已成功释放；
 - entitlement plan 已成功取消；
 - 但某个已经对外生效、没有自动 reverse API 的发行登记步骤无法补偿；
-- 那么 Saga 不是成功发布，也不是完全补偿完成，而是 `MANUAL_REPAIR_REQUIRED`，等待运营或财务做人工修复。
+- 这时文档上应把它视为人工修复边界；如果该已执行步骤缺少 compensation request，当前 runtime 会把 Saga 推到 `MANUAL_REPAIR_REQUIRED`，等待运营或财务接手。
 
 ## Non-example / misuse
 
@@ -148,6 +149,6 @@ class PublishPaidContentSaga :
 - 示例是否被表述成同一 reference project 的受控扩展，而不是跳到新的业务域。
 - 补偿步骤是否具体到 payout hold、entitlement plan 这类真实已完成动作，而不是泛泛写“失败了就回滚一下”。
 - 是否给出 `execCompensableProcess(...)` + `requestCompensation(...)` 的清晰写法，而不是继续鼓励手写 `try/catch` 补偿。
-- manual repair 边界是否明确写出：可补偿步骤仍然回滚，但不可补偿项会把 Saga 推到 `MANUAL_REPAIR_REQUIRED`。
+- manual repair 边界是否明确写出：可补偿步骤仍然回滚，但不要把“补偿失败重试耗尽后自动 `MANUAL_REPAIR_REQUIRED`”写成当前已实现行为。
 - callback 是否仍被描述为主路径，polling 是否仍只作为 fallback 收敛到同一内部命令语义。
 - 页面是否避免把 Saga 包装器本身写成中心角色，而是始终把注意力放在等待、恢复、补偿边界上。

@@ -104,7 +104,7 @@ Runtime semantics confirmed from `DefaultSagaSupervisor` and the JPA Saga implem
 - an `EXECUTED` saga process is skipped on replay and its cached result is returned.
 - if a saga process throws, the process and saga are recorded as `EXCEPTION`.
 - `retry(uuid)` loads the persisted saga and re-enters execution directly through the retry path `internalSend(param, saga)`, so already executed process codes are skipped during the replayed handler run.
-- scheduled compensation scans valid sagas by `nextTryTime` and calls `SagaManager.resume`.
+- scheduled saga resume scans runnable persisted sagas by `nextTryTime` and calls `SagaManager.resume`.
 - `resume(saga, minNextTryTime)` first advances saga timing/state with `beginSaga(...)`, saves the saga, validates it, and only reschedules execution when `saga.isExecuting` is still true.
 - if the saga is no longer runnable after `resume` advances state, `resume` stops after persisting state and does not re-enter the handler.
 - `/cap4k/console/saga/retry?uuid=...` calls `SagaManager.retry(uuid)` for manual/operator retry.

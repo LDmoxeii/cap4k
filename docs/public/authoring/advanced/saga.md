@@ -25,7 +25,7 @@ Saga 是长流程 / 最终一致性协调概念，不是默认路径前排。当
 - 先把默认主链保持清楚：`Content` 仍然只管内容生命周期，`MediaProcessingTask` 仍然只管媒体处理生命周期。
 - Saga 负责协调阶段，不负责吞掉聚合边界。当前更推荐的写法是把“需要补偿的前向步骤”显式写成 `execCompensableProcess(...)`，把“业务已经知道必须停主流程并反向回滚”的信号写成 `requestCompensation(...)`。
 - callback 仍然是媒体结果进入系统的主路径；polling 仍然只是备用补位。即使引入 Saga，也不应该把 polling 反客为主。
-- 每个步骤都要能回答三件事：成功后推进什么、需要回滚时补偿什么、补偿失败时是继续自动恢复还是进入人工修复。
+- 每个步骤都要能回答三件事：成功后推进什么、需要回滚时补偿什么、哪些情况会落到人工修复边界。
 
 ## 当前 runtime 能力切片
 
@@ -35,6 +35,7 @@ Saga 是长流程 / 最终一致性协调概念，不是默认路径前排。当
 - `requestCompensation(...)` 会立即停止 forward path，并进入同一个持久化状态机里的补偿流程。
 - forward retry exhaustion 默认只会进入 exhausted / manual repair 路径，不会自动触发 compensation。是否补偿，必须来自显式业务意图或 operator 意图。
 - 调度恢复和手工恢复现在优先服务于 persisted replay：Saga 可能继续 forward replay，也可能在 `COMPENSATION_REQUESTED` / `COMPENSATING` 状态下继续 compensation replay。
+- 当前自动进入 `MANUAL_REPAIR_REQUIRED` 的已实现路径，要按“补偿扫描到已执行步骤但缺少 compensation request”来理解，而不是把它表述成“补偿重试耗尽后的统一自动终态”。
 - waiting-style Saga、外部 callback-step resume、把 Saga 当成通用等待工作流引擎，不在这次能力切片里。
 
 ## 仍然保留的教学主次关系
