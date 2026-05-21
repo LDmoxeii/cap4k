@@ -183,6 +183,19 @@ open class DefaultSagaSupervisor(
         internalSend(param, saga)
     }
 
+    override fun requestCompensation(sagaId: String, code: String, reason: String) {
+        val sagaRecord = sagaRecordRepository.getById(sagaId)
+        sagaRecord.requestCompensation(
+            now = LocalDateTime.now(),
+            code = code,
+            reason = reason,
+            requestedBy = SagaCompensationRequestedBy.OPERATOR,
+            sourceProcessCode = null
+        )
+        sagaRecordRepository.save(sagaRecord)
+        compensateNow(sagaRecord)
+    }
+
     override fun getByNextTryTime(maxNextTryTime: LocalDateTime, limit: Int): List<SagaRecord> =
         sagaRecordRepository.getByNextTryTime(svcName, maxNextTryTime, limit)
 
@@ -221,6 +234,44 @@ open class DefaultSagaSupervisor(
             sagaRecordRepository.save(sagaRecord)
             throw throwable
         }
+    }
+
+    override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any, COMPENSATION_REQUEST : RequestParam<*>> sendCompensableProcess(
+        processCode: String,
+        request: REQUEST,
+        compensationCode: String,
+        compensationRequest: (RESPONSE) -> COMPENSATION_REQUEST
+    ): RESPONSE {
+        val response = sendProcess(processCode, request)
+        val sagaRecord = SAGA_RECORD_THREAD_LOCAL.get()
+            ?: throw IllegalStateException("No SagaRecord found in thread local")
+
+        sagaRecord.registerSagaProcessCompensation(
+            processCode = processCode,
+            compensationCode = compensationCode,
+            param = compensationRequest(response)
+        )
+        sagaRecordRepository.save(sagaRecord)
+        return response
+    }
+
+    override fun requestCompensation(code: String, reason: String): Nothing {
+        val sagaRecord = SAGA_RECORD_THREAD_LOCAL.get()
+            ?: throw IllegalStateException("No SagaRecord found in thread local")
+
+        sagaRecord.requestCompensation(
+            now = LocalDateTime.now(),
+            code = code,
+            reason = reason,
+            requestedBy = SagaCompensationRequestedBy.INTERNAL,
+            sourceProcessCode = null
+        )
+        sagaRecordRepository.save(sagaRecord)
+
+        throw SagaCompensationRequestedException(
+            code = code,
+            message = "Saga compensation requested: $code - $reason"
+        )
     }
 
     /**
@@ -269,6 +320,9 @@ open class DefaultSagaSupervisor(
             sagaRecord.endSaga(LocalDateTime.now(), response)
             sagaRecordRepository.save(sagaRecord)
             response
+        } catch (throwable: SagaCompensationRequestedException) {
+            compensateNow(sagaRecord)
+            throw DomainException(throwable.message, throwable)
         } catch (throwable: Throwable) {
             // Saga执行异常
             sagaRecord.occurredException(LocalDateTime.now(), throwable)
@@ -332,5 +386,41 @@ open class DefaultSagaSupervisor(
     private fun getHandlerForRequest(requestClass: Class<*>): RequestHandler<*, *> {
         return requestHandlerMap[requestClass]
             ?: throw IllegalStateException("No handler found for request class: ${requestClass.name}")
+    }
+
+    private fun compensateNow(sagaRecord: SagaRecord) {
+        val now = LocalDateTime.now()
+        if (!sagaRecord.beginCompensation(now)) {
+            return
+        }
+        sagaRecordRepository.save(sagaRecord)
+
+        var missingCompensationRequest = false
+        for (processCode in sagaRecord.compensationProcessCodesToRun()) {
+            val compensationRequest = sagaRecord.getSagaProcessCompensationRequest(processCode)
+            if (compensationRequest == null) {
+                missingCompensationRequest = true
+                continue
+            }
+
+            try {
+                sagaRecord.beginSagaCompensationProcess(now, processCode)
+                @Suppress("UNCHECKED_CAST")
+                RequestSupervisor.instance.send(compensationRequest as RequestParam<Any>)
+                sagaRecord.endSagaCompensationProcess(now, processCode, Unit)
+                sagaRecordRepository.save(sagaRecord)
+            } catch (throwable: Throwable) {
+                sagaRecord.sagaCompensationProcessOccurredException(now, processCode, throwable)
+                sagaRecordRepository.save(sagaRecord)
+                throw throwable
+            }
+        }
+
+        if (missingCompensationRequest) {
+            sagaRecord.markManualRepairRequired(now)
+        } else {
+            sagaRecord.endCompensation(now)
+        }
+        sagaRecordRepository.save(sagaRecord)
     }
 }
