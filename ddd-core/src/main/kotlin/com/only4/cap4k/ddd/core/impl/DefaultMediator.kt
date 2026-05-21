@@ -160,10 +160,6 @@ class DefaultMediator : Mediator {
         IntegrationEventSupervisor.instance.detach(eventPayload)
     }
 
-    override fun <EVENT : Any> publish(eventPayload: EVENT, schedule: LocalDateTime) {
-        IntegrationEventSupervisor.instance.publish(eventPayload, schedule)
-    }
-
     // AggregateSupervisor methods
     override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(
         clazz: Class<AGGREGATE>,

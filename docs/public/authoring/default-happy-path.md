@@ -21,6 +21,8 @@
 | 状态变更收敛到命令处理路径 | `Must` | 开放服务入口、外部事实入口、内部触发入口都不直接改聚合 |
 | 聚合根是唯一写入主面 | `Must` | UoW 只保存聚合根，子实体和值对象通过聚合根持久化 |
 | 领域事件由聚合根统一登记和发出 | `Must` | 事件可以描述子实体变化，但归属和登记主体属于聚合根 |
+| 对外集成事件只在 application 编排点 attach | `Must` | 仅领域事件订阅器或明确的 application process 基于内部事实构造并 attach integration event；聚合、adapter 入口、普通边界代码不决定对外集成事件 |
+| inbound integration event 是外部事实入口 | `Must` | 会推进状态的外部事实先转内部命令，不伪装成领域事件 |
 | 默认禁止跨聚合写模型强引用 | `Default` | 只读弱引用属于高级模式 |
 | 多 handler 顺序不保证 | `Default` | 顺序依赖应拆成阶段化流程 |
 | 单一主动作 | `Default` | 写入口一次只推进一个命令，查入口一次只推进一个查询 |
@@ -130,6 +132,38 @@ Audit cues：
 - 多个 handler 之间是否存在隐式先后依赖
 - 顺序要求是否已经提升为新的命令、事件或阶段
 - 读模型更新失败时，是否错误影响了写模型真相判断
+
+### 对外集成事件只在 application 编排点 attach
+
+强度：`Must`
+
+Why：
+示例项目里，如果“内容审核已通过”或“媒体处理已完成”需要对外通知，默认路径不是让 `Content` 或 `MediaProcessingTask` 直接承担跨服务协议，也不是让普通边界代码决定对外集成事件。聚合先登记领域事实；仅领域事件订阅器或明确的 application process 再根据该内部事实构造 outbound integration event，并在当前工作单元调用 `Mediator.events.attach(...)`。作者只负责在当前工作单元 attach；后续由运行时按配置交给集成传输适配器处理。
+
+Non-example：
+聚合行为里直接组装跨服务 payload，adapter 入口或普通边界代码决定对外集成事件，或者绕过 `Mediator.events.attach(...)` 调用任何直接发布/低层发送 API。
+
+Audit cues：
+
+- outbound integration event 是否从领域事实或 application process 派生
+- attach 是否发生在领域事件订阅器或明确的 application process 中
+- 聚合是否没有跨服务 event name、payload schema、订阅方身份和传输协议知识
+
+### inbound integration event 是外部事实入口
+
+强度：`Must`
+
+Why：
+媒体处理平台通过消息或 callback 推回“处理已完成”时，这个事实来自系统外部。它可以推进内部状态，但必须先作为外部事实进入 adapter 或 integration subscriber，再转换成 `CompleteMediaProcessingCmd` 或 `FailMediaProcessingCmd`。它不是 `MediaProcessingTask` 聚合刚刚产生的领域事件。
+
+Non-example：
+把外部消息包装成 `MediaProcessingCompletedDomainEvent` 后交给领域订阅器，或者 integration subscriber 直接改 `MediaProcessingTask` 状态。
+
+Audit cues：
+
+- inbound integration event 是否先经过外部事实入口
+- 会推进状态的外部事实是否转换成内部命令
+- 是否没有把外部 payload、第三方状态码或消息协议带进领域事件
 
 ## 编排
 

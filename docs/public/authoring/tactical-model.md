@@ -38,7 +38,7 @@ cap4k authoring 不以 controller、RPC endpoint、callback handler、message li
 | `Mediator.services` | `Mediator.svc` | 获取领域服务 |
 | `Mediator.uow` | 无 | 工作单元持久化、删除、保存 |
 
-`Mediator.events` 可用于领域事件和集成事件的 attach / publish。`Mediator.aggregates` 可用于聚合 supervisor 操作，但日常业务代码更常使用仓储、工厂、服务和工作单元。
+`Mediator.events` 可用于把领域事件附着到当前工作单元。对外集成事件的默认作者面更窄：仅领域事件订阅器或明确的 application process 基于内部事实构造 outbound integration event，并在当前工作单元调用 `Mediator.events.attach(...)`。聚合、adapter 入口、普通边界代码不决定对外集成事件；也不要绕过 `Mediator.events.attach(...)` 调用任何直接发布/低层发送 API。`Mediator.aggregates` 可用于聚合 supervisor 操作，但日常业务代码更常使用仓储、工厂、服务和工作单元。
 
 ## 命令处理器
 
@@ -146,11 +146,13 @@ fun Entity.onDelete()
 
 领域事件表达领域内部已经发生的有意义事实，通常由聚合行为登记。领域事件可以同步参与当前事务，也可以异步发布；同步或异步是运行时策略，不改变它的领域事实身份。领域事件订阅器默认位于 `application.subscribers.domain`，负责后续应用层推进。
 
-集成事件表达跨边界事实，可通过 `Mediator.events.attach` 或 publish 进入 integration event supervisor，再由 HTTP、RabbitMQ、RocketMQ 等 adapter 传输。集成事件订阅器默认位于 `application.subscribers.integration`，收到会推进状态的外部事实后应转换成内部命令；纯观察类输入才进入查询，需要调用外部能力时也要经过明确的 client request 边界。
+集成事件表达跨边界事实。对外集成事件只在 application 编排点 attach：仅领域事件订阅器或明确的 application process 基于内部事实构造 outbound integration event，并在当前工作单元调用 `Mediator.events.attach(...)`。作者只负责在当前工作单元 attach；后续由运行时按配置交给 HTTP、RabbitMQ、RocketMQ 等集成传输适配器处理。聚合、adapter 入口、普通边界代码不决定对外集成事件，也不要绕过 `Mediator.events.attach(...)` 调用任何直接发布/低层发送 API。集成事件订阅器默认位于 `application.subscribers.integration`，收到会推进状态的外部事实后应转换成内部命令；纯观察类输入才进入查询，需要调用外部能力时也要经过明确的 client request 边界。
 
-运行时会扫描集成事件类，并由 `EventSubscriberManager` 把消费到的事件 payload 桥接到 Spring `ApplicationEventPublisher`。因此生成的 inbound subscriber 使用 `@EventListener` 即可接收事件；如果项目需要更底层的运行时合同，也可以手写 `EventSubscriber<Event>`。
+inbound integration event subscriber 是外部事实入口的一种实现。作者只需要描述外部事实契约，并在 application 收敛点把会推进状态的输入翻译成内部命令；命令处理器和聚合行为负责业务推进。事件如何进入这个收敛点、如何完成传输适配和框架装配属于运行时责任，不是 authoring 文档需要暴露的合同；不要为了接收事件补写框架层接口或桥接代码。
 
-不要把外部事实入口伪装成领域事件。外部输入应先作为外部事实或 adapter 输入进入系统，再由 application 层翻译成内部状态推进。对外发布集成事件时，优先从领域事实或 application process 派生，不建议由聚合根直接承担跨服务协议。
+领域事件到集成事件的默认路径是：聚合登记领域事实，领域事件订阅器或 application process 根据这个事实构造 outbound integration event，并调用 `Mediator.events.attach(...)`。聚合不直接承担跨服务协议，也不需要知道外部事件名、传输和订阅方身份。
+
+不要把外部事实入口伪装成领域事件。inbound integration event 是外部事实入口；收到会推进状态的外部事实后，先由 adapter 或 integration subscriber 翻译成内部命令，再进入 application handler 和聚合行为。对外发布集成事件时，优先从领域事实或 application process 派生。
 
 ## 不要误用
 

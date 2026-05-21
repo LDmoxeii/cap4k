@@ -15,3 +15,11 @@
 - Do not quietly handwrite generator-supported surfaces.
 - If a surface cannot be generated, state the reason in review notes or final notes.
 - Do not delete generated subscriber shells simply because they are empty. Implement business logic inside the generated boundary when the behavior is ready.
+
+### Event Generation Boundary
+
+- Templates and addons must not generate automatic event-to-request or event-to-release routing annotations.
+- Templates and addons must not generate outbound event payload delivery calls that bypass `Mediator.events.attach(...)`.
+- Generated outbound integration event support stops at contracts and entry skeletons; business code still attaches outbound facts from application orchestration points.
+- Generated inbound integration event skeletons receive external facts and route state advancement into internal commands.
+- `integration_event` design input is a contract and skeleton signal, not permission to generate transport/runtime publication logic in business code.

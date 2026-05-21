@@ -143,7 +143,7 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 - `query` 和 `api_payload` 支持 request trait `page`；
 - `domain_event` 支持 `persist`；
 - `domain_event` 可以省略 package；它必须恰好声明一个 aggregate，保留 request field `entity` 不允许作者显式声明，因为它会从 `aggregates[0]` 派生。缺失或空 aggregate 都属于不完整 modeling input；
-- `integration_event` 支持 `role`（`inbound` / `outbound`）和 `eventName`，必须至少声明一个 `requestFields` 字段，且 `responseFields` 必须为空；`inbound` 可生成 `@EventListener` subscriber 骨架，`outbound` 只生成事件契约；
+- `integration_event` 支持 `role`（`inbound` / `outbound`）和 `eventName`，必须至少声明一个 `requestFields` 字段，且 `responseFields` 必须为空；`inbound` 可生成把外部事实转内部命令的 subscriber 骨架，`outbound` 只生成事件契约；
 - `validator` 的 `targets` 只支持 `CLASS` / `FIELD` / `VALUE_PARAMETER`，`valueType` 只支持 `Any` / `String` / `Long` / `Int` / `Boolean`；`CLASS` target 只能配 `Any`。`parameters` 名称不能是 `message` / `groups` / `payload`，必须是合法 Kotlin 标识符、不可空、不可重复，类型只支持 `String` / `Int` / `Long` / `Boolean`，并且不能 nullable；
 - manifest-file 模式把 manifest 中的 design 文件 entry 解析为相对 `projectDir` 的路径，并拒绝空白 `manifestFile`、空 manifest、空白 entry、重复 entry，以及逃出 `projectDir` 的路径。
 

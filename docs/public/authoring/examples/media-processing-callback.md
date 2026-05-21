@@ -26,7 +26,7 @@
 从层归位上看，这个例子同时说明三件事：
 
 - `MediaProcessingCli` 负责外部能力端口，不负责决定内部状态机。
-- 外部事实入口负责把外部处理结果接进来；callback controller、event bridge、`IntegrationEventSubscriber` 都只是实现形态。
+- 外部事实入口负责把外部处理结果接进来；callback controller、event bridge、`IntegrationEventSubscriber` 都只是实现形态。inbound integration event 仍然是外部事实，不是 domain event 的别名。
 - 进入内部后，真正推进状态的仍然是 application 命令链和 `MediaProcessingTask` 聚合行为。
 
 ## Recommended shape
@@ -60,7 +60,7 @@ external callback / integration event
 - `MediaProcessingCli`：发起外部任务，请求 / 响应协议转换，错误统一。
 - `StartMediaProcessingCommandHandler`：创建 / 启动 `MediaProcessingTask`，记录外部任务标识，再把任务推进到处理中。
 - callback controller 或 integration listener：接收外部 payload，不直接写聚合。
-- `IntegrationEventSubscriber`：把外部回调事实翻译成内部事件推进点或内部命令调度点。
+- `IntegrationEventSubscriber`：把外部回调事实翻译成内部命令调度点；不要把外部事实包装成领域事件。
 - `CompleteMediaProcessingCmd`、`FailMediaProcessingCmd`：收敛为系统内部能稳定理解的命令语义。
 - `MediaProcessingTask`：只理解“已完成”“已失败”“可重试”这类内部事实，不理解外部 callback DTO 细节。
 
@@ -73,6 +73,7 @@ external callback / integration event
 - `MediaProcessingCli` 在发起请求时顺手注册“完成后自动发布内容”的业务流程，把边界实现写成流程编排器。
 - callback 路径走一套 `CompleteMediaProcessingCmd`，事件总线路径又另外造一套“媒体成功同步逻辑”，没有统一命令语义。
 - `IntegrationEventSubscriber` 直接识别第三方状态码并分发给多个聚合，导致外部协议扩散进内部。
+- `IntegrationEventSubscriber` 把外部消息包装成 `MediaProcessingCompletedDomainEvent`，让领域订阅器误以为这是内部聚合产生的领域事实。
 - callback 成功返回后，入口层顺手发布 `Content`，把媒体处理结果回传和内容发布合并成一次外部入口动作。
 
 这些错法本质上都在削弱“callback 只是入口，内部命令链才是写真相入口”这条边界。
@@ -82,6 +83,7 @@ external callback / integration event
 - 看 `MediaProcessingCli` 是否只负责对外调用和协议转换，没有自己改内部流程状态。
 - 看 `ApproveContentCmd -> StartMediaProcessingCmd -> StartMediaProcessingCommandHandler` 这条交接缝是否清楚存在，而不是由 `Content` 直接吞掉媒体任务创建。
 - 看 callback / integration-event 入口之后，是否先经过 `IntegrationEventSubscriber` 或等价收敛点，再进入内部命令。
+- 看 inbound integration event 是否仍按外部事实入口处理，没有伪装成 domain event。
 - 看 `CompleteMediaProcessingCmd`、`FailMediaProcessingCmd` 是否成为 callback 主路径和其他回推入口的统一内部语义。
 - 看 `MediaProcessingTask` 是否只接收内部化后的完成 / 失败事实，而不识别外部 payload 结构。
 - 看团队文档和实现是否始终把 callback 描述为首选返回路径；polling 只应在 [polling 备用路径示例](media-processing-polling.md) 中作为 fallback 出现。
