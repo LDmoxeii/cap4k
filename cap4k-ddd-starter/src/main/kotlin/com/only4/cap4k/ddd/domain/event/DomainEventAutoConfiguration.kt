@@ -5,6 +5,7 @@ import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorMan
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.*
+import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventListenerFactory
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultDomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultEventSubscriberManager
@@ -74,6 +75,9 @@ class DomainEventAutoConfiguration {
     @Bean
     fun domainEventUnitOfWorkInterceptor(domainEventManager: DomainEventManager): DomainEventUnitOfWorkInterceptor =
         DomainEventUnitOfWorkInterceptor(domainEventManager)
+
+    @Bean
+    fun cap4kEventListenerFactory(): Cap4kEventListenerFactory = Cap4kEventListenerFactory()
 
     @Bean
     @ConditionalOnMissingBean(EventRecordRepository::class)
