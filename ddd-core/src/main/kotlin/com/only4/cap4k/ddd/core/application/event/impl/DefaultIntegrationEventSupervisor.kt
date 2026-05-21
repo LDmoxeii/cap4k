@@ -8,6 +8,7 @@ import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
+import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
 import com.only4.cap4k.ddd.core.domain.event.impl.EventAttachment
 import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeContext
 import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeScopeType
@@ -45,7 +46,7 @@ open class DefaultIntegrationEventSupervisor(
 
         @JvmStatic
         fun reset() {
-            EventRuntimeContext.reset()
+            EventRuntimeContextManager.reset()
         }
     }
 

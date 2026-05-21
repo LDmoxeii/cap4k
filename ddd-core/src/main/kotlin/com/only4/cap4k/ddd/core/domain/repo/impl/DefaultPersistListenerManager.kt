@@ -15,9 +15,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @date 2025/07/26
  */
 class DefaultPersistListenerManager(
-    private val persistListeners: List<PersistListener<*>>,
-    @Suppress("UNUSED_PARAMETER")
-    eventClassScanPath: String
+    private val persistListeners: List<PersistListener<*>>
 ) : PersistListenerManager {
 
     private val persistListenersMap by lazy {

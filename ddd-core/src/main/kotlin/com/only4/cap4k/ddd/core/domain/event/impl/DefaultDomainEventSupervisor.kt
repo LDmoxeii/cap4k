@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.core.domain.event.impl
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
 import com.only4.cap4k.ddd.core.domain.event.*
+import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.misc.findMethod
@@ -42,7 +43,7 @@ open class DefaultDomainEventSupervisor(
          */
         @JvmStatic
         fun reset() {
-            EventRuntimeContext.reset()
+            EventRuntimeContextManager.reset()
         }
     }
 

@@ -53,10 +53,7 @@ class DefaultPersistListenerManagerTest {
             // 清理之前的调用记录
             TestPersistListenerBase.callOrder.clear()
 
-            manager = DefaultPersistListenerManager(
-                listOf(listener1, listener2, listener3),
-                "com.test"
-            )
+            manager = DefaultPersistListenerManager(listOf(listener1, listener2, listener3))
 
             val entity = TestEntity()
 
@@ -75,7 +72,7 @@ class DefaultPersistListenerManagerTest {
         fun `initialization should not scan domain event classes`() {
             // given
             val listener = TestPersistListenerWithOrder1()
-            manager = DefaultPersistListenerManager(listOf(listener), "com.test")
+            manager = DefaultPersistListenerManager(listOf(listener))
 
             // when
             manager.init()
@@ -98,10 +95,7 @@ class DefaultPersistListenerManagerTest {
             val listener1 = TestPersistListenerWithOrder1()
             val listener2 = TestPersistListenerWithOrder2()
 
-            manager = DefaultPersistListenerManager(
-                listOf(listener1, listener2),
-                "com.test"
-            )
+            manager = DefaultPersistListenerManager(listOf(listener1, listener2))
 
             // when
             manager.onChange(TestEntity(), PersistType.CREATE)
@@ -123,10 +117,7 @@ class DefaultPersistListenerManagerTest {
                 }
             }
 
-            manager = DefaultPersistListenerManager(
-                listOf(concreteListener, genericListener),
-                "com.test"
-            )
+            manager = DefaultPersistListenerManager(listOf(concreteListener, genericListener))
 
             // when - TestEntity hits both the concrete listener and the Any/Object fallback.
             manager.onChange(TestEntity(), PersistType.CREATE)
@@ -156,7 +147,7 @@ class DefaultPersistListenerManagerTest {
                 }
             }
 
-            manager = DefaultPersistListenerManager(listOf(faultyListener), "com.test")
+            manager = DefaultPersistListenerManager(listOf(faultyListener))
 
             // when
             manager.onChange(TestEntity(), PersistType.CREATE)
@@ -175,7 +166,7 @@ class DefaultPersistListenerManagerTest {
         fun `multiple onChange calls should initialize only once`() {
             // given
             val listener = TestPersistListenerWithOrder1()
-            manager = DefaultPersistListenerManager(listOf(listener), "com.test")
+            manager = DefaultPersistListenerManager(listOf(listener))
 
             // when
             manager.onChange(TestEntity(), PersistType.CREATE)

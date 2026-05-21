@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
+import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -67,13 +68,17 @@ class EventRuntimeContextTest {
         fun `reset clears every scope`() {
             val outer = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
             outer.attachIntegration(EventAttachment.eager(TestIntegrationEvent("outer")))
+            outer.attachDomain(EqualEntity("outer"), EventAttachment.eager(TestDomainEvent("outer")))
             val inner = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
             inner.attachIntegration(EventAttachment.eager(TestIntegrationEvent("inner")))
+            inner.attachDomain(EqualEntity("inner"), EventAttachment.eager(TestDomainEvent("inner")))
 
-            EventRuntimeContext.reset()
+            EventRuntimeContextManager.reset()
 
             assertTrue(outer.integrationAttachments.isEmpty())
+            assertTrue(outer.domainAttachments.isEmpty())
             assertTrue(inner.integrationAttachments.isEmpty())
+            assertTrue(inner.domainAttachments.isEmpty())
             assertFalse(EventRuntimeContext.hasScope())
             assertNull(EventRuntimeContext.currentOrNull())
         }
