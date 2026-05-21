@@ -3,7 +3,6 @@ package com.only4.cap4k.ddd.core.domain.repo.impl
 import com.only4.cap4k.ddd.core.domain.repo.PersistListener
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import com.only4.cap4k.ddd.core.share.misc.findDomainEventClasses
-import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import io.mockk.*
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -20,7 +19,6 @@ class DefaultPersistListenerManagerTest {
     fun tearDown() {
         // 清理所有Mock
         unmockkStatic(::findDomainEventClasses)
-        unmockkStatic(::resolveGenericTypeClass)
         clearAllMocks()
     }
 
@@ -32,9 +30,6 @@ class DefaultPersistListenerManagerTest {
         // Mock扫描方法
         mockkStatic(::findDomainEventClasses)
         every { findDomainEventClasses(any()) } returns emptySet()
-
-        mockkStatic(::resolveGenericTypeClass)
-        every { resolveGenericTypeClass(any(), any(), any(), any()) } returns TestEntity::class.java
     }
 
     @Nested
@@ -119,24 +114,30 @@ class DefaultPersistListenerManagerTest {
         @Test
         @DisplayName("应该调用Any类型的通用监听器")
         fun `should call Object type generic listeners`() {
-            // given - 创建一个Any类型的监听器
+            // given - 混合具体实体监听器和Any监听器，Any会注册到JVM Object/Any类型
+            val concreteListener = TestPersistListenerWithOrder1()
+            val genericCalls = mutableListOf<Class<*>>()
             val genericListener = object : PersistListener<Any> {
-                var called = false
                 override fun onChange(aggregate: Any, type: PersistType) {
-                    called = true
+                    genericCalls.add(aggregate.javaClass)
                 }
             }
 
             manager = DefaultPersistListenerManager(
-                listOf(genericListener),
+                listOf(concreteListener, genericListener),
                 "com.test"
             )
 
-            // when
+            // when - TestEntity hits both the concrete listener and the Any/Object fallback.
             manager.onChange(TestEntity(), PersistType.CREATE)
+            manager.onChange(OtherEntity(), PersistType.UPDATE)
 
             // then
-            assertEquals(true, genericListener.called)
+            assertEquals(listOf(1), TestPersistListenerBase.callOrder)
+            assertEquals(
+                listOf(TestEntity::class.java, OtherEntity::class.java),
+                genericCalls
+            )
         }
 
         @Test
@@ -154,8 +155,6 @@ class DefaultPersistListenerManagerTest {
                     exceptionCalled = true
                 }
             }
-
-            every { resolveGenericTypeClass(faultyListener, 0, any(), any()) } returns Object::class.java
 
             manager = DefaultPersistListenerManager(listOf(faultyListener), "com.test")
 
@@ -191,10 +190,12 @@ class DefaultPersistListenerManagerTest {
     // 测试用的类
     class TestEntity
 
+    class OtherEntity
+
     class TestDomainEvent
 
     // 测试持久化监听器基类，用于记录调用顺序
-    abstract class TestPersistListenerBase : PersistListener<TestEntity> {
+    abstract class TestPersistListenerBase {
         companion object {
             @JvmStatic
             val callOrder = mutableListOf<Int>()
@@ -202,24 +203,36 @@ class DefaultPersistListenerManagerTest {
 
         abstract val orderValue: Int
 
-        override fun onChange(aggregate: TestEntity, type: PersistType) {
+        fun recordCall() {
             callOrder.add(orderValue)
         }
     }
 
     // 使用@Order注解的测试监听器
     @Order(1)
-    class TestPersistListenerWithOrder1 : TestPersistListenerBase() {
+    class TestPersistListenerWithOrder1 : TestPersistListenerBase(), PersistListener<TestEntity> {
         override val orderValue = 1
+
+        override fun onChange(aggregate: TestEntity, type: PersistType) {
+            recordCall()
+        }
     }
 
     @Order(2)
-    class TestPersistListenerWithOrder2 : TestPersistListenerBase() {
+    class TestPersistListenerWithOrder2 : TestPersistListenerBase(), PersistListener<TestEntity> {
         override val orderValue = 2
+
+        override fun onChange(aggregate: TestEntity, type: PersistType) {
+            recordCall()
+        }
     }
 
     @Order(3)
-    class TestPersistListenerWithOrder3 : TestPersistListenerBase() {
+    class TestPersistListenerWithOrder3 : TestPersistListenerBase(), PersistListener<TestEntity> {
         override val orderValue = 3
+
+        override fun onChange(aggregate: TestEntity, type: PersistType) {
+            recordCall()
+        }
     }
 }
