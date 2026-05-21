@@ -196,14 +196,16 @@ Attachment boundaries:
 
 - domain event attachments are keyed by aggregate/entity identity and are released when the UoW/domain event supervisor releases events for persisted entities;
 - integration event attachments are accumulated in the current event runtime scope and released through the integration event manager;
-- when a domain event is dispatched, listener-attached integration events are released immediately after listener dispatch finishes, before the domain dispatch scope is popped;
+- when a persisted domain event dispatch succeeds, listener-attached integration events are released before the source domain event is marked delivered and before domain delivery is ended;
+- when listener dispatch fails or integration event release fails, integration events derived from that listener scope are discarded rather than released, and the persisted domain event remains undelivered and retryable;
 - when an ambient scope completes with no remaining attachments, the runtime pops it; failures discard attachments from the failed scope instead of leaking them.
 
 Diagnostics:
 
-- event dispatch failures carry a snapshot of scope type, domain attachment count, integration attachment count, and current listener metadata;
-- Spring listener invocation failures include listener bean, class, method, payload class, and the same scope snapshot;
-- request dispatch failures created inside event handling preserve listener metadata on the nested request scope, so a failing command/query can still point back to the event listener that sent it;
+- programmatic `EventSubscriber` dispatch collects multi-listener failures instead of stopping at the first listener, and each diagnostic entry carries event payload, listener metadata, and cause;
+- Spring `@EventListener` invocation is wrapped by the cap4k adapter, so invocation diagnostics include listener bean, class, method, payload, cause, and the same scope snapshot;
+- request dispatch diagnostics include request param, handler, and cause; when the request is sent from an event listener, the nested request scope also preserves listener metadata so the failing command/query can still point back to the listener that sent it;
+- diagnostics report failures without swallowing them, so event-level delivery and retry semantics remain controlled by the domain event dispatch result;
 - listener return-value publication is rejected by the diagnostics adapter because cap4k does not support Spring's return-value event publication path.
 
 Shared runtime reset:
