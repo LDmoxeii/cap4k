@@ -33,7 +33,7 @@ Saga 是长流程 / 最终一致性协调概念，不是默认路径前排。当
 - `execCompensableProcess(...)` 会在前向步骤成功后，立刻根据前向结果构造并持久化最终补偿请求，而不是等到将来补偿时再临时推导。
 - 业务代码在确认主流程不能继续时，用 `requestCompensation(code, reason)` 显式进入补偿；这是一个 Saga 控制信号，不是“抛个异常让框架猜”。
 - `requestCompensation(...)` 会立即停止 forward path，并进入同一个持久化状态机里的补偿流程。
-- forward retry exhaustion 默认只会进入 exhausted / manual repair 路径，不会自动触发 compensation。是否补偿，必须来自显式业务意图或 operator 意图。
+- forward retry exhaustion 默认进入 `EXHAUSTED`，不会自动触发 compensation。是否补偿，必须来自显式业务意图或 operator 意图。
 - 调度恢复和手工恢复现在优先服务于 persisted replay：Saga 可能继续 forward replay，也可能在 `COMPENSATION_REQUESTED` / `COMPENSATING` 状态下继续 compensation replay。
 - 当前自动进入 `MANUAL_REPAIR_REQUIRED` 的已实现路径，要按“补偿扫描到已执行步骤但缺少 compensation request”来理解，而不是把它表述成“补偿重试耗尽后的统一自动终态”。
 - waiting-style Saga、外部 callback-step resume、把 Saga 当成通用等待工作流引擎，不在这次能力切片里。
