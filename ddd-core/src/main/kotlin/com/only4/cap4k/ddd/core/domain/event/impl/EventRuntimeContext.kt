@@ -24,6 +24,16 @@ internal object EventRuntimeContext {
         }
     }
 
+    fun restoreTo(scope: EventRuntimeScope?) {
+        val stack = scopes.get() ?: return
+        while (stack.isNotEmpty() && stack.peekLast() !== scope) {
+            stack.removeLast().clearAttachments()
+        }
+        if (stack.isEmpty()) {
+            scopes.remove()
+        }
+    }
+
     fun current(): EventRuntimeScope =
         currentOrNull() ?: throw IllegalStateException("No event runtime scope is active")
 

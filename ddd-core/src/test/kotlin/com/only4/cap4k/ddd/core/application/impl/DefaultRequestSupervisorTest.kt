@@ -213,6 +213,62 @@ class DefaultRequestSupervisorTest {
         }
 
         @Test
+        @DisplayName("处理器抛出Error时不应包装为请求调度异常")
+        fun `handler error is not wrapped in request dispatch exception`() {
+            // Given
+            val error = AssertionError("handler fatal error")
+            val failingHandler = object : RequestHandler<TestCommandRequest, String> {
+                override fun exec(request: TestCommandRequest): String {
+                    throw error
+                }
+            }
+            val testSupervisor = DefaultRequestSupervisor(
+                requestHandlers = listOf(failingHandler),
+                requestInterceptors = emptyList(),
+                validator = mockValidator,
+                requestRecordRepository = mockRequestRecordRepository,
+                svcName = testSvcName,
+                threadPoolSize = testThreadPoolSize,
+                threadFactoryClassName = ""
+            )
+
+            // When & Then
+            val thrownError = assertThrows<AssertionError> {
+                testSupervisor.send(TestCommandRequest("fatal"))
+            }
+            assertSame(error, thrownError)
+        }
+
+        @Test
+        @DisplayName("拦截器抛出Error时不应包装为请求调度异常")
+        fun `interceptor error is not wrapped in request dispatch exception`() {
+            // Given
+            val error = AssertionError("interceptor fatal error")
+            val failingInterceptor = object : RequestInterceptor<TestCommandRequest, String> {
+                override fun preRequest(request: TestCommandRequest) {
+                    throw error
+                }
+
+                override fun postRequest(request: TestCommandRequest, response: String) {}
+            }
+            val testSupervisor = DefaultRequestSupervisor(
+                requestHandlers = listOf(TestCommandHandler()),
+                requestInterceptors = listOf(failingInterceptor),
+                validator = mockValidator,
+                requestRecordRepository = mockRequestRecordRepository,
+                svcName = testSvcName,
+                threadPoolSize = testThreadPoolSize,
+                threadFactoryClassName = ""
+            )
+
+            // When & Then
+            val thrownError = assertThrows<AssertionError> {
+                testSupervisor.send(TestCommandRequest("fatal-interceptor"))
+            }
+            assertSame(error, thrownError)
+        }
+
+        @Test
         @DisplayName("找不到处理器应抛出请求调度诊断异常")
         fun `missing handler throws request dispatch exception without handler class`() {
             // Given
@@ -300,6 +356,36 @@ class DefaultRequestSupervisorTest {
             assertEquals("nested-success", result)
             assertSame(outerScope, EventRuntimeContext.current())
             assertEquals(listOf(TestDomainEvent("outer")), outerScope.domainAttachments[entity]?.map { it.resolve() })
+        }
+
+        @Test
+        @DisplayName("请求异常清理泄漏嵌套作用域时保留原始异常并恢复外层作用域")
+        fun `request cleanup restores outer scope and preserves original exception when nested scope leaks`() {
+            // Given
+            val outerScope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
+            val cause = IllegalArgumentException("original handler failure")
+            val failingHandler = object : RequestHandler<TestCommandRequest, String> {
+                override fun exec(request: TestCommandRequest): String {
+                    EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+                    throw cause
+                }
+            }
+            val testSupervisor = DefaultRequestSupervisor(
+                requestHandlers = listOf(failingHandler),
+                requestInterceptors = emptyList(),
+                validator = mockValidator,
+                requestRecordRepository = mockRequestRecordRepository,
+                svcName = testSvcName,
+                threadPoolSize = testThreadPoolSize,
+                threadFactoryClassName = ""
+            )
+
+            // When & Then
+            val exception = assertThrows<RequestDispatchException> {
+                testSupervisor.send(TestCommandRequest("leaked-nested"))
+            }
+            assertSame(cause, exception.cause)
+            assertSame(outerScope, EventRuntimeContext.current())
         }
 
         @Test

@@ -271,6 +271,8 @@ open class DefaultRequestSupervisor(
             }
 
             response
+        } catch (error: Error) {
+            throw error
         } catch (throwable: Throwable) {
             throw RequestDispatchException(
                 requestParamClass = requestClass,
@@ -279,7 +281,7 @@ open class DefaultRequestSupervisor(
                 cause = throwable
             )
         } finally {
-            EventRuntimeContext.pop(requestScope)
+            EventRuntimeContext.restoreTo(outerScope)
         }
     }
 }
