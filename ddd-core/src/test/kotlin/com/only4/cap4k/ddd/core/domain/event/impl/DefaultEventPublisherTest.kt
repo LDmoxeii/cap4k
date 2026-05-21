@@ -1,7 +1,9 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
+import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.*
 import com.only4.cap4k.ddd.core.share.Constants
 import com.only4.cap4k.ddd.core.share.DomainException
@@ -29,6 +31,7 @@ class DefaultEventPublisherTest {
     private lateinit var eventMessageInterceptorManager: EventMessageInterceptorManager
     private lateinit var domainEventInterceptorManager: DomainEventInterceptorManager
     private lateinit var integrationEventInterceptorManager: IntegrationEventInterceptorManager
+    private lateinit var integrationEventManager: IntegrationEventManager
     private lateinit var integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback
     private lateinit var publisher: DefaultEventPublisher
 
@@ -42,6 +45,7 @@ class DefaultEventPublisherTest {
         eventMessageInterceptorManager = mockk()
         domainEventInterceptorManager = mockk()
         integrationEventInterceptorManager = mockk()
+        integrationEventManager = mockk()
         integrationEventPublisherCallback = mockk(relaxed = true)
 
         // Mock 默认行为
@@ -50,6 +54,7 @@ class DefaultEventPublisherTest {
         every { eventMessageInterceptorManager.orderedEventMessageInterceptors } returns emptySet()
         every { domainEventInterceptorManager.orderedEventInterceptors4DomainEvent } returns emptySet()
         every { integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent } returns emptySet()
+        every { integrationEventManager.release() } just Runs
         every { integrationEventPublishers[0].publish(any(), any()) } just Runs
         every { integrationEventPublishers[1].publish(any(), any()) } just Runs
 
@@ -60,9 +65,15 @@ class DefaultEventPublisherTest {
             eventMessageInterceptorManager,
             domainEventInterceptorManager,
             integrationEventInterceptorManager,
+            integrationEventManager,
             integrationEventPublisherCallback,
             threadPoolSize
         )
+    }
+
+    @AfterEach
+    fun tearDown() {
+        EventRuntimeContext.reset()
     }
 
     @Nested
@@ -108,6 +119,7 @@ class DefaultEventPublisherTest {
                 eventMessageInterceptorManager,
                 domainEventInterceptorManager,
                 integrationEventInterceptorManager,
+                integrationEventManager,
                 integrationEventPublisherCallback,
                 2
             )
@@ -194,6 +206,70 @@ class DefaultEventPublisherTest {
             }
 
             verify { domainEventInterceptorManager.orderedEventInterceptors4DomainEvent }
+        }
+
+        @Test
+        @DisplayName("领域事件监听器附加集成事件后应该在标记领域事件已投递前释放集成事件")
+        fun `domain dispatch should release listener attached integration events before marking source delivered`() {
+            // given
+            val calls = mutableListOf<String>()
+            val eventRecord = createTestEventRecord(
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
+                persist = true
+            )
+            val testPublisher = createSynchronousPublisher()
+
+            every { eventSubscriberManager.dispatch(any()) } answers {
+                assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
+                EventRuntimeContext.current()
+                    .attachIntegration(EventAttachment.eager(TestIntegrationEvent("derived")))
+                calls.add("dispatch")
+            }
+            every { integrationEventManager.release() } answers {
+                assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
+                calls.add("release")
+            }
+            every { eventRecord.endDelivery(any()) } answers {
+                calls.add("endDelivery")
+            }
+            every { eventRecordRepository.save(eventRecord) } answers {
+                calls.add("saveSource")
+                eventRecord
+            }
+
+            // when
+            testPublisher.publishDomain(eventRecord)
+
+            // then
+            assertEquals(listOf("dispatch", "release", "endDelivery", "saveSource"), calls)
+            assertTrue(EventRuntimeContext.currentOrNull() == null)
+        }
+
+        @Test
+        @DisplayName("领域事件订阅失败时不释放集成事件且丢弃DOMAIN_DISPATCH scope")
+        fun `domain dispatch failure should not release integration events and should discard scope`() {
+            // given
+            val eventRecord = createTestEventRecord(
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
+                persist = true
+            )
+            val testPublisher = createSynchronousPublisher()
+
+            every { eventSubscriberManager.dispatch(any()) } answers {
+                EventRuntimeContext.current()
+                    .attachIntegration(EventAttachment.eager(TestIntegrationEvent("derived")))
+                throw RuntimeException("Dispatch failed")
+            }
+
+            // when & then
+            assertThrows<DomainException> {
+                testPublisher.publishDomain(eventRecord)
+            }
+
+            verify(exactly = 0) { integrationEventManager.release() }
+            verify(exactly = 0) { eventRecord.endDelivery(any()) }
+            verify(exactly = 0) { eventRecordRepository.save(eventRecord) }
+            assertTrue(EventRuntimeContext.currentOrNull() == null)
         }
 
         @Test
@@ -455,4 +531,46 @@ class DefaultEventPublisherTest {
 
         return eventRecord
     }
+
+    private fun createSynchronousPublisher(): TestableDefaultEventPublisher =
+        TestableDefaultEventPublisher(
+            eventSubscriberManager,
+            integrationEventPublishers,
+            eventRecordRepository,
+            eventMessageInterceptorManager,
+            domainEventInterceptorManager,
+            integrationEventInterceptorManager,
+            integrationEventManager,
+            integrationEventPublisherCallback,
+            threadPoolSize
+        )
+
+    private class TestableDefaultEventPublisher(
+        eventSubscriberManager: EventSubscriberManager,
+        integrationEventPublishers: List<IntegrationEventPublisher>,
+        eventRecordRepository: EventRecordRepository,
+        eventMessageInterceptorManager: EventMessageInterceptorManager,
+        domainEventInterceptorManager: DomainEventInterceptorManager,
+        integrationEventInterceptorManager: IntegrationEventInterceptorManager,
+        integrationEventManager: IntegrationEventManager,
+        integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
+        threadPoolSize: Int,
+    ) : DefaultEventPublisher(
+        eventSubscriberManager,
+        integrationEventPublishers,
+        eventRecordRepository,
+        eventMessageInterceptorManager,
+        domainEventInterceptorManager,
+        integrationEventInterceptorManager,
+        integrationEventManager,
+        integrationEventPublisherCallback,
+        threadPoolSize
+    ) {
+        fun publishDomain(event: EventRecord) {
+            internalPublish4DomainEvent(event)
+        }
+    }
+
+    @IntegrationEvent
+    data class TestIntegrationEvent(val message: String)
 }

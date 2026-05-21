@@ -27,10 +27,6 @@ open class DefaultDomainEventSupervisor(
 ) : DomainEventSupervisor, DomainEventManager {
 
     companion object {
-        private val TL_ENTITY_EVENT_PAYLOADS = ThreadLocal<MutableMap<Any, MutableSet<Any>>>()
-        private val TL_EVENT_SCHEDULE_MAP = ThreadLocal<MutableMap<Any, LocalDateTime>>()
-        private val EMPTY_EVENT_PAYLOADS: Set<Any> = emptySet()
-
         /**
          * 默认事件过期时间（分钟）
          */
@@ -46,8 +42,7 @@ open class DefaultDomainEventSupervisor(
          */
         @JvmStatic
         fun reset() {
-            TL_ENTITY_EVENT_PAYLOADS.remove()
-            TL_EVENT_SCHEDULE_MAP.remove()
+            EventRuntimeContext.reset()
         }
     }
 
@@ -65,14 +60,8 @@ open class DefaultDomainEventSupervisor(
 
         val unwrappedEntity = unwrapEntity(entity)
 
-        val entityEventPayloads = TL_ENTITY_EVENT_PAYLOADS.get() ?: mutableMapOf<Any, MutableSet<Any>>().also {
-            TL_ENTITY_EVENT_PAYLOADS.set(it)
-        }
-
-        entityEventPayloads.computeIfAbsent(unwrappedEntity) { mutableSetOf() }
-            .add(domainEventPayload)
-
-        putDeliverTime(domainEventPayload, schedule)
+        EventRuntimeContext.currentOrCreateAmbient()
+            .attachDomain(unwrappedEntity, EventAttachment.eager(domainEventPayload, schedule))
         domainEventInterceptorManager.orderedDomainEventInterceptors
             .forEach { interceptor -> interceptor.onAttach(domainEventPayload, unwrappedEntity, schedule) }
     }
@@ -82,24 +71,28 @@ open class DefaultDomainEventSupervisor(
         schedule: LocalDateTime,
         domainEventPayloadSupplier: () -> DOMAIN_EVENT
     ) {
-        attach(domainEventPayloadSupplier, entity, schedule)
+        val unwrappedEntity = unwrapEntity(entity)
+        EventRuntimeContext.currentOrCreateAmbient()
+            .attachDomain(unwrappedEntity, EventAttachment.lazy(schedule, domainEventPayloadSupplier))
     }
 
     override fun <DOMAIN_EVENT : Any, ENTITY : Any> detach(domainEventPayload: DOMAIN_EVENT, entity: ENTITY) {
-        val entityEventPayloads = TL_ENTITY_EVENT_PAYLOADS.get() ?: return
+        val domainAttachments = EventRuntimeContext.currentOrNull()?.domainAttachments ?: return
         val unwrappedEntity = unwrapEntity(entity)
-        val eventPayloads = entityEventPayloads[unwrappedEntity] ?: return
+        val eventPayloads = domainAttachments[unwrappedEntity] ?: return
 
-        eventPayloads.remove(domainEventPayload)
+        val removed = eventPayloads.removeAll { attachment -> attachment.matches(domainEventPayload) }
+        if (!removed) return
         domainEventInterceptorManager.orderedDomainEventInterceptors
             .forEach { interceptor -> interceptor.onDetach(domainEventPayload, unwrappedEntity) }
     }
 
     override fun release(entities: Set<Any>) {
-        val eventPayloads = mutableSetOf<Any>()
+        val attachments = mutableListOf<EventAttachment<Any>>()
+        val springDataEventPayloads = mutableListOf<Any>()
 
         for (entity in entities) {
-            eventPayloads.addAll(popEvents(entity))
+            attachments.addAll(popEvents(unwrapEntity(entity)))
 
             // 处理 Spring Data 的 AbstractAggregateRoot
             if (entity is AbstractAggregateRoot<*>) {
@@ -114,7 +107,7 @@ open class DefaultDomainEventSupervisor(
                         val domainEvents = domainEventsMethod.invoke(entity)
                         if (domainEvents != null && domainEvents is Collection<*>) {
                             @Suppress("UNCHECKED_CAST")
-                            eventPayloads.addAll(domainEvents as Collection<Any>)
+                            springDataEventPayloads.addAll(domainEvents as Collection<Any>)
                         }
                     } catch (throwable: Throwable) {
                         // 忽略异常，继续处理
@@ -140,8 +133,36 @@ open class DefaultDomainEventSupervisor(
         val transientEvents = mutableListOf<EventRecord>()
         val now = LocalDateTime.now()
 
-        for (eventPayload in eventPayloads) {
-            val deliverTime = getDeliverTime(eventPayload, now)
+        for (attachment in attachments) {
+            val eventPayload = attachment.resolve()
+            validateDomainEvent(eventPayload)
+            createEventRecord(eventPayload, attachment.schedule, now, persistedEvents, transientEvents)
+        }
+
+        for (eventPayload in springDataEventPayloads) {
+            validateDomainEvent(eventPayload)
+            createEventRecord(eventPayload, now, now, persistedEvents, transientEvents)
+        }
+
+        val domainEventAttachedTransactionCommittingEvent =
+            DomainEventAttachedTransactionCommittingEvent(this, transientEvents)
+        val domainEventAttachedTransactionCommittedEvent =
+            DomainEventAttachedTransactionCommittedEvent(this, persistedEvents)
+
+        onTransactionCommiting(domainEventAttachedTransactionCommittingEvent)
+        applicationEventPublisher.publishEvent(domainEventAttachedTransactionCommittingEvent)
+        applicationEventPublisher.publishEvent(domainEventAttachedTransactionCommittedEvent)
+
+        popAmbientScopeIfEmpty()
+    }
+
+    private fun createEventRecord(
+        eventPayload: Any,
+        deliverTime: LocalDateTime,
+        now: LocalDateTime,
+        persistedEvents: MutableList<EventRecord>,
+        transientEvents: MutableList<EventRecord>,
+    ) {
             val event = eventRecordRepository.create()
             event.init(
                 eventPayload,
@@ -164,16 +185,6 @@ open class DefaultDomainEventSupervisor(
                     .forEach { interceptor -> interceptor.postPersist(event) }
                 persistedEvents.add(event)
             }
-        }
-
-        val domainEventAttachedTransactionCommittingEvent =
-            DomainEventAttachedTransactionCommittingEvent(this, transientEvents)
-        val domainEventAttachedTransactionCommittedEvent =
-            DomainEventAttachedTransactionCommittedEvent(this, persistedEvents)
-
-        onTransactionCommiting(domainEventAttachedTransactionCommittingEvent)
-        applicationEventPublisher.publishEvent(domainEventAttachedTransactionCommittingEvent)
-        applicationEventPublisher.publishEvent(domainEventAttachedTransactionCommittedEvent)
     }
 
     /**
@@ -210,43 +221,36 @@ open class DefaultDomainEventSupervisor(
      * @param entity 关联实体
      * @return 事件列表
      */
-    protected open fun popEvents(entity: Any): Set<Any> {
-        val entityEventPayloads = TL_ENTITY_EVENT_PAYLOADS.get()
-            ?: return EMPTY_EVENT_PAYLOADS
+    private fun popEvents(entity: Any): List<EventAttachment<Any>> {
+        val entityEventPayloads = EventRuntimeContext.currentOrNull()?.domainAttachments
+            ?: return emptyList()
 
-        if (!entityEventPayloads.containsKey(entity)) {
-            return EMPTY_EVENT_PAYLOADS
-        }
-
-        val eventPayloads = entityEventPayloads.remove(entity)
-        return eventPayloads?.map { if (it is Function0<*>) it.invoke()!! else it }?.toSet() ?: EMPTY_EVENT_PAYLOADS
+        return entityEventPayloads.remove(entity)?.toList() ?: emptyList()
     }
 
-    /**
-     * 记录事件发送时间
-     */
-    protected open fun putDeliverTime(eventPayload: Any, schedule: LocalDateTime) {
-        var eventScheduleMap = TL_EVENT_SCHEDULE_MAP.get()
-        if (eventScheduleMap == null) {
-            eventScheduleMap = mutableMapOf()
-            TL_EVENT_SCHEDULE_MAP.set(eventScheduleMap)
+    private fun validateDomainEvent(eventPayload: Any) {
+        if (eventPayload::class.java.isAnnotationPresent(IntegrationEvent::class.java)) {
+            throw DomainException("事件类型不能为集成事件")
         }
-        eventScheduleMap[eventPayload] = schedule
+    }
+
+    private fun popAmbientScopeIfEmpty() {
+        val scope = EventRuntimeContext.currentOrNull() ?: return
+        if (scope.type != EventRuntimeScopeType.AMBIENT) return
+        if (scope.domainAttachments.isNotEmpty() || scope.integrationAttachments.isNotEmpty()) return
+        EventRuntimeContext.pop(scope)
     }
 
     /**
      * 获取事件发送时间
      */
     fun getDeliverTime(eventPayload: Any): LocalDateTime {
-        return getDeliverTime(eventPayload, LocalDateTime.now())
-    }
-
-    private fun getDeliverTime(eventPayload: Any, defaultDeliverTime: LocalDateTime): LocalDateTime {
-        val eventScheduleMap = TL_EVENT_SCHEDULE_MAP.get()
-        return if (eventScheduleMap != null && eventScheduleMap.containsKey(eventPayload)) {
-            eventScheduleMap[eventPayload]!!
-        } else {
-            defaultDeliverTime
-        }
+        val attachment = EventRuntimeContext.currentOrNull()
+            ?.domainAttachments
+            ?.values
+            ?.asSequence()
+            ?.flatten()
+            ?.firstOrNull { it.matches(eventPayload) }
+        return attachment?.schedule ?: LocalDateTime.now()
     }
 }
