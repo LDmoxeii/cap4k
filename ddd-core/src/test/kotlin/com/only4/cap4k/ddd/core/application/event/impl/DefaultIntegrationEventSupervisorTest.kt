@@ -278,6 +278,8 @@ class DefaultIntegrationEventSupervisorTest {
             val schedule = LocalDateTime.now().plusHours(1)
 
             supervisor.attach(event, schedule)
+            assertEquals(EventRuntimeScopeType.AMBIENT, EventRuntimeContext.current().type)
+
             supervisor.release()
 
             verify { eventRecordRepository.create() }
@@ -390,6 +392,21 @@ class DefaultIntegrationEventSupervisorTest {
                     }
                 )
             }
+            assertFalse(EventRuntimeContext.hasScope())
+        }
+
+        @Test
+        @DisplayName("显式请求作用域释放后应该保持当前作用域")
+        fun `explicit request scope should remain current after release`() {
+            val event = TestIntegrationEvent("1", "test data")
+            val scope = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+
+            supervisor.attach(event)
+            supervisor.release()
+
+            assertSame(scope, EventRuntimeContext.current())
+            assertTrue(scope.integrationAttachments.isEmpty())
+            EventRuntimeContext.pop(scope)
         }
 
     @Nested

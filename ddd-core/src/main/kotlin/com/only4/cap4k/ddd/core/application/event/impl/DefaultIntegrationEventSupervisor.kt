@@ -10,6 +10,7 @@ import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.core.domain.event.impl.EventAttachment
 import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeContext
+import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeScopeType
 import com.only4.cap4k.ddd.core.share.DomainException
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.transaction.event.TransactionalEventListener
@@ -72,6 +73,7 @@ open class DefaultIntegrationEventSupervisor(
     }
 
     override fun release() {
+        val scope = EventRuntimeContext.currentOrNull()
         val attachments = popEvents()
         val persistedEvents = mutableListOf<EventRecord>()
 
@@ -83,6 +85,9 @@ open class DefaultIntegrationEventSupervisor(
         }
 
         publishCommittedEvent(persistedEvents)
+        if (scope?.type == EventRuntimeScopeType.AMBIENT && EventRuntimeContext.currentOrNull() === scope) {
+            EventRuntimeContext.pop(scope)
+        }
     }
 
     private fun persistEvent(eventPayload: Any, schedule: LocalDateTime): EventRecord {
