@@ -167,6 +167,12 @@ if (Test-Path -LiteralPath 'docs/public/authoring') {
     Where-Object { $_.Extension -eq '.md' }
 }
 
+$analysisTextFiles = @()
+if (Test-Path -LiteralPath 'docs/superpowers/analysis') {
+  $analysisTextFiles += Get-ChildItem -LiteralPath 'docs/superpowers/analysis' -Recurse -File |
+    Where-Object { $_.Extension -eq '.md' }
+}
+
 $authoringText = $authoringTextFiles |
   ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }
 
@@ -218,15 +224,16 @@ $removedEventGuidancePatterns = @(
   ('Auto' + 'Releases'),
   ('Mediator\.events\.' + 'publish'),
   ('IntegrationEventSupervisor\.' + 'publish'),
+  ('IntegrationEventSupervisor\.instance\.' + 'publish'),
   ('attach ' + 'or ' + 'publish'),
   ('attach ' + '/ ' + 'publish'),
   ('attach ' + [char]0x6216 + ' ' + 'publish')
 )
 
 Assert-NoForbiddenPattern `
-  -Files (@($skillTextFiles) + @($authoringTextFiles)) `
+  -Files (@($skillTextFiles) + @($authoringTextFiles) + @($analysisTextFiles)) `
   -Patterns $removedEventGuidancePatterns `
-  -Scope 'active skills and public authoring docs'
+  -Scope 'active skills, public authoring docs, and superpowers analysis docs'
 
 $runtimeSourceRoots = @(
   'ddd-core',
