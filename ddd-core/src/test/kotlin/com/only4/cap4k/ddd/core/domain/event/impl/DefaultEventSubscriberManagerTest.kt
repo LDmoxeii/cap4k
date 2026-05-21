@@ -17,6 +17,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertNotNull
+import org.junit.jupiter.api.assertThrows
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.core.Ordered
 import org.springframework.core.convert.converter.Converter
@@ -39,7 +40,7 @@ class DefaultEventSubscriberManagerTest {
     @BeforeEach
     fun setUp() {
         applicationEventPublisher = mockk()
-        every { applicationEventPublisher.publishEvent(any()) } just Runs
+        every { applicationEventPublisher.publishEvent(any<Any>()) } just Runs
 
         // Mock 静态方法
         mockkObject(RequestSupervisor)
@@ -289,6 +290,25 @@ class DefaultEventSubscriberManagerTest {
             // 这个测试主要验证初始化过程不会出错
             assertTrue(true)
         }
+
+        @Test
+        @DisplayName("AutoRequest注解不应该在初始化或分发时自动发送请求")
+        fun `AutoRequest annotations should not send requests automatically during initialization or dispatch`() {
+            // given
+            manager = DefaultEventSubscriberManager(
+                emptyList(),
+                applicationEventPublisher,
+                scanPath
+            )
+
+            // when
+            manager.init()
+            manager.dispatch(TestAutoRequestEvent("test"))
+
+            // then
+            verify(exactly = 0) { RequestSupervisor.instance.send(any<RequestParam<*>>()) }
+            verify { applicationEventPublisher.publishEvent(TestAutoRequestEvent("test")) }
+        }
     }
 
     @Nested
@@ -331,6 +351,90 @@ class DefaultEventSubscriberManagerTest {
 
             // then
             assertTrue(successfulSubscriberCalled)
+        }
+
+        @Test
+        @DisplayName("多个失败订阅者应该聚合为一个诊断异常")
+        fun `multiple failing subscribers produce one EventDispatchException with two failures`() {
+            // given
+            val firstSubscriber = FailingStringSubscriber("first failure")
+            val secondSubscriber = AnotherFailingStringSubscriber("second failure")
+
+            manager = DefaultEventSubscriberManager(
+                emptyList(),
+                applicationEventPublisher,
+                scanPath
+            )
+            manager.init()
+            manager.subscribe(String::class.java, firstSubscriber)
+            manager.subscribe(String::class.java, secondSubscriber)
+
+            // when
+            val exception = assertThrows<EventDispatchException> {
+                manager.dispatch("test")
+            }
+
+            // then
+            assertEquals(String::class.java, exception.eventPayloadClass)
+            assertEquals(2, exception.failures.size)
+            assertEquals(FailingStringSubscriber::class.java, exception.failures[0].subscriberClass)
+            assertEquals(AnotherFailingStringSubscriber::class.java, exception.failures[1].subscriberClass)
+            assertEquals("first failure", exception.failures[0].cause.message)
+            assertEquals("second failure", exception.failures[1].cause.message)
+        }
+
+        @Test
+        @DisplayName("订阅者失败后仍应调用成功订阅者")
+        fun `successful subscriber still runs when another subscriber fails`() {
+            // given
+            var successfulSubscriberCalled = false
+            val failingSubscriber = FailingStringSubscriber("failed")
+            val successfulSubscriber = object : EventSubscriber<String> {
+                override fun onEvent(event: String) {
+                    successfulSubscriberCalled = true
+                }
+            }
+
+            manager = DefaultEventSubscriberManager(
+                emptyList(),
+                applicationEventPublisher,
+                scanPath
+            )
+            manager.init()
+            manager.subscribe(String::class.java, failingSubscriber)
+            manager.subscribe(String::class.java, successfulSubscriber)
+
+            // when
+            assertThrows<EventDispatchException> {
+                manager.dispatch("test")
+            }
+
+            // then
+            assertTrue(successfulSubscriberCalled)
+        }
+
+        @Test
+        @DisplayName("诊断异常消息应该包含事件载荷和失败订阅者类型")
+        fun `exception includes event payload class and failing subscriber class`() {
+            // given
+            val failingSubscriber = FailingStringSubscriber("failed")
+
+            manager = DefaultEventSubscriberManager(
+                emptyList(),
+                applicationEventPublisher,
+                scanPath
+            )
+            manager.init()
+            manager.subscribe(String::class.java, failingSubscriber)
+
+            // when
+            val exception = assertThrows<EventDispatchException> {
+                manager.dispatch("test")
+            }
+
+            // then
+            assertTrue(exception.message!!.contains(String::class.java.name))
+            assertTrue(exception.message!!.contains(FailingStringSubscriber::class.java.name))
         }
     }
 
@@ -425,6 +529,18 @@ class DefaultEventSubscriberManagerTest {
     class TestLowPrioritySubscriber(private val callback: () -> Unit) : AbstractEventSubscriber<String>() {
         override fun onEvent(event: String) {
             callback()
+        }
+    }
+
+    class FailingStringSubscriber(private val failureMessage: String) : AbstractEventSubscriber<String>() {
+        override fun onEvent(event: String) {
+            throw IllegalStateException(failureMessage)
+        }
+    }
+
+    class AnotherFailingStringSubscriber(private val failureMessage: String) : AbstractEventSubscriber<String>() {
+        override fun onEvent(event: String) {
+            throw IllegalArgumentException(failureMessage)
         }
     }
 
