@@ -98,7 +98,7 @@ Runtime semantics confirmed from `DefaultSagaSupervisor` and the JPA Saga implem
 - `schedule` creates a saga record and schedules execution; records scheduled within the local threshold are marked executing immediately.
 - `async` is the `SagaSupervisor` default `schedule(request, LocalDateTime.now())` path and returns the saga ID.
 - `delay` is the `SagaSupervisor` default `schedule(request, LocalDateTime.now().plus(delay))` path and returns the saga ID.
-- `SagaHandler.execProcess(processCode, request)` executes a child request through `RequestSupervisor`.
+- `SagaHandler.execProcess(subCode, request)` executes a child request through `RequestSupervisor`.
 - `SagaHandler.execCompensableProcess(processCode, request, compensationCode, compensationRequest)` executes a forward child request and, on forward success, persists the final reverse compensation request for that process.
 - `SagaHandler.requestCompensation(code, reason)` records explicit compensation intent, stops the forward path, and enters compensation immediately in the current Saga execution.
 - an `EXECUTED` saga process is skipped on replay and its cached result is returned.
