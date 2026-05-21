@@ -185,6 +185,7 @@ open class DefaultSagaSupervisor(
 
     override fun requestCompensation(sagaId: String, code: String, reason: String) {
         val sagaRecord = sagaRecordRepository.getById(sagaId)
+        val message = "Saga compensation requested: $code - $reason"
         sagaRecord.requestCompensation(
             now = LocalDateTime.now(),
             code = code,
@@ -193,7 +194,11 @@ open class DefaultSagaSupervisor(
             sourceProcessCode = null
         )
         sagaRecordRepository.save(sagaRecord)
-        compensateNow(sagaRecord)
+        try {
+            compensateNow(sagaRecord)
+        } catch (rollbackFailure: Throwable) {
+            throw DomainException(message, rollbackFailure)
+        }
     }
 
     override fun getByNextTryTime(maxNextTryTime: LocalDateTime, limit: Int): List<SagaRecord> =

@@ -272,4 +272,33 @@ class DefaultSagaSupervisorCompensationTest {
             record.compensationProcessCodesToRun()
         }
     }
+
+    @Test
+    @DisplayName("operator-triggered compensation should keep the original code when reverse send fails")
+    fun `operator compensation keeps original code when reverse send fails`() {
+        val rollbackFailure = IllegalStateException("rollback failed")
+        every { mockSagaRecordRepository.getById("test-saga-id") } returns mockSagaRecord
+        every { mockRequestSupervisor.send(CancelPlanRequest("plan-9")) } throws rollbackFailure
+        val supervisor = newSupervisor()
+
+        val ex = assertThrows<DomainException> {
+            supervisor.requestCompensation("test-saga-id", "PAYMENT_REJECTED", "payment declined")
+        }
+
+        assertTrue(ex.message!!.contains("PAYMENT_REJECTED"))
+        assertEquals(rollbackFailure, ex.cause)
+    }
+
+    @Test
+    @DisplayName("operator-triggered compensation should skip reverse send when already compensating")
+    fun `operator compensation skips send when begin compensation returns false`() {
+        every { mockSagaRecordRepository.getById("test-saga-id") } returns mockSagaRecord
+        every { mockSagaRecord.beginCompensation(any()) } returns false
+        val supervisor = newSupervisor()
+
+        supervisor.requestCompensation("test-saga-id", "PAYMENT_REJECTED", "payment declined")
+
+        verify(exactly = 0) { mockRequestSupervisor.send(any<RequestParam<Any>>()) }
+        verify(exactly = 0) { mockSagaRecord.beginSagaCompensationProcess(any(), any()) }
+    }
 }
