@@ -148,7 +148,7 @@ fun Entity.onDelete()
 
 集成事件表达跨边界事实。对外集成事件只在 application 编排点 attach：仅领域事件订阅器或明确的 application process 基于内部事实构造 outbound integration event，并在当前工作单元调用 `Mediator.events.attach(...)`。作者只负责在当前工作单元 attach；后续由运行时按配置交给 HTTP、RabbitMQ、RocketMQ 等集成传输适配器处理。聚合、adapter 入口、普通边界代码不决定对外集成事件，也不要绕过 `Mediator.events.attach(...)` 调用任何直接发布/低层发送 API。集成事件订阅器默认位于 `application.subscribers.integration`，收到会推进状态的外部事实后应转换成内部命令；纯观察类输入才进入查询，需要调用外部能力时也要经过明确的 client request 边界。
 
-运行时会扫描集成事件类，并由 `EventSubscriberManager` 把消费到的事件 payload 桥接到 Spring `ApplicationEventPublisher`。因此生成的 inbound subscriber 使用 `@EventListener` 即可接收事件；如果项目需要更底层的运行时合同，也可以手写 `EventSubscriber<Event>`。
+inbound integration event subscriber 是外部事实入口的一种实现。作者只需要描述外部事实契约，并在 application 收敛点把会推进状态的输入翻译成内部命令；命令处理器和聚合行为负责业务推进。事件如何进入这个收敛点、如何完成传输适配和框架装配属于运行时责任，不是 authoring 文档需要暴露的合同；不要为了接收事件补写框架层接口或桥接代码。
 
 领域事件到集成事件的默认路径是：聚合登记领域事实，领域事件订阅器或 application process 根据这个事实构造 outbound integration event，并调用 `Mediator.events.attach(...)`。聚合不直接承担跨服务协议，也不需要知道外部事件名、传输和订阅方身份。
 
