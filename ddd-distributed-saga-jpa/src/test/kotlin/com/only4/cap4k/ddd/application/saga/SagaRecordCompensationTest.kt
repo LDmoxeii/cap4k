@@ -5,6 +5,7 @@ import com.only4.cap4k.ddd.application.saga.persistence.SagaProcess
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.saga.SagaCompensationRequestedBy
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -34,10 +35,16 @@ class SagaRecordCompensationTest {
             TestRequestParam("cancel", mapOf("planId" to "plan-9"))
         )
 
-        val process = sagaRecord.saga.getSagaProcess("create-plan")!!
+        val reloadedRecord = reloadRecord(sagaRecord)
+        val process = reloadedRecord.saga.getSagaProcess("create-plan")!!
+        val compensationRequest = reloadedRecord.getSagaProcessCompensationRequest("create-plan") as TestRequestParam
+
+        assertNotSame(sagaRecord.saga, reloadedRecord.saga)
         assertEquals("cancel-plan", process.compensationCode)
         assertEquals(SagaProcess.SagaCompensationState.READY, process.compensationState)
         assertTrue(process.compensationParam.contains("plan-9"))
+        assertEquals("cancel", compensationRequest.action)
+        assertEquals(mapOf("planId" to "plan-9"), compensationRequest.data)
     }
 
     @Test
@@ -50,12 +57,14 @@ class SagaRecordCompensationTest {
             "publish-content"
         )
 
-        assertEquals(Saga.SagaState.COMPENSATION_REQUESTED, sagaRecord.saga.sagaState)
-        assertEquals("PAYMENT_REJECTED", sagaRecord.saga.compensationRequestCode)
-        assertEquals("payment declined", sagaRecord.saga.compensationRequestReason)
-        assertEquals(now.plusMinutes(4), sagaRecord.saga.compensationRequestedAt)
-        assertEquals(SagaCompensationRequestedBy.INTERNAL.name, sagaRecord.saga.compensationRequestedBy)
-        assertEquals("publish-content", sagaRecord.saga.compensationSourceProcessCode)
+        val reloadedRecord = reloadRecord(sagaRecord)
+
+        assertEquals(Saga.SagaState.COMPENSATION_REQUESTED, reloadedRecord.saga.sagaState)
+        assertEquals("PAYMENT_REJECTED", reloadedRecord.saga.compensationRequestCode)
+        assertEquals("payment declined", reloadedRecord.saga.compensationRequestReason)
+        assertEquals(now.plusMinutes(4), reloadedRecord.saga.compensationRequestedAt)
+        assertEquals(SagaCompensationRequestedBy.INTERNAL.name, reloadedRecord.saga.compensationRequestedBy)
+        assertEquals("publish-content", reloadedRecord.saga.compensationSourceProcessCode)
     }
 
     @Test
@@ -76,11 +85,74 @@ class SagaRecordCompensationTest {
         }
         sagaRecord.saga.sagaProcesses = mutableListOf(hold, plan)
 
-        assertEquals(listOf("create-plan"), sagaRecord.compensationProcessCodesToRun())
+        val reloadedRecord = reloadRecord(sagaRecord)
+
+        assertEquals(listOf("create-plan"), reloadedRecord.compensationProcessCodesToRun())
     }
 
     private data class TestRequestParam(
         val action: String,
         val data: Any
     ) : RequestParam<Any>
+
+    private fun reloadRecord(sourceRecord: SagaRecordImpl): SagaRecordImpl {
+        val reloadedRecord = SagaRecordImpl()
+        reloadedRecord.resume(clonePersistedSaga(sourceRecord.saga))
+        return reloadedRecord
+    }
+
+    private fun clonePersistedSaga(source: Saga): Saga {
+        return Saga().apply {
+            id = source.id
+            sagaUuid = source.sagaUuid
+            svcName = source.svcName
+            sagaType = source.sagaType
+            param = source.param
+            paramType = source.paramType
+            result = source.result
+            resultType = source.resultType
+            exception = source.exception
+            compensationRequestCode = source.compensationRequestCode
+            compensationRequestReason = source.compensationRequestReason
+            compensationRequestedAt = source.compensationRequestedAt
+            compensationRequestedBy = source.compensationRequestedBy
+            compensationSourceProcessCode = source.compensationSourceProcessCode
+            expireAt = source.expireAt
+            createAt = source.createAt
+            sagaState = source.sagaState
+            lastTryTime = source.lastTryTime
+            nextTryTime = source.nextTryTime
+            triedTimes = source.triedTimes
+            tryTimes = source.tryTimes
+            version = source.version
+            sagaProcesses = source.sagaProcesses.map(::clonePersistedSagaProcess).toMutableList()
+        }
+    }
+
+    private fun clonePersistedSagaProcess(source: SagaProcess): SagaProcess {
+        return SagaProcess().apply {
+            id = source.id
+            processCode = source.processCode
+            param = source.param
+            paramType = source.paramType
+            result = source.result
+            resultType = source.resultType
+            exception = source.exception
+            executedAt = source.executedAt
+            compensationCode = source.compensationCode
+            compensationParam = source.compensationParam
+            compensationParamType = source.compensationParamType
+            compensationResult = source.compensationResult
+            compensationResultType = source.compensationResultType
+            compensationException = source.compensationException
+            compensationState = source.compensationState
+            compensationLastTryTime = source.compensationLastTryTime
+            compensationTriedTimes = source.compensationTriedTimes
+            compensatedAt = source.compensatedAt
+            processState = source.processState
+            createAt = source.createAt
+            lastTryTime = source.lastTryTime
+            triedTimes = source.triedTimes
+        }
+    }
 }
