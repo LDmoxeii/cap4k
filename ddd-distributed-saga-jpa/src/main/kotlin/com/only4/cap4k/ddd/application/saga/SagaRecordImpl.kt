@@ -50,6 +50,21 @@ class SagaRecordImpl : SagaRecord {
         get() = saga.sagaParam!!
 
     override fun <R : Any> getResult(): R? {
+        if (saga.sagaState in setOf(
+                Saga.SagaState.COMPENSATION_REQUESTED,
+                Saga.SagaState.COMPENSATING,
+                Saga.SagaState.MANUAL_REPAIR_REQUIRED,
+                Saga.SagaState.COMPENSATED
+            )
+        ) {
+            throw DomainException(
+                buildString {
+                    append("Saga compensation in progress: ")
+                    append("code=").append(saga.compensationRequestCode)
+                    append(", reason=").append(saga.compensationRequestReason)
+                }
+            )
+        }
         @Suppress("UNCHECKED_CAST")
         val result = saga.sagaResult as? R
         if (result == null && !saga.exception.isNullOrEmpty()) {
@@ -147,31 +162,14 @@ class SagaRecordImpl : SagaRecord {
 
     override fun compensationProcessCodesToRun(): List<String> {
         val processes = saga.sagaProcesses
-            .filter {
-                it.processState == SagaProcess.SagaProcessState.EXECUTED &&
-                    it.compensationCode.isNotBlank()
-            }
-            .sortedByDescending { it.executedAt ?: LocalDateTime.MIN }
-            .dropWhile { it.compensationState == SagaProcess.SagaCompensationState.COMPENSATED }
-
-        val anchor = processes.firstOrNull() ?: return emptyList()
-        return if (anchor.compensationState in setOf(
-                SagaProcess.SagaCompensationState.FAILED,
-                SagaProcess.SagaCompensationState.COMPENSATING,
-                SagaProcess.SagaCompensationState.MANUAL_REPAIR_REQUIRED
+            .filter { it.processState == SagaProcess.SagaProcessState.EXECUTED }
+            .sortedWith(
+                compareByDescending<SagaProcess> { it.executedAt ?: LocalDateTime.MIN }
+                    .thenByDescending { it.createAt }
+                    .thenByDescending { it.id ?: Long.MIN_VALUE }
             )
-        ) {
-            listOf(anchor.processCode)
-        } else {
-            processes
-                .takeWhile {
-                    it.compensationState in setOf(
-                        SagaProcess.SagaCompensationState.NONE,
-                        SagaProcess.SagaCompensationState.READY
-                    )
-                }
-                .map { it.processCode }
-        }
+            .dropWhile { it.compensationState == SagaProcess.SagaCompensationState.COMPENSATED }
+        return processes.map { it.processCode }
     }
 
     override fun getSagaProcessCompensationRequest(processCode: String): RequestParam<*>? {

@@ -4,11 +4,13 @@ import com.only4.cap4k.ddd.application.saga.persistence.Saga
 import com.only4.cap4k.ddd.application.saga.persistence.SagaProcess
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.saga.SagaCompensationRequestedBy
+import com.only4.cap4k.ddd.core.share.DomainException
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -405,6 +407,30 @@ class SagaRecordImplTest {
             sagaRecord.markManualRepairRequired(testTime.plusMinutes(10))
             assertEquals(Saga.SagaState.MANUAL_REPAIR_REQUIRED, sagaRecord.saga.sagaState)
         }
+
+        @Test
+        @DisplayName("应该在补偿状态下拒绝返回过时的正向结果")
+        fun `should reject stale forward result in compensation state`() {
+            sagaRecord.endSaga(testTime.plusMinutes(4), mapOf("orderId" to "order-123", "status" to "success"))
+            sagaRecord.requestCompensation(
+                testTime.plusMinutes(5),
+                "ORDER_REJECTED",
+                "payment failed",
+                SagaCompensationRequestedBy.INTERNAL,
+                "CREATE_USER"
+            )
+            sagaRecord.endCompensation(testTime.plusMinutes(6))
+
+            val reloadedRecord = SagaRecordImpl().apply {
+                resume(clonePersistedSaga(sagaRecord.saga))
+            }
+
+            val exception = assertThrows<DomainException> {
+                reloadedRecord.getResult<Map<String, Any>>()
+            }
+            assertTrue(exception.message!!.contains("ORDER_REJECTED"))
+            assertTrue(exception.message!!.contains("payment failed"))
+        }
     }
 
     @Nested
@@ -614,4 +640,57 @@ class SagaRecordImplTest {
         val action: String,
         val data: Any
     ) : RequestParam<Any>
+
+    private fun clonePersistedSaga(source: Saga): Saga {
+        return Saga().apply {
+            id = source.id
+            sagaUuid = source.sagaUuid
+            svcName = source.svcName
+            sagaType = source.sagaType
+            param = source.param
+            paramType = source.paramType
+            result = source.result
+            resultType = source.resultType
+            exception = source.exception
+            compensationRequestCode = source.compensationRequestCode
+            compensationRequestReason = source.compensationRequestReason
+            compensationRequestedAt = source.compensationRequestedAt
+            compensationRequestedBy = source.compensationRequestedBy
+            compensationSourceProcessCode = source.compensationSourceProcessCode
+            expireAt = source.expireAt
+            createAt = source.createAt
+            sagaState = source.sagaState
+            lastTryTime = source.lastTryTime
+            nextTryTime = source.nextTryTime
+            triedTimes = source.triedTimes
+            tryTimes = source.tryTimes
+            version = source.version
+            sagaProcesses = source.sagaProcesses.map { process ->
+                SagaProcess().apply {
+                    id = process.id
+                    processCode = process.processCode
+                    param = process.param
+                    paramType = process.paramType
+                    result = process.result
+                    resultType = process.resultType
+                    exception = process.exception
+                    executedAt = process.executedAt
+                    compensationCode = process.compensationCode
+                    compensationParam = process.compensationParam
+                    compensationParamType = process.compensationParamType
+                    compensationResult = process.compensationResult
+                    compensationResultType = process.compensationResultType
+                    compensationException = process.compensationException
+                    compensationState = process.compensationState
+                    compensationLastTryTime = process.compensationLastTryTime
+                    compensationTriedTimes = process.compensationTriedTimes
+                    compensatedAt = process.compensatedAt
+                    processState = process.processState
+                    createAt = process.createAt
+                    lastTryTime = process.lastTryTime
+                    triedTimes = process.triedTimes
+                }
+            }.toMutableList()
+        }
+    }
 }

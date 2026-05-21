@@ -1,5 +1,7 @@
 package com.only4.cap4k.ddd.application.saga
 
+import com.only4.cap4k.ddd.application.saga.persistence.ArchivedSaga
+import com.only4.cap4k.ddd.application.saga.persistence.ArchivedSagaProcess
 import com.only4.cap4k.ddd.application.saga.persistence.Saga
 import com.only4.cap4k.ddd.application.saga.persistence.SagaProcess
 import com.only4.cap4k.ddd.core.application.RequestParam
@@ -68,18 +70,22 @@ class SagaRecordCompensationTest {
     }
 
     @Test
-    fun `compensation ordering resumes from failed reverse step`() {
+    fun `compensation ordering drops compensated prefix and resumes remaining reverse steps`() {
         val hold = SagaProcess().apply {
+            id = 1L
             processCode = "reserve-hold"
             processState = SagaProcess.SagaProcessState.EXECUTED
-            executedAt = now.plusMinutes(2)
+            executedAt = now.plusMinutes(4)
+            createAt = now.plusMinutes(4)
             compensationCode = "release-hold"
             compensationState = SagaProcess.SagaCompensationState.COMPENSATED
         }
         val plan = SagaProcess().apply {
+            id = 2L
             processCode = "create-plan"
             processState = SagaProcess.SagaProcessState.EXECUTED
             executedAt = now.plusMinutes(3)
+            createAt = now.plusMinutes(3)
             compensationCode = "cancel-plan"
             compensationState = SagaProcess.SagaCompensationState.FAILED
         }
@@ -88,6 +94,120 @@ class SagaRecordCompensationTest {
         val reloadedRecord = reloadRecord(sagaRecord)
 
         assertEquals(listOf("create-plan"), reloadedRecord.compensationProcessCodesToRun())
+    }
+
+    @Test
+    fun `hydrated reverse scan keeps non compensable latest step before earlier compensable work`() {
+        val compensable = SagaProcess().apply {
+            id = 1L
+            processCode = "create-plan"
+            processState = SagaProcess.SagaProcessState.EXECUTED
+            executedAt = null
+            createAt = now.plusMinutes(2)
+            compensationCode = "cancel-plan"
+            compensationState = SagaProcess.SagaCompensationState.READY
+        }
+        val nonCompensable = SagaProcess().apply {
+            id = 2L
+            processCode = "publish-content"
+            processState = SagaProcess.SagaProcessState.EXECUTED
+            executedAt = null
+            createAt = now.plusMinutes(3)
+            compensationCode = ""
+            compensationState = SagaProcess.SagaCompensationState.NONE
+        }
+        sagaRecord.saga.sagaProcesses = mutableListOf(compensable, nonCompensable)
+
+        val reloadedRecord = reloadRecord(sagaRecord)
+
+        assertEquals(listOf("publish-content", "create-plan"), reloadedRecord.compensationProcessCodesToRun())
+    }
+
+    @Test
+    fun `archive copies compensation fields from saga and process`() {
+        val saga = Saga().apply {
+            id = 99L
+            sagaUuid = "saga-99"
+            svcName = "svc"
+            sagaType = "ARCHIVE_SAGA"
+            param = """{"action":"publish"}"""
+            paramType = TestSagaParam::class.java.name
+            result = """{"success":true}"""
+            resultType = Map::class.java.name
+            exception = "forward exception"
+            compensationRequestCode = "PUBLISH_REJECTED"
+            compensationRequestReason = "moderation failed"
+            compensationRequestedAt = now.plusMinutes(4)
+            compensationRequestedBy = SagaCompensationRequestedBy.OPERATOR.name
+            compensationSourceProcessCode = "publish-content"
+            expireAt = now.plusHours(1)
+            createAt = now
+            sagaState = Saga.SagaState.MANUAL_REPAIR_REQUIRED
+            lastTryTime = now.plusMinutes(6)
+            nextTryTime = now.plusMinutes(7)
+            triedTimes = 2
+            tryTimes = 5
+            version = 3
+        }
+        val process = SagaProcess().apply {
+            id = 11L
+            processCode = "publish-content"
+            param = """{"action":"publish"}"""
+            paramType = TestRequestParam::class.java.name
+            result = """{"contentId":"content-9"}"""
+            resultType = Map::class.java.name
+            exception = "process exception"
+            executedAt = now.plusMinutes(3)
+            compensationCode = "unpublish-content"
+            compensationParam = """{"action":"unpublish","data":{"contentId":"content-9"}}"""
+            compensationParamType = TestRequestParam::class.java.name
+            compensationResult = """{"status":"done"}"""
+            compensationResultType = Map::class.java.name
+            compensationException = "compensation exception"
+            compensationState = SagaProcess.SagaCompensationState.MANUAL_REPAIR_REQUIRED
+            compensationLastTryTime = now.plusMinutes(5)
+            compensationTriedTimes = 4
+            compensatedAt = now.plusMinutes(6)
+            processState = SagaProcess.SagaProcessState.EXECUTED
+            createAt = now.plusMinutes(1)
+            lastTryTime = now.plusMinutes(3)
+            triedTimes = 2
+        }
+        saga.sagaProcesses = mutableListOf(process)
+
+        val archivedSaga = ArchivedSaga().archiveFrom(saga)
+        val archivedProcess = ArchivedSagaProcess().archiveFrom(process)
+
+        assertEquals("PUBLISH_REJECTED", archivedSaga.compensationRequestCode)
+        assertEquals("moderation failed", archivedSaga.compensationRequestReason)
+        assertEquals(now.plusMinutes(4), archivedSaga.compensationRequestedAt)
+        assertEquals(SagaCompensationRequestedBy.OPERATOR.name, archivedSaga.compensationRequestedBy)
+        assertEquals("publish-content", archivedSaga.compensationSourceProcessCode)
+        assertEquals(Saga.SagaState.MANUAL_REPAIR_REQUIRED, archivedSaga.sagaState)
+
+        assertEquals(now.plusMinutes(3), archivedSaga.sagaProcesses.single().executedAt)
+        assertEquals("unpublish-content", archivedSaga.sagaProcesses.single().compensationCode)
+        assertEquals(process.compensationParam, archivedSaga.sagaProcesses.single().compensationParam)
+        assertEquals(process.compensationParamType, archivedSaga.sagaProcesses.single().compensationParamType)
+        assertEquals(process.compensationResult, archivedSaga.sagaProcesses.single().compensationResult)
+        assertEquals(process.compensationResultType, archivedSaga.sagaProcesses.single().compensationResultType)
+        assertEquals(process.compensationException, archivedSaga.sagaProcesses.single().compensationException)
+        assertEquals(process.compensationState, archivedSaga.sagaProcesses.single().compensationState)
+        assertEquals(process.compensationLastTryTime, archivedSaga.sagaProcesses.single().compensationLastTryTime)
+        assertEquals(process.compensationTriedTimes, archivedSaga.sagaProcesses.single().compensationTriedTimes)
+        assertEquals(process.compensatedAt, archivedSaga.sagaProcesses.single().compensatedAt)
+
+        assertEquals(process.executedAt, archivedProcess.executedAt)
+        assertEquals(process.compensationCode, archivedProcess.compensationCode)
+        assertEquals(process.compensationParam, archivedProcess.compensationParam)
+        assertEquals(process.compensationParamType, archivedProcess.compensationParamType)
+        assertEquals(process.compensationResult, archivedProcess.compensationResult)
+        assertEquals(process.compensationResultType, archivedProcess.compensationResultType)
+        assertEquals(process.compensationException, archivedProcess.compensationException)
+        assertEquals(process.compensationState, archivedProcess.compensationState)
+        assertEquals(process.compensationLastTryTime, archivedProcess.compensationLastTryTime)
+        assertEquals(process.compensationTriedTimes, archivedProcess.compensationTriedTimes)
+        assertEquals(process.compensatedAt, archivedProcess.compensatedAt)
     }
 
     private data class TestRequestParam(
