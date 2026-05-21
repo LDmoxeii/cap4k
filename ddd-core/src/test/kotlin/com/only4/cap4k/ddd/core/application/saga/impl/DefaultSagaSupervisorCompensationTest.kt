@@ -26,10 +26,6 @@ import java.time.LocalDateTime
 
 class DefaultSagaSupervisorCompensationTest {
 
-    companion object {
-        private val SHARED_REQUEST_SUPERVISOR: RequestSupervisor = mockk()
-    }
-
     private lateinit var mockSagaRecordRepository: SagaRecordRepository
     private lateinit var mockValidator: Validator
     private lateinit var mockSagaRecord: SagaRecord
@@ -49,7 +45,7 @@ class DefaultSagaSupervisorCompensationTest {
         mockSagaRecordRepository = mockk(relaxUnitFun = true)
         mockValidator = mockk()
         mockSagaRecord = mockk()
-        mockRequestSupervisor = SHARED_REQUEST_SUPERVISOR
+        mockRequestSupervisor = TestRequestSupervisorHolder.instance
         clearMocks(mockRequestSupervisor)
 
         every { mockSagaRecordRepository.create() } returns mockSagaRecord
