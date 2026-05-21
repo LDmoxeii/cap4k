@@ -26,7 +26,7 @@ The current `skills/cap4k-authoring` draft mixes these readers. Anything about c
 | Aggregate generation | Entity, schema, behavior, repository, shared/local enums, factory/specification/unique options | Teach which output is generated source, which is checked-in skeleton, and which artifacts are optional |
 | Public tactical runtime | `Mediator`, repository supervisor, factories, domain services, UoW, specs, lifecycle listeners, events, requests | Teach canonical usage, especially static `Mediator.*`, command UoW, and factory-driven creation |
 | Layering | Domain/application/adapter/start module paths plus physical package defaults | Teach responsibilities separately from physical handler placement |
-| Integration events | Core annotations/supervisor plus HTTP/JPA/RabbitMQ/RocketMQ adapters | Teach publish/attach/consume flow, DB setup needs, and external contract sharing strategy |
+| Integration events | Core annotations/supervisor plus HTTP/JPA/RabbitMQ/RocketMQ adapters | Teach attach/consume flow, runtime release, DB setup needs, and external contract sharing strategy |
 | Analysis | compiler plugin emits `nodes.json`/`rels.json`/`design-elements.json`; pipeline generates flow/drawing-board | Teach analysis as verification/export after code compiles |
 | Testing | Docs-first testing contract; domain/application behavior first; reference project has end-to-end smoke tests | Teach useful tests, not scaffolding accident or architecture-policing residue |
 | SPI/addon | `ArtifactAddonProvider`, `cap4kAddon`, addon resources under `cap4k/addons/<id>/...` | Teach extension as a first-class generator path with same override/conflict semantics |
