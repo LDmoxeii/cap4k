@@ -197,14 +197,15 @@ Attachment boundaries:
 - domain event attachments are keyed by aggregate/entity identity and are released when the UoW/domain event supervisor releases events for persisted entities;
 - integration event attachments are accumulated in the current event runtime scope and released through the integration event manager;
 - when a persisted domain event dispatch succeeds, listener-attached integration events are released before the source domain event is marked delivered and before domain delivery is ended;
-- when listener dispatch fails or integration event release fails, integration events derived from that listener scope are discarded rather than released, and the persisted domain event remains undelivered and retryable;
+- when listener dispatch fails, unreleased listener-scope attachments are discarded and the persisted domain event remains undelivered and retryable;
+- when integration event release fails, source domain event delivery is not ended and the source event is not marked delivered, so the persisted domain event remains retryable; derived integration records already persisted during release depend on transaction and repository behavior rather than being uniformly discarded;
 - when an ambient scope completes with no remaining attachments, the runtime pops it; failures discard attachments from the failed scope instead of leaking them.
 
 Diagnostics:
 
-- programmatic `EventSubscriber` dispatch collects multi-listener failures instead of stopping at the first listener, and each diagnostic entry carries event payload, listener metadata, and cause;
-- Spring `@EventListener` invocation is wrapped by the cap4k adapter, so invocation diagnostics include listener bean, class, method, payload, cause, and the same scope snapshot;
-- request dispatch diagnostics include request param, handler, and cause; when the request is sent from an event listener, the nested request scope also preserves listener metadata so the failing command/query can still point back to the listener that sent it;
+- programmatic `EventSubscriber` dispatch collects multi-listener failures instead of stopping at the first listener; `EventDispatchException` carries the event payload class and one `EventDispatchDiagnostic` scope snapshot, while each `EventSubscriberFailure` carries subscriber class and cause;
+- Spring `@EventListener` invocation is wrapped by the cap4k adapter, so invocation diagnostics include listener bean, class, method, payload class, cause, and the same scope snapshot;
+- `RequestDispatchException` diagnostics include request param class, handler class, cause, and a diagnostic snapshot; when the request is sent from an event listener, the nested request scope can inherit listener metadata so the failing command/query can still point back to the listener that sent it;
 - diagnostics report failures without swallowing them, so event-level delivery and retry semantics remain controlled by the domain event dispatch result;
 - listener return-value publication is rejected by the diagnostics adapter because cap4k does not support Spring's return-value event publication path.
 
