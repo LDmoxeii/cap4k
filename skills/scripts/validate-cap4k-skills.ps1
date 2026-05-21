@@ -190,4 +190,67 @@ foreach ($pattern in $authoringForbiddenPatterns) {
   }
 }
 
+function Assert-NoForbiddenPattern {
+  param(
+    [Parameter(Mandatory = $true)]
+    [object[]] $Files,
+    [Parameter(Mandatory = $true)]
+    [string[]] $Patterns,
+    [Parameter(Mandatory = $true)]
+    [string] $Scope
+  )
+
+  foreach ($file in $Files) {
+    $text = Get-Content -LiteralPath $file.FullName -Raw
+    foreach ($pattern in $Patterns) {
+      if ($text -match $pattern) {
+        throw "Forbidden removed event guidance matched in ${Scope}: $($file.FullName): $pattern"
+      }
+    }
+  }
+}
+
+$removedEventGuidancePatterns = @(
+  ('Auto' + 'Attach'),
+  ('Auto' + 'Request'),
+  ('Auto' + 'Requests'),
+  ('Auto' + 'Release'),
+  ('Auto' + 'Releases'),
+  ('Mediator\.events\.' + 'publish'),
+  ('IntegrationEventSupervisor\.' + 'publish'),
+  ('attach ' + 'or ' + 'publish'),
+  ('attach ' + '/ ' + 'publish'),
+  ('attach ' + [char]0x6216 + ' ' + 'publish')
+)
+
+Assert-NoForbiddenPattern `
+  -Files (@($skillTextFiles) + @($authoringTextFiles)) `
+  -Patterns $removedEventGuidancePatterns `
+  -Scope 'active skills and public authoring docs'
+
+$runtimeSourceRoots = @(
+  'ddd-core',
+  'cap4k-ddd-starter',
+  'ddd-application-request-jpa',
+  'ddd-domain-event-jpa',
+  'ddd-integration-event-http',
+  'ddd-integration-event-http-jpa',
+  'ddd-integration-event-rabbitmq',
+  'ddd-integration-event-rocketmq'
+)
+
+$runtimeSourceFiles = @()
+foreach ($root in $runtimeSourceRoots) {
+  if (-not (Test-Path -LiteralPath $root)) { continue }
+  $runtimeSourceFiles += Get-ChildItem -LiteralPath $root -Recurse -File |
+    Where-Object { $_.Extension -in '.kt', '.java' }
+}
+
+if ($runtimeSourceFiles.Count -gt 0) {
+  Assert-NoForbiddenPattern `
+    -Files $runtimeSourceFiles `
+    -Patterns $removedEventGuidancePatterns `
+    -Scope 'runtime source'
+}
+
 Write-Host "cap4k skill validation passed for $($skillDirs.Count) skills."

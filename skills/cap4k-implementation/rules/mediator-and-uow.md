@@ -6,9 +6,11 @@
 - Use `Mediator.services` for domain services.
 - Use `Mediator.requests` for external capability clients.
 - Use `Mediator.cmd` and `Mediator.qry` for command/query boundaries.
+- Use `Mediator.events.attach(...)` to attach outbound integration events to the current work unit.
 - Use `Mediator.uow.save()` as the normal write persistence boundary.
 - Do not inject handlers directly to bypass the request supervisor path.
 - Do not call client first from an entry implementation and then command second to patch internal state.
+- Do not bypass `Mediator.events.attach(...)` with direct outbound event sending or lower-level supervisor calls.
 
 ### Repository Access Boundary
 
@@ -28,3 +30,11 @@
 - Persist aggregate roots only. Child entities, value objects, inline values, and JSON-backed values are persisted through their aggregate root.
 - Do not save child entities independently to bypass aggregate invariants.
 - Do not call `Mediator.uow.save(...)` from listeners, jobs, controllers, open host service entries, external fact entries, or client handlers unless that component has been deliberately modeled as the write boundary.
+
+### Integration Event Boundary
+
+- Attach outbound integration events only in domain-event subscribers or explicit application processes that are reacting to an internal fact.
+- Aggregates must record domain facts, not cross-service event names, schemas, subscribers, or transport choices.
+- Adapter entries, external fact entries, open host services, controllers, jobs, and ordinary boundary code must not decide outbound integration events.
+- Inbound integration events are external facts. Translate state-advancing inputs into internal commands before changing state.
+- `@EventListener` remains an application implementation technique for reacting to internal facts; it does not turn external facts into domain events.
