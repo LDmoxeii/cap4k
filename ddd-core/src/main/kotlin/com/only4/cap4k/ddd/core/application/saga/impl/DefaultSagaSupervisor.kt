@@ -144,6 +144,10 @@ open class DefaultSagaSupervisor(
 
 
     override fun resume(saga: SagaRecord, minNextTryTime: LocalDateTime) {
+        if (!saga.isValid && resumeCompensationIfSupported(saga)) {
+            return
+        }
+
         val now = LocalDateTime.now()
         val sagaTime = Duration.between(saga.nextTryTime, now).let {
             if (it.isNegative) now else saga.nextTryTime
@@ -403,7 +407,27 @@ open class DefaultSagaSupervisor(
             return
         }
         sagaRecordRepository.save(sagaRecord)
+        runCompensation(sagaRecord, now)
+    }
 
+    private fun resumeCompensationIfSupported(sagaRecord: SagaRecord): Boolean {
+        val now = LocalDateTime.now()
+        val compensationStarted = try {
+            sagaRecord.beginCompensation(now)
+        } catch (_: UnsupportedOperationException) {
+            return false
+        }
+
+        if (!compensationStarted) {
+            return false
+        }
+
+        sagaRecordRepository.save(sagaRecord)
+        runCompensation(sagaRecord, now)
+        return true
+    }
+
+    private fun runCompensation(sagaRecord: SagaRecord, now: LocalDateTime) {
         var missingCompensationRequest = false
         for (processCode in sagaRecord.compensationProcessCodesToRun()) {
             val compensationRequest = sagaRecord.getSagaProcessCompensationRequest(processCode)

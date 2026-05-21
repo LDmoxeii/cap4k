@@ -85,6 +85,7 @@ class DefaultSagaSupervisorTest {
         every { mockSagaRecord.scheduleTime } returns LocalDateTime.now().plusMinutes(1)
         every { mockSagaRecord.registerSagaProcessCompensation(any(), any(), any()) } just Runs
         every { mockSagaRecord.requestCompensation(any(), any(), any(), any(), any()) } just Runs
+        every { mockSagaRecord.beginCompensation(any()) } returns false
 
         SagaSupervisorSupport.configure(supervisor as SagaProcessSupervisor)
         RequestSupervisorSupport.configure(mockRequestSupervisor)
@@ -92,7 +93,7 @@ class DefaultSagaSupervisorTest {
 
     @AfterEach
     fun tearDown() {
-        clearAllMocks()
+        clearMocks(mockSagaRecordRepository, mockValidator, mockSagaRecord, mockRequestSupervisor)
     }
 
     private fun newSupervisor(vararg handlers: RequestHandler<*, *>): DefaultSagaSupervisor =
@@ -295,6 +296,8 @@ class DefaultSagaSupervisorTest {
         every { mockSagaRecord.endSaga(any(), any()) } just Runs
         every { mockSagaRecord.occurredException(any(), any()) } just Runs
         every { mockSagaRecord.isValid } returns true
+        every { mockSagaRecord.beginCompensation(any()) } returns false
+        every { mockValidator.validate(mockSagaRecord) } returns emptySet()
 
         // 配置nextTryTime返回序列：第一次调用返回nextTryTime1，第二次返回nextTryTime2，第三次返回finalNextTryTime
         every { mockSagaRecord.nextTryTime } returnsMany listOf(nextTryTime1, nextTryTime2, finalNextTryTime)

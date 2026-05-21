@@ -58,7 +58,10 @@ class DefaultSagaSupervisorCompensationTest {
         every { mockSagaRecord.id } returns "test-saga-id"
         every { mockSagaRecord.isExecuting } returns false
         every { mockSagaRecord.isValid } returns true
+        every { mockValidator.validate(mockSagaRecord) } returns emptySet()
         every { mockSagaRecord.scheduleTime } returns LocalDateTime.now()
+        every { mockSagaRecord.nextTryTime } returns LocalDateTime.now().plusMinutes(1)
+        every { mockSagaRecord.param } returns RejectPaymentSagaParam("plan-9")
         every { mockSagaRecord.isSagaProcessExecuted(any()) } returns false
         every { mockSagaRecord.beginSagaProcess(any(), any(), any()) } just Runs
         every { mockSagaRecord.endSagaProcess(any(), any(), any()) } just Runs
@@ -300,5 +303,126 @@ class DefaultSagaSupervisorCompensationTest {
 
         verify(exactly = 0) { mockRequestSupervisor.send(any<RequestParam<Any>>()) }
         verify(exactly = 0) { mockSagaRecord.beginSagaCompensationProcess(any(), any()) }
+    }
+
+    @Test
+    @DisplayName("resume should route persisted compensation-state saga through compensation path")
+    fun `resume routes persisted compensation saga through compensation path`() {
+        val record = PersistedCompensationSagaRecord(PersistedCompensationSagaRecord.State.COMPENSATION_REQUESTED)
+        every { mockValidator.validate(record) } returns emptySet()
+        every { mockRequestSupervisor.send(CancelPlanRequest("plan-9")) } returns Unit
+
+        val supervisor = newSupervisor()
+
+        supervisor.resume(record, LocalDateTime.now().plusMinutes(5))
+
+        assertEquals(1, record.beginCompensationCalls)
+        assertEquals(0, record.beginSagaCalls)
+        assertEquals(listOf("create-plan"), record.compensationProcessBegins)
+        assertTrue(record.compensationCompleted)
+    }
+
+    @Test
+    @DisplayName("resume should continue persisted compensating saga through compensation path")
+    fun `resume continues persisted compensating saga through compensation path`() {
+        val record = PersistedCompensationSagaRecord(PersistedCompensationSagaRecord.State.COMPENSATING)
+        every { mockValidator.validate(record) } returns emptySet()
+        every { mockRequestSupervisor.send(CancelPlanRequest("plan-9")) } returns Unit
+
+        val supervisor = newSupervisor()
+
+        supervisor.resume(record, LocalDateTime.now().plusMinutes(5))
+
+        assertEquals(1, record.beginCompensationCalls)
+        assertEquals(0, record.beginSagaCalls)
+        assertEquals(listOf("create-plan"), record.compensationProcessBegins)
+        assertTrue(record.compensationCompleted)
+    }
+
+    private class PersistedCompensationSagaRecord(
+        private var state: State
+    ) : SagaRecord {
+        enum class State {
+            COMPENSATION_REQUESTED,
+            COMPENSATING,
+            COMPENSATED
+        }
+
+        var beginSagaCalls = 0
+            private set
+        var beginCompensationCalls = 0
+            private set
+        val compensationProcessBegins = mutableListOf<String>()
+        var compensationCompleted = false
+            private set
+
+        override fun init(
+            sagaParam: SagaParam<*>,
+            svcName: String,
+            sagaType: String,
+            scheduleAt: LocalDateTime,
+            expireAfter: Duration,
+            retryTimes: Int
+        ) = Unit
+
+        override val id: String = "persisted-compensation-saga"
+        override val type: String = RejectPaymentSagaParam::class.java.name
+        override val param: SagaParam<*> = RejectPaymentSagaParam("plan-9")
+        override fun <R : Any> getResult(): R? = null
+        override fun beginSagaProcess(now: LocalDateTime, processCode: String, param: RequestParam<*>) = Unit
+        override fun endSagaProcess(now: LocalDateTime, processCode: String, result: Any) = Unit
+        override fun sagaProcessOccurredException(now: LocalDateTime, processCode: String, throwable: Throwable) = Unit
+        override fun isSagaProcessExecuted(processCode: String): Boolean = false
+        override fun <R : Any> getSagaProcessResult(processCode: String): R? = null
+        override val scheduleTime: LocalDateTime = LocalDateTime.now()
+        override val nextTryTime: LocalDateTime = LocalDateTime.now().minusMinutes(1)
+        override val isValid: Boolean = false
+        override val isInvalid: Boolean = true
+        override val isExecuting: Boolean = false
+        override val isExecuted: Boolean = false
+
+        override fun beginSaga(now: LocalDateTime): Boolean {
+            beginSagaCalls++
+            return false
+        }
+
+        override fun cancelSaga(now: LocalDateTime): Boolean = false
+        override fun endSaga(now: LocalDateTime, result: Any) = Unit
+        override fun occurredException(now: LocalDateTime, throwable: Throwable) = Unit
+
+        override fun beginCompensation(now: LocalDateTime): Boolean {
+            beginCompensationCalls++
+            return when (state) {
+                State.COMPENSATION_REQUESTED,
+                State.COMPENSATING -> {
+                    state = State.COMPENSATING
+                    true
+                }
+
+                State.COMPENSATED -> false
+            }
+        }
+
+        override fun compensationProcessCodesToRun(): List<String> = listOf("create-plan")
+
+        override fun getSagaProcessCompensationRequest(processCode: String): RequestParam<*>? =
+            CancelPlanRequest("plan-9")
+
+        override fun beginSagaCompensationProcess(now: LocalDateTime, processCode: String) {
+            compensationProcessBegins += processCode
+        }
+
+        override fun endSagaCompensationProcess(now: LocalDateTime, processCode: String, result: Any) = Unit
+
+        override fun sagaCompensationProcessOccurredException(
+            now: LocalDateTime,
+            processCode: String,
+            throwable: Throwable
+        ) = Unit
+
+        override fun endCompensation(now: LocalDateTime) {
+            state = State.COMPENSATED
+            compensationCompleted = true
+        }
     }
 }

@@ -111,9 +111,9 @@ class Saga(
 
     /**
      * 补偿请求来源
-     * varchar(255) NOT NULL DEFAULT ''
+     * varchar(32) NOT NULL DEFAULT ''
      */
-    @Column(name = "`compensation_requested_by`", nullable = false)
+    @Column(name = "`compensation_requested_by`", nullable = false, length = 32)
     var compensationRequestedBy: String = "",
 
     /**
