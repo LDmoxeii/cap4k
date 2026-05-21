@@ -7,6 +7,7 @@ import com.alibaba.fastjson.serializer.SerializerFeature.IgnoreNonFieldGetter
 import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.saga.SagaParam
+import com.only4.cap4k.ddd.core.application.saga.SagaCompensationRequestedBy
 import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.annotation.Retry
@@ -88,6 +89,41 @@ class Saga(
     var exception: String? = null,
 
     /**
+     * 补偿请求代码
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_request_code`", nullable = false)
+    var compensationRequestCode: String = "",
+
+    /**
+     * 补偿请求原因
+     * text (nullable)
+     */
+    @Column(name = "`compensation_request_reason`")
+    var compensationRequestReason: String = "",
+
+    /**
+     * 补偿请求时间
+     * datetime (nullable)
+     */
+    @Column(name = "`compensation_requested_at`")
+    var compensationRequestedAt: LocalDateTime? = null,
+
+    /**
+     * 补偿请求来源
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_requested_by`", nullable = false)
+    var compensationRequestedBy: String = "",
+
+    /**
+     * 触发补偿的流程代码
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_source_process_code`", nullable = false)
+    var compensationSourceProcessCode: String = "",
+
+    /**
      * 过期时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
@@ -160,6 +196,11 @@ class Saga(
         const val F_RESULT = "result"
         const val F_RESULT_TYPE = "resultType"
         const val F_EXCEPTION = "exception"
+        const val F_COMPENSATION_REQUEST_CODE = "compensationRequestCode"
+        const val F_COMPENSATION_REQUEST_REASON = "compensationRequestReason"
+        const val F_COMPENSATION_REQUESTED_AT = "compensationRequestedAt"
+        const val F_COMPENSATION_REQUESTED_BY = "compensationRequestedBy"
+        const val F_COMPENSATION_SOURCE_PROCESS_CODE = "compensationSourceProcessCode"
         const val F_CREATE_AT = "createAt"
         const val F_EXPIRE_AT = "expireAt"
         const val F_SAGA_STATE = "sagaState"
@@ -192,6 +233,12 @@ class Saga(
         this.nextTryTime = calculateNextTryTime(scheduleAt)
         this.result = ""
         this.resultType = ""
+        this.exception = null
+        this.compensationRequestCode = ""
+        this.compensationRequestReason = ""
+        this.compensationRequestedAt = null
+        this.compensationRequestedBy = ""
+        this.compensationSourceProcessCode = ""
         this.sagaProcesses = ArrayList()
     }
 
@@ -275,13 +322,21 @@ class Saga(
     }
 
     val isValid: Boolean
-        get() = this.sagaState in setOf(SagaState.INIT, SagaState.EXECUTING, SagaState.EXCEPTION)
+        get() = this.sagaState in setOf(SagaState.INIT, SagaState.EXECUTING_FORWARD, SagaState.EXCEPTION)
 
     val isInvalid: Boolean
-        get() = this.sagaState in setOf(SagaState.CANCEL, SagaState.EXPIRED, SagaState.EXHAUSTED)
+        get() = this.sagaState in setOf(
+            SagaState.CANCELLED,
+            SagaState.EXPIRED,
+            SagaState.EXHAUSTED,
+            SagaState.COMPENSATION_REQUESTED,
+            SagaState.COMPENSATING,
+            SagaState.MANUAL_REPAIR_REQUIRED,
+            SagaState.COMPENSATED
+        )
 
     val isExecuting: Boolean
-        get() = SagaState.EXECUTING == this.sagaState
+        get() = SagaState.EXECUTING_FORWARD == this.sagaState
 
     val isExecuted: Boolean
         get() = SagaState.EXECUTED == this.sagaState
@@ -304,7 +359,7 @@ class Saga(
             !this.lastTryTime.isEqual(now) && this.nextTryTime.isAfter(now) -> return false
         }
 
-        this.sagaState = SagaState.EXECUTING
+        this.sagaState = SagaState.EXECUTING_FORWARD
         this.lastTryTime = now
         this.triedTimes++
         this.nextTryTime = calculateNextTryTime(now)
@@ -320,7 +375,7 @@ class Saga(
         if (isExecuted || isInvalid) {
             return false
         }
-        this.sagaState = SagaState.CANCEL
+        this.sagaState = SagaState.CANCELLED
         return true
     }
 
@@ -332,6 +387,40 @@ class Saga(
         val sw = StringWriter()
         ex.printStackTrace(PrintWriter(sw, true))
         this.exception = sw.toString()
+    }
+
+    fun requestCompensation(
+        now: LocalDateTime,
+        code: String,
+        reason: String,
+        requestedBy: SagaCompensationRequestedBy,
+        sourceProcessCode: String?
+    ) {
+        this.compensationRequestCode = code
+        this.compensationRequestReason = reason
+        this.compensationRequestedAt = now
+        this.compensationRequestedBy = requestedBy.name
+        this.compensationSourceProcessCode = sourceProcessCode ?: ""
+        this.sagaState = SagaState.COMPENSATION_REQUESTED
+    }
+
+    fun beginCompensation(now: LocalDateTime): Boolean {
+        if (this.sagaState !in setOf(SagaState.COMPENSATION_REQUESTED, SagaState.COMPENSATING)) {
+            return false
+        }
+        this.sagaState = SagaState.COMPENSATING
+        this.lastTryTime = now
+        return true
+    }
+
+    fun endCompensation(now: LocalDateTime) {
+        this.sagaState = SagaState.COMPENSATED
+        this.lastTryTime = now
+    }
+
+    fun markManualRepairRequired(now: LocalDateTime) {
+        this.sagaState = SagaState.MANUAL_REPAIR_REQUIRED
+        this.lastTryTime = now
     }
 
     private fun calculateNextTryTime(now: LocalDateTime): LocalDateTime {
@@ -360,12 +449,12 @@ class Saga(
         /**
          * 待确认结果
          */
-        EXECUTING(-1, "executing"),
+        EXECUTING_FORWARD(-1, "executing-forward"),
 
         /**
          * 业务主动取消
          */
-        CANCEL(-2, "cancel"),
+        CANCELLED(-2, "cancelled"),
 
         /**
          * 过期
@@ -378,6 +467,21 @@ class Saga(
         EXHAUSTED(-4, "exhausted"),
 
         /**
+         * 已请求补偿
+         */
+        COMPENSATION_REQUESTED(-5, "compensation-requested"),
+
+        /**
+         * 补偿执行中
+         */
+        COMPENSATING(-6, "compensating"),
+
+        /**
+         * 需要人工修复
+         */
+        MANUAL_REPAIR_REQUIRED(-7, "manual-repair-required"),
+
+        /**
          * 发生异常
          */
         EXCEPTION(-9, "exception"),
@@ -385,7 +489,24 @@ class Saga(
         /**
          * 已发送
          */
-        EXECUTED(1, "executed");
+        EXECUTED(1, "executed"),
+
+        /**
+         * 已补偿
+         */
+        COMPENSATED(2, "compensated"),
+
+        /**
+         * 向后兼容旧状态名
+         */
+        @Deprecated("Use EXECUTING_FORWARD")
+        EXECUTING(-1, "executing"),
+
+        /**
+         * 向后兼容旧状态名
+         */
+        @Deprecated("Use CANCELLED")
+        CANCEL(-2, "cancel");
 
         companion object {
             @JvmStatic

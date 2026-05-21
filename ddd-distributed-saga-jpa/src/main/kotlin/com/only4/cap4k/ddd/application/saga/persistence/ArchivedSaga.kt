@@ -84,6 +84,41 @@ class ArchivedSaga(
     var exception: String? = null,
 
     /**
+     * 补偿请求代码
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_request_code`", nullable = false)
+    var compensationRequestCode: String = "",
+
+    /**
+     * 补偿请求原因
+     * text (nullable)
+     */
+    @Column(name = "`compensation_request_reason`")
+    var compensationRequestReason: String = "",
+
+    /**
+     * 补偿请求时间
+     * datetime (nullable)
+     */
+    @Column(name = "`compensation_requested_at`")
+    var compensationRequestedAt: LocalDateTime? = null,
+
+    /**
+     * 补偿请求来源
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_requested_by`", nullable = false)
+    var compensationRequestedBy: String = "",
+
+    /**
+     * 触发补偿的流程代码
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_source_process_code`", nullable = false)
+    var compensationSourceProcessCode: String = "",
+
+    /**
      * 过期时间
      * datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
@@ -170,6 +205,11 @@ class ArchivedSaga(
         this.result = saga.result
         this.resultType = saga.resultType
         this.exception = saga.exception
+        this.compensationRequestCode = saga.compensationRequestCode
+        this.compensationRequestReason = saga.compensationRequestReason
+        this.compensationRequestedAt = saga.compensationRequestedAt
+        this.compensationRequestedBy = saga.compensationRequestedBy
+        this.compensationSourceProcessCode = saga.compensationSourceProcessCode
         this.expireAt = saga.expireAt
         this.createAt = saga.createAt
         this.sagaState = saga.sagaState
@@ -179,18 +219,7 @@ class ArchivedSaga(
         this.tryTimes = saga.tryTimes
         this.version = saga.version
         this.sagaProcesses = saga.sagaProcesses.map { p ->
-            ArchivedSagaProcess().apply {
-                processCode = p.processCode
-                param = p.param
-                paramType = p.paramType
-                result = p.result
-                resultType = p.resultType
-                exception = p.exception
-                processState = p.processState
-                createAt = p.createAt
-                triedTimes = p.triedTimes
-                lastTryTime = p.lastTryTime
-            }
+            ArchivedSagaProcess().archiveFrom(p)
         }.toMutableList()
     }
 

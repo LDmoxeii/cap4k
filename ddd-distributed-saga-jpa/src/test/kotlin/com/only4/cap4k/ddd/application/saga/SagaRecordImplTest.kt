@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.application.saga
 import com.only4.cap4k.ddd.application.saga.persistence.Saga
 import com.only4.cap4k.ddd.application.saga.persistence.SagaProcess
 import com.only4.cap4k.ddd.core.application.RequestParam
+import com.only4.cap4k.ddd.core.application.saga.SagaCompensationRequestedBy
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -155,7 +156,7 @@ class SagaRecordImplTest {
 
             // Then
             assertTrue(result)
-            assertEquals(Saga.SagaState.EXECUTING, sagaRecord.saga.sagaState)
+            assertEquals(Saga.SagaState.EXECUTING_FORWARD, sagaRecord.saga.sagaState)
         }
 
         @Test
@@ -169,7 +170,7 @@ class SagaRecordImplTest {
 
             // Then
             assertTrue(result)
-            assertEquals(Saga.SagaState.CANCEL, sagaRecord.saga.sagaState)
+            assertEquals(Saga.SagaState.CANCELLED, sagaRecord.saga.sagaState)
         }
 
         @Test
@@ -310,6 +311,99 @@ class SagaRecordImplTest {
             assertNotNull(result)
             assertEquals("12345", result!!["userId"])
             assertEquals("john@test.com", result["email"])
+        }
+    }
+
+    @Nested
+    @DisplayName("Saga补偿管理测试")
+    inner class SagaCompensationTest {
+
+        @BeforeEach
+        fun setupSaga() {
+            val sagaParam = TestSagaParam("compensate", mapOf("key" to "value"))
+            sagaRecord.init(sagaParam, "test-service", "COMPENSATION_SAGA", testTime, Duration.ofMinutes(10), 3)
+            sagaRecord.beginSaga(testTime.plusMinutes(1))
+            sagaRecord.beginSagaProcess(
+                testTime.plusMinutes(2),
+                "CREATE_USER",
+                TestRequestParam("create", mapOf("username" to "john"))
+            )
+            sagaRecord.endSagaProcess(
+                testTime.plusMinutes(3),
+                "CREATE_USER",
+                mapOf<String, Any>("userId" to "12345")
+            )
+        }
+
+        @Test
+        @DisplayName("应该委托并暴露补偿请求元数据")
+        fun `should delegate and surface compensation request metadata`() {
+            sagaRecord.registerSagaProcessCompensation(
+                "CREATE_USER",
+                "DELETE_USER",
+                TestRequestParam("delete", mapOf("userId" to "12345"))
+            )
+
+            sagaRecord.requestCompensation(
+                testTime.plusMinutes(4),
+                "USER_REJECTED",
+                "downstream validation failed",
+                SagaCompensationRequestedBy.INTERNAL,
+                "CREATE_USER"
+            )
+
+            val process = sagaRecord.saga.getSagaProcess("CREATE_USER")!!
+            val compensationRequest = sagaRecord.getSagaProcessCompensationRequest("CREATE_USER") as TestRequestParam
+
+            assertEquals("DELETE_USER", process.compensationCode)
+            assertEquals(SagaProcess.SagaCompensationState.READY, process.compensationState)
+            assertEquals("delete", compensationRequest.action)
+            assertEquals(mapOf("userId" to "12345"), compensationRequest.data)
+            assertEquals(Saga.SagaState.COMPENSATION_REQUESTED, sagaRecord.saga.sagaState)
+            assertEquals("USER_REJECTED", sagaRecord.saga.compensationRequestCode)
+            assertEquals("downstream validation failed", sagaRecord.saga.compensationRequestReason)
+            assertEquals(SagaCompensationRequestedBy.INTERNAL.name, sagaRecord.saga.compensationRequestedBy)
+            assertEquals("CREATE_USER", sagaRecord.saga.compensationSourceProcessCode)
+        }
+
+        @Test
+        @DisplayName("应该委托补偿生命周期状态转换")
+        fun `should delegate compensation lifecycle transitions`() {
+            sagaRecord.registerSagaProcessCompensation(
+                "CREATE_USER",
+                "DELETE_USER",
+                TestRequestParam("delete", mapOf("userId" to "12345"))
+            )
+            sagaRecord.requestCompensation(
+                testTime.plusMinutes(4),
+                "USER_REJECTED",
+                "downstream validation failed",
+                SagaCompensationRequestedBy.INTERNAL,
+                "CREATE_USER"
+            )
+
+            assertEquals(listOf("CREATE_USER"), sagaRecord.compensationProcessCodesToRun())
+            assertTrue(sagaRecord.beginCompensation(testTime.plusMinutes(5)))
+            assertEquals(Saga.SagaState.COMPENSATING, sagaRecord.saga.sagaState)
+
+            sagaRecord.beginSagaCompensationProcess(testTime.plusMinutes(6), "CREATE_USER")
+            sagaRecord.endSagaCompensationProcess(testTime.plusMinutes(7), "CREATE_USER")
+            assertEquals(
+                SagaProcess.SagaCompensationState.COMPENSATED,
+                sagaRecord.saga.getSagaProcess("CREATE_USER")!!.compensationState
+            )
+
+            sagaRecord.endCompensation(testTime.plusMinutes(8))
+            assertEquals(Saga.SagaState.COMPENSATED, sagaRecord.saga.sagaState)
+
+            sagaRecord.requestCompensation(
+                testTime.plusMinutes(9),
+                "MANUAL_RETRY",
+                "operator retry failed",
+                SagaCompensationRequestedBy.OPERATOR
+            )
+            sagaRecord.markManualRepairRequired(testTime.plusMinutes(10))
+            assertEquals(Saga.SagaState.MANUAL_REPAIR_REQUIRED, sagaRecord.saga.sagaState)
         }
     }
 
