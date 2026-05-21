@@ -70,7 +70,7 @@
 
 - `Content` 不直接理解外部 callback payload。
 - `Content` 不直接创建或启动 `MediaProcessingTask`。
-- `Content` 不直接承担 outbound integration event 的跨服务协议；需要对外通知时由 application 层根据领域事实 `Mediator.events.attach(...)`。
+- `Content` 不直接承担 outbound integration event 的跨服务协议；需要对外通知时仅由领域事件订阅器或明确的 application process 基于内部事实调用 `Mediator.events.attach(...)`。
 - `MediaProcessingTask` 不直接决定内容是否发布。
 - `MediaProcessingCli` 不自己编排发布流程。
 - callback 和 polling 虽然入口不同，但进入内部后都要收敛为同一批命令语义。
@@ -105,7 +105,7 @@
 - 看本页是否明确固定了 `Content`、`MediaProcessingTask`、`MediaProcessingCli`、callback 主路径、polling 备用路径这五个核心元素。
 - 看本页是否明确交代了 `StartMediaProcessingCmd` 由谁发出、`MediaProcessingTask` 在哪里被创建 / 启动，以及这条交接缝为什么不留在 `Content` 内部。
 - 看本页是否把内容生命周期线、媒体处理生命周期线、结果回传入口线区分开，而不是揉成一团。
-- 看对外集成事件是否由 application 层基于领域事实 attach，聚合没有直接承担跨服务协议。
+- 看对外集成事件是否只在 application 编排点基于内部事实 attach，聚合、adapter 入口和普通边界代码没有决定对外集成事件。
 - 看 inbound integration event 是否仍作为外部事实入口进入内部命令链，没有伪装成 domain event。
 - 看其他页面是否都能自然链接回本页，并且继续沿用同一组对象与命令名。
 - 看 callback 是否始终被描述为首选返回路径，polling 是否始终被描述为 fallback。

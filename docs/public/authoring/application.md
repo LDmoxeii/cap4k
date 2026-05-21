@@ -44,7 +44,7 @@
 - 让一个入口同时推进多个主动作，例如在一次 handler 中既改 `Content` 又改 `MediaProcessingTask`。
 - 用查询流程偷偷承载写逻辑，例如在 `GetContentDetailQry` 里顺手修复状态。
 - 没有明确边界理由就直接依赖 `MediaProcessingCli`，把外部系统细节散落在各个 handler 中。
-- 调用低层 `IntegrationEventSupervisor` 的 publish 能力，或在业务代码里自行选择 publish 路径。对外集成事件只通过 `Mediator.events.attach(...)` 交给当前工作单元。
+- 绕过 `Mediator.events.attach(...)` 调用任何直接发布/低层发送 API，或在聚合、adapter 入口、普通边界代码中决定对外集成事件。对外集成事件只在领域事件订阅器或明确的 application process 中基于内部事实构造，并通过 `Mediator.events.attach(...)` 交给当前工作单元。
 - 把 inbound integration event 当成领域事件处理，绕过外部事实入口到内部命令的转换。
 - 把“callback 是主路径、polling 是备用路径”写成两套完全不同的业务规则。它们可以有不同入口，但不能有不同的内部真相。
 - 不看 `plan.json` 就直接改 `*Cmd.kt`、`*Qry.kt`、`*QryHandler.kt`、`*CliHandler.kt`、`*DomainEventSubscriber.kt`，把计划产物误当成长久手写家。
@@ -108,7 +108,7 @@
 - 在查询 handler 中顺手补写状态，例如“查详情时发现媒体已经完成，于是直接把 `Content` 标记成可发布”。
 - handler 直接解析第三方媒体平台状态码，并把这些外部枚举到处传递，导致应用层不再稳定。
 - callback 路径走 `CompleteMediaProcessingCmd`，polling 路径却直接写另外一套“轮询成功逻辑”，造成同一事实有两套推进方式。
-- 领域事件订阅器收到内部事实后直接调用低层 supervisor，或让聚合决定跨服务 event name 和 payload。
+- 领域事件订阅器收到内部事实后绕过 `Mediator.events.attach(...)` 调用任何直接发布/低层发送 API，或让聚合决定跨服务 event name 和 payload。
 - integration subscriber 收到外部事件后重新包装成 `MediaProcessingCompletedDomainEvent`，让系统误以为这是内部聚合刚刚产生的领域事实。
 - 因为文件就在 `src/main/kotlin`，就直接去改 `CreateContentDraftCmd.kt`、`GetContentDetailQry.kt` 或 `GetContentDetailQryHandler.kt`，没有先核对它是不是 plan-managed artifact。
 
@@ -127,7 +127,7 @@
 - 写 handler 是否总是通过聚合行为推进状态，而不是直接改对象内部字段。
 - 查询路径是否保持只读，`GetContentDetailQry` 与 `GetMediaProcessingProgressQry` 是否没有偷偷承载写逻辑。
 - callback 主路径和 polling 备用路径进入应用层后，是否收敛为同一组内部命令语义，而不是各写各的真相。
-- 对外集成事件是否由领域事件订阅器或 application process 通过 `Mediator.events.attach(...)` 附着，没有业务代码自行选择 publish 路径或调用低层 supervisor。
+- 对外集成事件是否仅由领域事件订阅器或明确的 application process 基于内部事实构造，并通过 `Mediator.events.attach(...)` 附着；聚合、adapter 入口、普通边界代码没有决定对外集成事件，也没有绕过 attach 调用直接发布/低层发送 API。
 - inbound integration event 是否仍作为外部事实入口处理，并在推进状态前转换成内部命令。
 - 使用 `MediaProcessingCli` 的地方是否有明确边界理由，而且外部协议细节没有扩散进整个应用层。
 - 在编辑 `*Cmd.kt`、`*Qry.kt`、`*CommandHandler.kt`、`*QryHandler.kt`、`*CliHandler.kt`、`*DomainEventSubscriber.kt` 之前，是否先检查了 `build/cap4k/plan.json`，区分 request-contract plan item 与作者完成面。
