@@ -122,7 +122,6 @@ The business authoring skill should cover the first row only. Addon-author guida
 
 | Gap | Current impact | Candidate issue direction |
 |---|---|---|
-| Design support for `integration_event` | External event contracts cannot be generated from design | Add design tag, generator, handler/subscriber skeleton, and drawing-board integration |
 | Design support for `value_object` | Value objects stay DB/manual only | Add design vocabulary or clarify DB-first modeling boundary |
 | Design support for `domain_service` | Domain services stay manual | Add design vocabulary/generator only if it avoids meaningless service shells |
 | Lifecycle recognition deficiency | Intended lifecycle hook use can be missed in some cases | Track as framework defect, not template override task |

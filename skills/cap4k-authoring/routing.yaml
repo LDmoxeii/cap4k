@@ -1,0 +1,47 @@
+routes:
+  - task: modeling
+    skill: cap4k-modeling
+    triggers:
+      - "derive cap4k DDD design"
+      - "clarify aggregate boundaries"
+      - "model value objects or domain events"
+      - "设计 cap4k 业务模型"
+  - task: generation
+    skill: cap4k-generation
+    triggers:
+      - "generate cap4k code from DB"
+      - "generate cap4k code from design JSON"
+      - "cap4kPlan"
+      - "cap4kGenerate"
+  - task: implementation
+    skill: cap4k-implementation
+    triggers:
+      - "implement a cap4k project slice"
+      - "write command handler"
+      - "write query handler"
+      - "实现 cap4k 业务切片"
+  - task: service-integration
+    skill: cap4k-service-integration
+    triggers:
+      - "open host service"
+      - "external capability client"
+      - "integration event"
+      - "external callback"
+      - "服务交互"
+      - "开放服务入口"
+      - "外部事实入口"
+      - "集成事件"
+  - task: verification
+    skill: cap4k-verification
+    triggers:
+      - "run cap4k analysis"
+      - "verify cap4k project"
+      - "flow review"
+      - "drawing-board"
+  - task: generated-output-review
+    skill: cap4k-generated-output-review
+    triggers:
+      - "review generated output"
+      - "inspect plan.json"
+      - "generated vs handwritten ownership"
+      - "审查生成物"

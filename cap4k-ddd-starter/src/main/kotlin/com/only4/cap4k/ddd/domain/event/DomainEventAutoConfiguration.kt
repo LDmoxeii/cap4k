@@ -2,8 +2,10 @@ package com.only4.cap4k.ddd.domain.event
 
 import com.only4.cap4k.ddd.core.application.distributed.Locker
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.*
+import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventListenerFactory
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultDomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultEventSubscriberManager
@@ -20,6 +22,7 @@ import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Lazy
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.scheduling.annotation.EnableScheduling
@@ -72,6 +75,9 @@ class DomainEventAutoConfiguration {
     @Bean
     fun domainEventUnitOfWorkInterceptor(domainEventManager: DomainEventManager): DomainEventUnitOfWorkInterceptor =
         DomainEventUnitOfWorkInterceptor(domainEventManager)
+
+    @Bean
+    fun cap4kEventListenerFactory(): Cap4kEventListenerFactory = Cap4kEventListenerFactory()
 
     @Bean
     @ConditionalOnMissingBean(EventRecordRepository::class)
@@ -154,6 +160,8 @@ class DomainEventAutoConfiguration {
         eventMessageInterceptorManager: EventMessageInterceptorManager,
         domainEventInterceptorManager: DomainEventInterceptorManager,
         integrationEventInterceptorManager: IntegrationEventInterceptorManager,
+        @Lazy
+        integrationEventManager: IntegrationEventManager,
         integrationEventPublishCallback: IntegrationEventPublisher.PublishCallback,
         eventProperties: EventProperties,
     ): DefaultEventPublisher = DefaultEventPublisher(
@@ -163,6 +171,7 @@ class DomainEventAutoConfiguration {
         eventMessageInterceptorManager,
         domainEventInterceptorManager,
         integrationEventInterceptorManager,
+        integrationEventManager,
         integrationEventPublishCallback,
         eventProperties.publisherThreadPoolSize
     ).apply {

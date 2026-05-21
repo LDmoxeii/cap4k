@@ -1,13 +1,13 @@
 # cap4k-plugin-pipeline-gradle
 
-This module provides the Gradle integration for the cap4k pipeline.
+这个模块提供 cap4k pipeline 的 Gradle 集成层。
 
-For project-author usage guidance, read the current Chinese-first public docs:
+项目作者的使用入口现在以中文公开文档为默认主入口：
 
-- [Generator Guide](../docs/public/authoring/generator/index.zh-CN.md)
-- [Bootstrap Guide](../docs/public/authoring/generator/bootstrap.zh-CN.md)
-- [Code Generation Guide](../docs/public/authoring/generator/code-generation.zh-CN.md)
-- [Code Analysis Guide](../docs/public/authoring/generator/code-analysis.zh-CN.md)
-- [Generator DSL Reference](../docs/public/reference/generator-dsl.zh-CN.md)
+- [生成器指南](../docs/public/authoring/generator/index.md)
+- [Bootstrap 指南](../docs/public/authoring/generator/bootstrap.md)
+- [代码生成指南](../docs/public/authoring/generator/code-generation.md)
+- [代码分析指南](../docs/public/authoring/generator/code-analysis.md)
+- [Generator DSL 参考](../docs/public/reference/generator-dsl.md)
 
-These pages are the current detailed public authoring handoff. This module README is no longer the primary public authoring manual.
+这些页面才是当前对外公开、持续维护的作者文档主面。这个模块内的 README 不再承担主文档职责。

@@ -15,7 +15,6 @@ import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisorSupport
 import com.only4.cap4k.ddd.core.domain.repo.impl.DefaultEntityInlinePersistListener
 import com.only4.cap4k.ddd.core.domain.repo.impl.DefaultPersistListenerManager
 import com.only4.cap4k.ddd.domain.aggregate.impl.DefaultAggregateSupervisor
-import com.only4.cap4k.ddd.domain.event.configure.EventProperties
 import com.only4.cap4k.ddd.domain.repo.configure.JpaUnitOfWorkProperties
 import com.only4.cap4k.ddd.domain.repo.impl.DefaultRepositorySupervisor
 import org.springframework.beans.factory.annotation.Autowired
@@ -103,12 +102,8 @@ class JpaRepositoryAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(PersistListenerManager::class)
     fun defaultPersistListenerManager(
-        persistListeners: List<PersistListener<*>>,
-        eventProperties: EventProperties,
-    ): DefaultPersistListenerManager = DefaultPersistListenerManager(
-        persistListeners,
-        eventProperties.eventScanPackage
-    ).apply {
+        persistListeners: List<PersistListener<*>>
+    ): DefaultPersistListenerManager = DefaultPersistListenerManager(persistListeners).apply {
         init()
     }
 

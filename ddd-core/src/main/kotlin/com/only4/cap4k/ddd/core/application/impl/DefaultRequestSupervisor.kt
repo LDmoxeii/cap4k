@@ -6,6 +6,10 @@ import com.only4.cap4k.ddd.core.application.command.NoneResultCommandParam
 import com.only4.cap4k.ddd.core.application.query.Query
 import com.only4.cap4k.ddd.core.application.saga.SagaParam
 import com.only4.cap4k.ddd.core.application.saga.SagaSupervisor
+import com.only4.cap4k.ddd.core.domain.event.impl.EventDispatchException
+import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeContext
+import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeScopeType
+import com.only4.cap4k.ddd.core.domain.event.impl.RequestDispatchException
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.misc.createScheduledThreadPool
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
@@ -237,25 +241,47 @@ open class DefaultRequestSupervisor(
     protected open fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> internalSend(request: REQUEST): RESPONSE {
         val requestClass = request::class.java
         val interceptors = requestInterceptorMap[requestClass] ?: emptyList()
-
-        // 前置拦截器处理
-        interceptors.forEach { interceptor ->
-            @Suppress("UNCHECKED_CAST")
-            (interceptor as RequestInterceptor<REQUEST, RESPONSE>).preRequest(request)
-        }
-
-        // 执行请求处理
         @Suppress("UNCHECKED_CAST")
         val handler = requestHandlerMap[requestClass] as? RequestHandler<REQUEST, RESPONSE>
-            ?: throw IllegalStateException("No handler found for request type: ${requestClass.name}")
-        val response = handler.exec(request)
+            ?: throw RequestDispatchException(
+                requestParamClass = requestClass,
+                requestHandlerClass = null,
+                diagnosticContext = EventDispatchException.snapshot(EventRuntimeContext.currentOrNull()),
+                cause = IllegalStateException("No handler found for request type: ${requestClass.name}")
+            )
 
-        // 后置拦截器处理
-        interceptors.forEach { interceptor ->
-            @Suppress("UNCHECKED_CAST")
-            (interceptor as RequestInterceptor<REQUEST, RESPONSE>).postRequest(request, response)
+        val outerScope = EventRuntimeContext.currentOrNull()
+        val requestScope = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+        outerScope?.captureListenerMetadata()?.let(requestScope::restoreListenerMetadata)
+
+        return try {
+            // 前置拦截器处理
+            interceptors.forEach { interceptor ->
+                @Suppress("UNCHECKED_CAST")
+                (interceptor as RequestInterceptor<REQUEST, RESPONSE>).preRequest(request)
+            }
+
+            // 执行请求处理
+            val response = handler.exec(request)
+
+            // 后置拦截器处理
+            interceptors.forEach { interceptor ->
+                @Suppress("UNCHECKED_CAST")
+                (interceptor as RequestInterceptor<REQUEST, RESPONSE>).postRequest(request, response)
+            }
+
+            response
+        } catch (error: Error) {
+            throw error
+        } catch (throwable: Throwable) {
+            throw RequestDispatchException(
+                requestParamClass = requestClass,
+                requestHandlerClass = handler::class.java,
+                diagnosticContext = EventDispatchException.snapshot(requestScope),
+                cause = throwable
+            )
+        } finally {
+            EventRuntimeContext.restoreTo(outerScope)
         }
-
-        return response
     }
 }

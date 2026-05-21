@@ -26,7 +26,7 @@ Responsibility and physical package are related but not identical. Query handler
 | `Mediator.aggregates` | `Mediator.agg` | Aggregate supervisor operations |
 | `Mediator.services` | `Mediator.svc` | Resolve domain services |
 | `Mediator.uow` | none | Persist/remove/save unit-of-work intentions |
-| `Mediator.events` | none | Attach/publish integration events |
+| `Mediator.events` | none | Attach integration events |
 | `Mediator.requests` | `Mediator.req` | Send generic request params |
 | `Mediator.commands` | `Mediator.cmd` | Send command requests |
 | `Mediator.queries` | `Mediator.qry` | Send query requests |
@@ -88,6 +88,8 @@ Process orchestration belongs in application-facing flow code, such as:
 - explicit process/application service classes when needed.
 
 Orchestration code can use `Mediator.cmd`, `Mediator.qry`, and `Mediator.requests` to compose steps. It should not directly use repositories when a query boundary is clearer, especially for job/read polling code.
+
+Domain event subscribers can also attach integration events through `Mediator.events.attach(...)` when the domain fact should produce a cross-boundary message. The event runtime releases those listener-attached integration events after domain-event dispatch completes.
 
 ## Factories
 

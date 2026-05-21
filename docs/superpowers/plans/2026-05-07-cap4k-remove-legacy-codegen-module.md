@@ -572,7 +572,7 @@ Run:
 
 ```powershell
 rg -n 'include\("cap4k-plugin-codegen"\)|project\(":cap4k-plugin-codegen"\)|import com\.only4\.cap4k\.plugin\.codegen' settings.gradle.kts cap4k-plugin-code-analysis-flow-export
-rg -n 'cap4k-plugin-codegen' AGENTS.md README.md README.zh-CN.md docs/public
+rg -n 'cap4k-plugin-codegen' AGENTS.md README.md README.md docs/public
 git status --short
 ```
 
