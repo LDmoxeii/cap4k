@@ -14,7 +14,8 @@
 
 - If the flow needs persisted reverse compensation, prefer Saga over handler-local rollback code.
 - Use `execCompensableProcess(...)` to run compensable forward steps and persist the reverse-compensation request metadata on forward success.
-- Use explicit `requestCompensation(code, reason)` when business or operator intent decides the flow must enter compensation.
+- Inside the handler or Saga flow, use explicit `requestCompensation(code, reason)` when business intent decides the flow must enter compensation.
+- Keep operator-triggered compensation on the manager/control-plane entrypoint rather than modeling it as the same command-slice call surface.
 - Do not present handler-level `try/catch` reverse command replay as the recommended shape for persisted compensation.
 - Do not treat forward retry exhaustion as a compensation trigger; the current runtime moves exhausted forward execution to `EXHAUSTED` unless compensation is explicitly requested.
 
