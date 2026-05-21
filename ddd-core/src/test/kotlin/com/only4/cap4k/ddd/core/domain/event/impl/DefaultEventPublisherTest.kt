@@ -4,12 +4,14 @@ import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.ddd.core.application.event.impl.DefaultIntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.*
 import com.only4.cap4k.ddd.core.share.Constants
 import com.only4.cap4k.ddd.core.share.DomainException
 import io.mockk.*
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.messaging.Message
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -53,6 +55,7 @@ class DefaultEventPublisherTest {
         every { eventRecordRepository.save(any()) } returnsArgument 0
         every { eventMessageInterceptorManager.orderedEventMessageInterceptors } returns emptySet()
         every { domainEventInterceptorManager.orderedEventInterceptors4DomainEvent } returns emptySet()
+        every { integrationEventInterceptorManager.orderedIntegrationEventInterceptors } returns emptySet()
         every { integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent } returns emptySet()
         every { integrationEventManager.release() } just Runs
         every { integrationEventPublishers[0].publish(any(), any()) } just Runs
@@ -242,6 +245,74 @@ class DefaultEventPublisherTest {
 
             // then
             assertEquals(listOf("dispatch", "release", "endDelivery", "saveSource"), calls)
+            assertTrue(EventRuntimeContext.currentOrNull() == null)
+        }
+
+        @Test
+        @DisplayName("领域事件监听器附加真实集成事件时真实集成事件管理器应该持久化派生事件")
+        fun `domain dispatch should persist listener attached integration event through real integration supervisor`() {
+            // given
+            val calls = mutableListOf<String>()
+            val applicationEventPublisher = mockk<ApplicationEventPublisher>()
+            val derivedEventRecord = mockk<EventRecord>()
+            val eventRecord = createTestEventRecord(
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
+                persist = true
+            )
+            val realIntegrationManager = DefaultIntegrationEventSupervisor(
+                mockk(relaxed = true),
+                eventRecordRepository,
+                integrationEventInterceptorManager,
+                applicationEventPublisher,
+                "test-service"
+            )
+            val testPublisher = TestableDefaultEventPublisher(
+                eventSubscriberManager,
+                integrationEventPublishers,
+                eventRecordRepository,
+                eventMessageInterceptorManager,
+                domainEventInterceptorManager,
+                integrationEventInterceptorManager,
+                realIntegrationManager,
+                integrationEventPublisherCallback,
+                threadPoolSize
+            )
+
+            every { applicationEventPublisher.publishEvent(any()) } answers {
+                calls.add("publishIntegrationCommitted")
+            }
+            every { eventRecordRepository.create() } answers {
+                calls.add("createIntegration")
+                derivedEventRecord
+            }
+            every { derivedEventRecord.init(any(), any(), any(), any(), any()) } answers {
+                assertEquals(TestIntegrationEvent("derived"), firstArg())
+            }
+            every { derivedEventRecord.markPersist(true) } just Runs
+            every { eventRecordRepository.save(derivedEventRecord) } answers {
+                calls.add("saveIntegration")
+                derivedEventRecord
+            }
+            every { eventRecord.endDelivery(any()) } answers {
+                calls.add("endDelivery")
+            }
+            every { eventRecordRepository.save(eventRecord) } answers {
+                calls.add("saveSource")
+                eventRecord
+            }
+            every { eventSubscriberManager.dispatch(any()) } answers {
+                realIntegrationManager.attach(TestIntegrationEvent("derived"))
+                calls.add("dispatch")
+            }
+
+            // when
+            testPublisher.publishDomain(eventRecord)
+
+            // then
+            assertEquals(
+                listOf("dispatch", "createIntegration", "saveIntegration", "publishIntegrationCommitted", "endDelivery", "saveSource"),
+                calls
+            )
             assertTrue(EventRuntimeContext.currentOrNull() == null)
         }
 

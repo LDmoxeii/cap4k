@@ -81,13 +81,24 @@ open class DefaultDomainEventSupervisor(
         val unwrappedEntity = unwrapEntity(entity)
         val eventPayloads = domainAttachments[unwrappedEntity] ?: return
 
-        val removed = eventPayloads.removeAll { attachment -> attachment.matches(domainEventPayload) }
-        if (!removed) return
+        val identityIndex = eventPayloads.indexOfFirst { attachment -> attachment.matchesIdentity(domainEventPayload) }
+        val removeIndex = if (identityIndex >= 0) {
+            identityIndex
+        } else {
+            eventPayloads.indexOfFirst { attachment -> attachment.matches(domainEventPayload) }
+        }
+        if (removeIndex < 0) return
+
+        eventPayloads.removeAt(removeIndex)
         domainEventInterceptorManager.orderedDomainEventInterceptors
             .forEach { interceptor -> interceptor.onDetach(domainEventPayload, unwrappedEntity) }
     }
 
     override fun release(entities: Set<Any>) {
+        val scope = EventRuntimeContext.currentOrNull()
+        val shouldPopAmbientScope = scope?.type == EventRuntimeScopeType.AMBIENT
+        var completed = false
+        try {
         val attachments = mutableListOf<EventAttachment<Any>>()
         val springDataEventPayloads = mutableListOf<Any>()
 
@@ -153,7 +164,10 @@ open class DefaultDomainEventSupervisor(
         applicationEventPublisher.publishEvent(domainEventAttachedTransactionCommittingEvent)
         applicationEventPublisher.publishEvent(domainEventAttachedTransactionCommittedEvent)
 
-        popAmbientScopeIfEmpty()
+            completed = true
+        } finally {
+            cleanupAmbientScope(scope, shouldPopAmbientScope, completed)
+        }
     }
 
     private fun createEventRecord(
@@ -234,11 +248,20 @@ open class DefaultDomainEventSupervisor(
         }
     }
 
-    private fun popAmbientScopeIfEmpty() {
-        val scope = EventRuntimeContext.currentOrNull() ?: return
-        if (scope.type != EventRuntimeScopeType.AMBIENT) return
-        if (scope.domainAttachments.isNotEmpty() || scope.integrationAttachments.isNotEmpty()) return
-        EventRuntimeContext.pop(scope)
+    private fun cleanupAmbientScope(scope: EventRuntimeScope?, shouldPopAmbientScope: Boolean, completed: Boolean) {
+        if (!shouldPopAmbientScope || scope == null || EventRuntimeContext.currentOrNull() !== scope) {
+            return
+        }
+
+        if (!completed) {
+            EventRuntimeContext.discard(scope)
+            EventRuntimeContext.pop(scope)
+            return
+        }
+
+        if (scope.domainAttachments.isEmpty() && scope.integrationAttachments.isEmpty()) {
+            EventRuntimeContext.pop(scope)
+        }
     }
 
     /**

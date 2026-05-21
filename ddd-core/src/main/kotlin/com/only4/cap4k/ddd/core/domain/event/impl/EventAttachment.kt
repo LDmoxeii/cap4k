@@ -32,6 +32,16 @@ internal class EventAttachment<out EVENT : Any> private constructor(
         return false
     }
 
+    fun matchesIdentity(candidate: Any): Boolean {
+        payload?.let { return it === candidate }
+
+        if (resolvedPayload !== Unresolved) {
+            return resolvedPayload === candidate
+        }
+
+        return false
+    }
+
     companion object {
         fun <EVENT : Any> eager(
             payload: EVENT,

@@ -256,6 +256,32 @@ class DefaultDomainEventSupervisorTest {
         }
 
         @Test
+        @DisplayName("detach相等payload时只移除指定的一个附件")
+        fun `detach should remove only one equal domain event attachment`() {
+            // given
+            val entity = TestEntity("entity1")
+            val schedule = LocalDateTime.now()
+            val event1 = TestDomainEvent("same")
+            val event2 = TestDomainEvent("same")
+
+            val mockEventRecord = mockk<EventRecord>()
+            every { eventRecordRepository.create() } returns mockEventRecord
+            every { mockEventRecord.init(any(), any(), any(), any(), any()) } just Runs
+            every { mockEventRecord.markPersist(any()) } just Runs
+
+            supervisor.attach(event1, entity, schedule)
+            supervisor.attach(event2, entity, schedule)
+
+            // when
+            supervisor.detach(event1, entity)
+            supervisor.release(setOf(entity))
+
+            // then
+            verify(exactly = 1) { eventRecordRepository.create() }
+            verify(exactly = 1) { eventPublisher.publish(any()) }
+        }
+
+        @Test
         @DisplayName("release只释放当前scope中指定实体的领域事件")
         fun `release should only release domain attachments for supplied entities in current scope`() {
             // given
@@ -299,6 +325,34 @@ class DefaultDomainEventSupervisorTest {
             assertThrows<DomainException> {
                 supervisor.release(setOf(entity))
             }
+        }
+
+        @Test
+        @DisplayName("独立ambient scope中供应商抛异常时release应该清理scope")
+        fun `release should clear standalone ambient scope when lazy supplier throws`() {
+            // given
+            val entity = TestEntity("entity1")
+            supervisor.attach(entity, LocalDateTime.now()) { throw IllegalStateException("supplier failed") }
+
+            // when & then
+            assertThrows<IllegalStateException> {
+                supervisor.release(setOf(entity))
+            }
+            assertTrue(EventRuntimeContext.currentOrNull() == null)
+        }
+
+        @Test
+        @DisplayName("独立ambient scope中供应商产出集成事件校验失败时release应该清理scope")
+        fun `release should clear standalone ambient scope when supplier produces integration event`() {
+            // given
+            val entity = TestEntity("entity1")
+            supervisor.attach(entity, LocalDateTime.now()) { TestIntegrationEvent("integration event") }
+
+            // when & then
+            assertThrows<DomainException> {
+                supervisor.release(setOf(entity))
+            }
+            assertTrue(EventRuntimeContext.currentOrNull() == null)
         }
 
         @Test
