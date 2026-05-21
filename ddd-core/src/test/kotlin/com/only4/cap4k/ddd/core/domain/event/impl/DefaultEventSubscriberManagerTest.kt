@@ -3,8 +3,6 @@ package com.only4.cap4k.ddd.core.domain.event.impl
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
-import com.only4.cap4k.ddd.core.application.event.annotation.AutoRelease
-import com.only4.cap4k.ddd.core.application.event.annotation.AutoRequest
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriber
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
@@ -17,9 +15,9 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertNotNull
+import org.junit.jupiter.api.assertThrows
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.core.Ordered
-import org.springframework.core.convert.converter.Converter
 import java.time.LocalDateTime
 
 /**
@@ -39,7 +37,7 @@ class DefaultEventSubscriberManagerTest {
     @BeforeEach
     fun setUp() {
         applicationEventPublisher = mockk()
-        every { applicationEventPublisher.publishEvent(any()) } just Runs
+        every { applicationEventPublisher.publishEvent(any<Any>()) } just Runs
 
         // Mock 静态方法
         mockkObject(RequestSupervisor)
@@ -289,6 +287,7 @@ class DefaultEventSubscriberManagerTest {
             // 这个测试主要验证初始化过程不会出错
             assertTrue(true)
         }
+
     }
 
     @Nested
@@ -331,6 +330,172 @@ class DefaultEventSubscriberManagerTest {
 
             // then
             assertTrue(successfulSubscriberCalled)
+        }
+
+        @Test
+        @DisplayName("多个失败订阅者应该聚合为一个诊断异常")
+        fun `multiple failing subscribers produce one EventDispatchException with two failures`() {
+            // given
+            val firstSubscriber = FailingStringSubscriber("first failure")
+            val secondSubscriber = AnotherFailingStringSubscriber("second failure")
+
+            manager = DefaultEventSubscriberManager(
+                emptyList(),
+                applicationEventPublisher,
+                scanPath
+            )
+            manager.init()
+            manager.subscribe(String::class.java, firstSubscriber)
+            manager.subscribe(String::class.java, secondSubscriber)
+
+            // when
+            val exception = assertThrows<EventDispatchException> {
+                manager.dispatch("test")
+            }
+
+            // then
+            assertEquals(String::class.java, exception.eventPayloadClass)
+            assertEquals(2, exception.failures.size)
+            assertEquals(FailingStringSubscriber::class.java, exception.failures[0].subscriberClass)
+            assertEquals(AnotherFailingStringSubscriber::class.java, exception.failures[1].subscriberClass)
+            assertEquals("first failure", exception.failures[0].cause.message)
+            assertEquals("second failure", exception.failures[1].cause.message)
+        }
+
+        @Test
+        @DisplayName("订阅者失败后仍应调用成功订阅者")
+        fun `successful subscriber still runs when another subscriber fails`() {
+            // given
+            var successfulSubscriberCalled = false
+            val failingSubscriber = FailingStringSubscriber("failed")
+            val successfulSubscriber = object : EventSubscriber<String> {
+                override fun onEvent(event: String) {
+                    successfulSubscriberCalled = true
+                }
+            }
+
+            manager = DefaultEventSubscriberManager(
+                emptyList(),
+                applicationEventPublisher,
+                scanPath
+            )
+            manager.init()
+            manager.subscribe(String::class.java, failingSubscriber)
+            manager.subscribe(String::class.java, successfulSubscriber)
+
+            // when
+            assertThrows<EventDispatchException> {
+                manager.dispatch("test")
+            }
+
+            // then
+            assertTrue(successfulSubscriberCalled)
+        }
+
+        @Test
+        @DisplayName("诊断异常消息应该包含事件载荷和失败订阅者类型")
+        fun `exception includes event payload class and failing subscriber class`() {
+            // given
+            val failingSubscriber = FailingStringSubscriber("failed")
+
+            manager = DefaultEventSubscriberManager(
+                emptyList(),
+                applicationEventPublisher,
+                scanPath
+            )
+            manager.init()
+            manager.subscribe(String::class.java, failingSubscriber)
+
+            // when
+            val exception = assertThrows<EventDispatchException> {
+                manager.dispatch("test")
+            }
+
+            // then
+            assertTrue(exception.message!!.contains(String::class.java.name))
+            assertTrue(exception.message!!.contains(FailingStringSubscriber::class.java.name))
+        }
+
+        @Test
+        @DisplayName("诊断快照应该在作用域丢弃后保留附件计数")
+        fun `diagnostic snapshot keeps attachment counts after runtime scope is discarded`() {
+            // given
+            val scope = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+            val entity = TestEntity("entity")
+            scope.attachDomain(entity, EventAttachment.eager(TestDomainEvent("domain-1")))
+            scope.attachDomain(entity, EventAttachment.eager(TestDomainEvent("domain-2")))
+            scope.attachIntegration(EventAttachment.eager(TestIntegrationEvent("integration")))
+
+            try {
+                manager = DefaultEventSubscriberManager(
+                    emptyList(),
+                    applicationEventPublisher,
+                    scanPath
+                )
+                manager.init()
+                manager.subscribe(String::class.java, FailingStringSubscriber("failed"))
+
+                // when
+                val exception = assertThrows<EventDispatchException> {
+                    manager.dispatch("test")
+                }
+                EventRuntimeContext.discard(scope)
+
+                // then
+                assertEquals("REQUEST", exception.diagnosticContext?.scopeType)
+                assertEquals(2, exception.diagnosticContext?.domainAttachmentCount)
+                assertEquals(1, exception.diagnosticContext?.integrationAttachmentCount)
+            } finally {
+                if (EventRuntimeContext.currentOrNull() === scope) {
+                    EventRuntimeContext.pop(scope)
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("诊断异常应该防御性复制失败列表")
+        fun `failures list cannot be externally mutated when constructed from mutable list`() {
+            // given
+            val failures = mutableListOf(
+                EventSubscriberFailure(FailingStringSubscriber::class.java, IllegalStateException("failed"))
+            )
+
+            // when
+            val exception = EventDispatchException(String::class.java, null, failures)
+            failures.add(
+                EventSubscriberFailure(AnotherFailingStringSubscriber::class.java, IllegalArgumentException("later"))
+            )
+
+            // then
+            assertEquals(1, exception.failures.size)
+            assertEquals(FailingStringSubscriber::class.java, exception.failures.single().subscriberClass)
+        }
+
+        @Test
+        @DisplayName("诊断异常失败列表自身应该不可变")
+        fun `failures list itself cannot be mutated`() {
+            // given
+            val exception = EventDispatchException(
+                String::class.java,
+                null,
+                listOf(
+                    EventSubscriberFailure(FailingStringSubscriber::class.java, IllegalStateException("failed")),
+                    EventSubscriberFailure(
+                        AnotherFailingStringSubscriber::class.java,
+                        IllegalArgumentException("also failed")
+                    )
+                )
+            )
+
+            // when & then
+            assertThrows<UnsupportedOperationException> {
+                (exception.failures as MutableList<EventSubscriberFailure>).add(
+                    EventSubscriberFailure(
+                        TestEventSubscriber1::class.java,
+                        IllegalStateException("mutated")
+                    )
+                )
+            }
         }
     }
 
@@ -428,6 +593,18 @@ class DefaultEventSubscriberManagerTest {
         }
     }
 
+    class FailingStringSubscriber(private val failureMessage: String) : AbstractEventSubscriber<String>() {
+        override fun onEvent(event: String) {
+            throw IllegalStateException(failureMessage)
+        }
+    }
+
+    class AnotherFailingStringSubscriber(private val failureMessage: String) : AbstractEventSubscriber<String>() {
+        override fun onEvent(event: String) {
+            throw IllegalArgumentException(failureMessage)
+        }
+    }
+
     // 测试用的事件类
     @DomainEvent
     data class TestDomainEvent(val message: String)
@@ -435,20 +612,12 @@ class DefaultEventSubscriberManagerTest {
     @IntegrationEvent
     data class TestIntegrationEvent(val message: String)
 
-    @AutoRequest(targetRequestClass = TestRequest::class)
+    data class TestEntity(val id: String)
+
     @DomainEvent
-    data class TestAutoRequestEvent(val message: String)
+    data class TestDomainOnlyEvent(val message: String)
 
-    @AutoRelease(sourceDomainEventClass = TestDomainEvent::class, delayInSeconds = 0)
     @IntegrationEvent
-    data class TestAutoReleaseEvent(val message: String)
+    data class TestIntegrationOnlyEvent(val message: String)
 
-    data class TestRequest(val message: String) : RequestParam<String>
-
-    // 测试用的转换器
-    class TestEventConverter : Converter<TestAutoRequestEvent, TestRequest> {
-        override fun convert(source: TestAutoRequestEvent): TestRequest {
-            return TestRequest(source.message)
-        }
-    }
 }

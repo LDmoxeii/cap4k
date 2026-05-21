@@ -14,13 +14,13 @@ This file maps the runtime support that generated or hand-written business code 
 | Request | Request supervisor, request records, scheduling/compensation/archive |
 | JPA repository / UoW | Repository supervisor, aggregate supervisor, factory supervisor, UoW, persist listeners, specifications |
 | Domain event | Domain event supervisor, event records, event publisher, event subscribers, event schedule service |
-| Integration event | Integration event supervisor, UoW interceptor, HTTP/RabbitMQ/RocketMQ adapters |
+| Integration event | Integration event supervisor, UoW interceptor, dispatch-scope release, HTTP/RabbitMQ/RocketMQ adapters |
 | Domain service | Domain service supervisor |
 | ID policy | UUID7 and optional snowflake-long strategies |
 | JDBC locker | Distributed lock implementation and reentrant aspect |
 | Saga | Saga supervisor and schedule service |
 | Arch info | Optional `/cap4k/arch-info` endpoint |
-| Web context cleanup | Clears domain/UoW/event context after web request completion |
+| Web context cleanup | Clears domain/UoW/shared event runtime context after web request completion |
 
 Business authoring should show which capability is being used instead of treating generated code as plain Spring CRUD.
 
@@ -61,6 +61,56 @@ flowchart TD
     Scheduler --> Supervisor
 ```
 
+## Saga Runtime Flow
+
+`SagaSupervisor` supports:
+
+- `send`;
+- `async`;
+- `schedule`;
+- `delay`;
+- `result`.
+
+Saga execution is persisted in `__saga` and `__saga_process` when the JPA Saga module is used. The runtime is a replay/retry coordinator, not a first-class "wait for external callback and resume at this step" state machine.
+
+```mermaid
+flowchart TD
+    Caller[Command / Job / System operation] --> SagaSupervisor[SagaSupervisor]
+    SagaSupervisor --> SagaRecord[(Saga record)]
+    SagaSupervisor --> Handler[SagaHandler]
+    Handler --> Process[execProcess processCode request]
+    Process --> RequestSupervisor[RequestSupervisor]
+    RequestSupervisor --> RequestHandler[Command / Query / Request handler]
+    Process --> SagaProcess[(Saga process record)]
+    Schedule[JpaSagaScheduleService] --> SagaManager[SagaManager.resume]
+    Console[/cap4k/console/saga/retry] --> SagaManagerRetry[SagaManager.retry]
+    SagaManager --> SagaSupervisor
+    SagaManagerRetry --> SagaSupervisor
+```
+
+Runtime semantics confirmed from `DefaultSagaSupervisor` and the JPA Saga implementation:
+
+- `send` creates a saga record and executes the handler immediately.
+- `schedule` creates a saga record and schedules execution; records scheduled within the local threshold are marked executing immediately.
+- `async` is the `SagaSupervisor` default `schedule(request, LocalDateTime.now())` path and returns the saga ID.
+- `delay` is the `SagaSupervisor` default `schedule(request, LocalDateTime.now().plus(delay))` path and returns the saga ID.
+- `SagaHandler.execProcess(processCode, request)` executes a child request through `RequestSupervisor`.
+- an `EXECUTED` saga process is skipped on replay and its cached result is returned.
+- if a saga process throws, the process and saga are recorded as `EXCEPTION`.
+- `retry(uuid)` loads the persisted saga and re-enters execution directly through the retry path `internalSend(param, saga)`, so already executed process codes are skipped during the replayed handler run.
+- scheduled compensation scans valid sagas by `nextTryTime` and calls `SagaManager.resume`.
+- `resume(saga, minNextTryTime)` first advances saga timing/state with `beginSaga(...)`, saves the saga, validates it, and only reschedules execution when `saga.isExecuting` is still true.
+- if the saga is no longer runnable after `resume` advances state, `resume` stops after persisting state and does not re-enter the handler.
+- `/cap4k/console/saga/retry?uuid=...` calls `SagaManager.retry(uuid)` for manual/operator retry.
+
+Runtime consequences of this implementation:
+
+- retry restarts the saga handler from the persisted saga param rather than resuming from a separate step pointer.
+- scheduled resume advances retry timing/state first and may stop without re-entering the handler when the saga is no longer executing.
+- successful `execProcess` calls are sticky by `processCode`; later retries return the cached result instead of re-sending the child request.
+- failed `execProcess` calls persist exception state and rethrow; the next direct retry can run the handler again, while scheduled resume only does so when the saga remains executing after its state update.
+- whole-saga recovery is exposed through scheduled `resume` and manual `retry(uuid)`; there is no separate callback-step API in this runtime surface.
+
 ## Unit Of Work Flow
 
 ```mermaid
@@ -98,16 +148,20 @@ flowchart TD
     Subscriber --> FollowUp[Mediator.cmd/qry/requests]
 ```
 
-`@AutoRequest` can convert a domain event to a request and send it through the request supervisor. `@AutoRelease` can convert a domain event to an integration event.
+Domain event subscribers perform follow-up orchestration explicitly. They can send commands, queries, or generic requests through `Mediator.cmd`, `Mediator.qry`, and `Mediator.requests`, and they can attach cross-boundary integration events through `Mediator.events.attach(...)`.
+
+Domain event dispatch owns a `DOMAIN_DISPATCH` runtime scope. Integration events attached by listeners during that scope are released by the runtime after all domain-event listeners finish. Business listeners should not branch with `if` logic to directly send integration messages; the current capability is explicit attachment plus runtime release.
 
 ## Integration Event Flow
 
-Integration events represent cross-boundary messages. They can be attached to UoW or published directly through the integration event supervisor.
+Integration events represent cross-boundary messages. Business code contributes them by attaching event payloads through `Mediator.events.attach(...)`; dispatch to HTTP/RabbitMQ/RocketMQ publishers is a runtime concern after attachment is released.
 
 ```mermaid
 flowchart TD
-    Producer[Business code / AutoRelease] --> Attach[Mediator.events.attach or publish]
-    Attach --> IntegrationSupervisor[IntegrationEventSupervisor]
+    Producer[Business code] --> Attach[Mediator.events.attach]
+    Attach --> Scope[Event runtime attachment scope]
+    Scope --> Release[Runtime release]
+    Release --> IntegrationSupervisor[IntegrationEventSupervisor]
     IntegrationSupervisor --> EventRecord[(Event record)]
     EventRecord --> EventPublisher[DefaultEventPublisher]
     EventPublisher --> Adapter{Integration adapter}
@@ -124,10 +178,48 @@ Core annotations/classes:
 
 - `@IntegrationEvent(value = "...", subscriber = "...")`;
 - `IntegrationEventSupervisor.attach`;
-- `IntegrationEventSupervisor.publish`;
 - `EventSubscriber<Event>`;
 - `IntegrationEventPublisher`;
 - `IntegrationEventInterceptorManager`.
+
+Business-facing authoring should stop at `Mediator.events.attach(...)`. Lower-level supervisor access, event-record persistence, and transport publication are framework/runtime responsibilities, not a normal application coding pattern.
+
+## Event Runtime Scope And Diagnostics
+
+Domain and integration event attachments now share one event runtime context with three scope types:
+
+- `AMBIENT` scope holds attachments created outside an active request or event dispatch scope.
+- `REQUEST` scope wraps request handler execution and is restored to the outer scope after the request completes.
+- `DOMAIN_DISPATCH` scope wraps domain-event listener dispatch.
+
+Attachment boundaries:
+
+- domain event attachments are keyed by aggregate/entity identity and are released when the UoW/domain event supervisor releases events for persisted entities;
+- integration event attachments are accumulated in the current event runtime scope and released through the integration event manager;
+- when a persisted domain event dispatch succeeds, listener-attached integration events are released before the source domain event is marked delivered and before domain delivery is ended;
+- when listener dispatch fails, unreleased listener-scope attachments are discarded and the persisted domain event remains undelivered and retryable;
+- when integration event release fails, source domain event delivery is not ended and the source event is not marked delivered, so the persisted domain event remains retryable; derived integration records already persisted during release depend on transaction and repository behavior rather than being uniformly discarded;
+- when an ambient scope completes with no remaining attachments, the runtime pops it; failures discard attachments from the failed scope instead of leaking them.
+
+Diagnostics:
+
+- programmatic `EventSubscriber` dispatch collects multi-listener failures instead of stopping at the first listener; `EventDispatchException` carries the event payload class and one `EventDispatchDiagnostic` scope snapshot, while each `EventSubscriberFailure` carries subscriber class and cause;
+- Spring `@EventListener` invocation is wrapped by the cap4k adapter, so invocation diagnostics include listener bean, class, method, payload class, cause, and the same scope snapshot;
+- `RequestDispatchException` diagnostics include request param class, handler class, cause, and a diagnostic snapshot; when the request is sent from an event listener, the nested request scope can inherit listener metadata so the failing command/query can still point back to the listener that sent it;
+- diagnostics report failures without swallowing them, so event-level delivery and retry semantics remain controlled by the domain event dispatch result;
+- listener return-value publication is rejected by the diagnostics adapter because cap4k does not support Spring's return-value event publication path.
+
+Shared runtime reset:
+
+- domain and integration event supervisors both reset through the shared `EventRuntimeContextManager`;
+- reset clears all domain and integration attachments in the thread-local scope stack and removes the stack;
+- reset is a cleanup/testing boundary, not a business-event delivery mechanism.
+
+Runtime bridge:
+
+- `EventSubscriberManager` scans integration event classes and registers an in-process subscriber that republishes the payload through Spring `ApplicationEventPublisher`;
+- generated inbound subscriber skeletons use Spring `@EventListener`, so HTTP/Rabbit/Rocket consumption reaches `application.subscribers.integration` through this bridge;
+- handwritten subscribers can still implement `EventSubscriber<Event>` directly when a project wants the lower-level runtime contract.
 
 HTTP adapter endpoints:
 

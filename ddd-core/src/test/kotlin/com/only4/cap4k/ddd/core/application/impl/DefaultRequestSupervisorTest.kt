@@ -5,6 +5,10 @@ import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.query.Query
 import com.only4.cap4k.ddd.core.application.saga.SagaParam
 import com.only4.cap4k.ddd.core.application.saga.SagaSupervisor
+import com.only4.cap4k.ddd.core.domain.event.impl.EventAttachment
+import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeContext
+import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeScopeType
+import com.only4.cap4k.ddd.core.domain.event.impl.RequestDispatchException
 import io.mockk.*
 import jakarta.validation.Validator
 import org.junit.jupiter.api.*
@@ -39,6 +43,7 @@ class DefaultRequestSupervisorTest {
     data class TestCommandRequest(val value: String) : RequestParam<String>
     data class TestQueryRequest(val id: Int) : RequestParam<Int>
     data class TestSagaRequest(val data: String) : SagaParam<String>
+    data class TestDomainEvent(val message: String)
 
     // 测试处理器
     class TestCommandHandler : Command<TestCommandRequest, String> {
@@ -94,6 +99,7 @@ class DefaultRequestSupervisorTest {
 
     @AfterEach
     fun tearDown() {
+        EventRuntimeContext.reset()
         unmockkAll()
     }
 
@@ -176,12 +182,13 @@ class DefaultRequestSupervisorTest {
         }
 
         @Test
-        @DisplayName("处理器执行异常应向上传播")
-        fun `should propagate handler execution exception`() {
+        @DisplayName("处理器执行异常应包装为请求调度诊断异常")
+        fun `handler failure throws request dispatch exception with request and handler classes`() {
             // Given
+            val cause = RuntimeException("Handler error")
             val failingHandler = object : RequestHandler<TestCommandRequest, String> {
                 override fun exec(request: TestCommandRequest): String {
-                    throw RuntimeException("Handler error")
+                    throw cause
                 }
             }
             val testSupervisor = DefaultRequestSupervisor(
@@ -199,12 +206,71 @@ class DefaultRequestSupervisorTest {
             val thrownException = assertThrows<RuntimeException> {
                 testSupervisor.send(request)
             }
-            assertEquals("Handler error", thrownException.message)
+            val requestDispatchException = assertInstanceOf(RequestDispatchException::class.java, thrownException)
+            assertEquals(TestCommandRequest::class.java, requestDispatchException.requestParamClass)
+            assertEquals(failingHandler::class.java, requestDispatchException.requestHandlerClass)
+            assertSame(cause, requestDispatchException.cause)
         }
 
         @Test
-        @DisplayName("找不到处理器应抛出IllegalStateException")
-        fun `should throw IllegalStateException when no handler found`() {
+        @DisplayName("处理器抛出Error时不应包装为请求调度异常")
+        fun `handler error is not wrapped in request dispatch exception`() {
+            // Given
+            val error = AssertionError("handler fatal error")
+            val failingHandler = object : RequestHandler<TestCommandRequest, String> {
+                override fun exec(request: TestCommandRequest): String {
+                    throw error
+                }
+            }
+            val testSupervisor = DefaultRequestSupervisor(
+                requestHandlers = listOf(failingHandler),
+                requestInterceptors = emptyList(),
+                validator = mockValidator,
+                requestRecordRepository = mockRequestRecordRepository,
+                svcName = testSvcName,
+                threadPoolSize = testThreadPoolSize,
+                threadFactoryClassName = ""
+            )
+
+            // When & Then
+            val thrownError = assertThrows<AssertionError> {
+                testSupervisor.send(TestCommandRequest("fatal"))
+            }
+            assertSame(error, thrownError)
+        }
+
+        @Test
+        @DisplayName("拦截器抛出Error时不应包装为请求调度异常")
+        fun `interceptor error is not wrapped in request dispatch exception`() {
+            // Given
+            val error = AssertionError("interceptor fatal error")
+            val failingInterceptor = object : RequestInterceptor<TestCommandRequest, String> {
+                override fun preRequest(request: TestCommandRequest) {
+                    throw error
+                }
+
+                override fun postRequest(request: TestCommandRequest, response: String) {}
+            }
+            val testSupervisor = DefaultRequestSupervisor(
+                requestHandlers = listOf(TestCommandHandler()),
+                requestInterceptors = listOf(failingInterceptor),
+                validator = mockValidator,
+                requestRecordRepository = mockRequestRecordRepository,
+                svcName = testSvcName,
+                threadPoolSize = testThreadPoolSize,
+                threadFactoryClassName = ""
+            )
+
+            // When & Then
+            val thrownError = assertThrows<AssertionError> {
+                testSupervisor.send(TestCommandRequest("fatal-interceptor"))
+            }
+            assertSame(error, thrownError)
+        }
+
+        @Test
+        @DisplayName("找不到处理器应抛出请求调度诊断异常")
+        fun `missing handler throws request dispatch exception without handler class`() {
             // Given
             supervisor = DefaultRequestSupervisor(
                 requestHandlers = emptyList(),
@@ -220,10 +286,106 @@ class DefaultRequestSupervisorTest {
             val request = UnknownRequest("test")
 
             // When & Then
-            val exception = assertThrows<IllegalStateException> {
+            val exception = assertThrows<RequestDispatchException> {
                 supervisor.send(request)
             }
+            assertEquals(UnknownRequest::class.java, exception.requestParamClass)
+            assertEquals(null, exception.requestHandlerClass)
             assertTrue(exception.message!!.contains("No handler found for request type"))
+        }
+
+        @Test
+        @DisplayName("事件监听器内请求失败应包含监听器诊断元数据")
+        fun `request failure inside listener context includes listener diagnostic metadata`() {
+            // Given
+            val scope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
+            scope.listenerBeanName = "diagnosticListener"
+            scope.listenerClass = TestCommandHandler::class.java
+            scope.listenerMethod = TestCommandHandler::class.java.getDeclaredMethod("exec", TestCommandRequest::class.java)
+            val failingHandler = object : RequestHandler<TestCommandRequest, String> {
+                override fun exec(request: TestCommandRequest): String {
+                    throw RuntimeException("listener request failure")
+                }
+            }
+            val testSupervisor = DefaultRequestSupervisor(
+                requestHandlers = listOf(failingHandler),
+                requestInterceptors = emptyList(),
+                validator = mockValidator,
+                requestRecordRepository = mockRequestRecordRepository,
+                svcName = testSvcName,
+                threadPoolSize = testThreadPoolSize,
+                threadFactoryClassName = ""
+            )
+
+            // When & Then
+            val exception = assertThrows<RequestDispatchException> {
+                testSupervisor.send(TestCommandRequest("listener"))
+            }
+            assertEquals("diagnosticListener", exception.diagnosticContext?.listenerBeanName)
+            assertEquals(TestCommandHandler::class.java.name, exception.diagnosticContext?.listenerClassName)
+            assertEquals("exec", exception.diagnosticContext?.listenerMethodName)
+        }
+
+        @Test
+        @DisplayName("嵌套请求作用域不应清理外层领域事件附件")
+        fun `nested request execution does not clear outer domain dispatch attachments`() {
+            // Given
+            val outerScope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
+            val entity = Any()
+            outerScope.attachDomain(entity, EventAttachment.eager(TestDomainEvent("outer")))
+            val handler = object : RequestHandler<TestCommandRequest, String> {
+                override fun exec(request: TestCommandRequest): String {
+                    assertEquals(EventRuntimeScopeType.REQUEST, EventRuntimeContext.current().type)
+                    return "nested-success"
+                }
+            }
+            val testSupervisor = DefaultRequestSupervisor(
+                requestHandlers = listOf(handler),
+                requestInterceptors = emptyList(),
+                validator = mockValidator,
+                requestRecordRepository = mockRequestRecordRepository,
+                svcName = testSvcName,
+                threadPoolSize = testThreadPoolSize,
+                threadFactoryClassName = ""
+            )
+
+            // When
+            val result = testSupervisor.send(TestCommandRequest("nested"))
+
+            // Then
+            assertEquals("nested-success", result)
+            assertSame(outerScope, EventRuntimeContext.current())
+            assertEquals(listOf(TestDomainEvent("outer")), outerScope.domainAttachments[entity]?.map { it.resolve() })
+        }
+
+        @Test
+        @DisplayName("请求异常清理泄漏嵌套作用域时保留原始异常并恢复外层作用域")
+        fun `request cleanup restores outer scope and preserves original exception when nested scope leaks`() {
+            // Given
+            val outerScope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
+            val cause = IllegalArgumentException("original handler failure")
+            val failingHandler = object : RequestHandler<TestCommandRequest, String> {
+                override fun exec(request: TestCommandRequest): String {
+                    EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+                    throw cause
+                }
+            }
+            val testSupervisor = DefaultRequestSupervisor(
+                requestHandlers = listOf(failingHandler),
+                requestInterceptors = emptyList(),
+                validator = mockValidator,
+                requestRecordRepository = mockRequestRecordRepository,
+                svcName = testSvcName,
+                threadPoolSize = testThreadPoolSize,
+                threadFactoryClassName = ""
+            )
+
+            // When & Then
+            val exception = assertThrows<RequestDispatchException> {
+                testSupervisor.send(TestCommandRequest("leaked-nested"))
+            }
+            assertSame(cause, exception.cause)
+            assertSame(outerScope, EventRuntimeContext.current())
         }
 
         @Test
@@ -528,15 +690,17 @@ class DefaultRequestSupervisorTest {
                 threadFactoryClassName = ""
             )
             val request = TestCommandRequest("retry-error")
+            val recordedException = slot<Throwable>()
             every { mockRequestRecord.param } returns request
             every { mockRequestRecordRepository.getById(testRequestId) } returns mockRequestRecord
-            every { mockRequestRecord.occurredException(any(), any()) } just Runs
+            every { mockRequestRecord.occurredException(any(), capture(recordedException)) } just Runs
 
             // When & Then
-            val thrownException = assertThrows<RuntimeException> {
+            val thrownException = assertThrows<RequestDispatchException> {
                 testSupervisor.retry(testRequestId)
             }
-            assertEquals("Retry handler error", thrownException.message)
+            assertEquals("Retry handler error", thrownException.cause?.message)
+            assertSame(thrownException, recordedException.captured)
             verify { mockRequestRecord.occurredException(any(), any()) }
             verify { mockRequestRecordRepository.save(mockRequestRecord) }
         }
@@ -676,7 +840,7 @@ class DefaultRequestSupervisorTest {
             val request = TestCommandRequest("empty")
 
             // When & Then
-            val exception = assertThrows<IllegalStateException> {
+            val exception = assertThrows<RequestDispatchException> {
                 emptySupervisor.send(request)
             }
             assertTrue(exception.message!!.contains("No handler found"))
@@ -758,7 +922,8 @@ class DefaultRequestSupervisorTest {
             val thrownException = assertThrows<RuntimeException> {
                 testSupervisor.send(request)
             }
-            assertEquals("Interceptor error", thrownException.message)
+            val requestDispatchException = assertInstanceOf(RequestDispatchException::class.java, thrownException)
+            assertEquals("Interceptor error", requestDispatchException.cause?.message)
         }
     }
 }
