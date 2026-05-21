@@ -146,6 +146,23 @@ class EventRuntimeContextTest {
         }
 
         @Test
+        @DisplayName("重置包含惰性附件的作用域不应该求值供应者")
+        fun `reset clears scope with lazy attachment without resolving supplier`() {
+            var evaluations = 0
+            val scope = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+            scope.attachIntegration(EventAttachment.lazy {
+                evaluations += 1
+                TestIntegrationEvent("reset")
+            })
+
+            EventRuntimeContext.reset()
+
+            assertEquals(0, evaluations)
+            assertTrue(scope.integrationAttachments.isEmpty())
+            assertFalse(EventRuntimeContext.hasScope())
+        }
+
+        @Test
         @DisplayName("附件应该保存独立的调度时间")
         fun `schedule is stored per attachment`() {
             val firstSchedule = LocalDateTime.of(2026, 5, 21, 10, 0)
