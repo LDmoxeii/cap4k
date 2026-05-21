@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.time.Duration
 import java.time.LocalDateTime
 
 class DefaultSagaSupervisorCompensationTest {
@@ -163,5 +164,112 @@ class DefaultSagaSupervisorCompensationTest {
             )
         }
         verify(exactly = 0) { mockSagaRecord.endSaga(any(), any()) }
+    }
+
+    @Test
+    @DisplayName("requestCompensation should save compensation step state before sending reverse request")
+    fun `requestCompensation saves compensation step state before reverse send`() {
+        val request = RejectPaymentSagaParam("plan-9")
+        val handler = object : SagaHandler<RejectPaymentSagaParam, String> {
+            override fun exec(request: RejectPaymentSagaParam): String {
+                execCompensableProcess(
+                    processCode = "create-plan",
+                    request = CreatePlanRequest(request.planName),
+                    compensationCode = "cancel-plan"
+                ) { response: CreatePlanResult ->
+                    CancelPlanRequest(response.planId)
+                }
+                requestCompensation("PAYMENT_REJECTED", "payment declined")
+            }
+        }
+        every { mockValidator.validate(request) } returns emptySet()
+        every { mockRequestSupervisor.send(CreatePlanRequest("plan-9")) } returns CreatePlanResult("plan-9")
+        every { mockRequestSupervisor.send(CancelPlanRequest("plan-9")) } returns Unit
+
+        val supervisor = newSupervisor(handler)
+
+        assertThrows<DomainException> {
+            supervisor.send(request)
+        }
+
+        verifyOrder {
+            mockSagaRecord.beginSagaCompensationProcess(any(), "create-plan")
+            mockSagaRecordRepository.save(mockSagaRecord)
+            mockRequestSupervisor.send(CancelPlanRequest("plan-9"))
+            mockSagaRecord.endSagaCompensationProcess(any(), "create-plan", Unit)
+        }
+    }
+
+    @Test
+    @DisplayName("requestCompensation should preserve the original compensation code when reverse send fails")
+    fun `requestCompensation keeps original code when reverse send fails`() {
+        val request = RejectPaymentSagaParam("plan-9")
+        val rollbackFailure = IllegalStateException("rollback failed")
+        val handler = object : SagaHandler<RejectPaymentSagaParam, String> {
+            override fun exec(request: RejectPaymentSagaParam): String {
+                execCompensableProcess(
+                    processCode = "create-plan",
+                    request = CreatePlanRequest(request.planName),
+                    compensationCode = "cancel-plan"
+                ) { response: CreatePlanResult ->
+                    CancelPlanRequest(response.planId)
+                }
+                requestCompensation("PAYMENT_REJECTED", "payment declined")
+            }
+        }
+        every { mockValidator.validate(request) } returns emptySet()
+        every { mockRequestSupervisor.send(CreatePlanRequest("plan-9")) } returns CreatePlanResult("plan-9")
+        every { mockRequestSupervisor.send(CancelPlanRequest("plan-9")) } throws rollbackFailure
+
+        val supervisor = newSupervisor(handler)
+
+        val ex = assertThrows<DomainException> {
+            supervisor.send(request)
+        }
+
+        assertTrue(ex.message!!.contains("PAYMENT_REJECTED"))
+        assertEquals(rollbackFailure, ex.cause)
+    }
+
+    @Test
+    @DisplayName("SagaRecord compensation defaults should fail fast")
+    fun `SagaRecord compensation defaults fail fast`() {
+        val record = object : SagaRecord {
+            override fun init(
+                sagaParam: SagaParam<*>,
+                svcName: String,
+                sagaType: String,
+                scheduleAt: LocalDateTime,
+                expireAfter: Duration,
+                retryTimes: Int
+            ) = Unit
+
+            override val id: String = "id"
+            override val type: String = "type"
+            override val param: SagaParam<*> = CreatePlanSagaParam("plan-9")
+            override fun <R : Any> getResult(): R? = null
+            override fun beginSagaProcess(now: LocalDateTime, processCode: String, param: RequestParam<*>) = Unit
+            override fun endSagaProcess(now: LocalDateTime, processCode: String, result: Any) = Unit
+            override fun sagaProcessOccurredException(now: LocalDateTime, processCode: String, throwable: Throwable) = Unit
+            override fun isSagaProcessExecuted(processCode: String): Boolean = false
+            override fun <R : Any> getSagaProcessResult(processCode: String): R? = null
+            override val scheduleTime: LocalDateTime = LocalDateTime.now()
+            override val nextTryTime: LocalDateTime = LocalDateTime.now()
+            override val isValid: Boolean = true
+            override val isInvalid: Boolean = false
+            override val isExecuting: Boolean = false
+            override val isExecuted: Boolean = false
+            override fun beginSaga(now: LocalDateTime): Boolean = true
+            override fun cancelSaga(now: LocalDateTime): Boolean = true
+            override fun endSaga(now: LocalDateTime, result: Any) = Unit
+            override fun occurredException(now: LocalDateTime, throwable: Throwable) = Unit
+        }
+
+        assertThrows<UnsupportedOperationException> {
+            record.beginCompensation(LocalDateTime.now())
+        }
+        assertThrows<UnsupportedOperationException> {
+            record.compensationProcessCodesToRun()
+        }
     }
 }

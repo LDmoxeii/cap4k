@@ -321,7 +321,11 @@ open class DefaultSagaSupervisor(
             sagaRecordRepository.save(sagaRecord)
             response
         } catch (throwable: SagaCompensationRequestedException) {
-            compensateNow(sagaRecord)
+            try {
+                compensateNow(sagaRecord)
+            } catch (rollbackFailure: Throwable) {
+                throw DomainException(throwable.message, rollbackFailure)
+            }
             throw DomainException(throwable.message, throwable)
         } catch (throwable: Throwable) {
             // Saga执行异常
@@ -405,6 +409,7 @@ open class DefaultSagaSupervisor(
 
             try {
                 sagaRecord.beginSagaCompensationProcess(now, processCode)
+                sagaRecordRepository.save(sagaRecord)
                 @Suppress("UNCHECKED_CAST")
                 RequestSupervisor.instance.send(compensationRequest as RequestParam<Any>)
                 sagaRecord.endSagaCompensationProcess(now, processCode, Unit)
