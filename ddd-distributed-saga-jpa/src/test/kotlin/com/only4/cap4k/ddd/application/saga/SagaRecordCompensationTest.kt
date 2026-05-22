@@ -50,6 +50,34 @@ class SagaRecordCompensationTest {
     }
 
     @Test
+    fun `compensation result survives persisted reload with real value`() {
+        sagaRecord.beginSagaProcess(now.plusMinutes(2), "create-plan", TestRequestParam("create", mapOf("contentId" to "content-9")))
+        sagaRecord.endSagaProcess(now.plusMinutes(3), "create-plan", mapOf("planId" to "plan-9"))
+        sagaRecord.registerSagaProcessCompensation(
+            "create-plan",
+            "cancel-plan",
+            TestRequestParam("cancel", mapOf("planId" to "plan-9"))
+        )
+        sagaRecord.requestCompensation(
+            now.plusMinutes(4),
+            "PAYMENT_REJECTED",
+            "payment declined",
+            SagaCompensationRequestedBy.INTERNAL,
+            "create-plan"
+        )
+        sagaRecord.beginCompensation(now.plusMinutes(5))
+        sagaRecord.beginSagaCompensationProcess(now.plusMinutes(6), "create-plan")
+        sagaRecord.endSagaCompensationProcess(now.plusMinutes(7), "create-plan", "cancelled-plan-9")
+
+        val reloadedRecord = reloadRecord(sagaRecord)
+        val process = reloadedRecord.saga.getSagaProcess("create-plan")!!
+
+        assertEquals(SagaProcess.SagaCompensationState.COMPENSATED, process.compensationState)
+        assertEquals(String::class.java.name, process.compensationResultType)
+        assertEquals("cancelled-plan-9", process.compensationProcessResult)
+    }
+
+    @Test
     fun `request compensation stores root metadata and changes saga state`() {
         sagaRecord.requestCompensation(
             now.plusMinutes(4),
