@@ -135,8 +135,8 @@ class DefaultAggregateSupervisorTest {
     }
 
     @Test
-    @DisplayName("使用排序查找聚合应该正确处理并包装实体")
-    fun `find with orders should find entities and wrap them in aggregates`() {
+    @DisplayName("使用排序查找聚合默认应该使用非持久化读取")
+    fun `find with orders should default to non persistent reads`() {
         val predicate = mockk<AggregatePredicate<TestAggregate, TestEntity>>()
         val orders = listOf(OrderInfo.asc("name"))
         val entities = listOf(TestEntity(1L, "test", 10))
@@ -145,7 +145,7 @@ class DefaultAggregateSupervisorTest {
         every { JpaAggregatePredicateSupport.getPredicate(any<AggregatePredicate<TestAggregate, TestEntity>>()) } returns mockk()
         every { mockRepositorySupervisor.find(any<Predicate<TestEntity>>(), orders, false) } returns entities
 
-        val result = supervisor.find(predicate, orders, false)
+        val result = supervisor.find(predicate, orders)
 
         assertEquals(1, result.size)
         assertEquals(1L, result[0].getId())
@@ -175,26 +175,26 @@ class DefaultAggregateSupervisorTest {
     }
 
     @Test
-    @DisplayName("使用分页参数查找聚合应该正确处理并包装实体")
-    fun `find with pageParam should find entities and wrap them in aggregates`() {
+    @DisplayName("使用分页参数查找聚合默认应该使用非持久化读取")
+    fun `find with pageParam should default to non persistent reads`() {
         val predicate = mockk<AggregatePredicate<TestAggregate, TestEntity>>()
         val pageParam = PageParam.of(1, 10)
         val entities = listOf(TestEntity(1L, "test", 10))
 
         every { JpaAggregatePredicateSupport.reflectAggregateClass(any<AggregatePredicate<TestAggregate, TestEntity>>()) } returns TestAggregate::class.java
         every { JpaAggregatePredicateSupport.getPredicate(any<AggregatePredicate<TestAggregate, TestEntity>>()) } returns mockk()
-        every { mockRepositorySupervisor.find(any<Predicate<TestEntity>>(), pageParam, true) } returns entities
+        every { mockRepositorySupervisor.find(any<Predicate<TestEntity>>(), pageParam, false) } returns entities
 
-        val result = supervisor.find(predicate, pageParam, true)
+        val result = supervisor.find(predicate, pageParam)
 
         assertEquals(1, result.size)
         assertEquals(1L, result[0].getId())
-        verify { mockRepositorySupervisor.find(any<Predicate<TestEntity>>(), pageParam, true) }
+        verify { mockRepositorySupervisor.find(any<Predicate<TestEntity>>(), pageParam, false) }
     }
 
     @Test
-    @DisplayName("查找单个聚合存在时应该返回包装聚合")
-    fun `findOne should return wrapped nullable aggregate when entity exists`() {
+    @DisplayName("查找单个聚合默认应该使用非持久化读取")
+    fun `findOne should default to non persistent reads`() {
         val predicate = mockk<AggregatePredicate<TestAggregate, TestEntity>>()
         val entity = TestEntity(1L, "test", 10)
 
@@ -202,7 +202,7 @@ class DefaultAggregateSupervisorTest {
         every { JpaAggregatePredicateSupport.getPredicate(any<AggregatePredicate<TestAggregate, TestEntity>>()) } returns mockk()
         every { mockRepositorySupervisor.findOne(any<Predicate<TestEntity>>(), false) } returns entity
 
-        val result = supervisor.findOne(predicate, false)
+        val result = supervisor.findOne(predicate)
 
         assertTrue(result != null)
         assertEquals(1L, result!!.getId())
