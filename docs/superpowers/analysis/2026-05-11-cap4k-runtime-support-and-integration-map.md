@@ -71,21 +71,25 @@ flowchart TD
 - `delay`;
 - `result`.
 
-Saga execution is persisted in `__saga` and `__saga_process` when the JPA Saga module is used. The runtime is a replay/retry coordinator, not a first-class "wait for external callback and resume at this step" state machine.
+Saga execution is persisted in `__saga` and `__saga_process` when the JPA Saga module is used. The runtime is now a compensation-oriented persisted replay/retry/recovery coordinator. It is not a first-class "wait for external callback and resume at this step" workflow state machine.
 
 ```mermaid
 flowchart TD
     Caller[Command / Job / System operation] --> SagaSupervisor[SagaSupervisor]
     SagaSupervisor --> SagaRecord[(Saga record)]
     SagaSupervisor --> Handler[SagaHandler]
-    Handler --> Process[execProcess processCode request]
+    Handler --> Process[execProcess / execCompensableProcess]
     Process --> RequestSupervisor[RequestSupervisor]
     RequestSupervisor --> RequestHandler[Command / Query / Request handler]
     Process --> SagaProcess[(Saga process record)]
+    Handler --> Compensation[requestCompensation code reason]
+    Compensation --> SagaRecord
     Schedule[JpaSagaScheduleService] --> SagaManager[SagaManager.resume]
     Console[/cap4k/console/saga/retry] --> SagaManagerRetry[SagaManager.retry]
+    Operator[/operator compensation/] --> SagaManagerComp[SagaManager.requestCompensation]
     SagaManager --> SagaSupervisor
     SagaManagerRetry --> SagaSupervisor
+    SagaManagerComp --> SagaSupervisor
 ```
 
 Runtime semantics confirmed from `DefaultSagaSupervisor` and the JPA Saga implementation:
@@ -94,22 +98,29 @@ Runtime semantics confirmed from `DefaultSagaSupervisor` and the JPA Saga implem
 - `schedule` creates a saga record and schedules execution; records scheduled within the local threshold are marked executing immediately.
 - `async` is the `SagaSupervisor` default `schedule(request, LocalDateTime.now())` path and returns the saga ID.
 - `delay` is the `SagaSupervisor` default `schedule(request, LocalDateTime.now().plus(delay))` path and returns the saga ID.
-- `SagaHandler.execProcess(processCode, request)` executes a child request through `RequestSupervisor`.
+- `SagaHandler.execProcess(subCode, request)` executes a child request through `RequestSupervisor`.
+- `SagaHandler.execCompensableProcess(processCode, request, compensationCode, compensationRequest)` executes a forward child request and, on forward success, persists the final reverse compensation request for that process.
+- `SagaHandler.requestCompensation(code, reason)` records explicit compensation intent, stops the forward path, and enters compensation immediately in the current Saga execution.
 - an `EXECUTED` saga process is skipped on replay and its cached result is returned.
 - if a saga process throws, the process and saga are recorded as `EXCEPTION`.
 - `retry(uuid)` loads the persisted saga and re-enters execution directly through the retry path `internalSend(param, saga)`, so already executed process codes are skipped during the replayed handler run.
-- scheduled compensation scans valid sagas by `nextTryTime` and calls `SagaManager.resume`.
+- scheduled saga resume scans runnable persisted sagas by `nextTryTime` and calls `SagaManager.resume`.
 - `resume(saga, minNextTryTime)` first advances saga timing/state with `beginSaga(...)`, saves the saga, validates it, and only reschedules execution when `saga.isExecuting` is still true.
 - if the saga is no longer runnable after `resume` advances state, `resume` stops after persisting state and does not re-enter the handler.
 - `/cap4k/console/saga/retry?uuid=...` calls `SagaManager.retry(uuid)` for manual/operator retry.
+- operator-driven compensation uses `SagaManager.requestCompensation(sagaId, code, reason)` and the same persisted state machine.
 
 Runtime consequences of this implementation:
 
 - retry restarts the saga handler from the persisted saga param rather than resuming from a separate step pointer.
 - scheduled resume advances retry timing/state first and may stop without re-entering the handler when the saga is no longer executing.
+- scheduled resume may continue forward replay or compensation replay depending on the persisted Saga state, including `COMPENSATION_REQUESTED` and `COMPENSATING`.
 - successful `execProcess` calls are sticky by `processCode`; later retries return the cached result instead of re-sending the child request.
-- failed `execProcess` calls persist exception state and rethrow; the next direct retry can run the handler again, while scheduled resume only does so when the saga remains executing after its state update.
-- whole-saga recovery is exposed through scheduled `resume` and manual `retry(uuid)`; there is no separate callback-step API in this runtime surface.
+- successful `execCompensableProcess(...)` calls also persist the final compensation request at forward success time, so compensation does not need to reconstruct reverse inputs later.
+- failed `execProcess` / forward execution persists exception state and rethrows; the next direct retry can run the handler again, while scheduled resume only does so when the saga remains executing after its state update.
+- forward retry exhaustion does not automatically trigger compensation; the runtime keeps exhaustion / manual-repair semantics separate from compensation intent.
+- compensation is triggered by explicit business or operator intent, not by exception taxonomy guessing or retry exhaustion.
+- whole-saga recovery is exposed through scheduled `resume`, manual `retry(uuid)`, and operator-triggered `requestCompensation(...)`; there is no separate callback-step API in this runtime surface.
 
 ## Unit Of Work Flow
 

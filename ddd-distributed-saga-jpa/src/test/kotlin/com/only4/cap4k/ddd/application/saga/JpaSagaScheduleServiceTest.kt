@@ -170,6 +170,26 @@ class JpaSagaScheduleServiceTest {
         }
 
         @Test
+        @DisplayName("补偿恢复异常时仍应释放锁且不向外抛出")
+        fun `should release lock when compensation resume throws`() {
+            val sagaRecord = createMockSagaRecord("compensation-saga")
+
+            every { locker.acquire(compensationLockerKey, any(), any()) } returns true
+            every { sagaManager.getByNextTryTime(any(), any()) } returnsMany listOf(listOf(sagaRecord), emptyList())
+            every { sagaManager.resume(sagaRecord, any()) } throws RuntimeException("compensation failed")
+            every { locker.release(compensationLockerKey, any()) } returns true
+
+            assertDoesNotThrow {
+                scheduleService.compense(10, 5, Duration.ofMinutes(5), Duration.ofMinutes(10))
+            }
+
+            verify(exactly = 1) { locker.acquire(compensationLockerKey, any(), any()) }
+            verify(exactly = 1) { sagaManager.getByNextTryTime(any(), 10) }
+            verify(exactly = 1) { sagaManager.resume(sagaRecord, any()) }
+            verify(exactly = 1) { locker.release(compensationLockerKey, any()) }
+        }
+
+        @Test
         @DisplayName("应该使用正确的时间参数调用SagaManager")
         fun `should call saga manager with correct time parameters`() {
             // Given

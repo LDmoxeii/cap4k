@@ -70,6 +70,84 @@ class ArchivedSagaProcess(
     var exception: String? = null,
 
     /**
+     * 正向流程完成时间
+     * datetime (nullable)
+     */
+    @Column(name = "`executed_at`")
+    var executedAt: LocalDateTime? = null,
+
+    /**
+     * 补偿流程代码
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_code`", nullable = false)
+    var compensationCode: String = "",
+
+    /**
+     * 补偿参数
+     * text (nullable)
+     */
+    @Column(name = "`compensation_param`")
+    var compensationParam: String = "",
+
+    /**
+     * 补偿参数类型
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_param_type`", nullable = false)
+    var compensationParamType: String = "",
+
+    /**
+     * 补偿结果
+     * text (nullable)
+     */
+    @Column(name = "`compensation_result`")
+    var compensationResult: String = "",
+
+    /**
+     * 补偿结果类型
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_result_type`", nullable = false)
+    var compensationResultType: String = "",
+
+    /**
+     * 补偿异常
+     * text (nullable)
+     */
+    @Column(name = "`compensation_exception`")
+    var compensationException: String? = null,
+
+    /**
+     * 补偿状态
+     * int NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`compensation_state`", nullable = false)
+    @Convert(converter = SagaProcess.SagaCompensationState.Converter::class)
+    var compensationState: SagaProcess.SagaCompensationState = SagaProcess.SagaCompensationState.NONE,
+
+    /**
+     * 补偿上次尝试时间
+     * datetime (nullable)
+     */
+    @Column(name = "`compensation_last_try_time`")
+    var compensationLastTryTime: LocalDateTime? = null,
+
+    /**
+     * 补偿尝试次数
+     * int NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`compensation_tried_times`", nullable = false)
+    var compensationTriedTimes: Int = 0,
+
+    /**
+     * 补偿完成时间
+     * datetime (nullable)
+     */
+    @Column(name = "`compensated_at`")
+    var compensatedAt: LocalDateTime? = null,
+
+    /**
      * 执行状态
      * int NOT NULL DEFAULT '0'
      */
@@ -120,6 +198,17 @@ class ArchivedSagaProcess(
         this.result = sagaProcess.result
         this.resultType = sagaProcess.resultType
         this.exception = sagaProcess.exception
+        this.executedAt = sagaProcess.executedAt
+        this.compensationCode = sagaProcess.compensationCode
+        this.compensationParam = sagaProcess.compensationParam
+        this.compensationParamType = sagaProcess.compensationParamType
+        this.compensationResult = sagaProcess.compensationResult
+        this.compensationResultType = sagaProcess.compensationResultType
+        this.compensationException = sagaProcess.compensationException
+        this.compensationState = sagaProcess.compensationState
+        this.compensationLastTryTime = sagaProcess.compensationLastTryTime
+        this.compensationTriedTimes = sagaProcess.compensationTriedTimes
+        this.compensatedAt = sagaProcess.compensatedAt
         this.processState = sagaProcess.processState
         this.createAt = sagaProcess.createAt
         this.triedTimes = sagaProcess.triedTimes

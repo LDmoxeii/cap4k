@@ -3,11 +3,14 @@ package com.only4.cap4k.ddd.application.saga
 import com.only4.cap4k.ddd.application.saga.persistence.Saga
 import com.only4.cap4k.ddd.application.saga.persistence.SagaProcess
 import com.only4.cap4k.ddd.core.application.RequestParam
+import com.only4.cap4k.ddd.core.application.saga.SagaCompensationRequestedBy
+import com.only4.cap4k.ddd.core.share.DomainException
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -155,7 +158,7 @@ class SagaRecordImplTest {
 
             // Then
             assertTrue(result)
-            assertEquals(Saga.SagaState.EXECUTING, sagaRecord.saga.sagaState)
+            assertEquals(Saga.SagaState.EXECUTING_FORWARD, sagaRecord.saga.sagaState)
         }
 
         @Test
@@ -169,7 +172,7 @@ class SagaRecordImplTest {
 
             // Then
             assertTrue(result)
-            assertEquals(Saga.SagaState.CANCEL, sagaRecord.saga.sagaState)
+            assertEquals(Saga.SagaState.CANCELLED, sagaRecord.saga.sagaState)
         }
 
         @Test
@@ -310,6 +313,124 @@ class SagaRecordImplTest {
             assertNotNull(result)
             assertEquals("12345", result!!["userId"])
             assertEquals("john@test.com", result["email"])
+        }
+    }
+
+    @Nested
+    @DisplayName("Saga补偿管理测试")
+    inner class SagaCompensationTest {
+
+        @BeforeEach
+        fun setupSaga() {
+            val sagaParam = TestSagaParam("compensate", mapOf("key" to "value"))
+            sagaRecord.init(sagaParam, "test-service", "COMPENSATION_SAGA", testTime, Duration.ofMinutes(10), 3)
+            sagaRecord.beginSaga(testTime.plusMinutes(1))
+            sagaRecord.beginSagaProcess(
+                testTime.plusMinutes(2),
+                "CREATE_USER",
+                TestRequestParam("create", mapOf("username" to "john"))
+            )
+            sagaRecord.endSagaProcess(
+                testTime.plusMinutes(3),
+                "CREATE_USER",
+                mapOf<String, Any>("userId" to "12345")
+            )
+        }
+
+        @Test
+        @DisplayName("应该委托并暴露补偿请求元数据")
+        fun `should delegate and surface compensation request metadata`() {
+            sagaRecord.registerSagaProcessCompensation(
+                "CREATE_USER",
+                "DELETE_USER",
+                TestRequestParam("delete", mapOf("userId" to "12345"))
+            )
+
+            sagaRecord.requestCompensation(
+                testTime.plusMinutes(4),
+                "USER_REJECTED",
+                "downstream validation failed",
+                SagaCompensationRequestedBy.INTERNAL,
+                "CREATE_USER"
+            )
+
+            val process = sagaRecord.saga.getSagaProcess("CREATE_USER")!!
+            val compensationRequest = sagaRecord.getSagaProcessCompensationRequest("CREATE_USER") as TestRequestParam
+
+            assertEquals("DELETE_USER", process.compensationCode)
+            assertEquals(SagaProcess.SagaCompensationState.READY, process.compensationState)
+            assertEquals("delete", compensationRequest.action)
+            assertEquals(mapOf("userId" to "12345"), compensationRequest.data)
+            assertEquals(Saga.SagaState.COMPENSATION_REQUESTED, sagaRecord.saga.sagaState)
+            assertEquals("USER_REJECTED", sagaRecord.saga.compensationRequestCode)
+            assertEquals("downstream validation failed", sagaRecord.saga.compensationRequestReason)
+            assertEquals(SagaCompensationRequestedBy.INTERNAL.name, sagaRecord.saga.compensationRequestedBy)
+            assertEquals("CREATE_USER", sagaRecord.saga.compensationSourceProcessCode)
+        }
+
+        @Test
+        @DisplayName("应该委托补偿生命周期状态转换")
+        fun `should delegate compensation lifecycle transitions`() {
+            sagaRecord.registerSagaProcessCompensation(
+                "CREATE_USER",
+                "DELETE_USER",
+                TestRequestParam("delete", mapOf("userId" to "12345"))
+            )
+            sagaRecord.requestCompensation(
+                testTime.plusMinutes(4),
+                "USER_REJECTED",
+                "downstream validation failed",
+                SagaCompensationRequestedBy.INTERNAL,
+                "CREATE_USER"
+            )
+
+            assertEquals(listOf("CREATE_USER"), sagaRecord.compensationProcessCodesToRun())
+            assertTrue(sagaRecord.beginCompensation(testTime.plusMinutes(5)))
+            assertEquals(Saga.SagaState.COMPENSATING, sagaRecord.saga.sagaState)
+
+            sagaRecord.beginSagaCompensationProcess(testTime.plusMinutes(6), "CREATE_USER")
+            sagaRecord.endSagaCompensationProcess(testTime.plusMinutes(7), "CREATE_USER")
+            assertEquals(
+                SagaProcess.SagaCompensationState.COMPENSATED,
+                sagaRecord.saga.getSagaProcess("CREATE_USER")!!.compensationState
+            )
+
+            sagaRecord.endCompensation(testTime.plusMinutes(8))
+            assertEquals(Saga.SagaState.COMPENSATED, sagaRecord.saga.sagaState)
+
+            sagaRecord.requestCompensation(
+                testTime.plusMinutes(9),
+                "MANUAL_RETRY",
+                "operator retry failed",
+                SagaCompensationRequestedBy.OPERATOR
+            )
+            sagaRecord.markManualRepairRequired(testTime.plusMinutes(10))
+            assertEquals(Saga.SagaState.MANUAL_REPAIR_REQUIRED, sagaRecord.saga.sagaState)
+        }
+
+        @Test
+        @DisplayName("应该在补偿状态下拒绝返回过时的正向结果")
+        fun `should reject stale forward result in compensation state`() {
+            sagaRecord.endSaga(testTime.plusMinutes(4), mapOf("orderId" to "order-123", "status" to "success"))
+            sagaRecord.requestCompensation(
+                testTime.plusMinutes(5),
+                "ORDER_REJECTED",
+                "payment failed",
+                SagaCompensationRequestedBy.INTERNAL,
+                "CREATE_USER"
+            )
+            sagaRecord.endCompensation(testTime.plusMinutes(6))
+
+            val reloadedRecord = SagaRecordImpl().apply {
+                resume(clonePersistedSaga(sagaRecord.saga))
+            }
+
+            val exception = assertThrows<DomainException> {
+                reloadedRecord.getResult<Map<String, Any>>()
+            }
+            assertTrue(exception.message!!.contains("Saga compensation recorded"))
+            assertTrue(exception.message!!.contains("ORDER_REJECTED"))
+            assertTrue(exception.message!!.contains("payment failed"))
         }
     }
 
@@ -520,4 +641,57 @@ class SagaRecordImplTest {
         val action: String,
         val data: Any
     ) : RequestParam<Any>
+
+    private fun clonePersistedSaga(source: Saga): Saga {
+        return Saga().apply {
+            id = source.id
+            sagaUuid = source.sagaUuid
+            svcName = source.svcName
+            sagaType = source.sagaType
+            param = source.param
+            paramType = source.paramType
+            result = source.result
+            resultType = source.resultType
+            exception = source.exception
+            compensationRequestCode = source.compensationRequestCode
+            compensationRequestReason = source.compensationRequestReason
+            compensationRequestedAt = source.compensationRequestedAt
+            compensationRequestedBy = source.compensationRequestedBy
+            compensationSourceProcessCode = source.compensationSourceProcessCode
+            expireAt = source.expireAt
+            createAt = source.createAt
+            sagaState = source.sagaState
+            lastTryTime = source.lastTryTime
+            nextTryTime = source.nextTryTime
+            triedTimes = source.triedTimes
+            tryTimes = source.tryTimes
+            version = source.version
+            sagaProcesses = source.sagaProcesses.map { process ->
+                SagaProcess().apply {
+                    id = process.id
+                    processCode = process.processCode
+                    param = process.param
+                    paramType = process.paramType
+                    result = process.result
+                    resultType = process.resultType
+                    exception = process.exception
+                    executedAt = process.executedAt
+                    compensationCode = process.compensationCode
+                    compensationParam = process.compensationParam
+                    compensationParamType = process.compensationParamType
+                    compensationResult = process.compensationResult
+                    compensationResultType = process.compensationResultType
+                    compensationException = process.compensationException
+                    compensationState = process.compensationState
+                    compensationLastTryTime = process.compensationLastTryTime
+                    compensationTriedTimes = process.compensationTriedTimes
+                    compensatedAt = process.compensatedAt
+                    processState = process.processState
+                    createAt = process.createAt
+                    lastTryTime = process.lastTryTime
+                    triedTimes = process.triedTimes
+                }
+            }.toMutableList()
+        }
+    }
 }

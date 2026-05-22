@@ -55,13 +55,25 @@ open class JpaSagaRecordRepository(
                     ),
                     cb.and(
                         // 【执行中状态】
-                        cb.equal(root.get<Saga.SagaState>(Saga.F_SAGA_STATE), Saga.SagaState.EXECUTING),
+                        cb.equal(root.get<Saga.SagaState>(Saga.F_SAGA_STATE), Saga.SagaState.EXECUTING_FORWARD),
                         cb.lessThan(root.get(Saga.F_NEXT_TRY_TIME), maxNextTryTime),
                         cb.equal(root.get<String>(Saga.F_SVC_NAME), svcName)
                     ),
                     cb.and(
                         // 【异常状态】
                         cb.equal(root.get<Saga.SagaState>(Saga.F_SAGA_STATE), Saga.SagaState.EXCEPTION),
+                        cb.lessThan(root.get(Saga.F_NEXT_TRY_TIME), maxNextTryTime),
+                        cb.equal(root.get<String>(Saga.F_SVC_NAME), svcName)
+                    ),
+                    cb.and(
+                        // 【补偿请求状态】
+                        cb.equal(root.get<Saga.SagaState>(Saga.F_SAGA_STATE), Saga.SagaState.COMPENSATION_REQUESTED),
+                        cb.lessThan(root.get(Saga.F_NEXT_TRY_TIME), maxNextTryTime),
+                        cb.equal(root.get<String>(Saga.F_SVC_NAME), svcName)
+                    ),
+                    cb.and(
+                        // 【补偿执行中状态】
+                        cb.equal(root.get<Saga.SagaState>(Saga.F_SAGA_STATE), Saga.SagaState.COMPENSATING),
                         cb.lessThan(root.get(Saga.F_NEXT_TRY_TIME), maxNextTryTime),
                         cb.equal(root.get<String>(Saga.F_SVC_NAME), svcName)
                     )
@@ -83,10 +95,12 @@ open class JpaSagaRecordRepository(
                 cb.and(
                     // 【状态】
                     cb.or(
-                        cb.equal(root.get<Saga.SagaState>(Saga.F_SAGA_STATE), Saga.SagaState.CANCEL),
+                        cb.equal(root.get<Saga.SagaState>(Saga.F_SAGA_STATE), Saga.SagaState.CANCELLED),
                         cb.equal(root.get<Saga.SagaState>(Saga.F_SAGA_STATE), Saga.SagaState.EXPIRED),
                         cb.equal(root.get<Saga.SagaState>(Saga.F_SAGA_STATE), Saga.SagaState.EXHAUSTED),
-                        cb.equal(root.get<Saga.SagaState>(Saga.F_SAGA_STATE), Saga.SagaState.EXECUTED)
+                        cb.equal(root.get<Saga.SagaState>(Saga.F_SAGA_STATE), Saga.SagaState.EXECUTED),
+                        cb.equal(root.get<Saga.SagaState>(Saga.F_SAGA_STATE), Saga.SagaState.COMPENSATED),
+                        cb.equal(root.get<Saga.SagaState>(Saga.F_SAGA_STATE), Saga.SagaState.MANUAL_REPAIR_REQUIRED)
                     ),
                     cb.lessThan(root.get(Saga.F_EXPIRE_AT), maxExpireAt),
                     cb.equal(root.get<String>(Saga.F_SVC_NAME), svcName)

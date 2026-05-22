@@ -2,6 +2,8 @@ package com.only4.cap4k.ddd.core.application.saga.impl
 
 import com.only4.cap4k.ddd.core.application.RequestHandler
 import com.only4.cap4k.ddd.core.application.RequestParam
+import com.only4.cap4k.ddd.core.application.RequestSupervisor
+import com.only4.cap4k.ddd.core.application.RequestSupervisorSupport
 import com.only4.cap4k.ddd.core.application.saga.SagaHandler
 import com.only4.cap4k.ddd.core.application.saga.SagaParam
 import com.only4.cap4k.ddd.core.application.saga.SagaProcessSupervisor
@@ -28,6 +30,7 @@ class DefaultSagaSupervisorTest {
     private lateinit var mockSagaRecordRepository: SagaRecordRepository
     private lateinit var mockValidator: Validator
     private lateinit var mockSagaRecord: SagaRecord
+    private lateinit var mockRequestSupervisor: RequestSupervisor
 
     // 测试对象
     private lateinit var supervisor: DefaultSagaSupervisor
@@ -47,6 +50,8 @@ class DefaultSagaSupervisorTest {
         mockSagaRecordRepository = mockk<SagaRecordRepository>()
         mockValidator = mockk<Validator>()
         mockSagaRecord = mockk<SagaRecord>()
+        mockRequestSupervisor = TestRequestSupervisorHolder.instance
+        clearMocks(mockRequestSupervisor)
 
         // 创建测试对象 - 不传入处理器和拦截器避免泛型解析问题
         supervisor = DefaultSagaSupervisor(
@@ -67,6 +72,9 @@ class DefaultSagaSupervisorTest {
         every { mockSagaRecordRepository.getById(any()) } returns mockSagaRecord
         every { mockSagaRecord.init(any(), any(), any(), any(), any(), any()) } just Runs
         every { mockSagaRecord.beginSaga(any()) } returns true
+        every { mockSagaRecord.beginSagaProcess(any(), any(), any()) } just Runs
+        every { mockSagaRecord.endSagaProcess(any(), any(), any()) } just Runs
+        every { mockSagaRecord.sagaProcessOccurredException(any(), any(), any()) } just Runs
         every { mockSagaRecord.endSaga(any(), any()) } just Runs
         every { mockSagaRecord.occurredException(any(), any()) } just Runs
         every { mockSagaRecord.id } returns "test-saga-id"
@@ -75,13 +83,17 @@ class DefaultSagaSupervisorTest {
         every { mockSagaRecord.param } returns testParam
         every { mockSagaRecord.nextTryTime } returns LocalDateTime.now().plusMinutes(5)
         every { mockSagaRecord.scheduleTime } returns LocalDateTime.now().plusMinutes(1)
+        every { mockSagaRecord.registerSagaProcessCompensation(any(), any(), any()) } just Runs
+        every { mockSagaRecord.requestCompensation(any(), any(), any(), any(), any()) } just Runs
+        every { mockSagaRecord.beginCompensation(any()) } returns false
 
         SagaSupervisorSupport.configure(supervisor as SagaProcessSupervisor)
+        RequestSupervisorSupport.configure(mockRequestSupervisor)
     }
 
     @AfterEach
     fun tearDown() {
-        clearAllMocks()
+        clearMocks(mockSagaRecordRepository, mockValidator, mockSagaRecord, mockRequestSupervisor)
     }
 
     private fun newSupervisor(vararg handlers: RequestHandler<*, *>): DefaultSagaSupervisor =
@@ -221,6 +233,26 @@ class DefaultSagaSupervisorTest {
     }
 
     @Test
+    @DisplayName("非补偿子流程仍应保持原有execProcess行为")
+    fun `send executes plain saga process without invoking compensation hooks`() {
+        val handler = object : SagaHandler<TestSagaParam, String> {
+            override fun exec(request: TestSagaParam): String = execProcess("sub", TestSubRequest("plain"))
+        }
+        val testSupervisor = newSupervisor(handler)
+        every { mockSagaRecord.isSagaProcessExecuted("sub") } returns false
+        every { mockRequestSupervisor.send(TestSubRequest("plain")) } returns "plain-result"
+
+        val result = testSupervisor.send(testParam)
+
+        assertEquals("plain-result", result)
+        verify { mockRequestSupervisor.send(TestSubRequest("plain")) }
+        verify { mockSagaRecord.beginSagaProcess(any(), "sub", TestSubRequest("plain")) }
+        verify { mockSagaRecord.endSagaProcess(any(), "sub", "plain-result") }
+        verify(exactly = 0) { mockSagaRecord.registerSagaProcessCompensation(any(), any(), any()) }
+        verify(exactly = 0) { mockSagaRecord.requestCompensation(any(), any(), any(), any(), any()) }
+    }
+
+    @Test
     @DisplayName("测试resume方法恢复有效的Saga")
     fun `test resume method with valid saga`() {
         // 准备
@@ -264,6 +296,8 @@ class DefaultSagaSupervisorTest {
         every { mockSagaRecord.endSaga(any(), any()) } just Runs
         every { mockSagaRecord.occurredException(any(), any()) } just Runs
         every { mockSagaRecord.isValid } returns true
+        every { mockSagaRecord.beginCompensation(any()) } returns false
+        every { mockValidator.validate(mockSagaRecord) } returns emptySet()
 
         // 配置nextTryTime返回序列：第一次调用返回nextTryTime1，第二次返回nextTryTime2，第三次返回finalNextTryTime
         every { mockSagaRecord.nextTryTime } returnsMany listOf(nextTryTime1, nextTryTime2, finalNextTryTime)
