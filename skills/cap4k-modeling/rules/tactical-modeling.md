@@ -28,4 +28,5 @@
 - Aggregates, adapters, and ordinary boundary code do not choose outbound integration event contracts, payloads, or transports.
 - Each listener routes writes into zero-trust commands. The command must re-load the write target and validate its own preconditions.
 - Repeated delivery should converge through idempotent command behavior and explicit no-op results.
-- Use Saga only for persisted long-running coordination, retry, recovery, compensation, or cross-time waiting.
+- Use Saga only for persisted long-running coordination, retry, recovery, or compensation when the current runtime contract is sufficient.
+- The current Saga runtime is compensation-oriented, not a general callback-resume or waiting-style workflow engine.
