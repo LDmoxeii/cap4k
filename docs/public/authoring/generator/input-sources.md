@@ -2,6 +2,8 @@
 
 本页说明业务项目作者如何准备 cap4k 生成器输入。输入源是生成器合同，不是随手写给工具看的备注。
 
+本页示例语境统一回到 [示例总览](../examples/index.md)：DB / design / enum manifest / KSP 输入最终都服务于同一个内容发布与媒体处理项目。
+
 除 `sources {}` 里的 source provider 之外，`types.registryFile` 也属于 generation input contract。它不提供 use-case surface，也不替代 DDL / design；它负责补充 `@T` 绑定的自定义类型 FQN 与 converter 策略。
 
 ## DB source

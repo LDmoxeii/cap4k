@@ -8,6 +8,8 @@
 
 在共享教学项目里，这通常出现在内容详情页、处理进度页或人工审阅页上。作者希望在同一个上下文里表达“这篇 `Content` 对应哪一个 `MediaProcessingTask`”，同时保持仓储和写模型边界不被打穿。
 
+具体语境见 [示例总览](../examples/index.md)：只读弱引用讨论仍然围绕 `Content` 与 `MediaProcessingTask` 的关系展开，不另起样例。
+
 ## 为什么默认路径不够
 
 [Default Happy Path](../default-happy-path.md) 默认禁止跨聚合写模型强引用，因为 `Content` 和 `MediaProcessingTask` 仍然是两个不同聚合根。默认做法通常是：写模型里只保留 ID，导航交给查询投影或读模型。

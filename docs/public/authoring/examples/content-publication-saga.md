@@ -39,64 +39,63 @@
 - callback 仍然是媒体结果进入系统的主路径；polling 仍然只是 fallback，用来补同一条内部命令语义，不提升成主真相路径。
 - Saga 只负责把“哪些前向步骤需要补偿、何时显式进入补偿、补偿失败后如何恢复或转人工”持久化下来。
 
-一个更贴近当前 runtime 的示例代码，可以写成：
+一个更贴近当前参考项目和 runtime 的示例代码，可以写成：
 
 ```kotlin
-class PublishPaidContentSaga :
-    SagaHandler<PublishPaidContentSaga.Request, PublishPaidContentSaga.Response> {
+object PaidPublicationSaga {
 
-    override fun exec(request: Request): Response {
-        execProcess(
-            subCode = "assert-content-ready",
-            request = AssertPaidPublicationReadyCmd.Request(request.contentId)
-        )
+    class Handler : SagaHandler<Request, Response> {
 
-        val payoutHold = execCompensableProcess(
-            processCode = "create-payout-hold",
-            request = CreateCreatorPayoutHoldCmd.Request(request.contentId, request.orderId),
-            compensationCode = "release-payout-hold",
-            compensationRequest = { hold ->
-                ReleaseCreatorPayoutHoldCmd.Request(hold.holdId)
+        override fun exec(request: Request): Response {
+            execCompensableProcess(
+                "reserve-payout-hold",
+                ReserveCreatorPayoutHoldCmd.Request(request.paidPublicationTaskId),
+                "release-payout-hold-if-reserved",
+            ) {
+                ReleasePayoutHoldIfReservedCmd.Request(
+                    paidPublicationTaskId = request.paidPublicationTaskId,
+                    reason = "Paid publication saga compensation requested."
+                )
             }
-        )
 
-        val entitlementPlan = execCompensableProcess(
-            processCode = "create-entitlement-plan",
-            request = CreateAccessEntitlementPlanCmd.Request(request.contentId, request.orderId),
-            compensationCode = "cancel-entitlement-plan",
-            compensationRequest = { plan ->
-                CancelEntitlementPlanCmd.Request(plan.planId)
+            execCompensableProcess(
+                "create-entitlement-plan",
+                CreateAccessEntitlementPlanCmd.Request(request.paidPublicationTaskId),
+                "cancel-entitlement-plan-if-created",
+            ) {
+                CancelEntitlementPlanIfCreatedCmd.Request(
+                    paidPublicationTaskId = request.paidPublicationTaskId,
+                    reason = "Paid publication saga compensation requested."
+                )
             }
-        )
 
-        val publish = execProcess(
-            subCode = "publish-content",
-            request = PublishPaidContentCmd.Request(
-                contentId = request.contentId,
-                payoutHoldId = payoutHold.holdId,
-                entitlementPlanId = entitlementPlan.planId
+            val publish = execProcess(
+                "publish-content",
+                PublishPaidPublicationContentCmd.Request(request.paidPublicationTaskId)
             )
-        )
 
-        if (!publish.accepted) {
-            requestCompensation(
-                code = "PUBLISH_REJECTED",
-                reason = publish.reason
+            if (!publish.published) {
+                requestCompensation(
+                    code = "PAID_PUBLICATION_REJECTED",
+                    reason = "Paid publication content was not published."
+                )
+            }
+
+            execProcess(
+                "activate-entitlement-plan",
+                ActivateAccessEntitlementPlanCmd.Request(request.paidPublicationTaskId)
             )
+
+            return Response(published = true)
         }
-
-        return Response(
-            publicationId = publish.publicationId
-        )
     }
 
     data class Request(
-        val contentId: String,
-        val orderId: String
+        val paidPublicationTaskId: UUID
     ) : SagaParam<Response>
 
     data class Response(
-        val publicationId: String
+        val published: Boolean
     )
 }
 ```
