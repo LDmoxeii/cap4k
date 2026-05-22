@@ -1,4 +1,4 @@
-package com.only4.cap4k.ddd.runtime
+package com.only4.cap4k.ddd.runtime.strongid
 
 import com.only4.cap4k.ddd.core.domain.id.StrongId
 import com.only4.cap4k.ddd.core.domain.id.StrongIds
