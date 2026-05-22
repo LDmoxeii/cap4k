@@ -63,8 +63,8 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
-    @DisplayName("查找应该从正确的仓储返回实体")
-    fun `find should return entities from correct repository`() {
+    @DisplayName("查找默认应该使用非持久化读取")
+    fun `find should default to non persistent reads`() {
         val predicate = TestPredicate()
         val expectedEntities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
 
@@ -72,21 +72,21 @@ class DefaultRepositorySupervisorTest {
             mockRepository.find(predicate, any<Collection<OrderInfo>>(), false, AggregateLoadPlan.WHOLE_AGGREGATE)
         } returns expectedEntities
 
-        val result = supervisor.find(predicate, emptyList(), false)
+        val result = supervisor.find(predicate)
 
         assertEquals(expectedEntities, result)
         verify { mockRepository.find(predicate, any<Collection<OrderInfo>>(), false, AggregateLoadPlan.WHOLE_AGGREGATE) }
     }
 
     @Test
-    @DisplayName("查找单个实体应该返回实体")
-    fun `findOne should return nullable entity`() {
+    @DisplayName("查找单个实体默认应该使用非持久化读取")
+    fun `findOne should default to non persistent reads`() {
         val predicate = TestPredicate()
         val expectedEntity = TestEntity(1L, "test")
 
         every { mockRepository.findOne(predicate, false, AggregateLoadPlan.WHOLE_AGGREGATE) } returns expectedEntity
 
-        val result = supervisor.findOne(predicate, false)
+        val result = supervisor.findOne(predicate)
 
         assertEquals(expectedEntity, result)
         verify { mockRepository.findOne(predicate, false, AggregateLoadPlan.WHOLE_AGGREGATE) }
@@ -151,8 +151,8 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
-    @DisplayName("查找分页应该返回分页数据")
-    fun `findPage should return page data`() {
+    @DisplayName("查找分页默认应该使用非持久化读取")
+    fun `findPage should default to non persistent reads`() {
         val predicate = TestPredicate()
         val pageParam = PageParam.of(1, 10)
         val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
@@ -160,7 +160,7 @@ class DefaultRepositorySupervisorTest {
 
         every { mockRepository.findPage(predicate, pageParam, false, AggregateLoadPlan.WHOLE_AGGREGATE) } returns pageData
 
-        val result = supervisor.findPage(predicate, pageParam, false)
+        val result = supervisor.findPage(predicate, pageParam)
 
         assertEquals(pageData, result)
         verify { mockRepository.findPage(predicate, pageParam, false, AggregateLoadPlan.WHOLE_AGGREGATE) }

@@ -88,8 +88,8 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
-    @DisplayName("使用ID谓词查找单个实体应该返回实体并默认持久化")
-    fun `findOne with ID predicate should return entity and persist by default`() {
+    @DisplayName("使用ID谓词显式持久化查找单个实体时应该保持已附着")
+    fun `findOne with ID predicate should keep entity attached when persist is true`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val entity = TestEntity(1L, "test")
         val optional = Optional.of(entity)
@@ -106,8 +106,8 @@ class AbstractJpaRepositoryTest {
     }
 
     @Test
-    @DisplayName("使用ID谓词查找单个实体，当持久化为false时应该分离实体")
-    fun `findOne with ID predicate should detach entity when persist is false`() {
+    @DisplayName("使用ID谓词查找单个实体时默认应该分离实体")
+    fun `findOne with ID predicate should detach entity by default`() {
         val predicate = mockk<Predicate<TestEntity>>()
         val entity = TestEntity(1L, "test")
         val optional = Optional.of(entity)
@@ -116,7 +116,7 @@ class AbstractJpaRepositoryTest {
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
         every { mockJpaRepository.findById(1L) } returns optional
 
-        val result = repository.findOne(predicate, false)
+        val result = repository.findOne(predicate)
 
         assertEquals(entity, result)
         verify { mockJpaRepository.findById(1L) }

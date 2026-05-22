@@ -40,6 +40,7 @@ Command handlers are the normal write-use-case boundary.
 Allowed in command handlers:
 
 - load aggregates through `Mediator.repositories`;
+- ordinary reads stay detached by default; command code explicitly opts into `persist = true` only for the aggregate that will later be mutated and saved;
 - create aggregate roots through `Mediator.factories`;
 - invoke domain services through `Mediator.services`;
 - change aggregate state through domain behavior methods;
@@ -109,6 +110,7 @@ Generated repositories implement Spring Data JPA and expose cap4k `Repository<En
 Typical authoring use:
 
 - command handler loads aggregate roots through `Mediator.repositories.findOne/findFirst/find/...`;
+  those reads are detached by default, and only the target write aggregate should explicitly request `persist = true`;
 - query handler can wrap repository/JPA read access for read flows;
 - jobs should prefer query wrappers over direct repository access when they are doing read orchestration.
 
