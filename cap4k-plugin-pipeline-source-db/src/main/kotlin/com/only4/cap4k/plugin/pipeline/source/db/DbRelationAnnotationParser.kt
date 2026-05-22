@@ -59,6 +59,16 @@ internal class DbRelationAnnotationParser {
             blankValueMessage = "blank @Reference/@Ref value is not allowed.",
             missingValueMessage = "missing value for @Reference/@Ref annotation.",
         )
+        val refAggregate = resolveAnnotationValue(
+            annotations = annotations,
+            aliases = REF_AGGREGATE_ALIASES,
+            conflictMessage = "conflicting @RefAggregate annotations on the same column comment.",
+            blankValueMessage = "blank @RefAggregate value is not allowed.",
+            missingValueMessage = "missing value for @RefAggregate annotation.",
+        )
+        require(!(refAggregate != null && referenceTable != null)) {
+            "conflicting @RefAggregate and @Reference/@Ref annotations on the same column comment."
+        }
         val explicitRelationType = when (relation) {
             "ONE_TO_ONE", "1:1", "ONETOONE" -> "ONE_TO_ONE"
             "MANY_TO_ONE", "*:1", "MANYTOONE" -> "MANY_TO_ONE"
@@ -92,6 +102,7 @@ internal class DbRelationAnnotationParser {
             explicitRelationType = explicitRelationType,
             lazy = lazy,
             countHint = countHint,
+            refAggregate = refAggregate,
             cleanedComment = stripRecognizedAnnotations(comment, COLUMN_RELATION_ALIASES),
         )
     }
@@ -197,11 +208,14 @@ internal class DbRelationAnnotationParser {
             setOf("MANY_TO_ONE", "ONE_TO_ONE", "1:1", "*:1", "MANYTOONE", "ONETOONE")
         private val VALUE_OBJECT_ALIASES = setOf("VALUEOBJECT", "VO")
         private val REFERENCE_ALIASES = setOf("REFERENCE", "REF")
+        private val REF_AGGREGATE_ALIASES = setOf("REFAGGREGATE")
+        private val REF_ID_ALIASES = setOf("REFID")
         private val RELATION_ALIASES = setOf("RELATION", "REL")
         private val LAZY_ALIASES = setOf("LAZY", "L")
         private val COUNT_ALIASES = setOf("COUNT", "C")
         private val TABLE_RELATION_ALIASES = setOf("PARENT", "P", "AGGREGATEROOT", "ROOT", "R", "VALUEOBJECT", "VO")
-        private val COLUMN_RELATION_ALIASES = REFERENCE_ALIASES + RELATION_ALIASES + LAZY_ALIASES + COUNT_ALIASES
+        private val COLUMN_RELATION_ALIASES =
+            REFERENCE_ALIASES + REF_AGGREGATE_ALIASES + REF_ID_ALIASES + RELATION_ALIASES + LAZY_ALIASES + COUNT_ALIASES
         private val MULTI_SPACE_PATTERN = Regex("\\s{2,}")
     }
 }
@@ -218,6 +232,7 @@ internal data class ColumnRelationMetadata(
     val explicitRelationType: String? = null,
     val lazy: Boolean? = null,
     val countHint: String? = null,
+    val refAggregate: String? = null,
     val cleanedComment: String = "",
 )
 

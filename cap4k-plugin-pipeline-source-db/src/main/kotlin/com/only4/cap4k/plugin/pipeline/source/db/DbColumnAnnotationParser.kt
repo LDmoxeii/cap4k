@@ -32,6 +32,13 @@ internal object DbColumnAnnotationParser {
             throw IllegalArgumentException("@E requires @T on the same column comment.")
         }
 
+        val refId = resolveRequiredSingleAnnotationValue(
+            annotations = annotations,
+            aliases = setOf("REFID"),
+            conflictMessage = "conflicting @RefId annotations on the same column comment.",
+            blankValueMessage = "blank @RefId value is not allowed.",
+            missingValueMessage = "missing value for @RefId annotation.",
+        )
         val generatedValue = resolveGeneratedValue(annotations)
         val deleted = resolveMarkerAnnotation(annotations, "DELETED", "Deleted")
         val version = resolveMarkerAnnotation(annotations, "VERSION", "Version")
@@ -54,6 +61,7 @@ internal object DbColumnAnnotationParser {
         return DbColumnAnnotationParseResult(
             typeBinding = typeBinding,
             enumItems = parseEnumItems(enumConfig),
+            refId = refId,
             generatedValueDeclared = generatedValue.declared,
             generatedValueStrategy = generatedValue.strategy,
             deleted = deleted,
@@ -165,6 +173,23 @@ internal object DbColumnAnnotationParser {
         return values.singleOrNull()
     }
 
+    private fun resolveRequiredSingleAnnotationValue(
+        annotations: List<ParsedAnnotation>,
+        aliases: Set<String>,
+        conflictMessage: String,
+        blankValueMessage: String,
+        missingValueMessage: String,
+    ): String? {
+        val matchingAnnotations = annotations.filter { it.key in aliases }
+        if (matchingAnnotations.isEmpty()) {
+            return null
+        }
+        require(matchingAnnotations.none { !it.hasExplicitValue }) { missingValueMessage }
+        require(matchingAnnotations.none { it.hasExplicitValue && it.value.isBlank() }) { blankValueMessage }
+        require(matchingAnnotations.size == 1) { conflictMessage }
+        return matchingAnnotations.single().value
+    }
+
     private fun parseBooleanAnnotationValue(annotationName: String, value: String): Boolean {
         return when {
             value.equals("true", ignoreCase = true) -> true
@@ -183,6 +208,7 @@ private data class ParsedAnnotation(
 internal data class DbColumnAnnotationParseResult(
     val typeBinding: String? = null,
     val enumItems: List<EnumItemModel> = emptyList(),
+    val refId: String? = null,
     val generatedValueDeclared: Boolean = false,
     val generatedValueStrategy: String? = null,
     val deleted: Boolean? = null,

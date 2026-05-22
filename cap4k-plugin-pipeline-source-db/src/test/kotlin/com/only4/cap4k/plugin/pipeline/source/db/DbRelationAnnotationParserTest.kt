@@ -56,6 +56,52 @@ class DbRelationAnnotationParserTest {
     }
 
     @Test
+    fun `parses column ref aggregate annotation without jpa reference metadata`() {
+        val metadata = DbRelationAnnotationParser().parseColumn("task id @RefAggregate=MediaProcessingTask;")
+
+        assertEquals("MediaProcessingTask", metadata.refAggregate)
+        assertEquals(null, metadata.referenceTable)
+        assertEquals(null, metadata.explicitRelationType)
+    }
+
+    @Test
+    fun `rejects blank ref aggregate value`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@RefAggregate=;")
+        }
+
+        assertEquals("blank @RefAggregate value is not allowed.", error.message)
+    }
+
+    @Test
+    fun `rejects valueless ref aggregate annotation`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@RefAggregate;")
+        }
+
+        assertEquals("missing value for @RefAggregate annotation.", error.message)
+    }
+
+    @Test
+    fun `rejects ref aggregate with reference annotations`() {
+        val referenceError = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@RefAggregate=MediaProcessingTask;@Reference=media_processing_task;")
+        }
+        val refError = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@RefAggregate=MediaProcessingTask;@Ref=media_processing_task;")
+        }
+
+        assertEquals(
+            "conflicting @RefAggregate and @Reference/@Ref annotations on the same column comment.",
+            referenceError.message,
+        )
+        assertEquals(
+            "conflicting @RefAggregate and @Reference/@Ref annotations on the same column comment.",
+            refError.message,
+        )
+    }
+
+    @Test
     fun `rejects many to many in the first relation slice`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbRelationAnnotationParser().parseColumn("@Reference=tag;@Relation=ManyToMany;")

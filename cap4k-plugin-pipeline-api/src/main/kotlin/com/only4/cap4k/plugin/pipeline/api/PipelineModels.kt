@@ -24,6 +24,8 @@ data class DbColumnSnapshot(
     val explicitRelationType: String? = null,
     val lazy: Boolean? = null,
     val countHint: String? = null,
+    val refAggregate: String? = null,
+    val refId: String? = null,
     val generatedValueDeclared: Boolean = false,
     val generatedValueStrategy: String? = null,
     val deleted: Boolean? = null,
