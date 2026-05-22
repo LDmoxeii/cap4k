@@ -45,18 +45,28 @@ This is a breaking 1.0 design. Backward compatibility with primitive UUID, `Long
 
 Strong ID is a type-safe identity wrapper whose only default backing value is a UUIDv7 string.
 
-The preferred Kotlin shape is:
+The preferred generated Kotlin/JPA shape is a single-column embeddable ID:
 
 ```kotlin
-@JvmInline
-value class ContentId(val value: String) {
-    init {
-        StrongIds.requireUuidV7(value, "ContentId")
+@Embeddable
+class ContentId protected constructor() : StrongId, Serializable {
+    @Column(name = "id", nullable = false, updatable = false, length = 36)
+    override lateinit var value: String
+        protected set
+
+    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+    constructor(value: String) : this() {
+        this.value = StrongIds.requireUuidV7(value, "ContentId")
     }
 
+    @JsonValue
+    fun jsonValue(): String = value
+
+    override fun toString(): String = value
+
     companion object {
-        fun new(): ContentId = ContentId(StrongIds.newUuidV7String())
         fun parse(value: String): ContentId = ContentId(value)
+        fun new(): ContentId = ContentId(StrongIds.newUuidV7String())
     }
 }
 ```
@@ -66,9 +76,11 @@ Generated Strong ID types must enforce:
 - `value` is a syntactically valid UUID;
 - UUID version is 7;
 - blank strings, random non-UUID strings, UUIDv4, UUIDv1, and UUID nil values are invalid;
-- construction, parsing, JSON deserialization, HTTP binding, and persistence hydration all pass through the same validation rule.
+- public construction, parsing, JSON deserialization, HTTP binding, and persistence hydration all pass through the same validation rule.
 
-If direct `@JvmInline value class` usage is not stable for JPA `@Id`, the public domain type must remain equivalent, and the implementation must provide a Hibernate/JPA adapter rather than falling back to primitive `String id` as the default generated domain model. Any persistence-only construction escape hatch must be internal to that adapter and must not expose invalid Strong IDs to domain code.
+Direct `@JvmInline value class` plus `@Convert` is not the default route because the JPA hard gate showed Hibernate/Spring Data can insert through the converter but fails `JpaRepository.findById(ContentId)`: Hibernate treats the identifier Java type as `String` and cannot wrap the value class ID argument. The single-column `@Embeddable/@EmbeddedId` route preserves the domain-facing Strong ID field and makes repository ID operations work.
+
+The protected no-arg constructor exists only for JPA. It must not allocate a random ID during hydration and must not be part of the domain creation path. Domain code uses `new()` or `parse(...)`.
 
 ## Package Placement
 
@@ -295,12 +307,14 @@ Preferred generated shape:
 
 ```kotlin
 class Content(
-    @Id
+    @EmbeddedId
     val id: ContentId,
 )
 ```
 
-The implementation plan must validate whether Kotlin `@JvmInline value class` can be used reliably as a Hibernate/JPA ID type across:
+The implementation plan already validated that direct Kotlin `@JvmInline value class` with explicit `@Convert` is not reliable for repository `findById`. The generated JPA route is therefore single-column `@Embeddable` Strong ID plus `@EmbeddedId`.
+
+This route must be verified across:
 
 - persist;
 - find by ID;
@@ -309,7 +323,7 @@ The implementation plan must validate whether Kotlin `@JvmInline value class` ca
 - schema generation or validation;
 - JSON round trip in test fixtures.
 
-If direct inline-class `@Id` is unstable, the fallback must still preserve Strong ID as the domain-facing generated field. Acceptable implementation choices include generated Hibernate type support, generated converter support if sufficient for ID fields, or a single-column embedded ID mapping.
+The generated aggregate still exposes `ContentId`, not primitive `String`.
 
 Unacceptable fallback:
 
@@ -438,13 +452,13 @@ Expected breaking changes include:
 
 This is acceptable because the project is still in fast redesign before 1.0 and has no compatibility obligation to preserve the old identity model.
 
-## Open Implementation Risks
+## Resolved Implementation Risk
 
-The only major technical risk is JPA/Hibernate support for Kotlin inline Strong ID fields as `@Id`.
+The initial major technical risk was JPA/Hibernate support for Kotlin inline Strong ID fields as `@Id`.
 
-The implementation plan must start with a spike-style focused test that decides the JPA mapping route:
+The hard gate produced this result:
 
-- use `@JvmInline value class` directly if stable;
-- otherwise generate or register Hibernate/JPA mapping support while keeping Strong ID as the public domain field.
+- `@JvmInline value class` with `@Convert` can insert but fails Spring Data `findById(ContentId)` because Hibernate sees the identifier Java type as `String`;
+- single-column `@Embeddable` Strong ID with `@EmbeddedId` works for save, `findById`, DB string storage, and Jackson string serialization.
 
-The spec must not be weakened to primitive `String id` just because the first JPA attempt is inconvenient.
+The spec therefore standardizes on `@Embeddable/@EmbeddedId`. It must not be weakened to primitive `String id`.

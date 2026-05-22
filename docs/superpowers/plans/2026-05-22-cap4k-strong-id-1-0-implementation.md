@@ -16,7 +16,7 @@ This plan implements the approved design in `docs/superpowers/specs/2026-05-22-c
 
 Do not broaden this implementation into QueryDSL deletion or Snowflake module deletion. Those are slimming tasks after Strong ID stabilizes. Do remove Snowflake/primitive ID strategy exposure from the generated default path when it directly conflicts with Strong ID.
 
-This plan intentionally uses hard gates. If the JPA or JSON spike proves the chosen technical route impossible, stop, document the evidence, and revise the plan instead of silently falling back to primitive `String id`.
+This plan intentionally uses hard gates. The first JPA hard gate showed that `@JvmInline value class` plus `@Convert` can insert but fails Spring Data `findById(ContentId)`. The implementation route is therefore single-column `@Embeddable` Strong ID plus `@EmbeddedId`. If that route fails later, stop and revise the plan instead of silently falling back to primitive `String id`.
 
 ## File Structure
 
@@ -32,7 +32,7 @@ Create:
   Focused validation tests.
 
 - `cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/StrongIdJpaRuntimeTest.kt`  
-  Hard-gate runtime proof for `@Id` Strong ID persistence.
+  Hard-gate runtime proof for `@EmbeddedId` Strong ID persistence.
 
 - `cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/StrongIdJacksonRuntimeTest.kt`  
   JSON serialization/deserialization proof.
@@ -227,24 +227,23 @@ package com.only4.cap4k.ddd.runtime
 import com.only4.cap4k.ddd.core.domain.id.StrongId
 import com.only4.cap4k.ddd.core.domain.id.StrongIds
 import jakarta.persistence.Column
-import jakarta.persistence.Convert
-import jakarta.persistence.Converter
+import jakarta.persistence.Embeddable
+import jakarta.persistence.EmbeddedId
 import jakarta.persistence.Entity
-import jakarta.persistence.Id
 import jakarta.persistence.Table
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
-import org.springframework.context.annotation.Import
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
 import java.io.Serializable
 
 @DataJpaTest
-@Import(StrongIdJpaRuntimeTest.StrongIdJpaRepository::class)
 class StrongIdJpaRuntimeTest(
     private val repository: StrongIdJpaRepository,
+    private val jdbcTemplate: JdbcTemplate,
 ) {
     @Test
     fun `hibernate persists and loads aggregate with strong id field`() {
@@ -252,26 +251,37 @@ class StrongIdJpaRuntimeTest(
         repository.save(StrongContent(id = id, title = "content"))
 
         val loaded = repository.findById(id).orElseThrow()
+        val persistedId = jdbcTemplate.queryForObject(
+            """select "value" from "strong_content" where "title" = ?""",
+            String::class.java,
+            "content",
+        )
 
         assertEquals(id, loaded.id)
+        assertEquals(id.value, persistedId)
         assertEquals("content", loaded.title)
     }
 
-    @JvmInline
-    value class StrongContentId(override val value: String) : StrongId, Serializable {
-        init {
-            StrongIds.requireUuidV7(value, "StrongContentId")
+    @Embeddable
+    class StrongContentId protected constructor() : StrongId, Serializable {
+        @Column(name = "value", nullable = false, updatable = false, length = 36)
+        override lateinit var value: String
+            protected set
+
+        constructor(value: String) : this() {
+            this.value = StrongIds.requireUuidV7(value, "StrongContentId")
         }
 
         companion object {
             fun new(): StrongContentId = StrongContentId(StrongIds.newUuidV7String())
+            fun parse(value: String): StrongContentId = StrongContentId(value)
         }
-    }
 
-    @Converter(autoApply = false)
-    class StrongContentIdConverter : jakarta.persistence.AttributeConverter<StrongContentId, String> {
-        override fun convertToDatabaseColumn(attribute: StrongContentId?): String? = attribute?.value
-        override fun convertToEntityAttribute(dbData: String?): StrongContentId? = dbData?.let(::StrongContentId)
+        override fun equals(other: Any?): Boolean =
+            this === other || (other is StrongContentId && value == other.value)
+
+        override fun hashCode(): Int = value.hashCode()
+        override fun toString(): String = value
     }
 
     @Entity
@@ -280,9 +290,7 @@ class StrongIdJpaRuntimeTest(
         id: StrongContentId,
         title: String,
     ) {
-        @Id
-        @Convert(converter = StrongContentIdConverter::class)
-        @Column(name = "id", nullable = false, updatable = false, length = 36)
+        @EmbeddedId
         var id: StrongContentId = id
             internal set
 
@@ -307,7 +315,7 @@ Run:
 .\gradlew.bat :cap4k-ddd-starter:test --tests "com.only4.cap4k.ddd.runtime.StrongIdJpaRuntimeTest" --rerun-tasks
 ```
 
-Expected: PASS. If this fails because Hibernate cannot use `@JvmInline value class` as `@Id` with explicit `@Convert`, stop and revise this plan to use a generated Hibernate type or generated embedded-id mapping. Do not continue with primitive `String id`.
+Expected: PASS. This proves the `@Embeddable/@EmbeddedId` route. If it fails, stop and revise the plan. Do not continue with primitive `String id`.
 
 - [ ] **Step 3: Write Jackson hard-gate test**
 
@@ -361,18 +369,28 @@ class StrongIdJacksonRuntimeTest(
 
     data class Payload(val id: StrongContentId)
 
-    @JvmInline
-    value class StrongContentId @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
-        @get:JsonValue override val value: String,
-    ) : StrongId, Serializable {
-        init {
-            StrongIds.requireUuidV7(value, "StrongContentId")
+    @Embeddable
+    class StrongContentId protected constructor() : StrongId, Serializable {
+        @Column(name = "value", nullable = false, updatable = false, length = 36)
+        override lateinit var value: String
+            protected set
+
+        @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+        constructor(value: String) : this() {
+            this.value = StrongIds.requireUuidV7(value, "StrongContentId")
         }
+
+        @JsonValue
+        fun jsonValue(): String = value
 
         companion object {
             fun new(): StrongContentId = StrongContentId(StrongIds.newUuidV7String())
         }
 
+        override fun equals(other: Any?): Boolean =
+            this === other || (other is StrongContentId && value == other.value)
+
+        override fun hashCode(): Int = value.hashCode()
         override fun toString(): String = value
     }
 
@@ -389,7 +407,7 @@ Run:
 .\gradlew.bat :cap4k-ddd-starter:test --tests "com.only4.cap4k.ddd.runtime.StrongIdJacksonRuntimeTest" --rerun-tasks
 ```
 
-Expected: PASS. If this fails due to Jackson value-class annotation limitations, revise the plan to register a framework-owned generic converter. Do not continue with object-shaped JSON.
+Expected: PASS. If this fails due to Jackson constructor/value annotation limitations, revise the plan to register a framework-owned generic converter. Do not continue with object-shaped JSON.
 
 - [ ] **Step 5: Commit**
 
@@ -802,20 +820,33 @@ package {{ packageName }}
 import {{ import }}
 {% endfor %}
 
-@JvmInline
-value class {{ typeName }} @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
-    @get:JsonValue override val value: String,
-) : StrongId, Serializable {
-    init {
-        StrongIds.requireUuidV7(value, "{{ typeName }}")
+{{ use("jakarta.persistence.Column") -}}
+{{ use("jakarta.persistence.Embeddable") -}}
+@Embeddable
+class {{ typeName }} protected constructor() : StrongId, Serializable {
+    @Column(name = "value", nullable = false, updatable = false, length = 36)
+    override lateinit var value: String
+        protected set
+
+    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+    constructor(value: String) : this() {
+        this.value = StrongIds.requireUuidV7(value, "{{ typeName }}")
     }
+
+    @JsonValue
+    fun jsonValue(): String = value
 
     override fun toString(): String = value
 
     companion object {
-        fun new(): {{ typeName }} = {{ typeName }}(StrongIds.newUuidV7String())
         fun parse(value: String): {{ typeName }} = {{ typeName }}(value)
+        fun new(): {{ typeName }} = {{ typeName }}(StrongIds.newUuidV7String())
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is {{ typeName }} && value == other.value)
+
+    override fun hashCode(): Int = value.hashCode()
 }
 ```
 
@@ -824,16 +855,14 @@ value class {{ typeName }} @JsonCreator(mode = JsonCreator.Mode.DELEGATING) cons
 Add a Pebble renderer test asserting the output contains:
 
 ```kotlin
-@JvmInline
-value class ContentId @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
-    @get:JsonValue override val value: String,
-) : StrongId, Serializable
+@Embeddable
+class ContentId protected constructor() : StrongId, Serializable
 ```
 
 And:
 
 ```kotlin
-StrongIds.requireUuidV7(value, "ContentId")
+this.value = StrongIds.requireUuidV7(value, "ContentId")
 ```
 
 - [ ] **Step 6: Run generator and renderer tests**
@@ -875,6 +904,7 @@ assertEquals("ContentId", idField["type"])
 assertEquals(null, idField["defaultValue"])
 assertEquals(null, idField["applicationSideIdStrategy"])
 assertEquals("com.acme.demo.domain.aggregates.content.ContentId", idField["typeRef"])
+assertEquals(true, idField["embeddedId"])
 ```
 
 For factory payload:
@@ -938,7 +968,7 @@ Use `${entity.name}Id` and its FQN for repository ID type.
 
 - [ ] **Step 6: Update templates**
 
-In `entity.kt.peb`, remove the `ApplicationSideId` import block and annotation rendering from the default path.
+In `entity.kt.peb`, remove the `ApplicationSideId` import block and annotation rendering from the default path. Render Strong ID aggregate IDs with `@EmbeddedId`, not `@Id @Column`.
 
 In `factory.kt.peb`, render a compile-safe constructor mapping when the entity constructor fields are known:
 
