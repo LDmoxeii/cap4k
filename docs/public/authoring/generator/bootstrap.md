@@ -2,7 +2,7 @@
 
 > bootstrap 解决的是“把已受 bootstrap 管理的工程根和模块骨架准备好”，不是“把业务代码生成完”。
 
-端到端项目顺序见 [项目编写工作流](../project-authoring-workflow.md)。bootstrap 之后的生成物 ownership 判断见 [生成 / 手写边界](../generation-boundaries.md)。
+端到端项目顺序见 [项目编写工作流](../project-authoring-workflow.md)。bootstrap 之后的生成物 ownership 判断见 [生成 / 手写边界](../generation-boundaries.md)。需要业务语境时，统一回到 [示例总览](../examples/index.md) 的内容发布与媒体处理项目。
 
 ## 什么时候使用 bootstrap
 

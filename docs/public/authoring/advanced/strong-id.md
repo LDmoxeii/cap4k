@@ -8,6 +8,8 @@
 
 在共享教学项目里，最常见的风险是把 `Content` 的内部 ID、`MediaProcessingTask` 的内部 ID，以及外部媒体平台回传的任务 ID 混成同一种字符串。callback 主路径和 polling 备用路径尤其容易把外部任务号一路带进内部，最后谁是谁靠变量名猜。
 
+具体语境见 [示例总览](../examples/index.md)：这里的 Strong ID 讨论只是在同一内容发布与媒体处理项目里强化 ID 边界，不另起样例。
+
 ## 为什么默认路径不够
 
 默认路径已经能靠聚合边界、命令边界和命名规范控制大部分 ID 使用风险，所以 Strong ID 不是 DDD 核心 building block。它是工程强化概念，用来降低大型项目里的误传概率。

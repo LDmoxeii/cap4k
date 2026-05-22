@@ -9,7 +9,7 @@
 
 ## Scenario
 
-本页仍然停留在统一教学项目里，不换例子、不换命令世界：`Content` 负责草稿、送审、审核、发布，`MediaProcessingTask` 负责媒体处理发起、处理中、成功、失败、重试；`ApproveContentCmd` 之后由 application 层发出 `StartMediaProcessingCmd`，外部结果再通过 callback 主路径或 polling 备用路径回到内部。
+本页仍然停留在统一教学项目里，不换例子、不换命令世界：`Content` 负责草稿、送审、审核、发布，`MediaProcessingTask` 负责媒体处理发起、处理中、成功、失败、重试；`ApproveContentReviewCmd` 之后由领域事件订阅器发出 `StartMediaProcessingCmd`，外部结果再通过 callback 主路径或 polling 备用路径回到内部。
 
 在这套参考项目里，Value Object 不是为了“让模型看起来更领域化”，而是为了把已经重复出现、并且需要统一解释的业务值收拢起来。最直接的正例有两个：
 
@@ -38,7 +38,7 @@
 external callback / polling payload
   -> adapter / application translation
   -> MediaProcessingResultSnapshot
-  -> CompleteMediaProcessingCmd or FailMediaProcessingCmd
+  -> MarkMediaProcessingSucceededCmd
   -> MediaProcessingTask
 ```
 

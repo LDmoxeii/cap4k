@@ -154,7 +154,7 @@ Audit cues：
 强度：`Must`
 
 Why：
-媒体处理平台通过消息或 callback 推回“处理已完成”时，这个事实来自系统外部。它可以推进内部状态，但必须先作为外部事实进入 adapter 或 integration subscriber，再转换成 `CompleteMediaProcessingCmd` 或 `FailMediaProcessingCmd`。它不是 `MediaProcessingTask` 聚合刚刚产生的领域事件。
+媒体处理平台通过消息或 callback 推回“处理已成功”时，这个事实来自系统外部。它可以推进内部状态，但必须先作为外部事实进入 adapter 或 integration subscriber，再转换成 `MarkMediaProcessingSucceededCmd`。它不是 `MediaProcessingTask` 聚合刚刚产生的领域事件。
 
 Non-example：
 把外部消息包装成 `MediaProcessingCompletedDomainEvent` 后交给领域订阅器，或者 integration subscriber 直接改 `MediaProcessingTask` 状态。
@@ -208,7 +208,7 @@ Audit cues：
 强度：`Must`
 
 Why：
-示例项目中的媒体处理系统是外部能力。发起处理、轮询状态或查询处理结果属于内部主动消费外部能力，默认只能通过 `MediaProcessingCli` 这类 client 防腐边界完成，并把外部协议翻译成内部业务语言。
+示例项目中的媒体处理系统是外部能力。发起处理、轮询状态或查询处理结果属于内部主动消费外部能力，默认只能通过 `TriggerMediaProcessingCli`、`GetMediaProcessingStatusCli` 这类 client 防腐边界完成，并把外部协议翻译成内部业务语言。
 
 接收媒体处理回调不是 client 调用，而是外部事实入口。callback controller 或 inbound subscriber 只负责接收已经发生的外部事实；会推进状态的 payload 必须翻译成内部命令，纯观察类回传才可以进入 query 或明确的 application entry point，不能把外部 DTO 当成流程真相源。
 
