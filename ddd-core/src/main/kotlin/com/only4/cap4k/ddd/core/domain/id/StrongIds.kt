@@ -5,7 +5,7 @@ import java.util.UUID
 
 object StrongIds {
     private val UUID_V7_PATTERN =
-        Regex("^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$")
+        Regex("^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 
     fun newUuidV7String(): String = UuidCreator.getTimeOrderedEpoch().toString()
 
@@ -15,7 +15,7 @@ object StrongIds {
             "$typeName must be a UUIDv7 value: $value"
         }
         val uuid = runCatching { UUID.fromString(normalized) }.getOrNull()
-        require(uuid != null && uuid.version() == 7 && uuid != UUID(0L, 0L)) {
+        require(uuid != null && uuid.version() == 7 && uuid.variant() == 2 && uuid != UUID(0L, 0L)) {
             "$typeName must be a UUIDv7 value: $value"
         }
         return normalized
