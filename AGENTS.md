@@ -61,6 +61,8 @@ There are three kinds of work in this repo now:
 
 `cap4k` does not use a long-lived `develop` branch as a standard integration stage. Do not introduce or revive a `feature -> develop -> master -> publish` flow for normal work.
 
+`cap4k` also does not use `release/vX.Y.Z` or other intermediate release-promotion branches as the normal path from `master` to Maven Central. If a release needs ordinary framework code that already landed on `master`, promote `master` directly to `publish/maven-central` through the defined PR flow below.
+
 Use these branch roles instead:
 
 - `feature/*`: short-lived implementation branches for normal code changes
@@ -75,11 +77,22 @@ Expected promotion flow:
 2. `master -> publish/maven-central`
 3. `publish/maven-central` commit -> `v*` tag -> Maven Central release
 
+Direct-development rules:
+
+- do not implement normal work directly on `master`; start from a `feature/*` branch
+- do not commit directly on `master`; land mainline code through `feature/* -> master` pull requests
+- do not implement normal work directly on `publish/maven-central`; that branch is a release channel, not a feature branch
+- do not commit directly on `publish/maven-central`; release-channel updates should come through the allowed PR paths below
+- if a branch is an issue branch, ad-hoc branch, docs branch, or any other non-`verify/*` working branch, treat it like `feature/*`: it must land on `master`, not directly on `publish/maven-central`
+
 Pull request policy:
 
-- `feature/* -> master`: use a pull request by default
-- `verify/* -> publish/*`: use a pull request by default
-- `master -> publish/maven-central`: a pull request is optional when this is only a clean promotion of already-verified code and does not change release-pipeline behavior
+- `feature/* -> master`: required
+- `master -> publish/maven-central`: required, even when this is only a clean promotion of already-verified code
+- `verify/* -> publish/*`: allowed only for release-pipeline or publication-flow changes, and required by pull request
+- do not open `feature/* -> publish/maven-central` pull requests
+- do not open issue-branch, ad-hoc-branch, docs-branch, or other ordinary iteration pull requests into `publish/maven-central`
+- if work is not specifically a release-pipeline fix, it belongs on `master` first
 
 Release safety rules:
 

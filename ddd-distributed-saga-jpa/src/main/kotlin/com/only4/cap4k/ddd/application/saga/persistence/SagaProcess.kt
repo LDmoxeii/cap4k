@@ -76,6 +76,84 @@ class SagaProcess(
     var exception: String? = null,
 
     /**
+     * 正向流程完成时间
+     * datetime (nullable)
+     */
+    @Column(name = "`executed_at`")
+    var executedAt: LocalDateTime? = null,
+
+    /**
+     * 补偿流程代码
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_code`", nullable = false)
+    var compensationCode: String = "",
+
+    /**
+     * 补偿参数
+     * text (nullable)
+     */
+    @Column(name = "`compensation_param`")
+    var compensationParam: String = "",
+
+    /**
+     * 补偿参数类型
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_param_type`", nullable = false)
+    var compensationParamType: String = "",
+
+    /**
+     * 补偿结果
+     * text (nullable)
+     */
+    @Column(name = "`compensation_result`")
+    var compensationResult: String = "",
+
+    /**
+     * 补偿结果类型
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_result_type`", nullable = false)
+    var compensationResultType: String = "",
+
+    /**
+     * 补偿异常
+     * text (nullable)
+     */
+    @Column(name = "`compensation_exception`")
+    var compensationException: String? = null,
+
+    /**
+     * 补偿状态
+     * int NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`compensation_state`", nullable = false)
+    @Convert(converter = SagaCompensationState.Converter::class)
+    var compensationState: SagaCompensationState = SagaCompensationState.NONE,
+
+    /**
+     * 补偿上次尝试时间
+     * datetime (nullable)
+     */
+    @Column(name = "`compensation_last_try_time`")
+    var compensationLastTryTime: LocalDateTime? = null,
+
+    /**
+     * 补偿尝试次数
+     * int NOT NULL DEFAULT '0'
+     */
+    @Column(name = "`compensation_tried_times`", nullable = false)
+    var compensationTriedTimes: Int = 0,
+
+    /**
+     * 补偿完成时间
+     * datetime (nullable)
+     */
+    @Column(name = "`compensated_at`")
+    var compensatedAt: LocalDateTime? = null,
+
+    /**
      * 执行状态
      * int NOT NULL DEFAULT '0'
      */
@@ -128,6 +206,46 @@ class SagaProcess(
         }
         private set
 
+    @Transient
+    @JSONField(serialize = false)
+    var compensationRequestParam: RequestParam<*>? = null
+        get() {
+            if (field != null) {
+                return field
+            }
+            if (compensationParamType.isNotBlank()) {
+                val dataClass = try {
+                    Class.forName(compensationParamType)
+                } catch (e: ClassNotFoundException) {
+                    log.error("补偿参数类型解析错误", e)
+                    throw ClassNotFoundException("无法找到补偿参数类型: $compensationParamType", e)
+                }
+                field = JSON.parseObject(compensationParam, dataClass, Feature.SupportNonPublicField) as RequestParam<*>?
+            }
+            return field
+        }
+        private set
+
+    @Transient
+    @JSONField(serialize = false)
+    var compensationProcessResult: Any? = null
+        get() {
+            if (field != null) {
+                return field
+            }
+            if (compensationResultType.isNotBlank()) {
+                val dataClass = try {
+                    Class.forName(compensationResultType)
+                } catch (e: ClassNotFoundException) {
+                    log.error("补偿返回类型解析错误", e)
+                    throw ClassNotFoundException("无法找到补偿结果类型: $compensationResultType", e)
+                }
+                field = JSON.parseObject(compensationResult, dataClass, Feature.SupportNonPublicField)
+            }
+            return field
+        }
+        private set
+
     fun beginProcess(now: LocalDateTime, param: RequestParam<*>): SagaProcess = apply {
         this.param = JSON.toJSONString(param, IgnoreNonFieldGetter, SkipTransientField)
         this.paramType = param.javaClass.name
@@ -140,6 +258,7 @@ class SagaProcess(
         this.result = JSON.toJSONString(result, IgnoreNonFieldGetter, SkipTransientField)
         this.resultType = result.javaClass.name
         this.processState = SagaProcessState.EXECUTED
+        this.executedAt = now
         this.lastTryTime = now
     }
 
@@ -150,6 +269,38 @@ class SagaProcess(
         val sw = StringWriter()
         ex.printStackTrace(PrintWriter(sw, true))
         this.exception = sw.toString()
+    }
+
+    fun registerCompensation(compensationCode: String, param: RequestParam<*>): SagaProcess = apply {
+        this.compensationCode = compensationCode
+        this.compensationRequestParam = param
+        this.compensationParam = JSON.toJSONString(param, IgnoreNonFieldGetter, SkipTransientField)
+        this.compensationParamType = param.javaClass.name
+        this.compensationState = SagaCompensationState.READY
+    }
+
+    fun beginCompensation(now: LocalDateTime): SagaProcess = apply {
+        this.compensationState = SagaCompensationState.COMPENSATING
+        this.compensationLastTryTime = now
+        this.compensationTriedTimes++
+    }
+
+    fun endCompensation(now: LocalDateTime, result: Any = Unit): SagaProcess = apply {
+        this.compensationProcessResult = result
+        this.compensationResult = JSON.toJSONString(result, IgnoreNonFieldGetter, SkipTransientField)
+        this.compensationResultType = result.javaClass.name
+        this.compensationException = null
+        this.compensationState = SagaCompensationState.COMPENSATED
+        this.compensationLastTryTime = now
+        this.compensatedAt = now
+    }
+
+    fun occurredCompensationException(now: LocalDateTime, ex: Throwable): SagaProcess = apply {
+        this.compensationState = SagaCompensationState.FAILED
+        this.compensationLastTryTime = now
+        val sw = StringWriter()
+        ex.printStackTrace(PrintWriter(sw, true))
+        this.compensationException = sw.toString()
     }
 
     enum class SagaProcessState(val value: Int, val stateName: String) {
@@ -186,6 +337,32 @@ class SagaProcess(
             }
 
             override fun convertToEntityAttribute(dbData: Int): SagaProcessState? {
+                return valueOf(dbData)
+            }
+        }
+    }
+
+    enum class SagaCompensationState(val value: Int, val stateName: String) {
+        NONE(0, "none"),
+        READY(1, "ready"),
+        COMPENSATING(-1, "compensating"),
+        MANUAL_REPAIR_REQUIRED(-7, "manual-repair-required"),
+        FAILED(-9, "failed"),
+        COMPENSATED(2, "compensated");
+
+        companion object {
+            @JvmStatic
+            fun valueOf(value: Int): SagaCompensationState? {
+                return entries.find { it.value == value }
+            }
+        }
+
+        class Converter : AttributeConverter<SagaCompensationState, Int> {
+            override fun convertToDatabaseColumn(attribute: SagaCompensationState): Int {
+                return attribute.value
+            }
+
+            override fun convertToEntityAttribute(dbData: Int): SagaCompensationState? {
                 return valueOf(dbData)
             }
         }
