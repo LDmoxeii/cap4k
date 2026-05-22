@@ -27,7 +27,7 @@ interface AggregateSupervisor {
      */
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getById(
         id: Id<AGGREGATE, *>,
-        persist: Boolean = true
+        persist: Boolean = false
     ): AGGREGATE? =
         getByIds(listOf(id), persist).firstOrNull()
 
@@ -36,7 +36,7 @@ interface AggregateSupervisor {
      */
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getById(
         id: Id<AGGREGATE, *>,
-        persist: Boolean = true,
+        persist: Boolean = false,
         loadPlan: AggregateLoadPlan
     ): AGGREGATE? {
         rejectUnsupportedCompatibilityLoadPlan(loadPlan)
@@ -54,7 +54,7 @@ interface AggregateSupervisor {
      */
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getByIds(
         ids: Iterable<Id<AGGREGATE, *>>,
-        persist: Boolean = true
+        persist: Boolean = false
     ): List<AGGREGATE>
 
     /**
@@ -62,7 +62,7 @@ interface AggregateSupervisor {
      */
     fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getByIds(
         ids: Iterable<Id<AGGREGATE, *>>,
-        persist: Boolean = true,
+        persist: Boolean = false,
         loadPlan: AggregateLoadPlan
     ): List<AGGREGATE> {
         rejectUnsupportedCompatibilityLoadPlan(loadPlan)
@@ -84,7 +84,7 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> find(
         predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true
+        persist: Boolean = false
     ): List<AGGREGATE>
 
     /**
@@ -93,7 +93,7 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> find(
         predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true,
+        persist: Boolean = false,
         loadPlan: AggregateLoadPlan
     ): List<AGGREGATE> {
         rejectUnsupportedCompatibilityLoadPlan(loadPlan)
@@ -106,7 +106,7 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> find(
         predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
-        persist: Boolean = true
+        persist: Boolean = false
     ): List<AGGREGATE>
 
     /**
@@ -115,7 +115,7 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> find(
         predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
-        persist: Boolean = true,
+        persist: Boolean = false,
         loadPlan: AggregateLoadPlan
     ): List<AGGREGATE> {
         rejectUnsupportedCompatibilityLoadPlan(loadPlan)
@@ -127,7 +127,7 @@ interface AggregateSupervisor {
      */
     fun <AGGREGATE : Aggregate<*>> findOne(
         predicate: AggregatePredicate<AGGREGATE, *>,
-        persist: Boolean = true
+        persist: Boolean = false
     ): AGGREGATE?
 
     /**
@@ -135,7 +135,7 @@ interface AggregateSupervisor {
      */
     fun <AGGREGATE : Aggregate<*>> findOne(
         predicate: AggregatePredicate<AGGREGATE, *>,
-        persist: Boolean = true,
+        persist: Boolean = false,
         loadPlan: AggregateLoadPlan
     ): AGGREGATE? {
         rejectUnsupportedCompatibilityLoadPlan(loadPlan)
@@ -148,7 +148,7 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> findFirst(
         predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true
+        persist: Boolean = false
     ): AGGREGATE?
 
     /**
@@ -157,7 +157,7 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> findFirst(
         predicate: AggregatePredicate<AGGREGATE, *>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true,
+        persist: Boolean = false,
         loadPlan: AggregateLoadPlan
     ): AGGREGATE? {
         rejectUnsupportedCompatibilityLoadPlan(loadPlan)
@@ -179,7 +179,7 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> findPage(
         predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
-        persist: Boolean = true
+        persist: Boolean = false
     ): PageData<AGGREGATE>
 
     /**
@@ -188,7 +188,7 @@ interface AggregateSupervisor {
     fun <AGGREGATE : Aggregate<*>> findPage(
         predicate: AggregatePredicate<AGGREGATE, *>,
         pageParam: PageParam,
-        persist: Boolean = true,
+        persist: Boolean = false,
         loadPlan: AggregateLoadPlan
     ): PageData<AGGREGATE> {
         rejectUnsupportedCompatibilityLoadPlan(loadPlan)

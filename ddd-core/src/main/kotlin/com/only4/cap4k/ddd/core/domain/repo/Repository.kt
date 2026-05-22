@@ -30,13 +30,13 @@ interface Repository<ENTITY : Any> {
     fun find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true
+        persist: Boolean = false
     ): List<ENTITY>
 
     fun find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true,
+        persist: Boolean = false,
         loadPlan: AggregateLoadPlan
     ): List<ENTITY> {
         rejectUnsupportedCompatibilityLoadPlan(loadPlan)
@@ -68,13 +68,13 @@ interface Repository<ENTITY : Any> {
     fun find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean = true
+        persist: Boolean = false
     ): List<ENTITY>
 
     fun find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean = true,
+        persist: Boolean = false,
         loadPlan: AggregateLoadPlan
     ): List<ENTITY> {
         rejectUnsupportedCompatibilityLoadPlan(loadPlan)
@@ -90,12 +90,12 @@ interface Repository<ENTITY : Any> {
      */
     fun findOne(
         predicate: Predicate<ENTITY>,
-        persist: Boolean = true
+        persist: Boolean = false
     ): ENTITY?
 
     fun findOne(
         predicate: Predicate<ENTITY>,
-        persist: Boolean = true,
+        persist: Boolean = false,
         loadPlan: AggregateLoadPlan
     ): ENTITY? {
         rejectUnsupportedCompatibilityLoadPlan(loadPlan)
@@ -113,13 +113,13 @@ interface Repository<ENTITY : Any> {
     fun findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true
+        persist: Boolean = false
     ): ENTITY?
 
     fun findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = true,
+        persist: Boolean = false,
         loadPlan: AggregateLoadPlan
     ): ENTITY? {
         rejectUnsupportedCompatibilityLoadPlan(loadPlan)
@@ -151,13 +151,13 @@ interface Repository<ENTITY : Any> {
     fun findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean = true
+        persist: Boolean = false
     ): PageData<ENTITY>
 
     fun findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean = true,
+        persist: Boolean = false,
         loadPlan: AggregateLoadPlan
     ): PageData<ENTITY> {
         rejectUnsupportedCompatibilityLoadPlan(loadPlan)
