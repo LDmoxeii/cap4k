@@ -2,6 +2,7 @@
 
 - Use static `Mediator.*` surfaces in business code.
 - Use `Mediator.repositories` for aggregate-root loading in write flows.
+  Repository reads are detached by default; only the aggregate that will later be mutated and flushed through `Mediator.uow.save()` should use `persist = true`.
 - Use `Mediator.factories` for aggregate-root creation.
 - Use `Mediator.services` for domain services.
 - Use `Mediator.requests` for external capability clients.
@@ -16,6 +17,7 @@
 
 - Repository access is governed by read/write boundaries, not by a blanket "commands only" rule.
 - Command handlers are aggregate write boundaries. They may load and write aggregate roots through repositories.
+- Command handlers should treat default repository reads as read-only unless they explicitly opt the target aggregate into `persist = true`.
 - Query handlers are read boundaries. They may use repositories, JPA, projections, or read-model infrastructure in read-only mode.
 - Domain event listeners, external fact entries, open host service entries, controllers, jobs, client handlers, and Saga coordinators must not directly mutate aggregates or call write repositories.
 - Flow-routing reads outside a command should normally go through a query instead of ad hoc repository access.

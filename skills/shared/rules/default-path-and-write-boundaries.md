@@ -2,6 +2,7 @@
 
 - One command path may persist only one aggregate root.
 - Commands may read multiple aggregates or read facts for zero-trust validation, but those reads must not become shared write ownership.
+- Repository reads are detached by default; only the target aggregate that will be mutated and saved should opt into `persist = true`.
 - State-changing controllers, subscribers, jobs, external fact entries, and Open Host Service entries route into commands.
 - Aggregate roots own write invariants and emit meaningful domain facts.
 - Domain events describe business facts, not technical continuation steps.
