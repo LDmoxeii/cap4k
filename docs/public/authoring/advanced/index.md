@@ -12,7 +12,7 @@
 
 - 什么时候需要更完整的值语义，而不是继续用枚举或原始类型顶着写：[Value Object](value-object.md)
 - 什么时候行为明显属于领域，但不自然落在 `Content`、`MediaProcessingTask` 或某个值对象里：[Domain Service](domain-service.md)
-- 什么时候已经进入长流程、最终一致性和补偿协调，而不是一次命令就能讲清：[Saga](saga.md)
+- 什么时候已经进入 persisted long-running coordination、最终一致性、恢复和补偿协调，而不是一次命令就能讲清：[Saga](saga.md)
 - 什么时候需要更强的 ID 类型安全，但又不想把工程封装误讲成 DDD 核心概念：[Strong ID](strong-id.md)
 - 什么时候只需要统一类型表达和导航表面，而不是让仓储直接持有跨聚合可写对象：[Read-only Weak Reference](read-only-weak-reference.md)
 
@@ -21,6 +21,7 @@
 - 先用 [Default Happy Path](../default-happy-path.md)，再判断是否要进入高级模式。
 - 偏离前先能说明为什么默认路径不够，而不是因为“框架支持”就直接上高级概念。
 - callback 仍然是媒体处理结果回传的主路径，polling 仍然只是备用路径；高级概念不能把这条主次关系翻掉。
+- 当前 Saga runtime 的第一优先切片是 persisted coordination + retry/recovery/compensation，不是完整的 waiting-style workflow / callback-step resume 引擎。
 
 ## 参考主场景
 
