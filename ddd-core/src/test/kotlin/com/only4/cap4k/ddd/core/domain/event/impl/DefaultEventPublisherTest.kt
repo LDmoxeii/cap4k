@@ -15,8 +15,11 @@ import org.springframework.context.ApplicationEventPublisher
 import org.springframework.messaging.Message
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.util.Collections
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 /**
  * DefaultEventPublisher测试
@@ -347,18 +350,130 @@ class DefaultEventPublisherTest {
         @DisplayName("应该处理延迟领域事件")
         fun `should handle delayed domain events`() {
             // given
-            val futureTime = LocalDateTime.now().plusMinutes(5)
+            val calls = Collections.synchronizedList(mutableListOf<String>())
+            val dispatchStarted = CountDownLatch(1)
+            val completed = CountDownLatch(1)
+            val futureTime = LocalDateTime.now().plusSeconds(2)
+            val applicationEventPublisher = mockk<ApplicationEventPublisher>()
+            val derivedEventRecord = mockk<EventRecord>()
             val eventRecord = createTestEventRecord(
                 eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
+                persist = true,
                 scheduleTime = futureTime
             )
+            val realIntegrationManager = DefaultIntegrationEventSupervisor(
+                mockk(relaxed = true),
+                eventRecordRepository,
+                integrationEventInterceptorManager,
+                applicationEventPublisher,
+                "test-service"
+            )
+            val delayedPublisher = DefaultEventPublisher(
+                eventSubscriberManager,
+                integrationEventPublishers,
+                eventRecordRepository,
+                eventMessageInterceptorManager,
+                domainEventInterceptorManager,
+                integrationEventInterceptorManager,
+                realIntegrationManager,
+                integrationEventPublisherCallback,
+                threadPoolSize
+            )
+
+            every { applicationEventPublisher.publishEvent(any()) } answers {
+                assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
+                calls.add("publishIntegrationCommitted")
+            }
+            every { eventRecordRepository.create() } answers {
+                calls.add("createIntegration")
+                derivedEventRecord
+            }
+            every { derivedEventRecord.init(any(), any(), any(), any(), any()) } answers {
+                assertEquals(TestIntegrationEvent("derived"), firstArg())
+            }
+            every { derivedEventRecord.markPersist(true) } just Runs
+            every { eventRecordRepository.save(derivedEventRecord) } answers {
+                calls.add("saveIntegration")
+                derivedEventRecord
+            }
+            every { eventRecord.endDelivery(any()) } answers {
+                calls.add("endDelivery")
+            }
+            every { eventRecordRepository.save(eventRecord) } answers {
+                calls.add("saveSource")
+                completed.countDown()
+                eventRecord
+            }
+            every { eventSubscriberManager.dispatch(any()) } answers {
+                assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
+                realIntegrationManager.attach(TestIntegrationEvent("derived"))
+                calls.add("dispatch")
+                dispatchStarted.countDown()
+            }
 
             // when
-            publisher.publish(eventRecord)
+            delayedPublisher.publish(eventRecord)
 
-            // then - 延迟事件应该被调度，不会立即执行dispatch
-            Thread.sleep(100) // 给调度器一些时间
-            // 注意：这里我们不能直接验证延迟执行，因为它是异步的
+            // then
+            assertFalse(dispatchStarted.await(500, TimeUnit.MILLISECONDS))
+            assertTrue(completed.await(5, TimeUnit.SECONDS))
+            assertEquals(
+                listOf("dispatch", "createIntegration", "saveIntegration", "publishIntegrationCommitted", "endDelivery", "saveSource"),
+                calls.toList()
+            )
+            assertTrue(EventRuntimeContext.currentOrNull() == null)
+        }
+
+        @Test
+        @DisplayName("延迟领域事件调度失败时不应泄漏附加的集成事件")
+        fun `should discard attached integration events when delayed domain dispatch fails`() {
+            // given
+            val dispatchStarted = CountDownLatch(1)
+            val futureTime = LocalDateTime.now().plusSeconds(2)
+            val applicationEventPublisher = mockk<ApplicationEventPublisher>(relaxed = true)
+            val eventRecord = createTestEventRecord(
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
+                persist = true,
+                scheduleTime = futureTime
+            )
+            val realIntegrationManager = DefaultIntegrationEventSupervisor(
+                mockk(relaxed = true),
+                eventRecordRepository,
+                integrationEventInterceptorManager,
+                applicationEventPublisher,
+                "test-service"
+            )
+            val delayedPublisher = DefaultEventPublisher(
+                eventSubscriberManager,
+                integrationEventPublishers,
+                eventRecordRepository,
+                eventMessageInterceptorManager,
+                domainEventInterceptorManager,
+                integrationEventInterceptorManager,
+                realIntegrationManager,
+                integrationEventPublisherCallback,
+                threadPoolSize
+            )
+
+            every { eventSubscriberManager.dispatch(any()) } answers {
+                assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
+                realIntegrationManager.attach(TestIntegrationEvent("derived"))
+                dispatchStarted.countDown()
+                throw RuntimeException("Dispatch failed")
+            }
+
+            // when
+            delayedPublisher.publish(eventRecord)
+
+            // then
+            assertFalse(dispatchStarted.await(500, TimeUnit.MILLISECONDS))
+            assertTrue(dispatchStarted.await(5, TimeUnit.SECONDS))
+            Thread.sleep(200)
+            verify(exactly = 0) { eventRecordRepository.create() }
+            verify(exactly = 0) { applicationEventPublisher.publishEvent(any()) }
+            verify(exactly = 0) { eventRecord.endDelivery(any()) }
+            verify(exactly = 0) { eventRecordRepository.save(eventRecord) }
+            assertTrue(EventRuntimeContext.currentOrNull() == null)
         }
     }
 
