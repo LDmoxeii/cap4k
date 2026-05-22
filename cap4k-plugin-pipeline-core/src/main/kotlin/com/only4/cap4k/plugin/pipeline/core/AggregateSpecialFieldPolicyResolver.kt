@@ -41,7 +41,7 @@ internal object AggregateSpecialFieldPolicyResolver {
             )
         }
 
-        val idControls = resolvedPolicies.map { policy ->
+        val idControls = resolvedPolicies.filter { it.id.source == SpecialFieldSource.DB_EXPLICIT }.map { policy ->
             val entity = requireNotNull(entityByKey[policy.entityPackageName to policy.entityName]) {
                 "missing canonical entity metadata for ${policy.entityPackageName}.${policy.entityName}"
             }
@@ -85,11 +85,13 @@ internal object AggregateSpecialFieldPolicyResolver {
                 AggregateIdPolicyResolver.normalizeStrategy(defaultStrategy) to SpecialFieldSource.DSL_DEFAULT
         }
 
-        AggregateIdPolicyResolver.validateType(
-            config = config,
-            entity = entity,
-            strategy = idStrategy,
-        )
+        if (idSource == SpecialFieldSource.DB_EXPLICIT) {
+            AggregateIdPolicyResolver.validateType(
+                config = config,
+                entity = entity,
+                strategy = idStrategy,
+            )
+        }
         val idKind = AggregateIdPolicyResolver.resolveKind(idStrategy)
         val deletedPolicy = resolveMarkerPolicy(
             markerName = "deleted",
