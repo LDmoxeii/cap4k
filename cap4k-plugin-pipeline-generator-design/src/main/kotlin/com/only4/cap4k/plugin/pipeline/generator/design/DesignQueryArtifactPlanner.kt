@@ -28,7 +28,7 @@ class DesignQueryArtifactPlanner : GeneratorProvider {
                 context = DesignPayloadRenderModelFactory.create(
                     packageName = packageName,
                     interaction = query,
-                    typeRegistry = config.typeRegistryFqns(),
+                    typeRegistry = config.designTypeRegistryFqns(model),
                     siblingTypeNames = siblingTypeNames,
                 ).toContextMap(),
                 conflictPolicy = config.templates.conflictPolicy,

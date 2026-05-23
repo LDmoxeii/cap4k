@@ -142,6 +142,35 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `design command template renders strong id request field imports`() {
+        val content = renderTemplate(
+            templateId = "design/command.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/content/CreateContentCmd.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.commands.content",
+                "typeName" to "CreateContentCmd",
+                "description" to "create content",
+                "descriptionText" to "create content",
+                "descriptionCommentText" to "create content",
+                "descriptionKotlinStringLiteral" to "\"create content\"",
+                "aggregateName" to null,
+                "imports" to listOf("com.acme.demo.domain.shared.ids.AuthorId"),
+                "requestFields" to listOf(
+                    mapOf("name" to "authorId", "renderedType" to "AuthorId", "nullable" to false),
+                ),
+                "responseFields" to emptyList<Map<String, Any?>>(),
+                "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+                "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                "pageRequest" to false,
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
+        assertTrue(content.contains("val authorId: AuthorId"))
+    }
+
+    @Test
     fun `aggregate factory template renders resolved empty payload as valid empty class`() {
         val content = renderTemplate(
             templateId = "aggregate/factory.kt.peb",

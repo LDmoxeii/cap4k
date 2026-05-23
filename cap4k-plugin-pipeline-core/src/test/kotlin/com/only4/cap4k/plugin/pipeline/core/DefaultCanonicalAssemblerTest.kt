@@ -2505,6 +2505,47 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `design command can declare generated reference strong id type`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "command",
+                            packageName = "content",
+                            name = "CreateContent",
+                            description = "create content",
+                            aggregates = emptyList(),
+                            requestFields = listOf(FieldModel("authorId", "AuthorId")),
+                            responseFields = emptyList(),
+                        )
+                    )
+                ),
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        table(
+                            name = "content",
+                            columns = listOf(
+                                column("id", "VARCHAR", "String", false, primaryKey = true),
+                                column("author_id", "VARCHAR", "String", false, refId = "AuthorId"),
+                            ),
+                            primaryKey = listOf("id"),
+                            aggregateRoot = true,
+                        )
+                    )
+                ),
+            ),
+        )
+
+        val command = result.model.commands.single { it.typeName == "CreateContentCmd" }
+
+        assertEquals("AuthorId", command.requestFields.single { it.name == "authorId" }.type)
+        assertEquals("AuthorId", result.model.strongIds.single { it.typeName == "AuthorId" }.typeName)
+        assertEquals(1, result.model.commands.size)
+    }
+
+    @Test
     fun `default uuid7 strategy does not emit primitive aggregate id policy`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
