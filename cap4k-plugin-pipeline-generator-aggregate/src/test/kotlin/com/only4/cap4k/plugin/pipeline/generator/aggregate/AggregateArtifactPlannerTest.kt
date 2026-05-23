@@ -2831,6 +2831,58 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `unique query and validator import strong id request prop types`() {
+        val entity = EntityModel(
+            name = "Content",
+            packageName = "com.acme.demo.domain.aggregates.content",
+            tableName = "content",
+            comment = "Content entity",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("authorId", "AuthorId", columnName = "author_id"),
+                FieldModel("slug", "String", columnName = "slug"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            uniqueConstraints = listOf(uniqueConstraint("content_uk_author_slug", "author_id", "slug")),
+        )
+        val model = CanonicalModel(
+            entities = listOf(entity),
+            schemas = listOf(
+                SchemaModel(
+                    name = "SContent",
+                    packageName = "com.acme.demo.domain._share.meta.content",
+                    entityName = "Content",
+                    comment = "Content schema",
+                    fields = entity.fields,
+                )
+            ),
+            repositories = listOf(
+                RepositoryModel(
+                    name = "ContentRepository",
+                    packageName = "com.acme.demo.adapter.domain.repositories",
+                    entityName = "Content",
+                    idType = "Long",
+                )
+            ),
+            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            strongIds = listOf(
+                StrongIdModel(
+                    typeName = "AuthorId",
+                    packageName = "com.acme.demo.domain.shared.ids",
+                    kind = StrongIdKind.REFERENCE,
+                )
+            ),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(aggregateConfig(), model)
+        val query = planItems.single { it.templateId == "aggregate/unique_query.kt.peb" }
+        val validator = planItems.single { it.templateId == "aggregate/unique_validator.kt.peb" }
+
+        assertEquals(listOf("com.acme.demo.domain.shared.ids.AuthorId"), query.context["imports"])
+        assertEquals(listOf("com.acme.demo.domain.shared.ids.AuthorId"), validator.context["imports"])
+    }
+
+    @Test
     fun `unique planners expose business validator and repository backed handler context`() {
         val entity = EntityModel(
             name = "UserMessage",
