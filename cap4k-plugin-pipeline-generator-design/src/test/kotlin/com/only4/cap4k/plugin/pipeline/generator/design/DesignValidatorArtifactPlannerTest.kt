@@ -104,6 +104,42 @@ class DesignValidatorArtifactPlannerTest {
     }
 
     @Test
+    fun `validator planner fails on strong id and explicit fqcn simple name collision`() {
+        val planner = DesignValidatorArtifactPlanner()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("application" to "demo-application")),
+                model = CanonicalModel(
+                    validators = listOf(
+                        ValidatorModel(
+                            packageName = "content",
+                            typeName = "KnownAuthor",
+                            description = "known author",
+                            message = "author rejected",
+                            targets = listOf("FIELD"),
+                            valueType = "AuthorId",
+                            parameters = listOf(
+                                ValidatorParameterModel("externalAuthorId", "com.other.AuthorId"),
+                            ),
+                        )
+                    ),
+                    strongIds = listOf(
+                        StrongIdModel(
+                            typeName = "AuthorId",
+                            packageName = "com.acme.demo.domain.shared.ids",
+                            kind = StrongIdKind.REFERENCE,
+                        )
+                    ),
+                ),
+            )
+        }
+
+        assertTrue(error.message.orEmpty().contains("AuthorId"))
+        assertTrue(error.message.orEmpty().contains("ambiguous"))
+    }
+
+    @Test
     fun `ignores non validator canonical slices`() {
         val planner = DesignValidatorArtifactPlanner()
 

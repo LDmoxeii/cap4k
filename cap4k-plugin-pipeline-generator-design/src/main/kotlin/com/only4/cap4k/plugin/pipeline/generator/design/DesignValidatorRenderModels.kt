@@ -3,8 +3,8 @@ package com.only4.cap4k.plugin.pipeline.generator.design
 import com.only4.cap4k.plugin.pipeline.api.ValidatorModel
 import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver
-import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver.UnknownShortTypeFailure
 import com.only4.cap4k.plugin.pipeline.generator.design.types.SymbolIdentity
+import java.util.ArrayDeque
 
 internal data class DesignValidatorRenderModel(
     val packageName: String,
@@ -75,18 +75,26 @@ internal object DesignValidatorRenderModelFactory {
         typeRegistry: Map<String, String> = emptyMap(),
     ): DesignValidatorRenderModel {
         val symbolRegistry = typeRegistry.toSymbolRegistry()
-        val valueType = resolveType(validator.valueType, symbolRegistry)
+        val typeTexts = buildList {
+            add(validator.valueType)
+            addAll(validator.parameters.map { it.type })
+        }
+        val designTypes = typeTexts.map { DesignTypeParser.parse(it) }
+        validateSignatureTypes(designTypes, symbolRegistry)
+        val importPlan = ImportResolver.plan(
+            types = designTypes.map(::resolveDesignType),
+            symbolRegistry = symbolRegistry,
+        )
+        val renderedTypes = ArrayDeque(importPlan.renderedTypes)
+        val valueType = renderedTypes.removeFirst()
         val parameters = validator.parameters.map { parameter ->
-            val parameterType = resolveType(parameter.type, symbolRegistry)
-            ValidatorParameterResolution(
-                renderModel = DesignValidatorParameterRenderModel(
-                    name = parameter.name,
-                    type = parameterType.renderedText,
-                    defaultValueLiteral = parameter.defaultValue?.let { value ->
-                        renderDefaultValue(parameterType.renderedText, value)
-                    },
-                ),
-                imports = parameterType.imports,
+            val renderedType = renderedTypes.removeFirst()
+            DesignValidatorParameterRenderModel(
+                name = parameter.name,
+                type = renderedType.renderedText,
+                defaultValueLiteral = parameter.defaultValue?.let { value ->
+                    renderDefaultValue(renderedType.renderedText, value)
+                },
             )
         }
 
@@ -99,8 +107,8 @@ internal object DesignValidatorRenderModelFactory {
             messageLiteral = validator.message.toKotlinStringLiteral(),
             targets = validator.targets,
             valueType = valueType.renderedText,
-            parameters = parameters.map { it.renderModel },
-            imports = (valueType.imports + parameters.flatMap { it.imports }).distinct().sorted(),
+            parameters = parameters,
+            imports = importPlan.imports,
         )
     }
 
@@ -116,22 +124,6 @@ internal object DesignValidatorRenderModelFactory {
             )
         }
         return registry
-    }
-
-    private fun resolveType(type: String, symbolRegistry: DesignSymbolRegistry): ValidatorTypeResolution {
-        val resolvedType = resolveDesignType(DesignTypeParser.parse(type))
-        return try {
-            val plan = ImportResolver.plan(
-                types = listOf(resolvedType),
-                symbolRegistry = symbolRegistry,
-            )
-            ValidatorTypeResolution(
-                renderedText = plan.renderedTypes.single().renderedText,
-                imports = plan.imports,
-            )
-        } catch (ex: UnknownShortTypeFailure) {
-            ValidatorTypeResolution(renderedText = type, imports = emptyList())
-        }
     }
 
     private fun resolveDesignType(type: DesignTypeModel): DesignResolvedTypeModel {
@@ -221,16 +213,39 @@ internal object DesignValidatorRenderModelFactory {
         append('"')
     }
 
+    private fun validateSignatureTypes(
+        types: List<DesignTypeModel>,
+        symbolRegistry: DesignSymbolRegistry,
+    ) {
+        val allTypes = types.flatMap(::flattenType)
+        val unresolvedShortNames = allTypes
+            .filter { it.tokenText.isNotBlank() && !it.tokenText.contains('.') }
+            .map { it.tokenText }
+            .toSet()
+
+        unresolvedShortNames.forEach { shortName ->
+            val registryFqcn = symbolRegistry.findBySimpleName(shortName)
+                .firstOrNull { it.source == "project-type-registry" }
+                ?.fqcn
+                ?: return@forEach
+            val explicitFqcns = allTypes
+                .filter { it.tokenText.substringAfterLast('.') == shortName && it.tokenText.contains('.') }
+                .map { it.tokenText }
+                .distinct()
+
+            if (explicitFqcns.any { it != registryFqcn }) {
+                throw IllegalArgumentException(
+                    "failed to resolve validator signature: ambiguous simple name $shortName " +
+                        "between canonical strong id $registryFqcn and explicit ${explicitFqcns.joinToString()}",
+                )
+            }
+        }
+    }
+
+    private fun flattenType(type: DesignTypeModel): List<DesignTypeModel> =
+        listOf(type) + type.arguments.flatMap(::flattenType)
+
     private val intLiteralPattern = Regex("""-?\d+""")
     private val longLiteralPattern = Regex("""-?\d+[lL]?""")
 
-    private data class ValidatorTypeResolution(
-        val renderedText: String,
-        val imports: List<String>,
-    )
-
-    private data class ValidatorParameterResolution(
-        val renderModel: DesignValidatorParameterRenderModel,
-        val imports: List<String>,
-    )
 }
