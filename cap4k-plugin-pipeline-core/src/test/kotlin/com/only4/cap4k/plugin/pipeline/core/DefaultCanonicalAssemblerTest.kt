@@ -2433,6 +2433,49 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `ref aggregate to primitive generated root fails fast`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+                tables = listOf(
+                    table(
+                        name = "media_processing_task",
+                        columns = listOf(
+                            column(
+                                "id",
+                                "BIGINT",
+                                "Long",
+                                false,
+                                primaryKey = true,
+                                generatedValueStrategy = "identity",
+                            )
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    ),
+                    table(
+                        name = "content",
+                        columns = listOf(
+                            column("id", "VARCHAR", "String", false, primaryKey = true),
+                            column(
+                                "media_processing_task_id",
+                                "BIGINT",
+                                "Long",
+                                true,
+                                refAggregate = "MediaProcessingTask",
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    )
+                )
+            )
+        }
+
+        assertTrue(error.message!!.contains("@RefAggregate=MediaProcessingTask does not match a generated aggregate root"))
+    }
+
+    @Test
     fun `ref id creates shared reference strong id without aggregate`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
@@ -2480,6 +2523,103 @@ class DefaultCanonicalAssemblerTest {
         assertTrue(result.model.aggregateIdPolicyControls.isEmpty())
         assertEquals("UserMessageId", result.model.entities.single().idField.type)
         assertEquals(SpecialFieldSource.DSL_DEFAULT, resolved.id.source)
+    }
+
+    @Test
+    fun `non root silent primitive ids keep non strong id policy semantics`() {
+        listOf("identity", "uuid7").forEach { defaultStrategy ->
+            val result = assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = defaultStrategy),
+                tables = listOf(
+                    table(
+                        name = "video",
+                        columns = listOf(column("id", "VARCHAR", "String", false, primaryKey = true)),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    ),
+                    table(
+                        name = "video_file",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                            column("video_id", "VARCHAR", "String", false, referenceTable = "video"),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = false,
+                        parentTable = "video",
+                    )
+                )
+            )
+
+            val child = result.model.entities.single { it.name == "VideoFile" }
+            val policy = result.model.aggregateSpecialFieldResolvedPolicies.single { it.entityName == "VideoFile" }
+
+            assertEquals("Long", child.idField.type)
+            assertEquals("identity", policy.id.strategy)
+            assertEquals(AggregateIdPolicyKind.DATABASE_SIDE, policy.id.kind)
+            assertEquals(SpecialFieldWritePolicy.READ_ONLY, policy.id.writePolicy)
+            assertEquals(SpecialFieldSource.DSL_DEFAULT, policy.id.source)
+        }
+    }
+
+    @Test
+    fun `generated default aggregate root ignores primitive identity default for strong id policy`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+            tables = listOf(
+                table(
+                    name = "content",
+                    columns = listOf(
+                        column("id", "VARCHAR", "String", false, primaryKey = true),
+                        column("title", "VARCHAR", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val entity = result.model.entities.single()
+        val resolved = result.model.aggregateSpecialFieldResolvedPolicies.single()
+
+        assertEquals("ContentId", entity.idField.type)
+        assertEquals("ContentId", entity.fields.single { it.name == "id" }.type)
+        assertEquals("ContentId", result.model.strongIds.single().typeName)
+        assertEquals("uuid7", resolved.id.strategy)
+        assertEquals(AggregateIdPolicyKind.APPLICATION_SIDE, resolved.id.kind)
+        assertEquals(SpecialFieldWritePolicy.CREATE_ONLY, resolved.id.writePolicy)
+        assertEquals(SpecialFieldSource.DSL_DEFAULT, resolved.id.source)
+        assertTrue(result.model.aggregateIdPolicyControls.isEmpty())
+    }
+
+    @Test
+    fun `explicit generated aggregate root keeps primitive id and does not emit strong id metadata`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+            tables = listOf(
+                table(
+                    name = "audit_log",
+                    columns = listOf(
+                        column(
+                            "id",
+                            "BIGINT",
+                            "Long",
+                            false,
+                            primaryKey = true,
+                            generatedValueStrategy = "identity",
+                        ),
+                        column("message", "VARCHAR", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val entity = result.model.entities.single()
+
+        assertEquals("Long", entity.idField.type)
+        assertEquals("Long", result.model.repositories.single().idType)
+        assertTrue(result.model.strongIds.none { it.typeName == "AuditLogId" })
     }
 
     @Test

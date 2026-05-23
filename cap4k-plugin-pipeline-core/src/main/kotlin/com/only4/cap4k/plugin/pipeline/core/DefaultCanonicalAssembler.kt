@@ -216,8 +216,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         )
 
         val aggregateRootIdTypesByName = supportedTables
-            .filter { it.aggregateRoot }
-            .associate { table -> AggregateNaming.entityName(table.tableName) to "${AggregateNaming.entityName(table.tableName)}Id" }
+            .mapNotNull { table ->
+                generatedAggregateRootStrongIdType(table)
+                    ?.let { idType -> AggregateNaming.entityName(table.tableName) to idType }
+            }
+            .toMap()
 
         val aggregateModels = supportedTables.map { table ->
 
@@ -227,13 +230,14 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             val aggregateOwnerTable = resolveAggregateOwnerTable(table, supportedTablesByName)
             val segment = AggregateNaming.tableSegment(aggregateOwnerTable.tableName)
             val parentTable = table.parentTable
+            val generatedRootIdType = generatedAggregateRootStrongIdType(table)
             val fields = table.columns.map {
                 val fieldName = lowerCamelIdentifier(it.name)
                 val resolvedType = resolveStrongIdFieldType(
                     column = it,
                     aggregateRootIdTypesByName = aggregateRootIdTypesByName,
-                ) ?: if (it.isPrimaryKey && table.aggregateRoot && !it.generatedValueDeclared && it.generatedValueStrategy == null) {
-                    "$entityName" + "Id"
+                ) ?: if (isTablePrimaryKeyColumn(table, it) && generatedRootIdType != null) {
+                    generatedRootIdType
                 } else {
                     it.kotlinType
                 }
@@ -450,6 +454,31 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return column.refId?.takeIf { it.isNotBlank() }
     }
 
+    private fun generatedAggregateRootStrongIdType(table: DbTableSnapshot): String? {
+        if (!table.aggregateRoot) {
+            return null
+        }
+
+        val primaryKeyColumn = table.primaryKey.singleOrNull() ?: return null
+        val idColumn = table.columns.firstOrNull { it.name.equals(primaryKeyColumn, ignoreCase = true) }
+            ?: return null
+        if (idColumn.generatedValueDeclared || idColumn.generatedValueStrategy != null) {
+            return null
+        }
+        if (!idColumn.refAggregate.isNullOrBlank() || !idColumn.refId.isNullOrBlank()) {
+            return null
+        }
+
+        return aggregateRootStrongIdTypeName(AggregateNaming.entityName(table.tableName))
+    }
+
+    private fun isTablePrimaryKeyColumn(
+        table: DbTableSnapshot,
+        column: com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot,
+    ): Boolean = table.primaryKey.any { it.equals(column.name, ignoreCase = true) }
+
+    private fun aggregateRootStrongIdTypeName(entityName: String): String = "${entityName}Id"
+
     private fun buildStrongIds(
         config: ProjectConfig,
         entities: List<EntityModel>,
@@ -457,10 +486,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     ): List<StrongIdModel> {
         val aggregateRootStrongIds = entities
             .asSequence()
-            .filter { it.aggregateRoot }
+            .filter { it.aggregateRoot && it.idField.type == aggregateRootStrongIdTypeName(it.name) }
             .map { entity ->
                 StrongIdModel(
-                    typeName = "${entity.name}Id",
+                    typeName = entity.idField.type,
                     packageName = entity.packageName,
                     kind = StrongIdKind.AGGREGATE_ROOT,
                     ownerAggregateName = entity.name,

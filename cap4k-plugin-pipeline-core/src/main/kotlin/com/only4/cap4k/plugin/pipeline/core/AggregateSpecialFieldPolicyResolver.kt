@@ -24,6 +24,7 @@ internal data class AggregateSpecialFieldResolutionResult(
 
 internal object AggregateSpecialFieldPolicyResolver {
     private const val DefaultIdStrategy = "uuid7"
+    private const val NonStrongIdDefaultStrategy = "identity"
 
     fun resolve(
         config: ProjectConfig,
@@ -81,8 +82,10 @@ internal object AggregateSpecialFieldPolicyResolver {
                 AggregateIdPolicyResolver.normalizeStrategy(generatedValueStrategy) to SpecialFieldSource.DB_EXPLICIT
             idColumn.generatedValueDeclared ->
                 AggregateIdPolicyResolver.normalizeStrategy(defaultStrategy) to SpecialFieldSource.DB_EXPLICIT
+            isGeneratedAggregateRootStrongId(entity) ->
+                DefaultIdStrategy to SpecialFieldSource.DSL_DEFAULT
             else ->
-                AggregateIdPolicyResolver.normalizeStrategy(defaultStrategy) to SpecialFieldSource.DSL_DEFAULT
+                NonStrongIdDefaultStrategy to SpecialFieldSource.DSL_DEFAULT
         }
 
         if (idSource == SpecialFieldSource.DB_EXPLICIT) {
@@ -145,6 +148,9 @@ internal object AggregateSpecialFieldPolicyResolver {
         } else {
             SpecialFieldWritePolicy.READ_ONLY
         }
+
+    private fun isGeneratedAggregateRootStrongId(entity: EntityModel): Boolean =
+        entity.aggregateRoot && entity.idField.type == "${entity.name}Id"
 
     private fun markerWritePolicy(markerName: String, enabled: Boolean): SpecialFieldWritePolicy = when {
         !enabled -> SpecialFieldWritePolicy.READ_WRITE
