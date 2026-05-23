@@ -13,7 +13,7 @@
 DB 输入适合表达：
 
 - 聚合根、子实体、table-backed 值对象表，以及通过 `@T` 绑定的自定义值类型字段；
-- 字段类型、ID 策略、软删除、版本号；
+- 字段类型、Strong ID 身份边界、软删除、版本号；
 - 表间引用关系；
 - 聚合内唯一约束；
 - 与 enum manifest 关联的共享枚举。
@@ -41,8 +41,11 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 
 | 注解 | 含义 |
 | --- | --- |
+| `@Id` | 聚合根或实体 ID 字段；聚合根默认生成 Strong ID 类型 |
 | `@Type=<TypeName>` / `@T=<TypeName>` | 绑定到命名领域类型或枚举；有效写法是显式给出 type name，空值或 marker 形式会被忽略 |
 | `@Enum=<...>` / `@E=0:NAME:Desc\|...` | 内联枚举项；有效写法是显式给出枚举 payload，且该 payload 仍需要同时声明 `@T` |
+| `@RefId=<TypeName>` | 当前上下文的引用身份；适合把外部概念映射成本地语言里的 ID 类型 |
+| `@RefAggregate=<AggregateName>` | 同一上下文内引用另一个聚合根；生成目标聚合的 ID 类型 |
 | `@GeneratedValue` | marker 形式；仅用于需要显式声明 provider 生成语义的旧输入 |
 | `@GeneratedValue=uuid7` | 旧 UUID7 策略；不属于 Strong ID 默认生成路径 |
 | `@GeneratedValue=snowflake-long` | 旧 Snowflake long 策略；不属于 Strong ID 默认生成路径 |
@@ -62,6 +65,27 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 - 默认聚合 ID 生成不依赖 `@GeneratedValue=uuid7`、`@GeneratedValue=snowflake-long`、nil UUID sentinel 或保存时反射赋值；Strong ID 聚合根 ID 由生成的 ID 类型在工厂创建时产生。
 - `@GeneratedValue` 只保留给需要表达 provider/database 生成语义的兼容输入；新默认路径优先用普通 `@Id`、`@RefId=<TypeName>`、`@RefAggregate=<AggregateName>` 表达 ID 边界。
 - 旧的 `@IdGenerator` 和 `@SoftDeleteColumn` 已被拒绝，不应继续使用。
+
+Strong ID 输入示例：
+
+```sql
+comment on table content is '@AggregateRoot=true;';
+comment on column content.id is '@Id;';
+comment on column content.author_id is '@RefId=AuthorId;';
+comment on column content.media_processing_task_id is '@RefAggregate=MediaProcessingTask;';
+```
+
+生成含义：
+
+```kotlin
+class Content(
+    val id: ContentId,
+    val authorId: AuthorId,
+    val mediaProcessingTaskId: MediaProcessingTaskId?,
+)
+```
+
+`@RefAggregate=MediaProcessingTask` 表示同一上下文内的聚合引用，字段类型应跟随 `MediaProcessingTaskId`。`@RefId=AuthorId` 表示当前内容上下文里的作者身份，即使上游系统把这个概念叫 user，也不要在 `Content` 内直接建模跨上下文的 `UserId`。
 
 自定义值类型字段规则：
 

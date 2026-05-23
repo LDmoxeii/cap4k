@@ -16,7 +16,7 @@ This file maps the runtime support that generated or hand-written business code 
 | Domain event | Domain event supervisor, event records, event publisher, event subscribers, event schedule service |
 | Integration event | Integration event supervisor, UoW interceptor, dispatch-scope release, HTTP/RabbitMQ/RocketMQ adapters |
 | Domain service | Domain service supervisor |
-| ID policy | UUID7 and optional snowflake-long strategies |
+| ID policy | Strong ID aggregate-root IDs by default; legacy UUID7 and optional snowflake-long strategies are compatibility/runtime support, not the authoring default path |
 | JDBC locker | Distributed lock implementation and reentrant aspect |
 | Saga | Saga supervisor and schedule service |
 | Arch info | Optional `/cap4k/arch-info` endpoint |
@@ -140,6 +140,7 @@ flowchart TD
 Key points:
 
 - factories enlist new aggregate roots into UoW;
+- new aggregate roots should already carry generated Strong ID values before `Mediator.uow.save()`; UoW save-time paths are not where authors generate aggregate IDs;
 - command handlers should not rely on manual transaction annotations as the primary write boundary;
 - specifications and event publication are connected to UoW execution.
 
