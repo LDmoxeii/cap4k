@@ -3587,6 +3587,100 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `factory planner falls back when strong id aggregate has read only version constructor field`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "VideoPostId", columnName = "id"),
+                FieldModel("version", "Long", columnName = "version"),
+                FieldModel("title", "String", columnName = "title"),
+            ),
+            idField = FieldModel("id", "VideoPostId", columnName = "id"),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregateSpecialFieldResolvedPolicies = listOf(
+                    AggregateSpecialFieldResolvedPolicy(
+                        entityName = "VideoPost",
+                        entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        tableName = "video_post",
+                        id = ResolvedIdPolicy(
+                            fieldName = "id",
+                            columnName = "id",
+                            strategy = "uuid7",
+                            kind = AggregateIdPolicyKind.APPLICATION_SIDE,
+                            source = SpecialFieldSource.DSL_DEFAULT,
+                            writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                        ),
+                        deleted = ResolvedMarkerPolicy(
+                            enabled = false,
+                            source = SpecialFieldSource.NONE,
+                        ),
+                        version = ResolvedMarkerPolicy(
+                            enabled = true,
+                            fieldName = "version",
+                            columnName = "version",
+                            source = SpecialFieldSource.DB_EXPLICIT,
+                            writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                        ),
+                        managedFields = listOf(
+                            ResolvedManagedFieldPolicy(
+                                fieldName = "id",
+                                columnName = "id",
+                                writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                                source = SpecialFieldSource.DSL_DEFAULT,
+                            ),
+                            ResolvedManagedFieldPolicy(
+                                fieldName = "version",
+                                columnName = "version",
+                                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                                source = SpecialFieldSource.DB_EXPLICIT,
+                            ),
+                        ),
+                        writeSurface = ResolvedWriteSurfacePolicy(
+                            createAllowedFields = listOf("id", "title"),
+                            updateAllowedFields = listOf("title"),
+                        ),
+                    ),
+                ),
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "VideoPostId",
+                        packageName = "com.acme.demo.domain.aggregates.video_post",
+                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        ownerAggregateName = "VideoPost",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.video_post",
+                    ),
+                ),
+            )
+        )
+
+        val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
+
+        assertAll(
+            { assertEquals(false, factoryContext["constructorMappingResolved"]) },
+            {
+                @Suppress("UNCHECKED_CAST")
+                val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
+                assertEquals(listOf("title"), payloadFields.map { it["name"] })
+            },
+            {
+                @Suppress("UNCHECKED_CAST")
+                val constructorPayloadFields =
+                    (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
+                assertEquals(emptyList<String>(), constructorPayloadFields.map { it["name"] })
+            },
+        )
+    }
+
+    @Test
     fun `factory planner keeps legacy payload metadata fallback without resolved write surface`() {
         val entity = EntityModel(
             name = "VideoPost",

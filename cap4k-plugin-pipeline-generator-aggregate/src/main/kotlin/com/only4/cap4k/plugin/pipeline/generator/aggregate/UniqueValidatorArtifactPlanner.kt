@@ -18,7 +18,8 @@ internal class UniqueValidatorArtifactPlanner : AggregateArtifactFamilyPlanner {
             val entityCamel = entity.name.replaceFirstChar { it.lowercase() }
             selections.map { selection ->
                 val imports = aggregateTypeImports(selection.idType) +
-                    selection.requestProps.flatMap { field -> aggregateTypeImports(field.type) }
+                    selection.requestProps.flatMap { field -> aggregateTypeImports(field.type) } +
+                    strongIdImports(model, selection.idType)
                 val requestProps = selection.requestProps.map { field ->
                     val simpleType = uniqueSimpleType(field.type)
                     mapOf(
@@ -68,4 +69,9 @@ internal class UniqueValidatorArtifactPlanner : AggregateArtifactFamilyPlanner {
 
     private fun uniqueSimpleType(type: String): String =
         type.removeSuffix("?").substringAfterLast(".")
+
+    private fun strongIdImports(model: CanonicalModel, type: String): List<String> =
+        model.strongIds
+            .filter { strongId -> type == strongId.typeName || type == "${strongId.packageName}.${strongId.typeName}" }
+            .map { "${it.packageName}.${it.typeName}" }
 }

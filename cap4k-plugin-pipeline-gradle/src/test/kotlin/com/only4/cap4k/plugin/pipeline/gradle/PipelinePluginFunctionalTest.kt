@@ -1213,7 +1213,8 @@ class PipelinePluginFunctionalTest {
         )
         assertTrue(uniqueQueryContent.contains("object UniqueVideoPostSlugQry"))
         assertTrue(uniqueQueryContent.contains(") : RequestParam<Response>"))
-        assertTrue(uniqueQueryContent.contains("val excludeVideoPostId: Long?"))
+        assertTrue(uniqueQueryContent.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
+        assertTrue(uniqueQueryContent.contains("val excludeVideoPostId: VideoPostId?"))
         assertTrue(uniqueQueryContent.contains("val exists: Boolean"))
         assertFalse(uniqueQueryContent.contains("val deleted"))
         assertFalse(uniqueQueryContent.contains("val version"))
@@ -1887,7 +1888,10 @@ class PipelinePluginFunctionalTest {
         assertFalse(generatedVideoPost.contains("id: Long = 0L"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
-        assertTrue(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
+        assertTrue(generatedVideoPost.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
+        assertTrue(generatedVideoPost.contains("@EmbeddedId"))
+        assertTrue(generatedVideoPost.contains("var id: VideoPostId = id"))
+        assertFalse(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedAuditLog.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertFalse(generatedAuditLog.contains("GenericGenerator"))
     }
@@ -1915,10 +1919,12 @@ class PipelinePluginFunctionalTest {
         ).readText()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(generatedVideoPost.contains("import java.util.UUID"))
         assertFalse(generatedVideoPost.contains("ApplicationSideId"))
         assertFalse(generatedVideoPost.contains("UUID(" + "0L, 0L)"))
-        assertTrue(generatedVideoPost.contains("id: UUID"))
+        assertTrue(generatedVideoPost.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
+        assertTrue(generatedVideoPost.contains("@EmbeddedId"))
+        assertTrue(generatedVideoPost.contains("var id: VideoPostId = id"))
+        assertFalse(generatedVideoPost.contains("id: UUID"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
     }
@@ -1957,12 +1963,13 @@ class PipelinePluginFunctionalTest {
             .withProjectDir(projectDir.toFile())
             .withPluginClasspath()
             .withArguments("cap4kGenerate")
-            .buildAndFail()
+            .build()
 
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(
-            result.output.contains(
-                "ID strategy uuid7 cannot be applied to aggregate video.Video id field id: generated ID type is Long"
-            )
+            projectDir.resolve(
+                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video/VideoId.kt")
+            ).toFile().exists()
         )
     }
 
@@ -2065,8 +2072,11 @@ class PipelinePluginFunctionalTest {
         )
         assertTrue(generatedEntity.contains("@Entity"))
         assertTrue(generatedEntity.contains("@Table(name = \"video_post\")"))
-        assertTrue(generatedEntity.contains("@Id"))
-        assertTrue(generatedEntity.contains("@Column(name = \"id\""))
+        assertTrue(generatedEntity.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
+        assertTrue(generatedEntity.contains("@EmbeddedId"))
+        assertTrue(generatedEntity.contains("var id: VideoPostId = id"))
+        assertFalse(generatedEntity.contains("@Id"))
+        assertFalse(generatedEntity.contains("@Column(name = \"id\""))
         assertTrue(generatedEntity.contains("@Column(name = \"status\")"))
         assertTrue(
             generatedEntity.contains(
@@ -2243,7 +2253,6 @@ class PipelinePluginFunctionalTest {
                 |aggregate {
                 |            enabled.set(true)
                 |            specialFields {
-                |                idDefaultStrategy.set(" snowflake-long ")
                 |                managedDefaultColumns.set(listOf(" created_by "))
                 |            }
                 |        }
@@ -2270,7 +2279,7 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertFalse(planObject.has("aggregateIdPolicy"))
-        assertEquals("snowflake-long", defaults.get("idDefaultStrategy").asString)
+        assertEquals("uuid7", defaults.get("idDefaultStrategy").asString)
         assertEquals("", defaults.get("deletedDefaultColumn").asString)
         assertEquals("", defaults.get("versionDefaultColumn").asString)
         assertEquals(listOf("created_by"), defaults.getAsJsonArray("managedDefaultColumns").map { it.asString })
@@ -2281,7 +2290,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(firstResolvedPolicy.getAsJsonObject("writeSurface").has("createAllowedFields"))
         assertTrue(firstResolvedPolicy.getAsJsonObject("writeSurface").has("updateAllowedFields"))
         assertEquals("DSL_DEFAULT", videoPostPolicy.getAsJsonObject("id").get("source").asString)
-        assertEquals("snowflake-long", videoPostPolicy.getAsJsonObject("id").get("strategy").asString)
+        assertEquals("uuid7", videoPostPolicy.getAsJsonObject("id").get("strategy").asString)
         assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("deleted").get("source").asString)
         assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("version").get("source").asString)
         assertEquals(listOf("id", "deleted", "version", "created_by"), videoPostPolicy.getAsJsonArray("managedFields").map {
@@ -3489,9 +3498,10 @@ class PipelinePluginFunctionalTest {
         assertFalse(entityContent.contains("val message_key"))
 
         val repositoryContent = repositoryFile.readText()
+        assertTrue(repositoryContent.contains("import com.acme.demo.domain.aggregates.user_message.UserMessageId"))
         assertTrue(
             repositoryContent.contains(
-                "interface UserMessageRepository : JpaRepository<UserMessage, Long>, JpaSpecificationExecutor<UserMessage>"
+                "interface UserMessageRepository : JpaRepository<UserMessage, UserMessageId>, JpaSpecificationExecutor<UserMessage>"
             )
         )
         assertTrue(repositoryContent.contains("class UserMessageJpaRepositoryAdapter("))

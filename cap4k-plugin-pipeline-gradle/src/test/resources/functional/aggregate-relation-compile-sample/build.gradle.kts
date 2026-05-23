@@ -21,7 +21,7 @@ cap4k {
             username.set("sa")
             password.set("secret")
             schema.set("PUBLIC")
-            includeTables.set(listOf("video_post", "video_post_item", "user_profile"))
+            includeTables.set(listOf("video_post", "video_post_item", "user_profile", "content", "media_processing_task"))
             excludeTables.set(emptyList())
         }
     }

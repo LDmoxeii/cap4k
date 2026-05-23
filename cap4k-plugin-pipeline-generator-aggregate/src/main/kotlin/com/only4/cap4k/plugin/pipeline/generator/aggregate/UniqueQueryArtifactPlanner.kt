@@ -16,7 +16,8 @@ internal class UniqueQueryArtifactPlanner : AggregateArtifactFamilyPlanner {
             val packageName = artifactLayout.aggregateUniqueQueryPackage(packageKey)
             selections.map { selection ->
                 val imports = aggregateTypeImports(selection.idType) +
-                    selection.requestProps.flatMap { field -> aggregateTypeImports(field.type) }
+                    selection.requestProps.flatMap { field -> aggregateTypeImports(field.type) } +
+                    strongIdImports(model, selection.idType)
                 generatedKotlinArtifact(
                     config = config,
                     artifactLayout = artifactLayout,
@@ -42,4 +43,9 @@ internal class UniqueQueryArtifactPlanner : AggregateArtifactFamilyPlanner {
             }
         }
     }
+
+    private fun strongIdImports(model: CanonicalModel, type: String): List<String> =
+        model.strongIds
+            .filter { strongId -> type == strongId.typeName || type == "${strongId.packageName}.${strongId.typeName}" }
+            .map { "${it.packageName}.${it.typeName}" }
 }

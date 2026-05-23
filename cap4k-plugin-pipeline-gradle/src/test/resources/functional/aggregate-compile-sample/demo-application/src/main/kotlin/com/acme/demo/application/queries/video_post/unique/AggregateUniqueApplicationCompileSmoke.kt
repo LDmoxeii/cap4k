@@ -1,6 +1,7 @@
 package com.acme.demo.application.queries.video_post.unique
 
 import com.acme.demo.application.validators.video_post.unique.UniqueVideoPostSlug
+import com.acme.demo.domain.aggregates.video_post.VideoPostId
 
 @UniqueVideoPostSlug
 data class AggregateUniqueApplicationCompileSmoke(
@@ -9,7 +10,7 @@ data class AggregateUniqueApplicationCompileSmoke(
     val request: UniqueVideoPostSlugQry.Request =
         UniqueVideoPostSlugQry.Request(
             slug = slug,
-            excludeVideoPostId = 1L,
+            excludeVideoPostId = VideoPostId.new(),
         )
 
     val response: UniqueVideoPostSlugQry.Response = UniqueVideoPostSlugQry.Response(exists = false)

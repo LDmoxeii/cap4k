@@ -1,11 +1,13 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
+import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 
@@ -55,6 +57,7 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 planning = planning,
                 defaultProjector = defaultProjector,
                 resolved = resolvedPolicy != null,
+                resolvedPolicy = resolvedPolicy,
                 ownStrongId = ownStrongId,
                 payloadFields = payloadFields,
             )
@@ -98,6 +101,7 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         planning: AggregateEnumPlanning,
         defaultProjector: AggregateEntityDefaultProjector,
         resolved: Boolean,
+        resolvedPolicy: AggregateSpecialFieldResolvedPolicy?,
         ownStrongId: StrongIdModel?,
         payloadFields: List<Map<String, Any?>>,
     ): ConstructorMapping {
@@ -118,8 +122,10 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
             }
 
         if (missingRequiredFields.isNotEmpty()) {
-            if (ownStrongId != null) {
-                val fieldNames = missingRequiredFields.joinToString(", ") { it.name }
+            val blockingRequiredFields = missingRequiredFields
+                .filterNot { field -> canDeferManagedConstructorField(resolvedPolicy, field) }
+            if (ownStrongId != null && blockingRequiredFields.isNotEmpty()) {
+                val fieldNames = blockingRequiredFields.joinToString(", ") { it.name }
                 error(
                     "factory ${entity.packageName}.${entity.name} cannot derive constructor mapping " +
                         "for required fields: $fieldNames"
@@ -129,6 +135,22 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         }
 
         return ConstructorMapping(resolved = true, payloadFields = payloadFields)
+    }
+
+    private fun canDeferManagedConstructorField(
+        resolvedPolicy: AggregateSpecialFieldResolvedPolicy?,
+        field: FieldModel,
+    ): Boolean {
+        if (
+            resolvedPolicy?.version?.enabled == true &&
+            resolvedPolicy.version.fieldName == field.name &&
+            resolvedPolicy.version.writePolicy == SpecialFieldWritePolicy.READ_ONLY
+        ) {
+            return true
+        }
+        val managedField = resolvedPolicy?.managedFields?.firstOrNull { it.fieldName == field.name } ?: return false
+        return managedField.writePolicy == SpecialFieldWritePolicy.READ_ONLY ||
+            managedField.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
     }
 
     private fun hasConstructorDefault(
