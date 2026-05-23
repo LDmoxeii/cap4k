@@ -79,7 +79,6 @@ class PebbleArtifactRendererTest {
                 "payloadMetadataName" to "VideoPostPayload",
                 "payloadWriteSurfaceResolved" to true,
                 "payloadFields" to listOf(
-                    mapOf("name" to "id", "type" to "Long", "nullable" to false),
                     mapOf("name" to "title", "type" to "String", "nullable" to true),
                 ),
                 "entityName" to "VideoPost",
@@ -90,8 +89,8 @@ class PebbleArtifactRendererTest {
 
         assertTrue(content.contains("""name = "VideoPostPayload""""))
         assertTrue(content.contains("data class Payload("))
-        assertTrue(content.contains("val id: Long"))
         assertTrue(content.contains("val title: String?"))
+        assertFalse(content.contains("val id: Long"))
         assertFalse(content.contains("val name: String"))
     }
 

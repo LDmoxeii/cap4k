@@ -34,7 +34,7 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 ?.let { createAllowedFields ->
                     entity.fields
                         .filter { it.name in createAllowedFields }
-                        .filterNot { ownStrongId != null && it.name == entity.idField.name }
+                        .filterNot { it.name == entity.idField.name }
                         .map { field ->
                             val strongId = resolveStrongId(model, field)
                             val fieldType = strongId?.typeName ?: planning.resolveFieldType(entity.packageName, field)

@@ -3569,12 +3569,19 @@ class AggregateArtifactPlannerTest {
             {
                 @Suppress("UNCHECKED_CAST")
                 val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
-                assertEquals(listOf("id", "title"), payloadFields.map { it["name"] })
+                assertEquals(listOf("title"), payloadFields.map { it["name"] })
             },
             {
                 @Suppress("UNCHECKED_CAST")
                 val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
-                assertEquals(listOf("Long", "String"), payloadFields.map { it["typeName"] })
+                assertEquals(listOf("String"), payloadFields.map { it["typeName"] })
+            },
+            { assertEquals(false, factoryContext["constructorMappingResolved"]) },
+            {
+                @Suppress("UNCHECKED_CAST")
+                val constructorPayloadFields =
+                    (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
+                assertEquals(emptyList<String>(), constructorPayloadFields.map { it["name"] })
             },
         )
     }
