@@ -32,6 +32,8 @@ import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
+import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
+import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
@@ -172,6 +174,60 @@ class AggregateArtifactPlannerTest {
         }
         assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, plan.single { it.templateId == "aggregate/factory.kt.peb" }.outputKind)
         assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, plan.single { it.templateId == "aggregate/specification.kt.peb" }.outputKind)
+    }
+
+    @Test
+    fun `aggregate planner emits aggregate and reference strong id artifacts`() {
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "ContentId",
+                        packageName = "com.acme.demo.domain.aggregates.content",
+                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        ownerAggregateName = "Content",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
+                    ),
+                    StrongIdModel(
+                        typeName = "AuthorId",
+                        packageName = "com.acme.demo.domain.shared.ids",
+                        kind = StrongIdKind.REFERENCE,
+                    ),
+                ),
+            )
+        )
+
+        val strongIdItems = plan.filter { it.templateId == "aggregate/strong_id.kt.peb" }
+        val itemsByType = strongIdItems.associateBy { it.context["typeName"] }
+
+        assertEquals(2, strongIdItems.size)
+        assertAll(
+            {
+                val contentId = itemsByType.getValue("ContentId")
+                assertEquals("domain", contentId.moduleRole)
+                assertEquals(
+                    "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/content/ContentId.kt",
+                    contentId.outputPath,
+                )
+                assertEquals("com.acme.demo.domain.aggregates.content", contentId.context["packageName"])
+                assertEquals(ArtifactOutputKind.GENERATED_SOURCE, contentId.outputKind)
+                assertEquals(ConflictPolicy.OVERWRITE, contentId.conflictPolicy)
+                assertEquals("demo-domain/build/generated/cap4k/main/kotlin", contentId.resolvedOutputRoot)
+            },
+            {
+                val authorId = itemsByType.getValue("AuthorId")
+                assertEquals("domain", authorId.moduleRole)
+                assertEquals(
+                    "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shared/ids/AuthorId.kt",
+                    authorId.outputPath,
+                )
+                assertEquals("com.acme.demo.domain.shared.ids", authorId.context["packageName"])
+                assertEquals(ArtifactOutputKind.GENERATED_SOURCE, authorId.outputKind)
+                assertEquals(ConflictPolicy.OVERWRITE, authorId.conflictPolicy)
+                assertEquals("demo-domain/build/generated/cap4k/main/kotlin", authorId.resolvedOutputRoot)
+            },
+        )
     }
 
     @Test

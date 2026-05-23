@@ -142,6 +142,26 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `aggregate strong id template renders embeddable validated wrapper`() {
+        val content = renderTemplate(
+            templateId = "aggregate/strong_id.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/content/ContentId.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.content",
+                "typeName" to "ContentId",
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertMaintainableTemplateSource("aggregate/strong_id.kt.peb")
+        assertTrue(content.contains("@Embeddable"))
+        assertTrue(content.contains("class ContentId protected constructor() : StrongId, Serializable"))
+        assertTrue(content.contains("""@Column(name = "value", nullable = false, updatable = false, length = 36)"""))
+        assertTrue(content.contains("@JsonCreator(mode = JsonCreator.Mode.DELEGATING)"))
+        assertTrue(content.contains("""this.value = StrongIds.requireUuidV7(value, "ContentId")"""))
+    }
+
+    @Test
     fun `renderer preserves artifact output ownership metadata`() {
         val overrideDir = Files.createTempDirectory("cap4k-renderer-output-kind")
         val overrideAggregateDir = Files.createDirectories(overrideDir.resolve("aggregate"))
