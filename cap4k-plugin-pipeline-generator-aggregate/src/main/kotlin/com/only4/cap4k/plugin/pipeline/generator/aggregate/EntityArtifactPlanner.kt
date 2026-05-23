@@ -96,15 +96,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         val typeRef = strongId?.fqn()
                         val embeddedId = strongId != null && isAggregateRootIdField(entity, field, strongId)
                         val idPolicyApplies = jpa.isId && idPolicyControl?.idFieldName == field.name
-                        val applicationSideIdStrategy = if (
-                            strongId == null &&
-                            idPolicyApplies &&
-                            idPolicyControl.kind == AggregateIdPolicyKind.APPLICATION_SIDE
-                        ) {
-                            idPolicyControl.strategy
-                        } else {
-                            null
-                        }
+                        val applicationSideIdStrategy: String? = null
                         val generatedValueStrategy = if (
                             strongId == null &&
                             idPolicyApplies &&
@@ -122,17 +114,13 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         val defaultValue = if (strongId != null) {
                             null
                         } else {
-                            when (applicationSideIdStrategy) {
-                                "uuid7" -> null
-                                "snowflake-long" -> "0L"
-                                else -> defaultProjector.project(
-                                    fieldPath = "${entity.packageName}.${entity.name}.${field.name}",
-                                    fieldType = fieldType,
-                                    nullable = field.nullable,
-                                    rawDefaultValue = field.defaultValue,
-                                    enumItems = planning.resolveEnumItems(entity.packageName, field),
-                                )
-                            }
+                            defaultProjector.project(
+                                fieldPath = "${entity.packageName}.${entity.name}.${field.name}",
+                                fieldType = fieldType,
+                                nullable = field.nullable,
+                                rawDefaultValue = field.defaultValue,
+                                enumItems = planning.resolveEnumItems(entity.packageName, field),
+                            )
                         }
                         val insertable = when {
                             embeddedId -> null

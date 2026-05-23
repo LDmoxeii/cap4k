@@ -685,7 +685,7 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate provider persistence generation keeps application-side and identity id policies compile-safe together`() {
+    fun `aggregate provider persistence generation keeps provider identity id policies compile-safe together`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-provider-persistence-mixed-id-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-provider-persistence-compile-sample")
         val schemaFile = projectDir.resolve("schema.sql")
@@ -702,13 +702,13 @@ class PipelinePluginCompileFunctionalTest {
             |aggregate {
             |            enabled.set(true)
             |            specialFields {
-            |                idDefaultStrategy.set("snowflake-long")
+            |                idDefaultStrategy.set("identity")
             |            }
             |        }
             """.trimMargin(),
         )
         buildFile.writeText(patchedBuildFile)
-        assertTrue(patchedBuildFile.contains("""idDefaultStrategy.set("snowflake-long")"""))
+        assertTrue(patchedBuildFile.contains("""idDefaultStrategy.set("identity")"""))
 
         val compileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-domain:compileKotlin")
@@ -720,11 +720,11 @@ class PipelinePluginCompileFunctionalTest {
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/audit_log/AuditLog.kt")
         ).readText()
 
-        assertTrue(generatedVideoPost.contains("@field:ApplicationSideId(strategy = \"snowflake-long\")"))
-        assertTrue(generatedVideoPost.contains("id: Long = 0L"))
+        assertFalse(generatedVideoPost.contains("ApplicationSideId"))
+        assertFalse(generatedVideoPost.contains("id: Long = 0L"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
-        assertFalse(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
+        assertTrue(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedAuditLog.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertFalse(generatedAuditLog.contains("GenericGenerator"))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
@@ -732,7 +732,7 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate provider persistence generation keeps native uuid application-side ids compile-safe`() {
+    fun `aggregate provider persistence generation keeps native uuid ids compile-safe without save-time assignment`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-provider-persistence-uuid-id-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-provider-persistence-compile-sample")
         val schemaFile = projectDir.resolve("schema.sql")
@@ -751,8 +751,9 @@ class PipelinePluginCompileFunctionalTest {
         ).readText()
 
         assertTrue(generatedVideoPost.contains("import java.util.UUID"))
-        assertTrue(generatedVideoPost.contains("@field:ApplicationSideId(strategy = \"uuid7\")"))
-        assertTrue(generatedVideoPost.contains("id: UUID = UUID(0L, 0L)"))
+        assertFalse(generatedVideoPost.contains("ApplicationSideId"))
+        assertFalse(generatedVideoPost.contains("UUID(" + "0L, 0L)"))
+        assertTrue(generatedVideoPost.contains("id: UUID"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)

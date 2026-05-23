@@ -14,7 +14,7 @@ DDL annotations describe aggregate/entity storage input. They do not declare com
 
 - `@Type=<TypeName>` / `@T=<TypeName>` binds a field to a named custom type. The meaningful authoring form is an explicit type name; blank or marker-only forms are ignored. Use it with enum manifest or `types.registryFile`; do not rely on marker-only `@T`.
 - `@Enum=<...>` / `@E=<...>` marks enum-backed storage. The meaningful authoring form is an explicit enum payload; blank or marker-only forms are ignored, and explicit enum payload still requires `@T`. Use it only when the type name is already declared; common misuse is `@Enum=<...>` without a matching `@T`.
-- `@GeneratedValue` may be marker-only or use `uuid7`, `snowflake-long`, `identity`, or `database-identity`. Use it for identifier generation policy, not business sequencing. Legacy `@IdGenerator` and `@IG` are rejected.
+- `@GeneratedValue` is compatibility input for explicit provider/database generation semantics. Do not use `uuid7`, `snowflake-long`, nil UUID sentinels, or save-time reflection assignment as the generated default ID path. Prefer ordinary ID columns plus `@RefId=<TypeName>` or `@RefAggregate=<AggregateName>` for Strong ID boundaries; legacy `@IdGenerator` and `@IG` are rejected.
 - `@Deleted`, `@Version`, `@Managed`, and `@Exposed` are marker-only and reject explicit values. Use them for supported column roles only. Common misuse: adding `=true` or mixing `@Managed` with `@Exposed`.
 - `@Insertable=true|false` and `@Updatable=true|false` tune column write behavior; they do not redefine domain ownership.
 - `@SoftDeleteColumn` is legacy and rejected. Use `@Deleted` instead.

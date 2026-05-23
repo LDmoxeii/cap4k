@@ -28,7 +28,7 @@ cap4k {
             enabled.set(true)
             unsupportedTablePolicy.set("SKIP")
             specialFields {
-                idDefaultStrategy.set("snowflake-long")
+                idDefaultStrategy.set("identity")
             }
         }
     }

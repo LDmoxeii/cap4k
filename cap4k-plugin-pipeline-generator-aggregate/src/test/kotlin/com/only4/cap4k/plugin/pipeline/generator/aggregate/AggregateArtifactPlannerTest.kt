@@ -934,7 +934,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner exposes application side uuid7 render keys on id field`() {
+    fun `entity planner omits application side uuid7 render keys on id field`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -1007,16 +1007,16 @@ class AggregateArtifactPlannerTest {
         val scalarFields = entityArtifact.context["scalarFields"] as List<Map<String, Any?>>
         val idField = scalarFields.single { it["fieldName"] == "id" }
 
-        assertEquals("uuid7", idField["applicationSideIdStrategy"])
+        assertEquals(null, idField["applicationSideIdStrategy"])
         assertEquals("CREATE_ONLY", idField["writePolicy"])
         assertEquals(null, idField["defaultValue"])
-        assertEquals(false, idField["updatable"])
+        assertEquals(null, idField["updatable"])
         assertEquals(null, idField["generatedValueStrategy"])
         assertFalse(idField.containsKey("generatedValue" + "Generator"))
         assertFalse(idField.containsKey("genericGenerator" + "Name"))
         assertFalse(idField.containsKey("genericGenerator" + "Strategy"))
         assertEquals(false, entityArtifact.context["hasGeneratedValueFields"])
-        assertEquals(true, entityArtifact.context["hasApplicationSideIdFields"])
+        assertEquals(false, entityArtifact.context["hasApplicationSideIdFields"])
         assertEquals(listOf("java.util.UUID"), entityArtifact.context["imports"])
     }
 
@@ -1128,7 +1128,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner exposes application side snowflake long render keys on id field`() {
+    fun `entity planner omits application side snowflake long render keys on id field`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -1166,15 +1166,15 @@ class AggregateArtifactPlannerTest {
         val scalarFields = entityArtifact.context["fields"] as List<Map<String, Any?>>
         val idField = scalarFields.single { it["fieldName"] == "id" }
 
-        assertEquals("snowflake-long", idField["applicationSideIdStrategy"])
-        assertEquals("0L", idField["defaultValue"])
-        assertEquals(false, idField["updatable"])
+        assertEquals(null, idField["applicationSideIdStrategy"])
+        assertEquals(null, idField["defaultValue"])
+        assertEquals(null, idField["updatable"])
         assertEquals(null, idField["generatedValueStrategy"])
         assertFalse(idField.containsKey("generatedValue" + "Generator"))
         assertFalse(idField.containsKey("genericGenerator" + "Name"))
         assertFalse(idField.containsKey("genericGenerator" + "Strategy"))
         assertEquals(false, entityArtifact.context["hasGeneratedValueFields"])
-        assertEquals(true, entityArtifact.context["hasApplicationSideIdFields"])
+        assertEquals(false, entityArtifact.context["hasApplicationSideIdFields"])
     }
 
     @Test

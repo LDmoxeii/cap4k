@@ -43,9 +43,9 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 | --- | --- |
 | `@Type=<TypeName>` / `@T=<TypeName>` | 绑定到命名领域类型或枚举；有效写法是显式给出 type name，空值或 marker 形式会被忽略 |
 | `@Enum=<...>` / `@E=0:NAME:Desc\|...` | 内联枚举项；有效写法是显式给出枚举 payload，且该 payload 仍需要同时声明 `@T` |
-| `@GeneratedValue` | marker 形式表示使用默认 ID 生成 |
-| `@GeneratedValue=uuid7` | UUID7 策略 |
-| `@GeneratedValue=snowflake-long` | Snowflake long 策略 |
+| `@GeneratedValue` | marker 形式；仅用于需要显式声明 provider 生成语义的旧输入 |
+| `@GeneratedValue=uuid7` | 旧 UUID7 策略；不属于 Strong ID 默认生成路径 |
+| `@GeneratedValue=snowflake-long` | 旧 Snowflake long 策略；不属于 Strong ID 默认生成路径 |
 | `@GeneratedValue=identity` | 数据库 identity 策略 |
 | `@GeneratedValue=database-identity` | `identity` 别名 |
 | `@Deleted` | 软删除字段；marker-only，不接受显式值 |
@@ -59,7 +59,8 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 
 - `@Enum=<...>` / `@E=<...>` 的显式 payload 需要配合 `@Type` / `@T`；空值或 marker 形式不会产生日志外的额外含义。
 - `@Managed` 与 `@Exposed` 互斥。
-- `@GeneratedValue` 既可只写 marker，也可显式写 `uuid7` / `snowflake-long` / `identity` / `database-identity`。
+- 默认聚合 ID 生成不依赖 `@GeneratedValue=uuid7`、`@GeneratedValue=snowflake-long`、nil UUID sentinel 或保存时反射赋值；Strong ID 聚合根 ID 由生成的 ID 类型在工厂创建时产生。
+- `@GeneratedValue` 只保留给需要表达 provider/database 生成语义的兼容输入；新默认路径优先用普通 `@Id`、`@RefId=<TypeName>`、`@RefAggregate=<AggregateName>` 表达 ID 边界。
 - 旧的 `@IdGenerator` 和 `@SoftDeleteColumn` 已被拒绝，不应继续使用。
 
 自定义值类型字段规则：

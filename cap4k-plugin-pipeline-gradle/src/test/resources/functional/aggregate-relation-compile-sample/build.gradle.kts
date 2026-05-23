@@ -29,7 +29,7 @@ cap4k {
         aggregate {
             enabled.set(true)
             specialFields {
-                idDefaultStrategy.set("snowflake-long")
+                idDefaultStrategy.set("identity")
             }
         }
     }

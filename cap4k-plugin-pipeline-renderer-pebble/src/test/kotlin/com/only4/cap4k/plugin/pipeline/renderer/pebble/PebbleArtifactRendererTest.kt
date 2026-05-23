@@ -523,7 +523,6 @@ class PebbleArtifactRendererTest {
         )
 
         assertFalse(content.contains("ApplicationSideId"))
-        assertFalse(content.contains("@field:ApplicationSideId(strategy = \"uuid7\")"))
         assertTrue(content.contains("@Column(name = \"id\", insertable = true, updatable = false)"))
     }
 
@@ -614,7 +613,6 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("id: ContentId"))
         assertTrue(content.contains("@EmbeddedId"))
         assertFalse(content.contains("@Id"))
-        assertFalse(content.contains("@field:ApplicationSideId"))
         assertFalse(content.contains("ApplicationSideId"))
         assertFalse(content.contains("UUID(" + "0L, 0L)"))
         assertFalse(content.contains("@Column(name = \"id\")"))
@@ -3368,8 +3366,6 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("@GeneratedValue(" + "generator ="))
         assertFalse(content.contains("@Generic" + "Generator("))
         assertFalse(content.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
-        assertFalse(content.contains("@field:ApplicationSideId(strategy = \"uuid7\")"))
-        assertFalse(content.contains("@ApplicationSideId(strategy = \"uuid7\")"))
         assertFalse(content.contains("UUID(" + "0L, 0L)"))
         assertTrue(content.contains("id: UUID"))
         assertTrue(content.contains("@Id"))
