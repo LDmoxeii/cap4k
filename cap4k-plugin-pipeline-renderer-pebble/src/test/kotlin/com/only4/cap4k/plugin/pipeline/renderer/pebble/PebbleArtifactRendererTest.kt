@@ -135,6 +135,12 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("id = ContentId.new()"))
         assertTrue(content.contains("title = entityPayload.title"))
         assertTrue(content.contains("authorId = entityPayload.authorId"))
+        assertTrue(content.contains("data class Payload("))
+        assertTrue(content.contains("val title: String,"))
+        assertTrue(content.contains("val authorId: AuthorId"))
+        assertTrue(content.contains(") : AggregatePayload<Content>"))
+        assertFalse(Regex("""data class Payload\(\n\n""").containsMatchIn(content))
+        assertFalse(Regex("""val title: String,\n\n\s*val authorId""").containsMatchIn(content))
         assertFalse(content.contains("AuthorId.new()"))
         assertFalse(content.contains("TODO(\"Implement aggregate construction\")"))
         assertFalse(content.contains("val id: ContentId"))
@@ -695,6 +701,80 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("@Column(name = \"id\")"))
         assertFalse(content.contains("@Column(name = \"author_id\")"))
         assertFalse(content.contains("@Column(name = \"media_processing_task_id\")"))
+    }
+
+    @Test
+    fun `aggregate entity template renders imported scalar types with short names`() {
+        val content = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.content",
+                "typeName" to "Content",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to "content",
+                ),
+                "hasConverterFields" to true,
+                "hasGeneratedValueFields" to false,
+                "hasApplicationSideIdFields" to false,
+                "hasEmbeddedIdFields" to false,
+                "hasStrongIdFields" to false,
+                "hasEmbeddedStrongIdFields" to false,
+                "hasVersionFields" to false,
+                "dynamicInsert" to false,
+                "dynamicUpdate" to false,
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "jpaImports" to emptyList<String>(),
+                "imports" to listOf("com.acme.demo.domain.aggregates.content.enums.ReviewStatus"),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "type" to "Long",
+                        "renderedType" to "Long",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to "id",
+                        "isId" to true,
+                        "strongId" to false,
+                        "embeddedId" to false,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to "CREATE_ONLY",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "converterClassRef" to null,
+                    ),
+                    mapOf(
+                        "name" to "reviewStatus",
+                        "type" to "com.acme.demo.domain.aggregates.content.enums.ReviewStatus",
+                        "renderedType" to "ReviewStatus",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to "review_status",
+                        "isId" to false,
+                        "strongId" to false,
+                        "embeddedId" to false,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to "READ_WRITE",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "converterClassRef" to "com.acme.demo.domain.aggregates.content.enums.ReviewStatus.Converter",
+                    ),
+                ),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.enums.ReviewStatus"))
+        assertTrue(content.contains("reviewStatus: ReviewStatus"))
+        assertTrue(content.contains("var reviewStatus: ReviewStatus = reviewStatus"))
+        assertTrue(content.contains("@Convert(converter = com.acme.demo.domain.aggregates.content.enums.ReviewStatus.Converter::class)"))
+        assertFalse(content.contains("reviewStatus: com.acme.demo.domain.aggregates.content.enums.ReviewStatus"))
+        assertFalse(content.contains("var reviewStatus: com.acme.demo.domain.aggregates.content.enums.ReviewStatus"))
     }
 
     @Test

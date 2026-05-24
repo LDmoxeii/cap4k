@@ -93,6 +93,11 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         val control = controlsByField[field.name]
                         val strongId = resolveStrongId(model, entity, field)
                         val fieldType = strongId?.typeName ?: planning.resolveFieldType(entity.packageName, field)
+                        val renderedType = if (strongId != null) {
+                            AggregateRenderedType(strongId.typeName, listOf(strongId.fqn()))
+                        } else {
+                            aggregateRenderedType(fieldType)
+                        }
                         val typeRef = strongId?.fqn()
                         val embeddedId = strongId != null && isAggregateRootIdField(entity, field, strongId)
                         val idPolicyApplies = jpa.isId && idPolicyControl?.idFieldName == field.name
@@ -149,6 +154,8 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "fieldType" to fieldType,
                             "name" to field.name,
                             "type" to fieldType,
+                            "renderedType" to renderedType.renderedType,
+                            "typeImports" to renderedType.imports,
                             "nullable" to field.nullable,
                             "defaultValue" to defaultValue,
                             "typeRef" to typeRef,
@@ -176,9 +183,11 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         )
                     }
                 }
-            val strongIdImports = scalarFields.mapNotNull { it["typeRef"] as? String }
-            val scalarTypeImports = scalarFields.flatMap { scalarTypeImports(it["type"] as? String) }
-            val scalarImports = relationPlan.imports + strongIdImports + scalarTypeImports
+            validateScalarTypeImportCollisions(entity, scalarFields)
+            val scalarTypeImports = scalarFields.flatMap { field ->
+                (field["typeImports"] as? List<*>)?.filterIsInstance<String>().orEmpty()
+            }
+            val scalarImports = relationPlan.imports + scalarTypeImports
             generatedKotlinArtifact(
                 config = config,
                 artifactLayout = artifactLayout,
@@ -221,12 +230,40 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
         }
     }
 
-    private fun scalarTypeImports(fieldType: String?): List<String> =
-        if (fieldType?.removeSuffix("?") == "UUID") {
-            listOf("java.util.UUID")
-        } else {
-            emptyList()
+    private fun validateScalarTypeImportCollisions(
+        entity: EntityModel,
+        scalarFields: List<Map<String, Any?>>,
+    ) {
+        val candidates = scalarFields.mapNotNull { field ->
+            val imports = (field["typeImports"] as? List<*>)?.filterIsInstance<String>().orEmpty()
+            if (imports.isEmpty()) return@mapNotNull null
+            val renderedType = field["renderedType"] as? String ?: return@mapNotNull null
+            ScalarImportCandidate(
+                fieldName = field["fieldName"] as? String ?: field["name"] as? String ?: "<unknown>",
+                simpleName = renderedType.substringBefore("<").substringAfterLast("."),
+                imports = imports,
+            )
         }
+
+        val collisions = candidates
+            .groupBy { it.simpleName }
+            .filterValues { group -> group.flatMap { it.imports }.distinct().size > 1 }
+
+        require(collisions.isEmpty()) {
+            val simpleNames = collisions.keys.joinToString(", ")
+            val details = collisions.entries.joinToString("; ") { (simpleName, group) ->
+                val imports = group.flatMap { it.imports }.distinct().joinToString()
+                val fields = group.map { it.fieldName }.distinct().joinToString()
+                "$simpleName used by [$fields]: $imports"
+            }
+            val label = if (collisions.size == 1) {
+                "ambiguous scalar type name $simpleNames"
+            } else {
+                "ambiguous scalar type names $simpleNames"
+            }
+            "$label for ${entity.packageName}.${entity.name}: $details"
+        }
+    }
 
     private fun resolveStrongId(
         model: CanonicalModel,
@@ -300,6 +337,12 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             IdentifierQuoteStyle.BACKTICK -> "`$value`"
         }
 }
+
+private data class ScalarImportCandidate(
+    val fieldName: String,
+    val simpleName: String,
+    val imports: List<String>,
+)
 
 private enum class IdentifierQuoteStyle {
     DOUBLE_QUOTE,

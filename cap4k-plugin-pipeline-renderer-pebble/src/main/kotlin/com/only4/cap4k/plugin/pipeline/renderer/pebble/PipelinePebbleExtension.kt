@@ -92,8 +92,8 @@ private class TypeFunction : Function {
 
     private fun extractRenderedType(value: Any): String? = when (value) {
         is String -> value
-        is Map<*, *> -> value["renderedType"] as? String
-        else -> readStringProperty(value, "renderedType")
+        is Map<*, *> -> value["renderedType"] as? String ?: value["type"] as? String
+        else -> readStringProperty(value, "renderedType") ?: readStringProperty(value, "type")
     }
 }
 
