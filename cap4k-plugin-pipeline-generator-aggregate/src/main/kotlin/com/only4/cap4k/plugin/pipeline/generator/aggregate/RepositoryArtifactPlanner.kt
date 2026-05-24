@@ -5,6 +5,8 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
+import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 
 internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
@@ -18,6 +20,9 @@ internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 entityName = repository.entityName,
                 entities = entitiesByName[repository.entityName].orEmpty(),
             )
+            val strongId = entity?.let { resolveAggregateRootStrongId(model, it) }
+            val idType = strongId?.typeName ?: repository.idType
+            val idTypeFqn = strongId?.fqn()
             generatedKotlinArtifact(
                 config = config,
                 artifactLayout = artifactLayout,
@@ -31,9 +36,10 @@ internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "entityName" to repository.entityName,
                     "entityTypeFqn" to entity?.let { buildEntityFqn(it.packageName, repository.entityName) }.orEmpty(),
                     "aggregateName" to repository.entityName,
-                    "idType" to repository.idType,
+                    "idType" to idType,
+                    "idTypeFqn" to idTypeFqn,
                     "supportQuerydsl" to false,
-                    "imports" to aggregateTypeImports(repository.idType),
+                    "imports" to aggregateTypeImports(idType),
                 ),
             )
         }
@@ -56,4 +62,19 @@ internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         } else {
             "$packageName.$entityName"
         }
+
+    private fun resolveAggregateRootStrongId(
+        model: CanonicalModel,
+        entity: EntityModel,
+    ): StrongIdModel? =
+        model.strongIds.singleOrNull {
+            it.kind == StrongIdKind.AGGREGATE_ROOT &&
+                it.ownerAggregateName == entity.name &&
+                it.ownerAggregatePackageName == entity.packageName &&
+                it.typeName == entity.idField.type.shortTypeName()
+        }
+
+    private fun StrongIdModel.fqn(): String = "${packageName}.${typeName}"
+
+    private fun String.shortTypeName(): String = removeSuffix("?").substringAfterLast('.')
 }

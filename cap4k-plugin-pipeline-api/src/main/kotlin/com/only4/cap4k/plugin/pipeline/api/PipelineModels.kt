@@ -24,6 +24,8 @@ data class DbColumnSnapshot(
     val explicitRelationType: String? = null,
     val lazy: Boolean? = null,
     val countHint: String? = null,
+    val refAggregate: String? = null,
+    val refId: String? = null,
     val generatedValueDeclared: Boolean = false,
     val generatedValueStrategy: String? = null,
     val deleted: Boolean? = null,
@@ -518,6 +520,21 @@ data class IntegrationEventModel(
     val fields: List<FieldModel> = emptyList(),
 )
 
+enum class StrongIdKind {
+    AGGREGATE_ROOT,
+    AGGREGATE_REFERENCE,
+    REFERENCE,
+}
+
+data class StrongIdModel(
+    val typeName: String,
+    val packageName: String,
+    val valueType: String = "String",
+    val kind: StrongIdKind,
+    val ownerAggregateName: String? = null,
+    val ownerAggregatePackageName: String? = null,
+)
+
 data class CanonicalModel(
     val commands: List<CommandModel> = emptyList(),
     val queries: List<QueryModel> = emptyList(),
@@ -539,6 +556,7 @@ data class CanonicalModel(
     val aggregateIdPolicyControls: List<AggregateIdPolicyControl> = emptyList(),
     val aggregateSpecialFieldResolvedPolicies: List<AggregateSpecialFieldResolvedPolicy> = emptyList(),
     val integrationEvents: List<IntegrationEventModel> = emptyList(),
+    val strongIds: List<StrongIdModel> = emptyList(),
 )
 
 data class UnsupportedAggregateTable(

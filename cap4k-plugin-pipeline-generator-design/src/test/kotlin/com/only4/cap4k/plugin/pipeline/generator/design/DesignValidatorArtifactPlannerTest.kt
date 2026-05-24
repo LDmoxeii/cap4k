@@ -7,6 +7,8 @@ import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
+import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
+import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.ValidatorParameterModel
 import com.only4.cap4k.plugin.pipeline.api.ValidatorModel
@@ -63,6 +65,78 @@ class DesignValidatorArtifactPlannerTest {
         assertEquals("userIdField", parameter.name)
         assertEquals("\"user\\${'$'}id\"", parameter.defaultValueLiteral)
         assertEquals(emptyList<String>(), validator.context["imports"])
+    }
+
+    @Test
+    fun `validator planner resolves strong id value type imports from canonical model`() {
+        val planner = DesignValidatorArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("application" to "demo-application")),
+            model = CanonicalModel(
+                validators = listOf(
+                    ValidatorModel(
+                        packageName = "content",
+                        typeName = "KnownAuthor",
+                        description = "known author",
+                        message = "author rejected",
+                        targets = listOf("FIELD"),
+                        valueType = "AuthorId",
+                        parameters = listOf(ValidatorParameterModel("fallbackAuthorId", "AuthorId")),
+                    )
+                ),
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "AuthorId",
+                        packageName = "com.acme.demo.domain.shared.ids",
+                        kind = StrongIdKind.REFERENCE,
+                    )
+                ),
+            ),
+        )
+
+        val validator = items.single()
+        val parameter = (validator.context["parameters"] as List<*>).single() as DesignValidatorParameterRenderModel
+
+        assertEquals(listOf("com.acme.demo.domain.shared.ids.AuthorId"), validator.context["imports"])
+        assertEquals("AuthorId", validator.context["valueType"])
+        assertEquals("AuthorId", parameter.type)
+    }
+
+    @Test
+    fun `validator planner fails on strong id and explicit fqcn simple name collision`() {
+        val planner = DesignValidatorArtifactPlanner()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config = projectConfig(modules = mapOf("application" to "demo-application")),
+                model = CanonicalModel(
+                    validators = listOf(
+                        ValidatorModel(
+                            packageName = "content",
+                            typeName = "KnownAuthor",
+                            description = "known author",
+                            message = "author rejected",
+                            targets = listOf("FIELD"),
+                            valueType = "AuthorId",
+                            parameters = listOf(
+                                ValidatorParameterModel("externalAuthorId", "com.other.AuthorId"),
+                            ),
+                        )
+                    ),
+                    strongIds = listOf(
+                        StrongIdModel(
+                            typeName = "AuthorId",
+                            packageName = "com.acme.demo.domain.shared.ids",
+                            kind = StrongIdKind.REFERENCE,
+                        )
+                    ),
+                ),
+            )
+        }
+
+        assertTrue(error.message.orEmpty().contains("AuthorId"))
+        assertTrue(error.message.orEmpty().contains("ambiguous"))
     }
 
     @Test

@@ -29,6 +29,7 @@
 - A command may read multiple aggregates or read facts for zero-trust validation.
 - Only one aggregate root may enter the persistence write boundary in one command path.
 - Non-target aggregate reads must stay read-only and must not share write responsibility.
+- Do not ask users to generate aggregate-root IDs inside `Mediator.uow.save(...)`, persist listeners, or save-time reflection paths. New aggregate roots should enter the UoW with their generated Strong ID already assigned by the creation/factory path.
 - Persist aggregate roots only. Child entities, value objects, inline values, and JSON-backed values are persisted through their aggregate root.
 - Do not save child entities independently to bypass aggregate invariants.
 - Do not call `Mediator.uow.save(...)` from listeners, jobs, controllers, open host service entries, external fact entries, or client handlers unless that component has been deliberately modeled as the write boundary.

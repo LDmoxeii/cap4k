@@ -9,9 +9,9 @@ object {{ typeName }} {
 
     data class Request(
 {%- for prop in requestProps %}
-        val {{ prop.name }}: {{ prop.type }}{% if prop.nullable %}?{% endif %},
+        val {{ prop.name }}: {{ type(prop) | raw }}{% if prop.nullable %}?{% endif %},
 {%- endfor %}
-        val {{ excludeIdParamName }}: {{ idType }}?
+        val {{ excludeIdParamName }}: {{ type(idType) | raw }}?
     ) : RequestParam<Response>
 
     data class Response(

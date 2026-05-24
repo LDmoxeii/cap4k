@@ -12,9 +12,12 @@ DDL annotations describe aggregate/entity storage input. They do not declare com
 
 ## Column Annotations
 
+- `@Id` marks an aggregate-root or entity ID column. Aggregate-root IDs generate Strong ID types by default.
 - `@Type=<TypeName>` / `@T=<TypeName>` binds a field to a named custom type. The meaningful authoring form is an explicit type name; blank or marker-only forms are ignored. Use it with enum manifest or `types.registryFile`; do not rely on marker-only `@T`.
 - `@Enum=<...>` / `@E=<...>` marks enum-backed storage. The meaningful authoring form is an explicit enum payload; blank or marker-only forms are ignored, and explicit enum payload still requires `@T`. Use it only when the type name is already declared; common misuse is `@Enum=<...>` without a matching `@T`.
-- `@GeneratedValue` may be marker-only or use `uuid7`, `snowflake-long`, `identity`, or `database-identity`. Use it for identifier generation policy, not business sequencing. Legacy `@IdGenerator` and `@IG` are rejected.
+- `@RefId=<TypeName>` maps an external concept into a current-context identity name such as `AuthorId`.
+- `@RefAggregate=<AggregateName>` marks a same-context aggregate reference and resolves to the referenced aggregate ID type.
+- `@GeneratedValue` is compatibility input for explicit provider/database generation semantics. Do not use `uuid7`, `snowflake-long`, nil UUID sentinels, or save-time reflection assignment as the Strong ID 1.0 default path; legacy `@IdGenerator` and `@IG` are rejected.
 - `@Deleted`, `@Version`, `@Managed`, and `@Exposed` are marker-only and reject explicit values. Use them for supported column roles only. Common misuse: adding `=true` or mixing `@Managed` with `@Exposed`.
 - `@Insertable=true|false` and `@Updatable=true|false` tune column write behavior; they do not redefine domain ownership.
 - `@SoftDeleteColumn` is legacy and rejected. Use `@Deleted` instead.

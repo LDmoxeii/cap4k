@@ -8,11 +8,13 @@
 
 在共享教学项目里，这通常出现在内容详情页、处理进度页或人工审阅页上。作者希望在同一个上下文里表达“这篇 `Content` 对应哪一个 `MediaProcessingTask`”，同时保持仓储和写模型边界不被打穿。
 
-## 为什么默认路径不够
+具体语境见 [示例总览](../examples/index.md)：只读弱引用讨论仍然围绕 `Content` 与 `MediaProcessingTask` 的关系展开，不另起样例。
+
+## 适用边界
 
 [Default Happy Path](../default-happy-path.md) 默认禁止跨聚合写模型强引用，因为 `Content` 和 `MediaProcessingTask` 仍然是两个不同聚合根。默认做法通常是：写模型里只保留 ID，导航交给查询投影或读模型。
 
-只有当“只靠 ID 不够表达关系，但又不能引入可写强引用”时，只读弱引用才有意义。它解决的是统一类型表达和导航 surface，不是让 repository 突然开始管理跨聚合对象图。
+只有当“只靠 ID 不能清楚表达关系，但又不能引入可写强引用”时，只读弱引用才有意义。它解决的是统一类型表达和导航 surface，不是让 repository 突然开始管理跨聚合对象图。
 
 ## 推荐形态
 

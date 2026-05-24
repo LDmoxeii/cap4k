@@ -46,7 +46,7 @@ annotation class {{ typeName }}(
                 val props = value::class.memberProperties.associateBy { it.name }
 {%- for prop in requestProps %}
                 val {{ prop.varName }}Ref = props[{{ prop.varName }}] ?: return false
-                val {{ prop.name }} = {{ prop.varName }}Ref.getter.call(value) as? {{ type(prop.type) | raw }}
+                val {{ prop.name }} = {{ prop.varName }}Ref.getter.call(value) as? {{ type(prop) | raw }}
 {%- if prop.isString %}
                 val {{ prop.name }}Trimmed = {{ prop.name }}?.trim()
 {%- endif %}

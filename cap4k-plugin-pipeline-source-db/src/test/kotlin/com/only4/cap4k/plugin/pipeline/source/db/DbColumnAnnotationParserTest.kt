@@ -26,6 +26,49 @@ class DbColumnAnnotationParserTest {
     }
 
     @Test
+    fun `parser extracts ref id annotation from comment`() {
+        val metadata = DbColumnAnnotationParser.parse("author id @RefId=AuthorId;")
+
+        assertEquals("AuthorId", metadata.refId)
+    }
+
+    @Test
+    fun `parser rejects blank ref id value`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@RefId=;")
+        }
+
+        assertEquals("blank @RefId value is not allowed.", error.message)
+    }
+
+    @Test
+    fun `parser rejects valueless ref id annotation`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@RefId;")
+        }
+
+        assertEquals("missing value for @RefId annotation.", error.message)
+    }
+
+    @Test
+    fun `parser rejects conflicting ref id annotations`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@RefId=AuthorId;@RefId=UserId;")
+        }
+
+        assertEquals("conflicting @RefId annotations on the same column comment.", error.message)
+    }
+
+    @Test
+    fun `parser rejects duplicate ref id annotations`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@RefId=AuthorId;@RefId=AuthorId;")
+        }
+
+        assertEquals("conflicting @RefId annotations on the same column comment.", error.message)
+    }
+
+    @Test
     fun `enum definition without type binding fails`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbColumnAnnotationParser.parse("@E=0:DRAFT:Draft|1:PUBLISHED:Published;")

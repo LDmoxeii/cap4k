@@ -1,6 +1,10 @@
 # Input Contracts
 
 - DB schema / DDL defines aggregate family generation: structure, relations, enum bindings, repositories, factories, specifications, and unique helpers.
+- `@Id` on an aggregate root generates a Strong ID type by default.
+- `@RefAggregate=<AggregateName>` is the input contract for same-context aggregate references and resolves to the referenced aggregate ID type.
+- `@RefId=<TypeName>` is the input contract for current-context reference identities that map external concepts into local language.
+- `@GeneratedValue` is legacy compatibility for explicit provider/database generation semantics, not the default aggregate ID path.
 - `design.json` defines command, query, client, api payload, domain event, integration event, and validator contracts; `domain_event` can derive domain-event subscriber/handler shells, and inbound `integration_event` can derive subscriber shells.
 - Enum manifest supplies shared enums referenced by DB `@Type` / `@T`.
 - `types.registryFile` supplies custom type FQNs and converter policy for `@T`-bound fields.

@@ -15,6 +15,15 @@ package {{ packageName }}
 {% for import in imports -%}
 {{ use(import) -}}
 {% endfor -%}
+{% for field in scalarFields -%}
+{% if field.converterClassRef -%}
+{% if field.converterTypeRef and field.converterClassRef == field.converterTypeRef ~ ".Converter" -%}
+{{ use(field.converterTypeRef) -}}
+{% else -%}
+{{ use(field.converterClassRef) -}}
+{% endif -%}
+{% endif -%}
+{% endfor -%}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
@@ -24,7 +33,7 @@ import {{ import }}
 {% endif -%}
 class {{ typeName }}(
 {% for field in scalarFields -%}
-{{ "    " }}{{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
+{{ "    " }}{{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
 {% endfor -%}
 ) {
 {% for field in scalarFields %}
@@ -36,11 +45,15 @@ class {{ typeName }}(
     @Version
 {% endif %}
     @Column(name = "{{ field.columnName }}")
-{% if field.converterClassRef %}
-    @Convert(converter = {{ field.converterClassRef }}::class)
-{% endif %}
-{% endif %}
-    var {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %} = {{ field.name }}
+{% if field.converterClassRef -%}
+{% if field.converterTypeRef and field.converterClassRef == field.converterTypeRef ~ ".Converter" -%}
+{{ "    " }}@Convert(converter = {{ type(field.converterTypeRef) | raw }}.Converter::class)
+{% else -%}
+{{ "    " }}@Convert(converter = {{ type(field.converterClassRef) | raw }}::class)
+{% endif -%}
+{% endif -%}
+{% endif -%}
+{{ "    " }}var {{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %} = {{ field.name }}
         internal set
 
 {% endfor -%}

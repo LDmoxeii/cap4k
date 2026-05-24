@@ -12,15 +12,15 @@
 
 在共享教学项目里，`ContentTitle`、`MediaAssetFingerprint`、`MediaProcessingResultSnapshot` 这类都可能是值对象候选；而 `ContentStatus`、`ReviewStatus`、`MediaProcessingStatus` 这类状态值，默认更接近枚举。
 
-## 为什么默认路径不够
+## 适用边界
 
 默认路径鼓励先用最轻的表达：
 
 - 状态枚举就先用 enum。
 - 单一简单标量就先用 primitive 或薄包装。
-- 只有当多个字段共同组成一个业务值，并且需要一起校验、比较、传递时，才升级成复合值对象。
+- 只有当多个字段共同组成一个业务值，并且需要一起校验、比较、传递时，才选择复合值对象。
 
-如果把所有字段都提前升成值对象，`Content` 和 `MediaProcessingTask` 会很快被“名词碎片”淹没，作者反而看不出主业务动作。反过来，如果明明已经需要统一值语义，却继续裸用原始类型，callback 主路径和 polling 备用路径就容易各自拼装出不同的内部值解释。
+如果把所有字段都提前包装成值对象，`Content` 和 `MediaProcessingTask` 会很快被“名词碎片”淹没，作者反而看不出主业务动作。反过来，如果明明已经需要统一值语义，却继续裸用原始类型，callback 主路径和 polling 备用路径就容易各自拼装出不同的内部值解释。
 
 还要特别区分“值对象定义”和“持久化承载方式”。例如把 `MediaProcessingResultSnapshot` 存到一个 JSON 字段里，只说明数据库用 JSON 承载它；JSON 字段本身不是值对象定义，值对象的定义仍然来自领域语义、构造约束和等值规则。
 
@@ -49,7 +49,7 @@
 
 ## 常见误用
 
-- 只是因为“类型多一点更高级”，就把每个 `String` 都包装成值对象，结果作者阅读成本暴涨。
+- 只是因为“类型多一点看起来更严格”，就把每个 `String` 都包装成值对象，结果作者阅读成本暴涨。
 - 本该是枚举的生命周期状态，硬写成复合值对象，掩盖了 `Content` 或 `MediaProcessingTask` 的状态机。
 - 把一段 JSON 列结构直接等同于值对象定义，导致一改存储结构就误以为业务概念也变了。
 - callback payload 用一种字段组合，polling payload 用另一种字段组合，分别直写聚合，最后同一个“处理结果”在内部没有统一值语义。

@@ -24,6 +24,7 @@ internal data class AggregateSpecialFieldResolutionResult(
 
 internal object AggregateSpecialFieldPolicyResolver {
     private const val DefaultIdStrategy = "uuid7"
+    private const val NonStrongIdDefaultStrategy = "identity"
 
     fun resolve(
         config: ProjectConfig,
@@ -41,7 +42,7 @@ internal object AggregateSpecialFieldPolicyResolver {
             )
         }
 
-        val idControls = resolvedPolicies.map { policy ->
+        val idControls = resolvedPolicies.filter { it.id.source == SpecialFieldSource.DB_EXPLICIT }.map { policy ->
             val entity = requireNotNull(entityByKey[policy.entityPackageName to policy.entityName]) {
                 "missing canonical entity metadata for ${policy.entityPackageName}.${policy.entityName}"
             }
@@ -81,15 +82,19 @@ internal object AggregateSpecialFieldPolicyResolver {
                 AggregateIdPolicyResolver.normalizeStrategy(generatedValueStrategy) to SpecialFieldSource.DB_EXPLICIT
             idColumn.generatedValueDeclared ->
                 AggregateIdPolicyResolver.normalizeStrategy(defaultStrategy) to SpecialFieldSource.DB_EXPLICIT
+            isGeneratedAggregateRootStrongId(entity) ->
+                DefaultIdStrategy to SpecialFieldSource.DSL_DEFAULT
             else ->
-                AggregateIdPolicyResolver.normalizeStrategy(defaultStrategy) to SpecialFieldSource.DSL_DEFAULT
+                NonStrongIdDefaultStrategy to SpecialFieldSource.DSL_DEFAULT
         }
 
-        AggregateIdPolicyResolver.validateType(
-            config = config,
-            entity = entity,
-            strategy = idStrategy,
-        )
+        if (idSource == SpecialFieldSource.DB_EXPLICIT) {
+            AggregateIdPolicyResolver.validateType(
+                config = config,
+                entity = entity,
+                strategy = idStrategy,
+            )
+        }
         val idKind = AggregateIdPolicyResolver.resolveKind(idStrategy)
         val deletedPolicy = resolveMarkerPolicy(
             markerName = "deleted",
@@ -143,6 +148,9 @@ internal object AggregateSpecialFieldPolicyResolver {
         } else {
             SpecialFieldWritePolicy.READ_ONLY
         }
+
+    private fun isGeneratedAggregateRootStrongId(entity: EntityModel): Boolean =
+        entity.aggregateRoot && entity.idField.type == "${entity.name}Id"
 
     private fun markerWritePolicy(markerName: String, enabled: Boolean): SpecialFieldWritePolicy = when {
         !enabled -> SpecialFieldWritePolicy.READ_WRITE

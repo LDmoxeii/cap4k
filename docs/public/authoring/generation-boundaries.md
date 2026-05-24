@@ -5,7 +5,7 @@
 - 当你已经知道默认流程，但需要判断“这段代码该交给生成器，还是该留给作者手写”时，读本页。
 - 如果还没有先确认默认规则，请先回到 [Default Happy Path](default-happy-path.md)。
 
-本页说明 cap4k 项目里哪些产物默认交给生成器，哪些责任必须回到手写主面。教学主场景仍然是 `Content`、`MediaProcessingTask` 与 `MediaProcessingCli` 组成的内容发布与处理项目。
+本页说明 cap4k 项目里哪些产物默认交给生成器，哪些责任必须回到手写主面。教学主场景仍然是 [示例总览](examples/index.md) 中由 `Content`、`MediaProcessingTask` 与 `TriggerMediaProcessingCli` 组成的内容发布与处理项目。
 
 完整端到端顺序见 [项目编写工作流](project-authoring-workflow.md)，DB / design / enum manifest / KSP / IR 输入细节见 [生成输入源](generator/input-sources.md)。
 
@@ -33,8 +33,8 @@
 | payload family | 条件性计划产物 | `adapter.portal.api.payload/**` 下的 request / response payload 常由 generator 产出；项目特有协议转换不要直接抢它们当长期手写家 |
 | repository-side generated artifacts | 条件性计划产物 | `adapter.domain.repositories/*Repository.kt`、`*JpaRepositoryAdapter.kt` 一类当前可能由 generator 写出或持续接管；是否可直接编辑要以 `plan.json` 为准 |
 | 应用层流程编排 | 手写主面 | 项目特有的送审、媒体处理推进、发布编排不能期待生成器自动替你完成 |
-| 外部系统协议转换 | 手写主面 | `MediaProcessingCli`、回调 payload、轮询结果转换都属于适配器责任 |
-| 模板覆盖 | `Advanced` | 允许，但会引入升级漂移与额外审计成本，只在默认模板确实不够时进入 |
+| 外部系统协议转换 | 手写主面 | `TriggerMediaProcessingCli`、`GetMediaProcessingStatusCli`、回调 payload、轮询结果转换都属于适配器责任 |
+| 模板覆盖 | 显式选择 | 允许，但会引入升级漂移与额外审计成本，只在默认模板确实不能表达目标产物时进入 |
 
 ## 如何识别生成主面与手写主面
 

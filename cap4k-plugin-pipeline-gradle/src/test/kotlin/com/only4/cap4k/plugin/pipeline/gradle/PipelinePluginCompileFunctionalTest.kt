@@ -407,6 +407,9 @@ class PipelinePluginCompileFunctionalTest {
         val generatedEntity = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
         ).toFile().readText()
+        val generatedContentEntity = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt")
+        ).toFile().readText()
         val checkedInEntity = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
         )
@@ -420,6 +423,12 @@ class PipelinePluginCompileFunctionalTest {
         assertGeneratedFilesExist(
             projectDir,
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"),
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostId.kt"),
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt"),
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/ContentId.kt"),
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/MediaProcessingTask.kt"),
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/MediaProcessingTaskId.kt"),
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/ids/AuthorId.kt"),
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt",
@@ -431,17 +440,21 @@ class PipelinePluginCompileFunctionalTest {
         )
         assertFalse(checkedInEntity.toFile().exists())
         assertTrue(behaviorFile.readText().contains("Place behavior for VideoPost and its owned entities here."))
-        assertTrue(generatedEntity.contains("import jakarta.persistence.Column"))
         assertTrue(generatedEntity.contains("import jakarta.persistence.Entity"))
-        assertTrue(generatedEntity.contains("import jakarta.persistence.Id"))
+        assertTrue(generatedEntity.contains("import jakarta.persistence.EmbeddedId"))
         assertTrue(generatedEntity.contains("import jakarta.persistence.Table"))
         assertTrue(generatedEntity.contains("@Entity"))
         assertTrue(generatedEntity.contains("@Table(name = \"video_post\")"))
-        assertTrue(generatedEntity.contains("@Id"))
-        assertTrue(generatedEntity.contains("@Column(name = \"id\""))
+        assertTrue(generatedEntity.contains("@EmbeddedId"))
+        assertTrue(generatedEntity.contains("var id: VideoPostId = id"))
         assertFalse(generatedEntity.contains("@GeneratedValue"))
         assertFalse(generatedEntity.contains("@Version"))
         assertFalse(generatedEntity.contains("@DynamicInsert"))
+        assertTrue(generatedContentEntity.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
+        assertTrue(generatedContentEntity.contains("import com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId"))
+        assertTrue(generatedContentEntity.contains("var id: ContentId = id"))
+        assertTrue(generatedContentEntity.contains("var authorId: AuthorId = authorId"))
+        assertTrue(generatedContentEntity.contains("var mediaProcessingTaskId: MediaProcessingTaskId? = mediaProcessingTaskId"))
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
@@ -464,12 +477,20 @@ class PipelinePluginCompileFunctionalTest {
         val generatedChildEntity = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt")
         ).readText()
+        val generatedContentEntity = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt")
+        ).readText()
 
         assertGeneratedFilesExist(
             projectDir,
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_profile/UserProfile.kt"),
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt"),
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/ContentId.kt"),
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/MediaProcessingTask.kt"),
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/MediaProcessingTaskId.kt"),
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/ids/AuthorId.kt"),
         )
         assertFalse(
             projectDir.resolve("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt")
@@ -500,6 +521,10 @@ class PipelinePluginCompileFunctionalTest {
         assertFalse(generatedChildEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)\n    lateinit var videoPost: VideoPost"))
         assertFalse(generatedChildEntity.contains("@Column(name = \"video_post_id\")\n    var videoPostId: Long = videoPostId"))
         assertFalse(generatedChildEntity.contains("mappedBy ="))
+        assertTrue(generatedContentEntity.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
+        assertTrue(generatedContentEntity.contains("import com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId"))
+        assertTrue(generatedContentEntity.contains("var authorId: AuthorId = authorId"))
+        assertTrue(generatedContentEntity.contains("var mediaProcessingTaskId: MediaProcessingTaskId? = mediaProcessingTaskId"))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
@@ -685,7 +710,7 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate provider persistence generation keeps application-side and identity id policies compile-safe together`() {
+    fun `aggregate provider persistence generation keeps provider identity id policies compile-safe together`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-provider-persistence-mixed-id-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-provider-persistence-compile-sample")
         val schemaFile = projectDir.resolve("schema.sql")
@@ -702,13 +727,13 @@ class PipelinePluginCompileFunctionalTest {
             |aggregate {
             |            enabled.set(true)
             |            specialFields {
-            |                idDefaultStrategy.set("snowflake-long")
+            |                idDefaultStrategy.set("identity")
             |            }
             |        }
             """.trimMargin(),
         )
         buildFile.writeText(patchedBuildFile)
-        assertTrue(patchedBuildFile.contains("""idDefaultStrategy.set("snowflake-long")"""))
+        assertTrue(patchedBuildFile.contains("""idDefaultStrategy.set("identity")"""))
 
         val compileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-domain:compileKotlin")
@@ -720,10 +745,13 @@ class PipelinePluginCompileFunctionalTest {
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/audit_log/AuditLog.kt")
         ).readText()
 
-        assertTrue(generatedVideoPost.contains("@field:ApplicationSideId(strategy = \"snowflake-long\")"))
-        assertTrue(generatedVideoPost.contains("id: Long = 0L"))
+        assertFalse(generatedVideoPost.contains("ApplicationSideId"))
+        assertFalse(generatedVideoPost.contains("id: Long = 0L"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
+        assertTrue(generatedVideoPost.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
+        assertTrue(generatedVideoPost.contains("@EmbeddedId"))
+        assertTrue(generatedVideoPost.contains("var id: VideoPostId = id"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedAuditLog.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertFalse(generatedAuditLog.contains("GenericGenerator"))
@@ -732,7 +760,7 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate provider persistence generation keeps native uuid application-side ids compile-safe`() {
+    fun `aggregate provider persistence generation keeps native uuid ids compile-safe without save-time assignment`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-provider-persistence-uuid-id-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-provider-persistence-compile-sample")
         val schemaFile = projectDir.resolve("schema.sql")
@@ -750,9 +778,12 @@ class PipelinePluginCompileFunctionalTest {
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
         ).readText()
 
-        assertTrue(generatedVideoPost.contains("import java.util.UUID"))
-        assertTrue(generatedVideoPost.contains("@field:ApplicationSideId(strategy = \"uuid7\")"))
-        assertTrue(generatedVideoPost.contains("id: UUID = UUID(0L, 0L)"))
+        assertFalse(generatedVideoPost.contains("ApplicationSideId"))
+        assertFalse(generatedVideoPost.contains("UUID(" + "0L, 0L)"))
+        assertTrue(generatedVideoPost.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
+        assertTrue(generatedVideoPost.contains("@EmbeddedId"))
+        assertTrue(generatedVideoPost.contains("var id: VideoPostId = id"))
+        assertFalse(generatedVideoPost.contains("id: UUID"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
@@ -785,12 +816,16 @@ class PipelinePluginCompileFunctionalTest {
         )
         assertTrue(generatedEntity.contains("@Entity"))
         assertTrue(generatedEntity.contains("@Table(name = \"video_post\")"))
-        assertTrue(generatedEntity.contains("@Id"))
-        assertTrue(generatedEntity.contains("@Column(name = \"id\""))
+        assertTrue(generatedEntity.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
+        assertTrue(generatedEntity.contains("import com.acme.demo.domain.shared.enums.Status"))
+        assertTrue(generatedEntity.contains("@EmbeddedId"))
+        assertTrue(generatedEntity.contains("var id: VideoPostId = id"))
+        assertFalse(generatedEntity.contains("@Id"))
+        assertFalse(generatedEntity.contains("@Column(name = \"id\""))
         assertTrue(generatedEntity.contains("@Column(name = \"status\")"))
         assertTrue(
             generatedEntity.contains(
-                "@Convert(converter = com.acme.demo.domain.shared.enums.Status.Converter::class)"
+                "@Convert(converter = Status.Converter::class)"
             )
         )
         assertTrue(generatedSharedEnum.contains("class Converter : AttributeConverter<Status, Int>"))
@@ -807,6 +842,9 @@ class PipelinePluginCompileFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-unique-application-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
 
+        val generateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
         val compileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-application:compileKotlin")
             .build()
@@ -831,7 +869,8 @@ class PipelinePluginCompileFunctionalTest {
             ),
         )
         assertTrue(queryContent.contains("data class Request("))
-        assertTrue(queryContent.contains("val excludeVideoPostId: Long?"))
+        assertTrue(queryContent.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
+        assertTrue(queryContent.contains("val excludeVideoPostId: VideoPostId?"))
         assertTrue(queryContent.contains(") : RequestParam<Response>"))
         assertTrue(validatorContent.contains("annotation class UniqueVideoPostSlug"))
         assertTrue(
@@ -843,6 +882,7 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(validatorContent.contains("value::class.memberProperties.associateBy"))
         assertTrue(validatorContent.contains("Mediator.queries.send("))
         assertTrue(validatorContent.contains("return !result.exists"))
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
@@ -890,8 +930,8 @@ class PipelinePluginCompileFunctionalTest {
         val buildFile = projectDir.resolve("build.gradle.kts")
         buildFile.writeText(
             buildFile.readText().replace(
-                """includeTables.set(listOf("video_post"))""",
-                """includeTables.set(listOf("video_post", "video_file"))""",
+                """includeTables.set(listOf("video_post", "content", "media_processing_task"))""",
+                """includeTables.set(listOf("video_post", "content", "media_processing_task", "video_file"))""",
             )
         )
         val schemaFile = projectDir.resolve("schema.sql")

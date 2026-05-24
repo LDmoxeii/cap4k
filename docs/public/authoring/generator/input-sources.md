@@ -2,6 +2,8 @@
 
 本页说明业务项目作者如何准备 cap4k 生成器输入。输入源是生成器合同，不是随手写给工具看的备注。
 
+本页示例语境统一回到 [示例总览](../examples/index.md)：DB / design / enum manifest / KSP 输入最终都服务于同一个内容发布与媒体处理项目。
+
 除 `sources {}` 里的 source provider 之外，`types.registryFile` 也属于 generation input contract。它不提供 use-case surface，也不替代 DDL / design；它负责补充 `@T` 绑定的自定义类型 FQN 与 converter 策略。
 
 ## DB source
@@ -11,7 +13,7 @@
 DB 输入适合表达：
 
 - 聚合根、子实体、table-backed 值对象表，以及通过 `@T` 绑定的自定义值类型字段；
-- 字段类型、ID 策略、软删除、版本号；
+- 字段类型、Strong ID 身份边界、软删除、版本号；
 - 表间引用关系；
 - 聚合内唯一约束；
 - 与 enum manifest 关联的共享枚举。
@@ -39,11 +41,14 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 
 | 注解 | 含义 |
 | --- | --- |
+| `@Id` | 聚合根或实体 ID 字段；聚合根默认生成 Strong ID 类型 |
 | `@Type=<TypeName>` / `@T=<TypeName>` | 绑定到命名领域类型或枚举；有效写法是显式给出 type name，空值或 marker 形式会被忽略 |
 | `@Enum=<...>` / `@E=0:NAME:Desc\|...` | 内联枚举项；有效写法是显式给出枚举 payload，且该 payload 仍需要同时声明 `@T` |
-| `@GeneratedValue` | marker 形式表示使用默认 ID 生成 |
-| `@GeneratedValue=uuid7` | UUID7 策略 |
-| `@GeneratedValue=snowflake-long` | Snowflake long 策略 |
+| `@RefId=<TypeName>` | 当前上下文的引用身份；适合把外部概念映射成本地语言里的 ID 类型 |
+| `@RefAggregate=<AggregateName>` | 同一上下文内引用另一个聚合根；生成目标聚合的 ID 类型 |
+| `@GeneratedValue` | marker 形式；仅用于需要显式声明 provider 生成语义的旧输入 |
+| `@GeneratedValue=uuid7` | 旧 UUID7 策略；不属于 Strong ID 默认生成路径 |
+| `@GeneratedValue=snowflake-long` | 旧 Snowflake long 策略；不属于 Strong ID 默认生成路径 |
 | `@GeneratedValue=identity` | 数据库 identity 策略 |
 | `@GeneratedValue=database-identity` | `identity` 别名 |
 | `@Deleted` | 软删除字段；marker-only，不接受显式值 |
@@ -57,8 +62,30 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 
 - `@Enum=<...>` / `@E=<...>` 的显式 payload 需要配合 `@Type` / `@T`；空值或 marker 形式不会产生日志外的额外含义。
 - `@Managed` 与 `@Exposed` 互斥。
-- `@GeneratedValue` 既可只写 marker，也可显式写 `uuid7` / `snowflake-long` / `identity` / `database-identity`。
+- 默认聚合 ID 生成不依赖 `@GeneratedValue=uuid7`、`@GeneratedValue=snowflake-long`、nil UUID sentinel 或保存时反射赋值；Strong ID 聚合根 ID 由生成的 ID 类型在工厂创建时产生。
+- `@GeneratedValue` 只保留给需要表达 provider/database 生成语义的兼容输入；新默认路径优先用普通 `@Id`、`@RefId=<TypeName>`、`@RefAggregate=<AggregateName>` 表达 ID 边界。
 - 旧的 `@IdGenerator` 和 `@SoftDeleteColumn` 已被拒绝，不应继续使用。
+
+Strong ID 输入示例：
+
+```sql
+comment on table content is '@AggregateRoot=true;';
+comment on column content.id is '@Id;';
+comment on column content.author_id is '@RefId=AuthorId;';
+comment on column content.media_processing_task_id is '@RefAggregate=MediaProcessingTask;';
+```
+
+生成含义：
+
+```kotlin
+class Content(
+    val id: ContentId,
+    val authorId: AuthorId,
+    val mediaProcessingTaskId: MediaProcessingTaskId?,
+)
+```
+
+`@RefAggregate=MediaProcessingTask` 表示同一上下文内的聚合引用，字段类型应跟随 `MediaProcessingTaskId`。`@RefId=AuthorId` 表示当前内容上下文里的作者身份，即使上游系统把这个概念叫 user，也不要在 `Content` 内直接建模跨上下文的 `UserId`。
 
 自定义值类型字段规则：
 
@@ -144,7 +171,7 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 - `domain_event` 支持 `persist`；
 - `domain_event` 可以省略 package；它必须恰好声明一个 aggregate，保留 request field `entity` 不允许作者显式声明，因为它会从 `aggregates[0]` 派生。缺失或空 aggregate 都属于不完整 modeling input；
 - `integration_event` 支持 `role`（`inbound` / `outbound`）和 `eventName`，必须至少声明一个 `requestFields` 字段，且 `responseFields` 必须为空；`inbound` 可生成把外部事实转内部命令的 subscriber 骨架，`outbound` 只生成事件契约；
-- `validator` 的 `targets` 只支持 `CLASS` / `FIELD` / `VALUE_PARAMETER`，`valueType` 只支持 `Any` / `String` / `Long` / `Int` / `Boolean`；`CLASS` target 只能配 `Any`。`parameters` 名称不能是 `message` / `groups` / `payload`，必须是合法 Kotlin 标识符、不可空、不可重复，类型只支持 `String` / `Int` / `Long` / `Boolean`，并且不能 nullable；
+- `validator` 的 `targets` 只支持 `CLASS` / `FIELD` / `VALUE_PARAMETER`；`CLASS` target 只能配 `Any`。`valueType` 支持 `Any` / `String` / `Long` / `Int` / `Boolean`，也可以使用 canonical metadata 能解析出的 Strong ID 类型（例如 `AuthorId`）。`parameters` 名称不能是 `message` / `groups` / `payload`，必须是合法 Kotlin 标识符、不可空、不可重复，类型支持 `String` / `Int` / `Long` / `Boolean`，也可以使用 canonical metadata 能解析出的 Strong ID 类型，并且不能 nullable；
 - manifest-file 模式把 manifest 中的 design 文件 entry 解析为相对 `projectDir` 的路径，并拒绝空白 `manifestFile`、空 manifest、空白 entry、重复 entry，以及逃出 `projectDir` 的路径。
 
 ## unsupported design tags

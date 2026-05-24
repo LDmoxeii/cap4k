@@ -9,6 +9,9 @@ package {{ packageName }}
 {%- if entityTypeFqn %}
 {{ use(entityTypeFqn) -}}
 {%- endif %}
+{%- if idTypeFqn %}
+{{ use(idTypeFqn) -}}
+{%- endif %}
 {%- if supportQuerydsl %}
 {{ use("org.springframework.data.querydsl.QuerydslPredicateExecutor") -}}
 {{ use("com.only4.cap4k.ddd.domain.repo.querydsl.AbstractQuerydslRepository") -}}

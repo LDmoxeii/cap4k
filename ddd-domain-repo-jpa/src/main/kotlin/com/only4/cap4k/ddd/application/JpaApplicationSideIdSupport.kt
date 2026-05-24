@@ -19,6 +19,7 @@ internal class JpaApplicationSideIdSupport(
     private val idStrategyRegistry: IdStrategyRegistry
 ) {
 
+    // Compatibility path for manually annotated entities; generated Strong IDs are assigned before save.
     fun assignMissingIds(root: Any) {
         assignMissingIds(root, Collections.newSetFromMap(IdentityHashMap()))
     }

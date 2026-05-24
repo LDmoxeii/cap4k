@@ -113,6 +113,8 @@ class DbSchemaSourceProvider : SourceProvider {
                             explicitRelationType = relationMetadata.explicitRelationType,
                             lazy = relationMetadata.lazy,
                             countHint = relationMetadata.countHint,
+                            refAggregate = relationMetadata.refAggregate,
+                            refId = annotationMetadata.refId,
                             generatedValueDeclared = annotationMetadata.generatedValueDeclared,
                             generatedValueStrategy = annotationMetadata.generatedValueStrategy,
                             deleted = annotationMetadata.deleted,
