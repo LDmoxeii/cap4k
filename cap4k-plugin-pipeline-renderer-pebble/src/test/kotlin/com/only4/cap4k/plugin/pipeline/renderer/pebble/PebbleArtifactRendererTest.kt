@@ -616,6 +616,7 @@ class PebbleArtifactRendererTest {
                         "columnName" to "id",
                         "isId" to true,
                         "isVersion" to false,
+                        "converterTypeRef" to null,
                         "converterClassRef" to null,
                     ),
                     mapOf(
@@ -625,6 +626,7 @@ class PebbleArtifactRendererTest {
                         "columnName" to "name",
                         "isId" to false,
                         "isVersion" to false,
+                        "converterTypeRef" to null,
                         "converterClassRef" to "com.acme.demo.NameConverter",
                     ),
                     mapOf(
@@ -634,6 +636,7 @@ class PebbleArtifactRendererTest {
                         "columnName" to "version",
                         "isId" to false,
                         "isVersion" to true,
+                        "converterTypeRef" to null,
                         "converterClassRef" to null,
                     ),
                 ),
@@ -654,7 +657,17 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@Id"))
         assertTrue(content.contains("@Version"))
         assertTrue(content.contains("""@Column(name = "name")"""))
-        assertTrue(content.contains("@Convert(converter = com.acme.demo.NameConverter::class)"))
+        assertTrue(content.contains("import com.acme.demo.NameConverter"))
+        assertTrue(content.contains("@Convert(converter = NameConverter::class)"))
+        assertTrue(
+            content.contains(
+                """@Column(name = "name")
+    @Convert(converter = NameConverter::class)
+    var name: String = name"""
+            ),
+            "Projection converter annotation should stay adjacent to the column and property declaration."
+        )
+        assertFalse(content.contains("@Convert(converter = com.acme.demo.NameConverter::class)"))
         assertTrue(content.contains("var name: String = name"))
         assertFalse(content.contains("ManyToOne"))
         assertFalse(content.contains("OneToMany"))
@@ -946,6 +959,7 @@ class PebbleArtifactRendererTest {
                         "isVersion" to false,
                         "insertable" to null,
                         "updatable" to null,
+                        "converterTypeRef" to null,
                         "converterClassRef" to null,
                     ),
                     mapOf(
@@ -963,6 +977,7 @@ class PebbleArtifactRendererTest {
                         "isVersion" to false,
                         "insertable" to null,
                         "updatable" to null,
+                        "converterTypeRef" to "com.acme.demo.domain.aggregates.content.enums.ReviewStatus",
                         "converterClassRef" to "com.acme.demo.domain.aggregates.content.enums.ReviewStatus.Converter",
                     ),
                 ),
@@ -974,7 +989,15 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.enums.ReviewStatus"))
         assertTrue(content.contains("reviewStatus: ReviewStatus"))
         assertTrue(content.contains("var reviewStatus: ReviewStatus = reviewStatus"))
-        assertTrue(content.contains("@Convert(converter = com.acme.demo.domain.aggregates.content.enums.ReviewStatus.Converter::class)"))
+        assertTrue(content.contains("@Convert(converter = ReviewStatus.Converter::class)"))
+        assertTrue(
+            content.contains(
+                """@Column(name = "review_status")
+    @Convert(converter = ReviewStatus.Converter::class)
+    var reviewStatus: ReviewStatus = reviewStatus"""
+            )
+        )
+        assertFalse(content.contains("@Convert(converter = com.acme.demo.domain.aggregates.content.enums.ReviewStatus.Converter::class)"))
         assertFalse(content.contains("reviewStatus: com.acme.demo.domain.aggregates.content.enums.ReviewStatus"))
         assertFalse(content.contains("var reviewStatus: com.acme.demo.domain.aggregates.content.enums.ReviewStatus"))
     }
@@ -3507,7 +3530,9 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@Column(name = \"id\")"))
         assertTrue(content.contains("@Column(name = \"status\")"))
         assertTrue(content.contains("import jakarta.persistence.Convert"))
-        assertTrue(content.contains("@Convert(converter = com.acme.demo.domain.shared.enums.Status.Converter::class)"))
+        assertTrue(content.contains("import com.acme.demo.domain.shared.enums.Status"))
+        assertTrue(content.contains("@Convert(converter = Status.Converter::class)"))
+        assertFalse(content.contains("@Convert(converter = com.acme.demo.domain.shared.enums.Status.Converter::class)"))
         assertTrue(content.contains("class VideoPost("))
         assertFalse(content.contains("data class VideoPost("))
         assertFalse(content.contains("@GeneratedValue"))
