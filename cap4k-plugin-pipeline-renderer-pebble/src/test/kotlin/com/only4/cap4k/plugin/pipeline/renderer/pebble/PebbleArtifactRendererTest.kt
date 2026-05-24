@@ -132,6 +132,11 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
         assertTrue(content.contains("override fun create(entityPayload: Payload): Content ="))
         assertTrue(content.contains("Content("))
+        assertTrue(
+            content.normalizedLineEndings().contains(
+                "override fun create(entityPayload: Payload): Content =\n        Content("
+            )
+        )
         assertTrue(content.contains("id = ContentId.new()"))
         assertTrue(content.contains("title = entityPayload.title"))
         assertTrue(content.contains("authorId = entityPayload.authorId"))
@@ -141,9 +146,206 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains(") : AggregatePayload<Content>"))
         assertFalse(Regex("""data class Payload\(\n\n""").containsMatchIn(content))
         assertFalse(Regex("""val title: String,\n\n\s*val authorId""").containsMatchIn(content))
+        assertFalse(content.normalizedLineEndings().contains("    )\n\n    data class Payload("))
+        assertFalse(content.normalizedLineEndings().contains("=\nContent("))
         assertFalse(content.contains("AuthorId.new()"))
         assertFalse(content.contains("TODO(\"Implement aggregate construction\")"))
         assertFalse(content.contains("val id: ContentId"))
+    }
+
+    @Test
+    fun `aggregate factory template renders normalized payload types with stable indentation`() {
+        val content = renderTemplate(
+            templateId = "aggregate/factory.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.video_post.factory",
+                "typeName" to "VideoPostFactory",
+                "payloadTypeName" to "Payload",
+                "payloadMetadataName" to "VideoPostPayload",
+                "payloadWriteSurfaceResolved" to true,
+                "payloadFields" to listOf(
+                    mapOf(
+                        "name" to "status",
+                        "type" to "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                        "renderedType" to "VideoPostStatus",
+                        "nullable" to false,
+                    ),
+                    mapOf(
+                        "name" to "snapshot",
+                        "type" to "com.acme.demo.domain.aggregates.video_post.values.VideoPostSnapshot",
+                        "renderedType" to "VideoPostSnapshot",
+                        "nullable" to true,
+                    ),
+                    mapOf(
+                        "name" to "updatedAt",
+                        "type" to "java.time.LocalDateTime",
+                        "renderedType" to "LocalDateTime",
+                        "nullable" to false,
+                    ),
+                ),
+                "entityName" to "VideoPost",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
+                "aggregateName" to "VideoPost",
+                "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                    "com.acme.demo.domain.aggregates.video_post.values.VideoPostSnapshot",
+                    "java.time.LocalDateTime",
+                ),
+            ),
+        )
+
+        val normalized = content.normalizedLineEndings()
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus"))
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.video_post.values.VideoPostSnapshot"))
+        assertTrue(content.contains("import java.time.LocalDateTime"))
+        assertTrue(
+            normalized.contains(
+                """
+                |    data class Payload(
+                |        val status: VideoPostStatus,
+                |        val snapshot: VideoPostSnapshot?,
+                |        val updatedAt: LocalDateTime
+                |    ) : AggregatePayload<VideoPost>
+                """.trimMargin()
+            )
+        )
+        assertFalse(content.contains("val status: com.acme.demo"))
+        assertFalse(content.contains("\nval status:"))
+    }
+
+    @Test
+    fun `aggregate projection schema and unique templates render normalized field-like types`() {
+        val projectionContent = renderTemplate(
+            templateId = "aggregate_projection/entity.kt.peb",
+            outputPath = "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/application/projections/video_post/VideoPostProjection.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.adapter.application.projections.video_post",
+                "typeName" to "VideoPostProjection",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to "video_post",
+                ),
+                "hasConverterFields" to false,
+                "hasVersionFields" to false,
+                "imports" to listOf("com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus"),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "status",
+                        "type" to "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                        "renderedType" to "VideoPostStatus",
+                        "nullable" to false,
+                        "columnName" to "status",
+                        "isId" to false,
+                        "isVersion" to false,
+                        "converterClassRef" to null,
+                    ),
+                ),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+        val schemaContent = renderTemplate(
+            templateId = "aggregate/schema.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain._share.meta.video_post",
+                "typeName" to "SVideoPost",
+                "entityName" to "VideoPost",
+                "schemaRuntimePackage" to "com.only4.cap4k.ddd.domain.repo.schema",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
+                "isAggregateRoot" to true,
+                "imports" to listOf("com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus"),
+                "fields" to listOf(
+                    mapOf(
+                        "name" to "status",
+                        "fieldName" to "status",
+                        "fieldType" to "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                        "type" to "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                        "renderedType" to "VideoPostStatus",
+                        "comment" to "",
+                    ),
+                ),
+            ),
+        )
+        val uniqueQueryContent = renderTemplate(
+            templateId = "aggregate/unique_query.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostStatusQry.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.queries.video_post.unique",
+                "typeName" to "UniqueVideoPostStatusQry",
+                "entityName" to "VideoPost",
+                "requestProps" to listOf(
+                    mapOf(
+                        "name" to "status",
+                        "type" to "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                        "renderedType" to "VideoPostStatus",
+                        "nullable" to false,
+                    ),
+                ),
+                "idType" to "com.acme.demo.domain.aggregates.video_post.VideoPostId",
+                "excludeIdType" to mapOf(
+                    "type" to "com.acme.demo.domain.aggregates.video_post.VideoPostId",
+                    "renderedType" to "VideoPostId",
+                ),
+                "excludeIdParamName" to "excludeVideoPostId",
+                "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.video_post.VideoPostId",
+                    "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                ),
+            ),
+        )
+        val uniqueValidatorContent = renderTemplate(
+            templateId = "aggregate/unique_validator.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostStatus.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.validators.video_post.unique",
+                "typeName" to "UniqueVideoPostStatus",
+                "queryTypeName" to "UniqueVideoPostStatusQry",
+                "queryTypeFqn" to "com.acme.demo.application.queries.video_post.unique.UniqueVideoPostStatusQry",
+                "requestProps" to listOf(
+                    mapOf(
+                        "name" to "status",
+                        "type" to "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                        "renderedType" to "VideoPostStatus",
+                        "isString" to false,
+                        "param" to "statusField",
+                        "varName" to "statusProperty",
+                    ),
+                ),
+                "fieldParams" to listOf(mapOf("param" to "statusField", "default" to "status")),
+                "idType" to "com.acme.demo.domain.aggregates.video_post.VideoPostId",
+                "excludeIdType" to mapOf(
+                    "type" to "com.acme.demo.domain.aggregates.video_post.VideoPostId",
+                    "renderedType" to "VideoPostId",
+                ),
+                "excludeIdParamName" to "excludeVideoPostId",
+                "entityIdParam" to "videoPostIdField",
+                "entityIdDefault" to "videoPostId",
+                "entityIdVar" to "videoPostIdProperty",
+                "entityName" to "VideoPost",
+                "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.video_post.VideoPostId",
+                    "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                ),
+            ),
+        )
+
+        assertReadableKotlin(projectionContent)
+        assertReadableKotlin(schemaContent)
+        assertReadableKotlin(uniqueQueryContent)
+        assertReadableKotlin(uniqueValidatorContent)
+        assertTrue(projectionContent.contains("status: VideoPostStatus"))
+        assertTrue(projectionContent.contains("var status: VideoPostStatus = status"))
+        assertTrue(schemaContent.contains("val status: Field<VideoPostStatus>"))
+        assertTrue(uniqueQueryContent.contains("val status: VideoPostStatus,"))
+        assertTrue(uniqueQueryContent.contains("val excludeVideoPostId: VideoPostId?"))
+        assertTrue(uniqueValidatorContent.contains("as? VideoPostStatus"))
+        assertTrue(uniqueValidatorContent.contains("as? VideoPostId"))
+        assertFalse(projectionContent.contains("status: com.acme.demo"))
+        assertFalse(schemaContent.contains("Field<com.acme.demo"))
+        assertFalse(uniqueQueryContent.contains(": com.acme.demo"))
+        assertFalse(uniqueValidatorContent.contains("as? com.acme.demo"))
     }
 
     @Test

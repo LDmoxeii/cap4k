@@ -162,7 +162,7 @@ class {{ typeName }}(
      * {{ field.comment }}
      */
 {%- endif %}
-    val {{ field.fieldName }}: Field<{{ type(field.fieldType) }}> by lazy {
+    val {{ field.fieldName }}: Field<{{ type(field) | raw }}> by lazy {
         Field(root.get("{{ field.fieldName }}"), criteriaBuilder)
     }
 

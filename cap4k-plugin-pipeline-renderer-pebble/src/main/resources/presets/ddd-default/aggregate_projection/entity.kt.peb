@@ -24,7 +24,7 @@ import {{ import }}
 {% endif -%}
 class {{ typeName }}(
 {% for field in scalarFields -%}
-{{ "    " }}{{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
+{{ "    " }}{{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
 {% endfor -%}
 ) {
 {% for field in scalarFields %}
@@ -40,7 +40,7 @@ class {{ typeName }}(
     @Convert(converter = {{ field.converterClassRef }}::class)
 {% endif %}
 {% endif %}
-    var {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %} = {{ field.name }}
+    var {{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %} = {{ field.name }}
         internal set
 
 {% endfor -%}

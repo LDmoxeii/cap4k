@@ -13,6 +13,8 @@ import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
+import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
+import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -172,6 +174,75 @@ class AggregateProjectionArtifactPlannerTest {
         val item = AggregateProjectionArtifactPlanner().plan(projectionConfig(), model).single()
 
         assertEquals(listOf("java.util.UUID"), item.context["imports"])
+    }
+
+    @Test
+    fun `includes rendered scalar imports for strong ids and qualified projection fields`() {
+        val entity = EntityModel(
+            name = "MediaProcessingTask",
+            packageName = "com.acme.demo.domain.aggregates.media_processing_task",
+            tableName = "media_processing_task",
+            comment = "Media processing task",
+            fields = listOf(
+                FieldModel("id", "Long"),
+                FieldModel("contentId", "ContentId"),
+                FieldModel(
+                    "processingStatus",
+                    "com.acme.demo.domain.aggregates.media_processing_task.enums.MediaProcessingStatus",
+                ),
+                FieldModel("dbUpdatedAt", "java.time.LocalDateTime"),
+            ),
+            idField = FieldModel("id", "Long"),
+        )
+        val model = CanonicalModel(
+            entities = listOf(entity),
+            aggregateEntityJpa = listOf(
+                AggregateEntityJpaModel(
+                    entityName = entity.name,
+                    entityPackageName = entity.packageName,
+                    entityEnabled = true,
+                    tableName = entity.tableName,
+                    columns = listOf(
+                        AggregateColumnJpaModel("id", "id", isId = true),
+                        AggregateColumnJpaModel("contentId", "content_id", isId = false),
+                        AggregateColumnJpaModel("processingStatus", "processing_status", isId = false),
+                        AggregateColumnJpaModel("dbUpdatedAt", "db_updated_at", isId = false),
+                    ),
+                )
+            ),
+            strongIds = listOf(
+                StrongIdModel(
+                    typeName = "ContentId",
+                    packageName = "com.acme.demo.domain.aggregates.content",
+                    kind = StrongIdKind.AGGREGATE_ROOT,
+                    ownerAggregateName = "Content",
+                    ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
+                )
+            ),
+        )
+
+        val item = AggregateProjectionArtifactPlanner().plan(projectionConfig(), model).single()
+
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = item.context["scalarFields"] as List<Map<String, Any?>>
+        assertEquals(
+            listOf(
+                "com.acme.demo.domain.aggregates.content.ContentId",
+                "com.acme.demo.domain.aggregates.media_processing_task.enums.MediaProcessingStatus",
+                "java.time.LocalDateTime",
+            ),
+            item.context["imports"],
+        )
+        assertEquals("ContentId", scalarFields.single { it["name"] == "contentId" }["renderedType"])
+        assertEquals(
+            listOf("com.acme.demo.domain.aggregates.content.ContentId"),
+            scalarFields.single { it["name"] == "contentId" }["typeImports"],
+        )
+        assertEquals(
+            "MediaProcessingStatus",
+            scalarFields.single { it["name"] == "processingStatus" }["renderedType"],
+        )
+        assertEquals("LocalDateTime", scalarFields.single { it["name"] == "dbUpdatedAt" }["renderedType"])
     }
 
     private fun projectionConfig(): ProjectConfig =

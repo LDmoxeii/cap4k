@@ -36,6 +36,7 @@ class AggregateProjectionArtifactPlanner : GeneratorProvider {
                 }
                 val control = controlsByField[field.name]
                 val fieldType = enumPlanning.resolveFieldType(entity.packageName, field)
+                val renderedType = aggregateRenderedTypeWithModelImports(model, fieldType)
                 val isVersionField = when {
                     resolvedPolicy?.version?.enabled == true -> resolvedPolicy.version.fieldName == field.name
                     else -> control?.version == true
@@ -45,6 +46,8 @@ class AggregateProjectionArtifactPlanner : GeneratorProvider {
                     "fieldType" to fieldType,
                     "name" to field.name,
                     "type" to fieldType,
+                    "renderedType" to renderedType.renderedType,
+                    "typeImports" to renderedType.imports,
                     "nullable" to field.nullable,
                     "defaultValue" to null,
                     "typeBinding" to field.typeBinding,
@@ -59,10 +62,9 @@ class AggregateProjectionArtifactPlanner : GeneratorProvider {
                 )
             }
             val scalarImports = scalarFields
-                .mapNotNull { field -> field["type"] as? String }
-                .map { it.removeSuffix("?") }
-                .filter { it == "UUID" }
-                .map { "java.util.UUID" }
+                .flatMap { field ->
+                    (field["typeImports"] as? List<*>)?.filterIsInstance<String>().orEmpty()
+                }
             val packageName = projectionPackageName(config, entity.packageName)
             val typeName = "${entity.name}Projection"
 
