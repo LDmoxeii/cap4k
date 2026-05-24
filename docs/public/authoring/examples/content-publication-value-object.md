@@ -16,14 +16,14 @@
 - `ContentTitle`：内容创建、编辑、送审前检查时都会反复出现，同一个标题值需要统一校验、归一化和比较。
 - `MediaProcessingResultSnapshot`：callback 主路径和 polling 备用路径都会拿回“处理结果”这组事实，内部需要把它们收敛成同一种值表达，再交给 `MediaProcessingTask` 理解。
 
-## Why default path is not enough
+## Why this concept fits
 
-默认路径会先鼓励作者用最轻的表达：单一标量先裸用 primitive，固定状态先用 enum，只有当值语义已经开始独立成形时才升级成 Value Object。这个默认建议本身没有错，但在当前参考项目里，以下两类值继续停留在默认路径就不够了：
+默认路径会先鼓励作者用最轻的表达：单一标量先裸用 primitive，固定状态先用 enum，只有当值语义已经开始独立成形时才选择 Value Object。这个默认建议本身没有错，但在当前参考项目里，以下两类值已经需要更明确的值语义：
 
 - `ContentTitle` 如果继续只是一个裸 `String`，创建草稿、更新标题、送审校验时就容易各自复制不同的长度规则、空白裁剪规则、显示值规则。这样 `CreateContentDraftCmd` 和后续命令看到的“标题合法”并不是同一种定义。
 - `MediaProcessingResultSnapshot` 如果继续拆成几段零散字段，callback adapter 和 polling job 很容易分别拼出不同的内部结构。最后同样是“处理成功并产出结果”，`MediaProcessingTask` 却会因为入口不同而接收到不同形状的内部事实。
 
-也就是说，默认路径不够，不是因为“值对象更高级”，而是因为这里已经出现了跨命令、跨入口、跨适配器的统一值语义需求。没有这层收拢，`Content` 和 `MediaProcessingTask` 周围会不断长出重复校验和重复解释。
+也就是说，选择 Value Object 的原因不是形式感，而是这里已经出现了跨命令、跨入口、跨适配器的统一值语义需求。没有这层收拢，`Content` 和 `MediaProcessingTask` 周围会不断长出重复校验和重复解释。
 
 ## Recommended shape
 
@@ -69,7 +69,7 @@ Value Object 在这里的使用边界很明确：
 - 它也不由 `JSON`、嵌入列或 DTO 字段形状来定义。持久化和传输可以变化，但值语义边界应保持稳定。
 - JSON-backed 值对象的 class、converter、构造与校验当前都应由作者维护；生成器消费的是字段类型绑定，不是完整生成值对象本体。
 
-如果作者无法说明“这个对象除了防混淆或存储方便之外，还统一了什么业务值解释”，那它大概率还不该在本项目里升成 Value Object。
+如果作者无法说明“这个对象除了防混淆或存储方便之外，还统一了什么业务值解释”，那它大概率还不该在本项目里建模为 Value Object。
 
 ## Audit cues
 

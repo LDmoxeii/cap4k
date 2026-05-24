@@ -1,6 +1,6 @@
-# Advanced Mode Gates
+# Concept Selection Gates
 
-- Use advanced concepts only after the default aggregate, command, event, and query path is insufficient.
+- Use Value Object, Domain Service, Saga, Read-only Weak Reference, or Strong ID when the concept matches the domain problem; do not introduce a concept just because the framework can name it.
 - Domain Service is for domain decisions that do not naturally belong to one aggregate or value object.
 - Saga is for persisted long-running coordination, retry, recovery, or compensation when the current runtime contract is sufficient.
 - Do not treat Saga as a default waiting-style or callback-step resume workflow engine.

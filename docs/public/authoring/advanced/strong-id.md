@@ -12,9 +12,9 @@
 
 ## 默认生成路径
 
-Strong ID 1.0 的生成默认路径已经把聚合根 ID 生成为 Strong ID 类型。`Content` 这类聚合根的主键不是继续作为裸 `UUID` 或 `Long` 暴露给作者，而是进入 `ContentId` 这样的类型边界；同一上下文内引用另一个聚合时，也应落到目标聚合的 ID 类型上。
+当前生成默认路径已经把聚合根 ID 生成为 Strong ID 类型。`Content` 这类聚合根的主键不是继续作为裸 `UUID` 或 `Long` 暴露给作者，而是进入 `ContentId` 这样的类型边界；同一上下文内引用另一个聚合时，也应落到目标聚合的 ID 类型上。
 
-这不表示所有值都应该升级成 ID wrapper，也不表示 Strong ID 变成 DDD 核心 building block。默认命令边界、聚合边界和命名规则仍然是主规则；Strong ID 只是让生成出的身份边界更早被类型系统拦住。
+这不表示所有值都应该做成 ID wrapper，也不表示 Strong ID 变成 DDD 核心 building block。默认命令边界、聚合边界和命名规则仍然是主规则；Strong ID 只是让生成出的身份边界更早被类型系统拦住。
 
 ## 推荐形态
 

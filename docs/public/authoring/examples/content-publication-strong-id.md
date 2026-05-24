@@ -35,7 +35,7 @@ class Content(
 
 ## Recommended shape
 
-- `content.id` 是聚合根 ID，Strong ID 1.0 默认生成 `ContentId`。
+- `content.id` 是聚合根 ID，当前生成默认路径会生成 `ContentId`。
 - `content.author_id` 用 `@RefId=AuthorId`，表示内容上下文里的作者身份。即使外部账号上下文把同一个人叫 user，`Content` 内也不要直接建模跨上下文的 `UserId`。
 - `content.media_processing_task_id` 用 `@RefAggregate=MediaProcessingTask`，表示同一上下文内对 `MediaProcessingTask` 聚合根的引用，因此字段类型跟随 `MediaProcessingTaskId`。
 - 新聚合根进入 `Mediator.uow.save()` 之前已经带有自己的 Strong ID。不要把 ID 生成推迟到 UoW 保存时、持久化监听器或反射补值路径。

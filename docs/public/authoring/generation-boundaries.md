@@ -34,7 +34,7 @@
 | repository-side generated artifacts | 条件性计划产物 | `adapter.domain.repositories/*Repository.kt`、`*JpaRepositoryAdapter.kt` 一类当前可能由 generator 写出或持续接管；是否可直接编辑要以 `plan.json` 为准 |
 | 应用层流程编排 | 手写主面 | 项目特有的送审、媒体处理推进、发布编排不能期待生成器自动替你完成 |
 | 外部系统协议转换 | 手写主面 | `TriggerMediaProcessingCli`、`GetMediaProcessingStatusCli`、回调 payload、轮询结果转换都属于适配器责任 |
-| 模板覆盖 | `Advanced` | 允许，但会引入升级漂移与额外审计成本，只在默认模板确实不够时进入 |
+| 模板覆盖 | 显式选择 | 允许，但会引入升级漂移与额外审计成本，只在默认模板确实不能表达目标产物时进入 |
 
 ## 如何识别生成主面与手写主面
 

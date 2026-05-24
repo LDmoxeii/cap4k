@@ -73,7 +73,7 @@ scheduled polling job
 - job 除了同步媒体状态，还顺手检查 `Content` 是否可发布并直接发布，把备用入口写成万能编排器。
 - job 每次轮询都把第三方状态码和 payload 继续往里传，直到 `MediaProcessingTask` 也开始识别外部协议。
 
-这些错法会让 polling 从“兼容入口”升级成“主流程控制器”，这是默认路径明确要避免的。
+这些错法会让 polling 从“兼容入口”变成“主流程控制器”，这是默认路径明确要避免的。
 
 ## Audit cues
 

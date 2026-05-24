@@ -10,11 +10,11 @@
 
 具体语境见 [示例总览](../examples/index.md)：只读弱引用讨论仍然围绕 `Content` 与 `MediaProcessingTask` 的关系展开，不另起样例。
 
-## 为什么默认路径不够
+## 适用边界
 
 [Default Happy Path](../default-happy-path.md) 默认禁止跨聚合写模型强引用，因为 `Content` 和 `MediaProcessingTask` 仍然是两个不同聚合根。默认做法通常是：写模型里只保留 ID，导航交给查询投影或读模型。
 
-只有当“只靠 ID 不够表达关系，但又不能引入可写强引用”时，只读弱引用才有意义。它解决的是统一类型表达和导航 surface，不是让 repository 突然开始管理跨聚合对象图。
+只有当“只靠 ID 不能清楚表达关系，但又不能引入可写强引用”时，只读弱引用才有意义。它解决的是统一类型表达和导航 surface，不是让 repository 突然开始管理跨聚合对象图。
 
 ## 推荐形态
 

@@ -16,7 +16,7 @@
 
 这个场景的重点不是证明当前默认链路已经需要 Saga。恰好相反，当前默认发布 / 媒体处理链路本身仍然不需要 Saga；Saga 只在这个受控扩展里，用来承接“媒体已完成之后，仍有额外 persisted coordination、恢复和补偿要求”的后半段协调。
 
-## Why default path is not enough
+## Why Saga fits this slice
 
 默认路径擅长的是：事实一旦到齐，就把内部命令链清楚推进下去。对当前参考项目来说，这已经足够，所以默认路径仍然不需要 Saga。
 
@@ -36,7 +36,7 @@
 
 - `Content` 继续只负责内容生命周期事实。
 - `MediaProcessingTask` 继续只负责媒体处理生命周期事实。
-- callback 仍然是媒体结果进入系统的主路径；polling 仍然只是 fallback，用来补同一条内部命令语义，不提升成主真相路径。
+- callback 仍然是媒体结果进入系统的主路径；polling 仍然只是 fallback，用来补同一条内部命令语义，不变成主真相路径。
 - Saga 只负责把“哪些前向步骤需要补偿、何时显式进入补偿、补偿失败后如何恢复或转人工”持久化下来。
 
 一个更贴近当前参考项目和 runtime 的示例代码，可以写成：
@@ -125,7 +125,7 @@ object PaidPublicationSaga {
 
 ## Non-example / misuse
 
-- 媒体平台 callback 一回来，马上转一条内部命令就能完成后续推进，却为了形式感把这段短 callback-to-command 链升级成 Saga。
+- 媒体平台 callback 一回来，马上转一条内部命令就能完成后续推进，却为了形式感把这段短 callback-to-command 链包装成 Saga。
 - 把 Saga 写成一个 application 超级 handler，审核、媒体处理、发布判断、人工确认、补偿全塞进一个大类里。
 - 明明 callback 已经是主路径，却让 polling 变成真正的发布真相源，再把 callback 降成可有可无的旁路。
 - 还没出现跨时间等待，只是想把“以后可能会复杂”的担心预埋进去，就提前把默认链路整体包装成 Saga。
