@@ -11,7 +11,7 @@ class CompileSmoke {
         externalTaskId = "task-1",
         completedAt = LocalDateTime.MIN,
         file = MediaProcessingCallbackIntegrationEvent.FileInfo(
-            fileId = UUID(0L, 0L),
+            fileId = UUID.fromString("01890f7e-9b2a-7cc2-9f4a-1f6c4c7a0001"),
             variants = emptyList(),
         ),
     )

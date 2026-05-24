@@ -49,6 +49,7 @@ dependencies {
     testImplementation(libs.validation)
     testImplementation(libs.spring.configuration.processor)
     testImplementation(libs.spring.context)
+    testImplementation(libs.jackson.module.kotlin)
 
     testImplementation(project(":ddd-core"))
     testImplementation(project(":ddd-distributed-snowflake"))

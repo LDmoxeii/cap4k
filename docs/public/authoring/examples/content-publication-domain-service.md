@@ -1,5 +1,10 @@
 # 内容发布示例：Domain Service
 
+相关示例：
+
+- [示例总览](index.md)
+- [内容发布与处理示例项目总览](reference-project-overview.md)
+
 ## Scenario
 
 在共享的 `content-publication / media-processing` 参考项目里，`PublishContentCmd` 不是“收到命令就立刻发布”的简单动作。进入发布判断前，系统通常已经经历过两条外部收敛路径：
@@ -13,7 +18,7 @@
 
 这就是一个适合 Domain Service 的正例：判断明显属于领域，但又不自然只挂在 `Content` 或 `MediaProcessingTask` 任一侧。
 
-## Why default path is not enough
+## Why Domain Service fits
 
 默认路径优先要求行为落在聚合自身，因为真正改状态的动作仍然应该由聚合行为表达。例如：
 
@@ -74,7 +79,7 @@ const eligibility = publicationEligibility.evaluate(content, mediaProcessingTask
 
 ## Usage boundary
 
-使用边界可以压成一句话：当 `Content` 与 `MediaProcessingTask` 的相关事实都已经在当前时刻可用时，可以用 Domain Service 做发布资格判断；当问题变成“等待未来事实出现后再继续”，就应该升级为 Saga。
+使用边界可以压成一句话：当 `Content` 与 `MediaProcessingTask` 的相关事实都已经在当前时刻可用时，可以用 Domain Service 做发布资格判断；当问题变成“等待未来事实出现后再继续”，就应该选择 Saga。
 
 因此，`PublishContentCmd` 所对应的领域判断边界应该是：
 

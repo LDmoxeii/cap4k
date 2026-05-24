@@ -23,6 +23,7 @@ class DesignValidatorArtifactPlanner : GeneratorProvider {
                 context = DesignValidatorRenderModelFactory.create(
                     packageName = packageName,
                     validator = validator,
+                    typeRegistry = config.designTypeRegistryFqns(model),
                 ).toContextMap(),
                 conflictPolicy = config.templates.conflictPolicy,
             )

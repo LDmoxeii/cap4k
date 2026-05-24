@@ -36,6 +36,8 @@ import com.only4.cap4k.plugin.pipeline.api.QueryModel
 import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SourceSnapshot
+import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
+import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import com.only4.cap4k.plugin.pipeline.api.UnsupportedAggregateTable
 import com.only4.cap4k.plugin.pipeline.api.UnsupportedTablePolicy
 import com.only4.cap4k.plugin.pipeline.api.ValidatorModel
@@ -213,6 +215,13 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             outOfScopeTableNames = outOfScopeTableNames,
         )
 
+        val aggregateRootIdTypesByName = supportedTables
+            .mapNotNull { table ->
+                generatedAggregateRootStrongIdType(table)
+                    ?.let { idType -> AggregateNaming.entityName(table.tableName) to idType }
+            }
+            .toMap()
+
         val aggregateModels = supportedTables.map { table ->
 
             val entityName = AggregateNaming.entityName(table.tableName)
@@ -221,10 +230,20 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             val aggregateOwnerTable = resolveAggregateOwnerTable(table, supportedTablesByName)
             val segment = AggregateNaming.tableSegment(aggregateOwnerTable.tableName)
             val parentTable = table.parentTable
+            val generatedRootIdType = generatedAggregateRootStrongIdType(table)
             val fields = table.columns.map {
+                val fieldName = lowerCamelIdentifier(it.name)
+                val resolvedType = resolveStrongIdFieldType(
+                    column = it,
+                    aggregateRootIdTypesByName = aggregateRootIdTypesByName,
+                ) ?: if (isTablePrimaryKeyColumn(table, it) && generatedRootIdType != null) {
+                    generatedRootIdType
+                } else {
+                    it.kotlinType
+                }
                 FieldModel(
-                    name = lowerCamelIdentifier(it.name),
-                    type = it.kotlinType,
+                    name = fieldName,
+                    type = resolvedType,
                     nullable = it.nullable,
                     defaultValue = it.defaultValue,
                     typeBinding = it.typeBinding,
@@ -274,6 +293,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             )
         }
         val entities = aggregateModels.map { it.second }
+        val strongIds = buildStrongIds(
+            config = config,
+            entities = entities,
+            tables = supportedTables,
+        )
         val aggregateEntityMetadata = entities
             .filter { it.aggregateRoot }
             .associateBy(
@@ -410,9 +434,94 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 aggregateIdPolicyControls = aggregateIdPolicyControls,
                 aggregateSpecialFieldResolvedPolicies = specialFieldResolution.resolvedPolicies,
                 integrationEvents = integrationEvents,
+                strongIds = strongIds,
             ),
             diagnostics = diagnostics,
         )
+    }
+
+    private fun resolveStrongIdFieldType(
+        column: com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot,
+        aggregateRootIdTypesByName: Map<String, String>,
+    ): String? {
+        val refAggregate = column.refAggregate?.takeIf { it.isNotBlank() }
+        val refId = column.refId?.takeIf { it.isNotBlank() }
+        require(!(refAggregate != null && refId != null)) {
+            "conflicting @RefAggregate and @RefId annotations on the same column metadata."
+        }
+        if (refAggregate != null) {
+            return requireNotNull(aggregateRootIdTypesByName[refAggregate]) {
+                "@RefAggregate=$refAggregate does not match a generated aggregate root"
+            }
+        }
+
+        return refId
+    }
+
+    private fun generatedAggregateRootStrongIdType(table: DbTableSnapshot): String? {
+        if (!table.aggregateRoot) {
+            return null
+        }
+
+        val primaryKeyColumn = table.primaryKey.singleOrNull() ?: return null
+        val idColumn = table.columns.firstOrNull { it.name.equals(primaryKeyColumn, ignoreCase = true) }
+            ?: return null
+        if (idColumn.generatedValueDeclared || idColumn.generatedValueStrategy != null) {
+            return null
+        }
+        if (!idColumn.refAggregate.isNullOrBlank() || !idColumn.refId.isNullOrBlank()) {
+            return null
+        }
+
+        return aggregateRootStrongIdTypeName(AggregateNaming.entityName(table.tableName))
+    }
+
+    private fun isTablePrimaryKeyColumn(
+        table: DbTableSnapshot,
+        column: com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot,
+    ): Boolean = table.primaryKey.any { it.equals(column.name, ignoreCase = true) }
+
+    private fun aggregateRootStrongIdTypeName(entityName: String): String = "${entityName}Id"
+
+    private fun buildStrongIds(
+        config: ProjectConfig,
+        entities: List<EntityModel>,
+        tables: List<DbTableSnapshot>,
+    ): List<StrongIdModel> {
+        val aggregateRootStrongIds = entities
+            .asSequence()
+            .filter { it.aggregateRoot && it.idField.type == aggregateRootStrongIdTypeName(it.name) }
+            .map { entity ->
+                StrongIdModel(
+                    typeName = entity.idField.type,
+                    packageName = entity.packageName,
+                    kind = StrongIdKind.AGGREGATE_ROOT,
+                    ownerAggregateName = entity.name,
+                    ownerAggregatePackageName = entity.packageName,
+                )
+            }
+
+        val referenceStrongIds = tables
+            .asSequence()
+            .flatMap { it.columns.asSequence() }
+            .onEach { column ->
+                require(!(column.refAggregate?.isNotBlank() == true && column.refId?.isNotBlank() == true)) {
+                    "conflicting @RefAggregate and @RefId annotations on the same column metadata."
+                }
+            }
+            .mapNotNull { it.refId?.takeIf(String::isNotBlank) }
+            .distinct()
+            .map { refId ->
+                StrongIdModel(
+                    typeName = refId,
+                    packageName = ArtifactLayoutResolver.joinPackage(config.basePackage, "domain.shared.ids"),
+                    kind = StrongIdKind.REFERENCE,
+                )
+            }
+
+        return (aggregateRootStrongIds + referenceStrongIds)
+            .distinctBy { it.packageName to it.typeName }
+            .toList()
     }
 
     private fun resolveAggregateOwnerTable(

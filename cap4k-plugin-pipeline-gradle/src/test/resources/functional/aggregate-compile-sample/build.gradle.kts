@@ -21,7 +21,7 @@ cap4k {
             username.set("sa")
             password.set("secret")
             schema.set("PUBLIC")
-            includeTables.set(listOf("video_post"))
+            includeTables.set(listOf("video_post", "content", "media_processing_task"))
             excludeTables.set(emptyList())
         }
     }
@@ -29,7 +29,7 @@ cap4k {
         aggregate {
             enabled.set(true)
             specialFields {
-                idDefaultStrategy.set("snowflake-long")
+                idDefaultStrategy.set("identity")
             }
             artifacts {
                 factory.set(true)

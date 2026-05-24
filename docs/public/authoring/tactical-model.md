@@ -2,6 +2,8 @@
 
 本页说明业务项目作者如何理解 cap4k 的分层责任和运行时战术对象。它描述默认使用方式，不要求作者理解框架内部实现。
 
+本页的概念都以 [示例总览](examples/index.md) 的内容发布与媒体处理项目作为共同落点：`Content`、`MediaProcessingTask`、`TriggerMediaProcessingCli`、领域事件订阅器、inbound / outbound integration event 都应按同一套参考链路理解。
+
 ## 分层责任
 
 | 层 / 模块 | 默认责任 | 常见内容 |

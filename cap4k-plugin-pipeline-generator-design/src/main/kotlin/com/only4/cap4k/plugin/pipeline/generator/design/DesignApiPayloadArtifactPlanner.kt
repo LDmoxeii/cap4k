@@ -23,7 +23,7 @@ class DesignApiPayloadArtifactPlanner : GeneratorProvider {
                 context = DesignPayloadRenderModelFactory.createForApiPayload(
                     packageName = packageName,
                     payload = payload,
-                    typeRegistry = config.typeRegistryFqns(),
+                    typeRegistry = config.designTypeRegistryFqns(model),
                 ).toContextMap(),
                 conflictPolicy = config.templates.conflictPolicy,
             )

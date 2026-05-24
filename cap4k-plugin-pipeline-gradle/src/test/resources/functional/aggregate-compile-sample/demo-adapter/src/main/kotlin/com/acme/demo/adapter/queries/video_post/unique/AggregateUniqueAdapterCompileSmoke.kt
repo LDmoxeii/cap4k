@@ -2,6 +2,7 @@ package com.acme.demo.adapter.queries.video_post.unique
 
 import com.acme.demo.adapter.domain.repositories.VideoPostRepository
 import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry
+import com.acme.demo.domain.aggregates.video_post.VideoPostId
 import java.lang.reflect.Proxy
 
 @Suppress("unused")
@@ -11,7 +12,7 @@ internal object AggregateUniqueAdapterCompileSmoke {
     ): UniqueVideoPostSlugQry.Response {
         val request = UniqueVideoPostSlugQry.Request(
             slug = "demo",
-            excludeVideoPostId = 1L,
+            excludeVideoPostId = VideoPostId.new(),
         )
         return handler.exec(request)
     }

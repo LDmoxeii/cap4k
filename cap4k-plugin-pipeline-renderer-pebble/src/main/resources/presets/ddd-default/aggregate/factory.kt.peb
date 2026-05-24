@@ -18,9 +18,19 @@ import {{ import }}
 )
 class {{ typeName }} : AggregateFactory<{{ typeName }}.{{ payloadTypeName }}, {{ entityName }}> {
 
-    override fun create(payload: {{ payloadTypeName }}): {{ entityName }} {
-        TODO("Implement aggregate construction")
-    }
+    override fun create(entityPayload: {{ payloadTypeName }}): {{ entityName }} =
+{% if constructorMappingResolved -%}
+{{ "        " }}{{ entityName }}(
+{% if ownIdInitializer is not null -%}
+{{ "            " }}{{ ownIdFieldName }} = {{ ownIdInitializer }}{% if constructorPayloadFields|length > 0 %},{% endif %}
+{% endif -%}
+{% for field in constructorPayloadFields -%}
+{{ "            " }}{{ field.name }} = entityPayload.{{ field.name }}{% if not loop.last %},{% endif %}
+{% endfor -%}
+{{ "        " }})
+{% else -%}
+{{ "        " }}TODO("Implement aggregate construction")
+{% endif %}
 
     @Aggregate(
         aggregate = "{{ aggregateName }}",
@@ -28,16 +38,16 @@ class {{ typeName }} : AggregateFactory<{{ typeName }}.{{ payloadTypeName }}, {{
         type = Aggregate.TYPE_FACTORY_PAYLOAD,
         description = ""
     )
-{% if payloadWriteSurfaceResolved and payloadFields|length == 0 %}
-    class {{ payloadTypeName }} : AggregatePayload<{{ entityName }}>
-{% elseif payloadWriteSurfaceResolved %}
-    data class {{ payloadTypeName }}(
-{% for field in payloadFields %}
-        val {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
-{% endfor %}
-    ) : AggregatePayload<{{ entityName }}>
-{% else %}
-    data class {{ payloadTypeName }}(
+{% if payloadWriteSurfaceResolved and payloadFields|length == 0 -%}
+{{ "    " }}class {{ payloadTypeName }} : AggregatePayload<{{ entityName }}>
+{% elseif payloadWriteSurfaceResolved -%}
+{{ "    " }}data class {{ payloadTypeName }}(
+{% for field in payloadFields -%}
+{{ "        " }}val {{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
+{% endfor -%}
+{{ "    " }}) : AggregatePayload<{{ entityName }}>
+{% else -%}
+{{ "    " }}data class {{ payloadTypeName }}(
         val name: String
     ) : AggregatePayload<{{ entityName }}>
 {% endif %}

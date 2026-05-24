@@ -5,7 +5,7 @@
 - 当你已经接受 Default Happy Path，需要把规则落成目录、文件名和角色归位时，读本页。
 - 如果还没有先确认默认规则，请先回到 [Default Happy Path](default-happy-path.md)。
 
-本页给 Default Happy Path 提供可执行的落地约束。以下示例继续使用“内容发布与处理示例项目”，因此目录和命名会围绕 `Content`、`MediaProcessingTask`、`MediaProcessingCli` 展开。
+本页给 Default Happy Path 提供可执行的落地约束。以下示例继续使用“内容发布与处理示例项目”，因此目录和命名会围绕 `Content`、`MediaProcessingTask`、`TriggerMediaProcessingCli`、`GetMediaProcessingStatusCli` 展开。
 
 ## 推荐目录结构
 
@@ -64,5 +64,5 @@
 - 名称是否能直接反推出角色，而不是读完实现才知道用途
 - 目录是否和责任一致，而不是“看起来差不多”就放在附近
 - 同一个概念在不同层是否保持同一词汇，不出现命名漂移
-- `Content`、`MediaProcessingTask`、`MediaProcessingCli` 这些主对象是否一眼就能看出各自属于哪一层
+- `Content`、`MediaProcessingTask`、`TriggerMediaProcessingCli`、`GetMediaProcessingStatusCli` 这些主对象是否一眼就能看出各自属于哪一层
 - `*QryHandler.kt`、`*CliHandler.kt`、`*Repository.kt` 这类当前 family 的命名与目录，是否和 `application` / `adapter` 指南里的现实落点一致，而不是继续沿用旧的 `*QueryHandler` 或错误目录想象

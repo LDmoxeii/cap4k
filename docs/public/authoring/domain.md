@@ -34,7 +34,7 @@
 ## 这一层不能写什么
 
 - 开放服务入口、外部事实入口、内部触发入口的推进代码，包括 callback 主路径与 polling 备用路径的入口调度。
-- `MediaProcessingCli`、第三方媒体服务 DTO、回调 payload、轮询结果等外部协议转换逻辑。
+- `TriggerMediaProcessingCli`、`GetMediaProcessingStatusCli`、第三方媒体服务 DTO、回调 payload、轮询结果等外部协议转换逻辑。
 - outbound integration event 的事件名、订阅方身份、传输协议或跨服务 payload 组装。聚合只登记领域事实，后续可由领域事件订阅器或 application process 根据该事实 attach 对外集成事件。
 - inbound integration event 的接收与翻译。外部事实进入系统后应先转成内部 command，不要伪装成领域事件塞进聚合。
 - `GetContentDetailQry`、`GetMediaProcessingProgressQry` 这类查询投影、列表组装、详情组装逻辑。
@@ -107,8 +107,8 @@
 
 ## 对应示例
 
-- [内容发布与处理示例项目总览](examples/reference-project-overview.md)：先确认统一教学项目里 `Content`、`MediaProcessingTask`、`MediaProcessingCli`、callback 主路径、polling 备用路径各自代表什么。
-- [内容草稿到发布主链路](examples/content-draft-to-publish.md)：看 `CreateContentDraftCmd`、`SubmitContentForReviewCmd`、`ApproveContentCmd`、`PublishContentCmd` 背后哪些状态迁移属于 `Content` 的领域真相。
+- [内容发布与处理示例项目总览](examples/reference-project-overview.md)：先确认统一教学项目里 `Content`、`MediaProcessingTask`、`TriggerMediaProcessingCli`、callback 主路径、polling 备用路径各自代表什么。
+- [内容草稿到发布主链路](examples/content-draft-to-publish.md)：看 `CreateContentDraftCmd`、`SubmitContentForReviewCmd`、`ApproveContentReviewCmd`、`PublishContentCmd` 背后哪些状态迁移属于 `Content` 的领域真相。
 - [媒体处理 callback 主路径](examples/media-processing-callback.md)：看 callback 回来以后，哪些事实最终应该由 `MediaProcessingTask` 统一吸收。
 - [媒体处理 polling 备用路径](examples/media-processing-polling.md)：看为什么 polling 进入领域层后也只能变成同一套内部业务语义，而不是另一套聚合规则。
 

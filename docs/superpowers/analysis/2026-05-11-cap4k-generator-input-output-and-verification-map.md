@@ -36,11 +36,14 @@ Column comment annotations:
 
 | Annotation | Meaning |
 |---|---|
+| `@Id` | Aggregate-root or entity ID column; aggregate-root IDs default to generated Strong ID types |
 | `@Type=<TypeName>` / `@T=<TypeName>` | Bind DB column to named domain type/enum; explicit type names are meaningful, blank or marker-only forms are ignored |
 | `@Enum=<...>` / `@E=0:NAME:Desc|...` | Inline enum items; explicit enum payload requires `@T`, blank or marker-only forms are ignored |
-| `@GeneratedValue` | Marker form for default ID generation |
-| `@GeneratedValue=uuid7` | UUID7 strategy |
-| `@GeneratedValue=snowflake-long` | Snowflake long strategy |
+| `@RefId=<TypeName>` | Current-context reference identity for an external concept mapped into local language |
+| `@RefAggregate=<AggregateName>` | Same-context aggregate reference; resolves to the referenced aggregate ID type |
+| `@GeneratedValue` | Legacy compatibility marker for explicit provider/database generation semantics; not the Strong ID 1.0 default path |
+| `@GeneratedValue=uuid7` | Legacy UUID7 strategy; not the Strong ID 1.0 default path |
+| `@GeneratedValue=snowflake-long` | Legacy Snowflake long strategy; not the Strong ID 1.0 default path |
 | `@GeneratedValue=identity` | Database identity strategy |
 | `@GeneratedValue=database-identity` | Alias normalized to `identity` |
 | `@Deleted` | Soft delete marker; explicit values are rejected |
@@ -65,7 +68,9 @@ Rules:
 - Many-to-many is unsupported.
 - Legacy `@IdGenerator` and `@SoftDeleteColumn` are rejected.
 - `@Managed` and `@Exposed` are mutually exclusive.
-- `@GeneratedValue` may be marker-only or use `uuid7`, `snowflake-long`, `identity`, or `database-identity`.
+- Aggregate-root ID generation defaults to Strong ID types from ordinary `@Id` columns; do not route authors to primitive default strategies or save-time ID assignment.
+- Use `@RefAggregate=<AggregateName>` for same-context aggregate references and `@RefId=<TypeName>` for current-context identities that map external concepts into local language.
+- `@GeneratedValue` may appear only as legacy compatibility input with marker form or `uuid7`, `snowflake-long`, `identity`, or `database-identity`; those options are not the Strong ID 1.0 default path.
 - Unique constraints are the source for aggregate unique helper generation; names should be stable and meaningful.
 
 ## Design JSON Surface
@@ -254,7 +259,7 @@ Return to `cap4k-generation` / compile / setup when the business facts already e
 
 A business reference project should demonstrate:
 
-- DB annotations for enum, relation, generated ID, version, soft delete, managed fields, and uniqueness when used;
+- DB annotations for enum, relation, Strong ID identity boundaries, version, soft delete, managed fields, and uniqueness when used;
 - design JSON for supported tags such as command/query/client/api_payload/domain_event/integration_event, with handler families appearing as outputs of those supported tags where the corresponding generators are enabled;
 - `cap4kGenerateSources` for build-owned source;
 - optional `aggregateProjection` output when the project wants generated adapter read models;

@@ -17,8 +17,10 @@ internal class UniqueValidatorArtifactPlanner : AggregateArtifactFamilyPlanner {
             val queryPackageName = artifactLayout.aggregateUniqueQueryPackage(packageKey)
             val entityCamel = entity.name.replaceFirstChar { it.lowercase() }
             selections.map { selection ->
+                val requestTypes = listOf(selection.idType) + selection.requestProps.map { it.type }
                 val imports = aggregateTypeImports(selection.idType) +
-                    selection.requestProps.flatMap { field -> aggregateTypeImports(field.type) }
+                    selection.requestProps.flatMap { field -> aggregateTypeImports(field.type) } +
+                    aggregateStrongIdImports(model, requestTypes)
                 val requestProps = selection.requestProps.map { field ->
                     val simpleType = uniqueSimpleType(field.type)
                     mapOf(

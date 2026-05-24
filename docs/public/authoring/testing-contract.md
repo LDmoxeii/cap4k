@@ -4,7 +4,7 @@
 
 - 当你已经按 [Default Happy Path](./default-happy-path.md) 确定 `domain` / `application` 主链路，并准备给项目建立第一版默认测试形态时，读本页。
 - 当你需要把测试、本地运行、analysis 和最终人类审计串成一个交付顺序时，同时阅读 [项目编写工作流](project-authoring-workflow.md#6-测试与本地运行) 与 [analysis 步骤](project-authoring-workflow.md#7-生成-analysis-和流程图)。
-- 如果你还没有先讲清 `Content`、`MediaProcessingTask`、`MediaProcessingCli`、callback 主路径和 polling 备用路径，先回到[参考项目总览](./examples/reference-project-overview.md)以及默认主路径相关页面，包括[内容草稿到发布主链路](./examples/content-draft-to-publish.md)、[媒体处理 callback 主路径](./examples/media-processing-callback.md) 和 [媒体处理 polling 备用路径](./examples/media-processing-polling.md)。
+- 如果你还没有先讲清 `Content`、`MediaProcessingTask`、`TriggerMediaProcessingCli`、callback 主路径和 polling 备用路径，先回到[参考项目总览](./examples/reference-project-overview.md)以及默认主路径相关页面，包括[内容草稿到发布主链路](./examples/content-draft-to-publish.md)、[媒体处理 callback 主路径](./examples/media-processing-callback.md) 和 [媒体处理 polling 备用路径](./examples/media-processing-polling.md)。
 
 ## 这份合同解决什么问题
 
@@ -25,18 +25,18 @@
 
 ## 共享参考锚点
 
-- 统一参考项目仍然是 `Content`、`MediaProcessingTask`、`MediaProcessingCli`、callback 主路径、polling 备用路径。
-- 默认 application 测试交接缝是 `ApproveContentCmd -> StartMediaProcessingCmd`。
+- 统一参考项目仍然是 `Content`、`MediaProcessingTask`、`TriggerMediaProcessingCli`、callback 主路径、polling 备用路径。
+- 默认 application 测试交接缝是 `ApproveContentReviewCmd -> StartMediaProcessingCmd`。
 
 这份测试合同复用的仍然是 `#21` 已经建立的 shared reference project，不额外发明第二套样例宇宙。审阅者如果要核对默认主路径、命令语义和回传入口，应直接回跳到[参考项目总览](./examples/reference-project-overview.md)、[内容草稿到发布主链路](./examples/content-draft-to-publish.md)、[媒体处理 callback 主路径](./examples/media-processing-callback.md) 与 [媒体处理 polling 备用路径](./examples/media-processing-polling.md)，确认这里提到的交接缝和 callback-first、polling-fallback 语义完全一致。
 
 ## 默认测试形态
 
 - `domain` 测试直接暴露规则、状态推进、拒绝条件。
-- `application` 测试直接暴露命令编排、端口调用和 `ApproveContentCmd -> StartMediaProcessingCmd` 交接缝。
+- `application` 测试直接暴露命令编排、端口调用和 `ApproveContentReviewCmd -> StartMediaProcessingCmd` 交接缝。
 - 主断言优先是前置事实、触发动作、业务结果，而不是容器启动。
 
-默认形态的目标是让读者一眼看见业务语义，而不是先被测试基础设施吞掉注意力。`Content` 的测试应当直接说明内容为何能从草稿推进到送审、批准、发布，`MediaProcessingTask` 的测试应当直接说明任务如何进入处理中、成功、失败或重试；application 测试则要把谁发出 `StartMediaProcessingCmd`、谁调用 `MediaProcessingCli` 讲清，而不是把重点放在 runtime wiring 是否能启动起来。
+默认形态的目标是让读者一眼看见业务语义，而不是先被测试基础设施吞掉注意力。`Content` 的测试应当直接说明内容为何能从草稿推进到送审、批准、发布，`MediaProcessingTask` 的测试应当直接说明任务如何进入处理中、成功、失败或重试；application 测试则要把谁发出 `StartMediaProcessingCmd`、谁调用 `TriggerMediaProcessingCli` 讲清，而不是把重点放在 runtime wiring 是否能启动起来。
 
 当示例包含 JSON-backed 值对象，例如 `MediaProcessingResultSnapshot`，默认测试也应保持业务可读：
 
@@ -50,7 +50,7 @@
 - 允许：test data builder、fake port、少量 fixture setup。
 - 不允许：把业务语义折叠成 opaque DSL；把 runtime wiring 偷带进默认测试路径。
 
-helper 的价值只能是减轻样板噪音，不能替代业务叙述。`builder` 应帮助作者更快搭出前置事实，`fake port` 应帮助作者看清 application 对外部边界的调用，fixture setup 也应保持薄且局部；一旦 helper 让测试不再直接显露 `Content`、`MediaProcessingTask`、`ApproveContentCmd` 或 `StartMediaProcessingCmd` 的语义，它就已经越界。
+helper 的价值只能是减轻样板噪音，不能替代业务叙述。`builder` 应帮助作者更快搭出前置事实，`fake port` 应帮助作者看清 application 对外部边界的调用，fixture setup 也应保持薄且局部；一旦 helper 让测试不再直接显露 `Content`、`MediaProcessingTask`、`ApproveContentReviewCmd` 或 `StartMediaProcessingCmd` 的语义，它就已经越界。
 
 ## 非默认但允许存在的测试
 
@@ -63,16 +63,16 @@ helper 的价值只能是减轻样板噪音，不能替代业务叙述。`builde
 ## 与 runnable reference project 的关系
 
 - `#27` 只负责示范这份合同，不重新定义规则。
-- 最少应展示 `Content`、`MediaProcessingTask` 和 `ApproveContentCmd -> StartMediaProcessingCmd` 的 application 样本。
+- 最少应展示 `Content`、`MediaProcessingTask` 和 `ApproveContentReviewCmd -> StartMediaProcessingCmd` 的 application 样本。
 
-runnable reference project 是这份合同的消费者，不是来源。它应该拿 `#21` 已经固定的共享参考项目来演示默认测试如何落地，而不是重新解释 callback、polling、`MediaProcessingCli` 或命令交接缝是什么；如果示例与本页冲突，应先以本页和其回链的默认路径文档为准。
+runnable reference project 是这份合同的消费者，不是来源。它应该拿 `#21` 已经固定的共享参考项目来演示默认测试如何落地，而不是重新解释 callback、polling、`TriggerMediaProcessingCli` 或命令交接缝是什么；如果示例与本页冲突，应先以本页和其回链的默认路径文档为准。
 
 ## 审计线索
 
 - 看测试是否先把前置事实、触发动作、业务结果讲清。
 - 看 `domain` 测试是否依赖重容器。
 - 看 `application` 测试是否掉回 runtime wiring。
-- 看 helper 展开后，测试主体里是否仍能直接看见 `Content`、`MediaProcessingTask`、`ApproveContentCmd`、`StartMediaProcessingCmd`、fake port 调用或业务结果断言；如果看不见，就说明 helper 已经过厚。
+- 看 helper 展开后，测试主体里是否仍能直接看见 `Content`、`MediaProcessingTask`、`ApproveContentReviewCmd`、`StartMediaProcessingCmd`、fake port 调用或业务结果断言；如果看不见，就说明 helper 已经过厚。
 - 看 JSON-backed 值对象测试是否围绕值语义、converter roundtrip 和聚合行为展开，而不是回到 table-backed `@VO` 或单独持久化值对象。
 
-进一步审计时，还应看测试是否继续沿用 `Content`、`MediaProcessingTask`、`MediaProcessingCli`、callback 主路径与 polling 备用路径这些共享锚点；如果一个测试样本需要脱离这组对象才能成立，通常说明它已经不是默认 testing contract 在塑形的范围。
+进一步审计时，还应看测试是否继续沿用 `Content`、`MediaProcessingTask`、`TriggerMediaProcessingCli`、callback 主路径与 polling 备用路径这些共享锚点；如果一个测试样本需要脱离这组对象才能成立，通常说明它已经不是默认 testing contract 在塑形的范围。
