@@ -817,6 +817,7 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(generatedEntity.contains("@Entity"))
         assertTrue(generatedEntity.contains("@Table(name = \"video_post\")"))
         assertTrue(generatedEntity.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
+        assertTrue(generatedEntity.contains("import com.acme.demo.domain.shared.enums.Status"))
         assertTrue(generatedEntity.contains("@EmbeddedId"))
         assertTrue(generatedEntity.contains("var id: VideoPostId = id"))
         assertFalse(generatedEntity.contains("@Id"))
@@ -824,7 +825,7 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(generatedEntity.contains("@Column(name = \"status\")"))
         assertTrue(
             generatedEntity.contains(
-                "@Convert(converter = com.acme.demo.domain.shared.enums.Status.Converter::class)"
+                "@Convert(converter = Status.Converter::class)"
             )
         )
         assertTrue(generatedSharedEnum.contains("class Converter : AttributeConverter<Status, Int>"))

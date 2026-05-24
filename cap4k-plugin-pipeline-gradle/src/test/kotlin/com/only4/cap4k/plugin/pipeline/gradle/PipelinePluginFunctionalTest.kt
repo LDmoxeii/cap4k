@@ -2081,7 +2081,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(generatedEntity.contains("@Column(name = \"status\")"))
         assertTrue(
             generatedEntity.contains(
-                "@Convert(converter = com.acme.demo.domain.shared.enums.Status.Converter::class)"
+                "@Convert(converter = Status.Converter::class)"
             )
         )
         assertTrue(
