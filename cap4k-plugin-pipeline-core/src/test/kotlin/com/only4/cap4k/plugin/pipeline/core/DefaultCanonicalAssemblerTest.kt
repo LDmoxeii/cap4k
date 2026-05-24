@@ -2505,6 +2505,38 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `ref aggregate and ref id cannot share a column in canonical metadata`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+                tables = listOf(
+                    table(
+                        name = "content",
+                        columns = listOf(
+                            column("id", "VARCHAR", "String", false, primaryKey = true),
+                            column(
+                                "task_id",
+                                "VARCHAR",
+                                "String",
+                                false,
+                                refAggregate = "MediaProcessingTask",
+                                refId = "MediaProcessingTaskId",
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    )
+                )
+            )
+        }
+
+        assertEquals(
+            "conflicting @RefAggregate and @RefId annotations on the same column metadata.",
+            error.message,
+        )
+    }
+
+    @Test
     fun `design command can declare generated reference strong id type`() {
         val result = DefaultCanonicalAssembler().assemble(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),

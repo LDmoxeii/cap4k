@@ -211,6 +211,8 @@ class AggregateArtifactPlannerTest {
                     contentId.outputPath,
                 )
                 assertEquals("com.acme.demo.domain.aggregates.content", contentId.context["packageName"])
+                assertEquals(StrongIdKind.AGGREGATE_ROOT.name, contentId.context["kind"])
+                assertEquals(true, contentId.context["canGenerateNew"])
                 assertEquals(ArtifactOutputKind.GENERATED_SOURCE, contentId.outputKind)
                 assertEquals(ConflictPolicy.OVERWRITE, contentId.conflictPolicy)
                 assertEquals("demo-domain/build/generated/cap4k/main/kotlin", contentId.resolvedOutputRoot)
@@ -223,6 +225,8 @@ class AggregateArtifactPlannerTest {
                     authorId.outputPath,
                 )
                 assertEquals("com.acme.demo.domain.shared.ids", authorId.context["packageName"])
+                assertEquals(StrongIdKind.REFERENCE.name, authorId.context["kind"])
+                assertEquals(false, authorId.context["canGenerateNew"])
                 assertEquals(ArtifactOutputKind.GENERATED_SOURCE, authorId.outputKind)
                 assertEquals(ConflictPolicy.OVERWRITE, authorId.conflictPolicy)
                 assertEquals("demo-domain/build/generated/cap4k/main/kotlin", authorId.resolvedOutputRoot)

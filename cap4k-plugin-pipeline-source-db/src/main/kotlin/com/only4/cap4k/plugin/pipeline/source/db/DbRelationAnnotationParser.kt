@@ -66,8 +66,18 @@ internal class DbRelationAnnotationParser {
             blankValueMessage = "blank @RefAggregate value is not allowed.",
             missingValueMessage = "missing value for @RefAggregate annotation.",
         )
+        val refId = resolveAnnotationValue(
+            annotations = annotations,
+            aliases = REF_ID_ALIASES,
+            conflictMessage = "conflicting @RefId annotations on the same column comment.",
+            blankValueMessage = "blank @RefId value is not allowed.",
+            missingValueMessage = "missing value for @RefId annotation.",
+        )
         require(!(refAggregate != null && referenceTable != null)) {
             "conflicting @RefAggregate and @Reference/@Ref annotations on the same column comment."
+        }
+        require(!(refAggregate != null && refId != null)) {
+            "conflicting @RefAggregate and @RefId annotations on the same column comment."
         }
         val explicitRelationType = when (relation) {
             "ONE_TO_ONE", "1:1", "ONETOONE" -> "ONE_TO_ONE"

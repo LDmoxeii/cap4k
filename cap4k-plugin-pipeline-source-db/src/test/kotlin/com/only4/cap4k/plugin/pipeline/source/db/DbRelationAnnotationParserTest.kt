@@ -102,6 +102,18 @@ class DbRelationAnnotationParserTest {
     }
 
     @Test
+    fun `rejects ref aggregate with ref id annotation`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbRelationAnnotationParser().parseColumn("@RefAggregate=MediaProcessingTask;@RefId=MediaProcessingTaskId;")
+        }
+
+        assertEquals(
+            "conflicting @RefAggregate and @RefId annotations on the same column comment.",
+            error.message,
+        )
+    }
+
+    @Test
     fun `rejects many to many in the first relation slice`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbRelationAnnotationParser().parseColumn("@Reference=tag;@Relation=ManyToMany;")

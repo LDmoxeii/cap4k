@@ -177,7 +177,7 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
-    fun `db source records strong id column metadata from comments`() {
+    fun `db source rejects column comment with ref aggregate and ref id`() {
         val url = "jdbc:h2:mem:cap4k-db-source-strong-id-column;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -186,6 +186,53 @@ class DbSchemaSourceProviderTest {
                     create table media_file (
                         id bigint primary key comment 'pk',
                         task_id bigint not null comment 'Task strong id @RefAggregate=MediaProcessingTask;@RefId=MediaProcessingTaskId;'
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbSchemaSourceProvider().collect(
+                ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = mapOf(
+                        "db" to SourceConfig(
+                            enabled = true,
+                            options = mapOf(
+                                "url" to url,
+                                "username" to "sa",
+                                "password" to "",
+                                "schema" to "PUBLIC",
+                                "includeTables" to listOf("media_file"),
+                                "excludeTables" to emptyList<String>(),
+                            )
+                        )
+                    ),
+                    generators = emptyMap(),
+                    templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                )
+            )
+        }
+
+        assertEquals(
+            "conflicting @RefAggregate and @RefId annotations on the same column comment.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `db source records ref aggregate strong id column metadata from comments`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-ref-aggregate-column;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table media_file (
+                        id bigint primary key comment 'pk',
+                        task_id bigint not null comment 'Task strong id @RefAggregate=MediaProcessingTask;'
                     )
                     """.trimIndent()
                 )
@@ -218,7 +265,7 @@ class DbSchemaSourceProviderTest {
         val taskId = snapshot.tables.single().columns.single { it.name.equals("TASK_ID", true) }
 
         assertEquals("MediaProcessingTask", taskId.refAggregate)
-        assertEquals("MediaProcessingTaskId", taskId.refId)
+        assertEquals(null, taskId.refId)
         assertEquals(null, taskId.referenceTable)
         assertEquals("Task strong id", taskId.comment)
         assertFalse(taskId.comment.contains("@RefAggregate"))

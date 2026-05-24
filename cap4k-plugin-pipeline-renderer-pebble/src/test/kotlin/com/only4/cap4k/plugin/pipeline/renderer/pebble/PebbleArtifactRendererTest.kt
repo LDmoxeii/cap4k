@@ -223,6 +223,8 @@ class PebbleArtifactRendererTest {
             context = mapOf(
                 "packageName" to "com.acme.demo.domain.aggregates.content",
                 "typeName" to "ContentId",
+                "kind" to "AGGREGATE_ROOT",
+                "canGenerateNew" to true,
             ),
         )
 
@@ -233,6 +235,31 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("""@Column(name = "value", nullable = false, updatable = false, length = 36)"""))
         assertTrue(content.contains("@JsonCreator(mode = JsonCreator.Mode.DELEGATING)"))
         assertTrue(content.contains("""this.value = StrongIds.requireUuidV7(value, "ContentId")"""))
+        assertTrue(content.contains("fun parse(value: String): ContentId = ContentId(value)"))
+        assertTrue(content.contains("fun new(): ContentId = ContentId(StrongIds.newUuidV7String())"))
+    }
+
+    @Test
+    fun `reference strong id template renders parse without new factory`() {
+        val content = renderTemplate(
+            templateId = "aggregate/strong_id.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shared/ids/AuthorId.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.shared.ids",
+                "typeName" to "AuthorId",
+                "kind" to "REFERENCE",
+                "canGenerateNew" to false,
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertMaintainableTemplateSource("aggregate/strong_id.kt.peb")
+        assertTrue(content.contains("@Embeddable"))
+        assertTrue(content.contains("class AuthorId protected constructor() : StrongId, Serializable"))
+        assertTrue(content.contains("@JsonCreator(mode = JsonCreator.Mode.DELEGATING)"))
+        assertTrue(content.contains("""this.value = StrongIds.requireUuidV7(value, "AuthorId")"""))
+        assertTrue(content.contains("fun parse(value: String): AuthorId = AuthorId(value)"))
+        assertFalse(content.contains("fun new(): AuthorId"))
     }
 
     @Test

@@ -445,13 +445,17 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         aggregateRootIdTypesByName: Map<String, String>,
     ): String? {
         val refAggregate = column.refAggregate?.takeIf { it.isNotBlank() }
+        val refId = column.refId?.takeIf { it.isNotBlank() }
+        require(!(refAggregate != null && refId != null)) {
+            "conflicting @RefAggregate and @RefId annotations on the same column metadata."
+        }
         if (refAggregate != null) {
             return requireNotNull(aggregateRootIdTypesByName[refAggregate]) {
                 "@RefAggregate=$refAggregate does not match a generated aggregate root"
             }
         }
 
-        return column.refId?.takeIf { it.isNotBlank() }
+        return refId
     }
 
     private fun generatedAggregateRootStrongIdType(table: DbTableSnapshot): String? {
@@ -500,6 +504,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val referenceStrongIds = tables
             .asSequence()
             .flatMap { it.columns.asSequence() }
+            .onEach { column ->
+                require(!(column.refAggregate?.isNotBlank() == true && column.refId?.isNotBlank() == true)) {
+                    "conflicting @RefAggregate and @RefId annotations on the same column metadata."
+                }
+            }
             .mapNotNull { it.refId?.takeIf(String::isNotBlank) }
             .distinct()
             .map { refId ->
