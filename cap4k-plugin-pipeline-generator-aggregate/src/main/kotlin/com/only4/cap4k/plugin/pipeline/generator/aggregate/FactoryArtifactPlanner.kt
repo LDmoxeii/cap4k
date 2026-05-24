@@ -40,10 +40,13 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                         .map { field ->
                             val strongId = resolveStrongId(model, field)
                             val fieldType = strongId?.typeName ?: planning.resolveFieldType(entity.packageName, field)
+                            val renderedType = aggregateRenderedTypeWithModelImports(model, fieldType)
                             mapOf(
                                 "name" to field.name,
                                 "type" to fieldType,
                                 "typeName" to fieldType,
+                                "renderedType" to renderedType.renderedType,
+                                "typeImports" to renderedType.imports,
                                 "typeRef" to strongId?.fqn(),
                                 "strongId" to (strongId != null),
                                 "nullable" to field.nullable,
@@ -63,6 +66,9 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
             )
             val imports = (
                 listOfNotNull(ownIdTypeRef) +
+                    payloadFields.flatMap { field ->
+                        (field["typeImports"] as? List<*>)?.filterIsInstance<String>().orEmpty()
+                    } +
                     payloadFields.mapNotNull { it["typeRef"] as? String }
                 ).distinct()
 

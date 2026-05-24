@@ -3079,12 +3079,21 @@ class AggregateArtifactPlannerTest {
         val entityImports = entityPlan.context.getValue("imports") as List<String>
         @Suppress("UNCHECKED_CAST")
         val schemaFields = schemaPlan.context.getValue("fields") as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val schemaImports = schemaPlan.context.getValue("imports") as List<String>
         assertEquals(
             listOf(
                 "com.acme.demo.domain.shared.enums.Status",
                 "com.acme.demo.domain.aggregates.video_post.enums.VideoPostVisibility",
             ),
             entityImports,
+        )
+        assertEquals(
+            listOf(
+                "com.acme.demo.domain.shared.enums.Status",
+                "com.acme.demo.domain.aggregates.video_post.enums.VideoPostVisibility",
+            ),
+            schemaImports,
         )
         assertEquals("com.acme.demo.domain.shared.enums.Status", entityFields.single { it["name"] == "status" }["type"])
         assertEquals("Status", entityFields.single { it["name"] == "status" }["renderedType"])
@@ -3094,9 +3103,19 @@ class AggregateArtifactPlannerTest {
         )
         assertEquals("VideoPostVisibility", entityFields.single { it["name"] == "visibility" }["renderedType"])
         assertEquals("com.acme.demo.domain.shared.enums.Status", schemaFields.single { it["name"] == "status" }["type"])
+        assertEquals("Status", schemaFields.single { it["name"] == "status" }["renderedType"])
+        assertEquals(
+            listOf("com.acme.demo.domain.shared.enums.Status"),
+            schemaFields.single { it["name"] == "status" }["typeImports"],
+        )
         assertEquals(
             "com.acme.demo.domain.aggregates.video_post.enums.VideoPostVisibility",
             schemaFields.single { it["name"] == "visibility" }["type"]
+        )
+        assertEquals("VideoPostVisibility", schemaFields.single { it["name"] == "visibility" }["renderedType"])
+        assertEquals(
+            listOf("com.acme.demo.domain.aggregates.video_post.enums.VideoPostVisibility"),
+            schemaFields.single { it["name"] == "visibility" }["typeImports"],
         )
     }
 
@@ -3718,6 +3737,112 @@ class AggregateArtifactPlannerTest {
                 val constructorPayloadFields =
                     (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
                 assertEquals(emptyList<String>(), constructorPayloadFields.map { it["name"] })
+            },
+        )
+    }
+
+    @Test
+    fun `factory planner imports rendered payload field types from strong ids and qualified model types`() {
+        val entity = EntityModel(
+            name = "MediaProcessingTask",
+            packageName = "com.acme.demo.domain.aggregates.media_processing_task",
+            tableName = "media_processing_task",
+            comment = "media processing task",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("contentId", "ContentId", columnName = "content_id"),
+                FieldModel(
+                    "processingStatus",
+                    "com.acme.demo.domain.aggregates.media_processing_task.enums.MediaProcessingStatus",
+                    columnName = "processing_status",
+                ),
+                FieldModel(
+                    "resultSnapshot",
+                    "com.acme.demo.domain.aggregates.media_processing_task.values.MediaProcessingResultSnapshot",
+                    nullable = true,
+                    columnName = "result_snapshot",
+                ),
+                FieldModel("dbUpdatedAt", "java.time.LocalDateTime", columnName = "db_updated_at"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "ContentId",
+                        packageName = "com.acme.demo.domain.aggregates.content",
+                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        ownerAggregateName = "Content",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
+                    )
+                ),
+                aggregateSpecialFieldResolvedPolicies = listOf(
+                    AggregateSpecialFieldResolvedPolicy(
+                        entityName = "MediaProcessingTask",
+                        entityPackageName = "com.acme.demo.domain.aggregates.media_processing_task",
+                        tableName = "media_processing_task",
+                        id = ResolvedIdPolicy(
+                            fieldName = "id",
+                            columnName = "id",
+                            strategy = "database-identity",
+                            kind = AggregateIdPolicyKind.DATABASE_SIDE,
+                            source = SpecialFieldSource.NONE,
+                            writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                        ),
+                        deleted = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                        version = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                        writeSurface = ResolvedWriteSurfacePolicy(
+                            createAllowedFields = listOf(
+                                "id",
+                                "contentId",
+                                "processingStatus",
+                                "resultSnapshot",
+                                "dbUpdatedAt",
+                            ),
+                            updateAllowedFields = listOf("processingStatus", "resultSnapshot"),
+                        ),
+                    )
+                ),
+            )
+        )
+
+        val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
+        @Suppress("UNCHECKED_CAST")
+        val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
+
+        assertAll(
+            { assertEquals(listOf("contentId", "processingStatus", "resultSnapshot", "dbUpdatedAt"), payloadFields.map { it["name"] }) },
+            { assertEquals("ContentId", payloadFields.single { it["name"] == "contentId" }["renderedType"]) },
+            {
+                assertEquals(
+                    listOf("com.acme.demo.domain.aggregates.content.ContentId"),
+                    payloadFields.single { it["name"] == "contentId" }["typeImports"],
+                )
+            },
+            { assertEquals("MediaProcessingStatus", payloadFields.single { it["name"] == "processingStatus" }["renderedType"]) },
+            {
+                assertEquals(
+                    listOf("com.acme.demo.domain.aggregates.media_processing_task.enums.MediaProcessingStatus"),
+                    payloadFields.single { it["name"] == "processingStatus" }["typeImports"],
+                )
+            },
+            { assertEquals("MediaProcessingResultSnapshot", payloadFields.single { it["name"] == "resultSnapshot" }["renderedType"]) },
+            { assertEquals("LocalDateTime", payloadFields.single { it["name"] == "dbUpdatedAt" }["renderedType"]) },
+            {
+                assertEquals(
+                    listOf(
+                        "com.acme.demo.domain.aggregates.content.ContentId",
+                        "com.acme.demo.domain.aggregates.media_processing_task.enums.MediaProcessingStatus",
+                        "com.acme.demo.domain.aggregates.media_processing_task.values.MediaProcessingResultSnapshot",
+                        "java.time.LocalDateTime",
+                    ),
+                    factoryContext["imports"],
+                )
             },
         )
     }

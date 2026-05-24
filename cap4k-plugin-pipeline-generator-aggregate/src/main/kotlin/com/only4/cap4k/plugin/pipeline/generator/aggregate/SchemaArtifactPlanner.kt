@@ -26,12 +26,15 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
             val ownerPackage = entity.packageName
             val fields = schema.fields.map { field ->
                 val fieldType = planning.resolveFieldType(ownerPackage, field)
+                val renderedType = aggregateRenderedTypeWithModelImports(model, fieldType)
                 mapOf(
                     "name" to field.name,
                     "fieldName" to field.name,
                     "columnName" to (field.columnName ?: field.name),
                     "fieldType" to fieldType,
                     "type" to fieldType,
+                    "renderedType" to renderedType.renderedType,
+                    "typeImports" to renderedType.imports,
                     "nullable" to field.nullable,
                     "defaultValue" to field.defaultValue,
                     "typeBinding" to field.typeBinding,
@@ -41,10 +44,7 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
             }
             val imports = fields
                 .flatMap { field ->
-                    when (field["fieldType"]) {
-                        "UUID" -> listOf("java.util.UUID")
-                        else -> strongIdImports(model, field["fieldType"] as String)
-                    }
+                    (field["typeImports"] as? List<*>)?.filterIsInstance<String>().orEmpty()
                 }
                 .distinct()
 
@@ -69,13 +69,6 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
             )
         }
     }
-
-    private fun strongIdImports(model: CanonicalModel, fieldType: String): List<String> =
-        model.strongIds
-            .filter { strongId ->
-                fieldType == strongId.typeName || fieldType == "${strongId.packageName}.${strongId.typeName}"
-            }
-            .map { "${it.packageName}.${it.typeName}" }
 
     private fun requireUniqueSchemaEntity(
         schemaName: String,

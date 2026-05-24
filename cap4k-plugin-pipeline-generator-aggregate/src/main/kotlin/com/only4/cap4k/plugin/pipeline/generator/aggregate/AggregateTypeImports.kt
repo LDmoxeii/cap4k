@@ -1,5 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
+import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+
 internal fun aggregateTypeImports(vararg types: String?): List<String> =
     types
         .filterNotNull()
@@ -35,4 +37,14 @@ internal fun aggregateRenderedType(type: String): AggregateRenderedType {
         else ->
             AggregateRenderedType(shortType + genericSuffix, listOf(rawType))
     }
+}
+
+internal fun aggregateRenderedTypeWithModelImports(
+    model: CanonicalModel,
+    type: String,
+): AggregateRenderedType {
+    val rendered = aggregateRenderedType(type)
+    return rendered.copy(
+        imports = (rendered.imports + aggregateStrongIdImports(model, listOf(type))).distinct()
+    )
 }
