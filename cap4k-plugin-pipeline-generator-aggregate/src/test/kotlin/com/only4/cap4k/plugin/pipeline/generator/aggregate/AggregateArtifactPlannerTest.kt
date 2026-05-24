@@ -241,6 +241,7 @@ class AggregateArtifactPlannerTest {
                 FieldModel("id", "ContentId", columnName = "id"),
                 FieldModel("title", "String", columnName = "title"),
                 FieldModel("authorId", "AuthorId", columnName = "author_id"),
+                FieldModel("mediaProcessingTaskId", "MediaProcessingTaskId", nullable = true, columnName = "media_processing_task_id"),
             ),
             idField = FieldModel("id", "ContentId", columnName = "id"),
         )
@@ -257,7 +258,21 @@ class AggregateArtifactPlannerTest {
                         idType = "String",
                     )
                 ),
-                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        entityEnabled = true,
+                        tableName = entity.tableName,
+                        columns = entity.fields.map { field ->
+                            AggregateColumnJpaModel(
+                                fieldName = field.name,
+                                columnName = field.columnName ?: field.name,
+                                isId = field.name == entity.idField.name,
+                            )
+                        },
+                    )
+                ),
                 aggregateSpecialFieldResolvedPolicies = listOf(
                     AggregateSpecialFieldResolvedPolicy(
                         entityName = "Content",
@@ -288,7 +303,7 @@ class AggregateArtifactPlannerTest {
                             )
                         ),
                         writeSurface = ResolvedWriteSurfacePolicy(
-                            createAllowedFields = listOf("id", "title", "authorId"),
+                            createAllowedFields = listOf("id", "title", "authorId", "mediaProcessingTaskId"),
                             updateAllowedFields = listOf("title"),
                         ),
                     ),
@@ -306,6 +321,13 @@ class AggregateArtifactPlannerTest {
                         packageName = "com.acme.demo.domain.shared.ids",
                         kind = StrongIdKind.REFERENCE,
                     ),
+                    StrongIdModel(
+                        typeName = "MediaProcessingTaskId",
+                        packageName = "com.acme.demo.domain.aggregates.media_processing_task",
+                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        ownerAggregateName = "MediaProcessingTask",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.media_processing_task",
+                    ),
                 ),
             )
         )
@@ -315,6 +337,7 @@ class AggregateArtifactPlannerTest {
         val scalarFields = entityContext["scalarFields"] as List<Map<String, Any?>>
         val idField = scalarFields.single { it["fieldName"] == "id" }
         val authorIdField = scalarFields.single { it["fieldName"] == "authorId" }
+        val mediaProcessingTaskIdField = scalarFields.single { it["fieldName"] == "mediaProcessingTaskId" }
 
         val factoryContext = plan.single { it.templateId == "aggregate/factory.kt.peb" }.context
         @Suppress("UNCHECKED_CAST")
@@ -333,23 +356,39 @@ class AggregateArtifactPlannerTest {
             { assertEquals(null, idField["applicationSideIdStrategy"]) },
             { assertEquals(true, idField["strongId"]) },
             { assertEquals(true, idField["embeddedId"]) },
+            { assertEquals(false, idField["attributeOverrideNullable"]) },
+            { assertEquals(null, idField["attributeOverrideInsertable"]) },
+            { assertEquals(false, idField["attributeOverrideUpdatable"]) },
             { assertEquals("AuthorId", authorIdField["type"]) },
             { assertEquals("com.acme.demo.domain.shared.ids.AuthorId", authorIdField["typeRef"]) },
+            { assertEquals(true, authorIdField["strongId"]) },
+            { assertEquals(false, authorIdField["embeddedId"]) },
+            { assertEquals("author_id", authorIdField["columnName"]) },
+            { assertEquals(false, authorIdField["attributeOverrideNullable"]) },
+            { assertEquals(null, authorIdField["attributeOverrideInsertable"]) },
+            { assertEquals(true, authorIdField["attributeOverrideUpdatable"]) },
+            { assertEquals(true, mediaProcessingTaskIdField["strongId"]) },
+            { assertEquals(false, mediaProcessingTaskIdField["embeddedId"]) },
+            { assertEquals("media_processing_task_id", mediaProcessingTaskIdField["columnName"]) },
+            { assertEquals(true, mediaProcessingTaskIdField["attributeOverrideNullable"]) },
+            { assertEquals(null, mediaProcessingTaskIdField["attributeOverrideInsertable"]) },
+            { assertEquals(true, mediaProcessingTaskIdField["attributeOverrideUpdatable"]) },
             {
                 assertEquals(
                     listOf(
                         "com.acme.demo.domain.aggregates.content.ContentId",
                         "com.acme.demo.domain.shared.ids.AuthorId",
+                        "com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId",
                     ),
                     entityContext["imports"],
                 )
             },
             { assertFalse(payloadFields.any { it["name"] == "id" }) },
-            { assertEquals(listOf("title", "authorId"), payloadFields.map { it["name"] }) },
+            { assertEquals(listOf("title", "authorId", "mediaProcessingTaskId"), payloadFields.map { it["name"] }) },
             { assertEquals("id", factoryContext["ownIdFieldName"]) },
             { assertEquals("ContentId.new()", factoryContext["ownIdInitializer"]) },
             { assertEquals("com.acme.demo.domain.aggregates.content.ContentId", factoryContext["ownIdTypeRef"]) },
-            { assertEquals(listOf("title", "authorId"), constructorPayloadFields.map { it["name"] }) },
+            { assertEquals(listOf("title", "authorId", "mediaProcessingTaskId"), constructorPayloadFields.map { it["name"] }) },
             { assertEquals("ContentId", repositoryContext["idType"]) },
             {
                 assertEquals(

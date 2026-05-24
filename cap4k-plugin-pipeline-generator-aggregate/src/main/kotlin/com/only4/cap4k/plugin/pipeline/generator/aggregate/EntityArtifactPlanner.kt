@@ -166,6 +166,13 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "writePolicy" to writePolicy,
                             "insertable" to insertable,
                             "updatable" to updatable,
+                            "attributeOverrideNullable" to field.nullable,
+                            "attributeOverrideInsertable" to insertable,
+                            "attributeOverrideUpdatable" to when {
+                                embeddedId -> false
+                                updatable != null -> updatable
+                                else -> true
+                            },
                         )
                     }
                 }
@@ -195,6 +202,10 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     },
                     "hasApplicationSideIdFields" to scalarFields.any { it["applicationSideIdStrategy"] != null },
                     "hasEmbeddedIdFields" to scalarFields.any { it["embeddedId"] == true },
+                    "hasStrongIdFields" to scalarFields.any { it["strongId"] == true },
+                    "hasEmbeddedStrongIdFields" to scalarFields.any {
+                        it["strongId"] == true && it["embeddedId"] != true
+                    },
                     "hasVersionFields" to scalarFields.any { it["isVersion"] == true },
                     "dynamicInsert" to (providerControl?.dynamicInsert == true),
                     "dynamicUpdate" to (providerControl?.dynamicUpdate == true),

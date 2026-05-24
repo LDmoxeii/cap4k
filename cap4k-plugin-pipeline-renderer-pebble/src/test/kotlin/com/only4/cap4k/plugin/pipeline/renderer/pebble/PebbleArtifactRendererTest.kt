@@ -541,6 +541,8 @@ class PebbleArtifactRendererTest {
                 "hasGeneratedValueFields" to false,
                 "hasApplicationSideIdFields" to false,
                 "hasEmbeddedIdFields" to true,
+                "hasStrongIdFields" to true,
+                "hasEmbeddedStrongIdFields" to true,
                 "hasVersionFields" to false,
                 "dynamicInsert" to false,
                 "dynamicUpdate" to false,
@@ -550,6 +552,7 @@ class PebbleArtifactRendererTest {
                 "imports" to listOf(
                     "com.acme.demo.domain.aggregates.content.ContentId",
                     "com.acme.demo.domain.shared.ids.AuthorId",
+                    "com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId",
                 ),
                 "scalarFields" to listOf(
                     mapOf(
@@ -566,6 +569,9 @@ class PebbleArtifactRendererTest {
                         "isVersion" to false,
                         "insertable" to null,
                         "updatable" to null,
+                        "attributeOverrideNullable" to false,
+                        "attributeOverrideInsertable" to null,
+                        "attributeOverrideUpdatable" to false,
                         "converterClassRef" to null,
                     ),
                     mapOf(
@@ -598,6 +604,28 @@ class PebbleArtifactRendererTest {
                         "isVersion" to false,
                         "insertable" to null,
                         "updatable" to null,
+                        "attributeOverrideNullable" to false,
+                        "attributeOverrideInsertable" to null,
+                        "attributeOverrideUpdatable" to true,
+                        "converterClassRef" to null,
+                    ),
+                    mapOf(
+                        "name" to "mediaProcessingTaskId",
+                        "type" to "MediaProcessingTaskId",
+                        "nullable" to true,
+                        "defaultValue" to null,
+                        "columnName" to "media_processing_task_id",
+                        "isId" to false,
+                        "strongId" to true,
+                        "embeddedId" to false,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to "READ_WRITE",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "attributeOverrideNullable" to true,
+                        "attributeOverrideInsertable" to null,
+                        "attributeOverrideUpdatable" to true,
                         "converterClassRef" to null,
                     ),
                 ),
@@ -606,15 +634,40 @@ class PebbleArtifactRendererTest {
         )
 
         assertReadableKotlin(content)
+        assertTrue(content.contains("import jakarta.persistence.AttributeOverride"))
+        assertTrue(content.contains("import jakarta.persistence.Embedded"))
         assertTrue(content.contains("import jakarta.persistence.EmbeddedId"))
         assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.ContentId"))
         assertTrue(content.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId"))
         assertTrue(content.contains("id: ContentId"))
-        assertTrue(content.contains("@EmbeddedId"))
+        assertTrue(
+            content.contains(
+                """@EmbeddedId
+    @AttributeOverride(name = "value", column = Column(name = "id", nullable = false, updatable = false, length = 36))
+    var id: ContentId = id"""
+            )
+        )
+        assertTrue(
+            content.contains(
+                """@Embedded
+    @AttributeOverride(name = "value", column = Column(name = "author_id", nullable = false, updatable = true, length = 36))
+    var authorId: AuthorId = authorId"""
+            )
+        )
+        assertTrue(
+            content.contains(
+                """@Embedded
+    @AttributeOverride(name = "value", column = Column(name = "media_processing_task_id", nullable = true, updatable = true, length = 36))
+    var mediaProcessingTaskId: MediaProcessingTaskId? = mediaProcessingTaskId"""
+            )
+        )
         assertFalse(content.contains("@Id"))
         assertFalse(content.contains("ApplicationSideId"))
         assertFalse(content.contains("UUID(" + "0L, 0L)"))
         assertFalse(content.contains("@Column(name = \"id\")"))
+        assertFalse(content.contains("@Column(name = \"author_id\")"))
+        assertFalse(content.contains("@Column(name = \"media_processing_task_id\")"))
     }
 
     @Test
