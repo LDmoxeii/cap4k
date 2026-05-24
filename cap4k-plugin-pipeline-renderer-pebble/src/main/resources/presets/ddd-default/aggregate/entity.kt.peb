@@ -63,7 +63,7 @@ import {{ import }}
 {% endif -%}
 class {{ typeName }}(
 {% for field in scalarFields -%}
-{{ "    " }}{{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if field.defaultValue is not null %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{{ "    " }}{{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %}{% if field.defaultValue is not null %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor -%}
 ) {
 {% for field in scalarFields %}
@@ -78,7 +78,7 @@ class {{ typeName }}(
 {% elseif field.insertable is not null or field.updatable is not null %}    @Column(name = "{{ field.columnName }}", insertable = {{ field.insertable }}, updatable = {{ field.updatable }})
 {% else %}    @Column(name = "{{ field.columnName }}")
 {% endif %}{% if field.converterClassRef %}    @Convert(converter = {{ field.converterClassRef }}::class)
-{% endif %}    var {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %} = {{ field.name }}
+{% endif %}    var {{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %} = {{ field.name }}
         internal set
 
 {% endfor -%}

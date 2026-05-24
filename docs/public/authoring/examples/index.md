@@ -9,13 +9,13 @@
 - [媒体处理 callback 主路径](media-processing-callback.md)：看外部媒体处理结果如何通过 inbound integration event 收敛成 `MarkMediaProcessingSucceededCmd`。
 - [媒体处理 polling 备用路径](media-processing-polling.md)：看 `MediaProcessingPollingFallbackJob` 如何通过 `RefreshMediaProcessingTaskStatusCmd` 观察外部状态，再复用同一条成功推进命令。
 
-## 高级概念示例
+## 概念选择示例
 
-- [高级概念实践示例总览](advanced-concepts-overview.md)：先判断问题仍属于默认路径，还是确实需要高级概念。
+- [概念选择实践示例总览](advanced-concepts-overview.md)：先判断问题能否由默认路径清楚表达，还是需要引入更贴切的概念。
 - [内容发布示例：Value Object](content-publication-value-object.md)：用 `MediaProcessingResultSnapshot` 说明值语义和 JSON-backed composite value object。
 - [内容发布示例：Strong ID](content-publication-strong-id.md)：用 `ContentId`、`AuthorId`、`MediaProcessingTaskId` 说明 Strong ID 默认生成边界。
 - [内容发布示例：Domain Service](content-publication-domain-service.md)：说明跨聚合判断何时进入领域服务。
-- [内容发布示例：Saga](content-publication-saga.md)：用 `PaidPublicationSaga` 说明 persisted compensation / recovery，而不是把默认链路升级成 Saga。
+- [内容发布示例：Saga](content-publication-saga.md)：用 `PaidPublicationSaga` 说明 persisted compensation / recovery，而不是把默认链路包装成 Saga。
 
 ## 使用规则
 

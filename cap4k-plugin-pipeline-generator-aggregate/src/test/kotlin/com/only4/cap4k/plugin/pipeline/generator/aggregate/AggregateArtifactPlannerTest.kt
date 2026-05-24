@@ -3076,17 +3076,58 @@ class AggregateArtifactPlannerTest {
         @Suppress("UNCHECKED_CAST")
         val entityFields = entityPlan.context.getValue("scalarFields") as List<Map<String, Any?>>
         @Suppress("UNCHECKED_CAST")
+        val entityImports = entityPlan.context.getValue("imports") as List<String>
+        @Suppress("UNCHECKED_CAST")
         val schemaFields = schemaPlan.context.getValue("fields") as List<Map<String, Any?>>
+        assertEquals(
+            listOf(
+                "com.acme.demo.domain.shared.enums.Status",
+                "com.acme.demo.domain.aggregates.video_post.enums.VideoPostVisibility",
+            ),
+            entityImports,
+        )
         assertEquals("com.acme.demo.domain.shared.enums.Status", entityFields.single { it["name"] == "status" }["type"])
+        assertEquals("Status", entityFields.single { it["name"] == "status" }["renderedType"])
         assertEquals(
             "com.acme.demo.domain.aggregates.video_post.enums.VideoPostVisibility",
             entityFields.single { it["name"] == "visibility" }["type"]
         )
+        assertEquals("VideoPostVisibility", entityFields.single { it["name"] == "visibility" }["renderedType"])
         assertEquals("com.acme.demo.domain.shared.enums.Status", schemaFields.single { it["name"] == "status" }["type"])
         assertEquals(
             "com.acme.demo.domain.aggregates.video_post.enums.VideoPostVisibility",
             schemaFields.single { it["name"] == "visibility" }["type"]
         )
+    }
+
+    @Test
+    fun `entity planner fails fast when imported scalar types share simple name`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel(name = "id", type = "Long"),
+                FieldModel(name = "primaryStatus", type = "com.acme.one.Status"),
+                FieldModel(name = "secondaryStatus", type = "com.acme.two.Status"),
+            ),
+            idField = FieldModel(name = "id", type = "Long"),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            AggregateArtifactPlanner().plan(
+                aggregateConfig(),
+                CanonicalModel(
+                    entities = listOf(entity),
+                    aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                ),
+            )
+        }
+
+        assertTrue(error.message!!.contains("ambiguous scalar type name Status"))
+        assertTrue(error.message!!.contains("com.acme.one.Status"))
+        assertTrue(error.message!!.contains("com.acme.two.Status"))
     }
 
     @Test

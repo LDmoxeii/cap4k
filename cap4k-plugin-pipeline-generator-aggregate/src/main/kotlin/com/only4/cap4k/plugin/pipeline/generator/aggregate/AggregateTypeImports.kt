@@ -6,10 +6,33 @@ internal fun aggregateTypeImports(vararg types: String?): List<String> =
         .flatMap { type -> aggregateTypeImports(type) }
         .distinct()
 
-internal fun aggregateTypeImports(type: String): List<String> {
+internal fun aggregateTypeImports(type: String): List<String> =
+    aggregateRenderedType(type).imports
+
+internal data class AggregateRenderedType(
+    val renderedType: String,
+    val imports: List<String>,
+)
+
+internal fun aggregateRenderedType(type: String): AggregateRenderedType {
     val normalized = type.removeSuffix("?").trim()
-    return when (normalized.substringBefore("<").substringAfterLast(".")) {
-        "UUID" -> listOf("java.util.UUID")
-        else -> emptyList()
+    val rawType = normalized.substringBefore("<")
+    val genericSuffix = normalized.removePrefix(rawType)
+    val shortType = rawType.substringAfterLast(".")
+    return when {
+        rawType == "UUID" ->
+            AggregateRenderedType("UUID", listOf("java.util.UUID"))
+
+        rawType == "java.util.UUID" ->
+            AggregateRenderedType(rawType, emptyList())
+
+        "." !in rawType ->
+            AggregateRenderedType(normalized, emptyList())
+
+        rawType.startsWith("kotlin.") || rawType.startsWith("java.lang.") ->
+            AggregateRenderedType(shortType + genericSuffix, emptyList())
+
+        else ->
+            AggregateRenderedType(shortType + genericSuffix, listOf(rawType))
     }
 }

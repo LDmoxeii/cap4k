@@ -18,7 +18,7 @@
 
 这就是一个适合 Domain Service 的正例：判断明显属于领域，但又不自然只挂在 `Content` 或 `MediaProcessingTask` 任一侧。
 
-## Why default path is not enough
+## Why Domain Service fits
 
 默认路径优先要求行为落在聚合自身，因为真正改状态的动作仍然应该由聚合行为表达。例如：
 
@@ -79,7 +79,7 @@ const eligibility = publicationEligibility.evaluate(content, mediaProcessingTask
 
 ## Usage boundary
 
-使用边界可以压成一句话：当 `Content` 与 `MediaProcessingTask` 的相关事实都已经在当前时刻可用时，可以用 Domain Service 做发布资格判断；当问题变成“等待未来事实出现后再继续”，就应该升级为 Saga。
+使用边界可以压成一句话：当 `Content` 与 `MediaProcessingTask` 的相关事实都已经在当前时刻可用时，可以用 Domain Service 做发布资格判断；当问题变成“等待未来事实出现后再继续”，就应该选择 Saga。
 
 因此，`PublishContentCmd` 所对应的领域判断边界应该是：
 

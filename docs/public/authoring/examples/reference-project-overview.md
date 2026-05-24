@@ -27,14 +27,14 @@
 6. 外部结果返回优先走 callback 主路径；callback 不可用或不可靠时，才用 polling 备用路径补位。
 7. 当内容审核条件和媒体处理条件都满足后，通过 `PublishContentCmd` 发布。
 
-本页不是额外讲一个新规则，而是说明为什么所有层指南、高级概念页、生成边界页都反复回到同一个项目。没有这张统一底图，作者很容易在不同页面里脑补出不同样例，最后把“层规则”“高级概念”“生成 ownership”分别套在不同项目上，导致文档能读懂，但项目写不出来。
+本页不是额外讲一个新规则，而是说明为什么所有层指南、概念选择页、生成边界页都反复回到同一个项目。没有这张统一底图，作者很容易在不同页面里脑补出不同样例，最后把“层规则”“概念选择”“生成 ownership”分别套在不同项目上，导致文档能读懂，但项目写不出来。
 
 ## Why this layer / concept
 
 这不是某一层的专属示例，而是整个作者指南体系的统一样板。它存在的原因有三个：
 
 - 给所有页面一个稳定的业务语境。`Content`、`MediaProcessingTask`、`TriggerMediaProcessingCli`、callback 主路径、polling 备用路径，在每一页都代表同一批对象，不需要读者反复切换心智模型。
-- 给“默认路径”和“高级偏离”一个共同对照物。比如 [Saga](../advanced/saga.md) 页说默认不用 Saga，前提就是你已经能把这个项目的 callback 主路径和 polling 备用路径按默认命令链讲清楚。
+- 给“默认路径”和“概念选择”一个共同对照物。比如 [Saga](../advanced/saga.md) 页说默认不用 Saga，前提就是你已经能把这个项目的 callback 主路径和 polling 备用路径按默认命令链讲清楚。
 - 给审阅者一条统一审计线。看到 `CreateContentDraftCmd`、`ApproveContentReviewCmd`、`PublishContentCmd`、`TriggerMediaProcessingCli` 时，团队应该立刻知道它们在这个参考项目里各自负责哪一段，而不是每次 review 都重新猜。
 
 如果你在某一页里发现一个建议无法自然落回这条统一链路，优先怀疑的是例子或归位出了问题，而不是先把规则推翻。
@@ -76,9 +76,9 @@
 - callback 和 polling 虽然入口不同，但进入内部后都要收敛为同一批命令语义。
 - inbound integration event 只是外部事实入口形态，不是领域事件的替身。
 
-## 高级概念观察视角
+## 概念选择观察视角
 
-同一个参考项目也会被后续高级概念示例页复用，但这些页面不是另起一个样板系统，而是拿同一条 `Content` / `MediaProcessingTask` / callback / polling 参考链路，分别观察“值语义什么时候需要升级”“领域判断什么时候不自然落在单个聚合里”“什么时候问题已经跨入长流程协调”。
+同一个参考项目也会被后续概念示例页复用，但这些页面不是另起一个样板系统，而是拿同一条 `Content` / `MediaProcessingTask` / callback / polling 参考链路，分别观察“什么时候需要更明确的值语义”“领域判断什么时候不自然落在单个聚合里”“什么时候问题已经跨入长流程协调”。
 
 - [内容发布示例：Value Object](content-publication-value-object.md)
 - [内容发布示例：Strong ID](content-publication-strong-id.md)

@@ -10,11 +10,11 @@
 
 在教学项目里，默认链路仍然是：内容送审、媒体处理启动、外部系统通过 callback 回传结果，polling 只是兼容性备用路径。当前 cap4k 已实现的 Saga runtime，优先支持的是 compensation-oriented persisted coordination，也就是把前向步骤、重试恢复、补偿意图、补偿回放持久化下来；它不是一个通用的 waiting-style Saga，也不是“等外部 callback 回来后从某个 step 精确 resume”的完整 workflow engine。
 
-## 为什么默认路径不够
+## 适用边界
 
-默认路径的前排武器是聚合、命令、领域事件和阶段化命令链。对共享教学项目的大多数需求，这已经够用：callback 回来就转内部命令，polling 作为备用入口补同一条命令语义，不需要额外上 Saga。
+常规写法优先使用聚合、命令、领域事件和阶段化命令链。对共享教学项目的大多数需求，这已经够用：callback 回来就转内部命令，polling 作为备用入口补同一条命令语义，不需要引入 Saga。
 
-Saga 是长流程 / 最终一致性协调概念，不是默认路径前排。当前 runtime 这次真正落地的是“补偿导向”的切片：它擅长把已完成的前向步骤记下来，在显式补偿请求后按逆序回滚、失败重试、定时恢复、必要时进入人工修复。它没有把 Saga 扩展成一个泛化的 callback-step resume workflow，所以不要把“未来可能会有等待式工作流”提前写成今天已经承诺的能力。
+Saga 适合长流程 / 最终一致性协调。当前 runtime 这次真正落地的是“补偿导向”的切片：它擅长把已完成的前向步骤记下来，在显式补偿请求后按逆序回滚、失败重试、定时恢复、必要时进入人工修复。它没有把 Saga 扩展成一个泛化的 callback-step resume workflow，所以不要把“未来可能会有等待式工作流”提前写成今天已经承诺的能力。
 
 ## 推荐形态
 
@@ -41,12 +41,12 @@ Saga 是长流程 / 最终一致性协调概念，不是默认路径前排。当
 ## 仍然保留的教学主次关系
 
 - callback 仍然是外部媒体结果进入系统的主路径。
-- polling 仍然只是 fallback，用来补同一条内部命令语义，不提升成主要真相源。
+- polling 仍然只是 fallback，用来补同一条内部命令语义，不变成主要真相源。
 - 这次引入补偿型 Saga，不代表教学项目推荐用 polling 驱动长流程，更不代表 callback 主路径失效。
 
 ## 常见误用
 
-- 默认链路还没拆清楚，就直接上 Saga，试图把 `Content` 发布和 `MediaProcessingTask` 状态推进一起包进一个大编排。
+- 主链路还没拆清楚，就直接上 Saga，试图把 `Content` 发布和 `MediaProcessingTask` 状态推进一起包进一个大编排。
 - 把 Saga 当成 application 的超级 handler，里面什么都做，最后谁负责业务真相都说不清。
 - callback 一套阶段推进，polling 另一套阶段推进，导致同一个长流程有两份不同的事实机。
 - 明明只是同步校验或短链路命令，却为了“以后可能更复杂”提前引入 Saga。
@@ -58,7 +58,7 @@ Saga 是长流程 / 最终一致性协调概念，不是默认路径前排。当
 
 - 当前问题是否真的属于长流程 / 最终一致性协调，而不是普通阶段化命令链。
 - 不引入 Saga 时，是否已经尝试过用 [Default Happy Path](../default-happy-path.md) 的命令、事件和阶段拆分表达。
-- 如果作者把发布路径建模成 Saga，审阅者是否能看到明确的 persisted coordination、恢复或补偿理由，而不是把已知事实判断过度升级。
+- 如果作者把发布路径建模成 Saga，审阅者是否能看到明确的 persisted coordination、恢复或补偿理由，而不是把已知事实判断过度建模。
 - Saga 是否只负责协调阶段，而不是篡改 `Content`、`MediaProcessingTask` 的聚合职责。
 - callback 主路径和 polling 备用路径进入长流程后，是否仍收敛为一致的内部命令语义。
 - 需要补偿的前向步骤是否显式建模为 `execCompensableProcess(...)`，而不是在失败时再临时拼补偿动作。

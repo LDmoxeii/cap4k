@@ -2073,6 +2073,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(generatedEntity.contains("@Entity"))
         assertTrue(generatedEntity.contains("@Table(name = \"video_post\")"))
         assertTrue(generatedEntity.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
+        assertTrue(generatedEntity.contains("import com.acme.demo.domain.shared.enums.Status"))
         assertTrue(generatedEntity.contains("@EmbeddedId"))
         assertTrue(generatedEntity.contains("var id: VideoPostId = id"))
         assertFalse(generatedEntity.contains("@Id"))
@@ -2098,7 +2099,7 @@ class PipelinePluginFunctionalTest {
         assertFalse(generatedEntity.contains("@GeneratedValue"))
         assertFalse(generatedEntity.contains("@Version"))
         assertFalse(generatedEntity.contains("@DynamicInsert"))
-        assertTrue(generatedEntity.contains("var status: com.acme.demo.domain.shared.enums.Status = status"))
+        assertTrue(generatedEntity.contains("var status: Status = status"))
         assertFalse(generatedEntity.contains("class Status("))
     }
 
