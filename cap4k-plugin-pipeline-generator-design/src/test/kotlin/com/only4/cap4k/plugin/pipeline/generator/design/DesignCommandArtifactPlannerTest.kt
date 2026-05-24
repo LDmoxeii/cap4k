@@ -12,6 +12,8 @@ import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.QueryModel
+import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
+import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -48,6 +50,39 @@ class DesignCommandArtifactPlannerTest {
         assertEquals(emptyList<DesignRenderFieldModel>(), command.context["requestFields"])
         assertEquals(emptyList<DesignRenderFieldModel>(), command.context["responseFields"])
         assertEquals(ConflictPolicy.SKIP, command.conflictPolicy)
+    }
+
+    @Test
+    fun `designCommand resolves strong id field imports from canonical model`() {
+        val planner = DesignCommandArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("application" to "demo-application")),
+            model = CanonicalModel(
+                commands = listOf(
+                    commandModel(
+                        packageName = "content",
+                        typeName = "CreateContentCmd",
+                        requestFields = listOf(FieldModel("authorId", "AuthorId")),
+                    )
+                ),
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "AuthorId",
+                        packageName = "com.acme.demo.domain.shared.ids",
+                        kind = StrongIdKind.REFERENCE,
+                    )
+                ),
+            ),
+        )
+
+        val command = items.single()
+
+        assertEquals(listOf("com.acme.demo.domain.shared.ids.AuthorId"), command.context["imports"])
+        assertEquals(
+            listOf(DesignRenderFieldModel(name = "authorId", renderedType = "AuthorId")),
+            command.context["requestFields"],
+        )
     }
 
     @Test

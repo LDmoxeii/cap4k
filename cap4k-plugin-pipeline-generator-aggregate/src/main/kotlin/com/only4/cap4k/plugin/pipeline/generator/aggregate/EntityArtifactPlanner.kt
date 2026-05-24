@@ -5,7 +5,11 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.EntityModel
+import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
+import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import java.util.Locale
 
 internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
@@ -87,17 +91,14 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         null
                     } else {
                         val control = controlsByField[field.name]
-                        val fieldType = planning.resolveFieldType(entity.packageName, field)
+                        val strongId = resolveStrongId(model, entity, field)
+                        val fieldType = strongId?.typeName ?: planning.resolveFieldType(entity.packageName, field)
+                        val typeRef = strongId?.fqn()
+                        val embeddedId = strongId != null && isAggregateRootIdField(entity, field, strongId)
                         val idPolicyApplies = jpa.isId && idPolicyControl?.idFieldName == field.name
-                        val applicationSideIdStrategy = if (
-                            idPolicyApplies &&
-                            idPolicyControl.kind == AggregateIdPolicyKind.APPLICATION_SIDE
-                        ) {
-                            idPolicyControl.strategy
-                        } else {
-                            null
-                        }
+                        val applicationSideIdStrategy: String? = null
                         val generatedValueStrategy = if (
+                            strongId == null &&
                             idPolicyApplies &&
                             idPolicyControl.kind == AggregateIdPolicyKind.DATABASE_SIDE
                         ) {
@@ -110,10 +111,10 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                                 resolvedPolicy.version.fieldName == field.name
                             else -> control?.version == true
                         }
-                        val defaultValue = when (applicationSideIdStrategy) {
-                            "uuid7" -> uuid7SentinelDefault(fieldType)
-                            "snowflake-long" -> "0L"
-                            else -> defaultProjector.project(
+                        val defaultValue = if (strongId != null) {
+                            null
+                        } else {
+                            defaultProjector.project(
                                 fieldPath = "${entity.packageName}.${entity.name}.${field.name}",
                                 fieldType = fieldType,
                                 nullable = field.nullable,
@@ -122,6 +123,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             )
                         }
                         val insertable = when {
+                            embeddedId -> null
                             jpa.columnName in readOnlyInverseJoinColumns -> false
                             control?.insertable != null -> control.insertable
                             control?.updatable != null -> true
@@ -129,6 +131,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             else -> null
                         }
                         val updatable = when {
+                            embeddedId -> null
                             jpa.columnName in readOnlyInverseJoinColumns -> false
                             applicationSideIdStrategy != null -> false
                             control?.updatable != null -> control.updatable
@@ -148,6 +151,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "type" to fieldType,
                             "nullable" to field.nullable,
                             "defaultValue" to defaultValue,
+                            "typeRef" to typeRef,
+                            "strongId" to (strongId != null),
+                            "embeddedId" to embeddedId,
                             "typeBinding" to field.typeBinding,
                             "enumItems" to field.enumItems,
                             "columnName" to jpa.columnName,
@@ -160,18 +166,19 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "writePolicy" to writePolicy,
                             "insertable" to insertable,
                             "updatable" to updatable,
+                            "attributeOverrideNullable" to field.nullable,
+                            "attributeOverrideInsertable" to insertable,
+                            "attributeOverrideUpdatable" to when {
+                                embeddedId -> false
+                                updatable != null -> updatable
+                                else -> true
+                            },
                         )
                     }
                 }
-            val scalarImports = if (
-                scalarFields.any {
-                    it["defaultValue"] == "UUID(0L, 0L)"
-                }
-            ) {
-                relationPlan.imports + "java.util.UUID"
-            } else {
-                relationPlan.imports
-            }
+            val strongIdImports = scalarFields.mapNotNull { it["typeRef"] as? String }
+            val scalarTypeImports = scalarFields.flatMap { scalarTypeImports(it["type"] as? String) }
+            val scalarImports = relationPlan.imports + strongIdImports + scalarTypeImports
             generatedKotlinArtifact(
                 config = config,
                 artifactLayout = artifactLayout,
@@ -194,6 +201,11 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         it["isId"] == true && it["generatedValueStrategy"] == "IDENTITY"
                     },
                     "hasApplicationSideIdFields" to scalarFields.any { it["applicationSideIdStrategy"] != null },
+                    "hasEmbeddedIdFields" to scalarFields.any { it["embeddedId"] == true },
+                    "hasStrongIdFields" to scalarFields.any { it["strongId"] == true },
+                    "hasEmbeddedStrongIdFields" to scalarFields.any {
+                        it["strongId"] == true && it["embeddedId"] != true
+                    },
                     "hasVersionFields" to scalarFields.any { it["isVersion"] == true },
                     "dynamicInsert" to (providerControl?.dynamicInsert == true),
                     "dynamicUpdate" to (providerControl?.dynamicUpdate == true),
@@ -209,12 +221,49 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
         }
     }
 
-    private fun uuid7SentinelDefault(fieldType: String): String =
-        if (fieldType.removeSuffix("?") == "java.util.UUID") {
-            "java.util.UUID(0L, 0L)"
+    private fun scalarTypeImports(fieldType: String?): List<String> =
+        if (fieldType?.removeSuffix("?") == "UUID") {
+            listOf("java.util.UUID")
         } else {
-            "UUID(0L, 0L)"
+            emptyList()
         }
+
+    private fun resolveStrongId(
+        model: CanonicalModel,
+        entity: EntityModel,
+        field: FieldModel,
+    ): StrongIdModel? {
+        val aggregateRootId = model.strongIds.firstOrNull {
+            it.kind == StrongIdKind.AGGREGATE_ROOT &&
+                it.ownerAggregateName == entity.name &&
+                it.ownerAggregatePackageName == entity.packageName &&
+                it.typeName == field.type.shortTypeName() &&
+                field.name == entity.idField.name
+        }
+        if (aggregateRootId != null) return aggregateRootId
+
+        val matches = model.strongIds.filter { strongId ->
+            field.type == strongId.typeName || field.type == strongId.fqn()
+        }
+        require(matches.size <= 1) {
+            "ambiguous strong id type ${field.type} for ${entity.packageName}.${entity.name}.${field.name}"
+        }
+        return matches.singleOrNull()
+    }
+
+    private fun isAggregateRootIdField(
+        entity: EntityModel,
+        field: FieldModel,
+        strongId: StrongIdModel,
+    ): Boolean =
+        field.name == entity.idField.name &&
+            strongId.kind == StrongIdKind.AGGREGATE_ROOT &&
+            strongId.ownerAggregateName == entity.name &&
+            strongId.ownerAggregatePackageName == entity.packageName
+
+    private fun StrongIdModel.fqn(): String = "${packageName}.${typeName}"
+
+    private fun String.shortTypeName(): String = removeSuffix("?").substringAfterLast('.')
 
     private fun buildSoftDeleteSql(
         tableName: String,

@@ -32,6 +32,8 @@ import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
+import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
+import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
@@ -172,6 +174,233 @@ class AggregateArtifactPlannerTest {
         }
         assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, plan.single { it.templateId == "aggregate/factory.kt.peb" }.outputKind)
         assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, plan.single { it.templateId == "aggregate/specification.kt.peb" }.outputKind)
+    }
+
+    @Test
+    fun `aggregate planner emits aggregate and reference strong id artifacts`() {
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "ContentId",
+                        packageName = "com.acme.demo.domain.aggregates.content",
+                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        ownerAggregateName = "Content",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
+                    ),
+                    StrongIdModel(
+                        typeName = "AuthorId",
+                        packageName = "com.acme.demo.domain.shared.ids",
+                        kind = StrongIdKind.REFERENCE,
+                    ),
+                ),
+            )
+        )
+
+        val strongIdItems = plan.filter { it.templateId == "aggregate/strong_id.kt.peb" }
+        val itemsByType = strongIdItems.associateBy { it.context["typeName"] }
+
+        assertEquals(2, strongIdItems.size)
+        assertAll(
+            {
+                val contentId = itemsByType.getValue("ContentId")
+                assertEquals("domain", contentId.moduleRole)
+                assertEquals(
+                    "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/content/ContentId.kt",
+                    contentId.outputPath,
+                )
+                assertEquals("com.acme.demo.domain.aggregates.content", contentId.context["packageName"])
+                assertEquals(StrongIdKind.AGGREGATE_ROOT.name, contentId.context["kind"])
+                assertEquals(true, contentId.context["canGenerateNew"])
+                assertEquals(ArtifactOutputKind.GENERATED_SOURCE, contentId.outputKind)
+                assertEquals(ConflictPolicy.OVERWRITE, contentId.conflictPolicy)
+                assertEquals("demo-domain/build/generated/cap4k/main/kotlin", contentId.resolvedOutputRoot)
+            },
+            {
+                val authorId = itemsByType.getValue("AuthorId")
+                assertEquals("domain", authorId.moduleRole)
+                assertEquals(
+                    "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shared/ids/AuthorId.kt",
+                    authorId.outputPath,
+                )
+                assertEquals("com.acme.demo.domain.shared.ids", authorId.context["packageName"])
+                assertEquals(StrongIdKind.REFERENCE.name, authorId.context["kind"])
+                assertEquals(false, authorId.context["canGenerateNew"])
+                assertEquals(ArtifactOutputKind.GENERATED_SOURCE, authorId.outputKind)
+                assertEquals(ConflictPolicy.OVERWRITE, authorId.conflictPolicy)
+                assertEquals("demo-domain/build/generated/cap4k/main/kotlin", authorId.resolvedOutputRoot)
+            },
+        )
+    }
+
+    @Test
+    fun `aggregate planner renders strong id entity factory and repository context`() {
+        val entity = EntityModel(
+            name = "Content",
+            packageName = "com.acme.demo.domain.aggregates.content",
+            tableName = "content",
+            comment = "content",
+            fields = listOf(
+                FieldModel("id", "ContentId", columnName = "id"),
+                FieldModel("title", "String", columnName = "title"),
+                FieldModel("authorId", "AuthorId", columnName = "author_id"),
+                FieldModel("mediaProcessingTaskId", "MediaProcessingTaskId", nullable = true, columnName = "media_processing_task_id"),
+            ),
+            idField = FieldModel("id", "ContentId", columnName = "id"),
+        )
+
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                repositories = listOf(
+                    RepositoryModel(
+                        name = "ContentRepository",
+                        packageName = "com.acme.demo.adapter.domain.repositories",
+                        entityName = "Content",
+                        idType = "String",
+                    )
+                ),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        entityEnabled = true,
+                        tableName = entity.tableName,
+                        columns = entity.fields.map { field ->
+                            AggregateColumnJpaModel(
+                                fieldName = field.name,
+                                columnName = field.columnName ?: field.name,
+                                isId = field.name == entity.idField.name,
+                            )
+                        },
+                    )
+                ),
+                aggregateSpecialFieldResolvedPolicies = listOf(
+                    AggregateSpecialFieldResolvedPolicy(
+                        entityName = "Content",
+                        entityPackageName = "com.acme.demo.domain.aggregates.content",
+                        tableName = "content",
+                        id = ResolvedIdPolicy(
+                            fieldName = "id",
+                            columnName = "id",
+                            strategy = "strong-id",
+                            kind = AggregateIdPolicyKind.APPLICATION_SIDE,
+                            source = SpecialFieldSource.DSL_DEFAULT,
+                            writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                        ),
+                        deleted = ResolvedMarkerPolicy(
+                            enabled = false,
+                            source = SpecialFieldSource.NONE,
+                        ),
+                        version = ResolvedMarkerPolicy(
+                            enabled = false,
+                            source = SpecialFieldSource.NONE,
+                        ),
+                        managedFields = listOf(
+                            ResolvedManagedFieldPolicy(
+                                fieldName = "id",
+                                columnName = "id",
+                                writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                                source = SpecialFieldSource.DSL_DEFAULT,
+                            )
+                        ),
+                        writeSurface = ResolvedWriteSurfacePolicy(
+                            createAllowedFields = listOf("id", "title", "authorId", "mediaProcessingTaskId"),
+                            updateAllowedFields = listOf("title"),
+                        ),
+                    ),
+                ),
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "ContentId",
+                        packageName = "com.acme.demo.domain.aggregates.content",
+                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        ownerAggregateName = "Content",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
+                    ),
+                    StrongIdModel(
+                        typeName = "AuthorId",
+                        packageName = "com.acme.demo.domain.shared.ids",
+                        kind = StrongIdKind.REFERENCE,
+                    ),
+                    StrongIdModel(
+                        typeName = "MediaProcessingTaskId",
+                        packageName = "com.acme.demo.domain.aggregates.media_processing_task",
+                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        ownerAggregateName = "MediaProcessingTask",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.media_processing_task",
+                    ),
+                ),
+            )
+        )
+
+        val entityContext = plan.single { it.outputPath.endsWith("/Content.kt") }.context
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityContext["scalarFields"] as List<Map<String, Any?>>
+        val idField = scalarFields.single { it["fieldName"] == "id" }
+        val authorIdField = scalarFields.single { it["fieldName"] == "authorId" }
+        val mediaProcessingTaskIdField = scalarFields.single { it["fieldName"] == "mediaProcessingTaskId" }
+
+        val factoryContext = plan.single { it.templateId == "aggregate/factory.kt.peb" }.context
+        @Suppress("UNCHECKED_CAST")
+        val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
+        @Suppress("UNCHECKED_CAST")
+        val constructorPayloadFields =
+            (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
+
+        val repositoryContext = plan.single { it.templateId == "aggregate/repository.kt.peb" }.context
+
+        assertAll(
+            { assertEquals("ContentId", idField["type"]) },
+            { assertEquals("ContentId", idField["fieldType"]) },
+            { assertEquals("com.acme.demo.domain.aggregates.content.ContentId", idField["typeRef"]) },
+            { assertEquals(null, idField["defaultValue"]) },
+            { assertEquals(null, idField["applicationSideIdStrategy"]) },
+            { assertEquals(true, idField["strongId"]) },
+            { assertEquals(true, idField["embeddedId"]) },
+            { assertEquals(false, idField["attributeOverrideNullable"]) },
+            { assertEquals(null, idField["attributeOverrideInsertable"]) },
+            { assertEquals(false, idField["attributeOverrideUpdatable"]) },
+            { assertEquals("AuthorId", authorIdField["type"]) },
+            { assertEquals("com.acme.demo.domain.shared.ids.AuthorId", authorIdField["typeRef"]) },
+            { assertEquals(true, authorIdField["strongId"]) },
+            { assertEquals(false, authorIdField["embeddedId"]) },
+            { assertEquals("author_id", authorIdField["columnName"]) },
+            { assertEquals(false, authorIdField["attributeOverrideNullable"]) },
+            { assertEquals(null, authorIdField["attributeOverrideInsertable"]) },
+            { assertEquals(true, authorIdField["attributeOverrideUpdatable"]) },
+            { assertEquals(true, mediaProcessingTaskIdField["strongId"]) },
+            { assertEquals(false, mediaProcessingTaskIdField["embeddedId"]) },
+            { assertEquals("media_processing_task_id", mediaProcessingTaskIdField["columnName"]) },
+            { assertEquals(true, mediaProcessingTaskIdField["attributeOverrideNullable"]) },
+            { assertEquals(null, mediaProcessingTaskIdField["attributeOverrideInsertable"]) },
+            { assertEquals(true, mediaProcessingTaskIdField["attributeOverrideUpdatable"]) },
+            {
+                assertEquals(
+                    listOf(
+                        "com.acme.demo.domain.aggregates.content.ContentId",
+                        "com.acme.demo.domain.shared.ids.AuthorId",
+                        "com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId",
+                    ),
+                    entityContext["imports"],
+                )
+            },
+            { assertFalse(payloadFields.any { it["name"] == "id" }) },
+            { assertEquals(listOf("title", "authorId", "mediaProcessingTaskId"), payloadFields.map { it["name"] }) },
+            { assertEquals("id", factoryContext["ownIdFieldName"]) },
+            { assertEquals("ContentId.new()", factoryContext["ownIdInitializer"]) },
+            { assertEquals("com.acme.demo.domain.aggregates.content.ContentId", factoryContext["ownIdTypeRef"]) },
+            { assertEquals(listOf("title", "authorId", "mediaProcessingTaskId"), constructorPayloadFields.map { it["name"] }) },
+            { assertEquals("ContentId", repositoryContext["idType"]) },
+            {
+                assertEquals(
+                    "com.acme.demo.domain.aggregates.content.ContentId",
+                    repositoryContext["idTypeFqn"],
+                )
+            },
+        )
     }
 
     @Test
@@ -748,7 +977,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner exposes application side uuid7 render keys on id field`() {
+    fun `entity planner omits application side uuid7 render keys on id field`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -821,16 +1050,16 @@ class AggregateArtifactPlannerTest {
         val scalarFields = entityArtifact.context["scalarFields"] as List<Map<String, Any?>>
         val idField = scalarFields.single { it["fieldName"] == "id" }
 
-        assertEquals("uuid7", idField["applicationSideIdStrategy"])
+        assertEquals(null, idField["applicationSideIdStrategy"])
         assertEquals("CREATE_ONLY", idField["writePolicy"])
-        assertEquals("UUID(0L, 0L)", idField["defaultValue"])
-        assertEquals(false, idField["updatable"])
+        assertEquals(null, idField["defaultValue"])
+        assertEquals(null, idField["updatable"])
         assertEquals(null, idField["generatedValueStrategy"])
         assertFalse(idField.containsKey("generatedValue" + "Generator"))
         assertFalse(idField.containsKey("genericGenerator" + "Name"))
         assertFalse(idField.containsKey("genericGenerator" + "Strategy"))
         assertEquals(false, entityArtifact.context["hasGeneratedValueFields"])
-        assertEquals(true, entityArtifact.context["hasApplicationSideIdFields"])
+        assertEquals(false, entityArtifact.context["hasApplicationSideIdFields"])
         assertEquals(listOf("java.util.UUID"), entityArtifact.context["imports"])
     }
 
@@ -898,7 +1127,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner renders uuid7 default with qualified constructor when id field keeps qualified UUID type`() {
+    fun `entity planner omits uuid7 sentinel default when id field keeps qualified UUID type`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -937,12 +1166,12 @@ class AggregateArtifactPlannerTest {
         val idField = scalarFields.single { it["fieldName"] == "id" }
 
         assertEquals("java.util.UUID", idField["fieldType"])
-        assertEquals("java.util.UUID(0L, 0L)", idField["defaultValue"])
+        assertEquals(null, idField["defaultValue"])
         assertEquals(emptyList<String>(), entityArtifact.context["imports"])
     }
 
     @Test
-    fun `entity planner exposes application side snowflake long render keys on id field`() {
+    fun `entity planner omits application side snowflake long render keys on id field`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -980,15 +1209,15 @@ class AggregateArtifactPlannerTest {
         val scalarFields = entityArtifact.context["fields"] as List<Map<String, Any?>>
         val idField = scalarFields.single { it["fieldName"] == "id" }
 
-        assertEquals("snowflake-long", idField["applicationSideIdStrategy"])
-        assertEquals("0L", idField["defaultValue"])
-        assertEquals(false, idField["updatable"])
+        assertEquals(null, idField["applicationSideIdStrategy"])
+        assertEquals(null, idField["defaultValue"])
+        assertEquals(null, idField["updatable"])
         assertEquals(null, idField["generatedValueStrategy"])
         assertFalse(idField.containsKey("generatedValue" + "Generator"))
         assertFalse(idField.containsKey("genericGenerator" + "Name"))
         assertFalse(idField.containsKey("genericGenerator" + "Strategy"))
         assertEquals(false, entityArtifact.context["hasGeneratedValueFields"])
-        assertEquals(true, entityArtifact.context["hasApplicationSideIdFields"])
+        assertEquals(false, entityArtifact.context["hasApplicationSideIdFields"])
     }
 
     @Test
@@ -2645,6 +2874,58 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `unique query and validator import strong id request prop types`() {
+        val entity = EntityModel(
+            name = "Content",
+            packageName = "com.acme.demo.domain.aggregates.content",
+            tableName = "content",
+            comment = "Content entity",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("authorId", "AuthorId", columnName = "author_id"),
+                FieldModel("slug", "String", columnName = "slug"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            uniqueConstraints = listOf(uniqueConstraint("content_uk_author_slug", "author_id", "slug")),
+        )
+        val model = CanonicalModel(
+            entities = listOf(entity),
+            schemas = listOf(
+                SchemaModel(
+                    name = "SContent",
+                    packageName = "com.acme.demo.domain._share.meta.content",
+                    entityName = "Content",
+                    comment = "Content schema",
+                    fields = entity.fields,
+                )
+            ),
+            repositories = listOf(
+                RepositoryModel(
+                    name = "ContentRepository",
+                    packageName = "com.acme.demo.adapter.domain.repositories",
+                    entityName = "Content",
+                    idType = "Long",
+                )
+            ),
+            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            strongIds = listOf(
+                StrongIdModel(
+                    typeName = "AuthorId",
+                    packageName = "com.acme.demo.domain.shared.ids",
+                    kind = StrongIdKind.REFERENCE,
+                )
+            ),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(aggregateConfig(), model)
+        val query = planItems.single { it.templateId == "aggregate/unique_query.kt.peb" }
+        val validator = planItems.single { it.templateId == "aggregate/unique_validator.kt.peb" }
+
+        assertEquals(listOf("com.acme.demo.domain.shared.ids.AuthorId"), query.context["imports"])
+        assertEquals(listOf("com.acme.demo.domain.shared.ids.AuthorId"), validator.context["imports"])
+    }
+
+    @Test
     fun `unique planners expose business validator and repository backed handler context`() {
         val entity = EntityModel(
             name = "UserMessage",
@@ -3383,12 +3664,113 @@ class AggregateArtifactPlannerTest {
             {
                 @Suppress("UNCHECKED_CAST")
                 val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
-                assertEquals(listOf("id", "title"), payloadFields.map { it["name"] })
+                assertEquals(listOf("title"), payloadFields.map { it["name"] })
             },
             {
                 @Suppress("UNCHECKED_CAST")
                 val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
-                assertEquals(listOf("Long", "String"), payloadFields.map { it["typeName"] })
+                assertEquals(listOf("String"), payloadFields.map { it["typeName"] })
+            },
+            { assertEquals(false, factoryContext["constructorMappingResolved"]) },
+            {
+                @Suppress("UNCHECKED_CAST")
+                val constructorPayloadFields =
+                    (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
+                assertEquals(emptyList<String>(), constructorPayloadFields.map { it["name"] })
+            },
+        )
+    }
+
+    @Test
+    fun `factory planner falls back when strong id aggregate has read only version constructor field`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "VideoPostId", columnName = "id"),
+                FieldModel("version", "Long", columnName = "version"),
+                FieldModel("title", "String", columnName = "title"),
+            ),
+            idField = FieldModel("id", "VideoPostId", columnName = "id"),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregateSpecialFieldResolvedPolicies = listOf(
+                    AggregateSpecialFieldResolvedPolicy(
+                        entityName = "VideoPost",
+                        entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        tableName = "video_post",
+                        id = ResolvedIdPolicy(
+                            fieldName = "id",
+                            columnName = "id",
+                            strategy = "uuid7",
+                            kind = AggregateIdPolicyKind.APPLICATION_SIDE,
+                            source = SpecialFieldSource.DSL_DEFAULT,
+                            writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                        ),
+                        deleted = ResolvedMarkerPolicy(
+                            enabled = false,
+                            source = SpecialFieldSource.NONE,
+                        ),
+                        version = ResolvedMarkerPolicy(
+                            enabled = true,
+                            fieldName = "version",
+                            columnName = "version",
+                            source = SpecialFieldSource.DB_EXPLICIT,
+                            writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                        ),
+                        managedFields = listOf(
+                            ResolvedManagedFieldPolicy(
+                                fieldName = "id",
+                                columnName = "id",
+                                writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                                source = SpecialFieldSource.DSL_DEFAULT,
+                            ),
+                            ResolvedManagedFieldPolicy(
+                                fieldName = "version",
+                                columnName = "version",
+                                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                                source = SpecialFieldSource.DB_EXPLICIT,
+                            ),
+                        ),
+                        writeSurface = ResolvedWriteSurfacePolicy(
+                            createAllowedFields = listOf("id", "title"),
+                            updateAllowedFields = listOf("title"),
+                        ),
+                    ),
+                ),
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "VideoPostId",
+                        packageName = "com.acme.demo.domain.aggregates.video_post",
+                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        ownerAggregateName = "VideoPost",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.video_post",
+                    ),
+                ),
+            )
+        )
+
+        val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
+
+        assertAll(
+            { assertEquals(false, factoryContext["constructorMappingResolved"]) },
+            {
+                @Suppress("UNCHECKED_CAST")
+                val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
+                assertEquals(listOf("title"), payloadFields.map { it["name"] })
+            },
+            {
+                @Suppress("UNCHECKED_CAST")
+                val constructorPayloadFields =
+                    (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
+                assertEquals(emptyList<String>(), constructorPayloadFields.map { it["name"] })
             },
         )
     }

@@ -18,7 +18,7 @@ class DesignDomainEventArtifactPlanner : GeneratorProvider {
             val renderModel = DesignPayloadRenderModelFactory.createForDomainEvent(
                 packageName = packageName,
                 event = event,
-                typeRegistry = config.typeRegistryFqns(),
+                typeRegistry = config.designTypeRegistryFqns(model),
             )
             ArtifactPlanItem(
                 generatorId = id,

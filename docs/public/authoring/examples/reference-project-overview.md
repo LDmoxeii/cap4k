@@ -81,10 +81,13 @@
 同一个参考项目也会被后续高级概念示例页复用，但这些页面不是另起一个样板系统，而是拿同一条 `Content` / `MediaProcessingTask` / callback / polling 参考链路，分别观察“值语义什么时候需要升级”“领域判断什么时候不自然落在单个聚合里”“什么时候问题已经跨入长流程协调”。
 
 - [内容发布示例：Value Object](content-publication-value-object.md)
+- [内容发布示例：Strong ID](content-publication-strong-id.md)
 - [内容发布示例：Domain Service](content-publication-domain-service.md)
 - [内容发布示例：Saga](content-publication-saga.md)
 
 当前 reference project 的 Value Object 观察点以 `MediaProcessingResultSnapshot` 为准：它是手写 JSON-backed composite value object，落在 `media_processing_task.result_snapshot`，通过 `types.json` + converter 被生成聚合字段消费。这个样例用来说明“值对象可以先是领域值，再选择轻量持久化承载”，不是要求所有值对象都走 separate table / `@VO`。
+
+当前 reference project 的 Strong ID 观察点以 `ContentId`、`AuthorId`、`MediaProcessingTaskId` 为准：聚合根 ID 默认生成 Strong ID，同上下文聚合引用用目标聚合 ID 类型，外部账号概念进入内容上下文时落到本地语言 `AuthorId`。
 
 ## Non-example / misuse
 

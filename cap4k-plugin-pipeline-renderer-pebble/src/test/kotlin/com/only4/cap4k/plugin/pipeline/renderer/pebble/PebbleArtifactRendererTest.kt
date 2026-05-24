@@ -79,7 +79,6 @@ class PebbleArtifactRendererTest {
                 "payloadMetadataName" to "VideoPostPayload",
                 "payloadWriteSurfaceResolved" to true,
                 "payloadFields" to listOf(
-                    mapOf("name" to "id", "type" to "Long", "nullable" to false),
                     mapOf("name" to "title", "type" to "String", "nullable" to true),
                 ),
                 "entityName" to "VideoPost",
@@ -90,9 +89,84 @@ class PebbleArtifactRendererTest {
 
         assertTrue(content.contains("""name = "VideoPostPayload""""))
         assertTrue(content.contains("data class Payload("))
-        assertTrue(content.contains("val id: Long"))
         assertTrue(content.contains("val title: String?"))
+        assertFalse(content.contains("val id: Long"))
         assertFalse(content.contains("val name: String"))
+    }
+
+    @Test
+    fun `aggregate factory template renders strong id constructor mapping`() {
+        val content = renderTemplate(
+            templateId = "aggregate/factory.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/factory/ContentFactory.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.content.factory",
+                "typeName" to "ContentFactory",
+                "payloadTypeName" to "Payload",
+                "payloadMetadataName" to "ContentPayload",
+                "payloadWriteSurfaceResolved" to true,
+                "constructorMappingResolved" to true,
+                "payloadFields" to listOf(
+                    mapOf("name" to "title", "type" to "String", "nullable" to false),
+                    mapOf("name" to "authorId", "type" to "AuthorId", "nullable" to false),
+                ),
+                "constructorPayloadFields" to listOf(
+                    mapOf("name" to "title"),
+                    mapOf("name" to "authorId"),
+                ),
+                "ownIdFieldName" to "id",
+                "ownIdInitializer" to "ContentId.new()",
+                "ownIdTypeRef" to "com.acme.demo.domain.aggregates.content.ContentId",
+                "entityName" to "Content",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.content.Content",
+                "aggregateName" to "Content",
+                "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.content.ContentId",
+                    "com.acme.demo.domain.shared.ids.AuthorId",
+                ),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.ContentId"))
+        assertTrue(content.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
+        assertTrue(content.contains("override fun create(entityPayload: Payload): Content ="))
+        assertTrue(content.contains("Content("))
+        assertTrue(content.contains("id = ContentId.new()"))
+        assertTrue(content.contains("title = entityPayload.title"))
+        assertTrue(content.contains("authorId = entityPayload.authorId"))
+        assertFalse(content.contains("AuthorId.new()"))
+        assertFalse(content.contains("TODO(\"Implement aggregate construction\")"))
+        assertFalse(content.contains("val id: ContentId"))
+    }
+
+    @Test
+    fun `design command template renders strong id request field imports`() {
+        val content = renderTemplate(
+            templateId = "design/command.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/content/CreateContentCmd.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.commands.content",
+                "typeName" to "CreateContentCmd",
+                "description" to "create content",
+                "descriptionText" to "create content",
+                "descriptionCommentText" to "create content",
+                "descriptionKotlinStringLiteral" to "\"create content\"",
+                "aggregateName" to null,
+                "imports" to listOf("com.acme.demo.domain.shared.ids.AuthorId"),
+                "requestFields" to listOf(
+                    mapOf("name" to "authorId", "renderedType" to "AuthorId", "nullable" to false),
+                ),
+                "responseFields" to emptyList<Map<String, Any?>>(),
+                "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+                "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                "pageRequest" to false,
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
+        assertTrue(content.contains("val authorId: AuthorId"))
     }
 
     @Test
@@ -139,6 +213,53 @@ class PebbleArtifactRendererTest {
 
         assertTrue(content.contains("""name = "VideoPostPayload""""))
         assertTrue(content.contains("val name: String"))
+    }
+
+    @Test
+    fun `aggregate strong id template renders embeddable validated wrapper`() {
+        val content = renderTemplate(
+            templateId = "aggregate/strong_id.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/content/ContentId.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.content",
+                "typeName" to "ContentId",
+                "kind" to "AGGREGATE_ROOT",
+                "canGenerateNew" to true,
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertMaintainableTemplateSource("aggregate/strong_id.kt.peb")
+        assertTrue(content.contains("@Embeddable"))
+        assertTrue(content.contains("class ContentId protected constructor() : StrongId, Serializable"))
+        assertTrue(content.contains("""@Column(name = "value", nullable = false, updatable = false, length = 36)"""))
+        assertTrue(content.contains("@JsonCreator(mode = JsonCreator.Mode.DELEGATING)"))
+        assertTrue(content.contains("""this.value = StrongIds.requireUuidV7(value, "ContentId")"""))
+        assertTrue(content.contains("fun parse(value: String): ContentId = ContentId(value)"))
+        assertTrue(content.contains("fun new(): ContentId = ContentId(StrongIds.newUuidV7String())"))
+    }
+
+    @Test
+    fun `reference strong id template renders parse without new factory`() {
+        val content = renderTemplate(
+            templateId = "aggregate/strong_id.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shared/ids/AuthorId.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.shared.ids",
+                "typeName" to "AuthorId",
+                "kind" to "REFERENCE",
+                "canGenerateNew" to false,
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertMaintainableTemplateSource("aggregate/strong_id.kt.peb")
+        assertTrue(content.contains("@Embeddable"))
+        assertTrue(content.contains("class AuthorId protected constructor() : StrongId, Serializable"))
+        assertTrue(content.contains("@JsonCreator(mode = JsonCreator.Mode.DELEGATING)"))
+        assertTrue(content.contains("""this.value = StrongIds.requireUuidV7(value, "AuthorId")"""))
+        assertTrue(content.contains("fun parse(value: String): AuthorId = AuthorId(value)"))
+        assertFalse(content.contains("fun new(): AuthorId"))
     }
 
     @Test
@@ -399,6 +520,7 @@ class PebbleArtifactRendererTest {
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
                 "hasApplicationSideIdFields" to true,
+                "hasEmbeddedIdFields" to false,
                 "hasVersionFields" to false,
                 "dynamicInsert" to false,
                 "dynamicUpdate" to false,
@@ -411,7 +533,7 @@ class PebbleArtifactRendererTest {
                         "name" to "id",
                         "type" to "java.util.UUID",
                         "nullable" to false,
-                        "defaultValue" to "java.util.UUID(0L, 0L)",
+                        "defaultValue" to null,
                         "columnName" to "id",
                         "isId" to true,
                         "applicationSideIdStrategy" to "uuid7",
@@ -426,8 +548,153 @@ class PebbleArtifactRendererTest {
             ),
         )
 
-        assertTrue(content.contains("@field:ApplicationSideId(strategy = \"uuid7\")"))
+        assertFalse(content.contains("ApplicationSideId"))
         assertTrue(content.contains("@Column(name = \"id\", insertable = true, updatable = false)"))
+    }
+
+    @Test
+    fun `aggregate entity template renders aggregate root strong id as embedded id`() {
+        val content = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.content",
+                "typeName" to "Content",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to "content",
+                ),
+                "hasConverterFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasApplicationSideIdFields" to false,
+                "hasEmbeddedIdFields" to true,
+                "hasStrongIdFields" to true,
+                "hasEmbeddedStrongIdFields" to true,
+                "hasVersionFields" to false,
+                "dynamicInsert" to false,
+                "dynamicUpdate" to false,
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "jpaImports" to emptyList<String>(),
+                "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.content.ContentId",
+                    "com.acme.demo.domain.shared.ids.AuthorId",
+                    "com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId",
+                ),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "type" to "ContentId",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to "id",
+                        "isId" to true,
+                        "strongId" to true,
+                        "embeddedId" to true,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to "CREATE_ONLY",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "attributeOverrideNullable" to false,
+                        "attributeOverrideInsertable" to null,
+                        "attributeOverrideUpdatable" to false,
+                        "converterClassRef" to null,
+                    ),
+                    mapOf(
+                        "name" to "title",
+                        "type" to "String",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to "title",
+                        "isId" to false,
+                        "strongId" to false,
+                        "embeddedId" to false,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to "READ_WRITE",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "converterClassRef" to null,
+                    ),
+                    mapOf(
+                        "name" to "authorId",
+                        "type" to "AuthorId",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to "author_id",
+                        "isId" to false,
+                        "strongId" to true,
+                        "embeddedId" to false,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to "READ_WRITE",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "attributeOverrideNullable" to false,
+                        "attributeOverrideInsertable" to null,
+                        "attributeOverrideUpdatable" to true,
+                        "converterClassRef" to null,
+                    ),
+                    mapOf(
+                        "name" to "mediaProcessingTaskId",
+                        "type" to "MediaProcessingTaskId",
+                        "nullable" to true,
+                        "defaultValue" to null,
+                        "columnName" to "media_processing_task_id",
+                        "isId" to false,
+                        "strongId" to true,
+                        "embeddedId" to false,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to "READ_WRITE",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "attributeOverrideNullable" to true,
+                        "attributeOverrideInsertable" to null,
+                        "attributeOverrideUpdatable" to true,
+                        "converterClassRef" to null,
+                    ),
+                ),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import jakarta.persistence.AttributeOverride"))
+        assertTrue(content.contains("import jakarta.persistence.Embedded"))
+        assertTrue(content.contains("import jakarta.persistence.EmbeddedId"))
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.ContentId"))
+        assertTrue(content.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId"))
+        assertTrue(content.contains("id: ContentId"))
+        assertTrue(
+            content.contains(
+                """@EmbeddedId
+    @AttributeOverride(name = "value", column = Column(name = "id", nullable = false, updatable = false, length = 36))
+    var id: ContentId = id"""
+            )
+        )
+        assertTrue(
+            content.contains(
+                """@Embedded
+    @AttributeOverride(name = "value", column = Column(name = "author_id", nullable = false, updatable = true, length = 36))
+    var authorId: AuthorId = authorId"""
+            )
+        )
+        assertTrue(
+            content.contains(
+                """@Embedded
+    @AttributeOverride(name = "value", column = Column(name = "media_processing_task_id", nullable = true, updatable = true, length = 36))
+    var mediaProcessingTaskId: MediaProcessingTaskId? = mediaProcessingTaskId"""
+            )
+        )
+        assertFalse(content.contains("@Id"))
+        assertFalse(content.contains("ApplicationSideId"))
+        assertFalse(content.contains("UUID(" + "0L, 0L)"))
+        assertFalse(content.contains("@Column(name = \"id\")"))
+        assertFalse(content.contains("@Column(name = \"author_id\")"))
+        assertFalse(content.contains("@Column(name = \"media_processing_task_id\")"))
     }
 
     @Test
@@ -496,6 +763,36 @@ class PebbleArtifactRendererTest {
             "package demo\n\nimport java.util.UUID\n\nclass Demo(\n    val id: UUID\n)\n",
             content
         )
+    }
+
+    @Test
+    fun `aggregate repository template imports and uses strong id type`() {
+        val content = renderTemplate(
+            templateId = "aggregate/repository.kt.peb",
+            outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/ContentRepository.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.adapter.domain.repositories",
+                "typeName" to "ContentRepository",
+                "entityName" to "Content",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.content.Content",
+                "aggregateName" to "Content",
+                "idType" to "ContentId",
+                "idTypeFqn" to "com.acme.demo.domain.aggregates.content.ContentId",
+                "supportQuerydsl" to false,
+                "imports" to emptyList<String>(),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.Content"))
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.ContentId"))
+        assertTrue(
+            content.contains(
+                "interface ContentRepository : JpaRepository<Content, ContentId>, JpaSpecificationExecutor<Content>"
+            )
+        )
+        assertTrue(content.contains("jpaRepository: JpaRepository<Content, ContentId>"))
+        assertTrue(content.contains("AbstractJpaRepository<Content, ContentId>"))
     }
 
     @Test
@@ -3063,7 +3360,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `aggregate entity template renders application side id annotation and sentinel default`() {
+    fun `aggregate entity template omits application side id annotation and sentinel default`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-application-side-id")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
@@ -3090,6 +3387,7 @@ class PebbleArtifactRendererTest {
                         "hasConverterFields" to false,
                         "hasGeneratedValueFields" to false,
                         "hasApplicationSideIdFields" to true,
+                        "hasEmbeddedIdFields" to false,
                         "hasVersionFields" to false,
                         "scalarFields" to listOf(
                             mapOf(
@@ -3097,7 +3395,7 @@ class PebbleArtifactRendererTest {
                                 "fieldType" to "UUID",
                                 "name" to "id",
                                 "type" to "UUID",
-                                "defaultValue" to "UUID(0L, 0L)",
+                                "defaultValue" to null,
                                 "columnName" to "id",
                                 "isId" to true,
                                 "applicationSideIdStrategy" to "uuid7",
@@ -3140,16 +3438,15 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
 
         assertTrue(content.contains("import java.util.UUID"))
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId"))
+        assertFalse(content.contains("import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId"))
         assertFalse(content.contains("import jakarta.persistence.GeneratedValue"))
         assertFalse(content.contains("import org.hibernate.annotations.Generic" + "Generator"))
         assertFalse(content.contains("import jakarta.persistence.GenerationType"))
         assertFalse(content.contains("@GeneratedValue(" + "generator ="))
         assertFalse(content.contains("@Generic" + "Generator("))
         assertFalse(content.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
-        assertTrue(content.contains("@field:ApplicationSideId(strategy = \"uuid7\")"))
-        assertFalse(content.contains("@ApplicationSideId(strategy = \"uuid7\")"))
-        assertTrue(content.contains("id: UUID = UUID(0L, 0L)"))
+        assertFalse(content.contains("UUID(" + "0L, 0L)"))
+        assertTrue(content.contains("id: UUID"))
         assertTrue(content.contains("@Id"))
         assertTrue(content.contains("@Column(name = \"id\", insertable = true, updatable = false)"))
     }

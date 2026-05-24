@@ -146,6 +146,9 @@ internal fun shouldInferPipelineDependencies(extension: Cap4kExtension): Boolean
 private const val JAKARTA_PERSISTENCE_GROUP = "jakarta.persistence"
 private const val JAKARTA_PERSISTENCE_NAME = "jakarta.persistence-api"
 private const val JAKARTA_PERSISTENCE_COORDINATE = "$JAKARTA_PERSISTENCE_GROUP:$JAKARTA_PERSISTENCE_NAME:3.1.0"
+private const val JACKSON_ANNOTATIONS_GROUP = "com.fasterxml.jackson.core"
+private const val JACKSON_ANNOTATIONS_NAME = "jackson-annotations"
+private const val JACKSON_ANNOTATIONS_COORDINATE = "$JACKSON_ANNOTATIONS_GROUP:$JACKSON_ANNOTATIONS_NAME:2.17.2"
 private const val CAP4K_ADDON_CONFIGURATION_NAME = "cap4kAddon"
 private val SOURCE_TASK_SOURCE_IDS = setOf("db", "enum-manifest", "design-json", "ksp-metadata")
 private val SOURCE_TASK_GENERATOR_IDS = setOf(
@@ -221,6 +224,7 @@ internal fun ensureAggregateDomainJpaDependency(project: Project, config: Projec
         return
     }
     ensureJpaDependency(project, config, moduleRole = "domain")
+    ensureJacksonAnnotationsDependency(project, config, moduleRole = "domain")
 }
 
 internal fun ensureAggregateProjectionAdapterJpaDependency(project: Project, config: ProjectConfig) {
@@ -231,14 +235,43 @@ internal fun ensureAggregateProjectionAdapterJpaDependency(project: Project, con
 }
 
 private fun ensureJpaDependency(project: Project, config: ProjectConfig, moduleRole: String) {
+    ensureImplementationDependency(
+        project = project,
+        config = config,
+        moduleRole = moduleRole,
+        group = JAKARTA_PERSISTENCE_GROUP,
+        name = JAKARTA_PERSISTENCE_NAME,
+        coordinate = JAKARTA_PERSISTENCE_COORDINATE,
+    )
+}
+
+private fun ensureJacksonAnnotationsDependency(project: Project, config: ProjectConfig, moduleRole: String) {
+    ensureImplementationDependency(
+        project = project,
+        config = config,
+        moduleRole = moduleRole,
+        group = JACKSON_ANNOTATIONS_GROUP,
+        name = JACKSON_ANNOTATIONS_NAME,
+        coordinate = JACKSON_ANNOTATIONS_COORDINATE,
+    )
+}
+
+private fun ensureImplementationDependency(
+    project: Project,
+    config: ProjectConfig,
+    moduleRole: String,
+    group: String,
+    name: String,
+    coordinate: String,
+) {
     val modulePath = config.modules[moduleRole] ?: return
     val moduleProject = resolveModuleProject(project.rootProject, modulePath) ?: return
     val implementationConfiguration = moduleProject.configurations.findByName("implementation") ?: return
     val hasDependency = implementationConfiguration.dependencies.any { dependency ->
-        dependency.group == JAKARTA_PERSISTENCE_GROUP && dependency.name == JAKARTA_PERSISTENCE_NAME
+        dependency.group == group && dependency.name == name
     }
     if (!hasDependency) {
-        moduleProject.dependencies.add("implementation", JAKARTA_PERSISTENCE_COORDINATE)
+        moduleProject.dependencies.add("implementation", coordinate)
     }
 }
 

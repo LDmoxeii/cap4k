@@ -40,10 +40,10 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                 )
             }
             val imports = fields
-                .mapNotNull { field ->
+                .flatMap { field ->
                     when (field["fieldType"]) {
-                        "UUID" -> "java.util.UUID"
-                        else -> null
+                        "UUID" -> listOf("java.util.UUID")
+                        else -> strongIdImports(model, field["fieldType"] as String)
                     }
                 }
                 .distinct()
@@ -69,6 +69,13 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
             )
         }
     }
+
+    private fun strongIdImports(model: CanonicalModel, fieldType: String): List<String> =
+        model.strongIds
+            .filter { strongId ->
+                fieldType == strongId.typeName || fieldType == "${strongId.packageName}.${strongId.typeName}"
+            }
+            .map { "${it.packageName}.${it.typeName}" }
 
     private fun requireUniqueSchemaEntity(
         schemaName: String,

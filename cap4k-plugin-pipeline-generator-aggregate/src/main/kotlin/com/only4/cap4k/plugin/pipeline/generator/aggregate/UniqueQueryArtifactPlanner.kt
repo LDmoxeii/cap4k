@@ -15,8 +15,10 @@ internal class UniqueQueryArtifactPlanner : AggregateArtifactFamilyPlanner {
             val packageKey = aggregatePackageKey(config, entity.packageName)
             val packageName = artifactLayout.aggregateUniqueQueryPackage(packageKey)
             selections.map { selection ->
+                val requestTypes = listOf(selection.idType) + selection.requestProps.map { it.type }
                 val imports = aggregateTypeImports(selection.idType) +
-                    selection.requestProps.flatMap { field -> aggregateTypeImports(field.type) }
+                    selection.requestProps.flatMap { field -> aggregateTypeImports(field.type) } +
+                    aggregateStrongIdImports(model, requestTypes)
                 generatedKotlinArtifact(
                     config = config,
                     artifactLayout = artifactLayout,

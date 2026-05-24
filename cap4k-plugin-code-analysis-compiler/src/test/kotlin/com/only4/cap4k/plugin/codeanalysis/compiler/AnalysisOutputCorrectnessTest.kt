@@ -1110,15 +1110,13 @@ class AnalysisOutputCorrectnessTest {
             class Category
         """
         private const val GENERATED_STYLE_CATEGORY_BODY = """
-            import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
             import jakarta.persistence.Entity
-            import java.util.UUID
+            import jakarta.persistence.Table
 
+            @Aggregate(aggregate = "Category", type = "entity", root = true)
             @Entity
-            class Category(
-                @field:ApplicationSideId(strategy = "uuid7")
-                var id: UUID = UUID(0L, 0L)
-            )
+            @Table(name = "category")
+            class Category()
         """
     }
 }
