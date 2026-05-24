@@ -47,6 +47,15 @@ package {{ packageName }}
 {% for import in imports -%}
 {{ use(import) -}}
 {% endfor -%}
+{% for field in scalarFields -%}
+{% if field.converterClassRef -%}
+{% if field.converterTypeRef and field.converterClassRef == field.converterTypeRef ~ ".Converter" -%}
+{{ use(field.converterTypeRef) -}}
+{% else -%}
+{{ use(field.converterClassRef) -}}
+{% endif -%}
+{% endif -%}
+{% endfor -%}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
@@ -77,7 +86,9 @@ class {{ typeName }}(
 {% endif %}{% if field.embeddedId or field.strongId -%}
 {% elseif field.insertable is not null or field.updatable is not null %}    @Column(name = "{{ field.columnName }}", insertable = {{ field.insertable }}, updatable = {{ field.updatable }})
 {% else %}    @Column(name = "{{ field.columnName }}")
-{% endif %}{% if field.converterClassRef %}    @Convert(converter = {{ field.converterClassRef }}::class)
+{% endif %}{% if field.converterClassRef %}{% if field.converterTypeRef and field.converterClassRef == field.converterTypeRef ~ ".Converter" %}    @Convert(converter = {{ type(field.converterTypeRef) | raw }}.Converter::class)
+{% else %}    @Convert(converter = {{ type(field.converterClassRef) | raw }}::class)
+{% endif -%}
 {% endif %}    var {{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %} = {{ field.name }}
         internal set
 
