@@ -118,6 +118,8 @@ data class ArtifactLayoutConfig(
         packageRoot = "application.subscribers.integration",
         packageSuffix = "",
     ),
+    val designDomainServicePackage: PackageLayout = PackageLayout("domain.services"),
+    val designSaga: PackageLayout = PackageLayout("application.sagas"),
     val designDomainService: ArtifactLayoutRule = ArtifactLayoutRule("design/domain_service.kt.peb"),
     val designSagaParam: ArtifactLayoutRule = ArtifactLayoutRule("design/saga_param.kt.peb"),
     val designSagaResult: ArtifactLayoutRule = ArtifactLayoutRule("design/saga_result.kt.peb"),

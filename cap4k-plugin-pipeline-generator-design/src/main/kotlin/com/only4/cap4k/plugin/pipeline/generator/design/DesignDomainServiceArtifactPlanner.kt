@@ -18,12 +18,16 @@ class DesignDomainServiceArtifactPlanner : GeneratorProvider {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
 
         return model.domainServices.map { service ->
+            val packageName = artifactLayout.designDomainServicePackage(service.packageName)
             ArtifactPlanItem(
                 generatorId = id,
                 moduleRole = "domain",
                 templateId = config.artifactLayout.designDomainService.id,
-                outputPath = artifactLayout.kotlinSourcePath(domainRoot, service.packageName, service.name),
-                context = DesignDomainServiceRenderModelFactory.create(service).toContextMap(),
+                outputPath = artifactLayout.kotlinSourcePath(domainRoot, packageName, service.name),
+                context = DesignDomainServiceRenderModelFactory.create(
+                    packageName = packageName,
+                    service = service,
+                ).toContextMap(),
                 conflictPolicy = config.templates.conflictPolicy,
             )
         }

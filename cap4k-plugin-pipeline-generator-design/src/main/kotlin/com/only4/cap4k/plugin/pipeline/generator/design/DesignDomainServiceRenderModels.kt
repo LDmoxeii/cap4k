@@ -17,9 +17,9 @@ internal data class DesignDomainServiceRenderModel(
 }
 
 internal object DesignDomainServiceRenderModelFactory {
-    fun create(service: DomainServiceModel): DesignDomainServiceRenderModel =
+    fun create(packageName: String, service: DomainServiceModel): DesignDomainServiceRenderModel =
         DesignDomainServiceRenderModel(
-            packageName = service.packageName,
+            packageName = packageName,
             name = service.name,
             description = service.description,
             aggregates = service.aggregates,

@@ -18,13 +18,18 @@ class DesignSagaArtifactPlanner : GeneratorProvider {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
 
         return model.sagas.flatMap { saga ->
-            val renderModel = DesignSagaRenderModelFactory.create(saga)
+            val packageName = artifactLayout.designSagaPackage(saga.packageName)
+            val renderModel = DesignSagaRenderModelFactory.create(
+                packageName = packageName,
+                saga = saga,
+                typeRegistry = config.designTypeRegistryFqns(model),
+            )
             listOf(
                 ArtifactPlanItem(
                     generatorId = id,
                     moduleRole = "application",
                     templateId = config.artifactLayout.designSagaParam.id,
-                    outputPath = artifactLayout.kotlinSourcePath(applicationRoot, saga.packageName, "${saga.name}Param"),
+                    outputPath = artifactLayout.kotlinSourcePath(applicationRoot, packageName, "${saga.name}Param"),
                     context = renderModel.toContextMap(),
                     conflictPolicy = config.templates.conflictPolicy,
                 ),
@@ -32,7 +37,7 @@ class DesignSagaArtifactPlanner : GeneratorProvider {
                     generatorId = id,
                     moduleRole = "application",
                     templateId = config.artifactLayout.designSagaResult.id,
-                    outputPath = artifactLayout.kotlinSourcePath(applicationRoot, saga.packageName, "${saga.name}Result"),
+                    outputPath = artifactLayout.kotlinSourcePath(applicationRoot, packageName, "${saga.name}Result"),
                     context = renderModel.toContextMap(),
                     conflictPolicy = config.templates.conflictPolicy,
                 ),
@@ -40,7 +45,7 @@ class DesignSagaArtifactPlanner : GeneratorProvider {
                     generatorId = id,
                     moduleRole = "application",
                     templateId = config.artifactLayout.designSagaHandler.id,
-                    outputPath = artifactLayout.kotlinSourcePath(applicationRoot, saga.packageName, "${saga.name}Handler"),
+                    outputPath = artifactLayout.kotlinSourcePath(applicationRoot, packageName, "${saga.name}Handler"),
                     context = renderModel.toContextMap(),
                     conflictPolicy = config.templates.conflictPolicy,
                 ),

@@ -70,6 +70,8 @@ class ProjectConfigTest {
         assertEquals("design/saga_param.kt.peb", config.artifactLayout.designSagaParam.id)
         assertEquals("design/saga_result.kt.peb", config.artifactLayout.designSagaResult.id)
         assertEquals("design/saga_handler.kt.peb", config.artifactLayout.designSagaHandler.id)
+        assertEquals("domain.services", config.artifactLayout.designDomainServicePackage.packageRoot)
+        assertEquals("application.sagas", config.artifactLayout.designSaga.packageRoot)
         assertEquals("types/value-object", config.artifactLayout.valueObject.id)
     }
 }

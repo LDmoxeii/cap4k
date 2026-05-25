@@ -29,9 +29,18 @@ class DesignDomainServiceArtifactPlannerTest {
 
         val items = DesignDomainServiceArtifactPlanner().plan(configWithDomainModule(), model)
 
-        assertEquals("design/domain_service.kt.peb", items.single().templateId)
-        assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, items.single().outputKind)
-        assertTrue(items.single().outputPath.endsWith("ContentPublicationPolicy.kt"))
+        val item = items.single()
+        assertEquals("design-domain-service", item.generatorId)
+        assertEquals("domain", item.moduleRole)
+        assertEquals("design/domain_service.kt.peb", item.templateId)
+        assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, item.outputKind)
+        assertEquals(ConflictPolicy.SKIP, item.conflictPolicy)
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/services/content/domain/ContentPublicationPolicy.kt",
+            item.outputPath,
+        )
+        assertEquals("com.acme.demo.domain.services.content.domain", item.context["packageName"])
+        assertEquals("ContentPublicationPolicy", item.context["name"])
     }
 
     @Test

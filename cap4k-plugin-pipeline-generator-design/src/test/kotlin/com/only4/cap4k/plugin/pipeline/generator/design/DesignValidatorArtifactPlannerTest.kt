@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test
 class DesignValidatorArtifactPlannerTest {
 
     @Test
-    fun `validator planner is inert after validator canonical slice removal`() {
+    fun `validator planner remains a temporary inert compatibility shim`() {
         val items = DesignValidatorArtifactPlanner().plan(
             config = projectConfig(modules = emptyMap()),
             model = CanonicalModel(),

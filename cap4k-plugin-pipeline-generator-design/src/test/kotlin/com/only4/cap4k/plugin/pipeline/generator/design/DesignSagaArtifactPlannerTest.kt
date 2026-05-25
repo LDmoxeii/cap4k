@@ -8,6 +8,8 @@ import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SagaModel
+import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
+import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -26,6 +28,13 @@ class DesignSagaArtifactPlannerTest {
                     responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
                 ),
             ),
+            strongIds = listOf(
+                StrongIdModel(
+                    typeName = "ContentId",
+                    packageName = "com.acme.demo.domain.shared.ids",
+                    kind = StrongIdKind.REFERENCE,
+                ),
+            ),
         )
 
         val items = DesignSagaArtifactPlanner().plan(configWithApplicationModule(), model)
@@ -35,6 +44,34 @@ class DesignSagaArtifactPlannerTest {
             items.map { it.templateId }.toSet(),
         )
         assertTrue(items.all { it.outputKind == ArtifactOutputKind.CHECKED_IN_SOURCE })
+        assertTrue(items.all { it.generatorId == "design-saga" })
+        assertTrue(items.all { it.moduleRole == "application" })
+        assertTrue(items.all { it.conflictPolicy == ConflictPolicy.SKIP })
+        assertTrue(
+            items.all {
+                it.outputPath.startsWith("demo-application/src/main/kotlin/com/acme/demo/application/sagas/content/workflow/")
+            },
+        )
+
+        val param = items.single { it.templateId == "design/saga_param.kt.peb" }
+        assertEquals("PublishContentSagaParam.kt", param.outputPath.substringAfterLast('/'))
+        assertEquals("com.acme.demo.application.sagas.content.workflow", param.context["packageName"])
+        assertEquals(listOf("com.acme.demo.domain.shared.ids.ContentId"), param.context["imports"])
+        assertEquals(
+            listOf(DesignRenderFieldModel(name = "contentId", renderedType = "ContentId")),
+            param.context["requestFields"],
+        )
+
+        val result = items.single { it.templateId == "design/saga_result.kt.peb" }
+        assertEquals("PublishContentSagaResult.kt", result.outputPath.substringAfterLast('/'))
+        assertEquals(
+            listOf(DesignRenderFieldModel(name = "accepted", renderedType = "Boolean")),
+            result.context["responseFields"],
+        )
+
+        val handler = items.single { it.templateId == "design/saga_handler.kt.peb" }
+        assertEquals("PublishContentSagaHandler.kt", handler.outputPath.substringAfterLast('/'))
+        assertEquals("com.acme.demo.application.sagas.content.workflow", handler.context["packageName"])
     }
 
     @Test
@@ -44,8 +81,12 @@ class DesignSagaArtifactPlannerTest {
         assertTrue(items.isEmpty())
     }
 
-    private fun canonicalModel(sagas: List<SagaModel>) = CanonicalModel(
+    private fun canonicalModel(
+        sagas: List<SagaModel>,
+        strongIds: List<StrongIdModel> = emptyList(),
+    ) = CanonicalModel(
         sagas = sagas,
+        strongIds = strongIds,
     )
 
     private fun configWithApplicationModule() = projectConfig(modules = mapOf("application" to "demo-application"))
