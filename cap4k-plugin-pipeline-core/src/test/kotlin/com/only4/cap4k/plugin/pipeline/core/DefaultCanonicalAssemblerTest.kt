@@ -261,12 +261,80 @@ class DefaultCanonicalAssemblerTest {
                 )
             )
         )
+        val typeRegistry = TypeRegistryModel(
+            entries = mapOf("ContentId" to TypeRegistryEntry(fqn = "content.types.ContentId"))
+        )
 
-        val model = assemble(design = design, valueObjects = valueObjects)
+        val model = assemble(design = design, valueObjects = valueObjects, typeRegistry = typeRegistry)
 
         assertEquals("ContentPublicationPolicy", model.domainServices.single().name)
+        assertEquals(listOf("Content"), model.domainServices.single().aggregates)
         assertEquals("PublishContentSaga", model.sagas.single().name)
+        assertEquals(listOf("contentId"), model.sagas.single().requestFields.map { it.name })
+        assertEquals(listOf("accepted"), model.sagas.single().responseFields.map { it.name })
         assertEquals("Money", model.valueObjects.single().name)
+        assertEquals(typeRegistry.entries, model.typeRegistry.entries)
+    }
+
+    @Test
+    fun `same aggregate local enum repeated with same definition does not fail duplicate simple-name validation`() {
+        val model = assemble(
+            db = DbSchemaSnapshot(
+                tables = listOf(
+                    DbTableSnapshot(
+                        tableName = "video_post",
+                        comment = "",
+                        columns = listOf(
+                            DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            DbColumnSnapshot(
+                                name = "visibility",
+                                dbType = "INT",
+                                kotlinType = "Int",
+                                nullable = false,
+                                typeBinding = "Visibility",
+                                enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden")),
+                            ),
+                            DbColumnSnapshot(
+                                name = "default_visibility",
+                                dbType = "INT",
+                                kotlinType = "Int",
+                                nullable = false,
+                                typeBinding = "Visibility",
+                                enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden")),
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        uniqueConstraints = emptyList(),
+                    )
+                )
+            )
+        )
+
+        assertEquals(listOf("VideoPost"), model.entities.map { it.name })
+    }
+
+    @Test
+    fun `aggregate-local value objects with same simple name in different aggregates do not fail`() {
+        val valueObjects = ValueObjectManifestSnapshot(
+            valueObjects = listOf(
+                ValueObjectModel(
+                    name = "Snapshot",
+                    packageName = "content.values",
+                    scope = ValueObjectScope.AGGREGATE,
+                    aggregate = "Content",
+                ),
+                ValueObjectModel(
+                    name = "Snapshot",
+                    packageName = "review.values",
+                    scope = ValueObjectScope.AGGREGATE,
+                    aggregate = "Review",
+                ),
+            )
+        )
+
+        val model = assemble(valueObjects = valueObjects)
+
+        assertEquals(listOf("Content", "Review"), model.valueObjects.map { it.aggregate })
     }
 
     @Test
@@ -4881,12 +4949,13 @@ class DefaultCanonicalAssemblerTest {
     )
 
     private fun assemble(
+        db: DbSchemaSnapshot? = null,
         design: DesignSpecSnapshot? = null,
         valueObjects: ValueObjectManifestSnapshot? = null,
         typeRegistry: TypeRegistryModel = TypeRegistryModel.empty(),
     ) = DefaultCanonicalAssembler().assemble(
-        config = baseConfig().copy(typeRegistry = TypeRegistryConfig(entries = typeRegistry.entries)),
-        snapshots = listOfNotNull(design, valueObjects),
+        config = baseAggregateConfig().copy(typeRegistry = TypeRegistryConfig(entries = typeRegistry.entries)),
+        snapshots = listOfNotNull(db, design, valueObjects),
     ).model
 
     private fun projectConfigWithSpecialFieldDefaults(

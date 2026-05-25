@@ -44,6 +44,7 @@ import com.only4.cap4k.plugin.pipeline.api.TypeRegistryModel
 import com.only4.cap4k.plugin.pipeline.api.UnsupportedAggregateTable
 import com.only4.cap4k.plugin.pipeline.api.UnsupportedTablePolicy
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectManifestSnapshot
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
 import java.util.Locale
 
 interface CanonicalAssembler {
@@ -352,12 +353,23 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         )
         validateDuplicateTypeSimpleNames(
             sharedEnums = sharedEnums.map { it.typeName },
-            localEnums = supportedTables.flatMap { table ->
-                table.columns.mapNotNull { column ->
-                    column.typeBinding?.takeIf { it.isNotBlank() && column.enumItems.isNotEmpty() }
+            localEnums = entities.flatMap { entity ->
+                entity.fields.mapNotNull { field ->
+                    field.typeBinding
+                        ?.takeIf { it.isNotBlank() && field.enumItems.isNotEmpty() }
+                        ?.let { typeBinding ->
+                            LocalTypeName(owner = entity.packageName, simpleName = typeBinding)
+                        }
                 }
             },
-            valueObjects = valueObjects.map { it.name },
+            sharedValueObjects = valueObjects
+                .filter { it.scope == ValueObjectScope.SHARED }
+                .map { it.name },
+            localValueObjects = valueObjects
+                .filter { it.scope == ValueObjectScope.AGGREGATE }
+                .map { valueObject ->
+                    LocalTypeName(owner = valueObject.aggregate.orEmpty(), simpleName = valueObject.name)
+                },
             typeRegistry = config.typeRegistry.entries.keys,
         )
         val aggregateEntityJpa = AggregateJpaControlInference.fromModel(
@@ -759,17 +771,56 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
     private fun validateDuplicateTypeSimpleNames(
         sharedEnums: Iterable<String>,
-        localEnums: Iterable<String>,
-        valueObjects: Iterable<String>,
+        localEnums: Iterable<LocalTypeName>,
+        sharedValueObjects: Iterable<String>,
+        localValueObjects: Iterable<LocalTypeName>,
         typeRegistry: Iterable<String>,
     ) {
-        val counts = linkedMapOf<String, Int>()
-        (sharedEnums + localEnums + valueObjects + typeRegistry)
+        val globalCounts = linkedMapOf<String, Int>()
+        (sharedEnums + sharedValueObjects + typeRegistry)
             .map { it.substringAfterLast('.').trim() }
             .filter { it.isNotEmpty() }
-            .forEach { simpleName -> counts[simpleName] = counts.getOrDefault(simpleName, 0) + 1 }
-        counts.entries.firstOrNull { it.value > 1 }?.let { (simpleName, _) ->
+            .forEach { simpleName -> globalCounts[simpleName] = globalCounts.getOrDefault(simpleName, 0) + 1 }
+        globalCounts.entries.firstOrNull { it.value > 1 }?.let { (simpleName, _) ->
             throw IllegalArgumentException("Duplicate type simple name: $simpleName")
+        }
+
+        val localEnumDefinitions = localEnums
+            .mapNotNull { it.normalized() }
+            .distinct()
+        localEnumDefinitions
+            .groupBy { it.simpleName }
+            .entries
+            .firstOrNull { (_, definitions) -> definitions.map { it.owner }.distinct().size > 1 }
+            ?.let { (simpleName, _) ->
+                throw IllegalArgumentException("Duplicate type simple name: $simpleName")
+            }
+
+        val localValueObjectDefinitions = localValueObjects
+            .mapNotNull { it.normalized() }
+            .distinct()
+        val localTypeSimpleNames = (
+            localEnumDefinitions.map { it.simpleName } +
+                localValueObjectDefinitions.map { it.simpleName }
+            ).toSet()
+        globalCounts.keys.firstOrNull { it in localTypeSimpleNames }?.let { simpleName ->
+            throw IllegalArgumentException("Duplicate type simple name: $simpleName")
+        }
+    }
+
+    private data class LocalTypeName(
+        val owner: String,
+        val simpleName: String,
+    ) {
+        fun normalized(): LocalTypeName? {
+            val normalizedSimpleName = simpleName.substringAfterLast('.').trim()
+            if (normalizedSimpleName.isEmpty()) {
+                return null
+            }
+            return LocalTypeName(
+                owner = owner.trim(),
+                simpleName = normalizedSimpleName,
+            )
         }
     }
 
