@@ -85,7 +85,6 @@ class PipelinePluginCompileFunctionalTest {
     fun `request and query variants compile in the application module`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-compile-sample")
-        disableHandlerGenerators(projectDir)
 
         val settingsContent = projectDir.resolve("settings.gradle.kts").readText()
         assertFalse(settingsContent.contains("__CAP4K_REPO_ROOT__"))
@@ -1078,24 +1077,6 @@ class PipelinePluginCompileFunctionalTest {
         replace("\r\n", "\n")
             .lines()
             .joinToString("\n") { it.trimStart().trimEnd() }
-
-    private fun disableHandlerGenerators(projectDir: Path) {
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        val designQueryHandlerBlock = Regex(
-            """designQueryHandler\s*\{\s*enabled\.set\(true\)\s*}""",
-            setOf(RegexOption.MULTILINE, RegexOption.DOT_MATCHES_ALL),
-        )
-        val designClientHandlerBlock = Regex(
-            """designClientHandler\s*\{\s*enabled\.set\(true\)\s*}""",
-            setOf(RegexOption.MULTILINE, RegexOption.DOT_MATCHES_ALL),
-        )
-        val patchedContent = buildFile.readText()
-            .replace(designQueryHandlerBlock, "designQueryHandler {\n            enabled.set(false)\n        }")
-            .replace(designClientHandlerBlock, "designClientHandler {\n            enabled.set(false)\n        }")
-        buildFile.writeText(patchedContent)
-        assertTrue(patchedContent.contains("designQueryHandler {\n            enabled.set(false)\n        }"))
-        assertTrue(patchedContent.contains("designClientHandler {\n            enabled.set(false)\n        }"))
-    }
 
     private fun removeApplicationCompileSmokeSource(projectDir: Path) {
         val applicationCompileSmokePath = projectDir.resolve(

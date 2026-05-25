@@ -267,7 +267,7 @@ class PipelinePluginTest {
         assertTrue(shouldInferPipelineDependencies(extension))
 
         extension.generators.aggregateProjection.enabled.set(false)
-        extension.generators.designIntegrationEvent.enabled.set(true)
+        extension.sources.designJson.enabled.set(true)
         assertTrue(shouldInferPipelineDependencies(extension))
     }
 
