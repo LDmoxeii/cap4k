@@ -868,6 +868,44 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner omits inherited scalar fields from default entity render context`() {
+        val entity = EntityModel(
+            name = "Content",
+            packageName = "com.acme.demo.domain.content",
+            tableName = "content",
+            comment = "",
+            fields = listOf(
+                FieldModel("id", "ContentId", columnName = "id"),
+                FieldModel("title", "String", columnName = "title"),
+                FieldModel("createdAt", "java.time.Instant", columnName = "created_at", inherited = true),
+            ),
+            idField = FieldModel("id", "ContentId", columnName = "id"),
+        )
+        val model = CanonicalModel(
+            entities = listOf(entity),
+            aggregateEntityJpa = listOf(
+                AggregateEntityJpaModel(
+                    entityName = "Content",
+                    entityPackageName = "com.acme.demo.domain.content",
+                    entityEnabled = true,
+                    tableName = "content",
+                    columns = listOf(
+                        AggregateColumnJpaModel("id", "id", isId = true),
+                        AggregateColumnJpaModel("title", "title", isId = false),
+                        AggregateColumnJpaModel("createdAt", "created_at", isId = false),
+                    ),
+                )
+            ),
+        )
+
+        val item = EntityArtifactPlanner().plan(aggregateConfig(), model).single()
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = item.context["scalarFields"] as List<Map<String, Any?>>
+
+        assertEquals(listOf("id", "title"), scalarFields.map { it["name"] })
+    }
+
+    @Test
     fun `entity planner fails fast when scalar aggregate JPA metadata is missing`() {
         val ex = assertThrows(IllegalArgumentException::class.java) {
             AggregateArtifactPlanner().plan(

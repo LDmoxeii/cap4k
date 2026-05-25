@@ -14,11 +14,10 @@ Strong ID 的目标是防止身份串位。`Content.id`、`MediaProcessingTask.i
 
 ## DB input
 
-`content` 表可以这样表达聚合根身份、当前上下文身份和同上下文聚合引用：
+`content.id` 的聚合根身份来自数据库 primary-key metadata；列注释只表达当前上下文身份和同上下文聚合引用：
 
 ```sql
 comment on table content is '@AggregateRoot=true;';
-comment on column content.id is '@Id;';
 comment on column content.author_id is '@RefId=AuthorId;';
 comment on column content.media_processing_task_id is '@RefAggregate=MediaProcessingTask;';
 ```

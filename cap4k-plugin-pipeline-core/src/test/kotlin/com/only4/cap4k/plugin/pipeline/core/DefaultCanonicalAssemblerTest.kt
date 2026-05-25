@@ -2236,6 +2236,29 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `db inherited columns remain canonical fields with inherited flag`() {
+        val snapshot = DbSchemaSnapshot(
+            tables = listOf(
+                DbTableSnapshot(
+                    tableName = "content",
+                    comment = "",
+                    columns = listOf(
+                        DbColumnSnapshot("id", "VARCHAR", "String", false, isPrimaryKey = true),
+                        DbColumnSnapshot("created_at", "TIMESTAMP", "java.time.Instant", false, inherited = true, managed = true),
+                    ),
+                    primaryKey = listOf("id"),
+                    uniqueConstraints = emptyList(),
+                )
+            )
+        )
+
+        val model = DefaultCanonicalAssembler().assemble(baseConfig(), listOf(snapshot)).model
+        val field = model.entities.single().fields.single { it.name == "createdAt" }
+
+        assertEquals(true, field.inherited)
+    }
+
+    @Test
     fun `assembler records explicit aggregate provider persistence controls`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),

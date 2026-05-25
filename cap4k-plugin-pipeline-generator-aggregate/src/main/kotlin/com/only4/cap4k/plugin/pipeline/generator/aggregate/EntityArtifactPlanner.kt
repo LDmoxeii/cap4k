@@ -83,6 +83,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 "${quoteIdentifier(column, identifierQuoteStyle)} = 0"
             }
             val scalarFields = entity.fields
+                .filterNot { it.inherited }
                 .mapNotNull { field ->
                     val jpa = requireNotNull(scalarJpaByField[field.name]) {
                         "missing aggregate JPA metadata for ${entity.packageName}.${entity.name}.${field.name}"

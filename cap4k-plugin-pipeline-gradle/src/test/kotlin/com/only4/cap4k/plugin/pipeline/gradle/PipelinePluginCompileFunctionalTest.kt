@@ -651,7 +651,7 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate persistence field behavior generation participates in domain compileKotlin`() {
+    fun `aggregate inherited persistence fields omitted entity participates in domain compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-persistence-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-persistence-compile-sample")
         val applicationBuildFile = projectDir.resolve("demo-application/build.gradle.kts").readText().trim()
@@ -671,6 +671,8 @@ class PipelinePluginCompileFunctionalTest {
 
         assertTrue(generatedEntity.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedEntity.contains("@Version"))
+        assertFalse(generatedEntity.contains("createdBy"))
+        assertFalse(generatedEntity.contains("updatedBy"))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }

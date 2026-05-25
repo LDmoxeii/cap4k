@@ -1771,7 +1771,7 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `aggregate persistence field behavior generation renders explicit field controls`() {
+    fun `aggregate inherited persistence fields are omitted from generated entity`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-persistence-generate")
         copyFixture(projectDir, "aggregate-persistence-sample")
         val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts").readText().trim()
@@ -1794,8 +1794,9 @@ class PipelinePluginFunctionalTest {
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(generatedEntity.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedEntity.contains("@Version"))
-        assertTrue(generatedEntity.contains("@Column(name = \"created_by\", insertable = false, updatable = true)"))
-        assertTrue(generatedEntity.contains("@Column(name = \"updated_by\", insertable = true, updatable = false)"))
+        assertTrue(generatedEntity.contains("@Column(name = \"title\")"))
+        assertFalse(generatedEntity.contains("createdBy"))
+        assertFalse(generatedEntity.contains("updatedBy"))
     }
 
     @OptIn(ExperimentalPathApi::class)

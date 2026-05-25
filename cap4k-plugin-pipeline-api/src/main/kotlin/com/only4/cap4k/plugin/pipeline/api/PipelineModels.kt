@@ -8,6 +8,7 @@ data class FieldModel(
     val typeBinding: String? = null,
     val enumItems: List<EnumItemModel> = emptyList(),
     val columnName: String? = null,
+    val inherited: Boolean = false,
 )
 
 data class DbColumnSnapshot(
@@ -34,6 +35,7 @@ data class DbColumnSnapshot(
     val exposed: Boolean? = null,
     val insertable: Boolean? = null,
     val updatable: Boolean? = null,
+    val inherited: Boolean? = null,
 )
 
 data class UniqueConstraintModel(

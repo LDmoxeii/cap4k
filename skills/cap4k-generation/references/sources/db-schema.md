@@ -12,14 +12,15 @@ DDL annotations describe aggregate/entity storage input. They do not declare com
 
 ## Column Annotations
 
-- `@Id` marks an aggregate-root or entity ID column. Aggregate-root IDs generate Strong ID types by default.
+- Database primary-key metadata is the ID source of truth. Aggregate-root primary keys generate Strong ID types by default; do not add an `@Id` column-comment marker.
 - `@Type=<TypeName>` / `@T=<TypeName>` binds a field to a named custom type. The meaningful authoring form is an explicit type name; blank or marker-only forms are ignored. Use it with enum manifest or `types.registryFile`; do not rely on marker-only `@T`.
 - `@Enum=<...>` / `@E=<...>` marks enum-backed storage. The meaningful authoring form is an explicit enum payload; blank or marker-only forms are ignored, and explicit enum payload still requires `@T`. Use it only when the type name is already declared; common misuse is `@Enum=<...>` without a matching `@T`.
 - `@RefId=<TypeName>` maps an external concept into a current-context identity name such as `AuthorId`.
 - `@RefAggregate=<AggregateName>` marks a same-context aggregate reference and resolves to the referenced aggregate ID type.
-- `@GeneratedValue` is compatibility input for explicit provider/database generation semantics. Do not use `uuid7`, `snowflake-long`, nil UUID sentinels, or save-time reflection assignment as the Strong ID 1.0 default path; legacy `@IdGenerator` and `@IG` are rejected.
-- `@Deleted`, `@Version`, `@Managed`, and `@Exposed` are marker-only and reject explicit values. Use them for supported column roles only. Common misuse: adding `=true` or mixing `@Managed` with `@Exposed`.
-- `@Insertable=true|false` and `@Updatable=true|false` tune column write behavior; they do not redefine domain ownership.
+- `@GeneratedValue=identity` / `@GeneratedValue=database-identity` are compatibility input for explicit database identity generation semantics. Marker-only `@GeneratedValue`, `@GeneratedValue=uuid7`, and `@GeneratedValue=snowflake-long` are rejected.
+- `@Deleted`, `@Version`, and `@Managed` are marker-only and reject explicit values. Use them for supported column roles only.
+- `@Inherited` is marker-only. It keeps the column in canonical facts but omits the default generated entity field, so a mapped superclass or template override must declare the field mapping. If used on an ID column, that superclass or override must supply the ID mapping too.
+- `@Exposed`, `@Insertable`, and `@Updatable` are rejected. Use narrower managed defaults or template overrides instead.
 - `@SoftDeleteColumn` is legacy and rejected. Use `@Deleted` instead.
 
 ## Relation Annotations
