@@ -314,6 +314,52 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `different aggregate owners can define local enums with the same simple name`() {
+        val model = assemble(
+            db = DbSchemaSnapshot(
+                tables = listOf(
+                    DbTableSnapshot(
+                        tableName = "content",
+                        comment = "",
+                        columns = listOf(
+                            DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            DbColumnSnapshot(
+                                name = "status",
+                                dbType = "INT",
+                                kotlinType = "Int",
+                                nullable = false,
+                                typeBinding = "Status",
+                                enumItems = listOf(EnumItemModel(0, "DRAFT", "Draft")),
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        uniqueConstraints = emptyList(),
+                    ),
+                    DbTableSnapshot(
+                        tableName = "review",
+                        comment = "",
+                        columns = listOf(
+                            DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            DbColumnSnapshot(
+                                name = "status",
+                                dbType = "INT",
+                                kotlinType = "Int",
+                                nullable = false,
+                                typeBinding = "Status",
+                                enumItems = listOf(EnumItemModel(0, "PENDING", "Pending")),
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        uniqueConstraints = emptyList(),
+                    ),
+                )
+            )
+        )
+
+        assertEquals(listOf("Content", "Review"), model.entities.map { it.name })
+    }
+
+    @Test
     fun `aggregate-local value objects with same simple name in different aggregates do not fail`() {
         val valueObjects = ValueObjectManifestSnapshot(
             valueObjects = listOf(

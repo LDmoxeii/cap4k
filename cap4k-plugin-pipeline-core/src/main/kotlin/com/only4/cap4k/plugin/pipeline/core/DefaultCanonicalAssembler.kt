@@ -788,14 +788,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val localEnumDefinitions = localEnums
             .mapNotNull { it.normalized() }
             .distinct()
-        localEnumDefinitions
-            .groupBy { it.simpleName }
-            .entries
-            .firstOrNull { (_, definitions) -> definitions.map { it.owner }.distinct().size > 1 }
-            ?.let { (simpleName, _) ->
-                throw IllegalArgumentException("Duplicate type simple name: $simpleName")
-            }
-
         val localValueObjectDefinitions = localValueObjects
             .mapNotNull { it.normalized() }
             .distinct()
