@@ -26,9 +26,15 @@
 ### Event-Driven Continuation
 
 - Prefer fact-driven continuation: command mutates an aggregate, aggregate behavior records a meaningful domain fact, and independent listeners react to that fact.
+- Use this decision chain before changing event shape:
+  1. Split aggregate behavior when the business behavior itself is distinct.
+  2. Split domain events only when the completed business facts are distinct.
+  3. If several processes consume the same completed fact, keep one domain fact and let independent listeners react through zero-trust commands.
+- Do not name domain events after downstream consumers, process owners, or technical continuation steps.
+- Discourage central listener or process-router branching as the main decision point. Cheap listener-side filters may skip obviously irrelevant work, but they do not own write decisions.
 - When an internal fact must become an outbound integration event, derive and attach that event only from a domain-event subscriber or explicit application process.
 - Aggregates, adapters, and ordinary boundary code do not choose outbound integration event contracts, payloads, or transports.
 - Each listener routes writes into zero-trust commands. The command must re-load the write target and validate its own preconditions.
-- Repeated delivery should converge through idempotent command behavior and explicit no-op results.
+- Repeated delivery and inapplicable flows should converge through idempotent command behavior and explicit no-op results.
 - Use Saga only for persisted long-running coordination, retry, recovery, or compensation when the current runtime contract is sufficient.
 - The current Saga runtime is compensation-oriented, not a general callback-resume or waiting-style workflow engine.

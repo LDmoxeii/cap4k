@@ -21,6 +21,8 @@ If analysis flow output splits one business process across command and subscribe
 
 When multiple listeners react to one event, cap4k does not guarantee listener order. Review idempotency, zero-trust command validation, and error messages. Reference cap4k issue #56 when diagnostics make failures hard to identify.
 
+Also review observability. A normal multi-listener retreat should show which listener woke up, which command was sent, whether the command applied work or no-oped, and why. Boolean-only no-op responses hide expected paths such as `NotPaidContent`, `NotPublicationReady`, `AlreadyStarted`, and `AlreadyPublished`.
+
 ## Smoke Test Coverage Masking
 
 Spring, HTTP, callback, and integration smoke tests are useful runtime proof, but
