@@ -1,0 +1,6 @@
+package {{ packageName }}
+
+import com.only4.cap4k.ddd.core.domain.service.annotation.DomainService
+
+@DomainService
+class {{ name }}

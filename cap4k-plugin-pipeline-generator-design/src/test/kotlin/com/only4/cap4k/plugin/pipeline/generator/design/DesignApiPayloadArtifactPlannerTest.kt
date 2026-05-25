@@ -11,7 +11,6 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
-import com.only4.cap4k.plugin.pipeline.api.ValidatorModel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -624,16 +623,6 @@ class DesignApiPayloadArtifactPlannerTest {
                         typeName = "SubmitOrderCmd",
                         description = "submit order",
                         variant = CommandVariant.DEFAULT,
-                    ),
-                ),
-                validators = listOf(
-                    ValidatorModel(
-                        packageName = "account",
-                        typeName = "SaveAccount",
-                        description = "save account validator",
-                        message = "校验未通过",
-                        targets = listOf("FIELD", "VALUE_PARAMETER"),
-                        valueType = "Long",
                     ),
                 ),
             ),

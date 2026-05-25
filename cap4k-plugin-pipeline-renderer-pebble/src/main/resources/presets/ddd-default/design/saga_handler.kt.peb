@@ -1,0 +1,9 @@
+package {{ packageName }}
+
+import com.only4.cap4k.ddd.core.application.saga.SagaHandler
+
+class {{ name }}Handler : SagaHandler<{{ name }}Param, {{ name }}Result> {
+    override fun exec(request: {{ name }}Param): {{ name }}Result {
+        throw UnsupportedOperationException("Author implements saga process.")
+    }
+}
