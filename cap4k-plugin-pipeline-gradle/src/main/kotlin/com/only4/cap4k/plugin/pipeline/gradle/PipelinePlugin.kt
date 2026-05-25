@@ -43,6 +43,7 @@ import com.only4.cap4k.plugin.pipeline.source.designjson.DesignJsonSourceProvide
 import com.only4.cap4k.plugin.pipeline.source.enummanifest.EnumManifestSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ir.IrAnalysisSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ksp.KspMetadataSourceProvider
+import com.only4.cap4k.plugin.pipeline.source.valueobject.ValueObjectManifestSourceProvider
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateProjectionArtifactPlanner
 import org.gradle.api.file.FileCollection
 import org.gradle.api.NamedDomainObjectContainer
@@ -622,6 +623,7 @@ internal fun buildSourceRunner(
         sources = listOf(
             DbSchemaSourceProvider(),
             EnumManifestSourceProvider(),
+            ValueObjectManifestSourceProvider(),
             DesignJsonSourceProvider(),
             KspMetadataSourceProvider(),
         ),
@@ -667,7 +669,29 @@ internal fun buildSourceRunner(
         },
         addonProviders = addonRuntime.providers,
     )
-    return runner.closeAfterRun(addonRuntime)
+    return ValueObjectManifestSourceConfigPipelineRunner(project, runner.closeAfterRun(addonRuntime))
+}
+
+private class ValueObjectManifestSourceConfigPipelineRunner(
+    private val project: Project,
+    private val delegate: PipelineRunner,
+) : PipelineRunner {
+    override fun run(config: ProjectConfig): PipelineResult =
+        delegate.run(config.withValueObjectManifestSourceConfig(project))
+}
+
+private fun ProjectConfig.withValueObjectManifestSourceConfig(project: Project): ProjectConfig {
+    if (typeRegistry.valueObjectManifestFiles.isEmpty()) {
+        return this
+    }
+    val files = typeRegistry.valueObjectManifestFiles.map { path -> project.file(path).absolutePath }
+    val sourceConfig = SourceConfig(
+        enabled = true,
+        options = mapOf("files" to files),
+    )
+    return copy(
+        sources = sources + ("value-object-manifest" to sourceConfig)
+    )
 }
 
 internal fun buildAnalysisRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner {

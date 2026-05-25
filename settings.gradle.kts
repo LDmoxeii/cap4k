@@ -41,6 +41,7 @@ include(
     "cap4k-plugin-pipeline-source-design-json",
     "cap4k-plugin-pipeline-source-db",
     "cap4k-plugin-pipeline-source-enum-manifest",
+    "cap4k-plugin-pipeline-source-value-object-manifest",
     "cap4k-plugin-pipeline-source-ksp-metadata",
     "cap4k-plugin-pipeline-source-ir-analysis",
     "cap4k-plugin-pipeline-generator-design",

@@ -219,6 +219,11 @@ data class EnumManifestSnapshot(
     val definitions: List<SharedEnumDefinition>,
 ) : SourceSnapshot
 
+data class ValueObjectManifestSnapshot(
+    override val id: String = "value-object-manifest",
+    val valueObjects: List<ValueObjectModel>,
+) : SourceSnapshot
+
 data class SchemaModel(
     val name: String,
     val packageName: String,
