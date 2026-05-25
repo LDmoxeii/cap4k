@@ -100,6 +100,20 @@ class PebbleArtifactRendererTest {
         assertTrue(sagaParam.contains(": SagaParam<PublishContentSagaResult>"))
         assertReadableKotlin(sagaParam)
 
+        val sagaResult = renderTemplate(
+            templateId = config.artifactLayout.designSagaResult.id,
+            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSagaResult.kt",
+            context = mapOf(
+                "packageName" to "content.workflow",
+                "name" to "PublishContentSaga",
+                "responseFields" to listOf(mapOf("name" to "accepted", "renderedType" to "Boolean")),
+                "imports" to emptyList<String>(),
+            ),
+        )
+        assertTrue(sagaResult.contains("data class PublishContentSagaResult"))
+        assertTrue(sagaResult.contains("val accepted: Boolean"))
+        assertReadableKotlin(sagaResult)
+
         val sagaHandler = renderTemplate(
             templateId = config.artifactLayout.designSagaHandler.id,
             outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSagaHandler.kt",
