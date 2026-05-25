@@ -171,6 +171,55 @@ class PipelineModelsTest {
     }
 
     @Test
+    fun `canonical model carries value objects domain services and sagas`() {
+        val model = CanonicalModel(
+            project = ProjectModel(group = "com.acme", name = "demo"),
+            aggregates = emptyList(),
+            commands = emptyList(),
+            queries = emptyList(),
+            clients = emptyList(),
+            apiPayloads = emptyList(),
+            domainEvents = emptyList(),
+            integrationEvents = emptyList(),
+            strongIds = emptyList(),
+            sharedEnums = emptyList(),
+            valueObjects = listOf(
+                ValueObjectModel(
+                    name = "Money",
+                    packageName = "shared.values",
+                    scope = ValueObjectScope.SHARED,
+                    aggregate = null,
+                    storage = ValueObjectStorage.JSON,
+                    fields = listOf(FieldModel(name = "amount", type = "BigDecimal")),
+                )
+            ),
+            domainServices = listOf(
+                DomainServiceModel(
+                    name = "ContentPublicationPolicy",
+                    packageName = "content.domain",
+                    description = "publication policy",
+                    aggregates = listOf("Content"),
+                )
+            ),
+            sagas = listOf(
+                SagaModel(
+                    name = "PublishContentSaga",
+                    packageName = "content.workflow",
+                    description = "publish content",
+                    requestFields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+                    responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+                )
+            ),
+            typeRegistry = TypeRegistryModel.empty(),
+        )
+
+        assertEquals(1, model.valueObjects.size)
+        assertEquals(ValueObjectScope.SHARED, model.valueObjects.single().scope)
+        assertEquals("ContentPublicationPolicy", model.domainServices.single().name)
+        assertEquals("PublishContentSaga", model.sagas.single().name)
+    }
+
+    @Test
     fun `ir analysis snapshot preserves input dirs nodes edges and design elements`() {
         val snapshot = IrAnalysisSnapshot(
             inputDirs = listOf("app/build/cap4k-code-analysis"),
@@ -361,34 +410,7 @@ class PipelineModelsTest {
     }
 
     @Test
-    fun `canonical model keeps dedicated validators slice alongside commands`() {
-        val command = CommandModel(
-            packageName = "order.submit",
-            typeName = "SubmitOrderCmd",
-            description = "submit order",
-            aggregateRef = null,
-            variant = CommandVariant.DEFAULT,
-        )
-        val validator = ValidatorModel(
-            packageName = "auth.validator",
-            typeName = "IssueToken",
-            description = "issue token validator",
-            message = "校验未通过",
-            targets = listOf("FIELD", "VALUE_PARAMETER"),
-            valueType = "Long",
-        )
-
-        val model = CanonicalModel(
-            commands = listOf(command),
-            validators = listOf(validator),
-        )
-
-        assertEquals(listOf(command), model.commands)
-        assertEquals(listOf(validator), model.validators)
-    }
-
-    @Test
-    fun `canonical model keeps dedicated api payload slice alongside commands validators and aggregate slices`() {
+    fun `canonical model keeps dedicated api payload slice alongside commands and aggregate slices`() {
         val payload = ApiPayloadModel(
             packageName = "auth.payload",
             typeName = "BatchSaveAccountList",
@@ -402,14 +424,6 @@ class PipelineModelsTest {
             description = "submit order",
             aggregateRef = null,
             variant = CommandVariant.DEFAULT,
-        )
-        val validator = ValidatorModel(
-            packageName = "auth.validator",
-            typeName = "IssueToken",
-            description = "issue token validator",
-            message = "校验未通过",
-            targets = listOf("FIELD", "VALUE_PARAMETER"),
-            valueType = "Long",
         )
         val schema = SchemaModel(
             name = "SVideoPost",
@@ -435,7 +449,6 @@ class PipelineModelsTest {
 
         val model = CanonicalModel(
             commands = listOf(command),
-            validators = listOf(validator),
             apiPayloads = listOf(payload),
             schemas = listOf(schema),
             entities = listOf(entity),
@@ -443,7 +456,6 @@ class PipelineModelsTest {
         )
 
         assertEquals(listOf(command), model.commands)
-        assertEquals(listOf(validator), model.validators)
         assertEquals(listOf(payload), model.apiPayloads)
         assertEquals(listOf(schema), model.schemas)
         assertEquals(listOf(entity), model.entities)

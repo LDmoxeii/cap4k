@@ -61,9 +61,6 @@ class ArtifactLayoutResolver(
     fun designClientHandlerPackage(designPackage: String): String =
         packageFromLayout(artifactLayout.designClientHandler, designPackage)
 
-    fun designValidatorPackage(designPackage: String): String =
-        packageFromLayout(artifactLayout.designValidator, designPackage)
-
     fun designApiPayloadPackage(designPackage: String): String =
         packageFromLayout(artifactLayout.designApiPayload, designPackage)
 
@@ -146,7 +143,6 @@ class ArtifactLayoutResolver(
         "designClient" to artifactLayout.designClient,
         "designQueryHandler" to artifactLayout.designQueryHandler,
         "designClientHandler" to artifactLayout.designClientHandler,
-        "designValidator" to artifactLayout.designValidator,
         "designApiPayload" to artifactLayout.designApiPayload,
         "designDomainEvent" to artifactLayout.designDomainEvent,
         "designDomainEventHandler" to artifactLayout.designDomainEventHandler,

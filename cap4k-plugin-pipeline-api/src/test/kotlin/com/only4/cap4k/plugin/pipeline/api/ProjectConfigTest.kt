@@ -44,4 +44,30 @@ class ProjectConfigTest {
         assertEquals("flows", config.artifactLayout.flow.outputRoot)
         assertEquals("design", config.artifactLayout.drawingBoard.outputRoot)
     }
+
+    @Test
+    fun `project config stores type manifests and addon provider options`() {
+        val config = ProjectConfig(
+            typeRegistry = TypeRegistryConfig(
+                registryFile = "design/type-registry.json",
+                enumManifestFiles = listOf("design/enums.json"),
+                valueObjectManifestFiles = listOf("design/value-objects.json"),
+            ),
+            addons = mapOf(
+                "only-engine-validator" to AddonProviderConfig(
+                    id = "only-engine-validator",
+                    options = mapOf("manifestFile" to "validation/validators.json"),
+                )
+            ),
+        )
+
+        assertEquals(listOf("design/enums.json"), config.typeRegistry.enumManifestFiles)
+        assertEquals(listOf("design/value-objects.json"), config.typeRegistry.valueObjectManifestFiles)
+        assertEquals("validation/validators.json", config.addons.getValue("only-engine-validator").options["manifestFile"])
+        assertEquals("design/domain-service", config.artifactLayout.designDomainService.id)
+        assertEquals("design/saga-param", config.artifactLayout.designSagaParam.id)
+        assertEquals("design/saga-result", config.artifactLayout.designSagaResult.id)
+        assertEquals("design/saga-handler", config.artifactLayout.designSagaHandler.id)
+        assertEquals("types/value-object", config.artifactLayout.valueObject.id)
+    }
 }

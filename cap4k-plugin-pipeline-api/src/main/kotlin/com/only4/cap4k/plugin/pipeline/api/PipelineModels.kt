@@ -11,6 +11,25 @@ data class FieldModel(
     val inherited: Boolean = false,
 )
 
+data class ProjectModel(
+    val group: String = "",
+    val name: String = "",
+)
+
+data class AggregateModel(
+    val name: String,
+    val packageName: String = "",
+    val description: String? = null,
+)
+
+data class TypeRegistryModel(
+    val entries: Map<String, TypeRegistryEntry> = emptyMap(),
+) {
+    companion object {
+        fun empty(): TypeRegistryModel = TypeRegistryModel()
+    }
+}
+
 data class DbColumnSnapshot(
     val name: String,
     val dbType: String,
@@ -69,19 +88,11 @@ data class DesignSpecEntry(
     val message: String? = null,
     val targets: List<String> = emptyList(),
     val valueType: String? = null,
-    val parameters: List<ValidatorParameterModel> = emptyList(),
     val role: String? = null,
     val eventName: String? = null,
 )
 
 data class DesignFieldSnapshot(
-    val name: String,
-    val type: String,
-    val nullable: Boolean = false,
-    val defaultValue: String? = null,
-)
-
-data class ValidatorParameterModel(
     val name: String,
     val type: String,
     val nullable: Boolean = false,
@@ -102,7 +113,6 @@ data class DesignElementSnapshot(
     val message: String? = null,
     val targets: List<String> = emptyList(),
     val valueType: String? = null,
-    val parameters: List<ValidatorParameterModel> = emptyList(),
     val role: String? = null,
     val eventName: String? = null,
 )
@@ -138,6 +148,40 @@ data class SharedEnumDefinition(
     val typeName: String,
     val packageName: String,
     val items: List<EnumItemModel>,
+)
+
+enum class ValueObjectScope {
+    SHARED,
+    AGGREGATE,
+}
+
+enum class ValueObjectStorage {
+    JSON,
+}
+
+data class ValueObjectModel(
+    val name: String,
+    val packageName: String,
+    val scope: ValueObjectScope,
+    val aggregate: String? = null,
+    val storage: ValueObjectStorage = ValueObjectStorage.JSON,
+    val fields: List<FieldModel> = emptyList(),
+    val description: String? = null,
+)
+
+data class DomainServiceModel(
+    val name: String,
+    val packageName: String,
+    val description: String? = null,
+    val aggregates: List<String> = emptyList(),
+)
+
+data class SagaModel(
+    val name: String,
+    val packageName: String,
+    val description: String? = null,
+    val requestFields: List<FieldModel> = emptyList(),
+    val responseFields: List<FieldModel> = emptyList(),
 )
 
 sealed interface SourceSnapshot {
@@ -390,7 +434,6 @@ data class DrawingBoardElementModel(
     val message: String? = null,
     val targets: List<String> = emptyList(),
     val valueType: String? = null,
-    val parameters: List<ValidatorParameterModel> = emptyList(),
     val role: String? = null,
     val eventName: String? = null,
 ) {
@@ -479,16 +522,6 @@ enum class UnsupportedTablePolicy {
     SKIP,
 }
 
-data class ValidatorModel(
-    val packageName: String,
-    val typeName: String,
-    val description: String,
-    val message: String,
-    val targets: List<String>,
-    val valueType: String,
-    val parameters: List<ValidatorParameterModel> = emptyList(),
-)
-
 data class ApiPayloadModel(
     val packageName: String,
     val typeName: String,
@@ -538,10 +571,11 @@ data class StrongIdModel(
 )
 
 data class CanonicalModel(
+    val project: ProjectModel = ProjectModel(),
+    val aggregates: List<AggregateModel> = emptyList(),
     val commands: List<CommandModel> = emptyList(),
     val queries: List<QueryModel> = emptyList(),
     val clients: List<ClientModel> = emptyList(),
-    val validators: List<ValidatorModel> = emptyList(),
     val domainEvents: List<DomainEventModel> = emptyList(),
     val schemas: List<SchemaModel> = emptyList(),
     val entities: List<EntityModel> = emptyList(),
@@ -559,6 +593,10 @@ data class CanonicalModel(
     val aggregateSpecialFieldResolvedPolicies: List<AggregateSpecialFieldResolvedPolicy> = emptyList(),
     val integrationEvents: List<IntegrationEventModel> = emptyList(),
     val strongIds: List<StrongIdModel> = emptyList(),
+    val valueObjects: List<ValueObjectModel> = emptyList(),
+    val domainServices: List<DomainServiceModel> = emptyList(),
+    val sagas: List<SagaModel> = emptyList(),
+    val typeRegistry: TypeRegistryModel = TypeRegistryModel.empty(),
 )
 
 data class UnsupportedAggregateTable(
