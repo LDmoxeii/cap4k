@@ -61,8 +61,10 @@ class ProjectConfigTest {
             ),
         )
 
+        assertEquals("design/type-registry.json", config.typeRegistry.registryFile)
         assertEquals(listOf("design/enums.json"), config.typeRegistry.enumManifestFiles)
         assertEquals(listOf("design/value-objects.json"), config.typeRegistry.valueObjectManifestFiles)
+        assertEquals("only-engine-validator", config.addons.getValue("only-engine-validator").id)
         assertEquals("validation/validators.json", config.addons.getValue("only-engine-validator").options["manifestFile"])
         assertEquals("design/domain-service", config.artifactLayout.designDomainService.id)
         assertEquals("design/saga-param", config.artifactLayout.designSagaParam.id)

@@ -172,51 +172,129 @@ class PipelineModelsTest {
 
     @Test
     fun `canonical model carries value objects domain services and sagas`() {
+        val project = ProjectModel(group = "com.acme", name = "demo")
+        val aggregate = AggregateModel(
+            name = "Content",
+            packageName = "content.domain",
+            description = "content aggregate",
+        )
+        val command = CommandModel(
+            packageName = "content.commands",
+            typeName = "PublishContentCmd",
+            description = "publish content",
+            aggregateRef = AggregateRef(name = "Content", packageName = "content.domain"),
+            requestFields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+            variant = CommandVariant.DEFAULT,
+        )
+        val query = QueryModel(
+            packageName = "content.queries",
+            typeName = "FindContentQry",
+            description = "find content",
+            aggregateRef = AggregateRef(name = "Content", packageName = "content.domain"),
+            responseFields = listOf(FieldModel(name = "title", type = "String")),
+        )
+        val client = ClientModel(
+            packageName = "content.clients",
+            typeName = "NotifyFollowersCli",
+            description = "notify followers",
+            requestFields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+        )
+        val apiPayload = ApiPayloadModel(
+            packageName = "content.payload",
+            typeName = "PublishContentPayload",
+            description = "publish content payload",
+            requestFields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+        )
+        val domainEvent = DomainEventModel(
+            packageName = "content.events",
+            typeName = "ContentPublished",
+            description = "content published",
+            aggregateName = "Content",
+            aggregatePackageName = "content.domain",
+            persist = true,
+            fields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+        )
+        val integrationEvent = IntegrationEventModel(
+            packageName = "content.integration",
+            typeName = "ContentPublishedIntegrationEvent",
+            description = "content published integration event",
+            role = IntegrationEventRole.OUTBOUND,
+            eventName = "content.published",
+            fields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+        )
+        val strongId = StrongIdModel(
+            typeName = "ContentId",
+            packageName = "content.ids",
+            kind = StrongIdKind.AGGREGATE_ROOT,
+            ownerAggregateName = "Content",
+            ownerAggregatePackageName = "content.domain",
+        )
+        val sharedEnum = SharedEnumDefinition(
+            typeName = "ContentStatus",
+            packageName = "shared.enums",
+            items = listOf(EnumItemModel(value = 1, name = "PUBLISHED", description = "Published")),
+        )
+        val valueObject = ValueObjectModel(
+            name = "Money",
+            packageName = "shared.values",
+            scope = ValueObjectScope.SHARED,
+            aggregate = null,
+            storage = ValueObjectStorage.JSON,
+            fields = listOf(FieldModel(name = "amount", type = "BigDecimal")),
+        )
+        val domainService = DomainServiceModel(
+            name = "ContentPublicationPolicy",
+            packageName = "content.domain",
+            description = "publication policy",
+            aggregates = listOf("Content"),
+        )
+        val saga = SagaModel(
+            name = "PublishContentSaga",
+            packageName = "content.workflow",
+            description = "publish content",
+            requestFields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+            responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+        )
+        val typeRegistry = TypeRegistryModel.empty()
+
         val model = CanonicalModel(
-            project = ProjectModel(group = "com.acme", name = "demo"),
-            aggregates = emptyList(),
-            commands = emptyList(),
-            queries = emptyList(),
-            clients = emptyList(),
-            apiPayloads = emptyList(),
-            domainEvents = emptyList(),
-            integrationEvents = emptyList(),
-            strongIds = emptyList(),
-            sharedEnums = emptyList(),
-            valueObjects = listOf(
-                ValueObjectModel(
-                    name = "Money",
-                    packageName = "shared.values",
-                    scope = ValueObjectScope.SHARED,
-                    aggregate = null,
-                    storage = ValueObjectStorage.JSON,
-                    fields = listOf(FieldModel(name = "amount", type = "BigDecimal")),
-                )
-            ),
-            domainServices = listOf(
-                DomainServiceModel(
-                    name = "ContentPublicationPolicy",
-                    packageName = "content.domain",
-                    description = "publication policy",
-                    aggregates = listOf("Content"),
-                )
-            ),
-            sagas = listOf(
-                SagaModel(
-                    name = "PublishContentSaga",
-                    packageName = "content.workflow",
-                    description = "publish content",
-                    requestFields = listOf(FieldModel(name = "contentId", type = "ContentId")),
-                    responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
-                )
-            ),
-            typeRegistry = TypeRegistryModel.empty(),
+            project = project,
+            aggregates = listOf(aggregate),
+            commands = listOf(command),
+            queries = listOf(query),
+            clients = listOf(client),
+            apiPayloads = listOf(apiPayload),
+            domainEvents = listOf(domainEvent),
+            integrationEvents = listOf(integrationEvent),
+            strongIds = listOf(strongId),
+            sharedEnums = listOf(sharedEnum),
+            valueObjects = listOf(valueObject),
+            domainServices = listOf(domainService),
+            sagas = listOf(saga),
+            typeRegistry = typeRegistry,
         )
 
-        assertEquals(1, model.valueObjects.size)
+        assertEquals(project, model.project)
+        assertEquals(listOf(aggregate), model.aggregates)
+        assertEquals(listOf(command), model.commands)
+        assertEquals(listOf(query), model.queries)
+        assertEquals(listOf(client), model.clients)
+        assertEquals(listOf(apiPayload), model.apiPayloads)
+        assertEquals(listOf(domainEvent), model.domainEvents)
+        assertEquals(listOf(integrationEvent), model.integrationEvents)
+        assertEquals(listOf(strongId), model.strongIds)
+        assertEquals(listOf(sharedEnum), model.sharedEnums)
+        assertEquals(listOf(valueObject), model.valueObjects)
         assertEquals(ValueObjectScope.SHARED, model.valueObjects.single().scope)
+        assertEquals(ValueObjectStorage.JSON, model.valueObjects.single().storage)
+        assertEquals(listOf(FieldModel(name = "amount", type = "BigDecimal")), model.valueObjects.single().fields)
+        assertEquals(listOf(domainService), model.domainServices)
         assertEquals("ContentPublicationPolicy", model.domainServices.single().name)
+        assertEquals(listOf(saga), model.sagas)
         assertEquals("PublishContentSaga", model.sagas.single().name)
+        assertEquals(listOf(FieldModel(name = "contentId", type = "ContentId")), model.sagas.single().requestFields)
+        assertEquals(listOf(FieldModel(name = "accepted", type = "Boolean")), model.sagas.single().responseFields)
+        assertEquals(typeRegistry, model.typeRegistry)
     }
 
     @Test
