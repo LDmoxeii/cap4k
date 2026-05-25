@@ -19,6 +19,7 @@ import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
+import com.only4.cap4k.plugin.pipeline.api.DomainServiceModel
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
@@ -34,13 +35,15 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.QueryModel
 import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
+import com.only4.cap4k.plugin.pipeline.api.SagaModel
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SourceSnapshot
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryModel
 import com.only4.cap4k.plugin.pipeline.api.UnsupportedAggregateTable
 import com.only4.cap4k.plugin.pipeline.api.UnsupportedTablePolicy
-import com.only4.cap4k.plugin.pipeline.api.ValidatorModel
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectManifestSnapshot
 import java.util.Locale
 
 interface CanonicalAssembler {
@@ -53,6 +56,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val designSnapshot = snapshots.filterIsInstance<DesignSpecSnapshot>().firstOrNull()
         val dbSnapshot = snapshots.filterIsInstance<DbSchemaSnapshot>().firstOrNull()
         val sharedEnums = snapshots.filterIsInstance<EnumManifestSnapshot>().flatMap { it.definitions }
+        val valueObjects = snapshots.filterIsInstance<ValueObjectManifestSnapshot>().flatMap { it.valueObjects }
+        val typeRegistry = TypeRegistryModel(config.typeRegistry.entries)
 
         val aggregateLookup = snapshots
             .filterIsInstance<KspMetadataSnapshot>()
@@ -108,27 +113,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             }
             .toList()
 
-        val validators = designSnapshot?.entries.orEmpty()
-            .asSequence()
-            .filter { entry -> entry.tag == "validator" }
-            .map { entry ->
-                val targets = normalizeValidatorTargets(entry.targets)
-                val valueType = entry.valueType ?: if ("CLASS" in targets) "Any" else "Long"
-                require("CLASS" !in targets || valueType == "Any") {
-                    "validator ${entry.name} cannot target CLASS with valueType: $valueType"
-                }
-                ValidatorModel(
-                    packageName = entry.packageName,
-                    typeName = entry.name.normalizeValidatorTypeName(),
-                    description = entry.description,
-                    message = entry.message ?: "校验未通过",
-                    targets = targets,
-                    valueType = valueType,
-                    parameters = entry.parameters,
-                )
-            }
-            .toList()
-
         val apiPayloads = designSnapshot?.entries.orEmpty()
             .asSequence()
             .filter { entry -> entry.tag == "api_payload" }
@@ -140,6 +124,33 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     requestFields = entry.requestFields,
                     responseFields = entry.responseFields,
                     traits = entry.traits,
+                )
+            }
+            .toList()
+
+        val domainServices = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag == "domain_service" }
+            .map { entry ->
+                DomainServiceModel(
+                    name = entry.name,
+                    packageName = entry.packageName,
+                    description = entry.description,
+                    aggregates = entry.aggregates,
+                )
+            }
+            .toList()
+
+        val sagas = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag == "saga" }
+            .map { entry ->
+                SagaModel(
+                    name = entry.name,
+                    packageName = entry.packageName,
+                    description = entry.description,
+                    requestFields = entry.requestFields,
+                    responseFields = entry.responseFields,
                 )
             }
             .toList()
@@ -339,11 +350,21 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             relations = aggregateRelations,
             tables = supportedTables,
         )
+        validateDuplicateTypeSimpleNames(
+            sharedEnums = sharedEnums.map { it.typeName },
+            localEnums = supportedTables.flatMap { table ->
+                table.columns.mapNotNull { column ->
+                    column.typeBinding?.takeIf { it.isNotBlank() && column.enumItems.isNotEmpty() }
+                }
+            },
+            valueObjects = valueObjects.map { it.name },
+            typeRegistry = config.typeRegistry.entries.keys,
+        )
         val aggregateEntityJpa = AggregateJpaControlInference.fromModel(
             entities = entities,
             schema = dbSnapshot,
             sharedEnums = sharedEnums,
-            typeRegistry = config.typeRegistry,
+            typeRegistry = config.typeRegistry.entries,
             artifactLayout = artifactLayout,
         )
         val aggregatePersistenceFieldControls = AggregatePersistenceFieldBehaviorInference.infer(
@@ -418,7 +439,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 commands = commands,
                 queries = queries,
                 clients = clients,
-                validators = validators,
                 apiPayloads = apiPayloads,
                 domainEvents = domainEvents,
                 schemas = aggregateModels.map { it.first },
@@ -436,6 +456,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 aggregateSpecialFieldResolvedPolicies = specialFieldResolution.resolvedPolicies,
                 integrationEvents = integrationEvents,
                 strongIds = strongIds,
+                valueObjects = valueObjects,
+                domainServices = domainServices,
+                sagas = sagas,
+                typeRegistry = typeRegistry,
             ),
             diagnostics = diagnostics,
         )
@@ -578,7 +602,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             message = message,
             targets = targets,
             valueType = valueType,
-            parameters = parameters,
             requestFields = normalizedRequestFields.map { field ->
                 DrawingBoardFieldModel(
                     name = field.name,
@@ -608,23 +631,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "api_payload" -> "api_payload"
             "domain_event" -> "domain_event"
             "integration_event" -> "integration_event"
-            "validator" -> "validator"
             else -> null
         }
 
     private fun drawingBoardElementKey(element: DrawingBoardElementModel): String {
         return "${element.tag}|${element.packageName}|${element.name}"
-    }
-
-    private fun String.normalizeValidatorTypeName(): String {
-        return normalizeUpperCamelTypeName()
-    }
-
-    private fun normalizeValidatorTargets(targets: List<String>): List<String> {
-        val normalizedTargets = targets.ifEmpty { listOf("FIELD", "VALUE_PARAMETER") }
-        return normalizedTargets
-            .distinct()
-            .sortedBy { ValidatorTargetOrder[it] ?: Int.MAX_VALUE }
     }
 
     private fun DesignSpecEntry.integrationEventRole(): IntegrationEventRole {
@@ -746,6 +757,22 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         )
     }
 
+    private fun validateDuplicateTypeSimpleNames(
+        sharedEnums: Iterable<String>,
+        localEnums: Iterable<String>,
+        valueObjects: Iterable<String>,
+        typeRegistry: Iterable<String>,
+    ) {
+        val counts = linkedMapOf<String, Int>()
+        (sharedEnums + localEnums + valueObjects + typeRegistry)
+            .map { it.substringAfterLast('.').trim() }
+            .filter { it.isNotEmpty() }
+            .forEach { simpleName -> counts[simpleName] = counts.getOrDefault(simpleName, 0) + 1 }
+        counts.entries.firstOrNull { it.value > 1 }?.let { (simpleName, _) ->
+            throw IllegalArgumentException("Duplicate type simple name: $simpleName")
+        }
+    }
+
     private companion object {
         val SupportedDrawingBoardTags = setOf(
             "command",
@@ -754,9 +781,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "api_payload",
             "domain_event",
             "integration_event",
-            "validator",
         )
-        val ValidatorTargetOrder = mapOf("CLASS" to 0, "FIELD" to 1, "VALUE_PARAMETER" to 2)
         val UpperCamelSplitRegex = Regex("(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+")
 
         fun lowerCamelIdentifier(value: String): String {

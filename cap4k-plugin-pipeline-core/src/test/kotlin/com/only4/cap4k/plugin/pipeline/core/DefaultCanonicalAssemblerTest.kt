@@ -40,9 +40,14 @@ import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverter
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryModel
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
-import com.only4.cap4k.plugin.pipeline.api.ValidatorParameterModel
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectManifestSnapshot
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectStorage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -222,6 +227,72 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembles domain services sagas and value objects`() {
+        val design = DesignSpecSnapshot(
+            entries = listOf(
+                DesignSpecEntry(
+                    tag = "domain_service",
+                    packageName = "content.domain",
+                    name = "ContentPublicationPolicy",
+                    description = "publication policy",
+                    aggregates = listOf("Content"),
+                    requestFields = emptyList(),
+                    responseFields = emptyList(),
+                ),
+                DesignSpecEntry(
+                    tag = "saga",
+                    packageName = "content.workflow",
+                    name = "PublishContentSaga",
+                    description = "publish content",
+                    aggregates = emptyList(),
+                    requestFields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+                    responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+                ),
+            )
+        )
+        val valueObjects = ValueObjectManifestSnapshot(
+            valueObjects = listOf(
+                ValueObjectModel(
+                    name = "Money",
+                    packageName = "shared.values",
+                    scope = ValueObjectScope.SHARED,
+                    storage = ValueObjectStorage.JSON,
+                    fields = listOf(FieldModel(name = "amount", type = "BigDecimal")),
+                )
+            )
+        )
+
+        val model = assemble(design = design, valueObjects = valueObjects)
+
+        assertEquals("ContentPublicationPolicy", model.domainServices.single().name)
+        assertEquals("PublishContentSaga", model.sagas.single().name)
+        assertEquals("Money", model.valueObjects.single().name)
+    }
+
+    @Test
+    fun `fails on duplicate simple type names across enum value object and registry`() {
+        val valueObjects = ValueObjectManifestSnapshot(
+            valueObjects = listOf(
+                ValueObjectModel(
+                    name = "Status",
+                    packageName = "shared.values",
+                    scope = ValueObjectScope.SHARED,
+                    storage = ValueObjectStorage.JSON,
+                )
+            )
+        )
+        val typeRegistry = TypeRegistryModel(
+            entries = mapOf("Status" to TypeRegistryEntry(fqn = "com.acme.Status"))
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assemble(valueObjects = valueObjects, typeRegistry = typeRegistry)
+        }
+
+        assertTrue(error.message!!.contains("Duplicate type simple name: Status"))
+    }
+
+    @Test
     fun `assembler rejects integration event with blank event name`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
@@ -397,139 +468,6 @@ class DefaultCanonicalAssemblerTest {
             "com.acme.demo.domain.aggregates.order",
             model.queries.single().aggregateRef?.packageName,
         )
-    }
-
-    @Test
-    fun `validator entries assemble into validators slice with expanded structural fields`() {
-        val assembler = DefaultCanonicalAssembler()
-
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "validator",
-                            packageName = "auth.validator",
-                            name = "issueToken",
-                            description = "issue token validator",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                            message = "issue token rejected",
-                            targets = listOf("CLASS"),
-                            valueType = "Any",
-                            parameters = listOf(
-                                ValidatorParameterModel(
-                                    name = "userIdField",
-                                    type = "String",
-                                    defaultValue = "userId",
-                                )
-                            ),
-                        ),
-                        DesignSpecEntry(
-                            tag = "validator",
-                            packageName = "auth.validator",
-                            name = "issue_token",
-                            description = "issue token validator snake",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "validator",
-                            packageName = "auth.validator",
-                            name = "issue-token",
-                            description = "issue token validator kebab",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "validators",
-                            packageName = "auth.validator",
-                            name = "pluralAlias",
-                            description = "legacy alias",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "validater",
-                            packageName = "auth.validator",
-                            name = "misspelledAlias",
-                            description = "legacy alias",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "validate",
-                            packageName = "auth.validator",
-                            name = "verbAlias",
-                            description = "legacy alias",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                    )
-                ),
-            ),
-        ).model
-
-        assertEquals(3, model.validators.size)
-        assertEquals(
-            listOf("IssueToken", "IssueToken", "IssueToken"),
-            model.validators.map { it.typeName },
-        )
-        assertEquals(listOf("auth.validator", "auth.validator", "auth.validator"), model.validators.map { it.packageName })
-        assertEquals(listOf("Any", "Long", "Long"), model.validators.map { it.valueType })
-        assertEquals("issue token rejected", model.validators.first().message)
-        assertEquals(listOf("CLASS"), model.validators.first().targets)
-        assertEquals("Any", model.validators.first().valueType)
-        assertEquals("userIdField", model.validators.first().parameters.single().name)
-        assertEquals("校验未通过", model.validators[1].message)
-        assertEquals(listOf("FIELD", "VALUE_PARAMETER"), model.validators[1].targets)
-        assertEquals(emptyList<String>(), model.commands.map { it.typeName })
-        assertEquals(emptyList<String>(), model.queries.map { it.typeName })
-        assertEquals(emptyList<String>(), model.clients.map { it.typeName })
-    }
-
-    @Test
-    fun `validator entries keep command assembly unchanged`() {
-        val assembler = DefaultCanonicalAssembler()
-
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "validator",
-                            packageName = "auth.validator",
-                            name = "issueToken",
-                            description = "issue token validator",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "command",
-                            packageName = "order.submit",
-                            name = "SubmitOrder",
-                            description = "submit order",
-                            aggregates = listOf("Order"),
-                            requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
-                            responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
-                        ),
-                    )
-                ),
-            ),
-        ).model
-
-        assertEquals(1, model.commands.size)
-        assertEquals("SubmitOrderCmd", model.commands.single().typeName)
-        assertEquals(1, model.validators.size)
     }
 
     @Test
@@ -1202,15 +1140,6 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
-                            tag = "Validator",
-                            packageName = "order.validator",
-                            name = "MixedValidator",
-                            description = "mixed validator",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
                             tag = "DOMAIN_EVENT",
                             packageName = "order.events",
                             name = "UpperDomainEvent",
@@ -1294,7 +1223,6 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(emptyList<String>(), model.queries.map { it.typeName })
         assertEquals(emptyList<String>(), model.clients.map { it.typeName })
         assertEquals(emptyList<String>(), model.apiPayloads.map { it.typeName })
-        assertEquals(emptyList<String>(), model.validators.map { it.typeName })
         assertEquals(emptyList<String>(), model.domainEvents.map { it.typeName })
     }
 
@@ -1474,22 +1402,6 @@ class DefaultCanonicalAssemblerTest {
                             requestFields = listOf(entityField, reasonField),
                         ),
                         DesignElementSnapshot(
-                            tag = "validator",
-                            packageName = "order.validator",
-                            name = "SubmitOrderValidator",
-                            description = "submit order validator",
-                            message = "submit order rejected",
-                            targets = listOf("CLASS"),
-                            valueType = "Any",
-                            parameters = listOf(
-                                ValidatorParameterModel(
-                                    name = "orderIdField",
-                                    type = "String",
-                                    defaultValue = "orderId",
-                                )
-                            ),
-                        ),
-                        DesignElementSnapshot(
                             tag = "evt",
                             packageName = "order.events",
                             name = "OrderCreated",
@@ -1501,7 +1413,7 @@ class DefaultCanonicalAssemblerTest {
         ).model
 
         val drawingBoard = model.drawingBoard
-        assertEquals(6, drawingBoard!!.elements.size)
+        assertEquals(5, drawingBoard!!.elements.size)
         assertEquals(
             DrawingBoardElementModel(
                 tag = "command",
@@ -1517,7 +1429,7 @@ class DefaultCanonicalAssemblerTest {
             drawingBoard.elements.first(),
         )
         assertEquals(
-            listOf("command", "client", "query", "api_payload", "domain_event", "validator"),
+            listOf("command", "client", "query", "api_payload", "domain_event"),
             drawingBoard.elementsByTag.keys.toList(),
         )
         assertEquals(1, drawingBoard.elementsByTag.getValue("command").size)
@@ -1531,12 +1443,6 @@ class DefaultCanonicalAssemblerTest {
         val domainEvent = drawingBoard.elementsByTag.getValue("domain_event").single()
         assertEquals(null, domainEvent.entity)
         assertEquals(listOf(DrawingBoardFieldModel(name = "reason", type = "String")), domainEvent.requestFields)
-        val validator = drawingBoard.elementsByTag.getValue("validator").single()
-        assertEquals("SubmitOrderValidator", validator.name)
-        assertEquals("submit order rejected", validator.message)
-        assertEquals(listOf("CLASS"), validator.targets)
-        assertEquals("Any", validator.valueType)
-        assertEquals("orderIdField", validator.parameters.single().name)
     }
 
     @Test
@@ -1850,12 +1756,12 @@ class DefaultCanonicalAssemblerTest {
     fun `assembler only assigns converter metadata to stable enum-backed fields`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig().copy(
-                typeRegistry = mapOf(
+                typeRegistry = TypeRegistryConfig(entries = mapOf(
                     "SubmitPayload" to TypeRegistryEntry(
                         fqn = "com.acme.demo.payload.SubmitPayload",
                         converter = TypeRegistryConverter.none(),
                     )
-                )
+                ))
             ),
             listOf(
                 DbSchemaSnapshot(
@@ -1925,9 +1831,9 @@ class DefaultCanonicalAssemblerTest {
     fun `assembler assigns converter metadata to registry backed type binding`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig().copy(
-                typeRegistry = mapOf(
+                typeRegistry = TypeRegistryConfig(entries = mapOf(
                     "UserType" to TypeRegistryEntry("com.acme.demo.domain.aggregates.user.enums.UserType"),
-                )
+                ))
             ),
             listOf(
                 DbSchemaSnapshot(
@@ -1966,9 +1872,9 @@ class DefaultCanonicalAssemblerTest {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
                 aggregateProjectConfig().copy(
-                    typeRegistry = mapOf(
+                    typeRegistry = TypeRegistryConfig(entries = mapOf(
                         "Status" to TypeRegistryEntry("com.acme.demo.domain.shared.enums.StatusAlias"),
-                    )
+                    ))
                 ),
                 listOf(
                     DbSchemaSnapshot(
@@ -2004,10 +1910,7 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals(
-            "ambiguous type binding for Status: matches both shared enum and general type registry",
-            error.message,
-        )
+        assertTrue(error.message!!.contains("Duplicate type simple name: Status"))
     }
 
     @Test
@@ -2050,10 +1953,7 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals(
-            "ambiguous enum ownership for Status: matches both shared enum and local enum in com.acme.demo.domain.aggregates.video_post",
-            error.message
-        )
+        assertTrue(error.message!!.contains("Duplicate type simple name: Status"))
     }
 
     @Test
@@ -4979,6 +4879,15 @@ class DefaultCanonicalAssemblerTest {
         config = config,
         snapshots = listOf(DbSchemaSnapshot(tables = tables)),
     )
+
+    private fun assemble(
+        design: DesignSpecSnapshot? = null,
+        valueObjects: ValueObjectManifestSnapshot? = null,
+        typeRegistry: TypeRegistryModel = TypeRegistryModel.empty(),
+    ) = DefaultCanonicalAssembler().assemble(
+        config = baseConfig().copy(typeRegistry = TypeRegistryConfig(entries = typeRegistry.entries)),
+        snapshots = listOfNotNull(design, valueObjects),
+    ).model
 
     private fun projectConfigWithSpecialFieldDefaults(
         idDefaultStrategy: String,
