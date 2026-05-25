@@ -78,6 +78,8 @@ sources {
 | `enumManifest` | `enabled`, `files` | `cap4kPlan` / `cap4kGenerate` |
 | `irAnalysis` | `enabled`, `inputDirs` | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
 
+`sources.db` 以 JDBC metadata 作为数据库输入合同；表、列、关系、唯一约束和 primary-key metadata 会共同进入 canonical facts。
+
 ## `generators { }`
 
 最小形状：

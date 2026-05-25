@@ -5,7 +5,7 @@ import java.util.Locale
 
 internal object DbColumnAnnotationParser {
     private val annotationPattern = Regex("@([A-Za-z]+)(=([^;]*))?;?")
-    private val supportedGeneratedValueStrategies = setOf("uuid7", "snowflake-long", "identity", "database-identity")
+    private val supportedGeneratedValueStrategies = setOf("identity", "database-identity")
 
     fun parse(comment: String): DbColumnAnnotationParseResult {
         val annotations = annotationPattern.findAll(comment)
@@ -43,20 +43,8 @@ internal object DbColumnAnnotationParser {
         val deleted = resolveMarkerAnnotation(annotations, "DELETED", "Deleted")
         val version = resolveMarkerAnnotation(annotations, "VERSION", "Version")
         val managed = resolveMarkerAnnotation(annotations, "MANAGED", "Managed")
-        val exposed = resolveMarkerAnnotation(annotations, "EXPOSED", "Exposed")
-        require(!(managed == true && exposed == true)) {
-            "conflicting @Managed/@Exposed annotations on the same column comment."
-        }
-        var insertable: Boolean? = null
-        var updatable: Boolean? = null
-
-        annotations.forEach { annotation ->
-            val value = annotation.value
-            when (annotation.key) {
-                "INSERTABLE" -> insertable = parseBooleanAnnotationValue("Insertable", value)
-                "UPDATABLE" -> updatable = parseBooleanAnnotationValue("Updatable", value)
-            }
-        }
+        val inherited = resolveMarkerAnnotation(annotations, "INHERITED", "Inherited")
+        rejectRemovedAnnotations(annotations)
 
         return DbColumnAnnotationParseResult(
             typeBinding = typeBinding,
@@ -67,9 +55,7 @@ internal object DbColumnAnnotationParser {
             deleted = deleted,
             version = version,
             managed = managed,
-            exposed = exposed,
-            insertable = insertable,
-            updatable = updatable,
+            inherited = inherited,
         )
     }
 
@@ -80,20 +66,20 @@ internal object DbColumnAnnotationParser {
         }
 
         val markerAnnotations = generatedValueAnnotations.filterNot { it.hasExplicitValue }
+        require(markerAnnotations.isEmpty()) {
+            "invalid @GeneratedValue annotation: explicit database strategy is required."
+        }
         val explicitStrategies = generatedValueAnnotations
             .filter { it.hasExplicitValue }
             .map { annotation ->
-                require(annotation.value.isNotBlank()) { "invalid @GeneratedValue strategy in this slice: " }
+                require(annotation.value.isNotBlank()) { "invalid @GeneratedValue strategy: " }
                 annotation.value.lowercase(Locale.ROOT).also { strategy ->
                     require(strategy in supportedGeneratedValueStrategies) {
-                        "unsupported @GeneratedValue strategy in this slice: ${annotation.value}"
+                        "unsupported @GeneratedValue strategy: ${annotation.value}"
                     }
                 }
             }
             .distinct()
-        require(markerAnnotations.isEmpty() || explicitStrategies.isEmpty()) {
-            "conflicting @GeneratedValue annotations on the same column comment."
-        }
         require(explicitStrategies.size <= 1) {
             "conflicting @GeneratedValue strategies on the same column comment."
         }
@@ -109,6 +95,24 @@ internal object DbColumnAnnotationParser {
             declared = true,
             strategy = resolvedStrategy,
         )
+    }
+
+    private fun rejectRemovedAnnotations(annotations: List<ParsedAnnotation>) {
+        annotations.firstOrNull { it.key == "EXPOSED" }?.let {
+            throw IllegalArgumentException(
+                "unsupported column annotation @Exposed: remove broad managed defaults or stop marking this field managed."
+            )
+        }
+        annotations.firstOrNull { it.key == "INSERTABLE" }?.let {
+            throw IllegalArgumentException(
+                "unsupported column annotation @Insertable: use template overrides for JPA-specific mutability."
+            )
+        }
+        annotations.firstOrNull { it.key == "UPDATABLE" }?.let {
+            throw IllegalArgumentException(
+                "unsupported column annotation @Updatable: use template overrides for JPA-specific mutability."
+            )
+        }
     }
 
     private fun resolveMarkerAnnotation(
@@ -190,13 +194,6 @@ internal object DbColumnAnnotationParser {
         return matchingAnnotations.single().value
     }
 
-    private fun parseBooleanAnnotationValue(annotationName: String, value: String): Boolean {
-        return when {
-            value.equals("true", ignoreCase = true) -> true
-            value.equals("false", ignoreCase = true) -> false
-            else -> throw IllegalArgumentException("invalid @$annotationName boolean value in this slice: $value")
-        }
-    }
 }
 
 private data class ParsedAnnotation(
@@ -217,6 +214,7 @@ internal data class DbColumnAnnotationParseResult(
     val exposed: Boolean? = null,
     val insertable: Boolean? = null,
     val updatable: Boolean? = null,
+    val inherited: Boolean? = null,
 )
 
 private data class ResolvedGeneratedValue(
