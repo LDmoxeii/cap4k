@@ -421,6 +421,49 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
+    fun `provider carries inherited column marker into db snapshot`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-inherited-column;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table content (
+                        id varchar(36) primary key,
+                        title varchar(100) not null,
+                        created_at timestamp not null comment '@Inherited;@Managed;'
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val snapshot = DbSchemaSourceProvider().collect(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        enabled = true,
+                        options = mapOf(
+                            "url" to url,
+                            "username" to "sa",
+                            "password" to "",
+                            "schema" to "PUBLIC",
+                        )
+                    )
+                ),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        ) as DbSchemaSnapshot
+
+        val createdAt = snapshot.tables.single().columns.single { it.name.equals("CREATED_AT", true) }
+        assertEquals(true, createdAt.inherited)
+        assertEquals(true, createdAt.managed)
+    }
+
+    @Test
     fun `provider rejects removed exposed annotation`() {
         val url = "jdbc:h2:mem:cap4k-db-source-exposed-marker-value;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
