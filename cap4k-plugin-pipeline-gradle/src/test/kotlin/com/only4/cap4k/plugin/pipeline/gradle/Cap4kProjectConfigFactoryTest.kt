@@ -103,6 +103,9 @@ class Cap4kProjectConfigFactoryTest {
     fun `types block owns enum and value object manifests`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+        val registryFile = project.file("design/type-registry.json")
+        registryFile.parentFile.mkdirs()
+        registryFile.writeText("{}")
 
         extension.project {
             basePackage.set("com.acme.demo")
