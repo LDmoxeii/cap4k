@@ -31,7 +31,7 @@ class DesignSagaArtifactPlannerTest {
         val items = DesignSagaArtifactPlanner().plan(configWithApplicationModule(), model)
 
         assertEquals(
-            setOf("design/saga-param", "design/saga-result", "design/saga-handler"),
+            setOf("design/saga_param.kt.peb", "design/saga_result.kt.peb", "design/saga_handler.kt.peb"),
             items.map { it.templateId }.toSet(),
         )
         assertTrue(items.all { it.outputKind == ArtifactOutputKind.CHECKED_IN_SOURCE })

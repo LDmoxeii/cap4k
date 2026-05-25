@@ -29,7 +29,7 @@ class DesignDomainServiceArtifactPlannerTest {
 
         val items = DesignDomainServiceArtifactPlanner().plan(configWithDomainModule(), model)
 
-        assertEquals("design/domain-service", items.single().templateId)
+        assertEquals("design/domain_service.kt.peb", items.single().templateId)
         assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, items.single().outputKind)
         assertTrue(items.single().outputPath.endsWith("ContentPublicationPolicy.kt"))
     }

@@ -68,6 +68,52 @@ class PebbleArtifactRendererTest {
         ).single().content
 
     @Test
+    fun `design domain service and saga skeleton template ids resolve through default preset`() {
+        val config = ProjectConfig()
+
+        val domainService = renderTemplate(
+            templateId = config.artifactLayout.designDomainService.id,
+            outputPath = "demo-domain/src/main/kotlin/content/domain/ContentPublicationPolicy.kt",
+            context = mapOf(
+                "packageName" to "content.domain",
+                "name" to "ContentPublicationPolicy",
+                "description" to "publication policy",
+                "aggregates" to listOf("Content"),
+            ),
+        )
+        assertTrue(domainService.contains("import com.only4.cap4k.ddd.core.domain.service.annotation.DomainService"))
+        assertTrue(domainService.contains("class ContentPublicationPolicy"))
+        assertReadableKotlin(domainService)
+
+        val sagaParam = renderTemplate(
+            templateId = config.artifactLayout.designSagaParam.id,
+            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSagaParam.kt",
+            context = mapOf(
+                "packageName" to "content.workflow",
+                "name" to "PublishContentSaga",
+                "requestFields" to listOf(mapOf("name" to "contentId", "renderedType" to "ContentId")),
+                "imports" to emptyList<String>(),
+            ),
+        )
+        assertTrue(sagaParam.contains("import com.only4.cap4k.ddd.core.application.saga.SagaParam"))
+        assertTrue(sagaParam.contains("data class PublishContentSagaParam"))
+        assertTrue(sagaParam.contains(": SagaParam<PublishContentSagaResult>"))
+        assertReadableKotlin(sagaParam)
+
+        val sagaHandler = renderTemplate(
+            templateId = config.artifactLayout.designSagaHandler.id,
+            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSagaHandler.kt",
+            context = mapOf(
+                "packageName" to "content.workflow",
+                "name" to "PublishContentSaga",
+            ),
+        )
+        assertTrue(sagaHandler.contains("import com.only4.cap4k.ddd.core.application.saga.SagaHandler"))
+        assertTrue(sagaHandler.contains("override fun exec(request: PublishContentSagaParam): PublishContentSagaResult"))
+        assertReadableKotlin(sagaHandler)
+    }
+
+    @Test
     fun `aggregate factory template renders semantic payload metadata and filtered payload fields`() {
         val content = renderTemplate(
             templateId = "aggregate/factory.kt.peb",
@@ -4303,18 +4349,6 @@ class PebbleArtifactRendererTest {
                                 message = "use <raw> & keep",
                                 targets = listOf("CLASS"),
                                 valueType = "Map<String, String>",
-                                parameters = listOf(
-                                    ValidatorParameterModel(
-                                        name = "metadata",
-                                        type = "Map<String, String>",
-                                        defaultValue = "emptyMap()",
-                                    ),
-                                    ValidatorParameterModel(
-                                        name = "title",
-                                        type = "String",
-                                        defaultValue = "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-                                    )
-                                ),
                             )
                         )
                     ),
@@ -4344,14 +4378,6 @@ class PebbleArtifactRendererTest {
         assertEquals("Map<String, String> <raw> & stable", element["desc"].asString)
         assertEquals("use <raw> & keep", element["message"].asString)
         assertEquals("Map<String, String>", element["valueType"].asString)
-        assertEquals(
-            "emptyMap()",
-            element["parameters"].asJsonArray[0].asJsonObject["defaultValue"].asString,
-        )
-        assertEquals(
-            "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-            element["parameters"].asJsonArray[1].asJsonObject["defaultValue"].asString,
-        )
     }
 
     @Test

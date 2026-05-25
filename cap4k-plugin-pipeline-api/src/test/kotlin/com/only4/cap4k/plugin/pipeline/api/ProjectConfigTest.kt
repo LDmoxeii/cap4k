@@ -66,10 +66,10 @@ class ProjectConfigTest {
         assertEquals(listOf("design/value-objects.json"), config.typeRegistry.valueObjectManifestFiles)
         assertEquals("only-engine-validator", config.addons.getValue("only-engine-validator").id)
         assertEquals("validation/validators.json", config.addons.getValue("only-engine-validator").options["manifestFile"])
-        assertEquals("design/domain-service", config.artifactLayout.designDomainService.id)
-        assertEquals("design/saga-param", config.artifactLayout.designSagaParam.id)
-        assertEquals("design/saga-result", config.artifactLayout.designSagaResult.id)
-        assertEquals("design/saga-handler", config.artifactLayout.designSagaHandler.id)
+        assertEquals("design/domain_service.kt.peb", config.artifactLayout.designDomainService.id)
+        assertEquals("design/saga_param.kt.peb", config.artifactLayout.designSagaParam.id)
+        assertEquals("design/saga_result.kt.peb", config.artifactLayout.designSagaResult.id)
+        assertEquals("design/saga_handler.kt.peb", config.artifactLayout.designSagaHandler.id)
         assertEquals("types/value-object", config.artifactLayout.valueObject.id)
     }
 }
