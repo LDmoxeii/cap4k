@@ -96,28 +96,20 @@ class DbColumnAnnotationParserTest {
     }
 
     @Test
-    fun `parser extracts generated value marker deleted version and write controls from comment`() {
+    fun `parser extracts deleted and version markers from comment`() {
         val metadata = DbColumnAnnotationParser.parse(
-            "audit field @GeneratedValue;@Deleted;@Version;@Insertable=false;@Updatable=false;"
+            "audit field @Deleted;@Version;"
         )
 
-        assertEquals(true, metadata.generatedValueDeclared)
-        assertEquals(null, metadata.generatedValueStrategy)
         assertEquals(true, metadata.deleted)
         assertEquals(true, metadata.version)
-        assertEquals(false, metadata.insertable)
-        assertEquals(false, metadata.updatable)
     }
 
     @Test
-    fun `parser supports explicit generated value strategies and alias`() {
-        val uuid7 = DbColumnAnnotationParser.parse("@GeneratedValue=uuid7;")
-        val snowflake = DbColumnAnnotationParser.parse("@GeneratedValue=SNOWFLAKE-LONG;")
+    fun `parser supports database generated value strategies and alias`() {
         val identity = DbColumnAnnotationParser.parse("@GeneratedValue=IDENTITY;")
         val databaseIdentity = DbColumnAnnotationParser.parse("@GeneratedValue=database-identity;")
 
-        assertEquals("uuid7", uuid7.generatedValueStrategy)
-        assertEquals("snowflake-long", snowflake.generatedValueStrategy)
         assertEquals("identity", identity.generatedValueStrategy)
         assertEquals("identity", databaseIdentity.generatedValueStrategy)
     }
@@ -128,7 +120,7 @@ class DbColumnAnnotationParserTest {
             DbColumnAnnotationParser.parse("@GeneratedValue=SEQUENCE;")
         }
 
-        assertEquals("unsupported @GeneratedValue strategy in this slice: SEQUENCE", error.message)
+        assertEquals("unsupported @GeneratedValue strategy: SEQUENCE", error.message)
     }
 
     @Test
@@ -139,6 +131,7 @@ class DbColumnAnnotationParserTest {
         assertEquals(null, metadata.deleted)
         assertEquals(null, metadata.managed)
         assertEquals(null, metadata.exposed)
+        assertEquals(null, metadata.inherited)
         assertEquals(false, metadata.generatedValueDeclared)
     }
 
@@ -156,47 +149,78 @@ class DbColumnAnnotationParserTest {
     }
 
     @Test
-    fun `parser supports managed and exposed markers`() {
+    fun `parser supports managed marker`() {
         val managed = DbColumnAnnotationParser.parse("@Managed;")
-        val exposed = DbColumnAnnotationParser.parse("@Exposed;")
 
         assertEquals(true, managed.managed)
         assertEquals(null, managed.exposed)
-        assertEquals(null, exposed.managed)
-        assertEquals(true, exposed.exposed)
     }
 
     @Test
-    fun `parser rejects valued managed exposed and mutual exclusion`() {
+    fun `parser rejects valued managed marker`() {
         val managedError = assertThrows(IllegalArgumentException::class.java) {
             DbColumnAnnotationParser.parse("@Managed=true;")
         }
-        val exposedBooleanError = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@Exposed=false;")
-        }
-        val exposedNumericError = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@Exposed=1;")
-        }
-        val conflictError = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@Managed;@Exposed;")
-        }
 
         assertEquals("invalid @Managed annotation: explicit values are not supported.", managedError.message)
-        assertEquals("invalid @Exposed annotation: explicit values are not supported.", exposedBooleanError.message)
-        assertEquals("invalid @Exposed annotation: explicit values are not supported.", exposedNumericError.message)
-        assertEquals("conflicting @Managed/@Exposed annotations on the same column comment.", conflictError.message)
     }
 
     @Test
-    fun `parser rejects invalid insertable updatable boolean annotation values`() {
-        val insertableError = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@Insertable=maybe;")
-        }
-        val updatableError = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@Updatable=maybe;")
+    fun `parser supports inherited marker`() {
+        val metadata = DbColumnAnnotationParser.parse("created at @Inherited;")
+
+        assertEquals(true, metadata.inherited)
+    }
+
+    @Test
+    fun `parser rejects valued inherited marker`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Inherited=true;")
         }
 
-        assertEquals("invalid @Insertable boolean value in this slice: maybe", insertableError.message)
-        assertEquals("invalid @Updatable boolean value in this slice: maybe", updatableError.message)
+        assertEquals("invalid @Inherited annotation: explicit values are not supported.", error.message)
+    }
+
+    @Test
+    fun `parser rejects removed generated value strategies and marker`() {
+        val markerError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@GeneratedValue;")
+        }
+        val uuidError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@GeneratedValue=uuid7;")
+        }
+        val snowflakeError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@GeneratedValue=snowflake-long;")
+        }
+
+        assertEquals("invalid @GeneratedValue annotation: explicit database strategy is required.", markerError.message)
+        assertEquals("unsupported @GeneratedValue strategy: uuid7", uuidError.message)
+        assertEquals("unsupported @GeneratedValue strategy: snowflake-long", snowflakeError.message)
+    }
+
+    @Test
+    fun `parser rejects removed exposed and jpa mutability annotations`() {
+        val exposedError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Exposed;")
+        }
+        val insertableError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Insertable=false;")
+        }
+        val updatableError = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Updatable=false;")
+        }
+
+        assertEquals(
+            "unsupported column annotation @Exposed: remove broad managed defaults or stop marking this field managed.",
+            exposedError.message,
+        )
+        assertEquals(
+            "unsupported column annotation @Insertable: use template overrides for JPA-specific mutability.",
+            insertableError.message,
+        )
+        assertEquals(
+            "unsupported column annotation @Updatable: use template overrides for JPA-specific mutability.",
+            updatableError.message,
+        )
     }
 }
