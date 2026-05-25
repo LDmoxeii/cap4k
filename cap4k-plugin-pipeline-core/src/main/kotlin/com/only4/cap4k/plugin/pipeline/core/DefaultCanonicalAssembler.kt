@@ -24,6 +24,7 @@ import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
+import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.EnumManifestSnapshot
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
@@ -351,6 +352,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             relations = aggregateRelations,
             tables = supportedTables,
         )
+        val aggregateEntityPackageByName = entities.associateBy(
+            keySelector = { it.name },
+            valueTransform = { it.packageName },
+        )
         validateDuplicateTypeSimpleNames(
             sharedEnums = sharedEnums.map { it.typeName },
             localEnums = entities.flatMap { entity ->
@@ -358,7 +363,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     field.typeBinding
                         ?.takeIf { it.isNotBlank() && field.enumItems.isNotEmpty() }
                         ?.let { typeBinding ->
-                            LocalTypeName(owner = entity.packageName, simpleName = typeBinding)
+                            LocalEnumTypeName(
+                                owner = entity.packageName,
+                                simpleName = typeBinding,
+                                items = field.enumItems,
+                            )
                         }
                 }
             },
@@ -368,7 +377,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             localValueObjects = valueObjects
                 .filter { it.scope == ValueObjectScope.AGGREGATE }
                 .map { valueObject ->
-                    LocalTypeName(owner = valueObject.aggregate.orEmpty(), simpleName = valueObject.name)
+                    LocalTypeName(
+                        owner = aggregateEntityPackageByName[valueObject.aggregate].orEmpty()
+                            .ifBlank { valueObject.aggregate.orEmpty() },
+                        simpleName = valueObject.name,
+                    )
                 },
             typeRegistry = config.typeRegistry.entries.keys,
         )
@@ -771,7 +784,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
     private fun validateDuplicateTypeSimpleNames(
         sharedEnums: Iterable<String>,
-        localEnums: Iterable<LocalTypeName>,
+        localEnums: Iterable<LocalEnumTypeName>,
         sharedValueObjects: Iterable<String>,
         localValueObjects: Iterable<LocalTypeName>,
         typeRegistry: Iterable<String>,
@@ -788,15 +801,46 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val localEnumDefinitions = localEnums
             .mapNotNull { it.normalized() }
             .distinct()
+        localEnumDefinitions
+            .groupBy { it.owner to it.simpleName }
+            .entries
+            .firstOrNull { (_, definitions) -> definitions.map { it.items }.distinct().size > 1 }
+            ?.let { (_, definitions) ->
+                throw IllegalArgumentException("Duplicate type simple name: ${definitions.first().simpleName}")
+            }
         val localValueObjectDefinitions = localValueObjects
             .mapNotNull { it.normalized() }
             .distinct()
+        val localValueObjectKeys = localValueObjectDefinitions.map { it.owner to it.simpleName }.toSet()
+        localEnumDefinitions
+            .firstOrNull { (it.owner to it.simpleName) in localValueObjectKeys }
+            ?.let { localEnum ->
+                throw IllegalArgumentException("Duplicate type simple name: ${localEnum.simpleName}")
+            }
         val localTypeSimpleNames = (
             localEnumDefinitions.map { it.simpleName } +
                 localValueObjectDefinitions.map { it.simpleName }
             ).toSet()
         globalCounts.keys.firstOrNull { it in localTypeSimpleNames }?.let { simpleName ->
             throw IllegalArgumentException("Duplicate type simple name: $simpleName")
+        }
+    }
+
+    private data class LocalEnumTypeName(
+        val owner: String,
+        val simpleName: String,
+        val items: List<EnumItemModel>,
+    ) {
+        fun normalized(): LocalEnumTypeName? {
+            val normalizedSimpleName = simpleName.substringAfterLast('.').trim()
+            if (normalizedSimpleName.isEmpty()) {
+                return null
+            }
+            return LocalEnumTypeName(
+                owner = owner.trim(),
+                simpleName = normalizedSimpleName,
+                items = items,
+            )
         }
     }
 

@@ -314,6 +314,45 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `same aggregate local enum repeated with different definitions fails duplicate simple-name validation`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assemble(
+                db = DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "visibility",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "Visibility",
+                                    enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden")),
+                                ),
+                                DbColumnSnapshot(
+                                    name = "default_visibility",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "Visibility",
+                                    enumItems = listOf(EnumItemModel(1, "PUBLIC", "Public")),
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                )
+            )
+        }
+
+        assertTrue(error.message!!.contains("Duplicate type simple name: Visibility"))
+    }
+
+    @Test
     fun `different aggregate owners can define local enums with the same simple name`() {
         val model = assemble(
             db = DbSchemaSnapshot(
@@ -381,6 +420,49 @@ class DefaultCanonicalAssemblerTest {
         val model = assemble(valueObjects = valueObjects)
 
         assertEquals(listOf("Content", "Review"), model.valueObjects.map { it.aggregate })
+    }
+
+    @Test
+    fun `same aggregate local enum and value object with same simple name fail duplicate validation`() {
+        val valueObjects = ValueObjectManifestSnapshot(
+            valueObjects = listOf(
+                ValueObjectModel(
+                    name = "Status",
+                    packageName = "content.values",
+                    scope = ValueObjectScope.AGGREGATE,
+                    aggregate = "Content",
+                ),
+            )
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assemble(
+                db = DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "content",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "status",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "Status",
+                                    enumItems = listOf(EnumItemModel(0, "DRAFT", "Draft")),
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                ),
+                valueObjects = valueObjects,
+            )
+        }
+
+        assertTrue(error.message!!.contains("Duplicate type simple name: Status"))
     }
 
     @Test
