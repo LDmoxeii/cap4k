@@ -332,8 +332,6 @@ class DbSchemaSourceProviderTest {
                         id bigint primary key comment '@GeneratedValue=IDENTITY;',
                         version bigint not null comment '@Version;',
                         deleted int not null comment '@Deleted;',
-                        created_by varchar(64) comment '@Insertable=false;',
-                        updated_by varchar(64) comment '@Updatable=false;',
                         title varchar(128) not null
                     );
                     """.trimIndent()
@@ -371,12 +369,10 @@ class DbSchemaSourceProviderTest {
         assertEquals("identity", table.columns.single { it.name.equals("ID", true) }.generatedValueStrategy)
         assertEquals(true, table.columns.single { it.name.equals("VERSION", true) }.version)
         assertEquals(true, table.columns.single { it.name.equals("DELETED", true) }.deleted)
-        assertEquals(false, table.columns.single { it.name.equals("CREATED_BY", true) }.insertable)
-        assertEquals(false, table.columns.single { it.name.equals("UPDATED_BY", true) }.updatable)
     }
 
     @Test
-    fun `provider carries managed and exposed column markers into db snapshot`() {
+    fun `provider carries managed column marker into db snapshot`() {
         val url = "jdbc:h2:mem:cap4k-db-source-managed-exposed-column-behavior;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -385,7 +381,7 @@ class DbSchemaSourceProviderTest {
                     create table video_post (
                         id bigint primary key,
                         created_at timestamp not null comment '@Managed;',
-                        title varchar(128) not null comment '@Exposed;'
+                        title varchar(128) not null
                     );
                     """.trimIndent()
                 )
@@ -421,11 +417,11 @@ class DbSchemaSourceProviderTest {
         assertEquals(true, table.columns.single { it.name.equals("CREATED_AT", true) }.managed)
         assertEquals(null, table.columns.single { it.name.equals("CREATED_AT", true) }.exposed)
         assertEquals(null, table.columns.single { it.name.equals("TITLE", true) }.managed)
-        assertEquals(true, table.columns.single { it.name.equals("TITLE", true) }.exposed)
+        assertEquals(null, table.columns.single { it.name.equals("TITLE", true) }.exposed)
     }
 
     @Test
-    fun `provider rejects explicit exposed marker value`() {
+    fun `provider rejects removed exposed annotation`() {
         val url = "jdbc:h2:mem:cap4k-db-source-exposed-marker-value;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -465,11 +461,14 @@ class DbSchemaSourceProviderTest {
             )
         }
 
-        assertEquals("invalid @Exposed annotation: explicit values are not supported.", error.message)
+        assertEquals(
+            "unsupported column annotation @Exposed: remove broad managed defaults or stop marking this field managed.",
+            error.message,
+        )
     }
 
     @Test
-    fun `provider rejects managed exposed mutual exclusion`() {
+    fun `provider rejects removed exposed annotation before managed exposed mutual exclusion`() {
         val url = "jdbc:h2:mem:cap4k-db-source-managed-exposed-conflict;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -509,7 +508,10 @@ class DbSchemaSourceProviderTest {
             )
         }
 
-        assertEquals("conflicting @Managed/@Exposed annotations on the same column comment.", error.message)
+        assertEquals(
+            "unsupported column annotation @Exposed: remove broad managed defaults or stop marking this field managed.",
+            error.message,
+        )
     }
 
     @Test
