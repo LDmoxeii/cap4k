@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
+import com.only4.cap4k.plugin.pipeline.api.AddonProviderConfig
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
@@ -13,12 +14,15 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverter
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import org.gradle.api.Project
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import java.io.File
+import kotlin.io.path.invariantSeparatorsPathString
 import java.util.Locale
 
 class Cap4kProjectConfigFactory {
@@ -30,35 +34,24 @@ class Cap4kProjectConfigFactory {
             designJsonEnabled = extension.sources.designJson.enabled.get(),
             kspMetadataEnabled = extension.sources.kspMetadata.enabled.get(),
             dbEnabled = extension.sources.db.enabled.get(),
-            enumManifestEnabled = extension.sources.enumManifest.enabled.get(),
             irAnalysisEnabled = extension.sources.irAnalysis.enabled.get(),
         )
         val generatorStates = GeneratorStates(
-            designCommandEnabled = extension.generators.designCommand.enabled.get(),
-            designQueryEnabled = extension.generators.designQuery.enabled.get(),
-            designQueryHandlerEnabled = extension.generators.designQueryHandler.enabled.get(),
-            designClientEnabled = extension.generators.designClient.enabled.get(),
-            designClientHandlerEnabled = extension.generators.designClientHandler.enabled.get(),
-            designValidatorEnabled = extension.generators.designValidator.enabled.get(),
-            designApiPayloadEnabled = extension.generators.designApiPayload.enabled.get(),
-            designDomainEventEnabled = extension.generators.designDomainEvent.enabled.get(),
-            designDomainEventHandlerEnabled = extension.generators.designDomainEventHandler.enabled.get(),
-            designIntegrationEventEnabled = extension.generators.designIntegrationEvent.enabled.get(),
-            designIntegrationEventSubscriberEnabled = extension.generators.designIntegrationEventSubscriber.enabled.get(),
             aggregateEnabled = extension.generators.aggregate.enabled.get(),
             aggregateProjectionEnabled = extension.generators.aggregateProjection.enabled.get(),
             flowEnabled = extension.generators.flow.enabled.get(),
             drawingBoardEnabled = extension.generators.drawingBoard.enabled.get(),
         )
 
-        validateProjectRules(extension, generatorStates)
-        val modules = buildModules(extension, generatorStates)
+        validateProjectRules(extension, sourceStates, generatorStates)
+        val modules = buildModules(extension, sourceStates, generatorStates)
         val sources = buildSources(project, extension, sourceStates)
-        val generators = buildGenerators(extension, generatorStates)
+        val generators = buildGenerators(extension, sourceStates, generatorStates)
         validateGeneratorDependencies(sourceStates, generatorStates)
         val typeRegistry = buildTypeRegistry(project, extension)
         val artifactLayout = buildArtifactLayout(basePackage, extension)
         val aggregateSpecialFieldDefaults = buildAggregateSpecialFieldDefaults(extension)
+        val addons = buildAddons(extension)
 
         return ProjectConfig(
             basePackage = basePackage,
@@ -77,75 +70,20 @@ class Cap4kProjectConfigFactory {
             ),
             artifactLayout = artifactLayout,
             aggregateSpecialFieldDefaults = aggregateSpecialFieldDefaults,
+            addons = addons,
         )
     }
 
-    private fun validateProjectRules(extension: Cap4kExtension, generators: GeneratorStates) {
-        if (generators.designCommandEnabled) {
-            extension.project.applicationModulePath.requiredWhenEnabled(
-                "project.applicationModulePath",
-                "designCommand"
-            )
-        }
-        if (generators.designQueryEnabled) {
-            extension.project.applicationModulePath.requiredWhenEnabled(
-                "project.applicationModulePath",
-                "designQuery"
-            )
-        }
-        if (generators.designQueryHandlerEnabled) {
-            extension.project.adapterModulePath.requiredWhenEnabled(
-                "project.adapterModulePath",
-                "designQueryHandler"
-            )
-        }
-        if (generators.designClientEnabled) {
-            extension.project.applicationModulePath.requiredWhenEnabled(
-                "project.applicationModulePath",
-                "designClient"
-            )
-        }
-        if (generators.designClientHandlerEnabled) {
-            extension.project.adapterModulePath.requiredWhenEnabled(
-                "project.adapterModulePath",
-                "designClientHandler"
-            )
-        }
-        if (generators.designValidatorEnabled) {
-            extension.project.applicationModulePath.requiredWhenEnabled(
-                "project.applicationModulePath",
-                "designValidator"
-            )
-        }
-        if (generators.designApiPayloadEnabled) {
-            extension.project.adapterModulePath.requiredWhenEnabled(
-                "project.adapterModulePath",
-                "designApiPayload"
-            )
-        }
-        if (generators.designDomainEventEnabled) {
-            extension.project.domainModulePath.requiredWhenEnabled(
-                "project.domainModulePath",
-                "designDomainEvent"
-            )
-        }
-        if (generators.designDomainEventHandlerEnabled) {
-            extension.project.applicationModulePath.requiredWhenEnabled(
-                "project.applicationModulePath",
-                "designDomainEventHandler"
-            )
-        }
-        if (generators.designIntegrationEventEnabled) {
-            extension.project.applicationModulePath.requiredWhenEnabled(
-                "project.applicationModulePath",
-                "designIntegrationEvent"
-            )
-        }
-        if (generators.designIntegrationEventSubscriberEnabled) {
-            extension.project.applicationModulePath.requiredWhenEnabled(
-                "project.applicationModulePath",
-                "designIntegrationEventSubscriber"
-            )
+    private fun validateProjectRules(extension: Cap4kExtension, sources: SourceStates, generators: GeneratorStates) {
+        if (sources.designJsonEnabled) {
+            val missingDomain = extension.project.domainModulePath.optionalValue() == null
+            val missingApplication = extension.project.applicationModulePath.optionalValue() == null
+            val missingAdapter = extension.project.adapterModulePath.optionalValue() == null
+            if (missingDomain || missingApplication || missingAdapter) {
+                throw IllegalArgumentException(
+                    "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when designJson is enabled."
+                )
+            }
         }
         if (generators.aggregateEnabled) {
             val missingDomain = extension.project.domainModulePath.optionalValue() == null
@@ -167,40 +105,13 @@ class Cap4kProjectConfigFactory {
 
     private fun buildModules(
         extension: Cap4kExtension,
+        sources: SourceStates,
         generators: GeneratorStates,
     ): Map<String, String> = buildMap {
-        if (generators.designCommandEnabled) {
-            put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
-        }
-        if (generators.designQueryEnabled) {
-            put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
-        }
-        if (generators.designQueryHandlerEnabled) {
-            put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
-        }
-        if (generators.designClientEnabled) {
-            put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
-        }
-        if (generators.designClientHandlerEnabled) {
-            put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
-        }
-        if (generators.designValidatorEnabled) {
-            put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
-        }
-        if (generators.designApiPayloadEnabled) {
-            put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
-        }
-        if (generators.designDomainEventEnabled) {
+        if (sources.designJsonEnabled) {
             put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
-        }
-        if (generators.designDomainEventHandlerEnabled) {
             put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
-        }
-        if (generators.designIntegrationEventEnabled) {
-            put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
-        }
-        if (generators.designIntegrationEventSubscriberEnabled) {
-            put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
+            put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
         }
         if (generators.aggregateEnabled) {
             put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
@@ -271,14 +182,6 @@ class Cap4kProjectConfigFactory {
             put("db", SourceConfig(enabled = true, options = options))
         }
 
-        if (states.enumManifestEnabled) {
-            val files = extension.sources.enumManifest.files.files.map(File::getAbsolutePath).sorted()
-            if (files.isEmpty()) {
-                throw IllegalArgumentException("sources.enumManifest.files must not be empty when enumManifest is enabled.")
-            }
-            put("enum-manifest", SourceConfig(enabled = true, options = mapOf("files" to files)))
-        }
-
         if (states.irAnalysisEnabled) {
             val inputDirs = extension.sources.irAnalysis.inputDirs.files.map(File::getAbsolutePath).sorted()
             if (inputDirs.isEmpty()) {
@@ -290,40 +193,13 @@ class Cap4kProjectConfigFactory {
 
     private fun buildGenerators(
         extension: Cap4kExtension,
+        sources: SourceStates,
         states: GeneratorStates,
     ): Map<String, GeneratorConfig> = buildMap {
-        if (states.designCommandEnabled) {
-            put("design-command", GeneratorConfig(enabled = true))
-        }
-        if (states.designQueryEnabled) {
-            put("design-query", GeneratorConfig(enabled = true))
-        }
-        if (states.designQueryHandlerEnabled) {
-            put("design-query-handler", GeneratorConfig(enabled = true))
-        }
-        if (states.designClientEnabled) {
-            put("design-client", GeneratorConfig(enabled = true))
-        }
-        if (states.designClientHandlerEnabled) {
-            put("design-client-handler", GeneratorConfig(enabled = true))
-        }
-        if (states.designValidatorEnabled) {
-            put("design-validator", GeneratorConfig(enabled = true))
-        }
-        if (states.designApiPayloadEnabled) {
-            put("design-api-payload", GeneratorConfig(enabled = true))
-        }
-        if (states.designDomainEventEnabled) {
-            put("design-domain-event", GeneratorConfig(enabled = true))
-        }
-        if (states.designDomainEventHandlerEnabled) {
-            put("design-domain-event-handler", GeneratorConfig(enabled = true))
-        }
-        if (states.designIntegrationEventEnabled) {
-            put("design-integration-event", GeneratorConfig(enabled = true))
-        }
-        if (states.designIntegrationEventSubscriberEnabled) {
-            put("design-integration-event-subscriber", GeneratorConfig(enabled = true))
+        if (sources.designJsonEnabled) {
+            DESIGN_PLANNER_GENERATOR_IDS.forEach { generatorId ->
+                put(generatorId, GeneratorConfig(enabled = true))
+            }
         }
         if (states.aggregateEnabled) {
             val aggregate = extension.generators.aggregate
@@ -374,7 +250,6 @@ class Cap4kProjectConfigFactory {
             designClient = extension.layout.designClient.toPackageLayout("designClient"),
             designQueryHandler = extension.layout.designQueryHandler.toPackageLayout("designQueryHandler"),
             designClientHandler = extension.layout.designClientHandler.toPackageLayout("designClientHandler"),
-            designValidator = extension.layout.designValidator.toPackageLayout("designValidator"),
             designApiPayload = extension.layout.designApiPayload.toPackageLayout("designApiPayload"),
             designDomainEvent = extension.layout.designDomainEvent.toPackageLayout("designDomainEvent"),
             designDomainEventHandler = extension.layout.designDomainEventHandler.toPackageLayout(
@@ -399,8 +274,22 @@ class Cap4kProjectConfigFactory {
         )
     }
 
-    private fun buildTypeRegistry(project: Project, extension: Cap4kExtension): Map<String, TypeRegistryEntry> {
-        val registryFile = extension.types.registryFile.optionalValue() ?: return emptyMap()
+    private fun buildTypeRegistry(project: Project, extension: Cap4kExtension): TypeRegistryConfig {
+        val registryFile = extension.types.registryFile.optionalValue().orEmpty()
+        val entries = if (registryFile.isEmpty()) {
+            emptyMap()
+        } else {
+            loadTypeRegistryEntries(project, registryFile)
+        }
+        return TypeRegistryConfig(
+            entries = entries,
+            registryFile = registryFile,
+            enumManifestFiles = extension.types.enumManifest.files.projectRelativePaths(project),
+            valueObjectManifestFiles = extension.types.valueObjectManifest.files.projectRelativePaths(project),
+        )
+    }
+
+    private fun loadTypeRegistryEntries(project: Project, registryFile: String): Map<String, TypeRegistryEntry> {
         val file = project.file(registryFile).absoluteFile
         require(file.exists()) {
             "types.registryFile does not exist: ${file.path}"
@@ -446,40 +335,15 @@ class Cap4kProjectConfigFactory {
         return registry
     }
 
+    private fun buildAddons(extension: Cap4kExtension): Map<String, AddonProviderConfig> =
+        extension.addons.providers.associate { provider ->
+            provider.id to AddonProviderConfig(
+                id = provider.id,
+                options = provider.options.getOrElse(emptyMap()),
+            )
+        }
+
     private fun validateGeneratorDependencies(sources: SourceStates, generators: GeneratorStates) {
-        if (generators.designQueryHandlerEnabled && !generators.designQueryEnabled) {
-            throw IllegalArgumentException("designQueryHandler generator requires enabled designQuery generator.")
-        }
-        if (generators.designClientEnabled && !sources.designJsonEnabled) {
-            throw IllegalArgumentException("designClient generator requires enabled designJson source.")
-        }
-        if (generators.designClientHandlerEnabled && !generators.designClientEnabled) {
-            throw IllegalArgumentException("designClientHandler generator requires enabled designClient generator.")
-        }
-        if (generators.designCommandEnabled && !sources.designJsonEnabled) {
-            throw IllegalArgumentException("designCommand generator requires enabled designJson source.")
-        }
-        if (generators.designQueryEnabled && !sources.designJsonEnabled) {
-            throw IllegalArgumentException("designQuery generator requires enabled designJson source.")
-        }
-        if (generators.designValidatorEnabled && !sources.designJsonEnabled) {
-            throw IllegalArgumentException("designValidator generator requires enabled designJson source.")
-        }
-        if (generators.designApiPayloadEnabled && !sources.designJsonEnabled) {
-            throw IllegalArgumentException("designApiPayload generator requires enabled designJson source.")
-        }
-        if (generators.designDomainEventEnabled && !sources.designJsonEnabled) {
-            throw IllegalArgumentException("designDomainEvent generator requires enabled designJson source.")
-        }
-        if (generators.designDomainEventHandlerEnabled && !generators.designDomainEventEnabled) {
-            throw IllegalArgumentException("designDomainEventHandler generator requires enabled designDomainEvent generator.")
-        }
-        if (generators.designIntegrationEventEnabled && !sources.designJsonEnabled) {
-            throw IllegalArgumentException("designIntegrationEvent generator requires enabled designJson source.")
-        }
-        if (generators.designIntegrationEventSubscriberEnabled && !generators.designIntegrationEventEnabled) {
-            throw IllegalArgumentException("designIntegrationEventSubscriber generator requires enabled designIntegrationEvent generator.")
-        }
         if (generators.aggregateEnabled && !sources.dbEnabled) {
             throw IllegalArgumentException("aggregate generator requires enabled db source.")
         }
@@ -522,26 +386,27 @@ private data class SourceStates(
     val designJsonEnabled: Boolean,
     val kspMetadataEnabled: Boolean,
     val dbEnabled: Boolean,
-    val enumManifestEnabled: Boolean,
     val irAnalysisEnabled: Boolean,
 )
 
 private data class GeneratorStates(
-    val designCommandEnabled: Boolean,
-    val designQueryEnabled: Boolean,
-    val designQueryHandlerEnabled: Boolean,
-    val designClientEnabled: Boolean,
-    val designClientHandlerEnabled: Boolean,
-    val designValidatorEnabled: Boolean,
-    val designApiPayloadEnabled: Boolean,
-    val designDomainEventEnabled: Boolean,
-    val designDomainEventHandlerEnabled: Boolean,
-    val designIntegrationEventEnabled: Boolean,
-    val designIntegrationEventSubscriberEnabled: Boolean,
     val aggregateEnabled: Boolean,
     val aggregateProjectionEnabled: Boolean,
     val flowEnabled: Boolean,
     val drawingBoardEnabled: Boolean,
+)
+
+private val DESIGN_PLANNER_GENERATOR_IDS = listOf(
+    "design-command",
+    "design-query",
+    "design-query-handler",
+    "design-client",
+    "design-client-handler",
+    "design-api-payload",
+    "design-domain-event",
+    "design-domain-event-handler",
+    "design-integration-event",
+    "design-integration-event-subscriber",
 )
 
 private fun Property<String>.required(path: String): String =
@@ -584,6 +449,20 @@ private fun Property<String>.rawValue(): String =
 
 private fun ListProperty<String>.normalizedValues(): List<String> =
     orNull.orEmpty().mapNotNull { value -> value.trim().takeIf { it.isNotEmpty() } }
+
+private fun ConfigurableFileCollection.projectRelativePaths(project: Project): List<String> {
+    val projectRoot = project.projectDir.toPath().toAbsolutePath().normalize()
+    return files
+        .map { file -> project.file(file).toPath().toAbsolutePath().normalize() }
+        .map { path ->
+            if (path.startsWith(projectRoot)) {
+                projectRoot.relativize(path).invariantSeparatorsPathString
+            } else {
+                path.invariantSeparatorsPathString
+            }
+        }
+        .sorted()
+}
 
 private fun JsonReader.nextTypeRegistryEntry(key: String): TypeRegistryEntry {
     beginObject()
