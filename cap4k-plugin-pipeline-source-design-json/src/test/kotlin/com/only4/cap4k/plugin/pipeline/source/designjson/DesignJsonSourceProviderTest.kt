@@ -487,6 +487,7 @@ class DesignJsonSourceProviderTest {
         assertEquals(listOf("domain_service", "saga"), snapshot.entries.map { it.tag })
         assertEquals(listOf("Content"), snapshot.entries[0].aggregates)
         assertEquals("contentId", snapshot.entries[1].requestFields.single().name)
+        assertEquals("accepted", snapshot.entries[1].responseFields.single().name)
     }
 
     @Test
