@@ -12,3 +12,7 @@
 ## Hidden Listener Dispatch
 
 Strongly discouraged: one public `on(event)` listener method manually dispatches to several private business reaction methods. Use multiple independent `@EventListener` methods with business-semantic names. Cap4k does not guarantee ordering between multiple listeners, so commands triggered by listeners must be idempotent and zero-trust.
+
+## Listener Filter Overreach
+
+A listener-side condition is only a cheap routing filter. If it decides final write eligibility, the flow has moved the trust boundary out of the command. Commands must reload state, validate release policy/readiness/existing tasks/already-applied state/ownership/invariants as applicable, and return explicit no-op reasons for normal retreat paths.

@@ -97,6 +97,7 @@
 - `commands/`、`queries/` 下首先放 request-contract surface；这些文件是否可直接编辑，要先看 `plan.json`。
 - `ContentRequiresMediaProcessingDomainEventSubscriber.kt`、`MediaProcessingCallbackIntegrationEventSubscriber.kt` 这种不在 recurring plan 里的手写完成文件，才是默认更稳定的 application 作者面。
 - `subscribers/domain` 下放领域事实进入 application 层后的推进点。它可以发出后续内部命令，也可以根据领域事实构造 outbound integration event 并调用 `Mediator.events.attach(...)`，但不让聚合直接承担跨服务协议。
+- 一个领域事实可以唤醒多个独立 domain subscriber。不要把一个 public `on(event)` 写成中央 process-router 再手动分发多个业务反应；每个 listener 应有业务语义名称，listener-side checks 只做便宜过滤，最终适用性由 command 重新校验并返回明确结果。
 - `subscribers/integration` 下放外部事实进入 application 层后的收敛点。会推进状态的 inbound integration event 必须转换成内部命令，不是领域事件的替身，也不是直接写聚合的入口。
 - 当前 repo 默认会把部分 query / client handler family 放进 adapter module 的 `adapter.application.*` 路径下。看到它们落在 adapter module，不代表它们就变成了 adapter 业务真相文件；它们仍然是在执行 application 层调度，只是 ownership 依旧要先确认。
 - 媒体处理 callback 和 polling 进入 application 层之后，都应该落到 `media_processing_task/` 相关命令族，而不是各自长出一套独立写模型。
@@ -114,6 +115,7 @@
 - 领域事件订阅器收到内部事实后绕过 `Mediator.events.attach(...)` 调用任何直接发布/低层发送 API，或让聚合决定跨服务 event name 和 payload。
 - integration subscriber 收到外部事件后重新包装成 `MediaProcessingCompletedDomainEvent`，让系统误以为这是内部聚合刚刚产生的领域事实。
 - 因为文件就在 `src/main/kotlin`，就直接去改 `CreateContentDraftCmd.kt`、`GetContentDetailQry.kt` 或 `GetContentDetailQryHandler.kt`，没有先核对它是不是 plan-managed artifact。
+- 把多个流程消费同一个领域事实写成一个中央 listener 分支表，并让 listener 决定最终写入资格，而不是把每条写路径送进自己的 command。
 
 这些反例通常会让项目后期越来越难审计，因为写入边界、失败边界和重试边界会一起变模糊。
 
@@ -130,6 +132,7 @@
 - 写 handler 是否总是通过聚合行为推进状态，而不是直接改对象内部字段。
 - 查询路径是否保持只读，`GetContentDetailQry` 与 `GetMediaProcessingProgressQry` 是否没有偷偷承载写逻辑。
 - callback 主路径和 polling 备用路径进入应用层后，是否收敛为同一组内部命令语义，而不是各写各的真相。
+- 多个 listener 响应同一领域事实时，是否各自路由到 zero-trust command，且 no-op 结果能说明退让原因。
 - 对外集成事件是否仅由领域事件订阅器或明确的 application process 基于内部事实构造，并通过 `Mediator.events.attach(...)` 附着；聚合、adapter 入口、普通边界代码没有决定对外集成事件，也没有绕过 attach 调用直接发布/低层发送 API。
 - inbound integration event 是否仍作为外部事实入口处理，并在推进状态前转换成内部命令。
 - 使用 `TriggerMediaProcessingCli` 或 `GetMediaProcessingStatusCli` 的地方是否有明确边界理由，而且外部协议细节没有扩散进整个应用层。

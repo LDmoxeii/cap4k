@@ -13,10 +13,14 @@
 - [ ] Commands are not acting as process coordinators by reading state, branching, and sending multiple follow-up commands.
 - [ ] Command-to-command calls, if present, are local reuse inside one synchronous write use case.
 - [ ] Fact-driven continuation uses domain events, external fact entries, jobs, or Saga instead of technical "command completed" events.
+- [ ] Multiple consumers of one domain fact were checked against the behavior/event/consumer decision chain.
+- [ ] Domain events are split only for distinct completed business facts, not merely because consumers differ.
+- [ ] Central process-router listeners are not making final ownership decisions.
 - [ ] Compensation-oriented Saga uses explicit `requestCompensation(...)` instead of relying on retry exhaustion or exception classification.
 - [ ] Compensable forward steps that need reverse replay persist reverse-compensation metadata through `execCompensableProcess(...)`.
 - [ ] Multiple listeners for the same event do not assume ordering.
-- [ ] Listener-triggered commands are idempotent and zero-trust.
+- [ ] Listener-side filters are cheap routing optimizations only.
+- [ ] Listener-triggered commands are idempotent and zero-trust, with explicit applied/no-op outcomes and reasons.
 - [ ] External fact entries route writes into commands and do not mutate aggregates directly.
 
 ## Generated Ownership Review

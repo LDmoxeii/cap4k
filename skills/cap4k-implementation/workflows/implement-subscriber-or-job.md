@@ -20,6 +20,9 @@
 - Give each listener method a business-semantic name and one reaction.
 - Use private helpers only for shared technical concerns, not for hiding a business dispatch table.
 - Listener-side checks are routing filters only. The called command must still validate every write precondition.
+- Listener-side filters may use event snapshot data to avoid obvious ghost work, but they must not replace command-side validation.
+- For expected inapplicable, non-ready, or already-applied paths, the command should return an explicit no-op outcome such as `NotPaidContent`, `NotPublicationReady`, `AlreadyStarted`, or `AlreadyPublished`.
+- Add diagnostics or audit context that makes the outcome visible: listener method, command request, applied/no-op result, and retreat reason.
 - Do not directly write repositories or mutate aggregates from listeners or jobs. Route writes through commands.
 
 Approved shape: independent listener methods.

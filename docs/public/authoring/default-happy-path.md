@@ -25,6 +25,7 @@
 | inbound integration event 是外部事实入口 | `Must` | 会推进状态的外部事实先转内部命令，不伪装成领域事件 |
 | 默认禁止跨聚合写模型强引用 | `Default` | 只读弱引用属于高级模式 |
 | 多 handler 顺序不保证 | `Default` | 顺序依赖应拆成阶段化流程 |
+| 多个流程可以消费同一个领域事实 | `Default` | 事实相同则允许独立 listener 广播消费；写入判断仍在 command |
 | 单一主动作 | `Default` | 写入口一次只推进一个命令，查入口一次只推进一个查询 |
 | 查询观察不反向污染写模型 | `Must` | 查询路径只观察，不反向修复或污染写模型 |
 | 外部能力端口是防腐边界，不是主流程真相源 | `Must` | 外部能力调用必须先穿过 client 防腐层 |
@@ -132,6 +133,27 @@ Audit cues：
 - 多个 handler 之间是否存在隐式先后依赖
 - 顺序要求是否已经提升为新的命令、事件或阶段
 - 读模型更新失败时，是否错误影响了写模型真相判断
+
+### 多个流程可以消费同一个领域事实
+
+强度：`Default`
+
+Why：
+当一个聚合已经产生了一个完成的业务事实，多个 application 流程可以各自监听这个事实。默认判断链是：先看业务行为是否真的不同，必要时拆聚合行为；再看完成的业务事实是否真的不同，必要时拆领域事件；如果只是多个流程都关心同一个事实，就保留一个领域事实并让独立 listener 广播消费。`cap4k-reference-content-studio` 示例项目里的 `ContentPublicationReadyDomainEvent` 表示内容已经具备发布条件。即时发布和付费发布都可以被这个事实唤醒，但最终分别进入自己的 command：即时发布只在 `ReleasePolicy.IMMEDIATE` 且内容 ready 时应用；付费发布只在 `ReleasePolicy.PAID`、未发布、未启动任务时应用。
+
+listener 可以用事件快照做便宜过滤，避免明显无关的 ghost work，但这个过滤只是路由优化。真正的信任边界仍然是 command：command 重新加载状态，校验 release policy、readiness、existing task、already-applied state、ownership 和 invariant，预期不适用路径返回 typed no-op，例如 `NotPaidContent`、`NotPublicationReady`、`AlreadyStarted`、`AlreadyPublished`。审计时还要能看出哪个 listener 被唤醒、发送了哪个 command、命令 applied 还是 no-op、原因是什么。
+
+Non-example：
+因为即时发布和付费发布是两个消费者，就把同一个“内容已可发布”事实拆成 `ImmediatePublicationReadyEvent` 和 `PaidPublicationReadyEvent`；或者写一个中央 listener 读取状态后决定“这次归哪个流程”，把最终写入资格判断放在 listener 分支里。
+
+Audit cues：
+
+- 事件名称是否描述完成的业务事实，而不是下游消费者
+- 行为不同、事实不同、消费者不同三件事是否被分开判断
+- 多个 listener 是否独立，且不依赖执行顺序
+- listener-side filter 是否只是优化，而不是最终写入判断
+- 每条状态变更是否进入 command 并重新校验自身前置条件
+- no-op 是否可观测，能说明 applied / no-op 和退让原因
 
 ### 对外集成事件只在 application 编排点 attach
 
