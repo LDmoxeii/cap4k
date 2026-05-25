@@ -562,8 +562,7 @@ class PipelinePluginTest {
             "jdbc:h2:file:./build/h2/demo;MODE=MySQL;INIT=RUNSCRIPT FROM '${schemaFile.absolutePath.replace("\\", "/")}'"
         )
         extension.types.registryFile.set(typeRegistry.name)
-        extension.sources.enumManifest.enabled.set(true)
-        extension.sources.enumManifest.files.from(enumManifest)
+        extension.types.enumManifest.files.from(enumManifest)
         extension.templates.overrideDirs.from(templateOverride)
 
         val task = rootProject.tasks.named("cap4kGenerateSources", Cap4kGenerateSourcesTask::class.java).get()
