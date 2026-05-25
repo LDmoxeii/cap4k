@@ -4,7 +4,7 @@ Date: 2026-05-25
 
 Status: Proposed
 
-Scope: implement #84 as a final large generator-boundary iteration across `cap4k` and `only-engine`, using the existing artifact addon SPI direction from the enum-translation migration.
+Scope: implement #84 as a final large generator-boundary iteration across `cap4k` and `only-engine`, using the existing artifact addon SPI direction from the enum-translation migration and adding the `types` value-object manifest as an in-scope generator input.
 
 ## Backlog Source
 
@@ -12,9 +12,12 @@ This design covers:
 
 - #84: generator input-boundary realignment and advanced design families.
 
-It also links to:
+It also absorbs the value-object generation portion of:
 
 - #41: value-object persistence and generation contract.
+
+It also links to:
+
 - #88: deferred internal pipeline input naming cleanup.
 
 #88 is intentionally out of scope for this implementation. This iteration changes the public authoring and generation contract, but does not expand into a full internal `SourceProvider` / `SourceSnapshot` naming rewrite.
@@ -35,7 +38,7 @@ Public language after this change:
 
 - `db` expresses aggregate, entity, relation, persistence, unique constraint, and DB-derived type facts.
 - `design` expresses cap4k core skeleton declarations.
-- `types` expresses enum manifest, custom type registry, and future value-object catalog inputs.
+- `types` expresses enum manifest, value-object manifest, and custom type registry inputs.
 - `addons` express post-canonical external artifact contribution.
 - KSP metadata and IR analysis remain compile-time observation or enhancement inputs.
 
@@ -78,6 +81,9 @@ cap4k {
         registryFile.set("design/type-registry.json")
         enumManifest {
             files.from("design/enums.json")
+        }
+        valueObjectManifest {
+            files.from("design/value-objects.json")
         }
     }
 
@@ -137,9 +143,103 @@ The existing `sources.designJson.enabled`, `sources.db.enabled`, `sources.kspMet
 
 `sources.enumManifest` moves to `types.enumManifest`. Enum manifest is a types input contract, not a source family. It participates in enum binding and enum generation, but does not express use-case surfaces, behavior, validation, or artifact-family switches.
 
-Future value-object metadata should also belong under `types`, not `design.json`. Value-object semantics remain governed by #41.
+`types.valueObjectManifest` is part of this implementation. Value-object manifest is a structured types input contract, not a design tag and not a registry entry. It participates in type resolution, value-object class generation, nested converter generation, and aggregate field converter mapping.
+
+Manifest-managed enums and value objects do not need to be repeated in `types.registryFile`. Duplicate simple names across enum manifest, value-object manifest, and registry entries fail fast unless a future explicit qualification rule is designed separately.
+
+`types.registryFile` is for external handwritten types and converter policy. It must not be required for manifest-managed enum or value-object types.
 
 Internal names such as `EnumManifestSnapshot` may remain temporarily if the public contract and behavior are correct. That cleanup is deferred to #88.
+
+## Value-Object Manifest
+
+Value-object manifest entries use explicit scope. File location must not define domain scope.
+
+Example:
+
+```json
+[
+  {
+    "name": "Money",
+    "scope": "shared",
+    "package": "shared.values",
+    "storage": "json",
+    "fields": [
+      { "name": "amount", "type": "BigDecimal" },
+      { "name": "currency", "type": "String" }
+    ]
+  },
+  {
+    "name": "PublishWindow",
+    "scope": "aggregate",
+    "aggregate": "Content",
+    "package": "content.values",
+    "storage": "json",
+    "fields": [
+      { "name": "startAt", "type": "Instant", "nullable": true },
+      { "name": "endAt", "type": "Instant", "nullable": true }
+    ]
+  }
+]
+```
+
+Rules:
+
+- `scope = "shared"` defines a context-shared value object.
+- `scope = "aggregate"` defines a value object local to one aggregate and requires `aggregate`.
+- shared value-object simple names are globally unique.
+- aggregate-local value-object simple names are unique within `(aggregate, name)`.
+- DB `@T=<TypeName>` resolves aggregate-local value objects first for the current aggregate, then shared value objects.
+- ambiguous candidates fail fast; cap4k must not guess.
+- value-object manifest entries do not require `types.registryFile` entries.
+- `storage = "json"` is the first supported persistence strategy.
+- table-backed value objects remain DB `@VO` table modeling and are not the default for manifest-managed value objects.
+
+Generated value-object source is `CHECKED_IN_SOURCE`. It follows `templates.conflictPolicy`, whose default is `SKIP`, and can still be overridden by `templateConflictPolicies`. It must not be generated as build-owned `GENERATED_SOURCE` because value objects are domain type skeletons that authors may extend with factories, methods, normalization, annotations, or documentation.
+
+Default JSON value-object output:
+
+```kotlin
+package com.acme.demo.domain.shared.values
+
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import jakarta.persistence.AttributeConverter
+import jakarta.persistence.Converter
+import java.math.BigDecimal
+
+data class Money(
+    val amount: BigDecimal,
+    val currency: String,
+) {
+    @Converter(autoApply = false)
+    class Converter : AttributeConverter<Money, String> {
+        override fun convertToDatabaseColumn(attribute: Money?): String? {
+            return attribute?.let { objectMapper.writeValueAsString(it) }
+        }
+
+        override fun convertToEntityAttribute(dbData: String?): Money? {
+            return dbData
+                ?.takeIf { it.isNotBlank() }
+                ?.let { objectMapper.readValue<Money>(it) }
+        }
+
+        companion object {
+            private val objectMapper: ObjectMapper = ObjectMapper().findAndRegisterModules()
+        }
+    }
+}
+```
+
+Aggregate fields using manifest-managed JSON value objects receive the nested converter:
+
+```kotlin
+@Convert(converter = PublishWindow.Converter::class)
+@Column(name = "publish_window")
+var publishWindow: PublishWindow? = null
+```
+
+The converter FQN is the value-object FQN plus `.Converter`, matching the existing nested-converter mental model used by custom type registry entries.
 
 ## Design Input
 
@@ -382,13 +482,19 @@ cap4k unit tests:
 
 - Gradle config factory removes design-family generator switches from public config behavior.
 - Gradle config factory maps `types.enumManifest`.
+- Gradle config factory maps `types.valueObjectManifest`.
 - Gradle config factory maps `addons.provider("<id>").option(...)`.
 - Design JSON parser supports `domain_service` and `saga`.
 - Design JSON parser rejects `validator` as unsupported.
+- Value-object manifest parser validates scope, aggregate ownership, storage, fields, and duplicate names.
 - Canonical assembler produces `DomainServiceModel` and `SagaModel`.
+- Canonical assembler produces manifest-managed value-object models.
 - Canonical assembler no longer produces `ValidatorModel`.
 - Domain-service and saga planners produce correct plan items.
+- Value-object planner produces checked-in source plan items with nested converter context.
 - Empty design slices do not require unrelated module paths.
+- DB `@T` resolution can bind aggregate fields to manifest-managed value objects without registry entries.
+- Aggregate entity planning applies nested value-object converter metadata to bound value-object fields.
 - Addon runner passes provider-scoped options.
 - Addon runner fails when options name an unloaded provider.
 - Addon template namespace validation rejects cross-provider or core template ids.
@@ -397,6 +503,9 @@ cap4k functional tests:
 
 - design entries generate artifacts without public `designX.enabled` switches.
 - `types.enumManifest` participates in DB `@T` enum binding.
+- `types.valueObjectManifest` participates in DB `@T` value-object binding.
+- generated value-object source is checked-in source and defaults to `SKIP`.
+- aggregate fields using manifest-managed JSON value objects compile with nested converters.
 - no addon means no validator addon artifact.
 - installed test addon appears in `cap4kPlan`.
 - addon template override works.
@@ -446,7 +555,7 @@ Update only-engine docs:
 - Do not turn Saga generation into workflow language generation.
 - Do not generate Saga steps, compensation details, retry strategy, or callback-resume logic.
 - Do not generate domain-service methods or domain decisions.
-- Do not move future value-object metadata into `design.json`.
+- Do not move value-object manifest support into `design.json`.
 - Do not complete the internal source/input naming cleanup tracked by #88.
 
 ## Acceptance Criteria
@@ -456,7 +565,12 @@ Update only-engine docs:
 - Public design-family generator switches are removed.
 - Design entries generate their core artifact families by presence.
 - `types.enumManifest` replaces `sources.enumManifest`.
+- `types.valueObjectManifest` is implemented as a first-class types input.
 - `types.registryFile` remains supported.
+- Manifest-managed enum and value-object types do not need registry entries.
+- Duplicate type simple names across enum manifest, value-object manifest, and registry fail fast.
+- JSON value objects generate checked-in `data class` skeletons with nested JPA converters.
+- DB `@T` fields can resolve manifest-managed value objects and apply nested converters in aggregate entities.
 - Addon provider options are configurable and provider-scoped.
 - Addon options are passed to matching providers.
 - Addon options for unloaded providers fail fast.
