@@ -16,6 +16,8 @@
 
 Saga 适合长流程 / 最终一致性协调。当前 runtime 这次真正落地的是“补偿导向”的切片：它擅长把已完成的前向步骤记下来，在显式补偿请求后按逆序回滚、失败重试、定时恢复、必要时进入人工修复。它没有把 Saga 扩展成一个泛化的 callback-step resume workflow，所以不要把“未来可能会有等待式工作流”提前写成今天已经承诺的能力。
 
+`design.json` 支持 `tag = "saga"`，它只负责生成 saga param、result 和 handler skeleton。它不是 public generator switch，也不会替作者证明当前问题应该用 Saga。缺少 skeleton 时回到 generation；缺少 persisted coordination、恢复或补偿理由时回到 modeling。
+
 ## 推荐形态
 
 - 只有当流程同时满足“长时间跨度、最终一致性、补偿或恢复要求”时，才考虑 Saga。

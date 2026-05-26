@@ -32,6 +32,20 @@ addon jar 中的 provider 会通过 `ServiceLoader` 加载。重复 provider id 
 
 如果 addon 还提供自己的 Gradle extension 或项目配置项，应按该 addon 文档配置；cap4k 只提供 addon 加载、计划归一化、模板解析和导出机制。
 
+provider-scoped options 只能由对应 provider 自己读取。例如：
+
+```kotlin
+cap4k {
+    addons {
+        provider("example-provider") {
+            option("mode", "strict")
+        }
+    }
+}
+```
+
+这些 options 不会开放新的 source provider、canonical model mutation SPI 或跨 addon 共享 context。一个 addon 不能通过 options 影响另一个 addon 的 artifact planning。
+
 ## addon artifact 与内置 artifact
 
 addon artifact 在业务项目作者视角下应像内置 artifact 一样处理：
@@ -89,6 +103,8 @@ cap4k {
 ```
 
 key 必须匹配计划中的真实 `templateId`。作者应先通过 `cap4kPlan` 找到 addon artifact 的 template ID，再配置策略。
+
+addon provider 产出的 `templateId` 必须位于 `addons/<providerId>/...` 命名空间。provider 不能产出内置模板 ID，也不能产出其他 provider 命名空间下的 artifact。
 
 常见判断：
 

@@ -5,6 +5,7 @@
 - Generated aggregate-root IDs are Strong ID types by default. Model identity boundaries as aggregate-specific concepts, not primitive ID policies.
 - Same-context aggregate references should point at the target aggregate identity concept and become `@RefAggregate=<AggregateName>` in DB input.
 - Value objects express business value semantics before persistence carrier choices.
+- JSON-backed value objects that should be generated belong in `types.valueObjectManifest`, with `scope = shared | aggregate`; they are not `design.json` `value_object` entries.
 - Domain services should only be modeled when a domain decision crosses aggregate boundaries or does not naturally belong to one aggregate.
 - Specifications model validation policies only when the project intentionally demonstrates or enforces that concept.
 - Advanced concepts must pass the shared advanced-mode gate before they become the default model shape.
@@ -37,4 +38,5 @@
 - Each listener routes writes into zero-trust commands. The command must re-load the write target and validate its own preconditions.
 - Repeated delivery and inapplicable flows should converge through idempotent command behavior and explicit no-op results.
 - Use Saga only for persisted long-running coordination, retry, recovery, or compensation when the current runtime contract is sufficient.
+- `design.json` can express `domain_service` and `saga` skeleton intent after the modeling decision is made; the tag does not justify the concept by itself.
 - The current Saga runtime is compensation-oriented, not a general callback-resume or waiting-style workflow engine.
