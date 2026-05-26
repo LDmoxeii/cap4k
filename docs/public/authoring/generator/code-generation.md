@@ -10,7 +10,7 @@
 
 - 新项目第一次准备生成业务源码。
 - `project { }`、`sources { }`、`generators { }`、`layout { }`、`templates { }` 改过之后。
-- `design.json`、数据库 schema、KSP metadata 或共享枚举清单刚改完，你需要确认新增、删除或迁移的产物。
+- `design.json`、数据库 schema、KSP metadata、共享枚举清单或 value-object manifest 刚改完，你需要确认新增、删除或迁移的产物。
 - 你不确定某个产物会落到哪个模块、哪个输出根，或到底属于 generated source 还是 checked-in source。
 
 `cap4kPlan` 的硬边界很明确：
@@ -110,7 +110,8 @@
 - 先让生成器产出结构骨架，再把项目特有规则补回手写主面。
 - application 的编排、adapter 的协议转换、查询组装，不该靠去改那些会被计划再次生成的文件来实现。
 - aggregate 家族里，默认会同时存在“可能被重复生成覆盖的文件”和“明确留给作者补行为的文件”。`behavior` 属于后者，而且固定 `SKIP`；`factory` / `specification` 则要继续看 `conflictPolicy`，不能仅凭 checked in 就推断为作者长期维护文件。
-- JSON-backed 或 inline 自定义值对象不是完整生成对象本体。生成器可以消费 `@T` / `types.registryFile` 映射聚合字段和 converter；值对象 class、构造 / 校验 / 归一化、converter 仍属于作者手写主面。
+- JSON-backed value object 可以来自 `types.valueObjectManifest`，生成 checked-in source，默认 `SKIP`，converter 直接嵌套在生成的 value-object class 内。manifest entry 不需要再写 `types.registryFile` entry。
+- inline 或外部手写自定义类型可以继续通过 `@T` / `types.registryFile` 映射聚合字段和 converter；这类值对象 class、构造 / 校验 / 归一化、converter 仍属于作者手写主面。
 - `domain_event` 不是 payload-only 入口。当前 design 生成会同时规划 domain event 契约与对应 subscriber / handler 壳；如果这类 skeleton 缺失，默认动作是回到 generation，而不是先手写占位。
 - `integration_event` 是 application 层的设计契约。它必须声明 `role`、`eventName`、至少一个 `requestFields` 字段，并保持 `responseFields` 为空。`role = "inbound"` 会生成事件类和用于把外部事实转内部命令的 inbound subscriber 骨架；`role = "outbound"` 只生成事件类。subscriber 身份不写入 design JSON，默认 inbound 模板使用 Spring placeholder `\${spring.application.name:}`。
 - relation 和字段映射事实属于 aggregate / entity generation input。它们会影响 aggregate 主体、JPA 映射和相关模板上下文，但不是独立 output family，也不该被当成单独的 implementation backlog 项。

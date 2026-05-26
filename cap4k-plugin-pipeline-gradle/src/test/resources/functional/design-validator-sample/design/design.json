@@ -1,8 +1,0 @@
-[
-  {
-    "tag": "validator",
-    "package": "authorize",
-    "name": "issue_token",
-    "desc": "issue token validator"
-  }
-]

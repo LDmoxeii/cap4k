@@ -128,6 +128,81 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
+    fun `top level behavior on aggregate annotated generated style entity without application side id keeps exact domain event edge`() {
+        val rels = compileRelationships(
+            categorySources(
+                categoryBody = GENERATED_STYLE_CATEGORY_BODY,
+                useTopLevelBehavior = true,
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent()
+            )
+        )
+
+        assertMethodEdgeShape(
+            rels = rels,
+            handlerId = "demo.application.commands.category.UpdateCategorySortCmd.Handler",
+            aggregateId = "demo.domain.aggregates.category.Category",
+            methodId = "demo.domain.aggregates.category.Category::changeSort",
+            eventId = "demo.domain.aggregates.category.events.CategorySortChanged",
+            wrongMethodIds = setOf("changeSort", "demo.domain.aggregates.category.CategoryBehaviorKt::changeSort")
+        )
+    }
+
+    @Test
+    fun `command handler calling cross module top level behavior extension on aggregate annotated generated style entity without application side id emits exact entity method edges`() {
+        val domainOutput = compileLibrary(
+            categoryDomainLibrarySources(
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent(),
+                categoryBody = GENERATED_STYLE_CATEGORY_BODY,
+            )
+        )
+
+        val rels = compileRelationships(
+            categoryAppSources(useTopLevelBehavior = true),
+            classpaths = listOf(domainOutput),
+        )
+
+        assertCrossModuleMethodEdgeShape(
+            rels = rels,
+            handlerId = "demo.application.commands.category.UpdateCategorySortCmd.Handler",
+            aggregateId = "demo.domain.aggregates.category.Category",
+            methodId = "demo.domain.aggregates.category.Category::changeSort",
+            wrongMethodIds = setOf("changeSort", "demo.domain.aggregates.category.CategoryBehaviorKt::changeSort")
+        )
+    }
+
+    @Test
+    fun `non aggregate annotated jpa entity in aggregate package is not inferred as aggregate entity`() {
+        val rels = compileRelationships(
+            categorySources(
+                categoryBody = GENERATED_STYLE_CATEGORY_BODY_WITHOUT_AGGREGATE_ANNOTATION,
+                useTopLevelBehavior = true,
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent()
+            )
+        )
+
+        assertEquals(
+            0,
+            rels.count { it.type == "CommandHandlerToEntityMethod" && it.toId == "demo.domain.aggregates.category.Category::changeSort" },
+        )
+        assertEquals(
+            0,
+            rels.count { it.type == "AggregateToEntityMethod" && it.toId == "demo.domain.aggregates.category.Category::changeSort" },
+        )
+    }
+
+    @Test
     fun `command handler calling aggregate member method keeps exact entity method edges`() {
         val rels = compileRelationships(
             categorySources(
@@ -623,6 +698,7 @@ class AnalysisOutputCorrectnessTest {
                     annotation class Entity
                     annotation class Table(val name: String = "")
                     annotation class Id
+                    annotation class EmbeddedId
                     annotation class Column(
                         val name: String = "",
                         val insertable: Boolean = true,
@@ -734,6 +810,7 @@ class AnalysisOutputCorrectnessTest {
                     annotation class Entity
                     annotation class Table(val name: String = "")
                     annotation class Id
+                    annotation class EmbeddedId
                     annotation class Column(
                         val name: String = "",
                         val insertable: Boolean = true,
@@ -1117,6 +1194,18 @@ class AnalysisOutputCorrectnessTest {
             @Entity
             @Table(name = "category")
             class Category()
+        """
+        private const val GENERATED_STYLE_CATEGORY_BODY_WITHOUT_AGGREGATE_ANNOTATION = """
+            import jakarta.persistence.Entity
+            import jakarta.persistence.EmbeddedId
+            import jakarta.persistence.Table
+
+            @Entity
+            @Table(name = "category")
+            class Category {
+                @EmbeddedId
+                var id: String = ""
+            }
         """
     }
 }

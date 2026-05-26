@@ -10,7 +10,7 @@
 
 ### Generated-Capable Surfaces
 
-- Before adding event, subscriber, command, query, client, validator, or API payload surfaces, decide whether `design.json` can generate that surface.
+- Before adding event, subscriber, command, query, client, or API payload surfaces, decide whether `design.json` can generate that surface.
 - If the generator supports the surface, update `design.json` first and regenerate.
 - Do not quietly handwrite generator-supported surfaces.
 - If a surface cannot be generated, state the reason in review notes or final notes.

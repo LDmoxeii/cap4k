@@ -5,6 +5,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
@@ -37,7 +38,7 @@ class EnumManifestSourceProviderTest {
                 basePackage = "com.acme.demo",
                 layout = ProjectLayout.MULTI_MODULE,
                 modules = emptyMap(),
-                typeRegistry = emptyMap(),
+                typeRegistry = TypeRegistryConfig(),
                 sources = mapOf(
                     "enum-manifest" to SourceConfig(
                         enabled = true,
@@ -73,7 +74,7 @@ class EnumManifestSourceProviderTest {
                     basePackage = "com.acme.demo",
                     layout = ProjectLayout.MULTI_MODULE,
                     modules = emptyMap(),
-                    typeRegistry = emptyMap(),
+                    typeRegistry = TypeRegistryConfig(),
                     sources = mapOf(
                         "enum-manifest" to SourceConfig(
                             enabled = true,
@@ -115,7 +116,7 @@ class EnumManifestSourceProviderTest {
                     basePackage = "com.acme.demo",
                     layout = ProjectLayout.MULTI_MODULE,
                     modules = emptyMap(),
-                    typeRegistry = emptyMap(),
+                    typeRegistry = TypeRegistryConfig(),
                     sources = mapOf(
                         "enum-manifest" to SourceConfig(
                             enabled = true,

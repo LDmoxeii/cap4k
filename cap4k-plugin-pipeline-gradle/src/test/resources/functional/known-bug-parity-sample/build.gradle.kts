@@ -39,32 +39,5 @@ cap4k {
                 unique.set(true)
             }
         }
-        designCommand {
-            enabled.set(true)
-        }
-        designQuery {
-            enabled.set(true)
-        }
-        designQueryHandler {
-            enabled.set(true)
-        }
-        designClient {
-            enabled.set(true)
-        }
-        designClientHandler {
-            enabled.set(true)
-        }
-        designValidator {
-            enabled.set(true)
-        }
-        designApiPayload {
-            enabled.set(true)
-        }
-        designDomainEvent {
-            enabled.set(true)
-        }
-        designDomainEventHandler {
-            enabled.set(true)
-        }
     }
 }

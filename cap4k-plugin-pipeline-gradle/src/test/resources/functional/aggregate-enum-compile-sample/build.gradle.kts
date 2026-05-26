@@ -24,8 +24,9 @@ cap4k {
             includeTables.set(listOf("video_post"))
             excludeTables.set(emptyList())
         }
+    }
+    types {
         enumManifest {
-            enabled.set(true)
             files.from("enums/shared-enums.json")
         }
     }

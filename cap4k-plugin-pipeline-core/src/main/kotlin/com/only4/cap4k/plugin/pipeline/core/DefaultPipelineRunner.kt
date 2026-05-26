@@ -23,7 +23,7 @@ class DefaultPipelineRunner(
     private val addonProviders: List<ArtifactAddonProvider> = emptyList(),
 ) : PipelineRunner {
     override fun run(config: ProjectConfig): PipelineResult {
-        validateAddonProviderIds()
+        validateAddonProviders(config)
 
         val enabledGeneratorIds = config.generators.asSequence()
             .filter { it.value.enabled }
@@ -47,21 +47,37 @@ class DefaultPipelineRunner(
         val builtInPlanItems = generators
             .filter { config.generators[it.id]?.enabled == true }
             .flatMap { it.plan(config, model) }
+            .map { ProvenancedPlanItem(it) }
 
         val addonPlanItems = addonProviders.flatMap { provider ->
-            provider.plan(
-                ArtifactAddonContext(
-                    config = config,
-                    model = model,
-                    options = emptyMap(),
+            val providerOptions = config.addons[provider.id]?.options.orEmpty()
+            try {
+                provider.plan(
+                    ArtifactAddonContext(
+                        config = config,
+                        model = model,
+                        options = providerOptions,
+                    )
                 )
-            )
+            } catch (ex: Exception) {
+                throw IllegalStateException(
+                    "Addon provider ${provider.id} failed while planning artifacts",
+                    ex,
+                )
+            }.also { items ->
+                items.forEach { item -> validateAddonTemplateNamespace(item, provider.id) }
+            }.map { item -> ProvenancedPlanItem(item, addonProviderId = provider.id) }
         }
 
         val planItems = (builtInPlanItems + addonPlanItems)
-            .map(transformPlanItem)
-            .filter(includePlanItem)
-            .map { resolveConflictPolicy(it, config) }
+            .map { item -> item.copy(planItem = transformPlanItem(item.planItem)) }
+            .filter { item -> includePlanItem(item.planItem) }
+            .onEach { item ->
+                item.addonProviderId?.let { providerId ->
+                    validateAddonTemplateNamespace(item.planItem, providerId)
+                }
+            }
+            .map { resolveConflictPolicy(it.planItem, config) }
 
         val renderedArtifacts = renderer.render(planItems, config)
         val writtenPaths = exporter.export(renderedArtifacts)
@@ -76,7 +92,7 @@ class DefaultPipelineRunner(
         )
     }
 
-    private fun validateAddonProviderIds() {
+    private fun validateAddonProviders(config: ProjectConfig) {
         val duplicate = addonProviders
             .groupingBy { it.id }
             .eachCount()
@@ -86,6 +102,28 @@ class DefaultPipelineRunner(
 
         require(duplicate == null) {
             "duplicate artifact addon provider id: $duplicate"
+        }
+
+        config.addons.entries
+            .firstOrNull { it.key != it.value.id }
+            ?.let { (key, providerConfig) ->
+                throw IllegalArgumentException(
+                    "Configured addon provider key does not match provider id: $key != ${providerConfig.id}",
+                )
+            }
+
+        val loadedProviderIds = addonProviders.map { it.id }.toSet()
+        val unloadedConfiguredProvider = config.addons.keys
+            .firstOrNull { it !in loadedProviderIds }
+
+        require(unloadedConfiguredProvider == null) {
+            "Configured addon provider is not loaded: $unloadedConfiguredProvider"
+        }
+    }
+
+    private fun validateAddonTemplateNamespace(item: ArtifactPlanItem, providerId: String) {
+        require(item.templateId.startsWith("addons/$providerId/")) {
+            "Addon $providerId produced template id outside addons/$providerId/: ${item.templateId}"
         }
     }
 
@@ -97,4 +135,9 @@ class DefaultPipelineRunner(
 
         return item.copy(conflictPolicy = resolvedConflictPolicy)
     }
+
+    private data class ProvenancedPlanItem(
+        val planItem: ArtifactPlanItem,
+        val addonProviderId: String? = null,
+    )
 }

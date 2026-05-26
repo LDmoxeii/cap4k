@@ -1,9 +1,9 @@
 # Implement Subscriber Or Internal Trigger
 
 1. Run the skeleton gate before writing code.
-2. Stop and return to `cap4k-generation` when the subscriber shell, inbound integration event, domain-event shell, `*Cmd.kt`, `*Qry.kt`, `*QryHandler.kt`, `*CliHandler.kt`, client, validator, or payload surface is generator-capable but missing, including generated handler surfaces.
-3. Stop and return to `cap4k-generation` when DDL, enum, or type-registry facts already exist but the aggregate, repository, factory, specification, enum, or unique-helper skeleton is still missing. If relation or field-mapping behavior seems missing after those facts exist, that is still aggregate/entity generation drift, not a standalone skeleton plan item, and must return to `cap4k-generation`.
-4. Stop and return to `cap4k-modeling` when the missing piece is the design entry, DDL contract, enum manifest entry, or `types.registryFile` entry.
+2. Stop and return to `cap4k-generation` when the subscriber shell, inbound integration event, domain-event shell, `*Cmd.kt`, `*Qry.kt`, `*QryHandler.kt`, `*CliHandler.kt`, client, or payload surface is generator-capable but missing, including generated handler surfaces.
+3. Stop and return to `cap4k-generation` when DDL, enum, value-object, or type-registry facts already exist but the aggregate, repository, factory, specification, enum, value-object, or unique-helper skeleton is still missing. If relation or field-mapping behavior seems missing after those facts exist, that is still aggregate/entity generation drift, not a standalone skeleton plan item, and must return to `cap4k-generation`.
+4. Stop and return to `cap4k-modeling` when the missing piece is the design entry, DDL contract, `types.enumManifest`, `types.valueObjectManifest`, or `types.registryFile` entry.
 5. Stop and return to `cap4k-generation` when generation is blocked by missing KSP metadata output/config/setup that the subscriber shell needs.
 6. Classify the entry as domain-event subscriber, external fact entry, or internal trigger.
 7. Use subscribers or jobs as routing points, not hidden aggregate persistence layers.
@@ -20,6 +20,9 @@
 - Give each listener method a business-semantic name and one reaction.
 - Use private helpers only for shared technical concerns, not for hiding a business dispatch table.
 - Listener-side checks are routing filters only. The called command must still validate every write precondition.
+- Listener-side filters may use event snapshot data to avoid obvious ghost work, but they must not replace command-side validation.
+- For expected inapplicable, non-ready, or already-applied paths, the command should return an explicit no-op outcome such as `NotPaidContent`, `NotPublicationReady`, `AlreadyStarted`, or `AlreadyPublished`.
+- Add diagnostics or audit context that makes the outcome visible: listener method, command request, applied/no-op result, and retreat reason.
 - Do not directly write repositories or mutate aggregates from listeners or jobs. Route writes through commands.
 
 Approved shape: independent listener methods.

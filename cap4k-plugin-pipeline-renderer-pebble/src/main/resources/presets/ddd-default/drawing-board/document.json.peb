@@ -23,16 +23,6 @@
 {%- endif %}
 {%- if element.valueType is not null %},
     "valueType": {{ element.valueType | json | raw }}
-{%- endif %}
-{%- if element.parameters|length > 0 %},
-    "parameters": [{% for parameter in element.parameters %}
-      {
-        "name": {{ parameter.name | json | raw }},
-        "type": {{ parameter.type | json | raw }},
-        "nullable": {{ parameter.nullable }}{% if parameter.defaultValue is not null %},
-        "defaultValue": {{ parameter.defaultValue | json | raw }}{% endif %}
-      }{% if not loop.last %}, {% endif %}{% endfor %}
-    ]
 {%- endif %},
 {%- if element.role is not null %}
     "role": {{ element.role | json | raw }},

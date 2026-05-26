@@ -65,8 +65,12 @@ sources {
     designJson { enabled.set(true); files.from("design/design.json") }
     kspMetadata { enabled.set(true); inputDir.set("path/to/metadata") }
     db { enabled.set(true); url.set("jdbc:..."); schema.set("PUBLIC") }
-    enumManifest { enabled.set(true); files.from("design/enums/*.json") }
     irAnalysis { enabled.set(true); inputDirs.from("path/to/ir-analysis") }
+}
+
+types {
+    enumManifest { files.from("design/enums/*.json") }
+    valueObjectManifest { files.from("design/value-objects/*.json") }
 }
 ```
 
@@ -75,8 +79,11 @@ sources {
 | `designJson` | `enabled`, `files`, `manifestFile` | `cap4kPlan` / `cap4kGenerate` |
 | `kspMetadata` | `enabled`, `inputDir` | `cap4kPlan` / `cap4kGenerate` |
 | `db` | `enabled`, `url`, `username`, `password`, `schema`, `includeTables`, `excludeTables` | `cap4kPlan` / `cap4kGenerate` |
-| `enumManifest` | `enabled`, `files` | `cap4kPlan` / `cap4kGenerate` |
 | `irAnalysis` | `enabled`, `inputDirs` | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
+
+`enumManifest` 和 `valueObjectManifest` 是 `types {}` 输入合同，不是 `sources {}` family。枚举和值对象 manifest entry 不需要再额外写一条 `types.registryFile` entry。
+
+`sources.db` 以 JDBC metadata 作为数据库输入合同；表、列、关系、唯一约束和 primary-key metadata 会共同进入 canonical facts。
 
 ## `generators { }`
 
@@ -84,17 +91,6 @@ sources {
 
 ```kotlin
 generators {
-    designCommand { enabled.set(true) }
-    designQuery { enabled.set(true) }
-    designQueryHandler { enabled.set(true) }
-    designClient { enabled.set(true) }
-    designClientHandler { enabled.set(true) }
-    designValidator { enabled.set(true) }
-    designApiPayload { enabled.set(true) }
-    designDomainEvent { enabled.set(true) }
-    designDomainEventHandler { enabled.set(true) }
-    designIntegrationEvent { enabled.set(true) }
-    designIntegrationEventSubscriber { enabled.set(true) }
     aggregate { enabled.set(true) }
     flow { enabled.set(true) }
     drawingBoard { enabled.set(true) }
@@ -103,12 +99,14 @@ generators {
 
 | generator family | 说明 | 主要任务 |
 | --- | --- | --- |
-| design family | 命令、查询、client、validator、api payload、domain event、integration event 相关源码 | `cap4kPlan` / `cap4kGenerate` |
+| design family | 无公开 generator switch；启用 `sources.designJson` 后自动规划 `command`、`query`、`client`、`api_payload`、`domain_event`、`integration_event`、`domain_service`、`saga` 相关源码 | `cap4kPlan` / `cap4kGenerate` |
 | aggregate | 聚合骨架及相关产物 | `cap4kPlan` / `cap4kGenerate` |
 | `flow` | 流程观察材料 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
 | `drawingBoard` | 设计 / 文档观察材料 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
 
-`designIntegrationEvent` 生成 `tag = "integration_event"` 的事件契约类，要求启用 `sources.designJson` 且配置 `project.applicationModulePath`。对应 design entry 必须声明 `role`、`eventName`、至少一个 `requestFields` 字段，并保持 `responseFields` 为空。`designIntegrationEventSubscriber` 依赖 `designIntegrationEvent`，只为 `role = "inbound"` 的事件生成 Spring `@EventListener` subscriber；`role = "outbound"` 只生成事件契约，不生成 subscriber。
+启用 `sources.designJson` 即可进入 design family planning，不再需要 `designCommand`、`designQuery`、`designDomainEvent` 等公开 generator switch。只有 `aggregate`、`flow`、`drawingBoard` 仍需要在 `generators {}` 中显式启用。
+
+`tag = "integration_event"` 会生成事件契约类，要求启用 `sources.designJson` 且配置 `project.applicationModulePath`。对应 design entry 必须声明 `role`、`eventName`、至少一个 `requestFields` 字段，并保持 `responseFields` 为空。只有 `role = "inbound"` 的事件会生成 Spring `@EventListener` subscriber；`role = "outbound"` 只生成事件契约，不生成 subscriber。
 
 ## `aggregate { }`
 
@@ -143,6 +141,8 @@ aggregate {
 | `artifacts.factory` | 可选 factory 产物 |
 | `artifacts.specification` | 可选 specification 产物 |
 | `artifacts.unique` | 可选 unique 查询 / handler / validator |
+
+aggregate unique validation adapter 仍属于 aggregate unique helper generation。它不是 core design `validator` tag。
 
 枚举翻译不再是 cap4k core aggregate 产物。需要这类产物时，应通过构建期 addon 提供，并由 `cap4kAddon` 依赖加载。
 
@@ -201,6 +201,8 @@ cap4k {
 
 addon 模板可通过 `templates.overrideDirs` 覆盖；addon 模板冲突策略可通过 `templates.templateConflictPolicies` 按 `templateId` 配置。
 
+addon artifact 的 `templateId` 必须位于 `addons/<providerId>/<artifact>.kt.peb` 命名空间。provider-scoped options 只传给对应 provider 读取；业务项目不能通过 addon 暴露新的 source/canonical SPI，也不能让一个 addon 影响另一个 addon 的 artifact context。
+
 运行时代码依赖和生成期 addon 依赖是两件事。运行时库由项目通过 `implementation` 等配置声明；生成期 addon 通过 `cap4kAddon` 声明。cap4k 不会扫描项目普通运行时 classpath 来自动发现 addon。
 
 ## 常见最小配置示例
@@ -210,7 +212,6 @@ design family：
 ```kotlin
 project { basePackage.set("com.acme.demo"); applicationModulePath.set("demo-application"); adapterModulePath.set("demo-adapter") }
 sources { designJson { enabled.set(true); files.from("design/design.json") } }
-generators { designCommand { enabled.set(true) } }
 ```
 
 integration event：
@@ -218,10 +219,6 @@ integration event：
 ```kotlin
 project { basePackage.set("com.acme.demo"); applicationModulePath.set("demo-application") }
 sources { designJson { enabled.set(true); files.from("design/design.json") } }
-generators {
-    designIntegrationEvent { enabled.set(true) }
-    designIntegrationEventSubscriber { enabled.set(true) }
-}
 ```
 
 默认布局会把事件契约放到 application 层的 `application.subscribers.integration.<role>.<designPackage>` 下，把 inbound subscriber 骨架放到 `application.subscribers.integration` 下。模板覆盖文件名是 `design/integration_event.kt.peb` 和 `design/integration_event_subscriber.kt.peb`。

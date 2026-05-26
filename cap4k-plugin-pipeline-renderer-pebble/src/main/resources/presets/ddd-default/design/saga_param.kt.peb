@@ -1,0 +1,16 @@
+package {{ packageName }}
+
+{{ use("com.only4.cap4k.ddd.core.application.saga.SagaParam") -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+
+{% if requestFields.size > 0 %}
+data class {{ name }}Param(
+{%- for field in requestFields %}
+    val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %}
+) : SagaParam<{{ name }}Result>
+{% else %}
+class {{ name }}Param : SagaParam<{{ name }}Result>
+{% endif %}

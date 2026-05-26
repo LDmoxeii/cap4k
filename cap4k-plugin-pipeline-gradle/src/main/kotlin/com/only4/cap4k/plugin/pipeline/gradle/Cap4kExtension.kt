@@ -3,9 +3,11 @@ package com.only4.cap4k.plugin.pipeline.gradle
 import com.only4.cap4k.plugin.pipeline.api.BootstrapSlotBinding
 import com.only4.cap4k.plugin.pipeline.api.BootstrapSlotKind
 import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
+import org.gradle.api.Named
+import org.gradle.api.NamedDomainObjectContainer
+import org.gradle.api.Project
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.model.ObjectFactory
-import org.gradle.api.Project
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
@@ -20,6 +22,7 @@ open class Cap4kExtension @Inject constructor(objects: ObjectFactory) {
     val templates: Cap4kTemplatesExtension = objects.newInstance(Cap4kTemplatesExtension::class.java)
     val bootstrap: Cap4kBootstrapExtension = objects.newInstance(Cap4kBootstrapExtension::class.java)
     val layout: Cap4kLayoutExtension = objects.newInstance(Cap4kLayoutExtension::class.java)
+    val addons: Cap4kAddonsExtension = objects.newInstance(Cap4kAddonsExtension::class.java)
 
     fun project(block: Cap4kProjectExtension.() -> Unit) {
         project.block()
@@ -48,6 +51,10 @@ open class Cap4kExtension @Inject constructor(objects: ObjectFactory) {
     fun layout(block: Cap4kLayoutExtension.() -> Unit) {
         layout.block()
     }
+
+    fun addons(block: Cap4kAddonsExtension.() -> Unit) {
+        addons.block()
+    }
 }
 
 internal typealias PipelineExtension = Cap4kExtension
@@ -61,6 +68,44 @@ open class Cap4kProjectExtension @Inject constructor(objects: ObjectFactory) {
 
 open class Cap4kTypesExtension @Inject constructor(objects: ObjectFactory) {
     val registryFile: Property<String> = objects.property(String::class.java)
+    val enumManifest: TypeManifestExtension = objects.newInstance(TypeManifestExtension::class.java)
+    val valueObjectManifest: TypeManifestExtension = objects.newInstance(TypeManifestExtension::class.java)
+
+    fun enumManifest(block: TypeManifestExtension.() -> Unit) {
+        enumManifest.block()
+    }
+
+    fun valueObjectManifest(block: TypeManifestExtension.() -> Unit) {
+        valueObjectManifest.block()
+    }
+}
+
+open class TypeManifestExtension @Inject constructor(objects: ObjectFactory) {
+    val files: ConfigurableFileCollection = objects.fileCollection()
+}
+
+open class Cap4kAddonsExtension @Inject constructor(objects: ObjectFactory) {
+    val providers: NamedDomainObjectContainer<Cap4kAddonProviderExtension> =
+        objects.domainObjectContainer(Cap4kAddonProviderExtension::class.java) { id ->
+            objects.newInstance(Cap4kAddonProviderExtension::class.java, id)
+        }
+
+    fun provider(id: String, block: Cap4kAddonProviderExtension.() -> Unit) {
+        providers.maybeCreate(id).block()
+    }
+}
+
+abstract class Cap4kAddonProviderExtension @Inject constructor(
+    val id: String,
+    objects: ObjectFactory,
+) : Named {
+    val options: MapProperty<String, String> = objects.mapProperty(String::class.java, String::class.java)
+
+    override fun getName(): String = id
+
+    fun option(key: String, value: String) {
+        options.put(key, value)
+    }
 }
 
 open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
@@ -92,8 +137,6 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
         .convention("adapter.application.queries")
     val designClientHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention("adapter.application.distributed.clients")
-    val designValidator: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
-        .convention("application.validators")
     val designApiPayload: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention("adapter.portal.api.payload")
     val designDomainEvent: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
@@ -161,10 +204,6 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
         designClientHandler.block()
     }
 
-    fun designValidator(block: PackageLayoutExtension.() -> Unit) {
-        designValidator.block()
-    }
-
     fun designApiPayload(block: PackageLayoutExtension.() -> Unit) {
         designApiPayload.block()
     }
@@ -216,8 +255,6 @@ open class Cap4kSourcesExtension @Inject constructor(objects: ObjectFactory) {
     val designJson: DesignJsonSourceExtension = objects.newInstance(DesignJsonSourceExtension::class.java)
     val kspMetadata: KspMetadataSourceExtension = objects.newInstance(KspMetadataSourceExtension::class.java)
     val db: DbSourceExtension = objects.newInstance(DbSourceExtension::class.java)
-    val enumManifest: EnumManifestSourceExtension =
-        objects.newInstance(EnumManifestSourceExtension::class.java)
     val irAnalysis: IrAnalysisSourceExtension = objects.newInstance(IrAnalysisSourceExtension::class.java)
 
     fun designJson(block: DesignJsonSourceExtension.() -> Unit) {
@@ -230,10 +267,6 @@ open class Cap4kSourcesExtension @Inject constructor(objects: ObjectFactory) {
 
     fun db(block: DbSourceExtension.() -> Unit) {
         db.block()
-    }
-
-    fun enumManifest(block: EnumManifestSourceExtension.() -> Unit) {
-        enumManifest.block()
     }
 
     fun irAnalysis(block: IrAnalysisSourceExtension.() -> Unit) {
@@ -262,88 +295,17 @@ open class DbSourceExtension @Inject constructor(objects: ObjectFactory) {
     val excludeTables: ListProperty<String> = objects.listProperty(String::class.java)
 }
 
-open class EnumManifestSourceExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-    val files: ConfigurableFileCollection = objects.fileCollection()
-}
-
 open class IrAnalysisSourceExtension @Inject constructor(objects: ObjectFactory) {
     val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
     val inputDirs: ConfigurableFileCollection = objects.fileCollection()
 }
 
 open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) {
-    val designCommand: DesignCommandGeneratorExtension =
-        objects.newInstance(DesignCommandGeneratorExtension::class.java)
-    val designQuery: DesignQueryGeneratorExtension =
-        objects.newInstance(DesignQueryGeneratorExtension::class.java)
-    val designQueryHandler: DesignQueryHandlerGeneratorExtension =
-        objects.newInstance(DesignQueryHandlerGeneratorExtension::class.java)
-    val designClient: DesignClientGeneratorExtension =
-        objects.newInstance(DesignClientGeneratorExtension::class.java)
-    val designClientHandler: DesignClientHandlerGeneratorExtension =
-        objects.newInstance(DesignClientHandlerGeneratorExtension::class.java)
-    val designValidator: DesignValidatorGeneratorExtension =
-        objects.newInstance(DesignValidatorGeneratorExtension::class.java)
-    val designApiPayload: DesignApiPayloadGeneratorExtension =
-        objects.newInstance(DesignApiPayloadGeneratorExtension::class.java)
-    val designDomainEvent: DesignDomainEventGeneratorExtension =
-        objects.newInstance(DesignDomainEventGeneratorExtension::class.java)
-    val designDomainEventHandler: DesignDomainEventHandlerGeneratorExtension =
-        objects.newInstance(DesignDomainEventHandlerGeneratorExtension::class.java)
-    val designIntegrationEvent: DesignIntegrationEventGeneratorExtension =
-        objects.newInstance(DesignIntegrationEventGeneratorExtension::class.java)
-    val designIntegrationEventSubscriber: DesignIntegrationEventSubscriberGeneratorExtension =
-        objects.newInstance(DesignIntegrationEventSubscriberGeneratorExtension::class.java)
     val aggregate: AggregateGeneratorExtension = objects.newInstance(AggregateGeneratorExtension::class.java)
     val aggregateProjection: AggregateProjectionGeneratorExtension =
         objects.newInstance(AggregateProjectionGeneratorExtension::class.java)
     val drawingBoard: DrawingBoardGeneratorExtension = objects.newInstance(DrawingBoardGeneratorExtension::class.java)
     val flow: FlowGeneratorExtension = objects.newInstance(FlowGeneratorExtension::class.java)
-
-    fun designCommand(block: DesignCommandGeneratorExtension.() -> Unit) {
-        designCommand.block()
-    }
-
-    fun designQuery(block: DesignQueryGeneratorExtension.() -> Unit) {
-        designQuery.block()
-    }
-
-    fun designQueryHandler(block: DesignQueryHandlerGeneratorExtension.() -> Unit) {
-        designQueryHandler.block()
-    }
-
-    fun designClient(block: DesignClientGeneratorExtension.() -> Unit) {
-        designClient.block()
-    }
-
-    fun designClientHandler(block: DesignClientHandlerGeneratorExtension.() -> Unit) {
-        designClientHandler.block()
-    }
-
-    fun designValidator(block: DesignValidatorGeneratorExtension.() -> Unit) {
-        designValidator.block()
-    }
-
-    fun designApiPayload(block: DesignApiPayloadGeneratorExtension.() -> Unit) {
-        designApiPayload.block()
-    }
-
-    fun designDomainEvent(block: DesignDomainEventGeneratorExtension.() -> Unit) {
-        designDomainEvent.block()
-    }
-
-    fun designDomainEventHandler(block: DesignDomainEventHandlerGeneratorExtension.() -> Unit) {
-        designDomainEventHandler.block()
-    }
-
-    fun designIntegrationEvent(block: DesignIntegrationEventGeneratorExtension.() -> Unit) {
-        designIntegrationEvent.block()
-    }
-
-    fun designIntegrationEventSubscriber(block: DesignIntegrationEventSubscriberGeneratorExtension.() -> Unit) {
-        designIntegrationEventSubscriber.block()
-    }
 
     fun aggregate(block: AggregateGeneratorExtension.() -> Unit) {
         aggregate.block()
@@ -360,50 +322,6 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
     fun flow(block: FlowGeneratorExtension.() -> Unit) {
         flow.block()
     }
-}
-
-open class DesignCommandGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-}
-
-open class DesignQueryGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-}
-
-open class DesignQueryHandlerGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-}
-
-open class DesignClientGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-}
-
-open class DesignClientHandlerGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-}
-
-open class DesignValidatorGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-}
-
-open class DesignApiPayloadGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-}
-
-open class DesignDomainEventGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-}
-
-open class DesignDomainEventHandlerGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-}
-
-open class DesignIntegrationEventGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-}
-
-open class DesignIntegrationEventSubscriberGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }
 
 open class AggregateGeneratorExtension @Inject constructor(objects: ObjectFactory) {

@@ -37,6 +37,8 @@ import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
 import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -865,6 +867,267 @@ class AggregateArtifactPlannerTest {
             "com.acme.demo.domain.shared.enums.Status",
             scalarFields.single { it["name"] == "status" }["converterTypeRef"]
         )
+    }
+
+    @Test
+    fun `entity planner keeps nested value object converter refs usable for template imports`() {
+        val entity = EntityModel(
+            name = "Content",
+            packageName = "com.acme.demo.domain.aggregates.content",
+            tableName = "content",
+            comment = "content",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("publishWindow", "String", typeBinding = "PublishWindow", columnName = "publish_window"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "PublishWindow",
+                        packageName = "com.acme.demo.domain.aggregates.content.values",
+                        scope = ValueObjectScope.AGGREGATE,
+                        aggregate = "Content",
+                    )
+                ),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = "Content",
+                        entityPackageName = "com.acme.demo.domain.aggregates.content",
+                        entityEnabled = true,
+                        tableName = "content",
+                        columns = listOf(
+                            AggregateColumnJpaModel("id", "id", true, null),
+                            AggregateColumnJpaModel(
+                                fieldName = "publishWindow",
+                                columnName = "publish_window",
+                                isId = false,
+                                converterTypeFqn = "com.acme.demo.domain.aggregates.content.values.PublishWindow",
+                                converterClassFqn = "com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter",
+                            ),
+                        ),
+                    )
+                )
+            )
+        )
+
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityItem.context["scalarFields"] as List<Map<String, Any?>>
+        val publishWindow = scalarFields.single { it["name"] == "publishWindow" }
+
+        assertEquals(true, entityItem.context["hasConverterFields"])
+        assertEquals("PublishWindow", publishWindow["renderedType"])
+        assertEquals(
+            listOf("com.acme.demo.domain.aggregates.content.values.PublishWindow"),
+            publishWindow["typeImports"],
+        )
+        assertEquals("com.acme.demo.domain.aggregates.content.values.PublishWindow", publishWindow["converterTypeRef"])
+        assertEquals("com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter", publishWindow["converterClassRef"])
+    }
+
+    @Test
+    fun `entity planner renders shared value object before local enum for matching type binding`() {
+        val enumItems = listOf(EnumItemModel(0, "OPEN", "Open"))
+        val entity = EntityModel(
+            name = "Content",
+            packageName = "com.acme.demo.domain.aggregates.content",
+            tableName = "content",
+            comment = "content",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("publishWindow", "String", typeBinding = "PublishWindow", columnName = "publish_window"),
+                FieldModel("legacyState", "Int", typeBinding = "PublishWindow", enumItems = enumItems, columnName = "legacy_state"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "PublishWindow",
+                        packageName = "com.acme.demo.domain.shared.values",
+                        scope = ValueObjectScope.SHARED,
+                    )
+                ),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = "Content",
+                        entityPackageName = "com.acme.demo.domain.aggregates.content",
+                        entityEnabled = true,
+                        tableName = "content",
+                        columns = listOf(
+                            AggregateColumnJpaModel("id", "id", true, null),
+                            AggregateColumnJpaModel(
+                                fieldName = "publishWindow",
+                                columnName = "publish_window",
+                                isId = false,
+                                converterTypeFqn = "com.acme.demo.domain.shared.values.PublishWindow",
+                                converterClassFqn = "com.acme.demo.domain.shared.values.PublishWindow.Converter",
+                            ),
+                            AggregateColumnJpaModel(
+                                fieldName = "legacyState",
+                                columnName = "legacy_state",
+                                isId = false,
+                                converterTypeFqn = "com.acme.demo.domain.shared.values.PublishWindow",
+                                converterClassFqn = "com.acme.demo.domain.shared.values.PublishWindow.Converter",
+                            ),
+                        ),
+                    )
+                )
+            )
+        )
+
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityItem.context["scalarFields"] as List<Map<String, Any?>>
+        val publishWindow = scalarFields.single { it["name"] == "publishWindow" }
+        val legacyState = scalarFields.single { it["name"] == "legacyState" }
+
+        assertEquals("PublishWindow", publishWindow["renderedType"])
+        assertEquals("PublishWindow", legacyState["renderedType"])
+        assertEquals(
+            listOf("com.acme.demo.domain.shared.values.PublishWindow"),
+            publishWindow["typeImports"],
+        )
+        assertEquals(
+            listOf("com.acme.demo.domain.shared.values.PublishWindow"),
+            legacyState["typeImports"],
+        )
+        assertEquals("com.acme.demo.domain.shared.values.PublishWindow", legacyState["converterTypeRef"])
+        assertEquals("com.acme.demo.domain.shared.values.PublishWindow.Converter", legacyState["converterClassRef"])
+        assertFalse(
+            plan.any {
+                it.templateId == "aggregate/enum.kt.peb" &&
+                    it.context["packageName"] == "com.acme.demo.domain.shared.values" &&
+                    it.context["typeName"] == "PublishWindow"
+            }
+        )
+    }
+
+    @Test
+    fun `entity planner renders aggregate local value object for child in root package`() {
+        val root = EntityModel(
+            name = "Content",
+            packageName = "com.acme.demo.domain.aggregates.content",
+            tableName = "content",
+            comment = "content",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            aggregateRoot = true,
+        )
+        val child = EntityModel(
+            name = "ContentSchedule",
+            packageName = "com.acme.demo.domain.aggregates.content",
+            tableName = "content_schedule",
+            comment = "content schedule",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("publishWindow", "String", typeBinding = "PublishWindow", columnName = "publish_window"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            aggregateRoot = false,
+            parentEntityName = "Content",
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(root, child),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "PublishWindow",
+                        packageName = "com.acme.demo.domain.aggregates.content.values",
+                        scope = ValueObjectScope.AGGREGATE,
+                        aggregate = "Content",
+                    )
+                ),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = "Content",
+                        entityPackageName = "com.acme.demo.domain.aggregates.content",
+                        entityEnabled = true,
+                        tableName = "content",
+                        columns = listOf(AggregateColumnJpaModel("id", "id", true, null)),
+                    ),
+                    AggregateEntityJpaModel(
+                        entityName = "ContentSchedule",
+                        entityPackageName = "com.acme.demo.domain.aggregates.content",
+                        entityEnabled = true,
+                        tableName = "content_schedule",
+                        columns = listOf(
+                            AggregateColumnJpaModel("id", "id", true, null),
+                            AggregateColumnJpaModel(
+                                fieldName = "publishWindow",
+                                columnName = "publish_window",
+                                isId = false,
+                                converterTypeFqn = "com.acme.demo.domain.aggregates.content.values.PublishWindow",
+                                converterClassFqn = "com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter",
+                            ),
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val entityItem = plan.single {
+            it.templateId == "aggregate/entity.kt.peb" &&
+                it.context["typeName"] == "ContentSchedule"
+        }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityItem.context["scalarFields"] as List<Map<String, Any?>>
+        val publishWindow = scalarFields.single { it["name"] == "publishWindow" }
+
+        assertEquals("PublishWindow", publishWindow["renderedType"])
+        assertEquals(
+            listOf("com.acme.demo.domain.aggregates.content.values.PublishWindow"),
+            publishWindow["typeImports"],
+        )
+        assertEquals("com.acme.demo.domain.aggregates.content.values.PublishWindow", publishWindow["converterTypeRef"])
+        assertEquals("com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter", publishWindow["converterClassRef"])
+    }
+
+    @Test
+    fun `entity planner omits inherited scalar fields from default entity render context`() {
+        val entity = EntityModel(
+            name = "Content",
+            packageName = "com.acme.demo.domain.content",
+            tableName = "content",
+            comment = "",
+            fields = listOf(
+                FieldModel("id", "ContentId", columnName = "id"),
+                FieldModel("title", "String", columnName = "title"),
+                FieldModel("createdAt", "java.time.Instant", columnName = "created_at", inherited = true),
+            ),
+            idField = FieldModel("id", "ContentId", columnName = "id"),
+        )
+        val model = CanonicalModel(
+            entities = listOf(entity),
+            aggregateEntityJpa = listOf(
+                AggregateEntityJpaModel(
+                    entityName = "Content",
+                    entityPackageName = "com.acme.demo.domain.content",
+                    entityEnabled = true,
+                    tableName = "content",
+                    columns = listOf(
+                        AggregateColumnJpaModel("id", "id", isId = true),
+                        AggregateColumnJpaModel("title", "title", isId = false),
+                        AggregateColumnJpaModel("createdAt", "created_at", isId = false),
+                    ),
+                )
+            ),
+        )
+
+        val item = EntityArtifactPlanner().plan(aggregateConfig(), model).single()
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = item.context["scalarFields"] as List<Map<String, Any?>>
+
+        assertEquals(listOf("id", "title"), scalarFields.map { it["name"] })
     }
 
     @Test
@@ -2585,6 +2848,42 @@ class AggregateArtifactPlannerTest {
         assertFalse(rootSchemaContext.containsKey("aggregateTypeFqn"))
         assertEquals(false, childSchemaContext["isAggregateRoot"])
         assertFalse(childSchemaContext.containsKey("aggregateTypeFqn"))
+    }
+
+    @Test
+    fun `planner fails fast when child entity cannot resolve aggregate root`() {
+        val childEntity = EntityModel(
+            name = "VideoFile",
+            packageName = "com.acme.demo.domain.aggregates.video",
+            tableName = "video_file",
+            comment = "video file entity",
+            fields = listOf(FieldModel("id", "Long")),
+            idField = FieldModel("id", "Long"),
+            aggregateRoot = false,
+            parentEntityName = "MissingVideo",
+        )
+        val model = CanonicalModel(
+            schemas = listOf(
+                SchemaModel(
+                    name = "SVideoFile",
+                    packageName = "com.acme.demo.domain._share.meta.video",
+                    entityName = "VideoFile",
+                    comment = "video file schema",
+                    fields = childEntity.fields,
+                )
+            ),
+            entities = listOf(childEntity),
+            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(childEntity)),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            AggregateArtifactPlanner().plan(aggregateConfig(), model)
+        }
+
+        assertEquals(
+            "Cannot resolve aggregate root for child entity VideoFile: parent entity MissingVideo was not found.",
+            error.message,
+        )
     }
 
     @Test

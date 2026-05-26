@@ -10,6 +10,10 @@ class DesignDomainEventHandlerArtifactPlanner : GeneratorProvider {
     override val id: String = "design-domain-event-handler"
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
+        if (model.domainEvents.isEmpty()) {
+            return emptyList()
+        }
+
         val applicationRoot = requireRelativeModuleRoot(config, "application")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
 

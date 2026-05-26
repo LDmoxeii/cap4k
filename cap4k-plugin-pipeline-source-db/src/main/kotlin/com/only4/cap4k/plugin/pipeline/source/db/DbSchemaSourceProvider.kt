@@ -123,6 +123,7 @@ class DbSchemaSourceProvider : SourceProvider {
                             exposed = annotationMetadata.exposed,
                             insertable = annotationMetadata.insertable,
                             updatable = annotationMetadata.updatable,
+                            inherited = annotationMetadata.inherited,
                         )
                     )
                 }

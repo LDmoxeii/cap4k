@@ -1,6 +1,6 @@
 # Design JSON
 
-`design.json` defines supported request, client, payload, event, and validator generation contracts. It does not replace aggregate modeling or DB carrier decisions.
+`design.json` defines supported request, client, payload, event, domain-service, and saga generation contracts. It does not replace aggregate modeling or DB carrier decisions.
 
 Supported tags:
 
@@ -10,7 +10,8 @@ Supported tags:
 - `api_payload`
 - `domain_event`
 - `integration_event`
-- `validator`
+- `domain_service`
+- `saga`
 
 Common fields:
 
@@ -54,8 +55,7 @@ Rules:
 - `domain_event` supports `persist`, may omit `package`, and reserves request field name `entity`, which is derived from the first aggregate entry. If `aggregates` is missing or empty, the design contract is incomplete and should return to modeling.
 - `integration_event` requires `role`, `eventName`, at least one `requestFields` entry, and empty `responseFields`.
 - inbound `integration_event` entries can produce subscriber shells through `DesignIntegrationEventSubscriberArtifactPlanner`.
-- validator targets are limited to `CLASS`, `FIELD`, and `VALUE_PARAMETER`.
-- validator value types are limited to `Any`, `String`, `Long`, `Int`, and `Boolean`; `CLASS` target requires value type `Any`.
-- validator parameter names must be valid Kotlin identifiers, must be non-null, cannot duplicate, cannot use reserved names `message`, `groups`, or `payload`, and parameter types are limited to `String`, `Int`, `Long`, or `Boolean`.
+- `domain_service` entries produce domain-module service skeletons.
+- `saga` entries produce application-module param, result, and handler skeletons.
 - manifest-file mode is allowed, but rejects blank `manifestFile`, empty manifest content, blank entries, duplicate entries, and paths that escape `projectDir`.
-- Tags outside the supported set are not part of this generation input; `value_object` and `domain_service` stay first-class modeling concepts.
+- Tags outside the supported set are not part of this generation input; `value_object` belongs to `types.valueObjectManifest`, and `validator` stays addon-owned if a project needs validator artifacts.

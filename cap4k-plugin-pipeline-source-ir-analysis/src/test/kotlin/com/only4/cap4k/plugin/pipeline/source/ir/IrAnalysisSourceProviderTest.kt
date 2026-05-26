@@ -7,7 +7,6 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
-import com.only4.cap4k.plugin.pipeline.api.ValidatorParameterModel
 import java.nio.file.Files
 import kotlin.io.path.writeText
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -110,23 +109,6 @@ class IrAnalysisSourceProviderTest {
                 "persist": true
               },
               {
-                "tag": "validator",
-                "package": "danmuku",
-                "name": "DanmukuDeletePermission",
-                "desc": "delete permission",
-                "message": "no delete permission",
-                "targets": ["CLASS"],
-                "valueType": "Any",
-                "parameters": [
-                  {
-                    "name": "danmukuIdField",
-                    "type": "String",
-                    "nullable": false,
-                    "defaultValue": "danmukuId"
-                  }
-                ]
-              },
-              {
                 "tag": "query",
                 "package": "orders",
                 "name": "FindOrderPage",
@@ -158,7 +140,7 @@ class IrAnalysisSourceProviderTest {
 
         val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString())) as IrAnalysisSnapshot
 
-        assertEquals(5, snapshot.designElements.size)
+        assertEquals(4, snapshot.designElements.size)
         assertEquals("command", snapshot.designElements.first().tag)
         assertEquals("orders", snapshot.designElements.first().packageName)
         assertEquals("SubmitOrder", snapshot.designElements.first().name)
@@ -187,23 +169,6 @@ class IrAnalysisSourceProviderTest {
         assertTrue(domainEvent.responseFields.isEmpty())
         assertEquals("Order", domainEvent.entity)
         assertEquals(true, domainEvent.persist)
-        val validator = snapshot.designElements.single { it.tag == "validator" }
-        assertEquals("danmuku", validator.packageName)
-        assertEquals("DanmukuDeletePermission", validator.name)
-        assertEquals("no delete permission", validator.message)
-        assertEquals(listOf("CLASS"), validator.targets)
-        assertEquals("Any", validator.valueType)
-        assertEquals(
-            listOf(
-                ValidatorParameterModel(
-                    name = "danmukuIdField",
-                    type = "String",
-                    nullable = false,
-                    defaultValue = "danmukuId",
-                )
-            ),
-            validator.parameters,
-        )
     }
 
     @Test

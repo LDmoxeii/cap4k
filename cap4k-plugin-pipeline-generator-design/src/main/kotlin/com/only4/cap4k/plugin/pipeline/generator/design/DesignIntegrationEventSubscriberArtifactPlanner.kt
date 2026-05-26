@@ -11,6 +11,10 @@ class DesignIntegrationEventSubscriberArtifactPlanner : GeneratorProvider {
     override val id: String = "design-integration-event-subscriber"
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
+        if (model.integrationEvents.isEmpty()) {
+            return emptyList()
+        }
+
         val applicationRoot = requireRelativeModuleRoot(config, "application")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
 

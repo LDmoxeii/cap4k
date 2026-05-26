@@ -10,6 +10,10 @@ class DesignClientHandlerArtifactPlanner : GeneratorProvider {
     override val id: String = "design-client-handler"
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
+        if (model.clients.isEmpty()) {
+            return emptyList()
+        }
+
         val adapterRoot = requireRelativeModuleRoot(config, "adapter")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
 

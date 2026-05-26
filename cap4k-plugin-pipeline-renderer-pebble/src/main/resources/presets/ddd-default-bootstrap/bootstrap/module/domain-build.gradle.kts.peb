@@ -10,8 +10,11 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.ldmoxeii:ddd-core:0.6.0-dev")
-    implementation("io.github.ldmoxeii:ddd-domain-repo-jpa:0.6.0-dev")
+    implementation("io.github.ldmoxeii:ddd-core:1.0.0")
+    implementation("io.github.ldmoxeii:ddd-domain-repo-jpa:1.0.0")
+    implementation("jakarta.persistence:jakarta.persistence-api:3.1.0")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
     implementation("org.springframework:spring-context")
     implementation("org.springframework.data:spring-data-jpa")
     implementation("org.hibernate.orm:hibernate-core")

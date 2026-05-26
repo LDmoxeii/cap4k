@@ -20,3 +20,19 @@ If analysis flow output splits one business process across command and subscribe
 ## Multi-Listener Failure Diagnostics
 
 When multiple listeners react to one event, cap4k does not guarantee listener order. Review idempotency, zero-trust command validation, and error messages. Reference cap4k issue #56 when diagnostics make failures hard to identify.
+
+Also review observability. A normal multi-listener retreat should show which listener woke up, which command was sent, whether the command applied work or no-oped, and why. Boolean-only no-op responses hide expected paths such as `NotPaidContent`, `NotPublicationReady`, `AlreadyStarted`, and `AlreadyPublished`.
+
+## Smoke Test Coverage Masking
+
+Spring, HTTP, callback, and integration smoke tests are useful runtime proof, but
+they can hide missing command-boundary or aggregate-invariant tests. When a rule
+is only proven by a full runtime path, report it as indirect coverage and decide
+whether a focused domain or application test is needed.
+
+## Heavy Fixture Coupling
+
+Direct SQL fixtures, enum ordinal assertions, `@TestMethodOrder`, and
+hand-rolled polling loops can be acceptable in smoke tests, but they carry
+residual risk. Report that risk explicitly instead of treating the smoke test as
+the only proof of command-level policy.

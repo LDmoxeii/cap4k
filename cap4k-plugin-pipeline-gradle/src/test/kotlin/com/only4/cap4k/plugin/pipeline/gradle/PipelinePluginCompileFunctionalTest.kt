@@ -13,79 +13,9 @@ import kotlin.io.path.writeText
 class PipelinePluginCompileFunctionalTest {
 
     @Test
-    fun `validator generation participates in application compileKotlin`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-compile")
-        FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-validator-compile-sample")
-        val designFile = projectDir.resolve("design/design.json")
-        designFile.writeText(
-            designFile.readText().replace(
-                "\"desc\": \"order id validator\"",
-                "\"desc\": \"order */ validator\"",
-            )
-        )
-
-        val beforeGenerateCompileResult = FunctionalFixtureSupport
-            .runner(projectDir, ":demo-application:compileKotlin")
-            .buildAndFail()
-        assertEquals(
-            TaskOutcome.FAILED,
-            beforeGenerateCompileResult.task(":demo-application:compileKotlin")?.outcome
-        )
-        assertTrue(beforeGenerateCompileResult.output.contains("OrderIdValid"))
-
-        val generateResult = FunctionalFixtureSupport
-            .runner(projectDir, "cap4kGenerate")
-            .build()
-        val compileResult = FunctionalFixtureSupport
-            .runner(projectDir, ":demo-application:compileKotlin")
-            .build()
-        val generatedValidator = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/validators/order/OrderIdValid.kt"
-        ).readText()
-
-        assertGeneratedFilesExist(
-            projectDir,
-            "demo-application/src/main/kotlin/com/acme/demo/application/validators/order/OrderIdValid.kt",
-        )
-        assertTrue(generatedValidator.contains("* order * / validator"))
-        assertFalse(generatedValidator.contains("* order */ validator"))
-        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
-    }
-
-    @Test
-    fun `expanded validator generation compiles class and field skeletons`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-expanded")
-        FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-validator-expanded-sample")
-
-        val (generateResult, compileResult) = FunctionalFixtureSupport.generateThenCompile(
-            projectDir,
-            ":demo-application:compileKotlin",
-        )
-        val classValidator = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/validators/danmuku/DanmukuDeletePermission.kt"
-        ).readText()
-        val fieldValidator = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/validators/category/CategoryMustExist.kt"
-        ).readText()
-
-        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(classValidator.contains("@Target(AnnotationTarget.CLASS)"))
-        assertTrue(classValidator.contains("val message: String = \"no delete \\${'$'}permission\""))
-        assertTrue(classValidator.contains("val danmukuIdField: String = \"danmukuId\""))
-        assertTrue(classValidator.contains("val operatorIdField: String = \"operator\\${'$'}id\""))
-        assertTrue(classValidator.contains("ConstraintValidator<DanmukuDeletePermission, Any>"))
-        assertTrue(classValidator.contains("override fun isValid(value: Any?, context: ConstraintValidatorContext): Boolean = true"))
-        assertTrue(fieldValidator.contains("@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)"))
-        assertTrue(fieldValidator.contains("ConstraintValidator<CategoryMustExist, Long>"))
-    }
-
-    @Test
     fun `request and query variants compile in the application module`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-compile-sample")
-        disableHandlerGenerators(projectDir)
 
         val settingsContent = projectDir.resolve("settings.gradle.kts").readText()
         assertFalse(settingsContent.contains("__CAP4K_REPO_ROOT__"))
@@ -410,6 +340,14 @@ class PipelinePluginCompileFunctionalTest {
         val generatedContentEntity = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt")
         ).toFile().readText()
+        val generatedMediaProcessingTaskEntity = projectDir.resolve(
+            generatedSource(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/MediaProcessingTask.kt"
+            )
+        ).toFile().readText()
+        val checkedInMediaProcessingResultSnapshot = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/values/MediaProcessingResultSnapshot.kt"
+        ).toFile().readText()
         val checkedInEntity = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
         )
@@ -429,6 +367,7 @@ class PipelinePluginCompileFunctionalTest {
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/MediaProcessingTask.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/MediaProcessingTaskId.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/ids/AuthorId.kt"),
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/values/MediaProcessingResultSnapshot.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt",
@@ -455,6 +394,27 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(generatedContentEntity.contains("var id: ContentId = id"))
         assertTrue(generatedContentEntity.contains("var authorId: AuthorId = authorId"))
         assertTrue(generatedContentEntity.contains("var mediaProcessingTaskId: MediaProcessingTaskId? = mediaProcessingTaskId"))
+        assertTrue(
+            generatedMediaProcessingTaskEntity.contains(
+                "import com.acme.demo.domain.aggregates.media_processing_task.values.MediaProcessingResultSnapshot"
+            )
+        )
+        assertTrue(
+            generatedMediaProcessingTaskEntity.contains(
+                "@Convert(converter = MediaProcessingResultSnapshot.Converter::class)"
+            )
+        )
+        assertTrue(
+            generatedMediaProcessingTaskEntity.contains(
+                "var resultSnapshot: MediaProcessingResultSnapshot? = resultSnapshot"
+            )
+        )
+        assertTrue(checkedInMediaProcessingResultSnapshot.contains("data class MediaProcessingResultSnapshot("))
+        assertTrue(
+            checkedInMediaProcessingResultSnapshot.contains(
+                "class Converter : AttributeConverter<MediaProcessingResultSnapshot, String>"
+            )
+        )
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
@@ -651,7 +611,7 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate persistence field behavior generation participates in domain compileKotlin`() {
+    fun `aggregate inherited persistence fields omitted entity participates in domain compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-persistence-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-persistence-compile-sample")
         val applicationBuildFile = projectDir.resolve("demo-application/build.gradle.kts").readText().trim()
@@ -671,6 +631,8 @@ class PipelinePluginCompileFunctionalTest {
 
         assertTrue(generatedEntity.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedEntity.contains("@Version"))
+        assertFalse(generatedEntity.contains("createdBy"))
+        assertFalse(generatedEntity.contains("updatedBy"))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
@@ -1040,10 +1002,14 @@ class PipelinePluginCompileFunctionalTest {
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderQryHandler.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt",
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt",
-            "demo-application/src/main/kotlin/com/acme/demo/application/validators/order/OrderIdValid.kt",
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/order/SubmitOrderPayload.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/OrderAddress.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/services/order/pricing/CalculateOrderTotal.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSagaParam.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSagaResult.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSagaHandler.kt",
         )
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(domainCompileResult.output.contains("BUILD SUCCESSFUL"))
@@ -1076,24 +1042,6 @@ class PipelinePluginCompileFunctionalTest {
         replace("\r\n", "\n")
             .lines()
             .joinToString("\n") { it.trimStart().trimEnd() }
-
-    private fun disableHandlerGenerators(projectDir: Path) {
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        val designQueryHandlerBlock = Regex(
-            """designQueryHandler\s*\{\s*enabled\.set\(true\)\s*}""",
-            setOf(RegexOption.MULTILINE, RegexOption.DOT_MATCHES_ALL),
-        )
-        val designClientHandlerBlock = Regex(
-            """designClientHandler\s*\{\s*enabled\.set\(true\)\s*}""",
-            setOf(RegexOption.MULTILINE, RegexOption.DOT_MATCHES_ALL),
-        )
-        val patchedContent = buildFile.readText()
-            .replace(designQueryHandlerBlock, "designQueryHandler {\n            enabled.set(false)\n        }")
-            .replace(designClientHandlerBlock, "designClientHandler {\n            enabled.set(false)\n        }")
-        buildFile.writeText(patchedContent)
-        assertTrue(patchedContent.contains("designQueryHandler {\n            enabled.set(false)\n        }"))
-        assertTrue(patchedContent.contains("designClientHandler {\n            enabled.set(false)\n        }"))
-    }
 
     private fun removeApplicationCompileSmokeSource(projectDir: Path) {
         val applicationCompileSmokePath = projectDir.resolve(
