@@ -1,6 +1,6 @@
 package {{ packageName }}
 
-import com.only4.cap4k.ddd.core.application.saga.SagaParam
+{{ use("com.only4.cap4k.ddd.core.application.saga.SagaParam") -}}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}

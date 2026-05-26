@@ -1,6 +1,9 @@
 package {{ packageName }}
 
-import com.only4.cap4k.ddd.core.application.saga.SagaHandler
+{{ use("com.only4.cap4k.ddd.core.application.saga.SagaHandler") -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
 
 class {{ name }}Handler : SagaHandler<{{ name }}Param, {{ name }}Result> {
     override fun exec(request: {{ name }}Param): {{ name }}Result {

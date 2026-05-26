@@ -1,6 +1,9 @@
 package {{ packageName }}
 
-import com.only4.cap4k.ddd.core.domain.service.annotation.DomainService
+{{ use("com.only4.cap4k.ddd.core.domain.service.annotation.DomainService") -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
 
 @DomainService
 class {{ name }}
