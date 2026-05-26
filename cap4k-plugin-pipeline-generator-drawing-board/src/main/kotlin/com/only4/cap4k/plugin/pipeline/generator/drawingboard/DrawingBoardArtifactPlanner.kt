@@ -48,7 +48,6 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
             "api_payload",
             "domain_event",
             "integration_event",
-            "validator",
         )
     }
 }
