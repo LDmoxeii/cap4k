@@ -51,13 +51,15 @@ class CanonicalEnumCatalog private constructor(
             localValueObjectFqns[LocalValueObjectOwnerKey(ownerPackageName = ownerPackageName, typeBinding = typeName)]?.let {
                 return it
             }
-            localEnumFqns[LocalEnumOwnerKey(ownerPackageName = ownerPackageName, typeBinding = typeName)]?.let {
-                return it
-            }
         }
         val sharedValueObjectFqn = sharedValueObjectFqns[typeName]
         if (sharedValueObjectFqn != null) {
             return sharedValueObjectFqn
+        }
+        if (ownerPackageName != null) {
+            localEnumFqns[LocalEnumOwnerKey(ownerPackageName = ownerPackageName, typeBinding = typeName)]?.let {
+                return it
+            }
         }
         val sharedFqn = sharedEnumFqns[typeName]
         if (sharedFqn != null) {
@@ -232,18 +234,18 @@ class CanonicalEnumCatalog private constructor(
             "${artifactLayout.aggregateLocalEnumPackage(entity.packageName)}.$typeName"
 
         private fun buildValueObjectDefinitions(model: CanonicalModel): ValueObjectDefinitions {
-            val entityPackageByName = model.entities.associateBy(
-                keySelector = { it.name },
-                valueTransform = { it.packageName },
-            )
+            val aggregateRootNameByEntity = buildAggregateRootNameByEntity(model.entities)
             val localDefinitions = model.valueObjects
                 .filter { it.scope == ValueObjectScope.AGGREGATE }
-                .mapNotNull { valueObject ->
-                    val ownerPackageName = entityPackageByName[valueObject.aggregate] ?: return@mapNotNull null
-                    LocalValueObjectOwnerKey(
-                        ownerPackageName = ownerPackageName,
-                        typeBinding = valueObject.name,
-                    ) to valueObject.fqn()
+                .flatMap { valueObject ->
+                    model.entities
+                        .filter { entity -> aggregateRootNameByEntity[entity.key()] == valueObject.aggregate }
+                        .map { entity ->
+                            LocalValueObjectOwnerKey(
+                                ownerPackageName = entity.packageName,
+                                typeBinding = valueObject.name,
+                            ) to valueObject.fqn()
+                        }
                 }
                 .groupBy({ it.first }, { it.second })
             localDefinitions.entries.firstOrNull { (_, values) -> values.size > 1 }?.let { (key, _) ->
@@ -265,6 +267,38 @@ class CanonicalEnumCatalog private constructor(
         }
 
         private fun ValueObjectModel.fqn(): String = "${packageName}.${name}"
+
+        private fun buildAggregateRootNameByEntity(entities: List<EntityModel>): Map<EntityKey, String> {
+            val entitiesByKey = entities.associateBy { it.key() }
+            val entitiesByName = entities.groupBy { it.name }
+            val resolving = mutableSetOf<EntityKey>()
+            val resolved = linkedMapOf<EntityKey, String>()
+
+            fun resolve(entity: EntityModel): String {
+                val key = entity.key()
+                resolved[key]?.let { return it }
+                if (!resolving.add(key)) {
+                    return entity.name
+                }
+                val rootName = when {
+                    entity.aggregateRoot -> entity.name
+                    entity.parentEntityName.isNullOrBlank() -> entity.name
+                    else -> {
+                        val parent = entitiesByKey[EntityKey(entity.packageName, entity.parentEntityName)] ?:
+                            entitiesByName[entity.parentEntityName]?.singleOrNull()
+                        parent?.let { resolve(it) } ?: entity.name
+                    }
+                }
+                resolving.remove(key)
+                resolved[key] = rootName
+                return rootName
+            }
+
+            entities.forEach { resolve(it) }
+            return resolved
+        }
+
+        private fun EntityModel.key(): EntityKey = EntityKey(packageName = packageName, name = name)
     }
 }
 
@@ -276,6 +310,11 @@ private data class LocalEnumOwnerKey(
 private data class LocalValueObjectOwnerKey(
     val ownerPackageName: String,
     val typeBinding: String,
+)
+
+private data class EntityKey(
+    val packageName: String,
+    val name: String,
 )
 
 private data class LocalEnumDefinition(

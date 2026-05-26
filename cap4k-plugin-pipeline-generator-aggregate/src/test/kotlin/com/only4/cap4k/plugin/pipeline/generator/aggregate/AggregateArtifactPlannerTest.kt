@@ -931,6 +931,80 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner renders shared value object before local enum for matching type binding`() {
+        val enumItems = listOf(EnumItemModel(0, "OPEN", "Open"))
+        val entity = EntityModel(
+            name = "Content",
+            packageName = "com.acme.demo.domain.aggregates.content",
+            tableName = "content",
+            comment = "content",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("publishWindow", "String", typeBinding = "PublishWindow", columnName = "publish_window"),
+                FieldModel("legacyState", "Int", typeBinding = "PublishWindow", enumItems = enumItems, columnName = "legacy_state"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "PublishWindow",
+                        packageName = "com.acme.demo.domain.shared.values",
+                        scope = ValueObjectScope.SHARED,
+                    )
+                ),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = "Content",
+                        entityPackageName = "com.acme.demo.domain.aggregates.content",
+                        entityEnabled = true,
+                        tableName = "content",
+                        columns = listOf(
+                            AggregateColumnJpaModel("id", "id", true, null),
+                            AggregateColumnJpaModel(
+                                fieldName = "publishWindow",
+                                columnName = "publish_window",
+                                isId = false,
+                                converterTypeFqn = "com.acme.demo.domain.shared.values.PublishWindow",
+                                converterClassFqn = "com.acme.demo.domain.shared.values.PublishWindow.Converter",
+                            ),
+                            AggregateColumnJpaModel(
+                                fieldName = "legacyState",
+                                columnName = "legacy_state",
+                                isId = false,
+                                converterTypeFqn = "com.acme.demo.domain.shared.values.PublishWindow",
+                                converterClassFqn = "com.acme.demo.domain.shared.values.PublishWindow.Converter",
+                            ),
+                        ),
+                    )
+                )
+            )
+        )
+
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityItem.context["scalarFields"] as List<Map<String, Any?>>
+        val publishWindow = scalarFields.single { it["name"] == "publishWindow" }
+        val legacyState = scalarFields.single { it["name"] == "legacyState" }
+
+        assertEquals("PublishWindow", publishWindow["renderedType"])
+        assertEquals("PublishWindow", legacyState["renderedType"])
+        assertEquals(
+            listOf("com.acme.demo.domain.shared.values.PublishWindow"),
+            publishWindow["typeImports"],
+        )
+        assertEquals(
+            listOf("com.acme.demo.domain.shared.values.PublishWindow"),
+            legacyState["typeImports"],
+        )
+        assertEquals("com.acme.demo.domain.shared.values.PublishWindow", legacyState["converterTypeRef"])
+        assertEquals("com.acme.demo.domain.shared.values.PublishWindow.Converter", legacyState["converterClassRef"])
+    }
+
+    @Test
     fun `entity planner omits inherited scalar fields from default entity render context`() {
         val entity = EntityModel(
             name = "Content",

@@ -2306,6 +2306,100 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler binds child entity field to aggregate root local value object`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "content",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            aggregateRoot = true,
+                        ),
+                        DbTableSnapshot(
+                            tableName = "content_schedule",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "content_id",
+                                    dbType = "BIGINT",
+                                    kotlinType = "Long",
+                                    nullable = false,
+                                    referenceTable = "content",
+                                ),
+                                DbColumnSnapshot(
+                                    name = "publish_window",
+                                    dbType = "JSON",
+                                    kotlinType = "String",
+                                    nullable = false,
+                                    typeBinding = "PublishWindow",
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "content",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                    )
+                ),
+                ValueObjectManifestSnapshot(
+                    valueObjects = listOf(
+                        ValueObjectModel(
+                            name = "PublishWindow",
+                            packageName = "com.acme.demo.domain.aggregates.content.values",
+                            scope = ValueObjectScope.AGGREGATE,
+                            aggregate = "Content",
+                        ),
+                    )
+                )
+            )
+        )
+
+        val entityJpa = result.model.aggregateEntityJpa.single { it.entityName == "ContentSchedule" }
+
+        assertEquals(
+            "com.acme.demo.domain.aggregates.content.values.PublishWindow",
+            entityJpa.columns.single { it.fieldName == "publishWindow" }.converterTypeFqn,
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter",
+            entityJpa.columns.single { it.fieldName == "publishWindow" }.converterClassFqn,
+        )
+    }
+
+    @Test
+    fun `assembler fails fast on ambiguous shared value object type override`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assemble(
+                valueObjects = ValueObjectManifestSnapshot(
+                    valueObjects = listOf(
+                        ValueObjectModel(
+                            name = "PublishWindow",
+                            packageName = "content.values.primary",
+                            scope = ValueObjectScope.SHARED,
+                        ),
+                        ValueObjectModel(
+                            name = "PublishWindow",
+                            packageName = "content.values.secondary",
+                            scope = ValueObjectScope.SHARED,
+                        ),
+                    )
+                )
+            )
+        }
+
+        assertTrue(error.message!!.contains("Ambiguous value object type override: PublishWindow"))
+    }
+
+    @Test
     fun `assembler fails fast on ambiguous aggregate local value object type override`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(

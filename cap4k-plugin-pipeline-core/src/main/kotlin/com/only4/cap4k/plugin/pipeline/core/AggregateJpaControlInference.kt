@@ -31,6 +31,7 @@ internal object AggregateJpaControlInference {
             )
         }
         val localEnumOwnership = buildLocalEnumOwnership(entities)
+        val aggregateRootNameByEntity = buildAggregateRootNameByEntity(entities)
         val tableByName = schema?.tables?.associateBy { it.tableName.lowercase(Locale.ROOT) }.orEmpty()
 
         return entities.map { entity ->
@@ -53,7 +54,7 @@ internal object AggregateJpaControlInference {
                     val converter = resolveConverterBinding(
                         typeBinding = column.typeBinding,
                         ownerPackageName = entity.packageName,
-                        ownerAggregateName = entity.name,
+                        ownerAggregateName = aggregateRootNameByEntity.getValue(entity.key()),
                         valueObjects = valueObjects,
                         hasLocalEnumOwner = LocalEnumOwnerKey(
                             ownerPackageName = entity.packageName,
@@ -166,6 +167,37 @@ internal object AggregateJpaControlInference {
         return owners.keys
     }
 
+    private fun buildAggregateRootNameByEntity(entities: List<EntityModel>): Map<EntityKey, String> {
+        val entitiesByKey = entities.associateBy { it.key() }
+        val entitiesByName = entities.groupBy { it.name }
+        val resolving = mutableSetOf<EntityKey>()
+        val resolved = linkedMapOf<EntityKey, String>()
+
+        fun resolve(entity: EntityModel): String {
+            val key = entity.key()
+            resolved[key]?.let { return it }
+            if (!resolving.add(key)) {
+                return entity.name
+            }
+            val parentEntityName = entity.parentEntityName?.takeIf { it.isNotBlank() }
+            val rootName = when {
+                entity.aggregateRoot -> entity.name
+                parentEntityName == null -> entity.name
+                else -> {
+                    val parent = entitiesByKey[EntityKey(entity.packageName, parentEntityName)] ?:
+                        entitiesByName[parentEntityName]?.singleOrNull()
+                    parent?.let { resolve(it) } ?: entity.name
+                }
+            }
+            resolving.remove(key)
+            resolved[key] = rootName
+            return rootName
+        }
+
+        entities.forEach { resolve(it) }
+        return resolved
+    }
+
     private fun buildSharedEnumFqns(
         definitions: List<SharedEnumDefinition>,
         artifactLayout: ArtifactLayoutResolver,
@@ -260,3 +292,10 @@ private data class LocalEnumOwnerKey(
     val ownerPackageName: String,
     val typeBinding: String,
 )
+
+private data class EntityKey(
+    val packageName: String,
+    val name: String,
+)
+
+private fun EntityModel.key(): EntityKey = EntityKey(packageName = packageName, name = name)

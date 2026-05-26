@@ -373,7 +373,12 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             },
             sharedValueObjects = valueObjects
                 .filter { it.scope == ValueObjectScope.SHARED }
-                .map { it.name },
+                .map { valueObject ->
+                    SharedValueObjectTypeName(
+                        simpleName = valueObject.name,
+                        packageName = valueObject.packageName,
+                    )
+                },
             localValueObjects = valueObjects
                 .filter { it.scope == ValueObjectScope.AGGREGATE }
                 .map { valueObject ->
@@ -787,16 +792,25 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     private fun validateDuplicateTypeSimpleNames(
         sharedEnums: Iterable<String>,
         localEnums: Iterable<LocalEnumTypeName>,
-        sharedValueObjects: Iterable<String>,
+        sharedValueObjects: Iterable<SharedValueObjectTypeName>,
         localValueObjects: Iterable<LocalValueObjectTypeName>,
         typeRegistry: Iterable<String>,
     ) {
-        val sharedValueObjectSimpleNames = sharedValueObjects
-            .map { it.substringAfterLast('.').trim() }
+        val sharedValueObjectDefinitions = sharedValueObjects
+            .mapNotNull { it.normalized() }
+        sharedValueObjectDefinitions
+            .groupBy { it.simpleName }
+            .entries
+            .firstOrNull { (_, definitions) -> definitions.size > 1 }
+            ?.let { (_, definitions) ->
+                throw IllegalArgumentException("Ambiguous value object type override: ${definitions.first().simpleName}")
+            }
+        val sharedValueObjectSimpleNames = sharedValueObjectDefinitions
+            .map { it.simpleName }
             .filter { it.isNotEmpty() }
             .toSet()
         val globalCounts = linkedMapOf<String, Int>()
-        (sharedEnums + sharedValueObjects + typeRegistry)
+        (sharedEnums + sharedValueObjectDefinitions.map { it.simpleName } + typeRegistry)
             .map { it.substringAfterLast('.').trim() }
             .filter { it.isNotEmpty() }
             .forEach { simpleName -> globalCounts[simpleName] = globalCounts.getOrDefault(simpleName, 0) + 1 }
@@ -855,6 +869,22 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 owner = owner.trim(),
                 simpleName = normalizedSimpleName,
                 items = items,
+            )
+        }
+    }
+
+    private data class SharedValueObjectTypeName(
+        val simpleName: String,
+        val packageName: String,
+    ) {
+        fun normalized(): SharedValueObjectTypeName? {
+            val normalizedSimpleName = simpleName.substringAfterLast('.').trim()
+            if (normalizedSimpleName.isEmpty()) {
+                return null
+            }
+            return SharedValueObjectTypeName(
+                simpleName = normalizedSimpleName,
+                packageName = packageName.trim(),
             )
         }
     }
