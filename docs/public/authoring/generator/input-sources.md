@@ -18,7 +18,7 @@ DB 输入适合表达：
 - 聚合内唯一约束；
 - 与 enum manifest 关联的共享枚举。
 
-DB source 不替代业务流程设计。命令、查询、client、validator 和领域事件等用例意图仍应通过 design JSON 或手写代码表达。
+DB source 不替代业务流程设计。命令、查询、client 和领域事件等用例意图仍应通过 design JSON 或手写代码表达；core design JSON 不生成通用 validator。
 
 ## DB table annotations
 
@@ -155,7 +155,6 @@ class Content(
 | `api_payload` | adapter API payload |
 | `domain_event` | domain event contract，以及配套 subscriber / handler skeleton |
 | `integration_event` | application integration event contract and inbound subscriber skeleton |
-| `validator` | validation annotation and validator |
 
 常见字段包括 `package`、`name`、`desc`、`aggregates`、`requestFields`、`responseFields`。
 
@@ -165,7 +164,6 @@ class Content(
 - `domain_event` 支持 `persist`；
 - `domain_event` 可以省略 package；它必须恰好声明一个 aggregate，保留 request field `entity` 不允许作者显式声明，因为它会从 `aggregates[0]` 派生。缺失或空 aggregate 都属于不完整 modeling input；
 - `integration_event` 支持 `role`（`inbound` / `outbound`）和 `eventName`，必须至少声明一个 `requestFields` 字段，且 `responseFields` 必须为空；`inbound` 可生成把外部事实转内部命令的 subscriber 骨架，`outbound` 只生成事件契约；
-- `validator` 的 `targets` 只支持 `CLASS` / `FIELD` / `VALUE_PARAMETER`；`CLASS` target 只能配 `Any`。`valueType` 支持 `Any` / `String` / `Long` / `Int` / `Boolean`，也可以使用 canonical metadata 能解析出的 Strong ID 类型（例如 `AuthorId`）。`parameters` 名称不能是 `message` / `groups` / `payload`，必须是合法 Kotlin 标识符、不可空、不可重复，类型支持 `String` / `Int` / `Long` / `Boolean`，也可以使用 canonical metadata 能解析出的 Strong ID 类型，并且不能 nullable；
 - manifest-file 模式把 manifest 中的 design 文件 entry 解析为相对 `projectDir` 的路径，并拒绝空白 `manifestFile`、空 manifest、空白 entry、重复 entry，以及逃出 `projectDir` 的路径。
 
 ## unsupported design tags
@@ -174,8 +172,9 @@ class Content(
 
 - `value_object`
 - `domain_service`
+- `validator`
 
-这些是明确缺口，不是隐藏能力。需要值对象或领域服务时，当前应通过 DB `@T` 类型绑定、必要时的 table-backed `@VO` 表、手写模型、后续 addon 或未来生成能力处理，并在项目审计中记录。需要集成事件时，使用 `integration_event` 设计契约；MQ 绑定和外部协议适配仍由项目手写。
+这些是明确缺口，不是隐藏能力。需要值对象、领域服务或通用 validator 时，当前应通过 DB `@T` 类型绑定、必要时的 table-backed `@VO` 表、手写模型、后续 addon 或未来生成能力处理，并在项目审计中记录。需要集成事件时，使用 `integration_event` 设计契约；MQ 绑定和外部协议适配仍由项目手写。
 
 ## enum manifest
 

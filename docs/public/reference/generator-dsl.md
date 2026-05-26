@@ -86,17 +86,6 @@ sources {
 
 ```kotlin
 generators {
-    designCommand { enabled.set(true) }
-    designQuery { enabled.set(true) }
-    designQueryHandler { enabled.set(true) }
-    designClient { enabled.set(true) }
-    designClientHandler { enabled.set(true) }
-    designValidator { enabled.set(true) }
-    designApiPayload { enabled.set(true) }
-    designDomainEvent { enabled.set(true) }
-    designDomainEventHandler { enabled.set(true) }
-    designIntegrationEvent { enabled.set(true) }
-    designIntegrationEventSubscriber { enabled.set(true) }
     aggregate { enabled.set(true) }
     flow { enabled.set(true) }
     drawingBoard { enabled.set(true) }
@@ -105,7 +94,7 @@ generators {
 
 | generator family | 说明 | 主要任务 |
 | --- | --- | --- |
-| design family | 命令、查询、client、validator、api payload、domain event、integration event 相关源码 | `cap4kPlan` / `cap4kGenerate` |
+| design family | 启用 `sources.designJson` 后自动规划命令、查询、client、api payload、domain event、integration event 相关源码 | `cap4kPlan` / `cap4kGenerate` |
 | aggregate | 聚合骨架及相关产物 | `cap4kPlan` / `cap4kGenerate` |
 | `flow` | 流程观察材料 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
 | `drawingBoard` | 设计 / 文档观察材料 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |

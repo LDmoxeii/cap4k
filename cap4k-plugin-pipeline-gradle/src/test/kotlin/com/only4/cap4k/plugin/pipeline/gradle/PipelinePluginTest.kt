@@ -13,6 +13,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import com.only4.cap4k.plugin.pipeline.core.BootstrapFilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventArtifactPlanner
@@ -634,7 +635,9 @@ class PipelinePluginTest {
                 "aggregate-projection" to GeneratorConfig(enabled = true),
             ),
         ).copy(
-            typeRegistry = mapOf("Money" to TypeRegistryEntry("com.acme.Money")),
+            typeRegistry = TypeRegistryConfig(
+                entries = mapOf("Money" to TypeRegistryEntry("com.acme.Money")),
+            ),
         )
 
         val snapshot = generatedSourceTaskInputSnapshot(rootProject, config)

@@ -151,4 +151,16 @@ class PresetTemplateResolverTest {
 
         assertTrue(resolved.contains("rootProject.name"))
     }
+
+    @Test
+    fun `resolve does not provide removed design validator preset template`() {
+        val resolver = PresetTemplateResolver(
+            preset = "ddd-default",
+            overrideDirs = emptyList()
+        )
+
+        assertThrows(IllegalStateException::class.java) {
+            resolver.resolve("design/validator.kt.peb")
+        }
+    }
 }

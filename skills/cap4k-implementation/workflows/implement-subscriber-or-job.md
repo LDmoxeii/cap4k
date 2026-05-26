@@ -1,7 +1,7 @@
 # Implement Subscriber Or Internal Trigger
 
 1. Run the skeleton gate before writing code.
-2. Stop and return to `cap4k-generation` when the subscriber shell, inbound integration event, domain-event shell, `*Cmd.kt`, `*Qry.kt`, `*QryHandler.kt`, `*CliHandler.kt`, client, validator, or payload surface is generator-capable but missing, including generated handler surfaces.
+2. Stop and return to `cap4k-generation` when the subscriber shell, inbound integration event, domain-event shell, `*Cmd.kt`, `*Qry.kt`, `*QryHandler.kt`, `*CliHandler.kt`, client, or payload surface is generator-capable but missing, including generated handler surfaces.
 3. Stop and return to `cap4k-generation` when DDL, enum, or type-registry facts already exist but the aggregate, repository, factory, specification, enum, or unique-helper skeleton is still missing. If relation or field-mapping behavior seems missing after those facts exist, that is still aggregate/entity generation drift, not a standalone skeleton plan item, and must return to `cap4k-generation`.
 4. Stop and return to `cap4k-modeling` when the missing piece is the design entry, DDL contract, enum manifest entry, or `types.registryFile` entry.
 5. Stop and return to `cap4k-generation` when generation is blocked by missing KSP metadata output/config/setup that the subscriber shell needs.

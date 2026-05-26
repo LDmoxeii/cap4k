@@ -18,12 +18,4 @@ cap4k {
             inputDir.set("demo-domain/build/generated/ksp/main/resources/metadata")
         }
     }
-    generators {
-        designDomainEvent {
-            enabled.set(true)
-        }
-        designDomainEventHandler {
-            enabled.set(true)
-        }
-    }
 }

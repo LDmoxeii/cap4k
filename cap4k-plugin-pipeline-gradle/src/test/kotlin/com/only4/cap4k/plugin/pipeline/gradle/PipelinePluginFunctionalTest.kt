@@ -43,6 +43,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/command.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/query.kt.peb\""))
+        assertFalse(planFile.readText().contains("\"generatorId\": \"design-validator\""))
+        assertFalse(planFile.readText().contains("\"templateId\": \"design/validator.kt.peb\""))
         assertFalse(planFile.readText().contains("\"templateId\": \"design/query_" + "list.kt.peb\""))
         assertFalse(planFile.readText().contains("\"templateId\": \"design/query_" + "page.kt.peb\""))
     }
@@ -2280,49 +2282,6 @@ class PipelinePluginFunctionalTest {
         assertTrue(domainEventContent.contains("\"tag\": \"domain_event\""))
         assertTrue(domainEventContent.contains("\"name\": \"reason\""))
         assertFalse(domainEventContent.contains("\"name\": \"entity\""))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kAnalysisGenerate validator drawing board can feed cap4kGenerate`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-analysis-validator-roundtrip")
-        copyCompileFixture(projectDir, "analysis-validator-roundtrip-sample")
-
-        val analysisResult = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kAnalysisGenerate")
-            .build()
-
-        val drawingBoardValidator = projectDir.resolve("design/drawing_board_validator.json")
-        val drawingBoardContent = drawingBoardValidator.readText()
-
-        val generateResult = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kGenerate")
-            .build()
-        val compileResult = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments(":demo-application:compileKotlin")
-            .build()
-
-        val generatedValidator = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/validators/danmuku/DanmukuDeletePermission.kt"
-        )
-        val generatedContent = generatedValidator.readText()
-
-        assertTrue(analysisResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(drawingBoardValidator.toFile().exists())
-        assertTrue(drawingBoardContent.contains("\"tag\": \"validator\""))
-        assertTrue(drawingBoardContent.contains("\"targets\": [\"CLASS\"]"))
-        assertTrue(drawingBoardContent.contains("\"valueType\": \"Any\""))
-        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(generatedContent.contains("annotation class DanmukuDeletePermission"))
-        assertTrue(generatedContent.contains("ConstraintValidator<DanmukuDeletePermission, Any>"))
-        assertTrue(generatedContent.contains("val danmukuIdField: String = \"danmukuId\""))
     }
 
     @OptIn(ExperimentalPathApi::class)

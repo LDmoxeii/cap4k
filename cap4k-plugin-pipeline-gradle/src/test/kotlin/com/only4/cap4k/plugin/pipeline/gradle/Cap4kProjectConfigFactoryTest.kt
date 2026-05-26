@@ -114,7 +114,7 @@ class Cap4kProjectConfigFactoryTest {
             adapterModulePath.set("demo-adapter")
         }
         extension.types {
-            registryFile.set("design/type-registry.json")
+            this.registryFile.set("design/type-registry.json")
             enumManifest {
                 files.from("design/enums.json")
             }
@@ -443,6 +443,7 @@ class Cap4kProjectConfigFactoryTest {
             ),
             config.enabledGeneratorIds(),
         )
+        assertFalse(config.enabledGeneratorIds().any { it.contains("validator") })
         assertEquals("ddd-default", config.templates.preset)
         assertEquals(ConflictPolicy.SKIP, config.templates.conflictPolicy)
         assertEquals(

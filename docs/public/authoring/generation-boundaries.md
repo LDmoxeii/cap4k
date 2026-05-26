@@ -13,7 +13,7 @@
 
 | 场景 | 处理方式 |
 | --- | --- |
-| `design.json` 已能表达目标用例，但 `command` / `query` / `client` / payload / `domain_event` / `integration_event` / subscriber / validator skeleton 没落出来 | 停止 implementation，回到 generation |
+| `design.json` 已能表达目标用例，但 `command` / `query` / `client` / payload / `domain_event` / `integration_event` / subscriber skeleton 没落出来 | 停止 implementation，回到 generation |
 | DDL、`@T`、唯一约束等 aggregate 事实已经存在，但 aggregate / entity / repository / factory / specification / enum / unique helper skeleton 没落出来 | 停止 implementation，回到 generation。关系和字段映射事实仍算 aggregate / entity 输入，不是独立 skeleton 家族 |
 | design entry、DDL 注释、enum manifest、`types.registryFile` 本身缺失 | 停止 generation，回到 modeling |
 | generation 依赖的 KSP metadata 输出、配置或生产链路缺失 | 先回到 generation / compile / setup，不自动判成 modeling |

@@ -39,15 +39,6 @@
     ]
   },
   {
-    "tag": "validator",
-    "package": "order",
-    "name": "OrderIdValid",
-    "desc": "order id validator",
-    "aggregates": [],
-    "requestFields": [],
-    "responseFields": []
-  },
-  {
     "tag": "api_payload",
     "package": "order",
     "name": "SubmitOrderPayload",

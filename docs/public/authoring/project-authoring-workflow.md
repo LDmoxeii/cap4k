@@ -39,7 +39,7 @@
 
 - 聚合根、实体、值对象、生命周期和领域事件先由人类作者确认。
 - DDL 用表、列、关系、唯一约束和注释表达可生成的聚合结构。
-- design JSON 用 `command`、`query`、`client`、`api_payload`、`domain_event`、`integration_event`、`validator` 表达用例和接口意图。
+- design JSON 用 `command`、`query`、`client`、`api_payload`、`domain_event`、`integration_event` 表达用例和接口意图；`validator` 不是 core design tag。
 - enum manifest 用于共享枚举定义，配合 DB `@Type` 使用。
 
 输入源细节见 [生成输入源](generator/input-sources.md)。如果某个概念不能被当前输入源表达，应先标成缺口，不要伪装成已有生成能力。
@@ -94,7 +94,7 @@ cap4k 项目中至少有四类产物：
 
 在开始实现前先过一道骨架闸门：
 
-- 如果缺的是 `command`、`query`、`client`、`api_payload`、`domain_event`、`integration_event`、subscriber、validator、`*QryHandler.kt`、`*CliHandler.kt` 这类 generator-capable skeleton，停止 implementation，回到 generation。这里的 `domain_event` 不只是 payload；它还会生成对应 subscriber / handler 壳。`integration_event` 只有 inbound 会生成 subscriber 壳，outbound 只生成事件契约。
+- 如果缺的是 `command`、`query`、`client`、`api_payload`、`domain_event`、`integration_event`、subscriber、`*QryHandler.kt`、`*CliHandler.kt` 这类 generator-capable skeleton，停止 implementation，回到 generation。这里的 `domain_event` 不只是 payload；它还会生成对应 subscriber / handler 壳。`integration_event` 只有 inbound 会生成 subscriber 壳，outbound 只生成事件契约。
 - 如果缺的是 aggregate、entity、repository、factory、specification、enum、唯一 helper 这类 aggregate family skeleton，并且 DDL / type contract 已经存在，停止 implementation，回到 generation。关系和字段映射事实属于 aggregate / entity generation input，不是独立 plan item 或独立 skeleton 家族。
 - 如果缺的是 design entry、DDL 表列注释、enum manifest、`types.registryFile` 这类业务输入合同，停止 generation，回到 modeling。
 - 如果缺的是 generation 依赖的 KSP metadata 输出、配置或生产链路，先回到 generation / compile / setup，不要自动判成 modeling。

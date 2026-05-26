@@ -18,21 +18,4 @@ cap4k {
             inputDir.set("domain/build/generated/ksp/main/resources/metadata")
         }
     }
-    generators {
-        designCommand {
-            enabled.set(true)
-        }
-        designQuery {
-            enabled.set(true)
-        }
-        designQueryHandler {
-            enabled.set(true)
-        }
-        designClient {
-            enabled.set(true)
-        }
-        designClientHandler {
-            enabled.set(true)
-        }
-    }
 }

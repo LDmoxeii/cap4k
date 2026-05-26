@@ -10,7 +10,6 @@ import com.only4.cap4k.plugin.pipeline.api.OutputRootLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
-import com.only4.cap4k.plugin.pipeline.api.ValidatorParameterModel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
@@ -107,20 +106,6 @@ class DrawingBoardArtifactPlannerTest {
     }
 
     @Test
-    fun `preserves defaultValue in drawing board planner context`() {
-        val planner = DrawingBoardArtifactPlanner()
-
-        val plan = planner.plan(config(), model())
-        val validatorPlan = plan.single { it.context["drawingBoardTag"] == "validator" }
-        val validatorElement = (validatorPlan.context["elements"] as List<*>).single() as DrawingBoardElementModel
-
-        assertEquals(
-            "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-            validatorElement.parameters.single().defaultValue,
-        )
-    }
-
-    @Test
     fun `fails when drawing board slice is missing`() {
         val planner = DrawingBoardArtifactPlanner()
 
@@ -199,13 +184,6 @@ class DrawingBoardArtifactPlannerTest {
                         message = "no delete permission",
                         targets = listOf("CLASS"),
                         valueType = "Any",
-                        parameters = listOf(
-                            ValidatorParameterModel(
-                                name = "danmukuIdField",
-                                type = "String",
-                                defaultValue = "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-                            )
-                        ),
                     ),
                     DrawingBoardElementModel(
                         tag = "ignored",
