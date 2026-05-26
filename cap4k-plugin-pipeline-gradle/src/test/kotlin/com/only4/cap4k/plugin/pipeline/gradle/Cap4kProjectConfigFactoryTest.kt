@@ -133,6 +133,28 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
+    fun `value object manifest only config carries domain module and generator`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+        }
+        extension.types {
+            valueObjectManifest {
+                files.from("design/value-objects.json")
+            }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(mapOf("domain" to "demo-domain"), config.modules)
+        assertEquals(true, config.sources["value-object-manifest"]?.enabled)
+        assertEquals(true, config.generators["types-value-object"]?.enabled)
+    }
+
+    @Test
     fun `addons block maps provider scoped options`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)

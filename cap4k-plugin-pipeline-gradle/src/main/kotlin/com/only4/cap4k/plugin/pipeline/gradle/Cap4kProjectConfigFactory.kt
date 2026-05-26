@@ -122,6 +122,9 @@ class Cap4kProjectConfigFactory {
         if (generators.aggregateProjectionEnabled) {
             put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
         }
+        if (sources.valueObjectManifestEnabled) {
+            put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
+        }
     }
 
     private fun buildSources(

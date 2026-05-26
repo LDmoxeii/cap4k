@@ -120,6 +120,7 @@ class PipelinePlugin : Plugin<Project> {
             val config = configFactory.build(project, extension)
             ensureAggregateDomainJpaDependency(project, config)
             ensureAggregateProjectionAdapterJpaDependency(project, config)
+            ensureValueObjectDomainDependencies(project, config)
             val inferredSourceDependencies = inferSourceDependencies(project, config)
             if (inferredSourceDependencies.isNotEmpty()) {
                 planTask.configure { task -> task.dependsOn(inferredSourceDependencies) }
@@ -150,6 +151,13 @@ private const val JAKARTA_PERSISTENCE_COORDINATE = "$JAKARTA_PERSISTENCE_GROUP:$
 private const val JACKSON_ANNOTATIONS_GROUP = "com.fasterxml.jackson.core"
 private const val JACKSON_ANNOTATIONS_NAME = "jackson-annotations"
 private const val JACKSON_ANNOTATIONS_COORDINATE = "$JACKSON_ANNOTATIONS_GROUP:$JACKSON_ANNOTATIONS_NAME:2.17.2"
+private const val JACKSON_DATABIND_GROUP = "com.fasterxml.jackson.core"
+private const val JACKSON_DATABIND_NAME = "jackson-databind"
+private const val JACKSON_DATABIND_COORDINATE = "$JACKSON_DATABIND_GROUP:$JACKSON_DATABIND_NAME:2.17.2"
+private const val JACKSON_MODULE_KOTLIN_GROUP = "com.fasterxml.jackson.module"
+private const val JACKSON_MODULE_KOTLIN_NAME = "jackson-module-kotlin"
+private const val JACKSON_MODULE_KOTLIN_COORDINATE =
+    "$JACKSON_MODULE_KOTLIN_GROUP:$JACKSON_MODULE_KOTLIN_NAME:2.17.2"
 private const val CAP4K_ADDON_CONFIGURATION_NAME = "cap4kAddon"
 private val SOURCE_TASK_SOURCE_IDS = setOf("db", "design-json", "ksp-metadata", "value-object-manifest")
 private val SOURCE_TASK_GENERATOR_IDS = setOf(
@@ -223,6 +231,15 @@ internal fun ensureAggregateProjectionAdapterJpaDependency(project: Project, con
     ensureJpaDependency(project, config, moduleRole = "adapter")
 }
 
+internal fun ensureValueObjectDomainDependencies(project: Project, config: ProjectConfig) {
+    if (!config.enabledGeneratorIds().contains("types-value-object")) {
+        return
+    }
+    ensureJpaDependency(project, config, moduleRole = "domain")
+    ensureJacksonDatabindDependency(project, config, moduleRole = "domain")
+    ensureJacksonModuleKotlinDependency(project, config, moduleRole = "domain")
+}
+
 private fun ensureJpaDependency(project: Project, config: ProjectConfig, moduleRole: String) {
     ensureImplementationDependency(
         project = project,
@@ -242,6 +259,28 @@ private fun ensureJacksonAnnotationsDependency(project: Project, config: Project
         group = JACKSON_ANNOTATIONS_GROUP,
         name = JACKSON_ANNOTATIONS_NAME,
         coordinate = JACKSON_ANNOTATIONS_COORDINATE,
+    )
+}
+
+private fun ensureJacksonDatabindDependency(project: Project, config: ProjectConfig, moduleRole: String) {
+    ensureImplementationDependency(
+        project = project,
+        config = config,
+        moduleRole = moduleRole,
+        group = JACKSON_DATABIND_GROUP,
+        name = JACKSON_DATABIND_NAME,
+        coordinate = JACKSON_DATABIND_COORDINATE,
+    )
+}
+
+private fun ensureJacksonModuleKotlinDependency(project: Project, config: ProjectConfig, moduleRole: String) {
+    ensureImplementationDependency(
+        project = project,
+        config = config,
+        moduleRole = moduleRole,
+        group = JACKSON_MODULE_KOTLIN_GROUP,
+        name = JACKSON_MODULE_KOTLIN_NAME,
+        coordinate = JACKSON_MODULE_KOTLIN_COORDINATE,
     )
 }
 

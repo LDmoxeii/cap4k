@@ -1018,6 +1018,92 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `value object generation wires json converter dependencies into resolved domain module`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-value-object-domain-dependency-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        domainProject.configurations.create("implementation")
+
+        ensureValueObjectDomainDependencies(
+            rootProject,
+            projectConfig(
+                modules = mapOf("domain" to "demo-domain"),
+                sources = mapOf("value-object-manifest" to SourceConfig(enabled = true)),
+                generators = mapOf("types-value-object" to GeneratorConfig(enabled = true)),
+            )
+        )
+
+        val implementationDependencies = domainProject.configurations.getByName("implementation").dependencies
+        assertTrue(
+            implementationDependencies.any { dependency ->
+                dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
+            }
+        )
+        assertTrue(
+            implementationDependencies.any { dependency ->
+                dependency.group == "com.fasterxml.jackson.core" && dependency.name == "jackson-databind"
+            }
+        )
+        assertTrue(
+            implementationDependencies.any { dependency ->
+                dependency.group == "com.fasterxml.jackson.module" && dependency.name == "jackson-module-kotlin"
+            }
+        )
+    }
+
+    @Test
+    fun `value object generation does not duplicate json converter dependencies`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-value-object-domain-dependency-dedup-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        domainProject.configurations.create("implementation")
+        domainProject.dependencies.add("implementation", "jakarta.persistence:jakarta.persistence-api:3.1.0")
+        domainProject.dependencies.add("implementation", "com.fasterxml.jackson.core:jackson-databind:2.17.2")
+        domainProject.dependencies.add("implementation", "com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
+
+        ensureValueObjectDomainDependencies(
+            rootProject,
+            projectConfig(
+                modules = mapOf("domain" to "demo-domain"),
+                sources = mapOf("value-object-manifest" to SourceConfig(enabled = true)),
+                generators = mapOf("types-value-object" to GeneratorConfig(enabled = true)),
+            )
+        )
+
+        val implementationDependencies = domainProject.configurations.getByName("implementation").dependencies
+        assertEquals(
+            1,
+            implementationDependencies.count { dependency ->
+                dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
+            },
+        )
+        assertEquals(
+            1,
+            implementationDependencies.count { dependency ->
+                dependency.group == "com.fasterxml.jackson.core" && dependency.name == "jackson-databind"
+            },
+        )
+        assertEquals(
+            1,
+            implementationDependencies.count { dependency ->
+                dependency.group == "com.fasterxml.jackson.module" && dependency.name == "jackson-module-kotlin"
+            },
+        )
+    }
+
+    @Test
     fun `aggregate generation does not duplicate jakarta persistence api dependency`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-aggregate-domain-dependency-dedup-root")
         val rootProject = ProjectBuilder.builder()
