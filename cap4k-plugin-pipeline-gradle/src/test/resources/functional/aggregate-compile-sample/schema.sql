@@ -14,7 +14,8 @@ create table if not exists content (
 
 create table if not exists media_processing_task (
     id varchar(36) primary key,
-    status varchar(64) not null
+    status varchar(64) not null,
+    result_snapshot varchar(2048) comment '@T=MediaProcessingResultSnapshot;'
 );
 
 comment on table video_post is '@AggregateRoot=true;';

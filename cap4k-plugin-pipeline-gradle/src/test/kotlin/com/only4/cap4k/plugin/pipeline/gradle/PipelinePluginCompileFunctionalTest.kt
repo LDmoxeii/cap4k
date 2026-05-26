@@ -340,6 +340,14 @@ class PipelinePluginCompileFunctionalTest {
         val generatedContentEntity = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt")
         ).toFile().readText()
+        val generatedMediaProcessingTaskEntity = projectDir.resolve(
+            generatedSource(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/MediaProcessingTask.kt"
+            )
+        ).toFile().readText()
+        val checkedInMediaProcessingResultSnapshot = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/values/MediaProcessingResultSnapshot.kt"
+        ).toFile().readText()
         val checkedInEntity = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
         )
@@ -359,6 +367,7 @@ class PipelinePluginCompileFunctionalTest {
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/MediaProcessingTask.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/MediaProcessingTaskId.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/ids/AuthorId.kt"),
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/values/MediaProcessingResultSnapshot.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt",
@@ -385,6 +394,27 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(generatedContentEntity.contains("var id: ContentId = id"))
         assertTrue(generatedContentEntity.contains("var authorId: AuthorId = authorId"))
         assertTrue(generatedContentEntity.contains("var mediaProcessingTaskId: MediaProcessingTaskId? = mediaProcessingTaskId"))
+        assertTrue(
+            generatedMediaProcessingTaskEntity.contains(
+                "import com.acme.demo.domain.aggregates.media_processing_task.values.MediaProcessingResultSnapshot"
+            )
+        )
+        assertTrue(
+            generatedMediaProcessingTaskEntity.contains(
+                "@Convert(converter = MediaProcessingResultSnapshot.Converter::class)"
+            )
+        )
+        assertTrue(
+            generatedMediaProcessingTaskEntity.contains(
+                "var resultSnapshot: MediaProcessingResultSnapshot? = resultSnapshot"
+            )
+        )
+        assertTrue(checkedInMediaProcessingResultSnapshot.contains("data class MediaProcessingResultSnapshot("))
+        assertTrue(
+            checkedInMediaProcessingResultSnapshot.contains(
+                "class Converter : AttributeConverter<MediaProcessingResultSnapshot, String>"
+            )
+        )
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
