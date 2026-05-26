@@ -377,10 +377,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             localValueObjects = valueObjects
                 .filter { it.scope == ValueObjectScope.AGGREGATE }
                 .map { valueObject ->
-                    LocalTypeName(
+                    LocalValueObjectTypeName(
                         owner = aggregateEntityPackageByName[valueObject.aggregate].orEmpty()
                             .ifBlank { valueObject.aggregate.orEmpty() },
                         simpleName = valueObject.name,
+                        packageName = valueObject.packageName,
                     )
                 },
             typeRegistry = config.typeRegistry.entries.keys,
@@ -389,6 +390,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             entities = entities,
             schema = dbSnapshot,
             sharedEnums = sharedEnums,
+            valueObjects = valueObjects,
             typeRegistry = config.typeRegistry.entries,
             artifactLayout = artifactLayout,
         )
@@ -786,9 +788,13 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         sharedEnums: Iterable<String>,
         localEnums: Iterable<LocalEnumTypeName>,
         sharedValueObjects: Iterable<String>,
-        localValueObjects: Iterable<LocalTypeName>,
+        localValueObjects: Iterable<LocalValueObjectTypeName>,
         typeRegistry: Iterable<String>,
     ) {
+        val sharedValueObjectSimpleNames = sharedValueObjects
+            .map { it.substringAfterLast('.').trim() }
+            .filter { it.isNotEmpty() }
+            .toSet()
         val globalCounts = linkedMapOf<String, Int>()
         (sharedEnums + sharedValueObjects + typeRegistry)
             .map { it.substringAfterLast('.').trim() }
@@ -810,8 +816,15 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             }
         val localValueObjectDefinitions = localValueObjects
             .mapNotNull { it.normalized() }
-            .distinct()
-        val localValueObjectKeys = localValueObjectDefinitions.map { it.owner to it.simpleName }.toSet()
+        localValueObjectDefinitions
+            .groupBy { it.owner to it.simpleName }
+            .entries
+            .firstOrNull { (_, definitions) -> definitions.size > 1 }
+            ?.let { (_, definitions) ->
+                throw IllegalArgumentException("Ambiguous value object type override: ${definitions.first().simpleName}")
+            }
+        val distinctLocalValueObjectDefinitions = localValueObjectDefinitions.distinct()
+        val localValueObjectKeys = distinctLocalValueObjectDefinitions.map { it.owner to it.simpleName }.toSet()
         localEnumDefinitions
             .firstOrNull { (it.owner to it.simpleName) in localValueObjectKeys }
             ?.let { localEnum ->
@@ -819,9 +832,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             }
         val localTypeSimpleNames = (
             localEnumDefinitions.map { it.simpleName } +
-                localValueObjectDefinitions.map { it.simpleName }
+                distinctLocalValueObjectDefinitions.map { it.simpleName }
             ).toSet()
-        globalCounts.keys.firstOrNull { it in localTypeSimpleNames }?.let { simpleName ->
+        globalCounts.keys.firstOrNull { simpleName ->
+            simpleName in localTypeSimpleNames && simpleName !in sharedValueObjectSimpleNames
+        }?.let { simpleName ->
             throw IllegalArgumentException("Duplicate type simple name: $simpleName")
         }
     }
@@ -844,18 +859,20 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         }
     }
 
-    private data class LocalTypeName(
+    private data class LocalValueObjectTypeName(
         val owner: String,
         val simpleName: String,
+        val packageName: String,
     ) {
-        fun normalized(): LocalTypeName? {
+        fun normalized(): LocalValueObjectTypeName? {
             val normalizedSimpleName = simpleName.substringAfterLast('.').trim()
             if (normalizedSimpleName.isEmpty()) {
                 return null
             }
-            return LocalTypeName(
+            return LocalValueObjectTypeName(
                 owner = owner.trim(),
                 simpleName = normalizedSimpleName,
+                packageName = packageName.trim(),
             )
         }
     }

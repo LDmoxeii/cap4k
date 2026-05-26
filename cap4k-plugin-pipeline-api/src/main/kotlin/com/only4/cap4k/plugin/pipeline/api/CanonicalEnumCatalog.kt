@@ -18,6 +18,8 @@ class CanonicalEnumCatalog private constructor(
     private val sharedEnumItems: Map<String, List<EnumItemModel>>,
     private val localEnumFqns: Map<LocalEnumOwnerKey, String>,
     private val localEnumItems: Map<LocalEnumOwnerKey, List<EnumItemModel>>,
+    private val localValueObjectFqns: Map<LocalValueObjectOwnerKey, String>,
+    private val sharedValueObjectFqns: Map<String, String>,
     private val typeRegistry: Map<String, TypeRegistryEntry>,
 ) {
     val allEnums: List<CanonicalEnumDescriptor> = sharedEnums + localEnums
@@ -46,9 +48,16 @@ class CanonicalEnumCatalog private constructor(
             return typeName
         }
         if (ownerPackageName != null) {
+            localValueObjectFqns[LocalValueObjectOwnerKey(ownerPackageName = ownerPackageName, typeBinding = typeName)]?.let {
+                return it
+            }
             localEnumFqns[LocalEnumOwnerKey(ownerPackageName = ownerPackageName, typeBinding = typeName)]?.let {
                 return it
             }
+        }
+        val sharedValueObjectFqn = sharedValueObjectFqns[typeName]
+        if (sharedValueObjectFqn != null) {
+            return sharedValueObjectFqn
         }
         val sharedFqn = sharedEnumFqns[typeName]
         if (sharedFqn != null) {
@@ -110,6 +119,7 @@ class CanonicalEnumCatalog private constructor(
             val localEnumDefinitions = buildLocalEnumDefinitions(model.entities, artifactLayout)
             val localEnumFqns = localEnumDefinitions.mapValues { (_, definition) -> definition.fqn }
             val localEnumItems = localEnumDefinitions.mapValues { (_, definition) -> definition.enumItems }
+            val valueObjectDefinitions = buildValueObjectDefinitions(model)
             localEnumFqns.keys.firstOrNull { key -> key.typeBinding in sharedEnumFqns }?.let { key ->
                 throw IllegalArgumentException(
                     "ambiguous enum ownership for ${key.typeBinding}: matches both shared enum and local enum in ${key.ownerPackageName}"
@@ -146,6 +156,8 @@ class CanonicalEnumCatalog private constructor(
                 sharedEnumItems = sharedEnumItems,
                 localEnumFqns = localEnumFqns,
                 localEnumItems = localEnumItems,
+                localValueObjectFqns = valueObjectDefinitions.local,
+                sharedValueObjectFqns = valueObjectDefinitions.shared,
                 typeRegistry = typeRegistry,
             )
         }
@@ -218,10 +230,50 @@ class CanonicalEnumCatalog private constructor(
             artifactLayout: ArtifactLayoutResolver,
         ): String =
             "${artifactLayout.aggregateLocalEnumPackage(entity.packageName)}.$typeName"
+
+        private fun buildValueObjectDefinitions(model: CanonicalModel): ValueObjectDefinitions {
+            val entityPackageByName = model.entities.associateBy(
+                keySelector = { it.name },
+                valueTransform = { it.packageName },
+            )
+            val localDefinitions = model.valueObjects
+                .filter { it.scope == ValueObjectScope.AGGREGATE }
+                .mapNotNull { valueObject ->
+                    val ownerPackageName = entityPackageByName[valueObject.aggregate] ?: return@mapNotNull null
+                    LocalValueObjectOwnerKey(
+                        ownerPackageName = ownerPackageName,
+                        typeBinding = valueObject.name,
+                    ) to valueObject.fqn()
+                }
+                .groupBy({ it.first }, { it.second })
+            localDefinitions.entries.firstOrNull { (_, values) -> values.size > 1 }?.let { (key, _) ->
+                throw IllegalArgumentException("Ambiguous value object type override: ${key.typeBinding}")
+            }
+
+            val sharedDefinitions = model.valueObjects
+                .filter { it.scope == ValueObjectScope.SHARED }
+                .map { it.name to it.fqn() }
+                .groupBy({ it.first }, { it.second })
+            sharedDefinitions.entries.firstOrNull { (_, values) -> values.size > 1 }?.let { (typeName, _) ->
+                throw IllegalArgumentException("Ambiguous value object type override: $typeName")
+            }
+
+            return ValueObjectDefinitions(
+                local = localDefinitions.mapValues { (_, values) -> values.first() },
+                shared = sharedDefinitions.mapValues { (_, values) -> values.first() },
+            )
+        }
+
+        private fun ValueObjectModel.fqn(): String = "${packageName}.${name}"
     }
 }
 
 private data class LocalEnumOwnerKey(
+    val ownerPackageName: String,
+    val typeBinding: String,
+)
+
+private data class LocalValueObjectOwnerKey(
     val ownerPackageName: String,
     val typeBinding: String,
 )
@@ -236,6 +288,11 @@ private data class SharedEnumDefinitionPlan(
     val typeName: String,
     val fqn: String,
     val enumItems: List<EnumItemModel>,
+)
+
+private data class ValueObjectDefinitions(
+    val local: Map<LocalValueObjectOwnerKey, String>,
+    val shared: Map<String, String>,
 )
 
 private val builtInTypeNames = setOf(
