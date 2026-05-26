@@ -1760,7 +1760,7 @@ git commit -m "docs: document cap4k validator addon"
 **Files:**
 - No source files should be edited in this task unless verification finds a concrete defect. If a defect is found, add a focused test before the fix and commit it as a fixup commit.
 
-- [ ] **Step 1: Run cap4k focused test suite**
+- [x] **Step 1: Run cap4k focused test suite**
 
 Run:
 
@@ -1771,7 +1771,9 @@ cd C:\Users\LD_moxeii\Documents\code\only-workspace\cap4k\.worktrees\issue-84-ge
 
 Expected: PASS.
 
-- [ ] **Step 2: Run cap4k plugin help smoke**
+Result: PASS after fixing the enum-manifest source test fixture to use `TypeRegistryConfig`.
+
+- [x] **Step 2: Run cap4k plugin help smoke**
 
 Run:
 
@@ -1781,7 +1783,9 @@ Run:
 
 Expected: PASS.
 
-- [ ] **Step 3: Run only-engine composite addon tests**
+Result: PASS.
+
+- [x] **Step 3: Run only-engine composite addon tests**
 
 Run:
 
@@ -1792,7 +1796,9 @@ cd C:\Users\LD_moxeii\Documents\code\only-workspace\only-engine\.worktrees\issue
 
 Expected: PASS.
 
-- [ ] **Step 4: Inspect git status**
+Result: PASS after only-engine validator manifest hardening commit `552bafb`.
+
+- [x] **Step 4: Inspect git status**
 
 Run in both worktrees:
 
@@ -1802,6 +1808,8 @@ git log --oneline -5
 ```
 
 Expected: no uncommitted source changes except intentional generated snapshots not yet committed. If uncommitted changes remain, either commit them with a specific message or explain why they are intentionally left out.
+
+Result: PASS in both worktrees after the final verification commits.
 
 - [ ] **Step 5: Update GitHub issue #84**
 
@@ -1816,22 +1824,24 @@ Do not close #84 until downstream verification confirms the new DSL and only-eng
 
 ## Final Acceptance Checklist
 
-- [ ] Public design-family generator switches are removed.
-- [ ] `types.enumManifest` replaces public `sources.enumManifest`.
-- [ ] `types.valueObjectManifest` is implemented and does not require registry duplication.
-- [ ] Duplicate type simple names across enum manifest, value-object manifest, and registry fail fast.
-- [ ] `design.json` supports `domain_service` and `saga`.
-- [ ] `design.json` rejects `validator` as a normal unsupported tag.
-- [ ] Core validator planner/model/template are removed.
-- [ ] Aggregate unique validation adapter remains under aggregate unique helper generation.
-- [ ] Domain-service skeletons contain class shells only.
-- [ ] Saga skeletons contain param/result/handler shells only and no workflow logic.
-- [ ] JSON value objects generate checked-in data classes with nested converters.
-- [ ] DB `@T` fields resolve manifest-managed value objects and apply nested converters.
-- [ ] Addon provider options are passed to matching providers.
-- [ ] Addon options for unloaded providers fail fast.
-- [ ] Addon template ids are constrained to `addons/<providerId>/<artifact>`.
-- [ ] only-engine enum-translation addon still works.
-- [ ] only-engine validator addon reads its own manifest through provider options.
-- [ ] Docs and skills describe the new boundary and do not instruct users to use removed DSL.
-- [ ] #88 remains the follow-up for historical internal naming cleanup.
+- [x] Public design-family generator switches are removed.
+- [x] `types.enumManifest` replaces public `sources.enumManifest`.
+- [x] `types.valueObjectManifest` is implemented and does not require registry duplication.
+- [x] Duplicate type simple names across enum manifest, value-object manifest, and registry fail fast.
+- [x] `design.json` supports `domain_service` and `saga`.
+- [x] `design.json` rejects `validator` as a normal unsupported tag.
+- [x] Core validator planner/model/template are removed.
+- [x] Aggregate unique validation adapter remains under aggregate unique helper generation.
+- [x] Domain-service skeletons contain class shells only.
+- [x] Saga skeletons contain param/result/handler shells only and no workflow logic.
+- [x] JSON value objects generate checked-in data classes with nested converters.
+- [x] DB `@T` fields resolve manifest-managed value objects and apply nested converters.
+- [x] Addon provider options are passed to matching providers.
+- [x] Addon options for unloaded providers fail fast.
+- [x] Addon template ids are constrained to `addons/<providerId>/<artifact>`.
+- [x] only-engine enum-translation addon still works.
+- [x] only-engine validator addon reads its own manifest through provider options.
+- [x] Docs and skills describe the new boundary and do not instruct users to use removed DSL.
+- [x] #88 remains the follow-up for historical internal naming cleanup.
+
+Residual issue lifecycle note: keep #84 open until downstream verification confirms the new DSL and only-engine addon path in a real project fixture.
