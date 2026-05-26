@@ -1002,6 +1002,13 @@ class AggregateArtifactPlannerTest {
         )
         assertEquals("com.acme.demo.domain.shared.values.PublishWindow", legacyState["converterTypeRef"])
         assertEquals("com.acme.demo.domain.shared.values.PublishWindow.Converter", legacyState["converterClassRef"])
+        assertFalse(
+            plan.any {
+                it.templateId == "aggregate/enum.kt.peb" &&
+                    it.context["packageName"] == "com.acme.demo.domain.shared.values" &&
+                    it.context["typeName"] == "PublishWindow"
+            }
+        )
     }
 
     @Test
