@@ -438,6 +438,8 @@ class Cap4kProjectConfigFactoryTest {
                 "design-api-payload",
                 "design-domain-event",
                 "design-domain-event-handler",
+                "design-domain-service",
+                "design-saga",
                 "design-integration-event",
                 "design-integration-event-subscriber",
             ),
@@ -1108,7 +1110,7 @@ class Cap4kProjectConfigFactoryTest {
 
         val config = Cap4kProjectConfigFactory().build(project, extension)
 
-        assertEquals(emptySet<String>(), config.enabledSourceIds())
+        assertEquals(setOf("enum-manifest"), config.enabledSourceIds())
         assertEquals(listOf("shared-enums.json"), config.typeRegistry.enumManifestFiles)
     }
 
@@ -1183,12 +1185,13 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `design json source requires design planner module paths`() {
+    fun `design json source keeps only explicitly configured module paths`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
         extension.project {
             basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
         }
         extension.sources {
             designJson {
@@ -1196,14 +1199,10 @@ class Cap4kProjectConfigFactoryTest {
                 files.from(project.file("design/design.json"))
             }
         }
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
 
-        assertEquals(
-            "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when designJson is enabled.",
-            error.message,
-        )
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(mapOf("domain" to "demo-domain"), config.modules)
     }
 
     @Test

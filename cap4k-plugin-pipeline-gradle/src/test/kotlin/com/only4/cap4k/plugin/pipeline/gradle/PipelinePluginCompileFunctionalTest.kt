@@ -975,6 +975,11 @@ class PipelinePluginCompileFunctionalTest {
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/order/SubmitOrderPayload.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/OrderAddress.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/services/order/pricing/CalculateOrderTotal.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSagaParam.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSagaResult.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSagaHandler.kt",
         )
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(domainCompileResult.output.contains("BUILD SUCCESSFUL"))

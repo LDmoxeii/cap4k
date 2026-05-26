@@ -10,6 +10,10 @@ class DesignCommandArtifactPlanner : GeneratorProvider {
     override val id: String = "design-command"
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
+        if (model.commands.isEmpty()) {
+            return emptyList()
+        }
+
         val applicationRoot = requireRelativeModuleRoot(config, "application")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
 

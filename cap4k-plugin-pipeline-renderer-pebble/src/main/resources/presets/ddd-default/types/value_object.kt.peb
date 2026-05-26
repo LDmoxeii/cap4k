@@ -3,7 +3,6 @@ package {{ packageName }}
 {{ use("com.fasterxml.jackson.databind.ObjectMapper") -}}
 {{ use("com.fasterxml.jackson.module.kotlin.readValue") -}}
 {{ use("jakarta.persistence.AttributeConverter") -}}
-{{ use("jakarta.persistence.Converter") -}}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
@@ -13,7 +12,7 @@ data class {{ typeName }}(
     val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
 {%- endfor %}
 ) {
-    @Converter(autoApply = false)
+    @jakarta.persistence.Converter(autoApply = false)
     class Converter : AttributeConverter<{{ typeName }}, String> {
         override fun convertToDatabaseColumn(attribute: {{ typeName }}?): String? =
             if (attribute == null) null else mapper.writeValueAsString(attribute)

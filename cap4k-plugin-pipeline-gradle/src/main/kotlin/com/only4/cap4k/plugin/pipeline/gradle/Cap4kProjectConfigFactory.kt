@@ -35,6 +35,7 @@ class Cap4kProjectConfigFactory {
             kspMetadataEnabled = extension.sources.kspMetadata.enabled.get(),
             dbEnabled = extension.sources.db.enabled.get(),
             irAnalysisEnabled = extension.sources.irAnalysis.enabled.get(),
+            enumManifestEnabled = !extension.types.enumManifest.files.isEmpty,
             valueObjectManifestEnabled = !extension.types.valueObjectManifest.files.isEmpty,
         )
         val generatorStates = GeneratorStates(
@@ -44,7 +45,7 @@ class Cap4kProjectConfigFactory {
             drawingBoardEnabled = extension.generators.drawingBoard.enabled.get(),
         )
 
-        validateProjectRules(extension, sourceStates, generatorStates)
+        validateProjectRules(extension, generatorStates)
         val modules = buildModules(extension, sourceStates, generatorStates)
         val sources = buildSources(project, extension, sourceStates)
         val generators = buildGenerators(extension, sourceStates, generatorStates)
@@ -75,17 +76,7 @@ class Cap4kProjectConfigFactory {
         )
     }
 
-    private fun validateProjectRules(extension: Cap4kExtension, sources: SourceStates, generators: GeneratorStates) {
-        if (sources.designJsonEnabled) {
-            val missingDomain = extension.project.domainModulePath.optionalValue() == null
-            val missingApplication = extension.project.applicationModulePath.optionalValue() == null
-            val missingAdapter = extension.project.adapterModulePath.optionalValue() == null
-            if (missingDomain || missingApplication || missingAdapter) {
-                throw IllegalArgumentException(
-                    "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when designJson is enabled."
-                )
-            }
-        }
+    private fun validateProjectRules(extension: Cap4kExtension, generators: GeneratorStates) {
         if (generators.aggregateEnabled) {
             val missingDomain = extension.project.domainModulePath.optionalValue() == null
             val missingApplication = extension.project.applicationModulePath.optionalValue() == null
@@ -110,9 +101,9 @@ class Cap4kProjectConfigFactory {
         generators: GeneratorStates,
     ): Map<String, String> = buildMap {
         if (sources.designJsonEnabled) {
-            put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
-            put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
-            put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
+            extension.project.domainModulePath.optionalValue()?.let { put("domain", it) }
+            extension.project.applicationModulePath.optionalValue()?.let { put("application", it) }
+            extension.project.adapterModulePath.optionalValue()?.let { put("adapter", it) }
         }
         if (generators.aggregateEnabled) {
             put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
@@ -192,6 +183,10 @@ class Cap4kProjectConfigFactory {
                 throw IllegalArgumentException("sources.irAnalysis.inputDirs must not be empty when irAnalysis is enabled.")
             }
             put("ir-analysis", SourceConfig(enabled = true, options = mapOf("inputDirs" to inputDirs)))
+        }
+        if (states.enumManifestEnabled) {
+            val files = extension.types.enumManifest.files.files.map(File::getAbsolutePath).sorted()
+            put("enum-manifest", SourceConfig(enabled = true, options = mapOf("files" to files)))
         }
         if (states.valueObjectManifestEnabled) {
             put("value-object-manifest", SourceConfig(enabled = true))
@@ -397,6 +392,7 @@ private data class SourceStates(
     val kspMetadataEnabled: Boolean,
     val dbEnabled: Boolean,
     val irAnalysisEnabled: Boolean,
+    val enumManifestEnabled: Boolean,
     val valueObjectManifestEnabled: Boolean,
 )
 
@@ -416,6 +412,8 @@ private val DESIGN_PLANNER_GENERATOR_IDS = listOf(
     "design-api-payload",
     "design-domain-event",
     "design-domain-event-handler",
+    "design-domain-service",
+    "design-saga",
     "design-integration-event",
     "design-integration-event-subscriber",
 )

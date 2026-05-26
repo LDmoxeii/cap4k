@@ -1,0 +1,12 @@
+[
+  {
+    "name": "OrderAddress",
+    "scope": "shared",
+    "package": "com.acme.demo.domain.shared.values",
+    "storage": "json",
+    "fields": [
+      { "name": "city", "type": "String" },
+      { "name": "street", "type": "String", "nullable": true }
+    ]
+  }
+]

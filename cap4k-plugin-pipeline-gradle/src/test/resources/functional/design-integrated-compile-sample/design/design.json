@@ -67,5 +67,25 @@
       { "name": "snapshot.traceId", "type": "String" }
     ],
     "responseFields": []
+  },
+  {
+    "tag": "domain_service",
+    "package": "order.pricing",
+    "name": "CalculateOrderTotal",
+    "desc": "calculate order total",
+    "aggregates": ["Order"]
+  },
+  {
+    "tag": "saga",
+    "package": "order.fulfillment",
+    "name": "FulfillOrderSaga",
+    "desc": "fulfill order",
+    "aggregates": ["Order"],
+    "requestFields": [
+      { "name": "orderId", "type": "Long" }
+    ],
+    "responseFields": [
+      { "name": "accepted", "type": "Boolean" }
+    ]
   }
 ]

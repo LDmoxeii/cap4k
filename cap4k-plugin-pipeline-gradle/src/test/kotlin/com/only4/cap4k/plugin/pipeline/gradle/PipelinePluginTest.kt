@@ -1219,8 +1219,27 @@ class PipelinePluginTest {
         throw NoSuchFieldException(name)
     }
 
+    private fun hasInternalProperty(target: Any, name: String): Boolean {
+        var type: Class<*>? = target.javaClass
+        while (type != null) {
+            if (type.declaredFields.any { it.name == name }) {
+                return true
+            }
+            type = type.superclass
+        }
+        return false
+    }
+
+    private fun runnerWithInternalProperty(runner: Any, name: String): Any {
+        var current = runner
+        while (!hasInternalProperty(current, name)) {
+            current = readInternalProperty(current, "delegate") ?: throw NoSuchFieldException(name)
+        }
+        return current
+    }
+
     private fun addonProviderIds(runner: Any): List<String> {
-        val effectiveRunner = runCatching { readInternalProperty(runner, "delegate") }.getOrNull() ?: runner
+        val effectiveRunner = runnerWithInternalProperty(runner, "addonProviders")
         val providers = readInternalProperty(effectiveRunner, "addonProviders") as List<*>
         return providers.map { provider ->
             readInternalProperty(provider!!, "id").toString()
@@ -1228,7 +1247,7 @@ class PipelinePluginTest {
     }
 
     private fun generatorProviderTypes(runner: Any): Set<Class<*>> {
-        val effectiveRunner = runCatching { readInternalProperty(runner, "delegate") }.getOrNull() ?: runner
+        val effectiveRunner = runnerWithInternalProperty(runner, "generators")
         val providers = readInternalProperty(effectiveRunner, "generators") as List<*>
         return providers.map { it!!::class.java }.toSet()
     }

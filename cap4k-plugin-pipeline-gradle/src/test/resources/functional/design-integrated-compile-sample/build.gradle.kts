@@ -19,4 +19,9 @@ cap4k {
             inputDir.set("demo-domain/build/generated/ksp/main/resources/metadata")
         }
     }
+    types {
+        valueObjectManifest {
+            files.from("design/value-objects.json")
+        }
+    }
 }

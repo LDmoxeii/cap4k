@@ -29,10 +29,12 @@ import com.only4.cap4k.plugin.pipeline.generator.design.DesignClientHandlerArtif
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignCommandArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainEventArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainEventHandlerArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainServiceArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventSubscriberArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryHandlerArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignSagaArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.drawingboard.DrawingBoardArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.flow.FlowArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.types.ValueObjectArtifactPlanner
@@ -159,7 +161,7 @@ private const val JACKSON_MODULE_KOTLIN_NAME = "jackson-module-kotlin"
 private const val JACKSON_MODULE_KOTLIN_COORDINATE =
     "$JACKSON_MODULE_KOTLIN_GROUP:$JACKSON_MODULE_KOTLIN_NAME:2.17.2"
 private const val CAP4K_ADDON_CONFIGURATION_NAME = "cap4kAddon"
-private val SOURCE_TASK_SOURCE_IDS = setOf("db", "design-json", "ksp-metadata", "value-object-manifest")
+private val SOURCE_TASK_SOURCE_IDS = setOf("db", "design-json", "ksp-metadata", "enum-manifest", "value-object-manifest")
 private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "design-command",
     "design-query",
@@ -169,13 +171,15 @@ private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "design-api-payload",
     "design-domain-event",
     "design-domain-event-handler",
+    "design-domain-service",
+    "design-saga",
     "design-integration-event",
     "design-integration-event-subscriber",
     "types-value-object",
     "aggregate",
     "aggregate-projection",
 )
-private val GENERATED_SOURCE_TASK_SOURCE_IDS = setOf("db")
+private val GENERATED_SOURCE_TASK_SOURCE_IDS = setOf("db", "enum-manifest")
 private val GENERATED_SOURCE_TASK_GENERATOR_IDS = setOf("aggregate", "aggregate-projection")
 private val ANALYSIS_TASK_SOURCE_IDS = setOf("ir-analysis")
 private val ANALYSIS_TASK_GENERATOR_IDS = setOf("flow", "drawing-board")
@@ -189,7 +193,9 @@ private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf
     extension.sources.kspMetadata.enabled,
     extension.sources.db.enabled,
     extension.sources.irAnalysis.enabled,
-).any { it.orNull == true } || !extension.types.valueObjectManifest.files.isEmpty
+).any { it.orNull == true } ||
+    !extension.types.enumManifest.files.isEmpty ||
+    !extension.types.valueObjectManifest.files.isEmpty
 
 private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean = listOf(
     extension.generators.aggregate.enabled,
@@ -677,6 +683,8 @@ internal fun buildSourceRunner(
             DesignApiPayloadArtifactPlanner(),
             DesignDomainEventArtifactPlanner(),
             DesignDomainEventHandlerArtifactPlanner(),
+            DesignDomainServiceArtifactPlanner(),
+            DesignSagaArtifactPlanner(),
             DesignIntegrationEventArtifactPlanner(),
             DesignIntegrationEventSubscriberArtifactPlanner(),
             ValueObjectArtifactPlanner(),

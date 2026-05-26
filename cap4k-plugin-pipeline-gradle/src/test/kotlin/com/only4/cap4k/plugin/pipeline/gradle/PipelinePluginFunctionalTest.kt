@@ -24,9 +24,9 @@ class PipelinePluginFunctionalTest {
     @Test
     fun `cap4kPlan writes pretty printed plan json`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-plan")
-        copyFixture(projectDir)
+        copyCompileFixture(projectDir, "design-integrated-compile-sample")
 
-        val metadataFile = projectDir.resolve("domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
+        val metadataFile = projectDir.resolve("demo-domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -43,6 +43,11 @@ class PipelinePluginFunctionalTest {
         assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/command.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/query.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"design/domain_service.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"design/saga_param.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"design/saga_result.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"design/saga_handler.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"types/value-object\""))
         assertFalse(planFile.readText().contains("\"generatorId\": \"design-validator\""))
         assertFalse(planFile.readText().contains("\"templateId\": \"design/validator.kt.peb\""))
         assertFalse(planFile.readText().contains("\"templateId\": \"design/query_" + "list.kt.peb\""))
@@ -535,7 +540,7 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(
             result.output.contains(
-                "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when designJson is enabled."
+                "adapter module is required"
             )
         )
         assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
@@ -660,7 +665,7 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(
             result.output.contains(
-                "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when designJson is enabled."
+                "application module is required"
             )
         )
         assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
@@ -2072,16 +2077,14 @@ class PipelinePluginFunctionalTest {
                 .replace("\r\n", "\n")
                 .replace(
                     """
-                    |    }
-                    |    generators {
+                    |    sources {
                     """.trimMargin(),
                     """
+                    |    sources {
                     |        db {
                     |            enabled.set(true)
                     |            schema.set("PUBLIC")
                     |        }
-                    |    }
-                    |    generators {
                     """.trimMargin()
                 )
         )
@@ -2636,7 +2639,7 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(
             result.output.contains(
-                "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when designJson is enabled."
+                "domain module is required"
             )
         )
     }
@@ -2664,7 +2667,7 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(
             result.output.contains(
-                "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when designJson is enabled."
+                "application module is required"
             )
         )
     }
