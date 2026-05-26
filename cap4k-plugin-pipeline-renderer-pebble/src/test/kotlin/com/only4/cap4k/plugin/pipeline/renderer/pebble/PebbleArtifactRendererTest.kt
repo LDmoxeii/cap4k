@@ -68,6 +68,105 @@ class PebbleArtifactRendererTest {
         ).single().content
 
     @Test
+    fun `value object template renders json converter skeleton with normalized field types`() {
+        val content = renderTemplate(
+            templateId = ProjectConfig().artifactLayout.valueObject.id,
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/Money.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.shared.values",
+                "typeName" to "Money",
+                "name" to "Money",
+                "imports" to listOf(
+                    "com.acme.demo.domain.shared.types.CurrencyCode",
+                    "java.math.BigDecimal",
+                ),
+                "fields" to listOf(
+                    mapOf("name" to "amount", "renderedType" to "BigDecimal", "nullable" to false),
+                    mapOf("name" to "currency", "renderedType" to "CurrencyCode?", "nullable" to true),
+                ),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("package com.acme.demo.domain.shared.values"))
+        assertTrue(content.contains("import com.fasterxml.jackson.databind.ObjectMapper"))
+        assertTrue(content.contains("import com.fasterxml.jackson.module.kotlin.readValue"))
+        assertTrue(content.contains("import jakarta.persistence.AttributeConverter"))
+        assertFalse(content.contains("import jakarta.persistence.Converter"))
+        assertTrue(content.contains("import com.acme.demo.domain.shared.types.CurrencyCode"))
+        assertTrue(content.contains("import java.math.BigDecimal"))
+        assertTrue(content.contains("data class Money("))
+        assertTrue(content.contains("val amount: BigDecimal,"))
+        assertTrue(content.contains("val currency: CurrencyCode?"))
+        assertTrue(content.contains("@jakarta.persistence.Converter(autoApply = false)"))
+        assertTrue(content.contains("class Converter : AttributeConverter<Money, String>"))
+        assertTrue(content.contains("ObjectMapper().findAndRegisterModules()"))
+        assertTrue(content.contains("mapper.writeValueAsString(attribute)"))
+        assertTrue(content.contains("mapper.readValue<Money>(it)"))
+        assertFalse(content.contains("val amount: java.math.BigDecimal"))
+    }
+
+    @Test
+    fun `design domain service and saga skeleton template ids resolve through default preset`() {
+        val config = ProjectConfig()
+
+        val domainService = renderTemplate(
+            templateId = config.artifactLayout.designDomainService.id,
+            outputPath = "demo-domain/src/main/kotlin/content/domain/ContentPublicationPolicy.kt",
+            context = mapOf(
+                "packageName" to "content.domain",
+                "name" to "ContentPublicationPolicy",
+                "description" to "publication policy",
+                "aggregates" to listOf("Content"),
+            ),
+        )
+        assertTrue(domainService.contains("import com.only4.cap4k.ddd.core.domain.service.annotation.DomainService"))
+        assertTrue(domainService.contains("class ContentPublicationPolicy"))
+        assertReadableKotlin(domainService)
+
+        val sagaParam = renderTemplate(
+            templateId = config.artifactLayout.designSagaParam.id,
+            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSagaParam.kt",
+            context = mapOf(
+                "packageName" to "content.workflow",
+                "name" to "PublishContentSaga",
+                "requestFields" to listOf(mapOf("name" to "contentId", "renderedType" to "ContentId")),
+                "imports" to emptyList<String>(),
+            ),
+        )
+        assertTrue(sagaParam.contains("import com.only4.cap4k.ddd.core.application.saga.SagaParam"))
+        assertTrue(sagaParam.contains("data class PublishContentSagaParam"))
+        assertTrue(sagaParam.contains(": SagaParam<PublishContentSagaResult>"))
+        assertReadableKotlin(sagaParam)
+
+        val sagaResult = renderTemplate(
+            templateId = config.artifactLayout.designSagaResult.id,
+            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSagaResult.kt",
+            context = mapOf(
+                "packageName" to "content.workflow",
+                "name" to "PublishContentSaga",
+                "responseFields" to listOf(mapOf("name" to "accepted", "renderedType" to "Boolean")),
+                "imports" to emptyList<String>(),
+            ),
+        )
+        assertTrue(sagaResult.contains("data class PublishContentSagaResult"))
+        assertTrue(sagaResult.contains("val accepted: Boolean"))
+        assertReadableKotlin(sagaResult)
+
+        val sagaHandler = renderTemplate(
+            templateId = config.artifactLayout.designSagaHandler.id,
+            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSagaHandler.kt",
+            context = mapOf(
+                "packageName" to "content.workflow",
+                "name" to "PublishContentSaga",
+            ),
+        )
+        assertTrue(sagaHandler.contains("import com.only4.cap4k.ddd.core.application.saga.SagaHandler"))
+        assertTrue(sagaHandler.contains("override fun exec(request: PublishContentSagaParam): PublishContentSagaResult"))
+        assertReadableKotlin(sagaHandler)
+    }
+
+    @Test
     fun `aggregate factory template renders semantic payload metadata and filtered payload fields`() {
         val content = renderTemplate(
             templateId = "aggregate/factory.kt.peb",
@@ -4278,7 +4377,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `renders drawing board json without html escaping and preserves defaultValue expressions`() {
+    fun `renders drawing board json without html escaping`() {
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -4292,29 +4391,15 @@ class PebbleArtifactRendererTest {
                     generatorId = "drawing-board",
                     moduleRole = "project",
                     templateId = "drawing-board/document.json.peb",
-                    outputPath = "design/validator.json",
+                    outputPath = "design/command.json",
                     context = mapOf(
                         "elements" to listOf(
                             DrawingBoardElementModel(
-                                tag = "validator",
-                                packageName = "demo.application.shared",
-                                name = "SharedDefaultsValidator",
+                                tag = "command",
+                                packageName = "demo.application.workflow",
+                                name = "SubmitDefaults",
                                 description = "Map<String, String> <raw> & stable",
-                                message = "use <raw> & keep",
-                                targets = listOf("CLASS"),
-                                valueType = "Map<String, String>",
-                                parameters = listOf(
-                                    ValidatorParameterModel(
-                                        name = "metadata",
-                                        type = "Map<String, String>",
-                                        defaultValue = "emptyMap()",
-                                    ),
-                                    ValidatorParameterModel(
-                                        name = "title",
-                                        type = "String",
-                                        defaultValue = "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-                                    )
-                                ),
+                                aggregates = listOf("Content"),
                             )
                         )
                     ),
@@ -4342,16 +4427,7 @@ class PebbleArtifactRendererTest {
 
         val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
         assertEquals("Map<String, String> <raw> & stable", element["desc"].asString)
-        assertEquals("use <raw> & keep", element["message"].asString)
-        assertEquals("Map<String, String>", element["valueType"].asString)
-        assertEquals(
-            "emptyMap()",
-            element["parameters"].asJsonArray[0].asJsonObject["defaultValue"].asString,
-        )
-        assertEquals(
-            "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-            element["parameters"].asJsonArray[1].asJsonObject["defaultValue"].asString,
-        )
+        assertEquals("Content", element["aggregates"].asJsonArray.single().asString)
     }
 
     @Test
@@ -6558,135 +6634,6 @@ class PebbleArtifactRendererTest {
         assertTrue(eventContent.contains("class OrderCreatedDomainEventOverride"))
         assertTrue(handlerContent.contains("// override: renderer domain event handler template"))
         assertTrue(handlerContent.contains("class OrderCreatedDomainEventSubscriberOverride"))
-    }
-
-    @Test
-    fun `validator preset resolves design validator template and renders constraint contract`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-validator")
-        val renderer = PebbleArtifactRenderer(
-            templateResolver = PresetTemplateResolver(
-                preset = "ddd-default",
-                overrideDirs = listOf(overrideDir.toString())
-            )
-        )
-
-        val rendered = renderer.render(
-            planItems = listOf(
-                ArtifactPlanItem(
-                    generatorId = "design-validator",
-                    moduleRole = "application",
-                    templateId = "design/validator.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/validators/authorize/IssueToken.kt",
-                    context = mapOf(
-                        "packageName" to "com.acme.demo.application.validators.authorize",
-                        "typeName" to "IssueToken",
-                        "description" to "issue */ token validator",
-                        "descriptionCommentText" to "issue * / token validator",
-                        "message" to "token rejected ${'$'}reason",
-                        "messageLiteral" to "\"token rejected \\${'$'}reason\"",
-                        "targets" to listOf("FIELD", "VALUE_PARAMETER"),
-                        "valueType" to "Long",
-                        "parameters" to listOf(
-                            mapOf(
-                                "name" to "userIdField",
-                                "type" to "String",
-                                "defaultValueLiteral" to "\"user\\${'$'}id\"",
-                            ),
-                        ),
-                        "imports" to listOf("java.util.UUID"),
-                    ),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            ),
-            config = ProjectConfig(
-                basePackage = "com.acme.demo",
-                layout = ProjectLayout.MULTI_MODULE,
-                modules = emptyMap(),
-                sources = emptyMap(),
-                generators = emptyMap(),
-                templates = TemplateConfig(
-                    preset = "ddd-default",
-                    overrideDirs = listOf(overrideDir.toString()),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            )
-        )
-
-        val content = rendered.single().content
-        val normalizedContent = content.replace("\r\n", "\n")
-        assertTrue(content.contains("package com.acme.demo.application.validators.authorize"))
-        assertTrue(content.contains("import java.util.UUID"))
-        assertFalse(Regex("^import .+\n\nimport ", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
-        assertTrue(content.contains("* issue * / token validator"))
-        assertFalse(content.contains("* issue */ token validator"))
-        assertTrue(content.contains("@Constraint"))
-        assertTrue(content.contains("@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)"))
-        assertTrue(content.contains("annotation class IssueToken("))
-        assertTrue(content.contains("val message: String = \"token rejected \\${'$'}reason\""))
-        assertTrue(content.contains("val groups: Array<KClass<*>>"))
-        assertTrue(content.contains("val payload: Array<KClass<out Payload>>"))
-        assertTrue(content.contains("    val userIdField: String = \"user\\${'$'}id\""))
-        assertFalse(Regex("^val userIdField", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
-        assertFalse(Regex("^    val .+\n\n    val ", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
-        assertTrue(content.contains("class Validator : ConstraintValidator<IssueToken, Long>"))
-        assertTrue(content.contains("    class Validator : ConstraintValidator<IssueToken, Long>"))
-        assertFalse(Regex("^class Validator", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
-        assertTrue(content.contains("override fun isValid(value: Long?, context: ConstraintValidatorContext): Boolean = true"))
-    }
-
-    @Test
-    fun `validator preset supports override template resolution for design validator`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-design-validator")
-        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
-        overrideDesignDir.resolve("validator.kt.peb").writeText(
-            """
-            // override: renderer validator template
-            package {{ packageName }}
-            annotation class {{ typeName }}
-            """.trimIndent()
-        )
-
-        val renderer = PebbleArtifactRenderer(
-            templateResolver = PresetTemplateResolver(
-                preset = "ddd-default",
-                overrideDirs = listOf(overrideDir.toString())
-            )
-        )
-
-        val rendered = renderer.render(
-            planItems = listOf(
-                ArtifactPlanItem(
-                    generatorId = "design-validator",
-                    moduleRole = "application",
-                    templateId = "design/validator.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/validators/authorize/IssueToken.kt",
-                    context = mapOf(
-                        "packageName" to "com.acme.demo.application.validators.authorize",
-                        "typeName" to "IssueToken",
-                        "description" to "issue token validator",
-                        "valueType" to "Long",
-                        "imports" to emptyList<String>(),
-                    ),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            ),
-            config = ProjectConfig(
-                basePackage = "com.acme.demo",
-                layout = ProjectLayout.MULTI_MODULE,
-                modules = emptyMap(),
-                sources = emptyMap(),
-                generators = emptyMap(),
-                templates = TemplateConfig(
-                    preset = "ddd-default",
-                    overrideDirs = listOf(overrideDir.toString()),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            )
-        )
-
-        val content = rendered.single().content
-        assertTrue(content.contains("// override: renderer validator template"))
-        assertTrue(content.contains("annotation class IssueToken"))
     }
 
     @Test

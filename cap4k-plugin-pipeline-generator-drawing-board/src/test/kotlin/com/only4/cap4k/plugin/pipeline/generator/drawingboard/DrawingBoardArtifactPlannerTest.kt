@@ -10,7 +10,6 @@ import com.only4.cap4k.plugin.pipeline.api.OutputRootLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
-import com.only4.cap4k.plugin.pipeline.api.ValidatorParameterModel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
@@ -32,13 +31,11 @@ class DrawingBoardArtifactPlannerTest {
                 "drawing_board_api_payload",
                 "drawing_board_domain_event",
                 "drawing_board_integration_event",
-                "drawing_board_validator",
             ),
             plan.map { it.outputPath.removePrefix("design/").removeSuffix(".json") }
         )
         assertEquals(
             listOf(
-                "drawing-board/document.json.peb",
                 "drawing-board/document.json.peb",
                 "drawing-board/document.json.peb",
                 "drawing-board/document.json.peb",
@@ -56,7 +53,6 @@ class DrawingBoardArtifactPlannerTest {
         assertEquals("api_payload", plan[3].context["drawingBoardTag"])
         assertEquals("domain_event", plan[4].context["drawingBoardTag"])
         assertEquals("integration_event", plan[5].context["drawingBoardTag"])
-        assertEquals("validator", plan[6].context["drawingBoardTag"])
     }
 
     @Test
@@ -104,20 +100,6 @@ class DrawingBoardArtifactPlannerTest {
         val plan = planner.plan(config(outputRoot = "design/generated"), model())
 
         assertEquals("design/generated/drawing_board_command.json", plan.first().outputPath)
-    }
-
-    @Test
-    fun `preserves defaultValue in drawing board planner context`() {
-        val planner = DrawingBoardArtifactPlanner()
-
-        val plan = planner.plan(config(), model())
-        val validatorPlan = plan.single { it.context["drawingBoardTag"] == "validator" }
-        val validatorElement = (validatorPlan.context["elements"] as List<*>).single() as DrawingBoardElementModel
-
-        assertEquals(
-            "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-            validatorElement.parameters.single().defaultValue,
-        )
     }
 
     @Test
@@ -190,22 +172,6 @@ class DrawingBoardArtifactPlannerTest {
                         description = "order created",
                         role = "inbound",
                         eventName = "order.created",
-                    ),
-                    DrawingBoardElementModel(
-                        tag = "validator",
-                        packageName = "danmuku",
-                        name = "DanmukuDeletePermission",
-                        description = "delete permission",
-                        message = "no delete permission",
-                        targets = listOf("CLASS"),
-                        valueType = "Any",
-                        parameters = listOf(
-                            ValidatorParameterModel(
-                                name = "danmukuIdField",
-                                type = "String",
-                                defaultValue = "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-                            )
-                        ),
                     ),
                     DrawingBoardElementModel(
                         tag = "ignored",

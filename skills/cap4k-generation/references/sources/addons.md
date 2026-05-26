@@ -24,3 +24,7 @@ Rules:
 - addon artifacts appear in the same `cap4kPlan` output as built-in artifacts
 - addon outputs use the same ownership review fields: `generatorId`, `templateId`, `outputKind`, `conflictPolicy`, `resolvedOutputRoot`
 - addon artifacts are reviewed in generation, not invented in implementation
+- addon template IDs must stay under `addons/<providerId>/...`
+- provider-scoped options are read only by that provider
+- addons do not collect sources, mutate canonical model, change built-in render context, or affect other addon contexts
+- validator artifacts can be addon outputs, but `validator` is not a cap4k core design tag

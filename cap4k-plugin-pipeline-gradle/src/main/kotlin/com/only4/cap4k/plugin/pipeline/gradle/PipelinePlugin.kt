@@ -29,13 +29,15 @@ import com.only4.cap4k.plugin.pipeline.generator.design.DesignClientHandlerArtif
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignCommandArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainEventArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainEventHandlerArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainServiceArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventSubscriberArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryHandlerArtifactPlanner
-import com.only4.cap4k.plugin.pipeline.generator.design.DesignValidatorArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignSagaArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.drawingboard.DrawingBoardArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.flow.FlowArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.types.ValueObjectArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleArtifactRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleBootstrapRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
@@ -44,6 +46,7 @@ import com.only4.cap4k.plugin.pipeline.source.designjson.DesignJsonSourceProvide
 import com.only4.cap4k.plugin.pipeline.source.enummanifest.EnumManifestSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ir.IrAnalysisSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ksp.KspMetadataSourceProvider
+import com.only4.cap4k.plugin.pipeline.source.valueobject.ValueObjectManifestSourceProvider
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateProjectionArtifactPlanner
 import org.gradle.api.file.FileCollection
 import org.gradle.api.NamedDomainObjectContainer
@@ -119,6 +122,7 @@ class PipelinePlugin : Plugin<Project> {
             val config = configFactory.build(project, extension)
             ensureAggregateDomainJpaDependency(project, config)
             ensureAggregateProjectionAdapterJpaDependency(project, config)
+            ensureValueObjectDomainDependencies(project, config)
             val inferredSourceDependencies = inferSourceDependencies(project, config)
             if (inferredSourceDependencies.isNotEmpty()) {
                 planTask.configure { task -> task.dependsOn(inferredSourceDependencies) }
@@ -149,20 +153,29 @@ private const val JAKARTA_PERSISTENCE_COORDINATE = "$JAKARTA_PERSISTENCE_GROUP:$
 private const val JACKSON_ANNOTATIONS_GROUP = "com.fasterxml.jackson.core"
 private const val JACKSON_ANNOTATIONS_NAME = "jackson-annotations"
 private const val JACKSON_ANNOTATIONS_COORDINATE = "$JACKSON_ANNOTATIONS_GROUP:$JACKSON_ANNOTATIONS_NAME:2.17.2"
+private const val JACKSON_DATABIND_GROUP = "com.fasterxml.jackson.core"
+private const val JACKSON_DATABIND_NAME = "jackson-databind"
+private const val JACKSON_DATABIND_COORDINATE = "$JACKSON_DATABIND_GROUP:$JACKSON_DATABIND_NAME:2.17.2"
+private const val JACKSON_MODULE_KOTLIN_GROUP = "com.fasterxml.jackson.module"
+private const val JACKSON_MODULE_KOTLIN_NAME = "jackson-module-kotlin"
+private const val JACKSON_MODULE_KOTLIN_COORDINATE =
+    "$JACKSON_MODULE_KOTLIN_GROUP:$JACKSON_MODULE_KOTLIN_NAME:2.17.2"
 private const val CAP4K_ADDON_CONFIGURATION_NAME = "cap4kAddon"
-private val SOURCE_TASK_SOURCE_IDS = setOf("db", "enum-manifest", "design-json", "ksp-metadata")
+private val SOURCE_TASK_SOURCE_IDS = setOf("db", "design-json", "ksp-metadata", "enum-manifest", "value-object-manifest")
 private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "design-command",
     "design-query",
     "design-query-handler",
     "design-client",
     "design-client-handler",
-    "design-validator",
     "design-api-payload",
     "design-domain-event",
     "design-domain-event-handler",
+    "design-domain-service",
+    "design-saga",
     "design-integration-event",
     "design-integration-event-subscriber",
+    "types-value-object",
     "aggregate",
     "aggregate-projection",
 )
@@ -179,22 +192,12 @@ private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf
     extension.sources.designJson.enabled,
     extension.sources.kspMetadata.enabled,
     extension.sources.db.enabled,
-    extension.sources.enumManifest.enabled,
     extension.sources.irAnalysis.enabled,
-).any { it.orNull == true }
+).any { it.orNull == true } ||
+    !extension.types.enumManifest.files.isEmpty ||
+    !extension.types.valueObjectManifest.files.isEmpty
 
 private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean = listOf(
-    extension.generators.designCommand.enabled,
-    extension.generators.designQuery.enabled,
-    extension.generators.designQueryHandler.enabled,
-    extension.generators.designClient.enabled,
-    extension.generators.designClientHandler.enabled,
-    extension.generators.designValidator.enabled,
-    extension.generators.designApiPayload.enabled,
-    extension.generators.designDomainEvent.enabled,
-    extension.generators.designDomainEventHandler.enabled,
-    extension.generators.designIntegrationEvent.enabled,
-    extension.generators.designIntegrationEventSubscriber.enabled,
     extension.generators.aggregate.enabled,
     extension.generators.aggregateProjection.enabled,
     extension.generators.drawingBoard.enabled,
@@ -234,6 +237,15 @@ internal fun ensureAggregateProjectionAdapterJpaDependency(project: Project, con
     ensureJpaDependency(project, config, moduleRole = "adapter")
 }
 
+internal fun ensureValueObjectDomainDependencies(project: Project, config: ProjectConfig) {
+    if (!config.enabledGeneratorIds().contains("types-value-object")) {
+        return
+    }
+    ensureJpaDependency(project, config, moduleRole = "domain")
+    ensureJacksonDatabindDependency(project, config, moduleRole = "domain")
+    ensureJacksonModuleKotlinDependency(project, config, moduleRole = "domain")
+}
+
 private fun ensureJpaDependency(project: Project, config: ProjectConfig, moduleRole: String) {
     ensureImplementationDependency(
         project = project,
@@ -253,6 +265,28 @@ private fun ensureJacksonAnnotationsDependency(project: Project, config: Project
         group = JACKSON_ANNOTATIONS_GROUP,
         name = JACKSON_ANNOTATIONS_NAME,
         coordinate = JACKSON_ANNOTATIONS_COORDINATE,
+    )
+}
+
+private fun ensureJacksonDatabindDependency(project: Project, config: ProjectConfig, moduleRole: String) {
+    ensureImplementationDependency(
+        project = project,
+        config = config,
+        moduleRole = moduleRole,
+        group = JACKSON_DATABIND_GROUP,
+        name = JACKSON_DATABIND_NAME,
+        coordinate = JACKSON_DATABIND_COORDINATE,
+    )
+}
+
+private fun ensureJacksonModuleKotlinDependency(project: Project, config: ProjectConfig, moduleRole: String) {
+    ensureImplementationDependency(
+        project = project,
+        config = config,
+        moduleRole = moduleRole,
+        group = JACKSON_MODULE_KOTLIN_GROUP,
+        name = JACKSON_MODULE_KOTLIN_NAME,
+        coordinate = JACKSON_MODULE_KOTLIN_COORDINATE,
     )
 }
 
@@ -477,10 +511,16 @@ internal fun generatedSourceTaskInputSnapshot(rootProject: Project, config: Proj
             linkedMapOf(
                 "basePackage" to config.basePackage,
                 "modules" to config.modules.toSortedMap(),
-                "typeRegistry" to config.typeRegistry.toSortedMap(),
+                "typeRegistry" to linkedMapOf(
+                    "entries" to config.typeRegistry.entries.toSortedMap(),
+                    "registryFile" to config.typeRegistry.registryFile,
+                ),
                 "sources" to linkedMapOf(
                     "db" to sanitizedDbSourceSnapshot(config.sources["db"]),
-                    "enumManifest" to sanitizedSourceSnapshot(config.sources["enum-manifest"]),
+                ),
+                "typeManifests" to linkedMapOf(
+                    "enumManifestFiles" to config.typeRegistry.enumManifestFiles,
+                    "valueObjectManifestFiles" to config.typeRegistry.valueObjectManifestFiles,
                 ),
                 "generators" to linkedMapOf(
                     "aggregate" to sanitizedGeneratorSnapshot(config.generators["aggregate"]),
@@ -545,11 +585,8 @@ internal fun generatedSourceTaskInputFiles(
     config: ProjectConfig,
 ): FileCollection {
     val inputs = mutableListOf<Any>()
-    config.sources["enum-manifest"]
-        ?.options
-        ?.get("files")
-        .asStringList()
-        .mapTo(inputs) { project.file(it) }
+    config.typeRegistry.enumManifestFiles.mapTo(inputs) { project.file(it) }
+    config.typeRegistry.valueObjectManifestFiles.mapTo(inputs) { project.file(it) }
     extension.types.registryFile.orNull?.let { registryFile ->
         inputs += project.file(registryFile)
     }
@@ -633,6 +670,7 @@ internal fun buildSourceRunner(
         sources = listOf(
             DbSchemaSourceProvider(),
             EnumManifestSourceProvider(),
+            ValueObjectManifestSourceProvider(),
             DesignJsonSourceProvider(),
             KspMetadataSourceProvider(),
         ),
@@ -642,12 +680,14 @@ internal fun buildSourceRunner(
             DesignQueryHandlerArtifactPlanner(),
             DesignClientArtifactPlanner(),
             DesignClientHandlerArtifactPlanner(),
-            DesignValidatorArtifactPlanner(),
             DesignApiPayloadArtifactPlanner(),
             DesignDomainEventArtifactPlanner(),
             DesignDomainEventHandlerArtifactPlanner(),
+            DesignDomainServiceArtifactPlanner(),
+            DesignSagaArtifactPlanner(),
             DesignIntegrationEventArtifactPlanner(),
             DesignIntegrationEventSubscriberArtifactPlanner(),
+            ValueObjectArtifactPlanner(),
             AggregateArtifactPlanner(),
             AggregateProjectionArtifactPlanner(),
         ),
@@ -679,7 +719,29 @@ internal fun buildSourceRunner(
         },
         addonProviders = addonRuntime.providers,
     )
-    return runner.closeAfterRun(addonRuntime)
+    return ValueObjectManifestSourceConfigPipelineRunner(project, runner.closeAfterRun(addonRuntime))
+}
+
+private class ValueObjectManifestSourceConfigPipelineRunner(
+    private val project: Project,
+    private val delegate: PipelineRunner,
+) : PipelineRunner {
+    override fun run(config: ProjectConfig): PipelineResult =
+        delegate.run(config.withValueObjectManifestSourceConfig(project))
+}
+
+private fun ProjectConfig.withValueObjectManifestSourceConfig(project: Project): ProjectConfig {
+    if (typeRegistry.valueObjectManifestFiles.isEmpty()) {
+        return this
+    }
+    val files = typeRegistry.valueObjectManifestFiles.map { path -> project.file(path).absolutePath }
+    val sourceConfig = SourceConfig(
+        enabled = true,
+        options = mapOf("files" to files),
+    )
+    return copy(
+        sources = sources + ("value-object-manifest" to sourceConfig)
+    )
 }
 
 internal fun buildAnalysisRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner {

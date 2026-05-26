@@ -25,7 +25,7 @@
 
 ## Generated Ownership Review
 
-- [ ] Newly added command, query, event, subscriber, client, validator, and API payload surfaces were checked against `design.json` generation support.
+- [ ] Newly added command, query, event, subscriber, client, and API payload surfaces were checked against `design.json` generation support.
 - [ ] Generator-supported surfaces were added through `design.json` and regeneration.
 - [ ] Any handwritten surface includes the reason it could not be generated.
 - [ ] Generated subscriber shells were not deleted merely because they were empty.

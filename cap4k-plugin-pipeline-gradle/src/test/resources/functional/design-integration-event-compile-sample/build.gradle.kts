@@ -13,12 +13,4 @@ cap4k {
             files.from("design/design.json")
         }
     }
-    generators {
-        designIntegrationEvent {
-            enabled.set(true)
-        }
-        designIntegrationEventSubscriber {
-            enabled.set(true)
-        }
-    }
 }

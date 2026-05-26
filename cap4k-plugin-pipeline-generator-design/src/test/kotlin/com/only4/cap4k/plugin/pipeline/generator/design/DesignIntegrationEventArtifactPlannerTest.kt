@@ -9,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.IntegrationEventRole
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -95,7 +96,7 @@ class DesignIntegrationEventArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        typeRegistry = mapOf("UUID" to TypeRegistryEntry("java.util.UUID")),
+        typeRegistry = TypeRegistryConfig(entries = mapOf("UUID" to TypeRegistryEntry("java.util.UUID"))),
         generators = mapOf("design-integration-event" to GeneratorConfig(enabled = true)),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
     )

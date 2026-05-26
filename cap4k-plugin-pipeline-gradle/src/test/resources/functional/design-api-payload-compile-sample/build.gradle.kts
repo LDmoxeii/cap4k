@@ -13,9 +13,4 @@ cap4k {
             files.from("design/design.json")
         }
     }
-    generators {
-        designApiPayload {
-            enabled.set(true)
-        }
-    }
 }

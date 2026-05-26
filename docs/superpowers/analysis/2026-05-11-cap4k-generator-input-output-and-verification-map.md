@@ -9,15 +9,16 @@ This file maps generator inputs, generated artifacts, and review checks for busi
 | Source | DSL key | Main use |
 |---|---|---|
 | DB schema | `sources.db` | Aggregate model, relations, enums, repositories, schema metadata, factories/specifications/unique helpers |
-| Design JSON | `sources.designJson` | Commands, queries, clients, payloads, validators, domain events, integration events, handlers |
-| Enum manifest | `sources.enumManifest` | Shared enum definitions referenced by DB `@Type` |
+| Design JSON | `sources.designJson` | Commands, queries, clients, payloads, domain events, integration events, domain services, sagas, handlers |
+| Enum manifest | `types.enumManifest` | Shared enum definitions referenced by DB `@Type` |
+| Value-object manifest | `types.valueObjectManifest` | JSON-backed value-object source with shared/aggregate scope and nested converter |
 | KSP metadata | `sources.kspMetadata` | Aggregate metadata for design-driven artifacts |
 | IR analysis | `sources.irAnalysis` | Flow and drawing-board analysis artifacts |
 | Type registry | `types.registryFile` | Simple-name type bindings and converter policy loaded into `ProjectConfig.typeRegistry` for canonical type resolution |
 
-`buildSourceRunner` registers `db`, `enum-manifest`, `design-json`, and `ksp-metadata` as source-generation providers. `buildAnalysisRunner` registers `ir-analysis` separately for `cap4kAnalysisPlan` and `cap4kAnalysisGenerate`.
+`buildSourceRunner` registers `db`, `enum-manifest`, `value-object-manifest`, `design-json`, and `ksp-metadata` as source-generation providers. Public Gradle DSL configures enum and value-object manifests through `types {}` rather than `sources {}`. `buildAnalysisRunner` registers `ir-analysis` separately for `cap4kAnalysisPlan` and `cap4kAnalysisGenerate`.
 
-`types.registryFile` is outside `sources {}` and lives under `types {}` in the DSL, but it is still part of the source-generation input contract: `Cap4kProjectConfigFactory` loads it into `ProjectConfig.typeRegistry`, `generatedSourceTaskInputFiles(...)` includes the file as a tracked generation input, and `generatedSourceTaskInputSnapshot(...)` records the resolved registry in the task input snapshot.
+`types.registryFile`, `types.enumManifest`, and `types.valueObjectManifest` are outside `sources {}` and live under `types {}` in the DSL, but they are still part of the source-generation input contract. Enum and value-object manifest entries do not need matching `types.registryFile` entries.
 
 ## DB Annotation Surface
 
@@ -85,7 +86,8 @@ Supported `tag` values:
 | `api_payload` | adapter API payload |
 | `domain_event` | domain event contract plus subscriber/handler shell planning |
 | `integration_event` | application integration event contract and inbound subscriber skeleton |
-| `validator` | validation annotation and validator |
+| `domain_service` | domain service skeleton |
+| `saga` | saga param/result/handler skeleton |
 
 Common fields include `package`, `name`, `desc`, `aggregates`, `requestFields`, and `responseFields`.
 
@@ -97,15 +99,16 @@ Additional support:
 - `integration_event` requires `role` (`inbound` or `outbound`) and non-blank `eventName`.
 - `integration_event` must declare at least one request field; request fields become the event payload. `responseFields` must be empty.
 - `integration_event` with `role = inbound` can generate a Spring `@EventListener` subscriber; `role = outbound` generates only the event contract.
-- `validator` targets are limited to `CLASS`, `FIELD`, and `VALUE_PARAMETER`; value types are limited to `Any`, `String`, `Long`, `Int`, and `Boolean`, and `CLASS` requires `Any`. Parameter names cannot reuse `message`, `groups`, or `payload`, must be valid Kotlin identifiers, cannot be nullable, and parameter types are limited to `String`, `Int`, `Long`, and `Boolean`.
+- `domain_service` generates domain-module skeletons.
+- `saga` generates application-module param, result, and handler skeletons.
 - Manifest-file mode resolves design entries relative to `projectDir` and rejects blank `manifestFile`, empty manifest arrays, blank entries, duplicate entries, and entries that escape `projectDir`.
 
 Unsupported design tags today:
 
 - `value_object`
-- `domain_service`
+- `validator`
 
-These unsupported tags are important future backlog candidates because business authors want value objects and domain services to be as explicit as the supported command, query, client, domain event, and integration event contracts.
+`value_object` belongs to `types.valueObjectManifest`, not design JSON. `validator` is not a cap4k core design tag; validator artifacts are addon-owned unless they are aggregate unique helper outputs.
 
 ## Enum Manifest
 
@@ -117,7 +120,20 @@ Enum manifest is a JSON array with:
 
 It is used with DB `@T=<TypeName>`. Duplicate type names are rejected.
 
-`generateTranslation` has been removed from enum manifest. Enum translation belongs to addon generation, not core aggregate generation.
+`generateTranslation` has been removed from enum manifest. Enum translation belongs to addon generation, not core aggregate generation. Enum manifest entries do not need matching `types.registryFile` entries.
+
+## Value-Object Manifest
+
+Value-object manifest is a JSON array with:
+
+- `name`
+- `scope` = `shared` or `aggregate`
+- `aggregate` when `scope = aggregate`
+- `package`
+- `storage` = `json`
+- `fields[]` with `name`, `type`, optional `nullable`, optional `defaultValue`
+
+It is configured with `types.valueObjectManifest { files.from(...) }`. JSON-backed value objects generate checked-in source through `types-value-object`; default conflict policy is `SKIP`, and the JPA converter is nested directly inside the generated value-object class. Value-object manifest entries do not need matching `types.registryFile` entries.
 
 ## Type Registry
 
@@ -180,19 +196,9 @@ Important artifact boundaries:
 
 ## Design Outputs
 
-Design generator families:
+Design source planning is automatic once `sources.designJson` is enabled. There are no public design-family generator switches; only `aggregate`, `flow`, and `drawingBoard` remain public generator switches.
 
-- `designCommand`
-- `designQuery`
-- `designQueryHandler`
-- `designClient`
-- `designClientHandler`
-- `designValidator`
-- `designApiPayload`
-- `designDomainEvent`
-- `designDomainEventHandler`
-- `designIntegrationEvent`
-- `designIntegrationEventSubscriber`
+Design generator families are internal planner IDs, including command, query, query handler, client, client handler, API payload, domain event, domain-event handler, integration event, integration-event subscriber, domain service, and saga planners.
 
 `design-domain-event-handler` plans subscriber files for each domain event, so `domain_event` is not payload-only. Handler skeletons are author-maintained code. If generated into active source roots, their conflict policy should preserve user edits after the first generation.
 
@@ -200,7 +206,7 @@ Integration event contracts are generated under `<basePackage>.application.subsc
 
 ## Addon Outputs
 
-Artifact addons are not business-modeling sources and do not participate in `SourceProvider.collect(...)`. They are loaded separately and receive `ArtifactAddonContext(config, model, options)` after canonical assembly.
+Artifact addons are not business-modeling sources and do not participate in `SourceProvider.collect(...)`. They are loaded separately and receive `ArtifactAddonContext(config, model, options)` after canonical assembly. `options` are provider-scoped and are passed only to the matching provider.
 
 Addon plan items still appear in `cap4kPlan` as normal `ArtifactPlanItem`s. In `DefaultPipelineRunner`, built-in planner items and addon planner items are merged, then reviewed through the same ownership fields:
 
@@ -212,6 +218,8 @@ Addon plan items still appear in `cap4kPlan` as normal `ArtifactPlanItem`s. In `
 - `resolvedOutputRoot`.
 
 Conflict-policy handling is also shared: generated-source items resolve to `OVERWRITE`; checked-in items use template-level overrides when present, otherwise the emitted item policy.
+
+Addon artifact `templateId` values must stay under `addons/<providerId>/...`. Addons cannot expose new source/canonical SPI, mutate `CanonicalModel`, change built-in render context, or affect another addon's artifact context.
 
 ## Verification Workflow
 
@@ -239,14 +247,15 @@ The current repository implementation workflows separate missing generation inpu
 
 Return to `cap4k-generation` when the business facts already exist but a supported generated surface is missing, including:
 
-- `*Cmd.kt`, `*Qry.kt`, `*QryHandler.kt`, `*CliHandler.kt`, client, validator, payload, domain event, integration event, or subscriber skeletons;
-- aggregate/entity, repository, factory, specification, enum, or unique-helper generation surfaces after DDL / enum / type-registry facts already exist. Relation and field-mapping facts belong to the aggregate/entity generation inputs, not standalone plan outputs.
+- `*Cmd.kt`, `*Qry.kt`, `*QryHandler.kt`, `*CliHandler.kt`, client, payload, domain event, integration event, domain service, saga, or subscriber skeletons;
+- aggregate/entity, repository, factory, specification, enum, value-object, or unique-helper generation surfaces after DDL / enum / value-object / type-registry facts already exist. Relation and field-mapping facts belong to the aggregate/entity generation inputs, not standalone plan outputs.
 
 Return to `cap4k-modeling` when the missing piece is the fact contract generation depends on, including:
 
 - a design entry;
 - a DDL annotation or DDL contract;
-- an enum manifest entry;
+- a `types.enumManifest` entry;
+- a `types.valueObjectManifest` entry;
 - a `types.registryFile` entry.
 
 Return to `cap4k-generation` / compile / setup when the business facts already exist but the design-generation pipeline is missing required derived output or setup, including:
@@ -260,7 +269,8 @@ Return to `cap4k-generation` / compile / setup when the business facts already e
 A business reference project should demonstrate:
 
 - DB annotations for enum, relation, Strong ID identity boundaries, version, soft delete, managed fields, and uniqueness when used;
-- design JSON for supported tags such as command/query/client/api_payload/domain_event/integration_event, with handler families appearing as outputs of those supported tags where the corresponding generators are enabled;
+- design JSON for supported tags such as command/query/client/api_payload/domain_event/integration_event/domain_service/saga, with handler families appearing as outputs of those supported tags;
+- `types.enumManifest` and `types.valueObjectManifest` contracts without duplicate `types.registryFile` entries;
 - `cap4kGenerateSources` for build-owned source;
 - optional `aggregateProjection` output when the project wants generated adapter read models;
 - checked-in handlers/factories as user-maintained code;

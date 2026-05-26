@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -455,24 +456,26 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
-    fun `reads expanded validator structural fields`() {
-        val tempFile = tempDir.resolve("validator-expanded.json")
+    fun `parses domain service and saga entries`() {
+        val tempFile = tempDir.resolve("design.json")
         Files.writeString(
             tempFile,
             """
                 [
                   {
-                    "tag": "validator",
-                    "package": "danmuku",
-                    "name": "DanmukuDeletePermission",
-                    "desc": "delete permission",
-                    "message": "no permission",
-                    "targets": ["CLASS"],
-                    "valueType": "Any",
-                    "parameters": [
-                      { "name": "danmukuIdField", "type": "String", "defaultValue": "danmukuId" },
-                      { "name": "operatorIdField", "type": "String", "defaultValue": "operatorId" }
-                    ]
+                    "tag": "domain_service",
+                    "package": "content.domain",
+                    "name": "ContentPublicationPolicy",
+                    "desc": "publication policy",
+                    "aggregates": ["Content"]
+                  },
+                  {
+                    "tag": "saga",
+                    "package": "content.workflow",
+                    "name": "PublishContentSaga",
+                    "desc": "publish content",
+                    "requestFields": [{ "name": "contentId", "type": "ContentId" }],
+                    "responseFields": [{ "name": "accepted", "type": "Boolean" }]
                   }
                 ]
             """.trimIndent(),
@@ -480,80 +483,19 @@ class DesignJsonSourceProviderTest {
         )
 
         val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
-        val entry = snapshot.entries.single()
 
-        assertEquals("validator", entry.tag)
-        assertEquals("danmuku", entry.packageName)
-        assertEquals("DanmukuDeletePermission", entry.name)
-        assertEquals("delete permission", entry.description)
-        assertEquals("no permission", entry.message)
-        assertEquals(listOf("CLASS"), entry.targets)
-        assertEquals("Any", entry.valueType)
-        assertEquals(2, entry.parameters.size)
-        assertEquals("danmukuIdField", entry.parameters.first().name)
-        assertEquals("String", entry.parameters.first().type)
-        assertEquals(false, entry.parameters.first().nullable)
-        assertEquals("danmukuId", entry.parameters.first().defaultValue)
+        assertEquals(listOf("domain_service", "saga"), snapshot.entries.map { it.tag })
+        assertEquals(listOf("Content"), snapshot.entries[0].aggregates)
+        assertEquals("contentId", snapshot.entries[1].requestFields.single().name)
+        assertEquals("accepted", snapshot.entries[1].responseFields.single().name)
     }
 
     @Test
-    fun `defaults validator message targets and value type`() {
-        val tempFile = tempDir.resolve("validator-defaults.json")
+    fun `validator tag is unsupported as a normal design tag`() {
+        val tempFile = tempDir.resolve("design.json")
         Files.writeString(
             tempFile,
-            """
-                [
-                  {
-                    "tag": "validator",
-                    "package": "category",
-                    "name": "CategoryMustExist",
-                    "desc": "category must exist"
-                  },
-                  {
-                    "tag": "validator",
-                    "package": "danmuku",
-                    "name": "DanmukuDeletePermission",
-                    "desc": "delete permission",
-                    "targets": ["CLASS"]
-                  },
-                  {
-                    "tag": "validator",
-                    "package": "shared",
-                    "name": "SharedAnyValidator",
-                    "desc": "shared validator",
-                    "targets": ["FIELD", "CLASS"]
-                  }
-                ]
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-
-        val entries = (DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot).entries
-
-        assertEquals("校验未通过", entries.first().message)
-        assertEquals(listOf("FIELD", "VALUE_PARAMETER"), entries.first().targets)
-        assertEquals("Long", entries.first().valueType)
-        assertEquals("Any", entries[1].valueType)
-        assertEquals(listOf("CLASS", "FIELD"), entries[2].targets)
-        assertEquals("Any", entries[2].valueType)
-    }
-
-    @Test
-    fun `rejects invalid validator target`() {
-        val tempFile = tempDir.resolve("validator-invalid-target.json")
-        Files.writeString(
-            tempFile,
-            """
-                [
-                  {
-                    "tag": "validator",
-                    "package": "category",
-                    "name": "CategoryMustExist",
-                    "desc": "category must exist",
-                    "targets": ["METHOD"]
-                  }
-                ]
-            """.trimIndent(),
+            """[{ "tag": "validator", "package": "content.validation", "name": "ValidAuthor" }]""",
             StandardCharsets.UTF_8,
         )
 
@@ -561,138 +503,9 @@ class DesignJsonSourceProviderTest {
             DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
         }
 
-        assertEquals("validator CategoryMustExist has unsupported target: METHOD", error.message)
-    }
-
-    @Test
-    fun `rejects invalid validator value type`() {
-        val tempFile = tempDir.resolve("validator-invalid-type.json")
-        Files.writeString(
-            tempFile,
-            """
-                [
-                  {
-                    "tag": "validator",
-                    "package": "video",
-                    "name": "VideoDeletePermission",
-                    "desc": "video delete permission",
-                    "targets": ["CLASS"],
-                    "valueType": "DeleteVideoPostCmd.Request"
-                  }
-                ]
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-        }
-
-        assertEquals(
-            "validator VideoDeletePermission has unsupported valueType: DeleteVideoPostCmd.Request",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `rejects class target with scalar validator value type`() {
-        val tempFile = tempDir.resolve("validator-class-scalar-type.json")
-        Files.writeString(
-            tempFile,
-            """
-                [
-                  {
-                    "tag": "validator",
-                    "package": "shared",
-                    "name": "SharedValidator",
-                    "desc": "shared validator",
-                    "targets": ["CLASS", "FIELD"],
-                    "valueType": "Long"
-                  }
-                ]
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-        }
-
-        assertEquals("validator SharedValidator cannot target CLASS with valueType: Long", error.message)
-    }
-
-    @Test
-    fun `rejects invalid validator parameters`() {
-        val cases = listOf(
-            Triple(
-                "reserved",
-                """{ "name": "message", "type": "String" }""",
-                "validator DanmukuDeletePermission parameter name is reserved: message",
-            ),
-            Triple(
-                "nullable",
-                """{ "name": "operatorIdField", "type": "String", "nullable": true }""",
-                "validator DanmukuDeletePermission parameter operatorIdField cannot be nullable",
-            ),
-            Triple(
-                "unsupported-type",
-                """{ "name": "roles", "type": "Array<String>" }""",
-                "validator DanmukuDeletePermission parameter roles has unsupported type: Array<String>",
-            ),
-            Triple(
-                "invalid-name",
-                """{ "name": "operator-id", "type": "String" }""",
-                "validator DanmukuDeletePermission parameter name is not a valid Kotlin identifier: operator-id",
-            ),
-            Triple(
-                "keyword-name",
-                """{ "name": "class", "type": "String" }""",
-                "validator DanmukuDeletePermission parameter name is not a valid Kotlin identifier: class",
-            ),
-            Triple(
-                "invalid-int-default",
-                """{ "name": "retryCount", "type": "Int", "defaultValue": "abc" }""",
-                "validator DanmukuDeletePermission parameter retryCount has invalid Int defaultValue: abc",
-            ),
-            Triple(
-                "invalid-boolean-default",
-                """{ "name": "enabled", "type": "Boolean", "defaultValue": "yes" }""",
-                "validator DanmukuDeletePermission parameter enabled has invalid Boolean defaultValue: yes",
-            ),
-            Triple(
-                "expression-default",
-                """{ "name": "maxCount", "type": "Long", "defaultValue": "SomeObject.VALUE" }""",
-                "validator DanmukuDeletePermission parameter maxCount has invalid Long defaultValue: SomeObject.VALUE",
-            ),
-        )
-
-        cases.forEach { (suffix, parameter, expectedMessage) ->
-            val tempFile = tempDir.resolve("validator-invalid-parameter-$suffix.json")
-            Files.writeString(
-                tempFile,
-                """
-                    [
-                      {
-                        "tag": "validator",
-                        "package": "danmuku",
-                        "name": "DanmukuDeletePermission",
-                        "desc": "delete permission",
-                        "targets": ["CLASS"],
-                        "parameters": [
-                          $parameter
-                        ]
-                      }
-                    ]
-                """.trimIndent(),
-                StandardCharsets.UTF_8,
-            )
-
-            val error = assertThrows(IllegalArgumentException::class.java) {
-                DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-            }
-
-            assertEquals(expectedMessage, error.message)
-        }
+        assertTrue(error.message!!.contains("Unsupported design tag: validator"))
+        assertFalse(error.message!!.contains("migration"))
+        assertFalse(error.message!!.contains("deprecated"))
     }
 
     @Test
@@ -722,15 +535,15 @@ class DesignJsonSourceProviderTest {
                 DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
             }
 
-            assertEquals("unsupported design tag for LegacyTag: $legacyTag", error.message)
+            assertEquals("Unsupported design tag: $legacyTag", error.message)
         }
     }
 
     @Test
     fun `rejects non-canonical design tags exactly`() {
         val cases = listOf(
-            Triple("Query", "FindOrder", "unsupported design tag for FindOrder: Query"),
-            Triple(" command ", "SubmitOrder", "unsupported design tag for SubmitOrder:  command "),
+            Triple("Query", "FindOrder", "Unsupported design tag: Query"),
+            Triple(" command ", "SubmitOrder", "Unsupported design tag:  command "),
         )
 
         cases.forEach { (tag, name, expectedMessage) ->

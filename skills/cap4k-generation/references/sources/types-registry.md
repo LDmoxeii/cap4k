@@ -1,6 +1,6 @@
 # Types Registry
 
-`types.registryFile` is configured under `types {}` rather than `sources {}`, but it is still part of the generation input contract.
+`types.registryFile` is configured under `types {}` rather than `sources {}`, but it is still part of the generation input contract. Use it for external or handwritten custom types that are not already declared by `types.enumManifest` or `types.valueObjectManifest`.
 
 Minimal shape:
 
@@ -26,4 +26,5 @@ Rules:
 - duplicate fields, unsupported fields, and non-object values are rejected.
 - invalid converter values are rejected; only `false`, `"nested"`, or a converter FQN are allowed.
 - use this contract for JSON-backed or inline value carriers referenced by DB `@T`.
+- do not duplicate enum manifest or value-object manifest entries here.
 - value-object classes, normalization rules, and business invariants still belong to handwritten modeling and implementation.

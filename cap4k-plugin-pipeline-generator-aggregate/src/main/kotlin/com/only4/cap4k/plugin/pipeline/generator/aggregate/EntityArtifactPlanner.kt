@@ -15,7 +15,7 @@ import java.util.Locale
 internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
-        val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry)
+        val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry.entries)
         val defaultProjector = AggregateEntityDefaultProjector()
         val identifierQuoteStyle = resolveIdentifierQuoteStyle(config)
 

@@ -8,6 +8,8 @@ import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverterKind
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
 import java.util.Locale
 
 internal object AggregateJpaControlInference {
@@ -15,6 +17,7 @@ internal object AggregateJpaControlInference {
         entities: List<EntityModel>,
         schema: DbSchemaSnapshot?,
         sharedEnums: List<SharedEnumDefinition>,
+        valueObjects: List<ValueObjectModel>,
         typeRegistry: Map<String, TypeRegistryEntry>,
         artifactLayout: ArtifactLayoutResolver,
     ): List<AggregateEntityJpaModel> {
@@ -28,6 +31,7 @@ internal object AggregateJpaControlInference {
             )
         }
         val localEnumOwnership = buildLocalEnumOwnership(entities)
+        val aggregateRootNameByEntity = buildAggregateRootNameByEntity(entities)
         val tableByName = schema?.tables?.associateBy { it.tableName.lowercase(Locale.ROOT) }.orEmpty()
 
         return entities.map { entity ->
@@ -50,6 +54,8 @@ internal object AggregateJpaControlInference {
                     val converter = resolveConverterBinding(
                         typeBinding = column.typeBinding,
                         ownerPackageName = entity.packageName,
+                        ownerAggregateName = aggregateRootNameByEntity.getValue(entity.key()),
+                        valueObjects = valueObjects,
                         hasLocalEnumOwner = LocalEnumOwnerKey(
                             ownerPackageName = entity.packageName,
                             typeBinding = column.typeBinding.orEmpty(),
@@ -72,11 +78,19 @@ internal object AggregateJpaControlInference {
     private fun resolveConverterBinding(
         typeBinding: String?,
         ownerPackageName: String,
+        ownerAggregateName: String,
+        valueObjects: List<ValueObjectModel>,
         hasLocalEnumOwner: Boolean,
         sharedEnumsByType: Map<String, String>,
         typeRegistry: Map<String, TypeRegistryEntry>,
     ): ConverterBinding? {
         val normalizedTypeBinding = typeBinding?.takeIf { it.isNotBlank() } ?: return null
+        resolveValueObjectBinding(
+            typeName = normalizedTypeBinding,
+            ownerAggregateName = ownerAggregateName,
+            valueObjects = valueObjects,
+        )?.let { return it }
+
         val sharedEnumFqn = sharedEnumsByType[normalizedTypeBinding]
         val registryEntry = typeRegistry[normalizedTypeBinding]
 
@@ -105,6 +119,31 @@ internal object AggregateJpaControlInference {
         }
     }
 
+    private fun resolveValueObjectBinding(
+        typeName: String,
+        ownerAggregateName: String,
+        valueObjects: List<ValueObjectModel>,
+    ): ConverterBinding? {
+        val localMatches = valueObjects.filter { valueObject ->
+            valueObject.scope == ValueObjectScope.AGGREGATE &&
+                valueObject.aggregate == ownerAggregateName &&
+                valueObject.name == typeName
+        }
+        if (localMatches.size > 1) {
+            throw IllegalArgumentException("Ambiguous value object type override: $typeName")
+        }
+        localMatches.singleOrNull()?.let { return it.toConverterBinding() }
+
+        val sharedMatches = valueObjects.filter { valueObject ->
+            valueObject.scope == ValueObjectScope.SHARED &&
+                valueObject.name == typeName
+        }
+        if (sharedMatches.size > 1) {
+            throw IllegalArgumentException("Ambiguous value object type override: $typeName")
+        }
+        return sharedMatches.singleOrNull()?.toConverterBinding()
+    }
+
     private fun buildLocalEnumOwnership(entities: List<EntityModel>): Set<LocalEnumOwnerKey> {
         val owners = linkedMapOf<LocalEnumOwnerKey, List<com.only4.cap4k.plugin.pipeline.api.EnumItemModel>>()
 
@@ -126,6 +165,37 @@ internal object AggregateJpaControlInference {
         }
 
         return owners.keys
+    }
+
+    private fun buildAggregateRootNameByEntity(entities: List<EntityModel>): Map<EntityKey, String> {
+        val entitiesByKey = entities.associateBy { it.key() }
+        val entitiesByName = entities.groupBy { it.name }
+        val resolving = mutableSetOf<EntityKey>()
+        val resolved = linkedMapOf<EntityKey, String>()
+
+        fun resolve(entity: EntityModel): String {
+            val key = entity.key()
+            resolved[key]?.let { return it }
+            if (!resolving.add(key)) {
+                return entity.name
+            }
+            val parentEntityName = entity.parentEntityName?.takeIf { it.isNotBlank() }
+            val rootName = when {
+                entity.aggregateRoot -> entity.name
+                parentEntityName == null -> entity.name
+                else -> {
+                    val parent = entitiesByKey[EntityKey(entity.packageName, parentEntityName)] ?:
+                        entitiesByName[parentEntityName]?.singleOrNull()
+                    parent?.let { resolve(it) } ?: entity.name
+                }
+            }
+            resolving.remove(key)
+            resolved[key] = rootName
+            return rootName
+        }
+
+        entities.forEach { resolve(it) }
+        return resolved
     }
 
     private fun buildSharedEnumFqns(
@@ -173,6 +243,11 @@ internal object AggregateJpaControlInference {
             )
         }
 
+    private fun ValueObjectModel.toConverterBinding(): ConverterBinding {
+        val typeFqn = "${packageName}.${name}"
+        return ConverterBinding(typeFqn = typeFqn, converterClassFqn = "$typeFqn.Converter")
+    }
+
     private fun isFqn(value: String): Boolean =
         '.' in value
 
@@ -217,3 +292,10 @@ private data class LocalEnumOwnerKey(
     val ownerPackageName: String,
     val typeBinding: String,
 )
+
+private data class EntityKey(
+    val packageName: String,
+    val name: String,
+)
+
+private fun EntityModel.key(): EntityKey = EntityKey(packageName = packageName, name = name)

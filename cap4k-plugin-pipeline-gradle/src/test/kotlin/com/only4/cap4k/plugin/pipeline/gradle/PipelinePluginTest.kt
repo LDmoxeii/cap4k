@@ -13,10 +13,12 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import com.only4.cap4k.plugin.pipeline.core.BootstrapFilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventSubscriberArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.types.ValueObjectArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleBootstrapRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
 import org.gradle.api.file.FileCollection
@@ -267,7 +269,7 @@ class PipelinePluginTest {
         assertTrue(shouldInferPipelineDependencies(extension))
 
         extension.generators.aggregateProjection.enabled.set(false)
-        extension.generators.designIntegrationEvent.enabled.set(true)
+        extension.sources.designJson.enabled.set(true)
         assertTrue(shouldInferPipelineDependencies(extension))
     }
 
@@ -393,11 +395,13 @@ class PipelinePluginTest {
             sources = mapOf(
                 "design-json" to SourceConfig(enabled = true),
                 "ksp-metadata" to SourceConfig(enabled = true),
+                "value-object-manifest" to SourceConfig(enabled = true),
                 "ir-analysis" to SourceConfig(enabled = true),
             ),
             generators = mapOf(
                 "design-integration-event" to GeneratorConfig(enabled = true),
                 "design-integration-event-subscriber" to GeneratorConfig(enabled = true),
+                "types-value-object" to GeneratorConfig(enabled = true),
                 "drawing-board" to GeneratorConfig(enabled = true),
                 "flow" to GeneratorConfig(enabled = true),
             ),
@@ -405,9 +409,9 @@ class PipelinePluginTest {
 
         val sourceConfig = sourceTaskConfig(config)
 
-        assertEquals(setOf("design-json", "ksp-metadata"), sourceConfig.sources.keys)
+        assertEquals(setOf("design-json", "ksp-metadata", "value-object-manifest"), sourceConfig.sources.keys)
         assertEquals(
-            setOf("design-integration-event", "design-integration-event-subscriber"),
+            setOf("design-integration-event", "design-integration-event-subscriber", "types-value-object"),
             sourceConfig.generators.keys,
         )
     }
@@ -420,6 +424,7 @@ class PipelinePluginTest {
 
         assertTrue(generatorProviderTypes(runner).contains(DesignIntegrationEventArtifactPlanner::class.java))
         assertTrue(generatorProviderTypes(runner).contains(DesignIntegrationEventSubscriberArtifactPlanner::class.java))
+        assertTrue(generatorProviderTypes(runner).contains(ValueObjectArtifactPlanner::class.java))
     }
 
     @Test
@@ -562,8 +567,7 @@ class PipelinePluginTest {
             "jdbc:h2:file:./build/h2/demo;MODE=MySQL;INIT=RUNSCRIPT FROM '${schemaFile.absolutePath.replace("\\", "/")}'"
         )
         extension.types.registryFile.set(typeRegistry.name)
-        extension.sources.enumManifest.enabled.set(true)
-        extension.sources.enumManifest.files.from(enumManifest)
+        extension.types.enumManifest.files.from(enumManifest)
         extension.templates.overrideDirs.from(templateOverride)
 
         val task = rootProject.tasks.named("cap4kGenerateSources", Cap4kGenerateSourcesTask::class.java).get()
@@ -631,7 +635,9 @@ class PipelinePluginTest {
                 "aggregate-projection" to GeneratorConfig(enabled = true),
             ),
         ).copy(
-            typeRegistry = mapOf("Money" to TypeRegistryEntry("com.acme.Money")),
+            typeRegistry = TypeRegistryConfig(
+                entries = mapOf("Money" to TypeRegistryEntry("com.acme.Money")),
+            ),
         )
 
         val snapshot = generatedSourceTaskInputSnapshot(rootProject, config)
@@ -1015,6 +1021,92 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `value object generation wires json converter dependencies into resolved domain module`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-value-object-domain-dependency-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        domainProject.configurations.create("implementation")
+
+        ensureValueObjectDomainDependencies(
+            rootProject,
+            projectConfig(
+                modules = mapOf("domain" to "demo-domain"),
+                sources = mapOf("value-object-manifest" to SourceConfig(enabled = true)),
+                generators = mapOf("types-value-object" to GeneratorConfig(enabled = true)),
+            )
+        )
+
+        val implementationDependencies = domainProject.configurations.getByName("implementation").dependencies
+        assertTrue(
+            implementationDependencies.any { dependency ->
+                dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
+            }
+        )
+        assertTrue(
+            implementationDependencies.any { dependency ->
+                dependency.group == "com.fasterxml.jackson.core" && dependency.name == "jackson-databind"
+            }
+        )
+        assertTrue(
+            implementationDependencies.any { dependency ->
+                dependency.group == "com.fasterxml.jackson.module" && dependency.name == "jackson-module-kotlin"
+            }
+        )
+    }
+
+    @Test
+    fun `value object generation does not duplicate json converter dependencies`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-value-object-domain-dependency-dedup-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        domainProject.configurations.create("implementation")
+        domainProject.dependencies.add("implementation", "jakarta.persistence:jakarta.persistence-api:3.1.0")
+        domainProject.dependencies.add("implementation", "com.fasterxml.jackson.core:jackson-databind:2.17.2")
+        domainProject.dependencies.add("implementation", "com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
+
+        ensureValueObjectDomainDependencies(
+            rootProject,
+            projectConfig(
+                modules = mapOf("domain" to "demo-domain"),
+                sources = mapOf("value-object-manifest" to SourceConfig(enabled = true)),
+                generators = mapOf("types-value-object" to GeneratorConfig(enabled = true)),
+            )
+        )
+
+        val implementationDependencies = domainProject.configurations.getByName("implementation").dependencies
+        assertEquals(
+            1,
+            implementationDependencies.count { dependency ->
+                dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
+            },
+        )
+        assertEquals(
+            1,
+            implementationDependencies.count { dependency ->
+                dependency.group == "com.fasterxml.jackson.core" && dependency.name == "jackson-databind"
+            },
+        )
+        assertEquals(
+            1,
+            implementationDependencies.count { dependency ->
+                dependency.group == "com.fasterxml.jackson.module" && dependency.name == "jackson-module-kotlin"
+            },
+        )
+    }
+
+    @Test
     fun `aggregate generation does not duplicate jakarta persistence api dependency`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-aggregate-domain-dependency-dedup-root")
         val rootProject = ProjectBuilder.builder()
@@ -1127,8 +1219,27 @@ class PipelinePluginTest {
         throw NoSuchFieldException(name)
     }
 
+    private fun hasInternalProperty(target: Any, name: String): Boolean {
+        var type: Class<*>? = target.javaClass
+        while (type != null) {
+            if (type.declaredFields.any { it.name == name }) {
+                return true
+            }
+            type = type.superclass
+        }
+        return false
+    }
+
+    private fun runnerWithInternalProperty(runner: Any, name: String): Any {
+        var current = runner
+        while (!hasInternalProperty(current, name)) {
+            current = readInternalProperty(current, "delegate") ?: throw NoSuchFieldException(name)
+        }
+        return current
+    }
+
     private fun addonProviderIds(runner: Any): List<String> {
-        val effectiveRunner = runCatching { readInternalProperty(runner, "delegate") }.getOrNull() ?: runner
+        val effectiveRunner = runnerWithInternalProperty(runner, "addonProviders")
         val providers = readInternalProperty(effectiveRunner, "addonProviders") as List<*>
         return providers.map { provider ->
             readInternalProperty(provider!!, "id").toString()
@@ -1136,7 +1247,7 @@ class PipelinePluginTest {
     }
 
     private fun generatorProviderTypes(runner: Any): Set<Class<*>> {
-        val effectiveRunner = runCatching { readInternalProperty(runner, "delegate") }.getOrNull() ?: runner
+        val effectiveRunner = runnerWithInternalProperty(runner, "generators")
         val providers = readInternalProperty(effectiveRunner, "generators") as List<*>
         return providers.map { it!!::class.java }.toSet()
     }

@@ -40,9 +40,14 @@ import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverter
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryModel
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
-import com.only4.cap4k.plugin.pipeline.api.ValidatorParameterModel
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectManifestSnapshot
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectStorage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -222,6 +227,268 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembles domain services sagas and value objects`() {
+        val design = DesignSpecSnapshot(
+            entries = listOf(
+                DesignSpecEntry(
+                    tag = "domain_service",
+                    packageName = "content.domain",
+                    name = "ContentPublicationPolicy",
+                    description = "publication policy",
+                    aggregates = listOf("Content"),
+                    requestFields = emptyList(),
+                    responseFields = emptyList(),
+                ),
+                DesignSpecEntry(
+                    tag = "saga",
+                    packageName = "content.workflow",
+                    name = "PublishContentSaga",
+                    description = "publish content",
+                    aggregates = emptyList(),
+                    requestFields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+                    responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+                ),
+            )
+        )
+        val valueObjects = ValueObjectManifestSnapshot(
+            valueObjects = listOf(
+                ValueObjectModel(
+                    name = "Money",
+                    packageName = "shared.values",
+                    scope = ValueObjectScope.SHARED,
+                    storage = ValueObjectStorage.JSON,
+                    fields = listOf(FieldModel(name = "amount", type = "BigDecimal")),
+                )
+            )
+        )
+        val typeRegistry = TypeRegistryModel(
+            entries = mapOf("ContentId" to TypeRegistryEntry(fqn = "content.types.ContentId"))
+        )
+
+        val model = assemble(design = design, valueObjects = valueObjects, typeRegistry = typeRegistry)
+
+        assertEquals("ContentPublicationPolicy", model.domainServices.single().name)
+        assertEquals(listOf("Content"), model.domainServices.single().aggregates)
+        assertEquals("PublishContentSaga", model.sagas.single().name)
+        assertEquals(listOf("contentId"), model.sagas.single().requestFields.map { it.name })
+        assertEquals(listOf("accepted"), model.sagas.single().responseFields.map { it.name })
+        assertEquals("Money", model.valueObjects.single().name)
+        assertEquals(typeRegistry.entries, model.typeRegistry.entries)
+    }
+
+    @Test
+    fun `same aggregate local enum repeated with same definition does not fail duplicate simple-name validation`() {
+        val model = assemble(
+            db = DbSchemaSnapshot(
+                tables = listOf(
+                    DbTableSnapshot(
+                        tableName = "video_post",
+                        comment = "",
+                        columns = listOf(
+                            DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            DbColumnSnapshot(
+                                name = "visibility",
+                                dbType = "INT",
+                                kotlinType = "Int",
+                                nullable = false,
+                                typeBinding = "Visibility",
+                                enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden")),
+                            ),
+                            DbColumnSnapshot(
+                                name = "default_visibility",
+                                dbType = "INT",
+                                kotlinType = "Int",
+                                nullable = false,
+                                typeBinding = "Visibility",
+                                enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden")),
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        uniqueConstraints = emptyList(),
+                    )
+                )
+            )
+        )
+
+        assertEquals(listOf("VideoPost"), model.entities.map { it.name })
+    }
+
+    @Test
+    fun `same aggregate local enum repeated with different definitions fails duplicate simple-name validation`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assemble(
+                db = DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "visibility",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "Visibility",
+                                    enumItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden")),
+                                ),
+                                DbColumnSnapshot(
+                                    name = "default_visibility",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "Visibility",
+                                    enumItems = listOf(EnumItemModel(1, "PUBLIC", "Public")),
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                )
+            )
+        }
+
+        assertTrue(error.message!!.contains("Duplicate type simple name: Visibility"))
+    }
+
+    @Test
+    fun `different aggregate owners can define local enums with the same simple name`() {
+        val model = assemble(
+            db = DbSchemaSnapshot(
+                tables = listOf(
+                    DbTableSnapshot(
+                        tableName = "content",
+                        comment = "",
+                        columns = listOf(
+                            DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            DbColumnSnapshot(
+                                name = "status",
+                                dbType = "INT",
+                                kotlinType = "Int",
+                                nullable = false,
+                                typeBinding = "Status",
+                                enumItems = listOf(EnumItemModel(0, "DRAFT", "Draft")),
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        uniqueConstraints = emptyList(),
+                    ),
+                    DbTableSnapshot(
+                        tableName = "review",
+                        comment = "",
+                        columns = listOf(
+                            DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            DbColumnSnapshot(
+                                name = "status",
+                                dbType = "INT",
+                                kotlinType = "Int",
+                                nullable = false,
+                                typeBinding = "Status",
+                                enumItems = listOf(EnumItemModel(0, "PENDING", "Pending")),
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        uniqueConstraints = emptyList(),
+                    ),
+                )
+            )
+        )
+
+        assertEquals(listOf("Content", "Review"), model.entities.map { it.name })
+    }
+
+    @Test
+    fun `aggregate-local value objects with same simple name in different aggregates do not fail`() {
+        val valueObjects = ValueObjectManifestSnapshot(
+            valueObjects = listOf(
+                ValueObjectModel(
+                    name = "Snapshot",
+                    packageName = "content.values",
+                    scope = ValueObjectScope.AGGREGATE,
+                    aggregate = "Content",
+                ),
+                ValueObjectModel(
+                    name = "Snapshot",
+                    packageName = "review.values",
+                    scope = ValueObjectScope.AGGREGATE,
+                    aggregate = "Review",
+                ),
+            )
+        )
+
+        val model = assemble(valueObjects = valueObjects)
+
+        assertEquals(listOf("Content", "Review"), model.valueObjects.map { it.aggregate })
+    }
+
+    @Test
+    fun `same aggregate local enum and value object with same simple name fail duplicate validation`() {
+        val valueObjects = ValueObjectManifestSnapshot(
+            valueObjects = listOf(
+                ValueObjectModel(
+                    name = "Status",
+                    packageName = "content.values",
+                    scope = ValueObjectScope.AGGREGATE,
+                    aggregate = "Content",
+                ),
+            )
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assemble(
+                db = DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "content",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "status",
+                                    dbType = "INT",
+                                    kotlinType = "Int",
+                                    nullable = false,
+                                    typeBinding = "Status",
+                                    enumItems = listOf(EnumItemModel(0, "DRAFT", "Draft")),
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                ),
+                valueObjects = valueObjects,
+            )
+        }
+
+        assertTrue(error.message!!.contains("Duplicate type simple name: Status"))
+    }
+
+    @Test
+    fun `fails on duplicate simple type names across enum value object and registry`() {
+        val valueObjects = ValueObjectManifestSnapshot(
+            valueObjects = listOf(
+                ValueObjectModel(
+                    name = "Status",
+                    packageName = "shared.values",
+                    scope = ValueObjectScope.SHARED,
+                    storage = ValueObjectStorage.JSON,
+                )
+            )
+        )
+        val typeRegistry = TypeRegistryModel(
+            entries = mapOf("Status" to TypeRegistryEntry(fqn = "com.acme.Status"))
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assemble(valueObjects = valueObjects, typeRegistry = typeRegistry)
+        }
+
+        assertTrue(error.message!!.contains("Duplicate type simple name: Status"))
+    }
+
+    @Test
     fun `assembler rejects integration event with blank event name`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
@@ -397,139 +664,6 @@ class DefaultCanonicalAssemblerTest {
             "com.acme.demo.domain.aggregates.order",
             model.queries.single().aggregateRef?.packageName,
         )
-    }
-
-    @Test
-    fun `validator entries assemble into validators slice with expanded structural fields`() {
-        val assembler = DefaultCanonicalAssembler()
-
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "validator",
-                            packageName = "auth.validator",
-                            name = "issueToken",
-                            description = "issue token validator",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                            message = "issue token rejected",
-                            targets = listOf("CLASS"),
-                            valueType = "Any",
-                            parameters = listOf(
-                                ValidatorParameterModel(
-                                    name = "userIdField",
-                                    type = "String",
-                                    defaultValue = "userId",
-                                )
-                            ),
-                        ),
-                        DesignSpecEntry(
-                            tag = "validator",
-                            packageName = "auth.validator",
-                            name = "issue_token",
-                            description = "issue token validator snake",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "validator",
-                            packageName = "auth.validator",
-                            name = "issue-token",
-                            description = "issue token validator kebab",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "validators",
-                            packageName = "auth.validator",
-                            name = "pluralAlias",
-                            description = "legacy alias",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "validater",
-                            packageName = "auth.validator",
-                            name = "misspelledAlias",
-                            description = "legacy alias",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "validate",
-                            packageName = "auth.validator",
-                            name = "verbAlias",
-                            description = "legacy alias",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                    )
-                ),
-            ),
-        ).model
-
-        assertEquals(3, model.validators.size)
-        assertEquals(
-            listOf("IssueToken", "IssueToken", "IssueToken"),
-            model.validators.map { it.typeName },
-        )
-        assertEquals(listOf("auth.validator", "auth.validator", "auth.validator"), model.validators.map { it.packageName })
-        assertEquals(listOf("Any", "Long", "Long"), model.validators.map { it.valueType })
-        assertEquals("issue token rejected", model.validators.first().message)
-        assertEquals(listOf("CLASS"), model.validators.first().targets)
-        assertEquals("Any", model.validators.first().valueType)
-        assertEquals("userIdField", model.validators.first().parameters.single().name)
-        assertEquals("校验未通过", model.validators[1].message)
-        assertEquals(listOf("FIELD", "VALUE_PARAMETER"), model.validators[1].targets)
-        assertEquals(emptyList<String>(), model.commands.map { it.typeName })
-        assertEquals(emptyList<String>(), model.queries.map { it.typeName })
-        assertEquals(emptyList<String>(), model.clients.map { it.typeName })
-    }
-
-    @Test
-    fun `validator entries keep command assembly unchanged`() {
-        val assembler = DefaultCanonicalAssembler()
-
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "validator",
-                            packageName = "auth.validator",
-                            name = "issueToken",
-                            description = "issue token validator",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "command",
-                            packageName = "order.submit",
-                            name = "SubmitOrder",
-                            description = "submit order",
-                            aggregates = listOf("Order"),
-                            requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
-                            responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
-                        ),
-                    )
-                ),
-            ),
-        ).model
-
-        assertEquals(1, model.commands.size)
-        assertEquals("SubmitOrderCmd", model.commands.single().typeName)
-        assertEquals(1, model.validators.size)
     }
 
     @Test
@@ -1202,15 +1336,6 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
-                            tag = "Validator",
-                            packageName = "order.validator",
-                            name = "MixedValidator",
-                            description = "mixed validator",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
                             tag = "DOMAIN_EVENT",
                             packageName = "order.events",
                             name = "UpperDomainEvent",
@@ -1294,7 +1419,6 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(emptyList<String>(), model.queries.map { it.typeName })
         assertEquals(emptyList<String>(), model.clients.map { it.typeName })
         assertEquals(emptyList<String>(), model.apiPayloads.map { it.typeName })
-        assertEquals(emptyList<String>(), model.validators.map { it.typeName })
         assertEquals(emptyList<String>(), model.domainEvents.map { it.typeName })
     }
 
@@ -1474,22 +1598,6 @@ class DefaultCanonicalAssemblerTest {
                             requestFields = listOf(entityField, reasonField),
                         ),
                         DesignElementSnapshot(
-                            tag = "validator",
-                            packageName = "order.validator",
-                            name = "SubmitOrderValidator",
-                            description = "submit order validator",
-                            message = "submit order rejected",
-                            targets = listOf("CLASS"),
-                            valueType = "Any",
-                            parameters = listOf(
-                                ValidatorParameterModel(
-                                    name = "orderIdField",
-                                    type = "String",
-                                    defaultValue = "orderId",
-                                )
-                            ),
-                        ),
-                        DesignElementSnapshot(
                             tag = "evt",
                             packageName = "order.events",
                             name = "OrderCreated",
@@ -1501,7 +1609,7 @@ class DefaultCanonicalAssemblerTest {
         ).model
 
         val drawingBoard = model.drawingBoard
-        assertEquals(6, drawingBoard!!.elements.size)
+        assertEquals(5, drawingBoard!!.elements.size)
         assertEquals(
             DrawingBoardElementModel(
                 tag = "command",
@@ -1517,7 +1625,7 @@ class DefaultCanonicalAssemblerTest {
             drawingBoard.elements.first(),
         )
         assertEquals(
-            listOf("command", "client", "query", "api_payload", "domain_event", "validator"),
+            listOf("command", "client", "query", "api_payload", "domain_event"),
             drawingBoard.elementsByTag.keys.toList(),
         )
         assertEquals(1, drawingBoard.elementsByTag.getValue("command").size)
@@ -1531,12 +1639,6 @@ class DefaultCanonicalAssemblerTest {
         val domainEvent = drawingBoard.elementsByTag.getValue("domain_event").single()
         assertEquals(null, domainEvent.entity)
         assertEquals(listOf(DrawingBoardFieldModel(name = "reason", type = "String")), domainEvent.requestFields)
-        val validator = drawingBoard.elementsByTag.getValue("validator").single()
-        assertEquals("SubmitOrderValidator", validator.name)
-        assertEquals("submit order rejected", validator.message)
-        assertEquals(listOf("CLASS"), validator.targets)
-        assertEquals("Any", validator.valueType)
-        assertEquals("orderIdField", validator.parameters.single().name)
     }
 
     @Test
@@ -1850,12 +1952,12 @@ class DefaultCanonicalAssemblerTest {
     fun `assembler only assigns converter metadata to stable enum-backed fields`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig().copy(
-                typeRegistry = mapOf(
+                typeRegistry = TypeRegistryConfig(entries = mapOf(
                     "SubmitPayload" to TypeRegistryEntry(
                         fqn = "com.acme.demo.payload.SubmitPayload",
                         converter = TypeRegistryConverter.none(),
                     )
-                )
+                ))
             ),
             listOf(
                 DbSchemaSnapshot(
@@ -1925,9 +2027,9 @@ class DefaultCanonicalAssemblerTest {
     fun `assembler assigns converter metadata to registry backed type binding`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig().copy(
-                typeRegistry = mapOf(
+                typeRegistry = TypeRegistryConfig(entries = mapOf(
                     "UserType" to TypeRegistryEntry("com.acme.demo.domain.aggregates.user.enums.UserType"),
-                )
+                ))
             ),
             listOf(
                 DbSchemaSnapshot(
@@ -1966,9 +2068,9 @@ class DefaultCanonicalAssemblerTest {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
                 aggregateProjectConfig().copy(
-                    typeRegistry = mapOf(
+                    typeRegistry = TypeRegistryConfig(entries = mapOf(
                         "Status" to TypeRegistryEntry("com.acme.demo.domain.shared.enums.StatusAlias"),
-                    )
+                    ))
                 ),
                 listOf(
                     DbSchemaSnapshot(
@@ -2004,10 +2106,7 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals(
-            "ambiguous type binding for Status: matches both shared enum and general type registry",
-            error.message,
-        )
+        assertTrue(error.message!!.contains("Duplicate type simple name: Status"))
     }
 
     @Test
@@ -2050,10 +2149,7 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals(
-            "ambiguous enum ownership for Status: matches both shared enum and local enum in com.acme.demo.domain.aggregates.video_post",
-            error.message
-        )
+        assertTrue(error.message!!.contains("Duplicate type simple name: Status"))
     }
 
     @Test
@@ -2103,6 +2199,253 @@ class DefaultCanonicalAssemblerTest {
             expectedConverter,
             entityJpa.columns.single { it.fieldName == "defaultVisibility" }.converterTypeFqn
         )
+    }
+
+    @Test
+    fun `assembler binds aggregate local value object before shared value object with same simple name`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "content",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "publish_window",
+                                    dbType = "JSON",
+                                    kotlinType = "String",
+                                    nullable = false,
+                                    typeBinding = "PublishWindow",
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                ),
+                ValueObjectManifestSnapshot(
+                    valueObjects = listOf(
+                        ValueObjectModel(
+                            name = "PublishWindow",
+                            packageName = "com.acme.demo.domain.shared.values",
+                            scope = ValueObjectScope.SHARED,
+                        ),
+                        ValueObjectModel(
+                            name = "PublishWindow",
+                            packageName = "com.acme.demo.domain.aggregates.content.values",
+                            scope = ValueObjectScope.AGGREGATE,
+                            aggregate = "Content",
+                        ),
+                    )
+                )
+            )
+        )
+
+        val entityJpa = result.model.aggregateEntityJpa.single { it.entityName == "Content" }
+
+        assertEquals(
+            "com.acme.demo.domain.aggregates.content.values.PublishWindow",
+            entityJpa.columns.single { it.fieldName == "publishWindow" }.converterTypeFqn,
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter",
+            entityJpa.columns.single { it.fieldName == "publishWindow" }.converterClassFqn,
+        )
+    }
+
+    @Test
+    fun `assembler binds shared value object without registry entry`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "content",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "publish_window",
+                                    dbType = "JSON",
+                                    kotlinType = "String",
+                                    nullable = false,
+                                    typeBinding = "PublishWindow",
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                        )
+                    )
+                ),
+                ValueObjectManifestSnapshot(
+                    valueObjects = listOf(
+                        ValueObjectModel(
+                            name = "PublishWindow",
+                            packageName = "com.acme.demo.domain.shared.values",
+                            scope = ValueObjectScope.SHARED,
+                        ),
+                    )
+                )
+            )
+        )
+
+        val entityJpa = result.model.aggregateEntityJpa.single { it.entityName == "Content" }
+
+        assertEquals(
+            "com.acme.demo.domain.shared.values.PublishWindow",
+            entityJpa.columns.single { it.fieldName == "publishWindow" }.converterTypeFqn,
+        )
+        assertEquals(
+            "com.acme.demo.domain.shared.values.PublishWindow.Converter",
+            entityJpa.columns.single { it.fieldName == "publishWindow" }.converterClassFqn,
+        )
+    }
+
+    @Test
+    fun `assembler binds child entity field to aggregate root local value object`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            aggregateProjectConfig(),
+            listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "content",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            aggregateRoot = true,
+                        ),
+                        DbTableSnapshot(
+                            tableName = "content_schedule",
+                            comment = "",
+                            columns = listOf(
+                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                DbColumnSnapshot(
+                                    name = "content_id",
+                                    dbType = "BIGINT",
+                                    kotlinType = "Long",
+                                    nullable = false,
+                                    referenceTable = "content",
+                                ),
+                                DbColumnSnapshot(
+                                    name = "publish_window",
+                                    dbType = "JSON",
+                                    kotlinType = "String",
+                                    nullable = false,
+                                    typeBinding = "PublishWindow",
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            parentTable = "content",
+                            aggregateRoot = false,
+                            valueObject = true,
+                        ),
+                    )
+                ),
+                ValueObjectManifestSnapshot(
+                    valueObjects = listOf(
+                        ValueObjectModel(
+                            name = "PublishWindow",
+                            packageName = "com.acme.demo.domain.aggregates.content.values",
+                            scope = ValueObjectScope.AGGREGATE,
+                            aggregate = "Content",
+                        ),
+                    )
+                )
+            )
+        )
+
+        val entityJpa = result.model.aggregateEntityJpa.single { it.entityName == "ContentSchedule" }
+
+        assertEquals(
+            "com.acme.demo.domain.aggregates.content.values.PublishWindow",
+            entityJpa.columns.single { it.fieldName == "publishWindow" }.converterTypeFqn,
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter",
+            entityJpa.columns.single { it.fieldName == "publishWindow" }.converterClassFqn,
+        )
+    }
+
+    @Test
+    fun `assembler fails fast on ambiguous shared value object type override`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assemble(
+                valueObjects = ValueObjectManifestSnapshot(
+                    valueObjects = listOf(
+                        ValueObjectModel(
+                            name = "PublishWindow",
+                            packageName = "content.values.primary",
+                            scope = ValueObjectScope.SHARED,
+                        ),
+                        ValueObjectModel(
+                            name = "PublishWindow",
+                            packageName = "content.values.secondary",
+                            scope = ValueObjectScope.SHARED,
+                        ),
+                    )
+                )
+            )
+        }
+
+        assertTrue(error.message!!.contains("Ambiguous value object type override: PublishWindow"))
+    }
+
+    @Test
+    fun `assembler fails fast on ambiguous aggregate local value object type override`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "content",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                    DbColumnSnapshot(
+                                        name = "publish_window",
+                                        dbType = "JSON",
+                                        kotlinType = "String",
+                                        nullable = false,
+                                        typeBinding = "PublishWindow",
+                                    ),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            )
+                        )
+                    ),
+                    ValueObjectManifestSnapshot(
+                        valueObjects = listOf(
+                            ValueObjectModel(
+                                name = "PublishWindow",
+                                packageName = "content.values.primary",
+                                scope = ValueObjectScope.AGGREGATE,
+                                aggregate = "Content",
+                            ),
+                            ValueObjectModel(
+                                name = "PublishWindow",
+                                packageName = "content.values.secondary",
+                                scope = ValueObjectScope.AGGREGATE,
+                                aggregate = "Content",
+                            ),
+                        )
+                    )
+                )
+            )
+        }
+
+        assertTrue(error.message!!.contains("Ambiguous value object type override: PublishWindow"))
     }
 
     @Test
@@ -4979,6 +5322,16 @@ class DefaultCanonicalAssemblerTest {
         config = config,
         snapshots = listOf(DbSchemaSnapshot(tables = tables)),
     )
+
+    private fun assemble(
+        db: DbSchemaSnapshot? = null,
+        design: DesignSpecSnapshot? = null,
+        valueObjects: ValueObjectManifestSnapshot? = null,
+        typeRegistry: TypeRegistryModel = TypeRegistryModel.empty(),
+    ) = DefaultCanonicalAssembler().assemble(
+        config = baseAggregateConfig().copy(typeRegistry = TypeRegistryConfig(entries = typeRegistry.entries)),
+        snapshots = listOfNotNull(db, design, valueObjects),
+    ).model
 
     private fun projectConfigWithSpecialFieldDefaults(
         idDefaultStrategy: String,

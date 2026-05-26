@@ -5,6 +5,7 @@ plugins {
 cap4k {
     project {
         basePackage.set("com.acme.demo")
+        domainModulePath.set("demo-domain")
         applicationModulePath.set("demo-application")
         adapterModulePath.set("demo-adapter")
     }
@@ -16,20 +17,6 @@ cap4k {
         kspMetadata {
             enabled.set(true)
             inputDir.set("domain/build/generated/ksp/main/resources/metadata")
-        }
-    }
-    generators {
-        designCommand {
-            enabled.set(true)
-        }
-        designQuery {
-            enabled.set(true)
-        }
-        designClient {
-            enabled.set(true)
-        }
-        designClientHandler {
-            enabled.set(true)
         }
     }
 }

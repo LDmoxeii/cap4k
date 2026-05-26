@@ -39,15 +39,6 @@
     ]
   },
   {
-    "tag": "validator",
-    "package": "order",
-    "name": "OrderIdValid",
-    "desc": "order id validator",
-    "aggregates": [],
-    "requestFields": [],
-    "responseFields": []
-  },
-  {
     "tag": "api_payload",
     "package": "order",
     "name": "SubmitOrderPayload",
@@ -76,5 +67,25 @@
       { "name": "snapshot.traceId", "type": "String" }
     ],
     "responseFields": []
+  },
+  {
+    "tag": "domain_service",
+    "package": "order.pricing",
+    "name": "CalculateOrderTotal",
+    "desc": "calculate order total",
+    "aggregates": ["Order"]
+  },
+  {
+    "tag": "saga",
+    "package": "order.fulfillment",
+    "name": "FulfillOrderSaga",
+    "desc": "fulfill order",
+    "aggregates": ["Order"],
+    "requestFields": [
+      { "name": "orderId", "type": "Long" }
+    ],
+    "responseFields": [
+      { "name": "accepted", "type": "Boolean" }
+    ]
   }
 ]
