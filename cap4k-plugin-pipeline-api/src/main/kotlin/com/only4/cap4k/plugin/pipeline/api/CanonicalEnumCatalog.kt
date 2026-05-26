@@ -248,7 +248,7 @@ class CanonicalEnumCatalog private constructor(
                         }
                 }
                 .groupBy({ it.first }, { it.second })
-            localDefinitions.entries.firstOrNull { (_, values) -> values.size > 1 }?.let { (key, _) ->
+            localDefinitions.entries.firstOrNull { (_, values) -> values.distinct().size > 1 }?.let { (key, _) ->
                 throw IllegalArgumentException("Ambiguous value object type override: ${key.typeBinding}")
             }
 

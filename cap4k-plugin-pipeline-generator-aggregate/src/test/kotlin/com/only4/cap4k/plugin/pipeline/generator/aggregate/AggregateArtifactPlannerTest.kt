@@ -1005,6 +1005,87 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner renders aggregate local value object for child in root package`() {
+        val root = EntityModel(
+            name = "Content",
+            packageName = "com.acme.demo.domain.aggregates.content",
+            tableName = "content",
+            comment = "content",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            aggregateRoot = true,
+        )
+        val child = EntityModel(
+            name = "ContentSchedule",
+            packageName = "com.acme.demo.domain.aggregates.content",
+            tableName = "content_schedule",
+            comment = "content schedule",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("publishWindow", "String", typeBinding = "PublishWindow", columnName = "publish_window"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            aggregateRoot = false,
+            parentEntityName = "Content",
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(root, child),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "PublishWindow",
+                        packageName = "com.acme.demo.domain.aggregates.content.values",
+                        scope = ValueObjectScope.AGGREGATE,
+                        aggregate = "Content",
+                    )
+                ),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = "Content",
+                        entityPackageName = "com.acme.demo.domain.aggregates.content",
+                        entityEnabled = true,
+                        tableName = "content",
+                        columns = listOf(AggregateColumnJpaModel("id", "id", true, null)),
+                    ),
+                    AggregateEntityJpaModel(
+                        entityName = "ContentSchedule",
+                        entityPackageName = "com.acme.demo.domain.aggregates.content",
+                        entityEnabled = true,
+                        tableName = "content_schedule",
+                        columns = listOf(
+                            AggregateColumnJpaModel("id", "id", true, null),
+                            AggregateColumnJpaModel(
+                                fieldName = "publishWindow",
+                                columnName = "publish_window",
+                                isId = false,
+                                converterTypeFqn = "com.acme.demo.domain.aggregates.content.values.PublishWindow",
+                                converterClassFqn = "com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter",
+                            ),
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val entityItem = plan.single {
+            it.templateId == "aggregate/entity.kt.peb" &&
+                it.context["typeName"] == "ContentSchedule"
+        }
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = entityItem.context["scalarFields"] as List<Map<String, Any?>>
+        val publishWindow = scalarFields.single { it["name"] == "publishWindow" }
+
+        assertEquals("PublishWindow", publishWindow["renderedType"])
+        assertEquals(
+            listOf("com.acme.demo.domain.aggregates.content.values.PublishWindow"),
+            publishWindow["typeImports"],
+        )
+        assertEquals("com.acme.demo.domain.aggregates.content.values.PublishWindow", publishWindow["converterTypeRef"])
+        assertEquals("com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter", publishWindow["converterClassRef"])
+    }
+
+    @Test
     fun `entity planner omits inherited scalar fields from default entity render context`() {
         val entity = EntityModel(
             name = "Content",
