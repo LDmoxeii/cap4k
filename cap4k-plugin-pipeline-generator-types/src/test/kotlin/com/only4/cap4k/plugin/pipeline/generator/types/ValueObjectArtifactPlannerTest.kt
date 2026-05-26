@@ -89,12 +89,14 @@ class ValueObjectArtifactPlannerTest {
                         name = "Money",
                         packageName = "com.acme.demo.domain.shared.values",
                         scope = ValueObjectScope.SHARED,
+                        fields = listOf(FieldModel("amount", "String")),
                     ),
                     ValueObjectModel(
                         name = "ReviewSnapshot",
                         packageName = "com.acme.demo.domain.aggregates.review.values",
                         scope = ValueObjectScope.AGGREGATE,
                         aggregate = "Review",
+                        fields = listOf(FieldModel("content", "String")),
                     ),
                 )
             ),
@@ -110,6 +112,58 @@ class ValueObjectArtifactPlannerTest {
     }
 
     @Test
+    fun `manifest managed value object fields resolve imports from canonical value objects`() {
+        val money = ValueObjectArtifactPlanner().plan(
+            config(),
+            CanonicalModel(
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "Currency",
+                        packageName = "com.acme.demo.domain.shared.types",
+                        scope = ValueObjectScope.SHARED,
+                        fields = listOf(FieldModel("code", "String")),
+                    ),
+                    ValueObjectModel(
+                        name = "Money",
+                        packageName = "com.acme.demo.domain.shared.values",
+                        scope = ValueObjectScope.SHARED,
+                        fields = listOf(FieldModel("currency", "Currency")),
+                    ),
+                )
+            ),
+        ).single { it.context["typeName"] == "Money" }
+
+        assertEquals(listOf("com.acme.demo.domain.shared.types.Currency"), money.context["imports"])
+
+        val fields = money.context["fields"] as List<*>
+        assertEquals(
+            mapOf("name" to "currency", "type" to "Currency", "renderedType" to "Currency", "nullable" to false),
+            fields.single(),
+        )
+    }
+
+    @Test
+    fun `json value object requires at least one field`() {
+        val error = assertThrows<IllegalArgumentException> {
+            ValueObjectArtifactPlanner().plan(
+                config(),
+                CanonicalModel(
+                    valueObjects = listOf(
+                        ValueObjectModel(
+                            name = "Money",
+                            packageName = "com.acme.demo.domain.shared.values",
+                            scope = ValueObjectScope.SHARED,
+                            fields = emptyList(),
+                        )
+                    )
+                ),
+            )
+        }
+
+        assertEquals("value object Money must declare at least one field", error.message)
+    }
+
+    @Test
     fun `non empty model requires domain module`() {
         val error = assertThrows<IllegalArgumentException> {
             ValueObjectArtifactPlanner().plan(
@@ -120,6 +174,7 @@ class ValueObjectArtifactPlannerTest {
                             name = "Money",
                             packageName = "com.acme.demo.domain.shared.values",
                             scope = ValueObjectScope.SHARED,
+                            fields = listOf(FieldModel("amount", "String")),
                         )
                     )
                 ),

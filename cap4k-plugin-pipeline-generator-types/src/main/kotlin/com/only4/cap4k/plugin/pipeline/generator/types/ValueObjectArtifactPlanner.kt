@@ -22,11 +22,14 @@ class ValueObjectArtifactPlanner : GeneratorProvider {
 
         val domainRoot = requireRelativeModuleRoot(config, "domain")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
-        val typeRegistry = config.typeRegistryFqns()
+        val typeRegistry = config.typeRegistryFqns() + model.manifestValueObjectTypeLookup()
 
         return model.valueObjects.map { valueObject ->
             require(valueObject.storage == ValueObjectStorage.JSON) {
                 "value object ${valueObject.name} storage is unsupported: ${valueObject.storage}"
+            }
+            require(valueObject.fields.isNotEmpty()) {
+                "value object ${valueObject.name} must declare at least one field"
             }
             val renderModel = ValueObjectRenderModelFactory.create(valueObject, typeRegistry)
             ArtifactPlanItem(
@@ -347,3 +350,12 @@ private fun requireRelativeModuleRoot(config: ProjectConfig, role: String): Stri
 
     return moduleRoot
 }
+
+private fun CanonicalModel.manifestValueObjectTypeLookup(): Map<String, String> =
+    valueObjects
+        .groupBy { it.name }
+        .filterValues { matches -> matches.size == 1 }
+        .mapValues { (_, matches) ->
+            val valueObject = matches.single()
+            "${valueObject.packageName}.${valueObject.name}"
+        }
