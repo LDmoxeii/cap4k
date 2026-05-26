@@ -4377,7 +4377,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `renders drawing board json without html escaping and preserves defaultValue expressions`() {
+    fun `renders drawing board json without html escaping`() {
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -4391,17 +4391,15 @@ class PebbleArtifactRendererTest {
                     generatorId = "drawing-board",
                     moduleRole = "project",
                     templateId = "drawing-board/document.json.peb",
-                    outputPath = "design/validator.json",
+                    outputPath = "design/command.json",
                     context = mapOf(
                         "elements" to listOf(
                             DrawingBoardElementModel(
-                                tag = "validator",
-                                packageName = "demo.application.shared",
-                                name = "SharedDefaultsValidator",
+                                tag = "command",
+                                packageName = "demo.application.workflow",
+                                name = "SubmitDefaults",
                                 description = "Map<String, String> <raw> & stable",
-                                message = "use <raw> & keep",
-                                targets = listOf("CLASS"),
-                                valueType = "Map<String, String>",
+                                aggregates = listOf("Content"),
                             )
                         )
                     ),
@@ -4429,8 +4427,7 @@ class PebbleArtifactRendererTest {
 
         val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
         assertEquals("Map<String, String> <raw> & stable", element["desc"].asString)
-        assertEquals("use <raw> & keep", element["message"].asString)
-        assertEquals("Map<String, String>", element["valueType"].asString)
+        assertEquals("Content", element["aggregates"].asJsonArray.single().asString)
     }
 
     @Test
