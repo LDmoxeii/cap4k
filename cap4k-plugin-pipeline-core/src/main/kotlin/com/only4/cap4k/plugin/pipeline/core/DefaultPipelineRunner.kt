@@ -24,6 +24,7 @@ class DefaultPipelineRunner(
 ) : PipelineRunner {
     override fun run(config: ProjectConfig): PipelineResult {
         validateAddonProviders(config)
+        val addonProviderIds = addonProviders.map { it.id }.toSet()
 
         val enabledGeneratorIds = config.generators.asSequence()
             .filter { it.value.enabled }
@@ -64,17 +65,18 @@ class DefaultPipelineRunner(
                     ex,
                 )
             }.also { items ->
-                items.forEach { item ->
-                    require(item.templateId.startsWith("addons/${provider.id}/")) {
-                        "Addon ${provider.id} produced template id outside addons/${provider.id}/: ${item.templateId}"
-                    }
-                }
+                items.forEach { item -> validateAddonTemplateNamespace(item, provider.id) }
             }
         }
 
         val planItems = (builtInPlanItems + addonPlanItems)
             .map(transformPlanItem)
             .filter(includePlanItem)
+            .onEach { item ->
+                if (item.generatorId in addonProviderIds) {
+                    validateAddonTemplateNamespace(item, item.generatorId)
+                }
+            }
             .map { resolveConflictPolicy(it, config) }
 
         val renderedArtifacts = renderer.render(planItems, config)
@@ -102,6 +104,14 @@ class DefaultPipelineRunner(
             "duplicate artifact addon provider id: $duplicate"
         }
 
+        config.addons.entries
+            .firstOrNull { it.key != it.value.id }
+            ?.let { (key, providerConfig) ->
+                throw IllegalArgumentException(
+                    "Configured addon provider key does not match provider id: $key != ${providerConfig.id}",
+                )
+            }
+
         val loadedProviderIds = addonProviders.map { it.id }.toSet()
         val unloadedConfiguredProvider = config.addons.keys
             .firstOrNull { it !in loadedProviderIds }
@@ -109,7 +119,12 @@ class DefaultPipelineRunner(
         require(unloadedConfiguredProvider == null) {
             "Configured addon provider is not loaded: $unloadedConfiguredProvider"
         }
+    }
 
+    private fun validateAddonTemplateNamespace(item: ArtifactPlanItem, providerId: String) {
+        require(item.templateId.startsWith("addons/$providerId/")) {
+            "Addon $providerId produced template id outside addons/$providerId/: ${item.templateId}"
+        }
     }
 
     private fun resolveConflictPolicy(item: ArtifactPlanItem, config: ProjectConfig): ArtifactPlanItem {

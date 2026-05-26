@@ -115,6 +115,29 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
+    fun `fails when addon config key does not match provider id`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = listOf(addonProvider("sample-addon", emptyList())),
+                config = enabledConfig(
+                    addons = mapOf(
+                        "sample-addon" to AddonProviderConfig(
+                            id = "other-addon",
+                            options = mapOf("enabled" to "true"),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "Configured addon provider key does not match provider id: sample-addon != other-addon",
+            error.message,
+        )
+    }
+
+    @Test
     fun `fails when addon options reference unloaded provider`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             runWithCapturedPlanItems(
@@ -222,6 +245,34 @@ class DefaultPipelineRunnerTest {
 
         assertEquals(listOf(expectedResolvedItem), result.rendererReceivedPlanItems)
         assertEquals(listOf(expectedResolvedItem), result.pipelineResult.planItems)
+    }
+
+    @Test
+    fun `rejects transformed addon template id outside provider namespace`() {
+        val addonItem = ArtifactPlanItem(
+            generatorId = "sample-addon",
+            moduleRole = "adapter",
+            templateId = "addons/sample-addon/original.kt.peb",
+            outputPath = "generated/SampleAddon.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
+                config = enabledConfig(),
+                transformPlanItem = {
+                    it.copy(templateId = "design/command.kt.peb")
+                },
+            )
+        }
+
+        assertTrue(
+            error.message?.contains(
+                "Addon sample-addon produced template id outside addons/sample-addon/: design/command.kt.peb",
+            ) == true,
+        )
     }
 
     @Test
