@@ -263,7 +263,10 @@ class DefaultPipelineRunnerTest {
                 addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
                 config = enabledConfig(),
                 transformPlanItem = {
-                    it.copy(templateId = "design/command.kt.peb")
+                    it.copy(
+                        generatorId = "design-command",
+                        templateId = "design/command.kt.peb",
+                    )
                 },
             )
         }
@@ -273,6 +276,30 @@ class DefaultPipelineRunnerTest {
                 "Addon sample-addon produced template id outside addons/sample-addon/: design/command.kt.peb",
             ) == true,
         )
+    }
+
+    @Test
+    fun `does not validate built-in item as addon item when transformed generator id matches addon provider id`() {
+        val builtInItem = ArtifactPlanItem(
+            generatorId = "design-command",
+            moduleRole = "app",
+            templateId = "design/command.kt.peb",
+            outputPath = "generated/CreateOrderCmd.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        val transformedBuiltInItem = builtInItem.copy(generatorId = "sample-addon")
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = listOf(builtInItem),
+            addonProviders = listOf(addonProvider("sample-addon", emptyList())),
+            config = enabledConfig(),
+            transformPlanItem = {
+                if (it.generatorId == "design-command") transformedBuiltInItem else it
+            },
+        )
+
+        assertEquals(listOf(transformedBuiltInItem), result.rendererReceivedPlanItems)
+        assertEquals(listOf(transformedBuiltInItem), result.pipelineResult.planItems)
     }
 
     @Test

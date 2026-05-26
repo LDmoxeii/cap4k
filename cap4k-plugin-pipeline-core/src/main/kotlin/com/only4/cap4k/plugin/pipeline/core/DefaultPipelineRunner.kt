@@ -24,7 +24,6 @@ class DefaultPipelineRunner(
 ) : PipelineRunner {
     override fun run(config: ProjectConfig): PipelineResult {
         validateAddonProviders(config)
-        val addonProviderIds = addonProviders.map { it.id }.toSet()
 
         val enabledGeneratorIds = config.generators.asSequence()
             .filter { it.value.enabled }
@@ -48,6 +47,7 @@ class DefaultPipelineRunner(
         val builtInPlanItems = generators
             .filter { config.generators[it.id]?.enabled == true }
             .flatMap { it.plan(config, model) }
+            .map { ProvenancedPlanItem(it) }
 
         val addonPlanItems = addonProviders.flatMap { provider ->
             val providerOptions = config.addons[provider.id]?.options.orEmpty()
@@ -66,18 +66,18 @@ class DefaultPipelineRunner(
                 )
             }.also { items ->
                 items.forEach { item -> validateAddonTemplateNamespace(item, provider.id) }
-            }
+            }.map { item -> ProvenancedPlanItem(item, addonProviderId = provider.id) }
         }
 
         val planItems = (builtInPlanItems + addonPlanItems)
-            .map(transformPlanItem)
-            .filter(includePlanItem)
+            .map { item -> item.copy(planItem = transformPlanItem(item.planItem)) }
+            .filter { item -> includePlanItem(item.planItem) }
             .onEach { item ->
-                if (item.generatorId in addonProviderIds) {
-                    validateAddonTemplateNamespace(item, item.generatorId)
+                item.addonProviderId?.let { providerId ->
+                    validateAddonTemplateNamespace(item.planItem, providerId)
                 }
             }
-            .map { resolveConflictPolicy(it, config) }
+            .map { resolveConflictPolicy(it.planItem, config) }
 
         val renderedArtifacts = renderer.render(planItems, config)
         val writtenPaths = exporter.export(renderedArtifacts)
@@ -135,4 +135,9 @@ class DefaultPipelineRunner(
 
         return item.copy(conflictPolicy = resolvedConflictPolicy)
     }
+
+    private data class ProvenancedPlanItem(
+        val planItem: ArtifactPlanItem,
+        val addonProviderId: String? = null,
+    )
 }
