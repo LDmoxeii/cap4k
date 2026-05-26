@@ -37,11 +37,19 @@ class PresetTemplateResolver(
         }
 
         val resourcePath = "presets/$preset/$templateId"
+        val aliasedResourcePath = presetTemplateAlias(templateId)?.let { alias -> "presets/$preset/$alias" }
         val resource = javaClass.classLoader.getResource(resourcePath)
+            ?: aliasedResourcePath?.let { javaClass.classLoader.getResource(it) }
             ?: error("Template not found: $resourcePath")
         return resource.readText()
     }
 }
+
+private fun presetTemplateAlias(templateId: String): String? =
+    when (templateId) {
+        "types/value-object" -> "types/value_object.kt.peb"
+        else -> null
+    }
 
 private fun addonId(templateId: String): String? {
     val prefix = "addons/"

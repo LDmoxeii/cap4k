@@ -35,6 +35,7 @@ import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryArtifactPlann
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryHandlerArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.drawingboard.DrawingBoardArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.flow.FlowArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.types.ValueObjectArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleArtifactRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleBootstrapRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
@@ -150,7 +151,7 @@ private const val JACKSON_ANNOTATIONS_GROUP = "com.fasterxml.jackson.core"
 private const val JACKSON_ANNOTATIONS_NAME = "jackson-annotations"
 private const val JACKSON_ANNOTATIONS_COORDINATE = "$JACKSON_ANNOTATIONS_GROUP:$JACKSON_ANNOTATIONS_NAME:2.17.2"
 private const val CAP4K_ADDON_CONFIGURATION_NAME = "cap4kAddon"
-private val SOURCE_TASK_SOURCE_IDS = setOf("db", "design-json", "ksp-metadata")
+private val SOURCE_TASK_SOURCE_IDS = setOf("db", "design-json", "ksp-metadata", "value-object-manifest")
 private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "design-command",
     "design-query",
@@ -162,6 +163,7 @@ private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "design-domain-event-handler",
     "design-integration-event",
     "design-integration-event-subscriber",
+    "types-value-object",
     "aggregate",
     "aggregate-projection",
 )
@@ -179,7 +181,7 @@ private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf
     extension.sources.kspMetadata.enabled,
     extension.sources.db.enabled,
     extension.sources.irAnalysis.enabled,
-).any { it.orNull == true }
+).any { it.orNull == true } || !extension.types.valueObjectManifest.files.isEmpty
 
 private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean = listOf(
     extension.generators.aggregate.enabled,
@@ -638,6 +640,7 @@ internal fun buildSourceRunner(
             DesignDomainEventHandlerArtifactPlanner(),
             DesignIntegrationEventArtifactPlanner(),
             DesignIntegrationEventSubscriberArtifactPlanner(),
+            ValueObjectArtifactPlanner(),
             AggregateArtifactPlanner(),
             AggregateProjectionArtifactPlanner(),
         ),

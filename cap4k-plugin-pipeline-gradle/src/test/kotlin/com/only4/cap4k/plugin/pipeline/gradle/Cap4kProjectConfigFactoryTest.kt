@@ -128,6 +128,8 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals("design/type-registry.json", config.typeRegistry.registryFile)
         assertEquals(listOf("design/enums.json"), config.typeRegistry.enumManifestFiles)
         assertEquals(listOf("design/value-objects.json"), config.typeRegistry.valueObjectManifestFiles)
+        assertEquals(true, config.sources["value-object-manifest"]?.enabled)
+        assertEquals(true, config.generators["types-value-object"]?.enabled)
     }
 
     @Test

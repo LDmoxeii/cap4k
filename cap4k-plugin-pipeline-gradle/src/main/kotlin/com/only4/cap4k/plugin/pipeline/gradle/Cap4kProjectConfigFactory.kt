@@ -35,6 +35,7 @@ class Cap4kProjectConfigFactory {
             kspMetadataEnabled = extension.sources.kspMetadata.enabled.get(),
             dbEnabled = extension.sources.db.enabled.get(),
             irAnalysisEnabled = extension.sources.irAnalysis.enabled.get(),
+            valueObjectManifestEnabled = !extension.types.valueObjectManifest.files.isEmpty,
         )
         val generatorStates = GeneratorStates(
             aggregateEnabled = extension.generators.aggregate.enabled.get(),
@@ -189,6 +190,9 @@ class Cap4kProjectConfigFactory {
             }
             put("ir-analysis", SourceConfig(enabled = true, options = mapOf("inputDirs" to inputDirs)))
         }
+        if (states.valueObjectManifestEnabled) {
+            put("value-object-manifest", SourceConfig(enabled = true))
+        }
     }
 
     private fun buildGenerators(
@@ -200,6 +204,9 @@ class Cap4kProjectConfigFactory {
             DESIGN_PLANNER_GENERATOR_IDS.forEach { generatorId ->
                 put(generatorId, GeneratorConfig(enabled = true))
             }
+        }
+        if (sources.valueObjectManifestEnabled) {
+            put("types-value-object", GeneratorConfig(enabled = true))
         }
         if (states.aggregateEnabled) {
             val aggregate = extension.generators.aggregate
@@ -387,6 +394,7 @@ private data class SourceStates(
     val kspMetadataEnabled: Boolean,
     val dbEnabled: Boolean,
     val irAnalysisEnabled: Boolean,
+    val valueObjectManifestEnabled: Boolean,
 )
 
 private data class GeneratorStates(

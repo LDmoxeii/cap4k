@@ -68,6 +68,45 @@ class PebbleArtifactRendererTest {
         ).single().content
 
     @Test
+    fun `value object template renders json converter skeleton with normalized field types`() {
+        val content = renderTemplate(
+            templateId = ProjectConfig().artifactLayout.valueObject.id,
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/Money.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.shared.values",
+                "typeName" to "Money",
+                "name" to "Money",
+                "imports" to listOf(
+                    "com.acme.demo.domain.shared.types.CurrencyCode",
+                    "java.math.BigDecimal",
+                ),
+                "fields" to listOf(
+                    mapOf("name" to "amount", "renderedType" to "BigDecimal", "nullable" to false),
+                    mapOf("name" to "currency", "renderedType" to "CurrencyCode?", "nullable" to true),
+                ),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("package com.acme.demo.domain.shared.values"))
+        assertTrue(content.contains("import com.fasterxml.jackson.databind.ObjectMapper"))
+        assertTrue(content.contains("import com.fasterxml.jackson.module.kotlin.readValue"))
+        assertTrue(content.contains("import jakarta.persistence.AttributeConverter"))
+        assertTrue(content.contains("import jakarta.persistence.Converter"))
+        assertTrue(content.contains("import com.acme.demo.domain.shared.types.CurrencyCode"))
+        assertTrue(content.contains("import java.math.BigDecimal"))
+        assertTrue(content.contains("data class Money("))
+        assertTrue(content.contains("val amount: BigDecimal,"))
+        assertTrue(content.contains("val currency: CurrencyCode?"))
+        assertTrue(content.contains("@Converter(autoApply = false)"))
+        assertTrue(content.contains("class Converter : AttributeConverter<Money, String>"))
+        assertTrue(content.contains("ObjectMapper().findAndRegisterModules()"))
+        assertTrue(content.contains("mapper.writeValueAsString(attribute)"))
+        assertTrue(content.contains("mapper.readValue<Money>(it)"))
+        assertFalse(content.contains("val amount: java.math.BigDecimal"))
+    }
+
+    @Test
     fun `design domain service and saga skeleton template ids resolve through default preset`() {
         val config = ProjectConfig()
 
