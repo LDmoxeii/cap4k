@@ -9,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
+import com.only4.cap4k.plugin.pipeline.api.AddonProviderConfig
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
@@ -83,6 +84,102 @@ class DefaultPipelineRunnerTest {
         assertEquals(config, receivedContext?.config)
         assertEquals(assembledModel, receivedContext?.model)
         assertEquals(emptyMap<String, Any?>(), receivedContext?.options)
+    }
+
+    @Test
+    fun `passes provider scoped options to matching addon`() {
+        var receivedOptions: Map<String, Any?>? = null
+        val addon = object : ArtifactAddonProvider {
+            override val id: String = "sample-addon"
+
+            override fun plan(context: ArtifactAddonContext): List<ArtifactPlanItem> {
+                receivedOptions = context.options
+                return emptyList()
+            }
+        }
+
+        runWithCapturedPlanItems(
+            plannedItems = emptyList(),
+            addonProviders = listOf(addon),
+            config = enabledConfig(
+                addons = mapOf(
+                    "sample-addon" to AddonProviderConfig(
+                        id = "sample-addon",
+                        options = mapOf("enumPackage" to "domain.enums"),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(mapOf("enumPackage" to "domain.enums"), receivedOptions)
+    }
+
+    @Test
+    fun `fails when addon options reference unloaded provider`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = emptyList(),
+                config = enabledConfig(
+                    addons = mapOf(
+                        "missing-addon" to AddonProviderConfig(
+                            id = "missing-addon",
+                            options = mapOf("enabled" to "true"),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertTrue(error.message?.contains("Configured addon provider is not loaded: missing-addon") == true)
+    }
+
+    @Test
+    fun `rejects addon template id outside provider namespace`() {
+        val addonItem = ArtifactPlanItem(
+            generatorId = "sample-addon",
+            moduleRole = "adapter",
+            templateId = "addons/other-addon/sample.kt.peb",
+            outputPath = "generated/SampleAddon.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
+                config = enabledConfig(),
+            )
+        }
+
+        assertTrue(
+            error.message?.contains(
+                "Addon sample-addon produced template id outside addons/sample-addon/: addons/other-addon/sample.kt.peb",
+            ) == true,
+        )
+    }
+
+    @Test
+    fun `wraps addon provider planning exceptions`() {
+        val failure = IllegalArgumentException("bad addon state")
+        val addon = object : ArtifactAddonProvider {
+            override val id: String = "sample-addon"
+
+            override fun plan(context: ArtifactAddonContext): List<ArtifactPlanItem> {
+                throw failure
+            }
+        }
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = listOf(addon),
+                config = enabledConfig(),
+            )
+        }
+
+        assertTrue(error.message?.contains("Addon provider sample-addon failed while planning artifacts") == true)
+        assertEquals(failure, error.cause)
     }
 
     @Test
@@ -657,6 +754,7 @@ class DefaultPipelineRunnerTest {
             overrideDirs = emptyList(),
             conflictPolicy = ConflictPolicy.OVERWRITE,
         ),
+        addons: Map<String, AddonProviderConfig> = emptyMap(),
     ): ProjectConfig {
         return ProjectConfig(
             basePackage = "com.only4.cap4k.sample",
@@ -665,6 +763,7 @@ class DefaultPipelineRunnerTest {
             sources = mapOf("design-json" to SourceConfig(enabled = true)),
             generators = generators,
             templates = templates,
+            addons = addons,
         )
     }
 

@@ -23,7 +23,7 @@ class DefaultPipelineRunner(
     private val addonProviders: List<ArtifactAddonProvider> = emptyList(),
 ) : PipelineRunner {
     override fun run(config: ProjectConfig): PipelineResult {
-        validateAddonProviderIds()
+        validateAddonProviders(config)
 
         val enabledGeneratorIds = config.generators.asSequence()
             .filter { it.value.enabled }
@@ -49,13 +49,27 @@ class DefaultPipelineRunner(
             .flatMap { it.plan(config, model) }
 
         val addonPlanItems = addonProviders.flatMap { provider ->
-            provider.plan(
-                ArtifactAddonContext(
-                    config = config,
-                    model = model,
-                    options = emptyMap(),
+            val providerOptions = config.addons[provider.id]?.options.orEmpty()
+            try {
+                provider.plan(
+                    ArtifactAddonContext(
+                        config = config,
+                        model = model,
+                        options = providerOptions,
+                    )
                 )
-            )
+            } catch (ex: Exception) {
+                throw IllegalStateException(
+                    "Addon provider ${provider.id} failed while planning artifacts",
+                    ex,
+                )
+            }.also { items ->
+                items.forEach { item ->
+                    require(item.templateId.startsWith("addons/${provider.id}/")) {
+                        "Addon ${provider.id} produced template id outside addons/${provider.id}/: ${item.templateId}"
+                    }
+                }
+            }
         }
 
         val planItems = (builtInPlanItems + addonPlanItems)
@@ -76,7 +90,7 @@ class DefaultPipelineRunner(
         )
     }
 
-    private fun validateAddonProviderIds() {
+    private fun validateAddonProviders(config: ProjectConfig) {
         val duplicate = addonProviders
             .groupingBy { it.id }
             .eachCount()
@@ -87,6 +101,15 @@ class DefaultPipelineRunner(
         require(duplicate == null) {
             "duplicate artifact addon provider id: $duplicate"
         }
+
+        val loadedProviderIds = addonProviders.map { it.id }.toSet()
+        val unloadedConfiguredProvider = config.addons.keys
+            .firstOrNull { it !in loadedProviderIds }
+
+        require(unloadedConfiguredProvider == null) {
+            "Configured addon provider is not loaded: $unloadedConfiguredProvider"
+        }
+
     }
 
     private fun resolveConflictPolicy(item: ArtifactPlanItem, config: ProjectConfig): ArtifactPlanItem {
