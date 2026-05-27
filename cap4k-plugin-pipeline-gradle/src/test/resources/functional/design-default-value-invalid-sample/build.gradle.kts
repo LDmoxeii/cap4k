@@ -13,12 +13,4 @@ cap4k {
             files.from("design/design.json")
         }
     }
-    generators {
-        designCommand {
-            enabled.set(true)
-        }
-        designQuery {
-            enabled.set(true)
-        }
-    }
 }

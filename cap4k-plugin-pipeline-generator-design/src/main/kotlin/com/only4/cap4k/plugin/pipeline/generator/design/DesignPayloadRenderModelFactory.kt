@@ -7,6 +7,7 @@ import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.IntegrationEventModel
 import com.only4.cap4k.plugin.pipeline.api.QueryModel
 import com.only4.cap4k.plugin.pipeline.api.RequestTrait
+import com.only4.cap4k.plugin.pipeline.api.SagaModel
 import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver.UnknownShortTypeFailure
@@ -126,6 +127,25 @@ internal object DesignPayloadRenderModelFactory {
             packageName = packageName,
             typeName = event.typeName,
             description = event.description,
+            aggregateName = null,
+            aggregatePackageName = null,
+            requestNamespace = requestNamespace,
+            responseNamespace = responseNamespace,
+            typeRegistry = typeRegistry,
+        )
+    }
+
+    fun createForSaga(
+        packageName: String,
+        saga: SagaModel,
+        typeRegistry: Map<String, String> = emptyMap(),
+    ): DesignRenderModel {
+        val requestNamespace = buildNamespace(saga.requestFields, "request")
+        val responseNamespace = buildNamespace(saga.responseFields, "response")
+        return createRenderModel(
+            packageName = packageName,
+            typeName = saga.name,
+            description = saga.description.orEmpty(),
             aggregateName = null,
             aggregatePackageName = null,
             requestNamespace = requestNamespace,

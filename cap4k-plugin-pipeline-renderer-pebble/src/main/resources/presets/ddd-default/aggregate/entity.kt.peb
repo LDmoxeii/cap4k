@@ -1,5 +1,6 @@
 package {{ packageName }}
 
+{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
 {% if entityJpa.entityEnabled -%}
 {{ use("jakarta.persistence.Column") -}}
 {{ use("jakarta.persistence.Entity") -}}
@@ -59,6 +60,13 @@ package {{ packageName }}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
+@Aggregate(
+    aggregate = "{{ required(aggregateName, "aggregateName") }}",
+    name = "{{ typeName }}",
+    type = Aggregate.TYPE_ENTITY,
+    root = {{ required(aggregateRoot, "aggregateRoot") }},
+    description = "{{ comment | replace({'"': '\"'}) | raw }}"
+)
 {% if entityJpa.entityEnabled %}@Entity
 @Table(name = "{{ entityJpa.tableName }}")
 {% if dynamicInsert %}@DynamicInsert

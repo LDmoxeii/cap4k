@@ -42,15 +42,6 @@
     ]
   },
   {
-    "tag": "validator",
-    "package": "message",
-    "name": "UserMessageKeyValid",
-    "desc": "user message key validator",
-    "aggregates": [],
-    "requestFields": [],
-    "responseFields": []
-  },
-  {
     "tag": "api_payload",
     "package": "message",
     "name": "CreateUserMessagePayload",

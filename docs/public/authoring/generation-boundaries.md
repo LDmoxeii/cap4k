@@ -13,9 +13,9 @@
 
 | 场景 | 处理方式 |
 | --- | --- |
-| `design.json` 已能表达目标用例，但 `command` / `query` / `client` / payload / `domain_event` / `integration_event` / subscriber / validator skeleton 没落出来 | 停止 implementation，回到 generation |
+| `design.json` 已能表达目标用例，但 `command` / `query` / `client` / payload / `domain_event` / `integration_event` / `domain_service` / `saga` / subscriber skeleton 没落出来 | 停止 implementation，回到 generation |
 | DDL、`@T`、唯一约束等 aggregate 事实已经存在，但 aggregate / entity / repository / factory / specification / enum / unique helper skeleton 没落出来 | 停止 implementation，回到 generation。关系和字段映射事实仍算 aggregate / entity 输入，不是独立 skeleton 家族 |
-| design entry、DDL 注释、enum manifest、`types.registryFile` 本身缺失 | 停止 generation，回到 modeling |
+| design entry、DDL 注释、`types.enumManifest`、`types.valueObjectManifest`、`types.registryFile` 本身缺失 | 停止 generation，回到 modeling |
 | generation 依赖的 KSP metadata 输出、配置或生产链路缺失 | 先回到 generation / compile / setup，不自动判成 modeling |
 | generator 当前明确不支持该 surface | 允许手写，但必须记录“不支持生成”的原因 |
 
@@ -24,7 +24,7 @@
 | 产物类型 | 默认归属 | 说明 |
 | --- | --- | --- |
 | 生成的聚合骨架 | 生成主面 | 例如 `Content`、`MediaProcessingTask` 的结构骨架由生成器落出；作者在手写文件中补行为，不直接改写由生成器负责的文件 |
-| custom value object class / converter / type registry | 手写主面 / 配置面 | JSON-backed 或 inline 的 Value Object 由作者手写类型、构造规则与 converter；生成器只消费 `@T` / `types.registryFile` 生成聚合字段映射 |
+| custom value object class / converter / type registry | 生成主面或手写主面 / 配置面 | `types.valueObjectManifest` 生成 JSON-backed checked-in source，默认 `SKIP`，converter 直接嵌套；`types.registryFile` 继续用于手写或外部类型，生成器只消费 `@T` 映射 |
 | aggregate `*Behavior.kt` | 手写补充点 | 这是当前明确留给作者补聚合行为的 checked-in scaffold，计划里固定使用 `ConflictPolicy.SKIP`，默认带出 `onCreate` / `onUpdate` / `onDelete` 生命周期行为扩展骨架 |
 | aggregate `factory` / `specification` scaffold | 条件性手写补充点 | 这两类文件虽然是 `CHECKED_IN_SOURCE`，但是否可当作者维护骨架取决于 `templates.conflictPolicy`；`SKIP` 时可作为作者维护 scaffold，`OVERWRITE` / `FAIL` 时仍按计划产物对待 |
 | 生成的命令 / 查询契约骨架 | 生成主面 | `CreateContentDraftCmd`、`GetContentDetailQry` 这类契约骨架可生成；手写逻辑放在 handler 或 adapter 侧 |

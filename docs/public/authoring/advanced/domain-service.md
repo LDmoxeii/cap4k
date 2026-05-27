@@ -14,6 +14,8 @@
 
 只有当行为“明显属于领域，但不自然属于某个聚合或值对象”时，领域服务才成立。否则一旦放松，application handler 很容易把任何不想收拾的逻辑都丢进一个所谓 service，最后它沦为 orchestration 垃圾桶。
 
+`design.json` 支持 `tag = "domain_service"`，它只负责生成 domain service skeleton。它不会替作者决定领域服务是否成立，也不会把 application 编排、外部调用或跨聚合写入变成合法领域逻辑。缺少 skeleton 时回到 generation；缺少领域理由时回到 modeling。
+
 ## 推荐形态
 
 - 先问两个问题：

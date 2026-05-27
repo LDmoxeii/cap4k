@@ -1,0 +1,27 @@
+package {{ packageName }}
+
+{{ use("com.fasterxml.jackson.databind.ObjectMapper") -}}
+{{ use("com.fasterxml.jackson.module.kotlin.readValue") -}}
+{{ use("jakarta.persistence.AttributeConverter") -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+
+data class {{ typeName }}(
+{%- for field in fields %}
+    val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+) {
+    @jakarta.persistence.Converter(autoApply = false)
+    class Converter : AttributeConverter<{{ typeName }}, String> {
+        override fun convertToDatabaseColumn(attribute: {{ typeName }}?): String? =
+            if (attribute == null) null else mapper.writeValueAsString(attribute)
+
+        override fun convertToEntityAttribute(dbData: String?): {{ typeName }}? =
+            dbData?.let { mapper.readValue<{{ typeName }}>(it) }
+    }
+
+    companion object {
+        private val mapper: ObjectMapper = ObjectMapper().findAndRegisterModules()
+    }
+}

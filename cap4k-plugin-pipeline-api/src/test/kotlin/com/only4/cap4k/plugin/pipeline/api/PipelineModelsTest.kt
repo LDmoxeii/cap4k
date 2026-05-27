@@ -171,6 +171,133 @@ class PipelineModelsTest {
     }
 
     @Test
+    fun `canonical model carries value objects domain services and sagas`() {
+        val project = ProjectModel(group = "com.acme", name = "demo")
+        val aggregate = AggregateModel(
+            name = "Content",
+            packageName = "content.domain",
+            description = "content aggregate",
+        )
+        val command = CommandModel(
+            packageName = "content.commands",
+            typeName = "PublishContentCmd",
+            description = "publish content",
+            aggregateRef = AggregateRef(name = "Content", packageName = "content.domain"),
+            requestFields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+            variant = CommandVariant.DEFAULT,
+        )
+        val query = QueryModel(
+            packageName = "content.queries",
+            typeName = "FindContentQry",
+            description = "find content",
+            aggregateRef = AggregateRef(name = "Content", packageName = "content.domain"),
+            responseFields = listOf(FieldModel(name = "title", type = "String")),
+        )
+        val client = ClientModel(
+            packageName = "content.clients",
+            typeName = "NotifyFollowersCli",
+            description = "notify followers",
+            requestFields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+        )
+        val apiPayload = ApiPayloadModel(
+            packageName = "content.payload",
+            typeName = "PublishContentPayload",
+            description = "publish content payload",
+            requestFields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+        )
+        val domainEvent = DomainEventModel(
+            packageName = "content.events",
+            typeName = "ContentPublished",
+            description = "content published",
+            aggregateName = "Content",
+            aggregatePackageName = "content.domain",
+            persist = true,
+            fields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+        )
+        val integrationEvent = IntegrationEventModel(
+            packageName = "content.integration",
+            typeName = "ContentPublishedIntegrationEvent",
+            description = "content published integration event",
+            role = IntegrationEventRole.OUTBOUND,
+            eventName = "content.published",
+            fields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+        )
+        val strongId = StrongIdModel(
+            typeName = "ContentId",
+            packageName = "content.ids",
+            kind = StrongIdKind.AGGREGATE_ROOT,
+            ownerAggregateName = "Content",
+            ownerAggregatePackageName = "content.domain",
+        )
+        val sharedEnum = SharedEnumDefinition(
+            typeName = "ContentStatus",
+            packageName = "shared.enums",
+            items = listOf(EnumItemModel(value = 1, name = "PUBLISHED", description = "Published")),
+        )
+        val valueObject = ValueObjectModel(
+            name = "Money",
+            packageName = "shared.values",
+            scope = ValueObjectScope.SHARED,
+            aggregate = null,
+            storage = ValueObjectStorage.JSON,
+            fields = listOf(FieldModel(name = "amount", type = "BigDecimal")),
+        )
+        val domainService = DomainServiceModel(
+            name = "ContentPublicationPolicy",
+            packageName = "content.domain",
+            description = "publication policy",
+            aggregates = listOf("Content"),
+        )
+        val saga = SagaModel(
+            name = "PublishContentSaga",
+            packageName = "content.workflow",
+            description = "publish content",
+            requestFields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+            responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+        )
+        val typeRegistry = TypeRegistryModel.empty()
+
+        val model = CanonicalModel(
+            project = project,
+            aggregates = listOf(aggregate),
+            commands = listOf(command),
+            queries = listOf(query),
+            clients = listOf(client),
+            apiPayloads = listOf(apiPayload),
+            domainEvents = listOf(domainEvent),
+            integrationEvents = listOf(integrationEvent),
+            strongIds = listOf(strongId),
+            sharedEnums = listOf(sharedEnum),
+            valueObjects = listOf(valueObject),
+            domainServices = listOf(domainService),
+            sagas = listOf(saga),
+            typeRegistry = typeRegistry,
+        )
+
+        assertEquals(project, model.project)
+        assertEquals(listOf(aggregate), model.aggregates)
+        assertEquals(listOf(command), model.commands)
+        assertEquals(listOf(query), model.queries)
+        assertEquals(listOf(client), model.clients)
+        assertEquals(listOf(apiPayload), model.apiPayloads)
+        assertEquals(listOf(domainEvent), model.domainEvents)
+        assertEquals(listOf(integrationEvent), model.integrationEvents)
+        assertEquals(listOf(strongId), model.strongIds)
+        assertEquals(listOf(sharedEnum), model.sharedEnums)
+        assertEquals(listOf(valueObject), model.valueObjects)
+        assertEquals(ValueObjectScope.SHARED, model.valueObjects.single().scope)
+        assertEquals(ValueObjectStorage.JSON, model.valueObjects.single().storage)
+        assertEquals(listOf(FieldModel(name = "amount", type = "BigDecimal")), model.valueObjects.single().fields)
+        assertEquals(listOf(domainService), model.domainServices)
+        assertEquals("ContentPublicationPolicy", model.domainServices.single().name)
+        assertEquals(listOf(saga), model.sagas)
+        assertEquals("PublishContentSaga", model.sagas.single().name)
+        assertEquals(listOf(FieldModel(name = "contentId", type = "ContentId")), model.sagas.single().requestFields)
+        assertEquals(listOf(FieldModel(name = "accepted", type = "Boolean")), model.sagas.single().responseFields)
+        assertEquals(typeRegistry, model.typeRegistry)
+    }
+
+    @Test
     fun `ir analysis snapshot preserves input dirs nodes edges and design elements`() {
         val snapshot = IrAnalysisSnapshot(
             inputDirs = listOf("app/build/cap4k-code-analysis"),
@@ -361,34 +488,7 @@ class PipelineModelsTest {
     }
 
     @Test
-    fun `canonical model keeps dedicated validators slice alongside commands`() {
-        val command = CommandModel(
-            packageName = "order.submit",
-            typeName = "SubmitOrderCmd",
-            description = "submit order",
-            aggregateRef = null,
-            variant = CommandVariant.DEFAULT,
-        )
-        val validator = ValidatorModel(
-            packageName = "auth.validator",
-            typeName = "IssueToken",
-            description = "issue token validator",
-            message = "校验未通过",
-            targets = listOf("FIELD", "VALUE_PARAMETER"),
-            valueType = "Long",
-        )
-
-        val model = CanonicalModel(
-            commands = listOf(command),
-            validators = listOf(validator),
-        )
-
-        assertEquals(listOf(command), model.commands)
-        assertEquals(listOf(validator), model.validators)
-    }
-
-    @Test
-    fun `canonical model keeps dedicated api payload slice alongside commands validators and aggregate slices`() {
+    fun `canonical model keeps dedicated api payload slice alongside commands and aggregate slices`() {
         val payload = ApiPayloadModel(
             packageName = "auth.payload",
             typeName = "BatchSaveAccountList",
@@ -402,14 +502,6 @@ class PipelineModelsTest {
             description = "submit order",
             aggregateRef = null,
             variant = CommandVariant.DEFAULT,
-        )
-        val validator = ValidatorModel(
-            packageName = "auth.validator",
-            typeName = "IssueToken",
-            description = "issue token validator",
-            message = "校验未通过",
-            targets = listOf("FIELD", "VALUE_PARAMETER"),
-            valueType = "Long",
         )
         val schema = SchemaModel(
             name = "SVideoPost",
@@ -435,7 +527,6 @@ class PipelineModelsTest {
 
         val model = CanonicalModel(
             commands = listOf(command),
-            validators = listOf(validator),
             apiPayloads = listOf(payload),
             schemas = listOf(schema),
             entities = listOf(entity),
@@ -443,7 +534,6 @@ class PipelineModelsTest {
         )
 
         assertEquals(listOf(command), model.commands)
-        assertEquals(listOf(validator), model.validators)
         assertEquals(listOf(payload), model.apiPayloads)
         assertEquals(listOf(schema), model.schemas)
         assertEquals(listOf(entity), model.entities)

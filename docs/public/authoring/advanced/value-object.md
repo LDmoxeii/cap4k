@@ -29,7 +29,7 @@
 当前作者应先把值对象分成“领域值定义”和“数据库承载形态”两件事：
 
 - inline column：少量字段可直接展开到父聚合表，字段规则仍由手写值对象或聚合行为保证。
-- JSON column：适合 `MediaProcessingResultSnapshot` 这类聚合内部快照；DDL 用 `@T=MediaProcessingResultSnapshot`，`types.registryFile` 指向手写类型与 converter，生成器只把字段映射回聚合。
+- JSON column：适合 `MediaProcessingResultSnapshot` 这类聚合内部快照；DDL 用 `@T=MediaProcessingResultSnapshot`。如果类型由 `types.valueObjectManifest` 声明，生成器会生成 checked-in value-object source，并在类内直接嵌套 converter；如果类型由 `types.registryFile` 声明，则指向手写类型与 converter，生成器只把字段映射回聚合。
 - separate table / `@VO`：更重的 table-backed 形态，只在确实需要独立行、外键绑定或可定位持久化值时考虑，不是默认 Value Object 路径。
 
 不要把 `ValueObject<ID>.hash()` 当成所有值对象的统一合同。它更接近 table-backed / 可持久化定位值对象的能力；普通业务值对象可以只是手写 Kotlin 类型，靠构造、校验、归一化和 equals 表达值语义。
@@ -45,13 +45,15 @@
   - 如果你关心的核心只是别把 `ContentId`、`MediaProcessingTaskId`、`ExternalMediaTaskId` 混用，那优先看 [Strong ID](strong-id.md)。
 - 让值对象服务于聚合行为，而不是替代聚合行为。比如 `Content` 负责“是否允许发布”，值对象只负责把输入值保持成合法、可比较、可复用的业务值。
 - callback 主路径和 polling 备用路径都先在 adapter / application 层完成外部协议转换，再统一构造同一种值对象进入 `MediaProcessingTask`。
-- 如果数据库需要 JSON、嵌入字段或列展开，那是持久化层决定如何承载；领域层仍然只关心这个值对象长什么业务样。当前 JSON-backed 形态通常由 `@T` + `types.registryFile` + converter 接入，值对象类本身仍是作者手写主面。
+- 如果数据库需要 JSON、嵌入字段或列展开，那是持久化层决定如何承载；领域层仍然只关心这个值对象长什么业务样。当前 JSON-backed 形态可以由 `@T` + `types.valueObjectManifest` 生成 checked-in source，也可以由 `@T` + `types.registryFile` 接入手写类型。
+- `types.valueObjectManifest` 用 `scope = "shared"` 或 `scope = "aggregate"` 区分共享值对象和聚合独立值对象；`scope = "aggregate"` 必须声明 `aggregate`，`scope = "shared"` 不能声明 `aggregate`。
 
 ## 常见误用
 
 - 只是因为“类型多一点看起来更严格”，就把每个 `String` 都包装成值对象，结果作者阅读成本暴涨。
 - 本该是枚举的生命周期状态，硬写成复合值对象，掩盖了 `Content` 或 `MediaProcessingTask` 的状态机。
 - 把一段 JSON 列结构直接等同于值对象定义，导致一改存储结构就误以为业务概念也变了。
+- 在 `types.valueObjectManifest` 已经声明的值对象，又额外写一条重复的 `types.registryFile` entry。
 - callback payload 用一种字段组合，polling payload 用另一种字段组合，分别直写聚合，最后同一个“处理结果”在内部没有统一值语义。
 - 在查询层临时拼出一个“像值对象的 DTO”，再反向拿它当写模型真相。
 
@@ -61,6 +63,7 @@
 - 这段值语义是否真的被多个业务动作共享，或者真的需要独立校验与等值规则。
 - `Content` 与 `MediaProcessingTask` 的聚合行为是否仍然清晰，没有被值对象碎片替代。
 - JSON 字段是否只被当作 persistence carrier，而不是领域定义本身。
+- manifest 值对象是否清楚声明 `scope`，并且 generated checked-in source 的 `SKIP` ownership 已经在 `plan.json` 中确认。
 - `@VO` 是否只在确实需要 table-backed 值对象时使用，而不是被当成“用了值对象就必须建表”的默认动作。
 - 如果作者把 `ExternalMediaTaskId` 归到值对象，审阅者是否能看到明确的值语义、归一化或等值规则，而不只是 ID 防混淆诉求。
 - callback 主路径与 polling 备用路径进入内部后，是否构造成同一种值表达。

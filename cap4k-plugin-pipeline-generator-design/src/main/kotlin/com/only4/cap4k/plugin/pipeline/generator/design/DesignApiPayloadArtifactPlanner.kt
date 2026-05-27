@@ -10,6 +10,10 @@ class DesignApiPayloadArtifactPlanner : GeneratorProvider {
     override val id: String = "design-api-payload"
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
+        if (model.apiPayloads.isEmpty()) {
+            return emptyList()
+        }
+
         val adapterRoot = requireRelativeModuleRoot(config, "adapter")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
 

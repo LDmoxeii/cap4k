@@ -18,12 +18,4 @@ cap4k {
             inputDir.set("design/metadata")
         }
     }
-    generators {
-        designDomainEvent {
-            enabled.set(true)
-        }
-        designDomainEventHandler {
-            enabled.set(true)
-        }
-    }
 }

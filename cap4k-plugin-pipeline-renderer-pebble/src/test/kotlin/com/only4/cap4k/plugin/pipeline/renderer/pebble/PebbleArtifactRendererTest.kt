@@ -53,7 +53,14 @@ class PebbleArtifactRendererTest {
                     moduleRole = "domain",
                     templateId = templateId,
                     outputPath = outputPath,
-                    context = context,
+                    context = if (templateId == "aggregate/entity.kt.peb") {
+                        mapOf(
+                            "aggregateName" to context["typeName"],
+                            "aggregateRoot" to true,
+                        ) + context
+                    } else {
+                        context
+                    },
                     conflictPolicy = ConflictPolicy.SKIP,
                 )
             ),
@@ -66,6 +73,88 @@ class PebbleArtifactRendererTest {
                 templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             ),
         ).single().content
+
+    @Test
+    fun `value object template renders json converter skeleton with normalized field types`() {
+        val content = renderTemplate(
+            templateId = ProjectConfig().artifactLayout.valueObject.id,
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/Money.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.shared.values",
+                "typeName" to "Money",
+                "name" to "Money",
+                "imports" to listOf(
+                    "com.acme.demo.domain.shared.types.CurrencyCode",
+                    "java.math.BigDecimal",
+                ),
+                "fields" to listOf(
+                    mapOf("name" to "amount", "renderedType" to "BigDecimal", "nullable" to false),
+                    mapOf("name" to "currency", "renderedType" to "CurrencyCode?", "nullable" to true),
+                ),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("package com.acme.demo.domain.shared.values"))
+        assertTrue(content.contains("import com.fasterxml.jackson.databind.ObjectMapper"))
+        assertTrue(content.contains("import com.fasterxml.jackson.module.kotlin.readValue"))
+        assertTrue(content.contains("import jakarta.persistence.AttributeConverter"))
+        assertFalse(content.contains("import jakarta.persistence.Converter"))
+        assertTrue(content.contains("import com.acme.demo.domain.shared.types.CurrencyCode"))
+        assertTrue(content.contains("import java.math.BigDecimal"))
+        assertTrue(content.contains("data class Money("))
+        assertTrue(content.contains("val amount: BigDecimal,"))
+        assertTrue(content.contains("val currency: CurrencyCode?"))
+        assertTrue(content.contains("@jakarta.persistence.Converter(autoApply = false)"))
+        assertTrue(content.contains("class Converter : AttributeConverter<Money, String>"))
+        assertTrue(content.contains("ObjectMapper().findAndRegisterModules()"))
+        assertTrue(content.contains("mapper.writeValueAsString(attribute)"))
+        assertTrue(content.contains("mapper.readValue<Money>(it)"))
+        assertFalse(content.contains("val amount: java.math.BigDecimal"))
+    }
+
+    @Test
+    fun `design domain service and saga skeleton template ids resolve through default preset`() {
+        val config = ProjectConfig()
+
+        val domainService = renderTemplate(
+            templateId = config.artifactLayout.designDomainService.id,
+            outputPath = "demo-domain/src/main/kotlin/content/domain/ContentPublicationPolicy.kt",
+            context = mapOf(
+                "packageName" to "content.domain",
+                "name" to "ContentPublicationPolicy",
+                "description" to "publication policy",
+                "aggregates" to listOf("Content"),
+            ),
+        )
+        assertTrue(domainService.contains("import com.only4.cap4k.ddd.core.domain.service.annotation.DomainService"))
+        assertTrue(domainService.contains("class ContentPublicationPolicy"))
+        assertReadableKotlin(domainService)
+
+        val saga = renderTemplate(
+            templateId = config.artifactLayout.designSagaArtifact.id,
+            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSaga.kt",
+            context = mapOf(
+                "packageName" to "content.workflow",
+                "name" to "PublishContentSaga",
+                "requestFields" to listOf(mapOf("name" to "contentId", "renderedType" to "ContentId")),
+                "responseFields" to listOf(mapOf("name" to "accepted", "renderedType" to "Boolean")),
+                "imports" to emptyList<String>(),
+            ),
+        )
+        assertTrue(saga.contains("import com.only4.cap4k.ddd.core.application.saga.SagaHandler"))
+        assertTrue(saga.contains("import com.only4.cap4k.ddd.core.application.saga.SagaParam"))
+        assertTrue(saga.contains("import org.springframework.stereotype.Service"))
+        assertTrue(saga.contains("object PublishContentSaga"))
+        assertTrue(saga.contains("@Service"))
+        assertTrue(saga.contains("class Handler : SagaHandler<Request, Response>"))
+        assertTrue(saga.contains("override fun exec(request: Request): Response"))
+        assertTrue(saga.contains("data class Request("))
+        assertTrue(saga.contains(": SagaParam<Response>"))
+        assertTrue(saga.contains("data class Response("))
+        assertTrue(saga.contains("val accepted: Boolean"))
+        assertReadableKotlin(saga)
+    }
 
     @Test
     fun `aggregate factory template renders semantic payload metadata and filtered payload fields`() {
@@ -591,6 +680,59 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@Column(name = \"name\")\n    var name: String = name\n        internal set"))
         assertTrue(content.contains("val children: MutableList<Category> = mutableListOf()"))
         assertFalse(content.contains("managed-begin"))
+    }
+
+    @Test
+    fun `aggregate entity template fails fast when aggregate metadata is missing`() {
+        val exception = assertThrows<Exception> {
+            PebbleArtifactRenderer(
+                templateResolver = PresetTemplateResolver("ddd-default", emptyList())
+            ).render(
+                planItems = listOf(
+                    ArtifactPlanItem(
+                        generatorId = "aggregate",
+                        moduleRole = "domain",
+                        templateId = "aggregate/entity.kt.peb",
+                        outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/category/Category.kt",
+                        context = mapOf(
+                            "packageName" to "com.acme.demo.domain.aggregates.category",
+                            "typeName" to "Category",
+                            "comment" to "category",
+                            "entityJpa" to mapOf(
+                                "entityEnabled" to true,
+                                "tableName" to "category",
+                            ),
+                            "hasConverterFields" to false,
+                            "hasGeneratedValueFields" to false,
+                            "hasVersionFields" to false,
+                            "dynamicInsert" to false,
+                            "dynamicUpdate" to false,
+                            "softDeleteSql" to null,
+                            "softDeleteWhereClause" to null,
+                            "jpaImports" to emptyList<String>(),
+                            "imports" to emptyList<String>(),
+                            "scalarFields" to emptyList<Map<String, Any?>>(),
+                            "fields" to emptyList<Map<String, Any?>>(),
+                            "relationFields" to emptyList<Map<String, Any?>>(),
+                        ),
+                        conflictPolicy = ConflictPolicy.SKIP,
+                    )
+                ),
+                config = ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = emptyMap(),
+                    generators = emptyMap(),
+                    templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                ),
+            )
+        }
+
+        val rootCause = generateSequence(exception as Throwable?) { it.cause }
+            .filterIsInstance<IllegalArgumentException>()
+            .first()
+        assertEquals("required() missing value: aggregateName", rootCause.message)
     }
 
     @Test
@@ -2517,6 +2659,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.order",
                         "typeName" to "Order",
                         "comment" to "Order aggregate",
+                        "aggregateName" to "Order",
+                        "aggregateRoot" to true,
                         "idField" to FieldModel("id", "Long"),
                         "jpaImports" to emptyList<String>(),
                         "imports" to emptyList<String>(),
@@ -2794,6 +2938,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -2934,6 +3080,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post_item",
                         "typeName" to "VideoPostItem",
                         "comment" to "video post item",
+                        "aggregateName" to "VideoPostItem",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post_item",
@@ -3040,6 +3188,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3140,6 +3290,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3226,6 +3378,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3319,6 +3473,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3412,6 +3568,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "tableName" to "video_post",
                         "jpaImports" to emptyList<String>(),
                         "imports" to listOf("com.acme.demo.domain.identity.user.UserProfile"),
@@ -3476,6 +3634,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3565,6 +3725,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3650,7 +3812,10 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("\n\n\n"), content)
         assertFalse(Regex("(?m)^\\s+$").containsMatchIn(content), content)
         assertTrue(content.startsWith("package com.acme.demo.domain.aggregates.video_post\n\nimport "))
-        assertTrue(content.contains("\n\n@Entity"), content)
+        assertTrue(content.contains("@Aggregate("), content)
+        assertTrue(content.contains("aggregate = \"VideoPost\""), content)
+        assertTrue(content.contains("root = true"), content)
+        assertTrue(content.contains("\n@Entity"), content)
         assertTrue(content.contains("import jakarta.persistence.GeneratedValue"))
         assertTrue(content.contains("import jakarta.persistence.GenerationType"))
         assertFalse(content.contains("import org.hibernate.annotations.Generic" + "Generator"))
@@ -3687,6 +3852,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3779,6 +3946,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3863,6 +4032,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -4278,7 +4449,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `renders drawing board json without html escaping and preserves defaultValue expressions`() {
+    fun `renders drawing board json without html escaping`() {
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -4292,29 +4463,15 @@ class PebbleArtifactRendererTest {
                     generatorId = "drawing-board",
                     moduleRole = "project",
                     templateId = "drawing-board/document.json.peb",
-                    outputPath = "design/validator.json",
+                    outputPath = "design/command.json",
                     context = mapOf(
                         "elements" to listOf(
                             DrawingBoardElementModel(
-                                tag = "validator",
-                                packageName = "demo.application.shared",
-                                name = "SharedDefaultsValidator",
+                                tag = "command",
+                                packageName = "demo.application.workflow",
+                                name = "SubmitDefaults",
                                 description = "Map<String, String> <raw> & stable",
-                                message = "use <raw> & keep",
-                                targets = listOf("CLASS"),
-                                valueType = "Map<String, String>",
-                                parameters = listOf(
-                                    ValidatorParameterModel(
-                                        name = "metadata",
-                                        type = "Map<String, String>",
-                                        defaultValue = "emptyMap()",
-                                    ),
-                                    ValidatorParameterModel(
-                                        name = "title",
-                                        type = "String",
-                                        defaultValue = "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-                                    )
-                                ),
+                                aggregates = listOf("Content"),
                             )
                         )
                     ),
@@ -4342,16 +4499,7 @@ class PebbleArtifactRendererTest {
 
         val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
         assertEquals("Map<String, String> <raw> & stable", element["desc"].asString)
-        assertEquals("use <raw> & keep", element["message"].asString)
-        assertEquals("Map<String, String>", element["valueType"].asString)
-        assertEquals(
-            "emptyMap()",
-            element["parameters"].asJsonArray[0].asJsonObject["defaultValue"].asString,
-        )
-        assertEquals(
-            "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-            element["parameters"].asJsonArray[1].asJsonObject["defaultValue"].asString,
-        )
+        assertEquals("Content", element["aggregates"].asJsonArray.single().asString)
     }
 
     @Test
@@ -6558,135 +6706,6 @@ class PebbleArtifactRendererTest {
         assertTrue(eventContent.contains("class OrderCreatedDomainEventOverride"))
         assertTrue(handlerContent.contains("// override: renderer domain event handler template"))
         assertTrue(handlerContent.contains("class OrderCreatedDomainEventSubscriberOverride"))
-    }
-
-    @Test
-    fun `validator preset resolves design validator template and renders constraint contract`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-validator")
-        val renderer = PebbleArtifactRenderer(
-            templateResolver = PresetTemplateResolver(
-                preset = "ddd-default",
-                overrideDirs = listOf(overrideDir.toString())
-            )
-        )
-
-        val rendered = renderer.render(
-            planItems = listOf(
-                ArtifactPlanItem(
-                    generatorId = "design-validator",
-                    moduleRole = "application",
-                    templateId = "design/validator.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/validators/authorize/IssueToken.kt",
-                    context = mapOf(
-                        "packageName" to "com.acme.demo.application.validators.authorize",
-                        "typeName" to "IssueToken",
-                        "description" to "issue */ token validator",
-                        "descriptionCommentText" to "issue * / token validator",
-                        "message" to "token rejected ${'$'}reason",
-                        "messageLiteral" to "\"token rejected \\${'$'}reason\"",
-                        "targets" to listOf("FIELD", "VALUE_PARAMETER"),
-                        "valueType" to "Long",
-                        "parameters" to listOf(
-                            mapOf(
-                                "name" to "userIdField",
-                                "type" to "String",
-                                "defaultValueLiteral" to "\"user\\${'$'}id\"",
-                            ),
-                        ),
-                        "imports" to listOf("java.util.UUID"),
-                    ),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            ),
-            config = ProjectConfig(
-                basePackage = "com.acme.demo",
-                layout = ProjectLayout.MULTI_MODULE,
-                modules = emptyMap(),
-                sources = emptyMap(),
-                generators = emptyMap(),
-                templates = TemplateConfig(
-                    preset = "ddd-default",
-                    overrideDirs = listOf(overrideDir.toString()),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            )
-        )
-
-        val content = rendered.single().content
-        val normalizedContent = content.replace("\r\n", "\n")
-        assertTrue(content.contains("package com.acme.demo.application.validators.authorize"))
-        assertTrue(content.contains("import java.util.UUID"))
-        assertFalse(Regex("^import .+\n\nimport ", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
-        assertTrue(content.contains("* issue * / token validator"))
-        assertFalse(content.contains("* issue */ token validator"))
-        assertTrue(content.contains("@Constraint"))
-        assertTrue(content.contains("@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)"))
-        assertTrue(content.contains("annotation class IssueToken("))
-        assertTrue(content.contains("val message: String = \"token rejected \\${'$'}reason\""))
-        assertTrue(content.contains("val groups: Array<KClass<*>>"))
-        assertTrue(content.contains("val payload: Array<KClass<out Payload>>"))
-        assertTrue(content.contains("    val userIdField: String = \"user\\${'$'}id\""))
-        assertFalse(Regex("^val userIdField", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
-        assertFalse(Regex("^    val .+\n\n    val ", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
-        assertTrue(content.contains("class Validator : ConstraintValidator<IssueToken, Long>"))
-        assertTrue(content.contains("    class Validator : ConstraintValidator<IssueToken, Long>"))
-        assertFalse(Regex("^class Validator", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
-        assertTrue(content.contains("override fun isValid(value: Long?, context: ConstraintValidatorContext): Boolean = true"))
-    }
-
-    @Test
-    fun `validator preset supports override template resolution for design validator`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-design-validator")
-        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
-        overrideDesignDir.resolve("validator.kt.peb").writeText(
-            """
-            // override: renderer validator template
-            package {{ packageName }}
-            annotation class {{ typeName }}
-            """.trimIndent()
-        )
-
-        val renderer = PebbleArtifactRenderer(
-            templateResolver = PresetTemplateResolver(
-                preset = "ddd-default",
-                overrideDirs = listOf(overrideDir.toString())
-            )
-        )
-
-        val rendered = renderer.render(
-            planItems = listOf(
-                ArtifactPlanItem(
-                    generatorId = "design-validator",
-                    moduleRole = "application",
-                    templateId = "design/validator.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/validators/authorize/IssueToken.kt",
-                    context = mapOf(
-                        "packageName" to "com.acme.demo.application.validators.authorize",
-                        "typeName" to "IssueToken",
-                        "description" to "issue token validator",
-                        "valueType" to "Long",
-                        "imports" to emptyList<String>(),
-                    ),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            ),
-            config = ProjectConfig(
-                basePackage = "com.acme.demo",
-                layout = ProjectLayout.MULTI_MODULE,
-                modules = emptyMap(),
-                sources = emptyMap(),
-                generators = emptyMap(),
-                templates = TemplateConfig(
-                    preset = "ddd-default",
-                    overrideDirs = listOf(overrideDir.toString()),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            )
-        )
-
-        val content = rendered.single().content
-        assertTrue(content.contains("// override: renderer validator template"))
-        assertTrue(content.contains("annotation class IssueToken"))
     }
 
     @Test

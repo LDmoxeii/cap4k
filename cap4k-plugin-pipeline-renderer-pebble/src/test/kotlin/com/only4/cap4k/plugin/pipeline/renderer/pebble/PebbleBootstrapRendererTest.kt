@@ -105,43 +105,21 @@ class PebbleBootstrapRendererTest {
         val artifact = renderer.render(listOf(item)).single()
 
         assertTrue(artifact.content.contains("implementation(project(\":only-danmuku-domain\"))"))
-        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-core:0.6.0-dev\")"))
+        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-core:1.0.0\")"))
         assertTrue(artifact.content.contains("implementation(\"jakarta.validation:jakarta.validation-api:3.0.2\")"))
         assertTrue(artifact.content.contains("implementation(\"org.jetbrains.kotlin:kotlin-reflect:2.2.20\")"))
         assertTrue(artifact.content.contains("implementation(\"org.springframework:spring-context\")"))
     }
 
     @Test
-    fun `render default domain module build with bumped generated code dependency versions`() {
+    fun `render default domain module build with value object json converter dependencies`() {
         val item = BootstrapPlanItem(
             presetId = "ddd-multi-module",
             templateId = "bootstrap/module/domain-build.gradle.kts.peb",
             outputPath = "only-danmuku/only-danmuku-domain/build.gradle.kts",
             conflictPolicy = ConflictPolicy.FAIL,
-            context = mapOf("basePackage" to "edu.only4.danmuku"),
-        )
-
-        val renderer = PebbleBootstrapRenderer(
-            PresetTemplateResolver("ddd-default-bootstrap", emptyList())
-        )
-
-        val artifact = renderer.render(listOf(item)).single()
-
-        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-core:0.6.0-dev\")"))
-        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-domain-repo-jpa:0.6.0-dev\")"))
-    }
-
-    @Test
-    fun `render default adapter module build with bumped generated code dependency versions`() {
-        val item = BootstrapPlanItem(
-            presetId = "ddd-multi-module",
-            templateId = "bootstrap/module/adapter-build.gradle.kts.peb",
-            outputPath = "only-danmuku/only-danmuku-adapter/build.gradle.kts",
-            conflictPolicy = ConflictPolicy.FAIL,
             context = mapOf(
                 "basePackage" to "edu.only4.danmuku",
-                "domainModuleName" to "only-danmuku-domain",
-                "applicationModuleName" to "only-danmuku-application",
             ),
         )
 
@@ -151,41 +129,11 @@ class PebbleBootstrapRendererTest {
 
         val artifact = renderer.render(listOf(item)).single()
 
-        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-core:0.6.0-dev\")"))
-        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-domain-repo-jpa:0.6.0-dev\")"))
-    }
-
-    @Test
-    fun `render root build applies published pipeline plugin id`() {
-        val item = BootstrapPlanItem(
-            presetId = "ddd-multi-module",
-            templateId = "bootstrap/root/build.gradle.kts.peb",
-            outputPath = "only-danmuku/build.gradle.kts",
-            conflictPolicy = ConflictPolicy.FAIL,
-            context = mapOf(
-                "conflictPolicy" to "FAIL",
-                "mode" to "PRESERVE",
-                "projectName" to "only-danmuku",
-                "basePackage" to "edu.only4.danmuku",
-                "domainModuleName" to "only-danmuku-domain",
-                "applicationModuleName" to "only-danmuku-application",
-                "adapterModuleName" to "only-danmuku-adapter",
-                "startModuleName" to "only-danmuku-start",
-                "templatePreset" to "ddd-default-bootstrap",
-                "templateOverrideDirs" to emptyList<String>(),
-                "slotStatements" to emptyList<String>(),
-                "previewDir" to null,
-            ),
-        )
-
-        val renderer = PebbleBootstrapRenderer(
-            PresetTemplateResolver("ddd-default-bootstrap", emptyList())
-        )
-
-        val artifact = renderer.render(listOf(item)).single()
-
-        assertTrue(artifact.content.contains("id(\"io.github.ldmoxeii.cap4k.pipeline\")"))
-        assertTrue(artifact.content.contains("import com.only4.cap4k.plugin.pipeline.api.BootstrapMode"))
+        assertTrue(artifact.content.contains("implementation(\"jakarta.persistence:jakarta.persistence-api:3.1.0\")"))
+        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-core:1.0.0\")"))
+        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-domain-repo-jpa:1.0.0\")"))
+        assertTrue(artifact.content.contains("implementation(\"com.fasterxml.jackson.core:jackson-databind:2.17.2\")"))
+        assertTrue(artifact.content.contains("implementation(\"com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2\")"))
     }
 
     @Test

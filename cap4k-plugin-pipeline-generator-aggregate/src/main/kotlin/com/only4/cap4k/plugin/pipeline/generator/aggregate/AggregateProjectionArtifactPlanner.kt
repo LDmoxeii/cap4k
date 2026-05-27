@@ -11,7 +11,7 @@ class AggregateProjectionArtifactPlanner : GeneratorProvider {
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
-        val enumPlanning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry)
+        val enumPlanning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry.entries)
 
         return model.entities.map { entity ->
             val entityJpa = model.aggregateEntityJpa.singleOrNull {

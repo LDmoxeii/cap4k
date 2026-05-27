@@ -9,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
+import com.only4.cap4k.plugin.pipeline.api.AddonProviderConfig
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
@@ -86,6 +87,125 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
+    fun `passes provider scoped options to matching addon`() {
+        var receivedOptions: Map<String, Any?>? = null
+        val addon = object : ArtifactAddonProvider {
+            override val id: String = "sample-addon"
+
+            override fun plan(context: ArtifactAddonContext): List<ArtifactPlanItem> {
+                receivedOptions = context.options
+                return emptyList()
+            }
+        }
+
+        runWithCapturedPlanItems(
+            plannedItems = emptyList(),
+            addonProviders = listOf(addon),
+            config = enabledConfig(
+                addons = mapOf(
+                    "sample-addon" to AddonProviderConfig(
+                        id = "sample-addon",
+                        options = mapOf("enumPackage" to "domain.enums"),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(mapOf("enumPackage" to "domain.enums"), receivedOptions)
+    }
+
+    @Test
+    fun `fails when addon config key does not match provider id`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = listOf(addonProvider("sample-addon", emptyList())),
+                config = enabledConfig(
+                    addons = mapOf(
+                        "sample-addon" to AddonProviderConfig(
+                            id = "other-addon",
+                            options = mapOf("enabled" to "true"),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "Configured addon provider key does not match provider id: sample-addon != other-addon",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `fails when addon options reference unloaded provider`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = emptyList(),
+                config = enabledConfig(
+                    addons = mapOf(
+                        "missing-addon" to AddonProviderConfig(
+                            id = "missing-addon",
+                            options = mapOf("enabled" to "true"),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertTrue(error.message?.contains("Configured addon provider is not loaded: missing-addon") == true)
+    }
+
+    @Test
+    fun `rejects addon template id outside provider namespace`() {
+        val addonItem = ArtifactPlanItem(
+            generatorId = "sample-addon",
+            moduleRole = "adapter",
+            templateId = "addons/other-addon/sample.kt.peb",
+            outputPath = "generated/SampleAddon.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
+                config = enabledConfig(),
+            )
+        }
+
+        assertTrue(
+            error.message?.contains(
+                "Addon sample-addon produced template id outside addons/sample-addon/: addons/other-addon/sample.kt.peb",
+            ) == true,
+        )
+    }
+
+    @Test
+    fun `wraps addon provider planning exceptions`() {
+        val failure = IllegalArgumentException("bad addon state")
+        val addon = object : ArtifactAddonProvider {
+            override val id: String = "sample-addon"
+
+            override fun plan(context: ArtifactAddonContext): List<ArtifactPlanItem> {
+                throw failure
+            }
+        }
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = listOf(addon),
+                config = enabledConfig(),
+            )
+        }
+
+        assertTrue(error.message?.contains("Addon provider sample-addon failed while planning artifacts") == true)
+        assertEquals(failure, error.cause)
+    }
+
+    @Test
     fun `addon plan item passes through transform include and conflict policy`() {
         val includedAddonItem = ArtifactPlanItem(
             generatorId = "sample-addon",
@@ -125,6 +245,61 @@ class DefaultPipelineRunnerTest {
 
         assertEquals(listOf(expectedResolvedItem), result.rendererReceivedPlanItems)
         assertEquals(listOf(expectedResolvedItem), result.pipelineResult.planItems)
+    }
+
+    @Test
+    fun `rejects transformed addon template id outside provider namespace`() {
+        val addonItem = ArtifactPlanItem(
+            generatorId = "sample-addon",
+            moduleRole = "adapter",
+            templateId = "addons/sample-addon/original.kt.peb",
+            outputPath = "generated/SampleAddon.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
+                config = enabledConfig(),
+                transformPlanItem = {
+                    it.copy(
+                        generatorId = "design-command",
+                        templateId = "design/command.kt.peb",
+                    )
+                },
+            )
+        }
+
+        assertTrue(
+            error.message?.contains(
+                "Addon sample-addon produced template id outside addons/sample-addon/: design/command.kt.peb",
+            ) == true,
+        )
+    }
+
+    @Test
+    fun `does not validate built-in item as addon item when transformed generator id matches addon provider id`() {
+        val builtInItem = ArtifactPlanItem(
+            generatorId = "design-command",
+            moduleRole = "app",
+            templateId = "design/command.kt.peb",
+            outputPath = "generated/CreateOrderCmd.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        val transformedBuiltInItem = builtInItem.copy(generatorId = "sample-addon")
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = listOf(builtInItem),
+            addonProviders = listOf(addonProvider("sample-addon", emptyList())),
+            config = enabledConfig(),
+            transformPlanItem = {
+                if (it.generatorId == "design-command") transformedBuiltInItem else it
+            },
+        )
+
+        assertEquals(listOf(transformedBuiltInItem), result.rendererReceivedPlanItems)
+        assertEquals(listOf(transformedBuiltInItem), result.pipelineResult.planItems)
     }
 
     @Test
@@ -657,6 +832,7 @@ class DefaultPipelineRunnerTest {
             overrideDirs = emptyList(),
             conflictPolicy = ConflictPolicy.OVERWRITE,
         ),
+        addons: Map<String, AddonProviderConfig> = emptyMap(),
     ): ProjectConfig {
         return ProjectConfig(
             basePackage = "com.only4.cap4k.sample",
@@ -665,6 +841,7 @@ class DefaultPipelineRunnerTest {
             sources = mapOf("design-json" to SourceConfig(enabled = true)),
             generators = generators,
             templates = templates,
+            addons = addons,
         )
     }
 

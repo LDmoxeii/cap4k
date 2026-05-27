@@ -25,6 +25,11 @@ cap4k {
             excludeTables.set(emptyList())
         }
     }
+    types {
+        valueObjectManifest {
+            files.from("design/value-objects.json")
+        }
+    }
     generators {
         aggregate {
             enabled.set(true)

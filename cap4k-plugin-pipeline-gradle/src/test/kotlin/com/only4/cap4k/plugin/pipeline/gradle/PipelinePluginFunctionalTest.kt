@@ -24,9 +24,9 @@ class PipelinePluginFunctionalTest {
     @Test
     fun `cap4kPlan writes pretty printed plan json`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-plan")
-        copyFixture(projectDir)
+        copyCompileFixture(projectDir, "design-integrated-compile-sample")
 
-        val metadataFile = projectDir.resolve("domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
+        val metadataFile = projectDir.resolve("demo-domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -43,6 +43,14 @@ class PipelinePluginFunctionalTest {
         assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/command.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/query.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"design/domain_service.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"design/saga.kt.peb\""))
+        assertFalse(planFile.readText().contains("\"templateId\": \"design/saga_param.kt.peb\""))
+        assertFalse(planFile.readText().contains("\"templateId\": \"design/saga_result.kt.peb\""))
+        assertFalse(planFile.readText().contains("\"templateId\": \"design/saga_handler.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"types/value-object\""))
+        assertFalse(planFile.readText().contains("\"generatorId\": \"design-validator\""))
+        assertFalse(planFile.readText().contains("\"templateId\": \"design/validator.kt.peb\""))
         assertFalse(planFile.readText().contains("\"templateId\": \"design/query_" + "list.kt.peb\""))
         assertFalse(planFile.readText().contains("\"templateId\": \"design/query_" + "page.kt.peb\""))
     }
@@ -241,24 +249,7 @@ class PipelinePluginFunctionalTest {
         copyFixture(projectDir)
 
         val buildFile = projectDir.resolve("build.gradle.kts")
-        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent.replace(
-                """
-                |        designQuery {
-                |            enabled.set(true)
-                |        }
-                """.trimMargin(),
-                """
-                |        designQuery {
-                |            enabled.set(true)
-                |        }
-                |        templates {
-                |            overrideDirs.from("codegen/templates")
-                |        }
-                """.trimMargin()
-            )
-        )
+        buildFile.appendTemplateOverrideBlock()
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -318,24 +309,7 @@ class PipelinePluginFunctionalTest {
         copyFixture(projectDir)
 
         val buildFile = projectDir.resolve("build.gradle.kts")
-        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent.replace(
-                """
-                |        designQuery {
-                |            enabled.set(true)
-                |        }
-                """.trimMargin(),
-                """
-                |        designQuery {
-                |            enabled.set(true)
-                |        }
-                |        templates {
-                |            overrideDirs.from("codegen/templates")
-                |        }
-                """.trimMargin()
-            )
-        )
+        buildFile.appendTemplateOverrideBlock()
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -406,27 +380,6 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-query-handler-plan")
         copyFixture(projectDir, "design-sample")
 
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        buildFile.writeText(
-            buildFile.readText()
-                .replace("\r\n", "\n")
-                .replace(
-                    """
-                    |        designQuery {
-                    |            enabled.set(true)
-                    |        }
-                    """.trimMargin(),
-                    """
-                    |        designQuery {
-                    |            enabled.set(true)
-                    |        }
-                    |        designQueryHandler {
-                    |            enabled.set(true)
-                    |        }
-                    """.trimMargin()
-                )
-        )
-
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
             .withPluginClasspath()
@@ -454,27 +407,6 @@ class PipelinePluginFunctionalTest {
     fun `cap4kGenerate renders query handlers with the unified query contract`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-query-handler-generate")
         copyFixture(projectDir, "design-sample")
-
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        buildFile.writeText(
-            buildFile.readText()
-                .replace("\r\n", "\n")
-                .replace(
-                    """
-                    |        designQuery {
-                    |            enabled.set(true)
-                    |        }
-                    """.trimMargin(),
-                    """
-                    |        designQuery {
-                    |            enabled.set(true)
-                    |        }
-                    |        designQueryHandler {
-                    |            enabled.set(true)
-                    |        }
-                    """.trimMargin()
-                )
-        )
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -563,49 +495,7 @@ class PipelinePluginFunctionalTest {
         copyFixture(projectDir, "design-sample")
 
         val buildFile = projectDir.resolve("build.gradle.kts")
-        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent.replace(
-                """
-                |    generators {
-                |        designCommand {
-                |            enabled.set(true)
-                |        }
-                |        designQuery {
-                |            enabled.set(true)
-                |        }
-                |        designClient {
-                |            enabled.set(true)
-                |        }
-                |        designClientHandler {
-                |            enabled.set(true)
-                |        }
-                |    }
-                """.trimMargin(),
-                """
-                |    generators {
-                |        designCommand {
-                |            enabled.set(true)
-                |        }
-                |        designQuery {
-                |            enabled.set(true)
-                |        }
-                |        designClient {
-                |            enabled.set(true)
-                |        }
-                |        designClientHandler {
-                |            enabled.set(true)
-                |        }
-                |        designQueryHandler {
-                |            enabled.set(true)
-                |        }
-                |    }
-                |    templates {
-                |        overrideDirs.from("codegen/templates")
-                |    }
-                """.trimMargin()
-            )
-        )
+        buildFile.appendTemplateOverrideBlock()
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -640,23 +530,7 @@ class PipelinePluginFunctionalTest {
         val buildFile = projectDir.resolve("build.gradle.kts")
         val buildFileContent = buildFile.readText().replace("\r\n", "\n")
         buildFile.writeText(
-            buildFileContent
-                .replace("        adapterModulePath.set(\"demo-adapter\")", "        adapterModulePath.set(\"\")")
-                .replace(
-                    """
-                    |        designQuery {
-                    |            enabled.set(true)
-                    |        }
-                    """.trimMargin(),
-                    """
-                    |        designQuery {
-                    |            enabled.set(true)
-                    |        }
-                    |        designQueryHandler {
-                    |            enabled.set(true)
-                    |        }
-                    """.trimMargin()
-                )
+            buildFileContent.replace("        adapterModulePath.set(\"demo-adapter\")", "        adapterModulePath.set(\"\")")
         )
 
         val result = GradleRunner.create()
@@ -665,44 +539,11 @@ class PipelinePluginFunctionalTest {
             .withArguments("cap4kPlan")
             .buildAndFail()
 
-        assertTrue(result.output.contains("project.adapterModulePath is required when designQueryHandler is enabled."))
-        assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kPlan fails fast when design query handler is enabled without design query`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-query-handler-without-design")
-        copyFixture(projectDir, "design-sample")
-
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent
-                .replace(
-                    """
-                    |        designQuery {
-                    |            enabled.set(true)
-                    |        }
-                    """.trimMargin(),
-                    """
-                    |        designQuery {
-                    |            enabled.set(false)
-                    |        }
-                    |        designQueryHandler {
-                    |            enabled.set(true)
-                    |        }
-                    """.trimMargin()
-                )
+        assertTrue(
+            result.output.contains(
+                "adapter module is required"
+            )
         )
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kPlan")
-            .buildAndFail()
-
-        assertTrue(result.output.contains("designQueryHandler generator requires enabled designQuery generator."))
         assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
     }
 
@@ -782,46 +623,7 @@ class PipelinePluginFunctionalTest {
         copyFixture(projectDir, "design-sample")
 
         val buildFile = projectDir.resolve("build.gradle.kts")
-        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent.replace(
-                """
-                |    generators {
-                |        designCommand {
-                |            enabled.set(true)
-                |        }
-                |        designQuery {
-                |            enabled.set(true)
-                |        }
-                |        designClient {
-                |            enabled.set(true)
-                |        }
-                |        designClientHandler {
-                |            enabled.set(true)
-                |        }
-                |    }
-                """.trimMargin(),
-                """
-                |    generators {
-                |        designCommand {
-                |            enabled.set(true)
-                |        }
-                |        designQuery {
-                |            enabled.set(true)
-                |        }
-                |        designClient {
-                |            enabled.set(true)
-                |        }
-                |        designClientHandler {
-                |            enabled.set(true)
-                |        }
-                |    }
-                |    templates {
-                |        overrideDirs.from("codegen/templates")
-                |    }
-                """.trimMargin()
-            )
-        )
+        buildFile.appendTemplateOverrideBlock()
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -853,23 +655,6 @@ class PipelinePluginFunctionalTest {
             buildFileContent.replace(
                 "        applicationModulePath.set(\"demo-application\")",
                 "        applicationModulePath.set(\"\")",
-            ).replace(
-                """
-                |        designCommand {
-                |            enabled.set(true)
-                |        }
-                |        designQuery {
-                |            enabled.set(true)
-                |        }
-                """.trimMargin(),
-                """
-                |        designCommand {
-                |            enabled.set(false)
-                |        }
-                |        designQuery {
-                |            enabled.set(false)
-                |        }
-                """.trimMargin()
             )
         )
 
@@ -879,107 +664,12 @@ class PipelinePluginFunctionalTest {
             .withArguments("cap4kPlan")
             .buildAndFail()
 
-        assertTrue(result.output.contains("project.applicationModulePath is required when designClient is enabled."))
-        assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kPlan fails fast when design client handler is enabled without design client`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-client-handler-without-client")
-        copyFixture(projectDir, "design-sample")
-
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent.replace(
-                """
-                |        designClient {
-                |            enabled.set(true)
-                |        }
-                """.trimMargin(),
-                """
-                |        designClient {
-                |            enabled.set(false)
-                |        }
-                """.trimMargin()
+        assertTrue(
+            result.output.contains(
+                "application module is required"
             )
         )
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kPlan")
-            .buildAndFail()
-
-        assertTrue(result.output.contains("designClientHandler generator requires enabled designClient generator."))
         assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `plain design generation does not require adapter module path`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-without-adapter-module")
-        copyFixture(projectDir, "design-sample")
-
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent
-                .replace("        adapterModulePath.set(\"demo-adapter\")", "        adapterModulePath.set(\"\")")
-                .replace(
-                    """
-                    |        designClient {
-                    |            enabled.set(true)
-                    |        }
-                    """.trimMargin(),
-                    """
-                    |        designClient {
-                    |            enabled.set(false)
-                    |        }
-                    """.trimMargin()
-                )
-                .replace(
-                    """
-                    |        designClientHandler {
-                    |            enabled.set(true)
-                    |        }
-                    """.trimMargin(),
-                    """
-                    |        designClientHandler {
-                    |            enabled.set(false)
-                    |        }
-                    """.trimMargin()
-                )
-        )
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kGenerate")
-            .build()
-
-        val defaultQueryFile = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt"
-        )
-        val listQueryFile = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderListQry.kt"
-        )
-        val pageQueryFile = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt"
-        )
-
-        val defaultQueryContent = defaultQueryFile.readText()
-        val listQueryContent = listQueryFile.readText()
-        val pageQueryContent = pageQueryFile.readText()
-
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(defaultQueryFile.toFile().exists())
-        assertTrue(listQueryFile.toFile().exists())
-        assertTrue(pageQueryFile.toFile().exists())
-        assertTrue(defaultQueryContent.contains(") : RequestParam<Response>"))
-        assertTrue(listQueryContent.contains("class Request : RequestParam<Response>"))
-        assertTrue(pageQueryContent.contains(") : PageRequest, RequestParam<Response>"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1173,6 +863,9 @@ class PipelinePluginFunctionalTest {
                 generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
             ).exists()
         )
+        val generatedVideoPostContent = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
+        ).readText()
         assertTrue(
             File(
                 projectDir.toFile(),
@@ -1190,6 +883,20 @@ class PipelinePluginFunctionalTest {
         val uniqueQueryContent = uniqueQueryFile.readText()
         val uniqueQueryHandlerContent = uniqueQueryHandlerFile.readText()
         val uniqueValidatorContent = uniqueValidatorFile.readText()
+        assertTrue(generatedVideoPostContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"))
+        assertTrue(
+            generatedVideoPostContent.contains(
+                """
+                @Aggregate(
+                    aggregate = "VideoPost",
+                    name = "VideoPost",
+                    type = Aggregate.TYPE_ENTITY,
+                    root = true,
+                    description = ""
+                )
+                """.trimIndent()
+            )
+        )
         assertTrue(planFile.readText().contains("\"items\""))
         assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/entity.kt.peb\""))
@@ -1623,11 +1330,6 @@ class PipelinePluginFunctionalTest {
                             inputDir.set(generatedKspMetadataDir)
                         }
                     }
-                    generators {
-                        designQuery {
-                            enabled.set(true)
-                        }
-                    }
                 }
                 """.trimIndent()
         )
@@ -1771,7 +1473,7 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `aggregate persistence field behavior generation renders explicit field controls`() {
+    fun `aggregate inherited persistence fields are omitted from generated entity`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-persistence-generate")
         copyFixture(projectDir, "aggregate-persistence-sample")
         val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts").readText().trim()
@@ -1794,8 +1496,9 @@ class PipelinePluginFunctionalTest {
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(generatedEntity.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedEntity.contains("@Version"))
-        assertTrue(generatedEntity.contains("@Column(name = \"created_by\", insertable = false, updatable = true)"))
-        assertTrue(generatedEntity.contains("@Column(name = \"updated_by\", insertable = true, updatable = false)"))
+        assertTrue(generatedEntity.contains("@Column(name = \"title\")"))
+        assertFalse(generatedEntity.contains("createdBy"))
+        assertFalse(generatedEntity.contains("updatedBy"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -2392,16 +2095,14 @@ class PipelinePluginFunctionalTest {
                 .replace("\r\n", "\n")
                 .replace(
                     """
-                    |    }
-                    |    generators {
+                    |    sources {
                     """.trimMargin(),
                     """
+                    |    sources {
                     |        db {
                     |            enabled.set(true)
                     |            schema.set("PUBLIC")
                     |        }
-                    |    }
-                    |    generators {
                     """.trimMargin()
                 )
         )
@@ -2606,49 +2307,6 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kAnalysisGenerate validator drawing board can feed cap4kGenerate`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-analysis-validator-roundtrip")
-        copyCompileFixture(projectDir, "analysis-validator-roundtrip-sample")
-
-        val analysisResult = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kAnalysisGenerate")
-            .build()
-
-        val drawingBoardValidator = projectDir.resolve("design/drawing_board_validator.json")
-        val drawingBoardContent = drawingBoardValidator.readText()
-
-        val generateResult = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kGenerate")
-            .build()
-        val compileResult = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments(":demo-application:compileKotlin")
-            .build()
-
-        val generatedValidator = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/validators/danmuku/DanmukuDeletePermission.kt"
-        )
-        val generatedContent = generatedValidator.readText()
-
-        assertTrue(analysisResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(drawingBoardValidator.toFile().exists())
-        assertTrue(drawingBoardContent.contains("\"tag\": \"validator\""))
-        assertTrue(drawingBoardContent.contains("\"targets\": [\"CLASS\"]"))
-        assertTrue(drawingBoardContent.contains("\"valueType\": \"Any\""))
-        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(generatedContent.contains("annotation class DanmukuDeletePermission"))
-        assertTrue(generatedContent.contains("ConstraintValidator<DanmukuDeletePermission, Any>"))
-        assertTrue(generatedContent.contains("val danmukuIdField: String = \"danmukuId\""))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
     fun `cap4kAnalysisPlan depends on compileKotlin when flow input is produced during compilation`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-flow-compile")
         copyFixture(projectDir, "flow-compile-sample")
@@ -2825,216 +2483,6 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kPlan api payload flow fails when design api payload misses adapter module path`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-no-adapter")
-        copyFixture(projectDir, "design-api-payload-sample")
-
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent.replace(
-                "        adapterModulePath.set(\"demo-adapter\")\n",
-                "",
-            )
-        )
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kPlan")
-            .buildAndFail()
-
-        assertTrue(result.output.contains("project.adapterModulePath is required when designApiPayload is enabled."))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kPlan api payload flow fails when design api payload has no enabled design json source`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-no-designjson")
-        copyFixture(projectDir, "design-api-payload-sample")
-
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent.replace(
-                """
-                |    sources {
-                |        designJson {
-                |            enabled.set(true)
-                |            files.from("design/design.json")
-                |        }
-                |    }
-                """.trimMargin(),
-                """
-                |    sources {
-                |        designJson {
-                |            enabled.set(false)
-                |            files.from("design/design.json")
-                |        }
-                |    }
-                """.trimMargin(),
-            )
-        )
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kPlan")
-            .buildAndFail()
-
-        assertTrue(result.output.contains("designApiPayload generator requires enabled designJson source."))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kPlan validator flow emits design validator template`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-plan")
-        copyFixture(projectDir, "design-validator-sample")
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kPlan")
-            .build()
-
-        val planFile = projectDir.resolve("build/cap4k/plan.json")
-
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(planFile.toFile().exists())
-        assertTrue(planFile.readText().contains("\"templateId\": \"design/validator.kt.peb\""))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kGenerate validator flow writes validator under application validators`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-generate")
-        copyFixture(projectDir, "design-validator-sample")
-        val designFile = projectDir.resolve("design/design.json")
-        designFile.writeText(
-            designFile.readText().replace(
-                "\"desc\": \"issue token validator\"",
-                "\"desc\": \"issue */ validator\"",
-            )
-        )
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kGenerate")
-            .build()
-
-        val validatorFile = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/validators/authorize/IssueToken.kt"
-        )
-        val content = validatorFile.readText()
-
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(validatorFile.toFile().exists())
-        assertTrue(content.contains("annotation class IssueToken"))
-        assertTrue(content.contains("ConstraintValidator<IssueToken, Long>"))
-        assertTrue(content.contains("* issue * / validator"))
-        assertFalse(content.contains("* issue */ validator"))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kGenerate validator flow supports override validator template replacement`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-override")
-        copyFixture(projectDir, "design-validator-sample")
-
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        buildFile.writeText(
-            buildFile.readText().replace("\r\n", "\n") +
-                """
-
-                cap4k {
-                    templates {
-                        overrideDirs.from("codegen/templates")
-                    }
-                }
-                """.trimIndent()
-        )
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kGenerate")
-            .build()
-
-        val validatorFile = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/validators/authorize/IssueToken.kt"
-        )
-        val content = validatorFile.readText()
-
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(validatorFile.toFile().exists())
-        assertTrue(content.contains("// override: representative validator migration template"))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kPlan validator flow fails when design validator misses application module path`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-no-application")
-        copyFixture(projectDir, "design-validator-sample")
-
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent.replace(
-                "        applicationModulePath.set(\"demo-application\")\n",
-                "",
-            )
-        )
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kPlan")
-            .buildAndFail()
-
-        assertTrue(result.output.contains("project.applicationModulePath is required when designValidator is enabled."))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kPlan validator flow fails when design validator has no enabled design json source`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-validator-no-designjson")
-        copyFixture(projectDir, "design-validator-sample")
-
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent.replace(
-                """
-                |    sources {
-                |        designJson {
-                |            enabled.set(true)
-                |            files.from("design/design.json")
-                |        }
-                |    }
-                """.trimMargin(),
-                """
-                |    sources {
-                |        designJson {
-                |            enabled.set(false)
-                |            files.from("design/design.json")
-                |        }
-                |    }
-                """.trimMargin(),
-            )
-        )
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kPlan")
-            .buildAndFail()
-
-        assertTrue(result.output.contains("designValidator generator requires enabled designJson source."))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
     fun `cap4kPlan domain event flow emits domain event and domain event handler templates`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-plan")
         copyFixture(projectDir, "design-domain-event-sample")
@@ -3207,7 +2655,11 @@ class PipelinePluginFunctionalTest {
             .withArguments("cap4kPlan")
             .buildAndFail()
 
-        assertTrue(result.output.contains("project.domainModulePath is required when designDomainEvent is enabled."))
+        assertTrue(
+            result.output.contains(
+                "domain module is required"
+            )
+        )
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -3231,73 +2683,11 @@ class PipelinePluginFunctionalTest {
             .withArguments("cap4kPlan")
             .buildAndFail()
 
-        assertTrue(result.output.contains("project.applicationModulePath is required when designDomainEventHandler is enabled."))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kPlan domain event flow fails when design domain event is disabled and handler is enabled`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-disabled")
-        copyFixture(projectDir, "design-domain-event-sample")
-
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent.replace(
-                """
-                |        designDomainEvent {
-                |            enabled.set(true)
-                |        }
-                """.trimMargin(),
-                """
-                |        designDomainEvent {
-                |            enabled.set(false)
-                |        }
-                """.trimMargin(),
+        assertTrue(
+            result.output.contains(
+                "application module is required"
             )
         )
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kPlan")
-            .buildAndFail()
-
-        assertTrue(result.output.contains("designDomainEventHandler generator requires enabled designDomainEvent generator."))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kPlan domain event flow fails when design json source is disabled`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-no-designjson")
-        copyFixture(projectDir, "design-domain-event-sample")
-
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent.replace(
-                """
-                |        designJson {
-                |            enabled.set(true)
-                |            files.from("design/design.json")
-                |        }
-                """.trimMargin(),
-                """
-                |        designJson {
-                |            enabled.set(false)
-                |            files.from("design/design.json")
-                |        }
-                """.trimMargin(),
-            )
-        )
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kPlan")
-            .buildAndFail()
-
-        assertTrue(result.output.contains("designDomainEvent generator requires enabled designJson source."))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -3350,24 +2740,19 @@ class PipelinePluginFunctionalTest {
                 |            excludeTables.set(emptyList())
                 |        }
                 """.trimMargin(),
-            )
-                .replace(
-                    """
-                    |        designDomainEventHandler {
-                    |            enabled.set(true)
-                    |        }
-                    """.trimMargin(),
-                    """
-                    |        designDomainEventHandler {
-                    |            enabled.set(true)
-                    |        }
-                    |        aggregate {
-                    |            specialFields {
-                    |                idDefaultStrategy.set("identity")
-                    |            }
-                    |        }
-                    """.trimMargin(),
-                )
+            ) +
+                """
+
+                cap4k {
+                    generators {
+                        aggregate {
+                            specialFields {
+                                idDefaultStrategy.set("identity")
+                            }
+                        }
+                    }
+                }
+                """.trimIndent()
         )
 
         val result = GradleRunner.create()
@@ -3700,6 +3085,20 @@ class PipelinePluginFunctionalTest {
 
     private fun generatedSource(relativePath: String): String =
         relativePath.replace("/src/main/kotlin/", "/build/generated/cap4k/main/kotlin/")
+
+    private fun Path.appendTemplateOverrideBlock() {
+        writeText(
+            readText().replace("\r\n", "\n") +
+                """
+
+                cap4k {
+                    templates {
+                        overrideDirs.from("codegen/templates")
+                    }
+                }
+                """.trimIndent()
+        )
+    }
 
     private fun assertNoFormattingRegression(file: Path) {
         val content = file.readText()

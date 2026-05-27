@@ -13,12 +13,4 @@ cap4k {
             manifestFile.set("iterate/design-manifest.json")
         }
     }
-    generators {
-        designCommand {
-            enabled.set(true)
-        }
-        designQuery {
-            enabled.set(true)
-        }
-    }
 }

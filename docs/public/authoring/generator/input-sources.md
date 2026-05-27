@@ -2,9 +2,9 @@
 
 本页说明业务项目作者如何准备 cap4k 生成器输入。输入源是生成器合同，不是随手写给工具看的备注。
 
-本页示例语境统一回到 [示例总览](../examples/index.md)：DB / design / enum manifest / KSP 输入最终都服务于同一个内容发布与媒体处理项目。
+本页示例语境统一回到 [示例总览](../examples/index.md)：DB / design / enum manifest / value-object manifest / KSP 输入最终都服务于同一个内容发布与媒体处理项目。
 
-除 `sources {}` 里的 source provider 之外，`types.registryFile` 也属于 generation input contract。它不提供 use-case surface，也不替代 DDL / design；它负责补充 `@T` 绑定的自定义类型 FQN 与 converter 策略。
+除 `sources {}` 里的 source provider 之外，`types {}` 里的 `enumManifest`、`valueObjectManifest` 和 `registryFile` 也属于 generation input contract。它们不提供 use-case surface，也不替代 DDL / design。
 
 ## DB source
 
@@ -16,9 +16,10 @@ DB 输入适合表达：
 - 字段类型、Strong ID 身份边界、软删除、版本号；
 - 表间引用关系；
 - 聚合内唯一约束；
-- 与 enum manifest 关联的共享枚举。
+- 与 `types.enumManifest` 关联的共享枚举；
+- 与 `types.valueObjectManifest` 或 `types.registryFile` 关联的 JSON-backed / inline custom value carrier。
 
-DB source 不替代业务流程设计。命令、查询、client、validator 和领域事件等用例意图仍应通过 design JSON 或手写代码表达。
+DB source 不替代业务流程设计。命令、查询、client 和领域事件等用例意图仍应通过 design JSON 或手写代码表达；core design JSON 不生成通用 validator。
 
 ## DB table annotations
 
@@ -41,36 +42,30 @@ DB source 不替代业务流程设计。命令、查询、client、validator 和
 
 | 注解 | 含义 |
 | --- | --- |
-| `@Id` | 聚合根或实体 ID 字段；聚合根默认生成 Strong ID 类型 |
 | `@Type=<TypeName>` / `@T=<TypeName>` | 绑定到命名领域类型或枚举；有效写法是显式给出 type name，空值或 marker 形式会被忽略 |
 | `@Enum=<...>` / `@E=0:NAME:Desc\|...` | 内联枚举项；有效写法是显式给出枚举 payload，且该 payload 仍需要同时声明 `@T` |
 | `@RefId=<TypeName>` | 当前上下文的引用身份；适合把外部概念映射成本地语言里的 ID 类型 |
 | `@RefAggregate=<AggregateName>` | 同一上下文内引用另一个聚合根；生成目标聚合的 ID 类型 |
-| `@GeneratedValue` | marker 形式；仅用于需要显式声明 provider 生成语义的旧输入 |
-| `@GeneratedValue=uuid7` | 旧 UUID7 策略；不属于 Strong ID 默认生成路径 |
-| `@GeneratedValue=snowflake-long` | 旧 Snowflake long 策略；不属于 Strong ID 默认生成路径 |
 | `@GeneratedValue=identity` | 数据库 identity 策略 |
 | `@GeneratedValue=database-identity` | `identity` 别名 |
 | `@Deleted` | 软删除字段；marker-only，不接受显式值 |
 | `@Version` | 乐观锁字段；marker-only，不接受显式值 |
 | `@Managed` | 框架管理字段；marker-only，不接受显式值 |
-| `@Exposed` | 对外暴露字段；marker-only，不接受显式值 |
-| `@Insertable=true\|false` | JPA insertability |
-| `@Updatable=true\|false` | JPA updatability |
+| `@Inherited` | 该列由实体父类或模板 override 声明；canonical facts 保留，但默认 entity 不重复生成字段 |
 
 规则：
 
 - `@Enum=<...>` / `@E=<...>` 的显式 payload 需要配合 `@Type` / `@T`；空值或 marker 形式不会产生日志外的额外含义。
-- `@Managed` 与 `@Exposed` 互斥。
-- 默认聚合 ID 生成不依赖 `@GeneratedValue=uuid7`、`@GeneratedValue=snowflake-long`、nil UUID sentinel 或保存时反射赋值；Strong ID 聚合根 ID 由生成的 ID 类型在工厂创建时产生。
-- `@GeneratedValue` 只保留给需要表达 provider/database 生成语义的兼容输入；新默认路径优先用普通 `@Id`、`@RefId=<TypeName>`、`@RefAggregate=<AggregateName>` 表达 ID 边界。
-- 旧的 `@IdGenerator` 和 `@SoftDeleteColumn` 已被拒绝，不应继续使用。
+- 数据库 primary-key metadata 是 ID source of truth；列注释不再表达主键身份。
+- 默认聚合 ID 生成不依赖 nil UUID sentinel 或保存时反射赋值；Strong ID 聚合根 ID 由生成的 ID 类型在工厂创建时产生。
+- 只有需要表达数据库 identity 语义时，才在主键列上使用 `@GeneratedValue=identity` 或 `@GeneratedValue=database-identity`。
+- `@Inherited` 用在 ID 列时，必须有 mapped superclass 或 template override 提供 ID mapping；默认生成的 entity source 会省略 inherited fields。
+- 旧的 ID generator 和 soft-delete column 注释已被拒绝，不应继续使用。
 
 Strong ID 输入示例：
 
 ```sql
 comment on table content is '@AggregateRoot=true;';
-comment on column content.id is '@Id;';
 comment on column content.author_id is '@RefId=AuthorId;';
 comment on column content.media_processing_task_id is '@RefAggregate=MediaProcessingTask;';
 ```
@@ -89,13 +84,32 @@ class Content(
 
 自定义值类型字段规则：
 
-- 对 JSON-backed 或 inline 值对象，优先在列上使用 `@T=<TypeName>`，并在 `types.registryFile` 注册 FQN 与 converter。
-- 生成器只会把字段类型和 JPA converter 映射到聚合；值对象类、构造 / 校验 / 归一化、converter 仍由作者维护。
+- 对 JSON-backed 或 inline 值对象，优先在列上使用 `@T=<TypeName>`，再选择 `types.valueObjectManifest` 或 `types.registryFile` 表达类型合同。
+- 使用 `types.valueObjectManifest` 时，生成器会生成 checked-in value-object source，并在值对象类内直接嵌套 JPA converter；不需要再额外写一条 `types.registryFile` entry。
+- 使用 `types.registryFile` 时，生成器只消费字段类型和 converter 映射；值对象 class、构造 / 校验 / 归一化、converter 仍由作者维护。
 - `@VO` 表只表示 separate-table / table-backed 值对象，适用面更重；不要为了“使用值对象”而默认建独立表。
 
-## types registry
+## types contracts
 
-`types.registryFile` 位于 `types {}`，不是 `sources {}` block，但它仍会影响 aggregate 字段类型和 converter 映射。
+`enumManifest`、`valueObjectManifest` 和 `registryFile` 都位于 `types {}`，不是 `sources {}` block。
+
+最小 DSL：
+
+```kotlin
+types {
+    enumManifest {
+        files.from("design/enums.json")
+    }
+    valueObjectManifest {
+        files.from("design/value-objects.json")
+    }
+    registryFile.set("design/types-registry.json")
+}
+```
+
+`enumManifest` entry 和 `valueObjectManifest` entry 不需要在 `registryFile` 里重复注册。`registryFile` 只用于不由 manifest 生成、但仍需要通过 `@T` 绑定的外部或手写类型。
+
+### types registry
 
 最小形状：
 
@@ -118,6 +132,38 @@ class Content(
 - `fqn` 必填，且必须是 fully qualified name；
 - `converter` 只能是 `false`、`"nested"` 或 converter FQN；
 - 它负责类型与 converter 合同，不负责命令、查询、事件或聚合行为建模。
+
+### value-object manifest
+
+value-object manifest 是 JSON 数组。当前支持 JSON-backed 值对象，并生成 checked-in Kotlin source，默认跟随 `templates.conflictPolicy`；默认配置下是 `SKIP`，适合作为作者后续维护的 source。
+
+最小形状：
+
+```json
+[
+  {
+    "name": "MediaProcessingResultSnapshot",
+    "scope": "aggregate",
+    "aggregate": "MediaProcessingTask",
+    "package": "com.acme.demo.domain.media.values",
+    "storage": "json",
+    "fields": [
+      { "name": "assetUrl", "type": "String" },
+      { "name": "durationSeconds", "type": "Long", "nullable": true }
+    ]
+  }
+]
+```
+
+规则：
+
+- `scope` 必须是 `shared` 或 `aggregate`；
+- `scope = "shared"` 时不能设置 `aggregate`；
+- `scope = "aggregate"` 时必须设置 `aggregate`，同名值对象只在同一 aggregate 内唯一；
+- `storage` 当前只支持 `json`；
+- 每个值对象必须声明至少一个 field；
+- field 必须声明 `name` 和 `type`，可选 `nullable`；
+- 生成的 converter 直接嵌套在 value-object class 内，不需要单独 converter FQN。
 
 ## DB relation annotations
 
@@ -161,7 +207,8 @@ class Content(
 | `api_payload` | adapter API payload |
 | `domain_event` | domain event contract，以及配套 subscriber / handler skeleton |
 | `integration_event` | application integration event contract and inbound subscriber skeleton |
-| `validator` | validation annotation and validator |
+| `domain_service` | domain service skeleton |
+| `saga` | saga param / result / handler skeleton |
 
 常见字段包括 `package`、`name`、`desc`、`aggregates`、`requestFields`、`responseFields`。
 
@@ -171,7 +218,8 @@ class Content(
 - `domain_event` 支持 `persist`；
 - `domain_event` 可以省略 package；它必须恰好声明一个 aggregate，保留 request field `entity` 不允许作者显式声明，因为它会从 `aggregates[0]` 派生。缺失或空 aggregate 都属于不完整 modeling input；
 - `integration_event` 支持 `role`（`inbound` / `outbound`）和 `eventName`，必须至少声明一个 `requestFields` 字段，且 `responseFields` 必须为空；`inbound` 可生成把外部事实转内部命令的 subscriber 骨架，`outbound` 只生成事件契约；
-- `validator` 的 `targets` 只支持 `CLASS` / `FIELD` / `VALUE_PARAMETER`；`CLASS` target 只能配 `Any`。`valueType` 支持 `Any` / `String` / `Long` / `Int` / `Boolean`，也可以使用 canonical metadata 能解析出的 Strong ID 类型（例如 `AuthorId`）。`parameters` 名称不能是 `message` / `groups` / `payload`，必须是合法 Kotlin 标识符、不可空、不可重复，类型支持 `String` / `Int` / `Long` / `Boolean`，也可以使用 canonical metadata 能解析出的 Strong ID 类型，并且不能 nullable；
+- `domain_service` 表达领域服务 skeleton，生成到 domain module；
+- `saga` 表达 saga param / result / handler skeleton，生成到 application module；
 - manifest-file 模式把 manifest 中的 design 文件 entry 解析为相对 `projectDir` 的路径，并拒绝空白 `manifestFile`、空 manifest、空白 entry、重复 entry，以及逃出 `projectDir` 的路径。
 
 ## unsupported design tags
@@ -179,9 +227,9 @@ class Content(
 当前 design JSON 暂不支持：
 
 - `value_object`
-- `domain_service`
+- `validator`
 
-这些是明确缺口，不是隐藏能力。需要值对象或领域服务时，当前应通过 DB `@T` 类型绑定、必要时的 table-backed `@VO` 表、手写模型、后续 addon 或未来生成能力处理，并在项目审计中记录。需要集成事件时，使用 `integration_event` 设计契约；MQ 绑定和外部协议适配仍由项目手写。
+这些是明确缺口，不是隐藏能力。需要值对象时，当前使用 `types.valueObjectManifest`、DB `@T` 类型绑定、必要时的 table-backed `@VO` 表或 `types.registryFile`。通用 validator 不是 cap4k core design tag；如果需要额外 validator artifact，应由 addon 贡献，不应修改 canonical model 或内置 render context。需要集成事件时，使用 `integration_event` 设计契约；MQ 绑定和外部协议适配仍由项目手写。
 
 ## enum manifest
 
@@ -191,7 +239,7 @@ enum manifest 是 JSON 数组，每个枚举包含：
 - `package`
 - `items[]`，其中有 `value`、`name`、`desc`
 
-它配合 DB `@T=<TypeName>` 使用。重复 type name 会被拒绝。
+它配合 DB `@T=<TypeName>` 使用。重复 type name 会被拒绝。manifest entry 不需要再写 `types.registryFile` entry。
 
 `generateTranslation` 已从 enum manifest 移除。enum translation 属于 addon 生成方向，不属于核心 aggregate generation 开关。
 
