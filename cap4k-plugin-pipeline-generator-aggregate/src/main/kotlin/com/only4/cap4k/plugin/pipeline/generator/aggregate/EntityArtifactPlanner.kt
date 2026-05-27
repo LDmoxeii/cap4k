@@ -200,6 +200,8 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "packageName" to entity.packageName,
                     "typeName" to entity.name,
                     "comment" to entity.comment,
+                    "aggregateName" to aggregateRootName(entity, model.entities),
+                    "aggregateRoot" to entity.aggregateRoot,
                     "tableName" to entity.tableName,
                     "entityJpa" to mapOf(
                         "entityEnabled" to (entityJpa?.entityEnabled ?: true),
@@ -229,6 +231,39 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 ),
             )
         }
+    }
+
+    private fun aggregateRootName(entity: EntityModel, entities: List<EntityModel>): String {
+        val entitiesByKey = entities.associateBy { EntityRootKey(it.packageName, it.name) }
+        val entitiesByName = entities.groupBy { it.name }
+        val resolving = mutableSetOf<EntityRootKey>()
+
+        fun resolve(current: EntityModel): String {
+            val key = EntityRootKey(current.packageName, current.name)
+            if (!resolving.add(key)) {
+                throw IllegalArgumentException(
+                    "Cannot resolve aggregate root for entity ${entity.name}: circular parent chain at ${current.name}."
+                )
+            }
+            val parentName = current.parentEntityName?.takeIf { it.isNotBlank() }
+            val rootName = when {
+                current.aggregateRoot -> current.name
+                parentName == null -> throw IllegalArgumentException(
+                    "Cannot resolve aggregate root for child entity ${current.name}: parentEntityName is required."
+                )
+                else -> {
+                    val parent = entitiesByKey[EntityRootKey(current.packageName, parentName)] ?:
+                        entitiesByName[parentName]?.singleOrNull()
+                    parent?.let { resolve(it) } ?: throw IllegalArgumentException(
+                        "Cannot resolve aggregate root for child entity ${current.name}: parent entity $parentName was not found."
+                    )
+                }
+            }
+            resolving.remove(key)
+            return rootName
+        }
+
+        return resolve(entity)
     }
 
     private fun validateScalarTypeImportCollisions(
@@ -343,6 +378,11 @@ private data class ScalarImportCandidate(
     val fieldName: String,
     val simpleName: String,
     val imports: List<String>,
+)
+
+private data class EntityRootKey(
+    val packageName: String,
+    val name: String,
 )
 
 private enum class IdentifierQuoteStyle {

@@ -7,8 +7,8 @@ kotlin {
 }
 
 dependencies {
-    implementation("io.github.ldmoxeii:ddd-core:0.5.0-dev")
-    implementation("io.github.ldmoxeii:ddd-domain-repo-jpa:0.5.0-dev")
+    implementation("io.github.ldmoxeii:ddd-core:0.6.0-dev")
+    implementation("io.github.ldmoxeii:ddd-domain-repo-jpa:0.6.0-dev")
     implementation("org.springframework:spring-context")
     implementation("org.springframework.data:spring-data-jpa")
     implementation(project(":demo-domain"))

@@ -127,4 +127,3 @@ Focused verification should include:
 - canonical preservation of inherited fields
 - aggregate entity planner/template omission of inherited scalar fields
 - documentation scans proving removed annotations and stale `@Id` guidance are gone from active public authoring docs
-

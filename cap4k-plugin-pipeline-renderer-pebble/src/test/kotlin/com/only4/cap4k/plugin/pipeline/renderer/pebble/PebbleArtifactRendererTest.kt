@@ -53,7 +53,14 @@ class PebbleArtifactRendererTest {
                     moduleRole = "domain",
                     templateId = templateId,
                     outputPath = outputPath,
-                    context = context,
+                    context = if (templateId == "aggregate/entity.kt.peb") {
+                        mapOf(
+                            "aggregateName" to context["typeName"],
+                            "aggregateRoot" to true,
+                        ) + context
+                    } else {
+                        context
+                    },
                     conflictPolicy = ConflictPolicy.SKIP,
                 )
             ),
@@ -124,46 +131,29 @@ class PebbleArtifactRendererTest {
         assertTrue(domainService.contains("class ContentPublicationPolicy"))
         assertReadableKotlin(domainService)
 
-        val sagaParam = renderTemplate(
-            templateId = config.artifactLayout.designSagaParam.id,
-            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSagaParam.kt",
+        val saga = renderTemplate(
+            templateId = config.artifactLayout.designSagaArtifact.id,
+            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSaga.kt",
             context = mapOf(
                 "packageName" to "content.workflow",
                 "name" to "PublishContentSaga",
                 "requestFields" to listOf(mapOf("name" to "contentId", "renderedType" to "ContentId")),
-                "imports" to emptyList<String>(),
-            ),
-        )
-        assertTrue(sagaParam.contains("import com.only4.cap4k.ddd.core.application.saga.SagaParam"))
-        assertTrue(sagaParam.contains("data class PublishContentSagaParam"))
-        assertTrue(sagaParam.contains(": SagaParam<PublishContentSagaResult>"))
-        assertReadableKotlin(sagaParam)
-
-        val sagaResult = renderTemplate(
-            templateId = config.artifactLayout.designSagaResult.id,
-            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSagaResult.kt",
-            context = mapOf(
-                "packageName" to "content.workflow",
-                "name" to "PublishContentSaga",
                 "responseFields" to listOf(mapOf("name" to "accepted", "renderedType" to "Boolean")),
                 "imports" to emptyList<String>(),
             ),
         )
-        assertTrue(sagaResult.contains("data class PublishContentSagaResult"))
-        assertTrue(sagaResult.contains("val accepted: Boolean"))
-        assertReadableKotlin(sagaResult)
-
-        val sagaHandler = renderTemplate(
-            templateId = config.artifactLayout.designSagaHandler.id,
-            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSagaHandler.kt",
-            context = mapOf(
-                "packageName" to "content.workflow",
-                "name" to "PublishContentSaga",
-            ),
-        )
-        assertTrue(sagaHandler.contains("import com.only4.cap4k.ddd.core.application.saga.SagaHandler"))
-        assertTrue(sagaHandler.contains("override fun exec(request: PublishContentSagaParam): PublishContentSagaResult"))
-        assertReadableKotlin(sagaHandler)
+        assertTrue(saga.contains("import com.only4.cap4k.ddd.core.application.saga.SagaHandler"))
+        assertTrue(saga.contains("import com.only4.cap4k.ddd.core.application.saga.SagaParam"))
+        assertTrue(saga.contains("import org.springframework.stereotype.Service"))
+        assertTrue(saga.contains("object PublishContentSaga"))
+        assertTrue(saga.contains("@Service"))
+        assertTrue(saga.contains("class Handler : SagaHandler<Request, Response>"))
+        assertTrue(saga.contains("override fun exec(request: Request): Response"))
+        assertTrue(saga.contains("data class Request("))
+        assertTrue(saga.contains(": SagaParam<Response>"))
+        assertTrue(saga.contains("data class Response("))
+        assertTrue(saga.contains("val accepted: Boolean"))
+        assertReadableKotlin(saga)
     }
 
     @Test
@@ -690,6 +680,59 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@Column(name = \"name\")\n    var name: String = name\n        internal set"))
         assertTrue(content.contains("val children: MutableList<Category> = mutableListOf()"))
         assertFalse(content.contains("managed-begin"))
+    }
+
+    @Test
+    fun `aggregate entity template fails fast when aggregate metadata is missing`() {
+        val exception = assertThrows<Exception> {
+            PebbleArtifactRenderer(
+                templateResolver = PresetTemplateResolver("ddd-default", emptyList())
+            ).render(
+                planItems = listOf(
+                    ArtifactPlanItem(
+                        generatorId = "aggregate",
+                        moduleRole = "domain",
+                        templateId = "aggregate/entity.kt.peb",
+                        outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/category/Category.kt",
+                        context = mapOf(
+                            "packageName" to "com.acme.demo.domain.aggregates.category",
+                            "typeName" to "Category",
+                            "comment" to "category",
+                            "entityJpa" to mapOf(
+                                "entityEnabled" to true,
+                                "tableName" to "category",
+                            ),
+                            "hasConverterFields" to false,
+                            "hasGeneratedValueFields" to false,
+                            "hasVersionFields" to false,
+                            "dynamicInsert" to false,
+                            "dynamicUpdate" to false,
+                            "softDeleteSql" to null,
+                            "softDeleteWhereClause" to null,
+                            "jpaImports" to emptyList<String>(),
+                            "imports" to emptyList<String>(),
+                            "scalarFields" to emptyList<Map<String, Any?>>(),
+                            "fields" to emptyList<Map<String, Any?>>(),
+                            "relationFields" to emptyList<Map<String, Any?>>(),
+                        ),
+                        conflictPolicy = ConflictPolicy.SKIP,
+                    )
+                ),
+                config = ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = emptyMap(),
+                    generators = emptyMap(),
+                    templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                ),
+            )
+        }
+
+        val rootCause = generateSequence(exception as Throwable?) { it.cause }
+            .filterIsInstance<IllegalArgumentException>()
+            .first()
+        assertEquals("required() missing value: aggregateName", rootCause.message)
     }
 
     @Test
@@ -2616,6 +2659,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.order",
                         "typeName" to "Order",
                         "comment" to "Order aggregate",
+                        "aggregateName" to "Order",
+                        "aggregateRoot" to true,
                         "idField" to FieldModel("id", "Long"),
                         "jpaImports" to emptyList<String>(),
                         "imports" to emptyList<String>(),
@@ -2893,6 +2938,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3033,6 +3080,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post_item",
                         "typeName" to "VideoPostItem",
                         "comment" to "video post item",
+                        "aggregateName" to "VideoPostItem",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post_item",
@@ -3139,6 +3188,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3239,6 +3290,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3325,6 +3378,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3418,6 +3473,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3511,6 +3568,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "tableName" to "video_post",
                         "jpaImports" to emptyList<String>(),
                         "imports" to listOf("com.acme.demo.domain.identity.user.UserProfile"),
@@ -3575,6 +3634,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3664,6 +3725,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3749,7 +3812,10 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("\n\n\n"), content)
         assertFalse(Regex("(?m)^\\s+$").containsMatchIn(content), content)
         assertTrue(content.startsWith("package com.acme.demo.domain.aggregates.video_post\n\nimport "))
-        assertTrue(content.contains("\n\n@Entity"), content)
+        assertTrue(content.contains("@Aggregate("), content)
+        assertTrue(content.contains("aggregate = \"VideoPost\""), content)
+        assertTrue(content.contains("root = true"), content)
+        assertTrue(content.contains("\n@Entity"), content)
         assertTrue(content.contains("import jakarta.persistence.GeneratedValue"))
         assertTrue(content.contains("import jakarta.persistence.GenerationType"))
         assertFalse(content.contains("import org.hibernate.annotations.Generic" + "Generator"))
@@ -3786,6 +3852,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3878,6 +3946,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3962,6 +4032,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",

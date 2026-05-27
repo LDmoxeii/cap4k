@@ -23,4 +23,3 @@ Rules:
 - each value object must declare at least one field with `name` and `type`.
 - generated value-object source is `CHECKED_IN_SOURCE`; default conflict policy is `SKIP`.
 - generated converters are nested directly inside the value-object class.
-

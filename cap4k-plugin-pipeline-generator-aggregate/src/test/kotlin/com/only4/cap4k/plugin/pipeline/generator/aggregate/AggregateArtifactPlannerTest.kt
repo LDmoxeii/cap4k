@@ -2851,6 +2851,42 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `planner fails fast when child entity cannot resolve aggregate root`() {
+        val childEntity = EntityModel(
+            name = "VideoFile",
+            packageName = "com.acme.demo.domain.aggregates.video",
+            tableName = "video_file",
+            comment = "video file entity",
+            fields = listOf(FieldModel("id", "Long")),
+            idField = FieldModel("id", "Long"),
+            aggregateRoot = false,
+            parentEntityName = "MissingVideo",
+        )
+        val model = CanonicalModel(
+            schemas = listOf(
+                SchemaModel(
+                    name = "SVideoFile",
+                    packageName = "com.acme.demo.domain._share.meta.video",
+                    entityName = "VideoFile",
+                    comment = "video file schema",
+                    fields = childEntity.fields,
+                )
+            ),
+            entities = listOf(childEntity),
+            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(childEntity)),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            AggregateArtifactPlanner().plan(aggregateConfig(), model)
+        }
+
+        assertEquals(
+            "Cannot resolve aggregate root for child entity VideoFile: parent entity MissingVideo was not found.",
+            error.message,
+        )
+    }
+
+    @Test
     fun `unique planners keep child entity artifacts in root aggregate package without child repository`() {
         val rootEntity = EntityModel(
             name = "Video",

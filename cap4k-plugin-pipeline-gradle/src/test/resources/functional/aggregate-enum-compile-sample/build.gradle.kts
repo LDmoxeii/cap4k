@@ -1,5 +1,5 @@
 plugins {
-    id("com.only4.cap4k.plugin.pipeline")
+    id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
 val schemaScriptPath = layout.projectDirectory.file("schema.sql").asFile.absolutePath.replace("\\", "/")

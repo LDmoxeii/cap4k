@@ -44,9 +44,10 @@ class PipelinePluginFunctionalTest {
         assertTrue(planFile.readText().contains("\"templateId\": \"design/command.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/query.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/domain_service.kt.peb\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"design/saga_param.kt.peb\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"design/saga_result.kt.peb\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"design/saga_handler.kt.peb\""))
+        assertTrue(planFile.readText().contains("\"templateId\": \"design/saga.kt.peb\""))
+        assertFalse(planFile.readText().contains("\"templateId\": \"design/saga_param.kt.peb\""))
+        assertFalse(planFile.readText().contains("\"templateId\": \"design/saga_result.kt.peb\""))
+        assertFalse(planFile.readText().contains("\"templateId\": \"design/saga_handler.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"types/value-object\""))
         assertFalse(planFile.readText().contains("\"generatorId\": \"design-validator\""))
         assertFalse(planFile.readText().contains("\"templateId\": \"design/validator.kt.peb\""))
@@ -862,6 +863,9 @@ class PipelinePluginFunctionalTest {
                 generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
             ).exists()
         )
+        val generatedVideoPostContent = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
+        ).readText()
         assertTrue(
             File(
                 projectDir.toFile(),
@@ -879,6 +883,20 @@ class PipelinePluginFunctionalTest {
         val uniqueQueryContent = uniqueQueryFile.readText()
         val uniqueQueryHandlerContent = uniqueQueryHandlerFile.readText()
         val uniqueValidatorContent = uniqueValidatorFile.readText()
+        assertTrue(generatedVideoPostContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"))
+        assertTrue(
+            generatedVideoPostContent.contains(
+                """
+                @Aggregate(
+                    aggregate = "VideoPost",
+                    name = "VideoPost",
+                    type = Aggregate.TYPE_ENTITY,
+                    root = true,
+                    description = ""
+                )
+                """.trimIndent()
+            )
+        )
         assertTrue(planFile.readText().contains("\"items\""))
         assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/entity.kt.peb\""))
@@ -1804,12 +1822,12 @@ class PipelinePluginFunctionalTest {
                 .replace(
                     """
                     |plugins {
-                    |    id("com.only4.cap4k.plugin.pipeline")
+                    |    id("io.github.ldmoxeii.cap4k.pipeline")
                     |}
                     """.trimMargin(),
                     """
                     |plugins {
-                    |    id("com.only4.cap4k.plugin.pipeline")
+                    |    id("io.github.ldmoxeii.cap4k.pipeline")
                     |}
                     |
                     |dependencies {
