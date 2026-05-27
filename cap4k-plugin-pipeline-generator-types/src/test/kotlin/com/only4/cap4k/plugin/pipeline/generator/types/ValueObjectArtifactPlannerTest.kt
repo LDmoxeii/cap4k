@@ -7,6 +7,8 @@ import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
+import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
+import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
@@ -143,6 +145,109 @@ class ValueObjectArtifactPlannerTest {
     }
 
     @Test
+    fun `manifest managed value object fields resolve aggregate root strong ids`() {
+        val snapshot = ValueObjectArtifactPlanner().plan(
+            config(),
+            CanonicalModel(
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "ContentId",
+                        packageName = "com.acme.demo.domain.aggregates.content",
+                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        ownerAggregateName = "Content",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
+                    ),
+                ),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "ContentSnapshot",
+                        packageName = "com.acme.demo.domain.aggregates.audit.values",
+                        scope = ValueObjectScope.AGGREGATE,
+                        aggregate = "Audit",
+                        fields = listOf(FieldModel("contentId", "ContentId")),
+                    ),
+                ),
+            ),
+        ).single()
+
+        assertEquals(listOf("com.acme.demo.domain.aggregates.content.ContentId"), snapshot.context["imports"])
+
+        val fields = snapshot.context["fields"] as List<*>
+        assertEquals(
+            mapOf("name" to "contentId", "type" to "ContentId", "renderedType" to "ContentId", "nullable" to false),
+            fields.single(),
+        )
+    }
+
+    @Test
+    fun `manifest managed value object fields resolve reference strong ids`() {
+        val snapshot = ValueObjectArtifactPlanner().plan(
+            config(),
+            CanonicalModel(
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "ReviewerId",
+                        packageName = "com.acme.demo.domain.shared.ids",
+                        kind = StrongIdKind.REFERENCE,
+                    ),
+                ),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "ReviewSnapshot",
+                        packageName = "com.acme.demo.domain.aggregates.review.values",
+                        scope = ValueObjectScope.AGGREGATE,
+                        aggregate = "Review",
+                        fields = listOf(FieldModel("reviewerId", "ReviewerId")),
+                    ),
+                ),
+            ),
+        ).single()
+
+        assertEquals(listOf("com.acme.demo.domain.shared.ids.ReviewerId"), snapshot.context["imports"])
+
+        val fields = snapshot.context["fields"] as List<*>
+        assertEquals(
+            mapOf("name" to "reviewerId", "type" to "ReviewerId", "renderedType" to "ReviewerId", "nullable" to false),
+            fields.single(),
+        )
+    }
+
+    @Test
+    fun `canonical strong ids override same name registry entries`() {
+        val snapshot = ValueObjectArtifactPlanner().plan(
+            config(
+                typeRegistry = TypeRegistryConfig(
+                    entries = mapOf(
+                        "ContentId" to TypeRegistryEntry("com.acme.external.ContentId"),
+                    ),
+                ),
+            ),
+            CanonicalModel(
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "ContentId",
+                        packageName = "com.acme.demo.domain.aggregates.content",
+                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        ownerAggregateName = "Content",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
+                    ),
+                ),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "ContentSnapshot",
+                        packageName = "com.acme.demo.domain.aggregates.audit.values",
+                        scope = ValueObjectScope.AGGREGATE,
+                        aggregate = "Audit",
+                        fields = listOf(FieldModel("contentId", "ContentId")),
+                    ),
+                ),
+            ),
+        ).single()
+
+        assertEquals(listOf("com.acme.demo.domain.aggregates.content.ContentId"), snapshot.context["imports"])
+    }
+
+    @Test
     fun `json value object requires at least one field`() {
         val error = assertThrows<IllegalArgumentException> {
             ValueObjectArtifactPlanner().plan(
@@ -184,17 +289,20 @@ class ValueObjectArtifactPlannerTest {
         assertEquals("domain module is required", error.message)
     }
 
-    private fun config(modules: Map<String, String> = mapOf("domain" to "demo-domain")): ProjectConfig =
+    private fun config(
+        modules: Map<String, String> = mapOf("domain" to "demo-domain"),
+        typeRegistry: TypeRegistryConfig = TypeRegistryConfig(
+            entries = mapOf(
+                "CurrencyCode" to TypeRegistryEntry("com.acme.demo.domain.shared.types.CurrencyCode"),
+            ),
+        ),
+    ): ProjectConfig =
         ProjectConfig(
             basePackage = "com.acme.demo",
             layout = ProjectLayout.MULTI_MODULE,
             modules = modules,
             generators = mapOf("types-value-object" to GeneratorConfig(enabled = true)),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
-            typeRegistry = TypeRegistryConfig(
-                entries = mapOf(
-                    "CurrencyCode" to TypeRegistryEntry("com.acme.demo.domain.shared.types.CurrencyCode"),
-                ),
-            ),
+            typeRegistry = typeRegistry,
         )
 }
