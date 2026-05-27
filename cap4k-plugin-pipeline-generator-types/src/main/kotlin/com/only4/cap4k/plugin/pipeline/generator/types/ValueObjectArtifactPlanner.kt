@@ -22,7 +22,7 @@ class ValueObjectArtifactPlanner : GeneratorProvider {
 
         val domainRoot = requireRelativeModuleRoot(config, "domain")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
-        val typeRegistry = config.typeRegistryFqns() + model.manifestValueObjectTypeLookup()
+        val typeRegistry = config.valueObjectTypeRegistryFqns(model)
 
         return model.valueObjects.map { valueObject ->
             require(valueObject.storage == ValueObjectStorage.JSON) {
@@ -351,6 +351,11 @@ private fun requireRelativeModuleRoot(config: ProjectConfig, role: String): Stri
     return moduleRoot
 }
 
+private fun ProjectConfig.valueObjectTypeRegistryFqns(model: CanonicalModel): Map<String, String> =
+    typeRegistryFqns() +
+        model.manifestValueObjectTypeLookup() +
+        model.strongIdTypeLookup()
+
 private fun CanonicalModel.manifestValueObjectTypeLookup(): Map<String, String> =
     valueObjects
         .groupBy { it.name }
@@ -358,4 +363,13 @@ private fun CanonicalModel.manifestValueObjectTypeLookup(): Map<String, String> 
         .mapValues { (_, matches) ->
             val valueObject = matches.single()
             "${valueObject.packageName}.${valueObject.name}"
+        }
+
+private fun CanonicalModel.strongIdTypeLookup(): Map<String, String> =
+    strongIds
+        .groupBy { it.typeName }
+        .filterValues { matches -> matches.size == 1 }
+        .mapValues { (_, matches) ->
+            val strongId = matches.single()
+            "${strongId.packageName}.${strongId.typeName}"
         }
