@@ -1007,6 +1007,10 @@ class PipelinePluginCompileFunctionalTest {
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/OrderAddress.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/services/order/pricing/CalculateOrderTotal.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSaga.kt",
+        )
+        assertGeneratedFilesDoNotExist(
+            projectDir,
             "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSagaParam.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSagaResult.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSagaHandler.kt",
@@ -1022,6 +1026,15 @@ class PipelinePluginCompileFunctionalTest {
             assertTrue(
                 projectDir.resolve(relativePath).toFile().exists(),
                 "Expected generated file to exist: $relativePath"
+            )
+        }
+    }
+
+    private fun assertGeneratedFilesDoNotExist(projectDir: Path, vararg relativePaths: String) {
+        relativePaths.forEach { relativePath ->
+            assertFalse(
+                projectDir.resolve(relativePath).toFile().exists(),
+                "Expected generated file not to exist: $relativePath"
             )
         }
     }
