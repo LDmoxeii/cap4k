@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test
 class DesignSagaArtifactPlannerTest {
 
     @Test
-    fun `plans saga param result and handler skeletons`() {
+    fun `plans one saga skeleton file`() {
         val model = canonicalModel(
             sagas = listOf(
                 SagaModel(
@@ -39,39 +39,28 @@ class DesignSagaArtifactPlannerTest {
 
         val items = DesignSagaArtifactPlanner().plan(configWithApplicationModule(), model)
 
-        assertEquals(
-            setOf("design/saga_param.kt.peb", "design/saga_result.kt.peb", "design/saga_handler.kt.peb"),
-            items.map { it.templateId }.toSet(),
-        )
-        assertTrue(items.all { it.outputKind == ArtifactOutputKind.CHECKED_IN_SOURCE })
-        assertTrue(items.all { it.generatorId == "design-saga" })
-        assertTrue(items.all { it.moduleRole == "application" })
-        assertTrue(items.all { it.conflictPolicy == ConflictPolicy.SKIP })
+        assertEquals(1, items.size)
+        val item = items.single()
+        assertEquals("design/saga.kt.peb", item.templateId)
+        assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, item.outputKind)
+        assertEquals("design-saga", item.generatorId)
+        assertEquals("application", item.moduleRole)
+        assertEquals(ConflictPolicy.SKIP, item.conflictPolicy)
         assertTrue(
-            items.all {
-                it.outputPath.startsWith("demo-application/src/main/kotlin/com/acme/demo/application/sagas/content/workflow/")
-            },
+            item.outputPath.startsWith("demo-application/src/main/kotlin/com/acme/demo/application/sagas/content/workflow/"),
         )
 
-        val param = items.single { it.templateId == "design/saga_param.kt.peb" }
-        assertEquals("PublishContentSagaParam.kt", param.outputPath.substringAfterLast('/'))
-        assertEquals("com.acme.demo.application.sagas.content.workflow", param.context["packageName"])
-        assertEquals(listOf("com.acme.demo.domain.shared.ids.ContentId"), param.context["imports"])
+        assertEquals("PublishContentSaga.kt", item.outputPath.substringAfterLast('/'))
+        assertEquals("com.acme.demo.application.sagas.content.workflow", item.context["packageName"])
+        assertEquals(listOf("com.acme.demo.domain.shared.ids.ContentId"), item.context["imports"])
         assertEquals(
             listOf(DesignRenderFieldModel(name = "contentId", renderedType = "ContentId")),
-            param.context["requestFields"],
+            item.context["requestFields"],
         )
-
-        val result = items.single { it.templateId == "design/saga_result.kt.peb" }
-        assertEquals("PublishContentSagaResult.kt", result.outputPath.substringAfterLast('/'))
         assertEquals(
             listOf(DesignRenderFieldModel(name = "accepted", renderedType = "Boolean")),
-            result.context["responseFields"],
+            item.context["responseFields"],
         )
-
-        val handler = items.single { it.templateId == "design/saga_handler.kt.peb" }
-        assertEquals("PublishContentSagaHandler.kt", handler.outputPath.substringAfterLast('/'))
-        assertEquals("com.acme.demo.application.sagas.content.workflow", handler.context["packageName"])
     }
 
     @Test

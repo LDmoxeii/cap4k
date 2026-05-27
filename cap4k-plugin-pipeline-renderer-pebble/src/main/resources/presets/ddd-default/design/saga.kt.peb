@@ -1,0 +1,38 @@
+package {{ packageName }}
+
+{{ use("com.only4.cap4k.ddd.core.application.saga.SagaHandler") -}}
+{{ use("com.only4.cap4k.ddd.core.application.saga.SagaParam") -}}
+{{ use("org.springframework.stereotype.Service") -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+
+object {{ name }} {
+
+    @Service
+    class Handler : SagaHandler<Request, Response> {
+        override fun exec(request: Request): Response {
+            throw UnsupportedOperationException("Author implements saga process.")
+        }
+    }
+
+{% if requestFields.size > 0 %}
+    data class Request(
+{%- for field in requestFields %}
+        val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %}
+    ) : SagaParam<Response>
+{% else %}
+    class Request : SagaParam<Response>
+{% endif %}
+
+{% if responseFields.size > 0 %}
+    data class Response(
+{%- for field in responseFields %}
+        val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %}
+    )
+{% else %}
+    class Response
+{% endif %}
+}

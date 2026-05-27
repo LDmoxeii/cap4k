@@ -131,46 +131,29 @@ class PebbleArtifactRendererTest {
         assertTrue(domainService.contains("class ContentPublicationPolicy"))
         assertReadableKotlin(domainService)
 
-        val sagaParam = renderTemplate(
-            templateId = config.artifactLayout.designSagaParam.id,
-            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSagaParam.kt",
+        val saga = renderTemplate(
+            templateId = config.artifactLayout.designSagaArtifact.id,
+            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSaga.kt",
             context = mapOf(
                 "packageName" to "content.workflow",
                 "name" to "PublishContentSaga",
                 "requestFields" to listOf(mapOf("name" to "contentId", "renderedType" to "ContentId")),
-                "imports" to emptyList<String>(),
-            ),
-        )
-        assertTrue(sagaParam.contains("import com.only4.cap4k.ddd.core.application.saga.SagaParam"))
-        assertTrue(sagaParam.contains("data class PublishContentSagaParam"))
-        assertTrue(sagaParam.contains(": SagaParam<PublishContentSagaResult>"))
-        assertReadableKotlin(sagaParam)
-
-        val sagaResult = renderTemplate(
-            templateId = config.artifactLayout.designSagaResult.id,
-            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSagaResult.kt",
-            context = mapOf(
-                "packageName" to "content.workflow",
-                "name" to "PublishContentSaga",
                 "responseFields" to listOf(mapOf("name" to "accepted", "renderedType" to "Boolean")),
                 "imports" to emptyList<String>(),
             ),
         )
-        assertTrue(sagaResult.contains("data class PublishContentSagaResult"))
-        assertTrue(sagaResult.contains("val accepted: Boolean"))
-        assertReadableKotlin(sagaResult)
-
-        val sagaHandler = renderTemplate(
-            templateId = config.artifactLayout.designSagaHandler.id,
-            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSagaHandler.kt",
-            context = mapOf(
-                "packageName" to "content.workflow",
-                "name" to "PublishContentSaga",
-            ),
-        )
-        assertTrue(sagaHandler.contains("import com.only4.cap4k.ddd.core.application.saga.SagaHandler"))
-        assertTrue(sagaHandler.contains("override fun exec(request: PublishContentSagaParam): PublishContentSagaResult"))
-        assertReadableKotlin(sagaHandler)
+        assertTrue(saga.contains("import com.only4.cap4k.ddd.core.application.saga.SagaHandler"))
+        assertTrue(saga.contains("import com.only4.cap4k.ddd.core.application.saga.SagaParam"))
+        assertTrue(saga.contains("import org.springframework.stereotype.Service"))
+        assertTrue(saga.contains("object PublishContentSaga"))
+        assertTrue(saga.contains("@Service"))
+        assertTrue(saga.contains("class Handler : SagaHandler<Request, Response>"))
+        assertTrue(saga.contains("override fun exec(request: Request): Response"))
+        assertTrue(saga.contains("data class Request("))
+        assertTrue(saga.contains(": SagaParam<Response>"))
+        assertTrue(saga.contains("data class Response("))
+        assertTrue(saga.contains("val accepted: Boolean"))
+        assertReadableKotlin(saga)
     }
 
     @Test
