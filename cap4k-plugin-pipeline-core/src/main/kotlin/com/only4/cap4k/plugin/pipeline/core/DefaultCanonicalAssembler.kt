@@ -8,11 +8,13 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateRef
 import com.only4.cap4k.plugin.pipeline.api.AggregateDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ClientModel
 import com.only4.cap4k.plugin.pipeline.api.CommandModel
 import com.only4.cap4k.plugin.pipeline.api.CommandVariant
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
@@ -60,6 +62,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val sharedEnums = snapshots.filterIsInstance<EnumManifestSnapshot>().flatMap { it.definitions }
         val valueObjects = snapshots.filterIsInstance<ValueObjectManifestSnapshot>().flatMap { it.valueObjects }
         val typeRegistry = TypeRegistryModel(config.typeRegistry.entries)
+        val designBlocks = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag in SupportedDesignBlockTags }
+            .map { entry -> entry.toDesignBlockModel() }
+            .toList()
 
         val aggregateLookup = snapshots
             .filterIsInstance<KspMetadataSnapshot>()
@@ -468,6 +475,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
         return CanonicalAssemblyResult(
             model = CanonicalModel(
+                designBlocks = designBlocks,
                 commands = commands,
                 queries = queries,
                 clients = clients,
@@ -612,6 +620,126 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         )
     }
 
+    private fun DesignSpecEntry.toDesignBlockModel(): DesignBlockModel {
+        validateDesignBlockSharedFields()
+        val artifactSelections = resolveDesignBlockArtifacts()
+        return DesignBlockModel(
+            tag = tag,
+            packageName = packageName,
+            name = name,
+            description = description,
+            aggregates = aggregates,
+            eventName = eventName.orEmpty(),
+            persist = persist,
+            artifacts = artifactSelections,
+            fields = requestFields,
+            resultFields = responseFields,
+        )
+    }
+
+    private fun DesignSpecEntry.validateDesignBlockSharedFields() {
+        if (message == PublicDesignJsonMarker) {
+            require(traits.isEmpty()) {
+                "design entry $name cannot declare traits on tag: $tag"
+            }
+            require(role == null) {
+                "design entry $name cannot declare role on tag: $tag"
+            }
+            require(eventName.isNullOrBlank() || tag in EventNameTags) {
+                "design entry $name cannot declare eventName on tag: $tag"
+            }
+            require(persist == null || tag == "domain_event") {
+                "design entry $name cannot declare persist on tag: $tag"
+            }
+            require(responseFields.isEmpty() || tag in ResultFieldTags) {
+                "design entry $name cannot declare resultFields on tag: $tag"
+            }
+        }
+        if (tag == "domain_event") {
+            val aggregateCount = aggregates.size
+            require(aggregateCount == 1) {
+                "domain_event $name must declare exactly one aggregate, but found $aggregateCount."
+            }
+        }
+    }
+
+    private fun DesignSpecEntry.resolveDesignBlockArtifacts(): List<ArtifactSelectionModel> {
+        val artifacts = if (targets.isEmpty()) {
+            defaultArtifactsFor(tag)
+        } else {
+            targets.map { it.toArtifactSelection(name) }
+        }
+        validateArtifactSelections(artifacts)
+        return artifacts
+    }
+
+    private fun DesignSpecEntry.validateArtifactSelections(artifacts: List<ArtifactSelectionModel>) {
+        artifacts.forEach { artifact ->
+            val allowedVariants = SupportedArtifactFamilies[artifact.family]
+                ?: throw IllegalArgumentException("unsupported design artifact family on $name: ${artifact.family}")
+            if (artifact.family == "integration-event") {
+                require(artifact.variant in allowedVariants) {
+                    if (artifact.variant.isBlank()) {
+                        "design entry $name artifact integration-event must declare variant inbound or outbound"
+                    } else {
+                        "design entry $name artifact integration-event has unsupported variant: ${artifact.variant}"
+                    }
+                }
+            } else {
+                require(artifact.variant in allowedVariants) {
+                    "design entry $name artifact ${artifact.family} has unsupported variant: ${artifact.variant}"
+                }
+            }
+        }
+
+        val duplicate = artifacts
+            .groupingBy { it.selectionKey() }
+            .eachCount()
+            .entries
+            .firstOrNull { it.value > 1 }
+            ?.key
+        require(duplicate == null) {
+            "design entry $name has duplicate artifact selection: $duplicate"
+        }
+
+        VariantFamilies.forEach { family ->
+            val selections = artifacts.filter { it.family == family }
+            require(selections.size <= 1) {
+                "design entry $name has conflicting $family variants"
+            }
+        }
+
+        val hasSubscriber = artifacts.any { it.family == "integration-subscriber" }
+        if (hasSubscriber) {
+            require(artifacts.singleOrNull { it.family == "integration-event" }?.variant == "inbound") {
+                "integration_event $name integration-subscriber requires integration-event:inbound."
+            }
+        }
+    }
+
+    private fun String.toArtifactSelection(entryName: String): ArtifactSelectionModel {
+        val parts = split(':', limit = 2)
+        val family = parts[0].trim()
+        require(family.isNotEmpty()) {
+            "design entry $entryName has blank artifact family"
+        }
+        val variant = parts.getOrNull(1)?.trim().orEmpty()
+        return ArtifactSelectionModel(family = family, variant = variant)
+    }
+
+    private fun defaultArtifactsFor(tag: String): List<ArtifactSelectionModel> =
+        when (tag) {
+            "command" -> listOf(ArtifactSelectionModel("command"))
+            "query" -> listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler"))
+            "client" -> listOf(ArtifactSelectionModel("client"), ArtifactSelectionModel("client-handler"))
+            "api_payload" -> listOf(ArtifactSelectionModel("api-payload"))
+            "domain_event" -> listOf(ArtifactSelectionModel("domain-event"), ArtifactSelectionModel("domain-subscriber"))
+            "integration_event" -> listOf(ArtifactSelectionModel("integration-event", "outbound"))
+            "domain_service" -> listOf(ArtifactSelectionModel("domain-service"))
+            "saga" -> listOf(ArtifactSelectionModel("saga"))
+            else -> error("Unsupported design tag: $tag")
+        }
+
     private fun DesignElementSnapshot.toDrawingBoardElementOrNull(): DrawingBoardElementModel? {
         val normalizedTag = normalizeDrawingBoardTag(tag) ?: return null
         if (normalizedTag !in SupportedDrawingBoardTags) {
@@ -674,6 +802,16 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return when (role) {
             "inbound" -> IntegrationEventRole.INBOUND
             "outbound" -> IntegrationEventRole.OUTBOUND
+            null -> {
+                val integrationEvent = resolveDesignBlockArtifacts()
+                    .singleOrNull { it.family == "integration-event" }
+                    ?: throw IllegalArgumentException("integration_event $name must select integration-event artifact.")
+                when (integrationEvent.variant) {
+                    "inbound" -> IntegrationEventRole.INBOUND
+                    "outbound" -> IntegrationEventRole.OUTBOUND
+                    else -> throw IllegalArgumentException("integration_event $name must select integration-event variant inbound or outbound.")
+                }
+            }
             else -> throw IllegalArgumentException("integration_event $name must declare role inbound or outbound.")
         }
     }
@@ -908,6 +1046,36 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
     private companion object {
+        const val PublicDesignJsonMarker = "design-json-public-v2"
+
+        val SupportedDesignBlockTags = setOf(
+            "command",
+            "query",
+            "client",
+            "api_payload",
+            "domain_event",
+            "integration_event",
+            "domain_service",
+            "saga",
+        )
+        val ResultFieldTags = setOf("query", "client", "api_payload")
+        val EventNameTags = setOf("domain_event", "integration_event")
+        val SupportedArtifactFamilies = linkedMapOf(
+            "command" to setOf(""),
+            "query" to setOf("", "page"),
+            "query-handler" to setOf(""),
+            "client" to setOf(""),
+            "client-handler" to setOf(""),
+            "api-payload" to setOf("", "page"),
+            "domain-event" to setOf(""),
+            "domain-subscriber" to setOf(""),
+            "integration-event" to setOf("inbound", "outbound"),
+            "integration-subscriber" to setOf(""),
+            "domain-service" to setOf(""),
+            "saga" to setOf(""),
+        )
+        val VariantFamilies = setOf("query", "api-payload", "integration-event")
+
         val SupportedDrawingBoardTags = setOf(
             "command",
             "query",
@@ -930,6 +1098,9 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             }
             return head + tail
         }
+
+        fun ArtifactSelectionModel.selectionKey(): String =
+            if (variant.isBlank()) family else "$family:$variant"
     }
 
     private fun ProjectConfig.isAggregateProjectionOnly(): Boolean =

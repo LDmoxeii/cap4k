@@ -8,6 +8,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
@@ -55,6 +56,239 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class DefaultCanonicalAssemblerTest {
+
+    @Test
+    fun `query design block defaults to query and query handler artifacts`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            description = "find order",
+                            aggregates = listOf("Order"),
+                            requestFields = listOf(FieldModel(name = "orderNo", type = "String")),
+                            responseFields = listOf(FieldModel(name = "status", type = "String")),
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        val block = model.designBlocks.single()
+        assertEquals("query", block.tag)
+        assertEquals("FindOrder", block.name)
+        assertEquals(
+            listOf(
+                ArtifactSelectionModel("query"),
+                ArtifactSelectionModel("query-handler"),
+            ),
+            block.artifacts,
+        )
+        assertEquals(listOf("orderNo"), block.fields.map { it.name })
+        assertEquals(listOf("status"), block.resultFields.map { it.name })
+    }
+
+    @Test
+    fun `integration event design block defaults to outbound integration event`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "integration_event",
+                            packageName = "order.events",
+                            name = "OrderCreated",
+                            description = "order created",
+                            aggregates = emptyList(),
+                            requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            responseFields = emptyList(),
+                            eventName = "order.created",
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        assertEquals(
+            listOf(ArtifactSelectionModel("integration-event", "outbound")),
+            model.designBlocks.single().artifacts,
+        )
+    }
+
+    @Test
+    fun `integration subscriber requires explicit inbound integration event`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "integration_event",
+                                packageName = "order.events",
+                                name = "OrderCreated",
+                                description = "order created",
+                                aggregates = emptyList(),
+                                requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
+                                responseFields = emptyList(),
+                                eventName = "order.created",
+                                targets = listOf("integration-event:outbound", "integration-subscriber"),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "integration_event OrderCreated integration-subscriber requires integration-event:inbound.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `integration subscriber is valid with explicit inbound integration event`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "integration_event",
+                            packageName = "order.events",
+                            name = "OrderCreated",
+                            description = "order created",
+                            aggregates = emptyList(),
+                            requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            responseFields = emptyList(),
+                            eventName = "order.created",
+                            targets = listOf("integration-event:inbound", "integration-subscriber"),
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        assertEquals(
+            listOf(
+                ArtifactSelectionModel("integration-event", "inbound"),
+                ArtifactSelectionModel("integration-subscriber"),
+            ),
+            model.designBlocks.single().artifacts,
+        )
+    }
+
+    @Test
+    fun `explicit query page artifact does not add query handler default`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrderPage",
+                            description = "find order page",
+                            aggregates = listOf("Order"),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                            targets = listOf("query:page"),
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        assertEquals(
+            listOf(ArtifactSelectionModel("query", "page")),
+            model.designBlocks.single().artifacts,
+        )
+    }
+
+    @Test
+    fun `design block validation rejects unsupported families variants and duplicate selections`() {
+        val cases = listOf(
+            Triple(
+                listOf("unsupported"),
+                "unsupported design artifact family on FindOrder: unsupported",
+                "unsupported-family",
+            ),
+            Triple(
+                listOf("query:stream"),
+                "design entry FindOrder artifact query has unsupported variant: stream",
+                "unsupported-variant",
+            ),
+            Triple(
+                listOf("query", "query"),
+                "design entry FindOrder has duplicate artifact selection: query",
+                "duplicate",
+            ),
+            Triple(
+                listOf("query", "query:page"),
+                "design entry FindOrder has conflicting query variants",
+                "conflicting-query-variant",
+            ),
+        )
+
+        cases.forEach { (targets, expectedMessage, _) ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DefaultCanonicalAssembler().assemble(
+                    config = baseConfig(),
+                    snapshots = listOf(
+                        DesignSpecSnapshot(
+                            entries = listOf(
+                                DesignSpecEntry(
+                                    tag = "query",
+                                    packageName = "order.read",
+                                    name = "FindOrder",
+                                    description = "find order",
+                                    aggregates = emptyList(),
+                                    requestFields = emptyList(),
+                                    responseFields = emptyList(),
+                                    targets = targets,
+                                ),
+                            ),
+                        ),
+                    ),
+                )
+            }
+
+            assertEquals(expectedMessage, error.message)
+        }
+    }
+
+    @Test
+    fun `design block validation rejects result fields on tags without result payloads`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "command",
+                                packageName = "order",
+                                name = "SubmitOrder",
+                                description = "submit order",
+                                aggregates = emptyList(),
+                                requestFields = emptyList(),
+                                responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+                                message = "design-json-public-v2",
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals("design entry SubmitOrder cannot declare resultFields on tag: command", error.message)
+    }
 
     @Test
     fun `assembler splits canonical command query client into typed canonical collections`() {

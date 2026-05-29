@@ -7,10 +7,8 @@ import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
-import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import java.io.File
-import java.util.Locale
 
 class DesignJsonSourceProvider : SourceProvider {
     override val id: String = "design-json"
@@ -25,8 +23,9 @@ class DesignJsonSourceProvider : SourceProvider {
         "domain_service",
         "saga",
     )
-    private val requestTraitTags = setOf("query", "api_payload")
-    private val integrationEventRoles = setOf("inbound", "outbound")
+    private val removedPublicFields = listOf("desc", "requestFields", "responseFields", "traits", "role", "scope")
+    private val resultFieldTags = setOf("query", "client", "api_payload")
+    private val eventNameTags = setOf("domain_event", "integration_event")
     private val selfToken = Regex("""(?<![A-Za-z0-9_.])self(?![A-Za-z0-9_])""", RegexOption.IGNORE_CASE)
 
     override fun collect(config: ProjectConfig): DesignSpecSnapshot {
@@ -102,28 +101,30 @@ class DesignJsonSourceProvider : SourceProvider {
             val rawTag = obj["tag"].asString
             val name = obj["name"].asString
             val tag = parseTag(rawTag)
-            val requestFields = parseFields(obj["requestFields"]?.asJsonArray)
-            val responseFields = parseFields(obj["responseFields"]?.asJsonArray)
-            val traits = parseTraits(obj, tag, name)
-            val role = parseIntegrationEventRole(obj, tag, name)
+            rejectRemovedFields(obj, name)
+            val fields = parseFields(obj["fields"]?.asJsonArray)
+            val resultFields = parseFields(obj["resultFields"]?.asJsonArray)
+            val artifacts = parseArtifacts(obj["artifacts"]?.asJsonArray)
             val eventName = parseIntegrationEventName(obj, tag, name)
-            validateIntegrationEventResponseFields(tag, name, responseFields)
-            validateReservedFields(tag, name, requestFields)
-            validateNoSelfTypes(name, requestFields + responseFields)
+            validateResultFields(tag, name, resultFields)
+            validatePersist(tag, name, obj)
+            validateEventName(tag, name, obj)
+            validateReservedFields(tag, name, fields)
+            validateNoSelfTypes(name, fields + resultFields)
             DesignSpecEntry(
                 tag = tag,
                 packageName = readPackageName(obj["package"]?.asString, tag),
                 name = name,
-                description = obj["desc"]?.asString ?: "",
+                description = obj["description"]?.asString ?: "",
                 aggregates = obj["aggregates"]?.asJsonArray?.map { it.asString } ?: emptyList(),
                 persist = obj["persist"]?.asBoolean,
-                traits = traits,
-                requestFields = requestFields,
-                responseFields = responseFields,
-                message = null,
-                targets = emptyList(),
+                traits = emptySet(),
+                requestFields = fields,
+                responseFields = resultFields,
+                message = PublicDesignJsonMarker,
+                targets = artifacts,
                 valueType = null,
-                role = role,
+                role = null,
                 eventName = eventName,
             )
         }
@@ -136,62 +137,52 @@ class DesignJsonSourceProvider : SourceProvider {
         return rawTag
     }
 
-    private fun parseTraits(obj: JsonObject, tag: String, name: String): Set<RequestTrait> {
-        val rawTraits = obj["traits"]
-            ?.asJsonArray
-            ?.map { it.asString.trim() }
-            ?.filter { it.isNotEmpty() }
-            ?: emptyList()
-
-        require(rawTraits.isEmpty() || tag in requestTraitTags) {
-            "design entry $name cannot use request traits on tag: $tag"
+    private fun rejectRemovedFields(obj: JsonObject, name: String) {
+        val removed = removedPublicFields.filter { obj.has(it) }
+        require(removed.isEmpty()) {
+            "design entry $name uses removed fields: ${removed.joinToString(", ")}"
         }
-
-        val traits = rawTraits.map { rawTrait ->
-            val normalized = rawTrait.uppercase(Locale.ROOT)
-            runCatching { RequestTrait.valueOf(normalized) }.getOrElse {
-                throw IllegalArgumentException("design entry $name has unsupported trait: $rawTrait")
-            }
-        }.toSet()
-
-        return traits
-    }
-
-    private fun parseIntegrationEventRole(obj: JsonObject, tag: String, name: String): String? {
-        if (tag != "integration_event") {
-            return null
-        }
-        val role = obj["role"]?.asString?.trim()?.lowercase(Locale.ROOT)
-        require(!role.isNullOrEmpty()) {
-            "integration_event $name must declare role inbound or outbound."
-        }
-        require(role in integrationEventRoles) {
-            "integration_event $name has unsupported role: $role"
-        }
-        return role
     }
 
     private fun parseIntegrationEventName(obj: JsonObject, tag: String, name: String): String? {
-        if (tag != "integration_event") {
+        if (tag !in eventNameTags) {
             return null
         }
         val eventName = obj["eventName"]?.asString?.trim()
-        require(!eventName.isNullOrEmpty()) {
+        require(tag != "integration_event" || !eventName.isNullOrEmpty()) {
             "integration_event $name must declare eventName."
         }
         return eventName
     }
 
-    private fun validateIntegrationEventResponseFields(
+    private fun validateResultFields(
         tag: String,
         name: String,
-        responseFields: List<FieldModel>,
+        resultFields: List<FieldModel>,
     ) {
-        if (tag != "integration_event") {
+        if (tag in resultFieldTags) {
             return
         }
-        require(responseFields.isEmpty()) {
-            "integration_event $name must not declare responseFields."
+        if (tag == "integration_event") {
+            require(resultFields.isEmpty()) {
+                "integration_event $name must not declare resultFields."
+            }
+            return
+        }
+        require(resultFields.isEmpty()) {
+            "design entry $name cannot declare resultFields on tag: $tag"
+        }
+    }
+
+    private fun validatePersist(tag: String, name: String, obj: JsonObject) {
+        require(tag == "domain_event" || !obj.has("persist")) {
+            "design entry $name cannot declare persist on tag: $tag"
+        }
+    }
+
+    private fun validateEventName(tag: String, name: String, obj: JsonObject) {
+        require(tag in eventNameTags || !obj.has("eventName")) {
+            "design entry $name cannot declare eventName on tag: $tag"
         }
     }
 
@@ -204,11 +195,11 @@ class DesignJsonSourceProvider : SourceProvider {
     }
 
     private fun validateReservedFields(tag: String, name: String, requestFields: List<FieldModel>) {
-        if (tag.lowercase(Locale.ROOT) != "domain_event") {
+        if (tag != "domain_event") {
             return
         }
         require(requestFields.none { it.name.equals("entity", ignoreCase = true) }) {
-            "domain_event $name request field 'entity' is reserved and derived from aggregates[0]."
+            "domain_event $name field 'entity' is reserved and derived from aggregates[0]."
         }
     }
 
@@ -216,10 +207,26 @@ class DesignJsonSourceProvider : SourceProvider {
         if (packageName != null) {
             return packageName
         }
-        if (tag.lowercase(Locale.ROOT) == "domain_event") {
+        if (tag == "domain_event") {
             return ""
         }
         error("design entry package is required for tag: $tag")
+    }
+
+    private fun parseArtifacts(array: JsonArray?): List<String> {
+        if (array == null) {
+            return emptyList()
+        }
+        return array.map { element ->
+            val artifact = element.asJsonObject
+            val family = artifact["family"].asString
+            val variant = artifact["variant"]?.asString?.trim().orEmpty()
+            if (variant.isEmpty()) {
+                family
+            } else {
+                "$family:$variant"
+            }
+        }
     }
 
     private fun parseFields(array: JsonArray?): List<FieldModel> {
@@ -235,5 +242,9 @@ class DesignJsonSourceProvider : SourceProvider {
                 defaultValue = field["defaultValue"]?.asString,
             )
         }
+    }
+
+    private companion object {
+        const val PublicDesignJsonMarker = "design-json-public-v2"
     }
 }
