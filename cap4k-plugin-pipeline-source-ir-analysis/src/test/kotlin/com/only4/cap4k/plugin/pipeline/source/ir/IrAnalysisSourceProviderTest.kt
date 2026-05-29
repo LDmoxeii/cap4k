@@ -176,6 +176,8 @@ class IrAnalysisSourceProviderTest {
     fun `collect fails clearly for malformed design element shape`() {
         val cases = listOf(
             """[null]""" to "design element at index 0 must be an object",
+            """[{"tag":"command","package":"orders","name":" ","description":"submit order"}]""" to
+                "design element at index 0 must declare non-blank name",
             """[{"tag":" ","package":"orders","name":"SubmitOrder","description":"submit order"}]""" to
                 "design element at index 0 must declare non-blank tag",
             """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","fields":{"name":"orderId"}}]""" to
@@ -186,6 +188,8 @@ class IrAnalysisSourceProviderTest {
                 "design element command orders SubmitOrder fields[0] must be an object",
             """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","fields":[{"name":" ","type":"Long"}]}]""" to
                 "design element command orders SubmitOrder fields[0] must declare non-blank name",
+            """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","fields":[{"name":"orderId","type":" "}]}]""" to
+                "design element command orders SubmitOrder fields[0] must declare non-blank type",
             """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","artifacts":[null]}]""" to
                 "design element command orders SubmitOrder artifacts[0] must be an object",
             """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","artifacts":[{"variant":"default"}]}]""" to

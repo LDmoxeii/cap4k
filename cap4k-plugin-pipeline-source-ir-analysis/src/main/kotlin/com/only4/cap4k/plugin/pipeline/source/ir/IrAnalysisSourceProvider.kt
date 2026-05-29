@@ -100,6 +100,9 @@ class IrAnalysisSourceProvider : SourceProvider {
             }
             val packageName = obj.stringValue("package").orEmpty().trim()
             val name = obj.stringValue("name").orEmpty().trim()
+            if (name.isEmpty()) {
+                throw IllegalArgumentException("design element at index $index must declare non-blank name")
+            }
             val context = "design element $tag $packageName $name"
             DesignElementSnapshot(
                 tag = tag,
@@ -152,9 +155,13 @@ class IrAnalysisSourceProvider : SourceProvider {
             if (name.isEmpty()) {
                 throw IllegalArgumentException("$context $fieldName[$index] must declare non-blank name")
             }
+            val type = obj.stringValue("type").orEmpty().trim()
+            if (type.isEmpty()) {
+                throw IllegalArgumentException("$context $fieldName[$index] must declare non-blank type")
+            }
             DesignFieldSnapshot(
                 name = name,
-                type = obj.stringValue("type").orEmpty().trim(),
+                type = type,
                 nullable = obj.booleanValue("nullable") ?: false,
                 defaultValue = obj.stringValue("defaultValue"),
             )
