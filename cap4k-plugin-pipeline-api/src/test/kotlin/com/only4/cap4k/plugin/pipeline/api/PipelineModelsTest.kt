@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.api
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -54,6 +55,11 @@ class PipelineModelsTest {
         assertEquals(requestFields, entryWithOmittedArtifacts.fields)
         assertEquals(responseFields, entryWithOmittedArtifacts.resultFields)
         assertEquals(emptyList<ArtifactSelectionModel>(), entryWithExplicitEmptyArtifacts.artifacts)
+    }
+
+    @Test
+    fun `design spec entry does not expose legacy role`() {
+        assertFalse(DesignSpecEntry::class.java.declaredFields.any { field -> field.name == "role" })
     }
 
     @Test

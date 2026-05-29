@@ -91,7 +91,6 @@ data class DesignSpecEntry(
     val message: String? = null,
     val targets: List<String> = emptyList(),
     val valueType: String? = null,
-    val role: String? = null,
     val eventName: String? = null,
 )
 

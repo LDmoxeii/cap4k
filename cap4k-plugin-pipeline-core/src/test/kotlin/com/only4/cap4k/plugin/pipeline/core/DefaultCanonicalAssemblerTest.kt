@@ -223,7 +223,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `explicit integration event artifact variant overrides legacy role in typed projection`() {
+    fun `integration event artifact variant controls typed projection role`() {
         val model = DefaultCanonicalAssembler().assemble(
             config = baseConfig(),
             snapshots = listOf(
@@ -239,7 +239,6 @@ class DefaultCanonicalAssemblerTest {
                             responseFields = emptyList(),
                             fields = listOf(FieldModel(name = "orderId", type = "Long")),
                             eventName = "order.created",
-                            role = "outbound",
                             artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
                         ),
                     ),
@@ -526,8 +525,8 @@ class DefaultCanonicalAssemblerTest {
                                 FieldModel(name = "buyerId", type = "Long"),
                             ),
                             responseFields = emptyList(),
-                            role = "inbound",
                             eventName = "order.created",
+                            artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
                         ),
                         DesignSpecEntry(
                             tag = "integration_event",
@@ -539,8 +538,8 @@ class DefaultCanonicalAssemblerTest {
                                 FieldModel(name = "paymentId", type = "String"),
                             ),
                             responseFields = emptyList(),
-                            role = "outbound",
                             eventName = "order.paid",
+                            artifacts = listOf(ArtifactSelectionModel("integration-event", "outbound")),
                         ),
                     ),
                 ),
@@ -834,8 +833,8 @@ class DefaultCanonicalAssemblerTest {
                                 aggregates = emptyList(),
                                 requestFields = emptyList(),
                                 responseFields = emptyList(),
-                                role = "inbound",
                                 eventName = " ",
+                                artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
                             ),
                         ),
                     ),
@@ -862,8 +861,8 @@ class DefaultCanonicalAssemblerTest {
                                 aggregates = emptyList(),
                                 requestFields = emptyList(),
                                 responseFields = emptyList(),
-                                role = "inbound",
                                 eventName = "order.created",
+                                artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
                             ),
                         ),
                     ),

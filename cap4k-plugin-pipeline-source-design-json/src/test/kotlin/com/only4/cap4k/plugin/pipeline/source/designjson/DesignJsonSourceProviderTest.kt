@@ -359,7 +359,6 @@ class DesignJsonSourceProviderTest {
         val entry = snapshot.entries.single()
 
         assertEquals("integration_event", entry.tag)
-        assertEquals(null, entry.role)
         assertEquals("content.published", entry.eventName)
         assertEquals("contentId", entry.fields.single().name)
     }
