@@ -67,7 +67,7 @@ import {{ import }}
     aggregate = "{{ aggregateElement.aggregate }}",
     name = "{{ aggregateElement.name }}",
     packageName = "{{ aggregateElement.packageName }}",
-    description = "{{ aggregateElement.description | replace({'"': '\"'}) | raw }}",
+    description = {{ aggregateElement.descriptionKotlinStringLiteral | raw }},
     type = "{{ aggregateElement.type }}",
     root = {{ aggregateElement.root }}
 )

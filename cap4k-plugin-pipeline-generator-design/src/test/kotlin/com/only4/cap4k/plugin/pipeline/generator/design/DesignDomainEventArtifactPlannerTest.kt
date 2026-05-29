@@ -36,10 +36,10 @@ class DesignDomainEventArtifactPlannerTest {
         assertEquals(ConflictPolicy.SKIP, event.conflictPolicy)
         assertEquals("com.acme.demo.domain.aggregates.order.events", event.context["packageName"])
         assertEquals("OrderCreatedDomainEvent", event.context["typeName"])
-        assertEquals("order */ \"created\" event", event.context["description"])
-        assertEquals("order */ \"created\" event", event.context["descriptionText"])
-        assertEquals("order * / \"created\" event", event.context["descriptionCommentText"])
-        assertEquals("\"order */ \\\"created\\\" event\"", event.context["descriptionKotlinStringLiteral"])
+        assertEquals("order */ \"created\" \\event ${'$'}status", event.context["description"])
+        assertEquals("order */ \"created\" \\event ${'$'}status", event.context["descriptionText"])
+        assertEquals("order * / \"created\" \\event ${'$'}status", event.context["descriptionCommentText"])
+        assertEquals("\"order */ \\\"created\\\" \\\\event \\${'$'}status\"", event.context["descriptionKotlinStringLiteral"])
         assertEquals("Order", event.context["aggregateName"])
         assertEquals("com.acme.demo.domain.order.Order", event.context["aggregateType"])
         assertEquals(false, event.context["persist"])
@@ -48,7 +48,8 @@ class DesignDomainEventArtifactPlannerTest {
         assertEquals("domain_event", buildingBlock?.get("tag"))
         assertEquals("OrderCreatedDomainEvent", buildingBlock?.get("name"))
         assertEquals("order", buildingBlock?.get("packageName"))
-        assertEquals("order */ \"created\" event", buildingBlock?.get("description"))
+        assertEquals("order */ \"created\" \\event ${'$'}status", buildingBlock?.get("description"))
+        assertEquals("\"order */ \\\"created\\\" \\\\event \\${'$'}status\"", buildingBlock?.get("descriptionKotlinStringLiteral"))
         assertEquals(listOf("Order"), buildingBlock?.get("aggregates"))
         assertEquals("", buildingBlock?.get("eventName"))
         assertEquals("domain-event", buildingBlock?.get("family"))
@@ -112,7 +113,7 @@ class DesignDomainEventArtifactPlannerTest {
     ) = DomainEventModel(
         packageName = packageName,
         typeName = typeName,
-        description = "order */ \"created\" event",
+        description = "order */ \"created\" \\event ${'$'}status",
         aggregateName = aggregateName,
         aggregatePackageName = aggregatePackageName,
         persist = false,

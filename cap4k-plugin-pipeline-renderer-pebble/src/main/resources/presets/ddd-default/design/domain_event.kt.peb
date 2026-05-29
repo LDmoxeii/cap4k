@@ -18,7 +18,7 @@ import {{ import }}
     tag = "{{ buildingBlock.tag }}",
     name = "{{ buildingBlock.name }}",
     packageName = "{{ buildingBlock.packageName }}",
-    description = "{{ buildingBlock.description | replace({'"': '\"'}) | raw }}",
+    description = {{ buildingBlock.descriptionKotlinStringLiteral | raw }},
     aggregates = [{% for aggregate in buildingBlock.aggregates %}"{{ aggregate }}"{% if not loop.last %}, {% endif %}{% endfor %}],
     eventName = "{{ buildingBlock.eventName }}",
     family = "{{ buildingBlock.family }}",

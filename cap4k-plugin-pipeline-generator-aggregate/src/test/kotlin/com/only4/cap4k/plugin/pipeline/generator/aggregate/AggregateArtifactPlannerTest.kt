@@ -116,7 +116,7 @@ class AggregateArtifactPlannerTest {
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
             tableName = "video_post",
-            comment = "video post",
+            comment = "video \"post\" \\source ${'$'}status",
             fields = listOf(
                 FieldModel("id", "Long", columnName = "id"),
                 FieldModel("slug", "String", columnName = "slug"),
@@ -134,7 +134,7 @@ class AggregateArtifactPlannerTest {
                         name = "SVideoPost",
                         packageName = "com.acme.demo.domain._share.meta.video_post",
                         entityName = "VideoPost",
-                        comment = "video post",
+                        comment = "video \"post\" \\source ${'$'}status",
                         fields = entity.fields,
                     )
                 ),
@@ -181,7 +181,7 @@ class AggregateArtifactPlannerTest {
             aggregate = "VideoPost",
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
-            description = "video post",
+            description = "video \"post\" \\source ${'$'}status",
             type = "entity",
             root = true,
         )
@@ -190,7 +190,7 @@ class AggregateArtifactPlannerTest {
             aggregate = "VideoPost",
             name = "SVideoPost",
             packageName = "com.acme.demo.domain._share.meta.video_post",
-            description = "video post",
+            description = "video \"post\" \\source ${'$'}status",
             type = "schema",
             root = false,
         )
@@ -208,7 +208,7 @@ class AggregateArtifactPlannerTest {
             aggregate = "VideoPost",
             name = "VideoPostFactory",
             packageName = "com.acme.demo.domain.aggregates.video_post.factory",
-            description = "video post",
+            description = "video \"post\" \\source ${'$'}status",
             type = "factory",
             root = false,
         )
@@ -217,7 +217,7 @@ class AggregateArtifactPlannerTest {
             aggregate = "VideoPost",
             name = "VideoPostSpecification",
             packageName = "com.acme.demo.domain.aggregates.video_post.specification",
-            description = "video post",
+            description = "video \"post\" \\source ${'$'}status",
             type = "specification",
             root = false,
         )
@@ -4648,7 +4648,34 @@ class AggregateArtifactPlannerTest {
         assertEquals(name, aggregateElement?.get("name"), item.templateId)
         assertEquals(packageName, aggregateElement?.get("packageName"), item.templateId)
         assertEquals(description, aggregateElement?.get("description"), item.templateId)
+        assertEquals(description.toTestKotlinStringLiteral(), aggregateElement?.get("descriptionKotlinStringLiteral"), item.templateId)
         assertEquals(type, aggregateElement?.get("type"), item.templateId)
         assertEquals(root, aggregateElement?.get("root"), item.templateId)
+    }
+
+    private fun String.toTestKotlinStringLiteral(): String {
+        val escaped = buildString {
+            this@toTestKotlinStringLiteral.forEach { char ->
+                when (char) {
+                    '\\' -> append("\\\\")
+                    '"' -> append("\\\"")
+                    '\n' -> append("\\n")
+                    '\r' -> append("\\r")
+                    '\t' -> append("\\t")
+                    '\b' -> append("\\b")
+                    '\u000C' -> append("\\f")
+                    '$' -> append("\\$")
+                    else -> {
+                        if (char.code in 0x00..0x1F) {
+                            append("\\u")
+                            append(char.code.toString(16).padStart(4, '0'))
+                        } else {
+                            append(char)
+                        }
+                    }
+                }
+            }
+        }
+        return "\"$escaped\""
     }
 }

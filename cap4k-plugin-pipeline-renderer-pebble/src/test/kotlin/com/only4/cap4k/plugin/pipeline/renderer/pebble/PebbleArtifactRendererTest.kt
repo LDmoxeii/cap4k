@@ -91,6 +91,7 @@ class PebbleArtifactRendererTest {
             "name" to name,
             "packageName" to packageName,
             "description" to description,
+            "descriptionKotlinStringLiteral" to description.toTestKotlinStringLiteral(),
             "type" to type,
             "root" to root,
         )
@@ -110,11 +111,38 @@ class PebbleArtifactRendererTest {
             "name" to name,
             "packageName" to packageName,
             "description" to description,
+            "descriptionKotlinStringLiteral" to description.toTestKotlinStringLiteral(),
             "aggregates" to aggregates,
             "eventName" to eventName,
             "family" to family,
             "variant" to variant,
         )
+
+    private fun String.toTestKotlinStringLiteral(): String {
+        val escaped = buildString {
+            this@toTestKotlinStringLiteral.forEach { char ->
+                when (char) {
+                    '\\' -> append("\\\\")
+                    '"' -> append("\\\"")
+                    '\n' -> append("\\n")
+                    '\r' -> append("\\r")
+                    '\t' -> append("\\t")
+                    '\b' -> append("\\b")
+                    '\u000C' -> append("\\f")
+                    '$' -> append("\\$")
+                    else -> {
+                        if (char.code in 0x00..0x1F) {
+                            append("\\u")
+                            append(char.code.toString(16).padStart(4, '0'))
+                        } else {
+                            append(char)
+                        }
+                    }
+                }
+            }
+        }
+        return "\"$escaped\""
+    }
 
     @Test
     fun `value object template renders json converter skeleton with normalized field types`() {
@@ -6582,16 +6610,17 @@ class PebbleArtifactRendererTest {
                             "tag" to "domain_event",
                             "name" to "OrderCreatedDomainEvent",
                             "packageName" to "order",
-                            "description" to "order */ \"created\" event",
+                            "description" to "order */ \"created\" \\event ${'$'}status",
+                            "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" \\\\event \\${'$'}status\"",
                             "aggregates" to listOf("Order"),
                             "eventName" to "",
                             "family" to "domain-event",
                             "variant" to "",
                         ),
-                        "description" to "order */ \"created\" event",
-                        "descriptionText" to "order */ \"created\" event",
-                        "descriptionCommentText" to "order * / \"created\" event",
-                        "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" event\"",
+                        "description" to "order */ \"created\" \\event ${'$'}status",
+                        "descriptionText" to "order */ \"created\" \\event ${'$'}status",
+                        "descriptionCommentText" to "order * / \"created\" \\event ${'$'}status",
+                        "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" \\\\event \\${'$'}status\"",
                         "aggregateName" to "Order",
                         "aggregateType" to "com.acme.demo.domain.order.Order",
                         "persist" to true,
@@ -6624,7 +6653,7 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("tag = \"domain_event\""))
         assertTrue(content.contains("name = \"OrderCreatedDomainEvent\""))
         assertTrue(content.contains("packageName = \"order\""))
-        assertTrue(content.contains("description = \"order */ \\\"created\\\" event\""))
+        assertTrue(content.contains("description = \"order */ \\\"created\\\" \\\\event \\${'$'}status\""))
         assertTrue(content.contains("aggregates = [\"Order\"]"))
         assertTrue(content.contains("eventName = \"\""))
         assertTrue(content.contains("family = \"domain-event\""))

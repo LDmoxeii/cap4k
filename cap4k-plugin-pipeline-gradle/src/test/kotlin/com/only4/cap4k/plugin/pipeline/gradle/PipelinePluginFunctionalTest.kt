@@ -2517,7 +2517,7 @@ class PipelinePluginFunctionalTest {
         copyFixture(projectDir, "design-domain-event-sample")
         val designFile = projectDir.resolve("design/design.json")
         val designEntries = JsonParser.parseString(designFile.readText()).asJsonArray
-        designEntries.single().asJsonObject.addProperty("description", "order */ \"created\" event")
+        designEntries.single().asJsonObject.addProperty("description", "order */ \"created\" \\event ${'$'}status")
         designFile.writeText(designEntries.toString())
 
         val result = GradleRunner.create()
@@ -2544,15 +2544,15 @@ class PipelinePluginFunctionalTest {
         assertTrue(eventContent.contains("tag = \"domain_event\""))
         assertTrue(eventContent.contains("name = \"OrderCreatedDomainEvent\""))
         assertTrue(eventContent.contains("packageName = \"order\""))
-        assertTrue(eventContent.contains("description = \"order */ \\\"created\\\" event\""))
+        assertTrue(eventContent.contains("description = \"order */ \\\"created\\\" \\\\event \\${'$'}status\""))
         assertTrue(eventContent.contains("aggregates = [\"Order\"]"))
         assertTrue(eventContent.contains("eventName = \"\""))
         assertTrue(eventContent.contains("family = \"domain-event\""))
         assertTrue(eventContent.contains("variant = \"\""))
         assertFalse(eventContent.contains(legacyAggregateCall))
         assertFalse(eventContent.contains(legacyAggregateAnnotationFq))
-        assertTrue(eventContent.contains("* order * / \"created\" event"))
-        assertFalse(eventContent.contains("* order */ \"created\" event"))
+        assertTrue(eventContent.contains("* order * / \"created\" \\event ${'$'}status"))
+        assertFalse(eventContent.contains("* order */ \"created\" \\event ${'$'}status"))
         assertFalse(eventContent.contains("&quot;"))
         assertTrue(eventContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
         assertTrue(eventContent.contains("import java.util.UUID"))
@@ -2562,8 +2562,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(eventContent.contains("val traceId: UUID"))
         assertTrue(handlerContent.contains("@Service"))
         assertTrue(handlerContent.contains("@EventListener(OrderCreatedDomainEvent::class)"))
-        assertTrue(handlerContent.contains("* order * / \"created\" event"))
-        assertFalse(handlerContent.contains("* order */ \"created\" event"))
+        assertTrue(handlerContent.contains("* order * / \"created\" \\event ${'$'}status"))
+        assertFalse(handlerContent.contains("* order */ \"created\" \\event ${'$'}status"))
         assertTrue(handlerContent.contains("class OrderCreatedDomainEventSubscriber"))
     }
 

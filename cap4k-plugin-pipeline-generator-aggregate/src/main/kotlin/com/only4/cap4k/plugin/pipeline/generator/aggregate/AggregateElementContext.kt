@@ -16,6 +16,7 @@ internal fun aggregateElementContext(
     "name" to name,
     "packageName" to packageName,
     "description" to description,
+    "descriptionKotlinStringLiteral" to description.toKotlinStringLiteral(),
     "type" to type,
     "root" to root,
 )

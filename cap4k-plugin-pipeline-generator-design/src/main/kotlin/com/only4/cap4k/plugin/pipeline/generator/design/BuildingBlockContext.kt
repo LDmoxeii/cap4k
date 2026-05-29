@@ -9,6 +9,7 @@ internal fun domainEventBuildingBlockContext(
     "name" to event.typeName,
     "packageName" to event.packageName,
     "description" to event.description,
+    "descriptionKotlinStringLiteral" to event.description.toKotlinStringLiteral(),
     "aggregates" to listOf(event.aggregateName),
     "eventName" to "",
     "family" to "domain-event",
