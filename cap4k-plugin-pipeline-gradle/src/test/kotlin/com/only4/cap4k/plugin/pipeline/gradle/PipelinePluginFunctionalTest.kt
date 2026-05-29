@@ -2543,7 +2543,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(eventContent.contains("@BuildingBlock("))
         assertTrue(eventContent.contains("tag = \"domain_event\""))
         assertTrue(eventContent.contains("name = \"OrderCreatedDomainEvent\""))
-        assertTrue(eventContent.contains("packageName = \"com.acme.demo.domain.aggregates.order.events\""))
+        assertTrue(eventContent.contains("packageName = \"order\""))
         assertTrue(eventContent.contains("description = \"order */ \\\"created\\\" event\""))
         assertTrue(eventContent.contains("aggregates = [\"Order\"]"))
         assertTrue(eventContent.contains("eventName = \"\""))

@@ -6581,7 +6581,7 @@ class PebbleArtifactRendererTest {
                         "buildingBlock" to mapOf(
                             "tag" to "domain_event",
                             "name" to "OrderCreatedDomainEvent",
-                            "packageName" to "com.acme.demo.domain.order.events",
+                            "packageName" to "order",
                             "description" to "order */ \"created\" event",
                             "aggregates" to listOf("Order"),
                             "eventName" to "",
@@ -6623,7 +6623,7 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@BuildingBlock("))
         assertTrue(content.contains("tag = \"domain_event\""))
         assertTrue(content.contains("name = \"OrderCreatedDomainEvent\""))
-        assertTrue(content.contains("packageName = \"com.acme.demo.domain.order.events\""))
+        assertTrue(content.contains("packageName = \"order\""))
         assertTrue(content.contains("description = \"order */ \\\"created\\\" event\""))
         assertTrue(content.contains("aggregates = [\"Order\"]"))
         assertTrue(content.contains("eventName = \"\""))

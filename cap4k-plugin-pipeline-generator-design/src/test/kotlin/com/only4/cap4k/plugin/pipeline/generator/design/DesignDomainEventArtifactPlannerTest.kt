@@ -47,7 +47,7 @@ class DesignDomainEventArtifactPlannerTest {
         val buildingBlock = event.context["buildingBlock"] as? Map<String, Any?>
         assertEquals("domain_event", buildingBlock?.get("tag"))
         assertEquals("OrderCreatedDomainEvent", buildingBlock?.get("name"))
-        assertEquals("com.acme.demo.domain.aggregates.order.events", buildingBlock?.get("packageName"))
+        assertEquals("order", buildingBlock?.get("packageName"))
         assertEquals("order */ \"created\" event", buildingBlock?.get("description"))
         assertEquals(listOf("Order"), buildingBlock?.get("aggregates"))
         assertEquals("", buildingBlock?.get("eventName"))

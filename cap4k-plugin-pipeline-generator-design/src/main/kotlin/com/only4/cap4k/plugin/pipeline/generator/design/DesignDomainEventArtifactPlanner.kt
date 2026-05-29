@@ -32,7 +32,7 @@ class DesignDomainEventArtifactPlanner : GeneratorProvider {
                 context = mapOf(
                     "packageName" to renderModel.packageName,
                     "typeName" to renderModel.typeName,
-                    "buildingBlock" to domainEventBuildingBlockContext(event, renderModel.packageName),
+                    "buildingBlock" to domainEventBuildingBlockContext(event),
                     "description" to renderModel.description,
                     "descriptionText" to renderModel.descriptionText,
                     "descriptionCommentText" to renderModel.descriptionCommentText,
