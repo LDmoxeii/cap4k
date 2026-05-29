@@ -20,6 +20,11 @@ import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
 class PipelinePluginFunctionalTest {
+    private val legacyAggregateAnnotationFq =
+        listOf("com.only4.cap4k.ddd.core.domain", "aggregate.annotation.Aggregate").joinToString(".")
+    private val legacyAggregateCall = "@" + "Aggregate("
+    private val legacyAggregateTypeEntity = listOf("Aggregate", "TYPE_ENTITY").joinToString(".")
+
 
     @OptIn(ExperimentalPathApi::class)
     @Test
@@ -869,20 +874,9 @@ class PipelinePluginFunctionalTest {
         val uniqueQueryContent = uniqueQueryFile.readText()
         val uniqueQueryHandlerContent = uniqueQueryHandlerFile.readText()
         val uniqueValidatorContent = uniqueValidatorFile.readText()
-        assertTrue(generatedVideoPostContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"))
-        assertTrue(
-            generatedVideoPostContent.contains(
-                """
-                @Aggregate(
-                    aggregate = "VideoPost",
-                    name = "VideoPost",
-                    type = Aggregate.TYPE_ENTITY,
-                    root = true,
-                    description = ""
-                )
-                """.trimIndent()
-            )
-        )
+        assertFalse(generatedVideoPostContent.contains(legacyAggregateAnnotationFq))
+        assertFalse(generatedVideoPostContent.contains(legacyAggregateCall))
+        assertFalse(generatedVideoPostContent.contains(legacyAggregateTypeEntity))
         assertTrue(planFile.readText().contains("\"items\""))
         assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/entity.kt.peb\""))
@@ -2474,13 +2468,11 @@ class PipelinePluginFunctionalTest {
         assertTrue(eventFile.toFile().exists())
         assertTrue(handlerFile.toFile().exists())
         assertTrue(eventContent.contains("@DomainEvent"))
-        assertTrue(eventContent.contains("@Aggregate("))
-        assertTrue(eventContent.contains("aggregate = \"Order\""))
-        assertTrue(eventContent.contains("name = \"OrderCreatedDomainEvent\""))
-        assertTrue(eventContent.contains("type = Aggregate.TYPE_DOMAIN_EVENT"))
+        assertFalse(eventContent.contains(legacyAggregateCall))
+        assertFalse(eventContent.contains(legacyAggregateAnnotationFq))
         assertTrue(eventContent.contains("* order * / \"created\" event"))
         assertFalse(eventContent.contains("* order */ \"created\" event"))
-        assertTrue(eventContent.contains("description = \"order */ \\\"created\\\" event\""))
+        assertFalse(eventContent.contains("description = "))
         assertFalse(eventContent.contains("&quot;"))
         assertTrue(eventContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
         assertTrue(eventContent.contains("import java.util.UUID"))

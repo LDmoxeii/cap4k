@@ -2,7 +2,9 @@ package {{ packageName }}
 
 {{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory") -}}
 {{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload") -}}
-{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
+{% if aggregateElement is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{% endif -%}
 {{ use("org.springframework.stereotype.Service") -}}
 {{ use(entityTypeFqn) -}}
 {% for import in imports(imports) -%}
@@ -10,12 +12,16 @@ import {{ import }}
 {% endfor %}
 
 @Service
-@Aggregate(
-    aggregate = "{{ aggregateName }}",
-    name = "{{ typeName }}",
-    type = Aggregate.TYPE_FACTORY,
-    description = ""
+{% if aggregateElement is defined -%}
+@AggregateElement(
+    aggregate = "{{ aggregateElement.aggregate }}",
+    name = "{{ aggregateElement.name }}",
+    packageName = "{{ aggregateElement.packageName }}",
+    description = "{{ aggregateElement.description | replace({'"': '\"'}) | raw }}",
+    type = "{{ aggregateElement.type }}",
+    root = {{ aggregateElement.root }}
 )
+{% endif -%}
 class {{ typeName }} : AggregateFactory<{{ typeName }}.{{ payloadTypeName }}, {{ entityName }}> {
 
     override fun create(entityPayload: {{ payloadTypeName }}): {{ entityName }} =
@@ -32,12 +38,6 @@ class {{ typeName }} : AggregateFactory<{{ typeName }}.{{ payloadTypeName }}, {{
 {{ "        " }}TODO("Implement aggregate construction")
 {% endif %}
 
-    @Aggregate(
-        aggregate = "{{ aggregateName }}",
-        name = "{{ payloadMetadataName }}",
-        type = Aggregate.TYPE_FACTORY_PAYLOAD,
-        description = ""
-    )
 {% if payloadWriteSurfaceResolved and payloadFields|length == 0 -%}
 {{ "    " }}class {{ payloadTypeName }} : AggregatePayload<{{ entityName }}>
 {% elseif payloadWriteSurfaceResolved -%}

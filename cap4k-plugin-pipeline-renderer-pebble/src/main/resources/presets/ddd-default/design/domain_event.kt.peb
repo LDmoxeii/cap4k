@@ -1,6 +1,8 @@
 package {{ packageName }}
 
-{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
+{% if buildingBlock is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.BuildingBlock") -}}
+{% endif -%}
 {{ use("com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent") -}}
 {{ use(aggregateType) -}}
 {% for import in imports(imports) -%}
@@ -11,12 +13,18 @@ import {{ import }}
  * {{ descriptionCommentText | raw }}
  */
 @DomainEvent(persist = {{ persist }})
-@Aggregate(
-    aggregate = "{{ aggregateName }}",
-    name = "{{ typeName }}",
-    type = Aggregate.TYPE_DOMAIN_EVENT,
-    description = {{ descriptionKotlinStringLiteral | raw }}
+{% if buildingBlock is defined -%}
+@BuildingBlock(
+    tag = "{{ buildingBlock.tag }}",
+    name = "{{ buildingBlock.name }}",
+    packageName = "{{ buildingBlock.packageName }}",
+    description = "{{ buildingBlock.description | replace({'"': '\"'}) | raw }}",
+    aggregates = [{% for aggregate in buildingBlock.aggregates %}"{{ aggregate }}"{% if not loop.last %}, {% endif %}{% endfor %}],
+    eventName = "{{ buildingBlock.eventName }}",
+    family = "{{ buildingBlock.family }}",
+    variant = "{{ buildingBlock.variant }}"
 )
+{% endif -%}
 class {{ typeName }}(
     val entity: {{ aggregateName }}{% if fields.size > 0 %},{% endif %}
 {%- for field in fields %}

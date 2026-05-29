@@ -9,7 +9,7 @@ data class Cap4kOptions(
     val scanSpring: Boolean = true,
     val includeRepoUow: Boolean = true,
     val mediatorFq: String = "com.only4.cap4k.ddd.core.Mediator",
-    val aggregateAnnFq: String = "com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate",
+    val aggregateAnnFq: String = "com.only4.cap4k.ddd.core.annotation.AggregateElement",
     val domainEventAnnFq: String = "com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent",
     val integrationEventAnnFq: String = "com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent",
     val eventListenerAnnFq: String = "org.springframework.context.event.EventListener",
@@ -31,7 +31,7 @@ data class Cap4kOptions(
             mediatorFq = System.getProperty(OptionsKeys.MEDIATOR_FQ)
                 ?: "com.only4.cap4k.ddd.core.Mediator",
             aggregateAnnFq = System.getProperty(OptionsKeys.AGGREGATE_ANNOTATION_FQ)
-                ?: "com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate",
+                ?: "com.only4.cap4k.ddd.core.annotation.AggregateElement",
             domainEventAnnFq = System.getProperty(OptionsKeys.DOMAIN_EVENT_ANNOTATION_FQ)
                 ?: "com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent",
             integrationEventAnnFq = System.getProperty(OptionsKeys.INTEGRATION_EVENT_ANNOTATION_FQ)

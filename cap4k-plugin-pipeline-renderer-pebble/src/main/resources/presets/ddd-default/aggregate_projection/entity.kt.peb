@@ -1,5 +1,8 @@
 package {{ packageName }}
 
+{% if aggregateElement is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{% endif -%}
 {% if entityJpa.entityEnabled -%}
 {{ use("jakarta.persistence.Column") -}}
 {{ use("jakarta.persistence.Entity") -}}
@@ -27,6 +30,16 @@ package {{ packageName }}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
+{% if aggregateElement is defined -%}
+@AggregateElement(
+    aggregate = "{{ aggregateElement.aggregate }}",
+    name = "{{ aggregateElement.name }}",
+    packageName = "{{ aggregateElement.packageName }}",
+    description = "{{ aggregateElement.description | replace({'"': '\"'}) | raw }}",
+    type = "{{ aggregateElement.type }}",
+    root = {{ aggregateElement.root }}
+)
+{% endif -%}
 {% if entityJpa.entityEnabled %}
 @Entity
 @Table(name = "{{ entityJpa.tableName }}")

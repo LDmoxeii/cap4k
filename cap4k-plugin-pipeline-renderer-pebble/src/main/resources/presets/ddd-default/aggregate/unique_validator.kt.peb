@@ -1,5 +1,8 @@
 package {{ packageName }}
 
+{% if aggregateElement is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{% endif -%}
 {{ use("jakarta.validation.Constraint") -}}
 {{ use("jakarta.validation.ConstraintValidator") -}}
 {{ use("jakarta.validation.ConstraintValidatorContext") -}}
@@ -12,6 +15,16 @@ package {{ packageName }}
 import {{ import }}
 {% endfor %}
 
+{% if aggregateElement is defined -%}
+@AggregateElement(
+    aggregate = "{{ aggregateElement.aggregate }}",
+    name = "{{ aggregateElement.name }}",
+    packageName = "{{ aggregateElement.packageName }}",
+    description = "{{ aggregateElement.description | replace({'"': '\"'}) | raw }}",
+    type = "{{ aggregateElement.type }}",
+    root = {{ aggregateElement.root }}
+)
+{% endif -%}
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 @Constraint(validatedBy = [{{ typeName }}.Validator::class])

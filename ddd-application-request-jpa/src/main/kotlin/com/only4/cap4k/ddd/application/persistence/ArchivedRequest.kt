@@ -1,19 +1,11 @@
 package com.only4.cap4k.ddd.application.persistence
 
 import com.only4.cap4k.ddd.application.persistence.Request.RequestState
-import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
 import java.time.LocalDateTime
 
-@Aggregate(
-    aggregate = "archived_request",
-    name = "ArchivedRequest",
-    root = true,
-    type = Aggregate.TYPE_ENTITY,
-    description = "请求记录"
-)
 @Entity
 @Table(name = "`__archived_request`")
 @DynamicInsert

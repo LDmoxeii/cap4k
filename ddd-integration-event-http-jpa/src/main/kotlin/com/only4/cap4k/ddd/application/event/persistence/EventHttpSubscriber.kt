@@ -1,19 +1,11 @@
 package com.only4.cap4k.ddd.application.event.persistence
 
-import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
 import org.hibernate.annotations.SQLDelete
 import org.hibernate.annotations.Where
 
-@Aggregate(
-    aggregate = "event_http_subscriber",
-    name = "EventHttpSubscriber",
-    root = true,
-    type = Aggregate.TYPE_ENTITY,
-    description = "集成事件订阅"
-)
 @Entity
 @Table(name = "`__event_http_subscriber`")
 @DynamicInsert

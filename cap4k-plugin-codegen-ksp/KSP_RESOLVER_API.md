@@ -47,9 +47,9 @@ fun getSymbolsWithAnnotation(
 **使用示例：**
 
 ```kotlin
-// 1. 查找带 @Aggregate 注解的所有符号
+// 1. 查找带 @AggregateElement 注解的所有符号
 val aggregateSymbols = resolver.getSymbolsWithAnnotation(
-    "com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"
+    "com.only4.cap4k.ddd.core.annotation.AggregateElement"
 )
 
 // 2. 过滤出类声明

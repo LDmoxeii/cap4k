@@ -38,10 +38,10 @@ class DesignElementExtractionTest {
                 """.trimIndent()
             ),
             SourceFile.kotlin(
-                "Aggregate.kt",
+                "AggregateElement.kt",
                 """
-                    package com.only4.cap4k.ddd.core.domain.aggregate.annotation
-                    annotation class Aggregate(
+                    package com.only4.cap4k.ddd.core.annotation
+                    annotation class AggregateElement(
                         val aggregate: String = "",
                         val type: String = "",
                         val root: Boolean = false
@@ -147,7 +147,7 @@ class DesignElementExtractionTest {
                 """
                     package demo.domain.aggregates.user.events
                     @com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent(persist = true)
-                    @com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate(aggregate = "User", type = "domain-event")
+                    @com.only4.cap4k.ddd.core.annotation.AggregateElement(aggregate = "User", type = "domain-event")
                     data class UserCreated(val userId: Long)
                 """.trimIndent()
             ),

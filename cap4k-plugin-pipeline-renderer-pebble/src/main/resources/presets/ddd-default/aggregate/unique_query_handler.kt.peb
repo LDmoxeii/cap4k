@@ -1,5 +1,8 @@
 package {{ packageName }}
 
+{% if aggregateElement is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{% endif -%}
 {{ use("com.only4.cap4k.ddd.core.application.query.Query") -}}
 {{ use("org.springframework.stereotype.Service") -}}
 {{ use(queryTypeFqn) -}}
@@ -15,6 +18,16 @@ import {{ import }}
 {% endfor %}
 
 @Service
+{% if aggregateElement is defined -%}
+@AggregateElement(
+    aggregate = "{{ aggregateElement.aggregate }}",
+    name = "{{ aggregateElement.name }}",
+    packageName = "{{ aggregateElement.packageName }}",
+    description = "{{ aggregateElement.description | replace({'"': '\"'}) | raw }}",
+    type = "{{ aggregateElement.type }}",
+    root = {{ aggregateElement.root }}
+)
+{% endif -%}
 class {{ typeName }}(
 {%- if repositoryTypeName %}
     private val repository: {{ repositoryTypeName }},

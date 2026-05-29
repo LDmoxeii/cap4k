@@ -12,6 +12,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class PebbleArtifactRendererTest {
+    private val legacyAggregateAnnotationFq =
+        listOf("com.only4.cap4k.ddd.core.domain", "aggregate.annotation.Aggregate").joinToString(".")
+    private val legacyAggregateCall = "@" + "Aggregate("
+
 
     private fun assertReadableKotlin(content: String) {
         assertFalse(Regex("""(?m)[ \t]+$""").containsMatchIn(content), "Generated Kotlin must not contain trailing whitespace.")
@@ -73,6 +77,44 @@ class PebbleArtifactRendererTest {
                 templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             ),
         ).single().content
+
+    private fun aggregateElementContext(
+        aggregate: String,
+        name: String,
+        type: String,
+        root: Boolean = false,
+        packageName: String = "",
+        description: String = "",
+    ): Map<String, Any?> =
+        mapOf(
+            "aggregate" to aggregate,
+            "name" to name,
+            "packageName" to packageName,
+            "description" to description,
+            "type" to type,
+            "root" to root,
+        )
+
+    private fun buildingBlockContext(
+        tag: String,
+        name: String,
+        family: String,
+        packageName: String = "",
+        description: String = "",
+        aggregates: List<String> = emptyList(),
+        eventName: String = "",
+        variant: String = "",
+    ): Map<String, Any?> =
+        mapOf(
+            "tag" to tag,
+            "name" to name,
+            "packageName" to packageName,
+            "description" to description,
+            "aggregates" to aggregates,
+            "eventName" to eventName,
+            "family" to family,
+            "variant" to variant,
+        )
 
     @Test
     fun `value object template renders json converter skeleton with normalized field types`() {
@@ -176,11 +218,83 @@ class PebbleArtifactRendererTest {
             ),
         )
 
-        assertTrue(content.contains("""name = "VideoPostPayload""""))
+        assertFalse(content.contains(legacyAggregateCall))
         assertTrue(content.contains("data class Payload("))
         assertTrue(content.contains("val title: String?"))
         assertFalse(content.contains("val id: Long"))
         assertFalse(content.contains("val name: String"))
+    }
+
+    @Test
+    fun `aggregate templates render aggregate element only when context is present`() {
+        val entityContent = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                "typeName" to "VideoPost",
+                "comment" to "video post",
+                "aggregateRoot" to true,
+                "aggregateElement" to aggregateElementContext(
+                    aggregate = "VideoPost",
+                    name = "VideoPost",
+                    type = "entity",
+                    root = true,
+                    packageName = "video_post",
+                    description = "video post",
+                ),
+                "entityJpa" to mapOf("entityEnabled" to false),
+                "hasStrongIdFields" to false,
+                "hasEmbeddedStrongIdFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasEmbeddedIdFields" to false,
+                "hasVersionFields" to false,
+                "hasConverterFields" to false,
+                "dynamicInsert" to false,
+                "dynamicUpdate" to false,
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "jpaImports" to emptyList<String>(),
+                "imports" to emptyList<String>(),
+                "scalarFields" to emptyList<Map<String, Any?>>(),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+        val factoryContent = renderTemplate(
+            templateId = "aggregate/factory.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.video_post.factory",
+                "typeName" to "VideoPostFactory",
+                "payloadTypeName" to "Payload",
+                "payloadMetadataName" to "VideoPostPayload",
+                "payloadWriteSurfaceResolved" to true,
+                "constructorMappingResolved" to false,
+                "payloadFields" to emptyList<Map<String, Any?>>(),
+                "entityName" to "VideoPost",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
+                "aggregateName" to "VideoPost",
+                "imports" to emptyList<String>(),
+                "aggregateElement" to aggregateElementContext(
+                    aggregate = "VideoPost",
+                    name = "VideoPostFactory",
+                    type = "factory",
+                ),
+            ),
+        )
+
+        assertTrue(entityContent.contains("import com.only4.cap4k.ddd.core.annotation.AggregateElement"))
+        assertTrue(entityContent.contains("@AggregateElement("))
+        assertTrue(entityContent.contains("""aggregate = "VideoPost""""))
+        assertTrue(entityContent.contains("""packageName = "video_post""""))
+        assertTrue(entityContent.contains("""type = "entity""""))
+        assertTrue(entityContent.contains("root = true"))
+        assertTrue(factoryContent.contains("@AggregateElement("))
+        assertTrue(factoryContent.contains("""type = "factory""""))
+        assertFalse(factoryContent.contains("""name = "VideoPostPayload""""))
+        assertFalse(factoryContent.contains("factory-payload"))
+        assertFalse(entityContent.contains(legacyAggregateCall))
+        assertFalse(factoryContent.contains(legacyAggregateCall))
     }
 
     @Test
@@ -235,7 +349,7 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains(") : AggregatePayload<Content>"))
         assertFalse(Regex("""data class Payload\(\n\n""").containsMatchIn(content))
         assertFalse(Regex("""val title: String,\n\n\s*val authorId""").containsMatchIn(content))
-        assertFalse(content.normalizedLineEndings().contains("    )\n\n    data class Payload("))
+        assertFalse(content.normalizedLineEndings().contains("    )\n\n\n    data class Payload("))
         assertFalse(content.normalizedLineEndings().contains("=\nContent("))
         assertFalse(content.contains("AuthorId.new()"))
         assertFalse(content.contains("TODO(\"Implement aggregate construction\")"))
@@ -484,7 +598,7 @@ class PebbleArtifactRendererTest {
             ),
         )
 
-        assertTrue(content.contains("""name = "VideoPostPayload""""))
+        assertFalse(content.contains(legacyAggregateCall))
         assertTrue(content.contains("class Payload : AggregatePayload<VideoPost>"))
         assertFalse(content.contains("data class Payload("))
         assertFalse(content.contains("val name: String"))
@@ -508,7 +622,7 @@ class PebbleArtifactRendererTest {
             ),
         )
 
-        assertTrue(content.contains("""name = "VideoPostPayload""""))
+        assertFalse(content.contains(legacyAggregateCall))
         assertTrue(content.contains("val name: String"))
     }
 
@@ -683,56 +797,39 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `aggregate entity template fails fast when aggregate metadata is missing`() {
-        val exception = assertThrows<Exception> {
-            PebbleArtifactRenderer(
-                templateResolver = PresetTemplateResolver("ddd-default", emptyList())
-            ).render(
-                planItems = listOf(
-                    ArtifactPlanItem(
-                        generatorId = "aggregate",
-                        moduleRole = "domain",
-                        templateId = "aggregate/entity.kt.peb",
-                        outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/category/Category.kt",
-                        context = mapOf(
-                            "packageName" to "com.acme.demo.domain.aggregates.category",
-                            "typeName" to "Category",
-                            "comment" to "category",
-                            "entityJpa" to mapOf(
-                                "entityEnabled" to true,
-                                "tableName" to "category",
-                            ),
-                            "hasConverterFields" to false,
-                            "hasGeneratedValueFields" to false,
-                            "hasVersionFields" to false,
-                            "dynamicInsert" to false,
-                            "dynamicUpdate" to false,
-                            "softDeleteSql" to null,
-                            "softDeleteWhereClause" to null,
-                            "jpaImports" to emptyList<String>(),
-                            "imports" to emptyList<String>(),
-                            "scalarFields" to emptyList<Map<String, Any?>>(),
-                            "fields" to emptyList<Map<String, Any?>>(),
-                            "relationFields" to emptyList<Map<String, Any?>>(),
-                        ),
-                        conflictPolicy = ConflictPolicy.SKIP,
-                    )
+    fun `aggregate entity template omits aggregate element when metadata context is missing`() {
+        val content = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/category/Category.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.category",
+                "typeName" to "Category",
+                "comment" to "category",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to "category",
                 ),
-                config = ProjectConfig(
-                    basePackage = "com.acme.demo",
-                    layout = ProjectLayout.MULTI_MODULE,
-                    modules = emptyMap(),
-                    sources = emptyMap(),
-                    generators = emptyMap(),
-                    templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
-                ),
-            )
-        }
+                "hasStrongIdFields" to false,
+                "hasEmbeddedStrongIdFields" to false,
+                "hasEmbeddedIdFields" to false,
+                "hasConverterFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasVersionFields" to false,
+                "dynamicInsert" to false,
+                "dynamicUpdate" to false,
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "jpaImports" to emptyList<String>(),
+                "imports" to emptyList<String>(),
+                "scalarFields" to emptyList<Map<String, Any?>>(),
+                "fields" to emptyList<Map<String, Any?>>(),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
 
-        val rootCause = generateSequence(exception as Throwable?) { it.cause }
-            .filterIsInstance<IllegalArgumentException>()
-            .first()
-        assertEquals("required() missing value: aggregateName", rootCause.message)
+        assertTrue(content.contains("@Entity"))
+        assertFalse(content.contains("@AggregateElement("))
+        assertFalse(content.contains(legacyAggregateCall))
     }
 
     @Test
@@ -2851,27 +2948,21 @@ class PebbleArtifactRendererTest {
         assertTrue(repositoryContent.contains("interface OrderRepository : JpaRepository<Order, Long>, JpaSpecificationExecutor<Order>"))
         assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory"))
         assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload"))
-        assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"))
+        assertFalse(factoryContent.contains(legacyAggregateAnnotationFq))
+        assertFalse(factoryContent.contains(legacyAggregateCall))
         assertTrue(factoryContent.contains("import org.springframework.stereotype.Service"))
         assertTrue(factoryContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
         assertTrue(factoryContent.contains("class OrderFactory : AggregateFactory<OrderFactory.Payload, Order>"))
-        assertTrue(factoryContent.contains("""aggregate = "Order""""))
-        assertTrue(factoryContent.contains("""name = "OrderFactory""""))
-        assertTrue(factoryContent.contains("type = Aggregate.TYPE_FACTORY"))
-        assertTrue(factoryContent.contains("""name = "OrderPayload""""))
-        assertTrue(factoryContent.contains("type = Aggregate.TYPE_FACTORY_PAYLOAD"))
         assertTrue(factoryContent.contains("""TODO("Implement aggregate construction")"""))
         assertTrue(factoryContent.contains("data class Payload("))
         assertTrue(factoryContent.contains("val name: String"))
         assertTrue(specificationContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.Specification"))
         assertTrue(specificationContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.Specification.Result"))
-        assertTrue(specificationContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"))
+        assertFalse(specificationContent.contains(legacyAggregateAnnotationFq))
+        assertFalse(specificationContent.contains(legacyAggregateCall))
         assertTrue(specificationContent.contains("import org.springframework.stereotype.Service"))
         assertTrue(specificationContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
         assertTrue(specificationContent.contains("class OrderSpecification : Specification<Order>"))
-        assertTrue(specificationContent.contains("""aggregate = "Order""""))
-        assertTrue(specificationContent.contains("""name = "OrderSpecification""""))
-        assertTrue(specificationContent.contains("type = Aggregate.TYPE_SPECIFICATION"))
         assertTrue(specificationContent.contains("return Result.pass()"))
         assertTrue(schemaContent.contains("fun predicateById(id: Any): JpaPredicate<Order>"))
         assertTrue(schemaContent.contains("fun predicate(builder: PredicateBuilder<SOrder>): JpaPredicate<Order>"))
@@ -3812,9 +3903,8 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("\n\n\n"), content)
         assertFalse(Regex("(?m)^\\s+$").containsMatchIn(content), content)
         assertTrue(content.startsWith("package com.acme.demo.domain.aggregates.video_post\n\nimport "))
-        assertTrue(content.contains("@Aggregate("), content)
-        assertTrue(content.contains("aggregate = \"VideoPost\""), content)
-        assertTrue(content.contains("root = true"), content)
+        assertFalse(content.contains(legacyAggregateCall), content)
+        assertFalse(content.contains(legacyAggregateAnnotationFq), content)
         assertTrue(content.contains("\n@Entity"), content)
         assertTrue(content.contains("import jakarta.persistence.GeneratedValue"))
         assertTrue(content.contains("import jakarta.persistence.GenerationType"))
@@ -4191,7 +4281,6 @@ class PebbleArtifactRendererTest {
                 sources = emptyMap(),
                 generators = mapOf(
                     "flow" to GeneratorConfig(
-                        enabled = true,
                         options = mapOf("outputDir" to "flows"),
                     ),
                 ),
@@ -6383,10 +6472,11 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
         val normalizedContent = content.replace("\r\n", "\n")
         assertTrue(content.contains("@DomainEvent"))
-        assertTrue(content.contains("@Aggregate"))
+        assertFalse(content.contains("@BuildingBlock("))
+        assertFalse(content.contains(legacyAggregateCall))
         assertTrue(content.contains("* order * / \"created\" event"))
         assertFalse(content.contains("* order */ \"created\" event"))
-        assertTrue(content.contains("description = \"order */ \\\"created\\\" event\""))
+        assertFalse(content.contains("description = "))
         assertFalse(content.contains("&quot;"))
         assertTrue(content.contains("class OrderCreatedDomainEvent("))
         assertTrue(content.contains("val entity: Order"))

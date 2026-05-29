@@ -207,7 +207,7 @@ class AnalysisOutputCorrectnessTest {
         val rels = compileRelationships(
             categorySources(
                 categoryBody = """
-                    @Aggregate(aggregate = "Category", type = "entity", root = true)
+                    @com.only4.cap4k.ddd.core.annotation.AggregateElement(aggregate = "Category", type = "entity", root = true)
                     class Category {
                         fun changeSort(sort: Int) {
                             CategorySortChanged(sort)
@@ -671,11 +671,11 @@ class AnalysisOutputCorrectnessTest {
                 """.trimIndent()
             ),
             SourceFile.kotlin(
-                "Aggregate.kt",
+                "AggregateElement.kt",
                 """
-                    package com.only4.cap4k.ddd.core.domain.aggregate.annotation
+                    package com.only4.cap4k.ddd.core.annotation
 
-                    annotation class Aggregate(
+                    annotation class AggregateElement(
                         val aggregate: String = "",
                         val type: String = "",
                         val root: Boolean = false
@@ -719,7 +719,7 @@ class AnalysisOutputCorrectnessTest {
                 """
                     package demo.domain.aggregates.category
 
-                    import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+                    import com.only4.cap4k.ddd.core.annotation.AggregateElement
                     import demo.domain.aggregates.category.events.CategorySortChanged
 
                     $categoryBody
@@ -783,11 +783,11 @@ class AnalysisOutputCorrectnessTest {
     ): List<SourceFile> {
         return listOf(
             SourceFile.kotlin(
-                "Aggregate.kt",
+                "AggregateElement.kt",
                 """
-                    package com.only4.cap4k.ddd.core.domain.aggregate.annotation
+                    package com.only4.cap4k.ddd.core.annotation
 
-                    annotation class Aggregate(
+                    annotation class AggregateElement(
                         val aggregate: String = "",
                         val type: String = "",
                         val root: Boolean = false
@@ -831,7 +831,7 @@ class AnalysisOutputCorrectnessTest {
                 """
                     package demo.domain.aggregates.category
 
-                    import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+                    import com.only4.cap4k.ddd.core.annotation.AggregateElement
 
                     $categoryBody
                 """.trimIndent()
@@ -1183,14 +1183,14 @@ class AnalysisOutputCorrectnessTest {
     companion object {
         private const val UNDEFINED_OFFSET = -1
         private const val DEFAULT_CATEGORY_BODY = """
-            @Aggregate(aggregate = "Category", type = "entity", root = true)
+            @AggregateElement(aggregate = "Category", type = "entity", root = true)
             class Category
         """
         private const val GENERATED_STYLE_CATEGORY_BODY = """
             import jakarta.persistence.Entity
             import jakarta.persistence.Table
 
-            @Aggregate(aggregate = "Category", type = "entity", root = true)
+            @AggregateElement(aggregate = "Category", type = "entity", root = true)
             @Entity
             @Table(name = "category")
             class Category()

@@ -57,10 +57,10 @@
 
 ### 注解扫描
 
-#### @Aggregate
+#### @AggregateElement
 
 ```kotlin
-annotation class Aggregate(
+annotation class AggregateElement(
     /**
      * 所属聚合
      *
@@ -74,17 +74,11 @@ annotation class Aggregate(
      */
     val name: String = "",
     /**
-     * 是否聚合根
-     * @return
-     */
-    val root: Boolean = false,
-    /**
-     * 元素类型
-     * entity、value-object、repository、factory、factory-payload、domain-event、specification、enum
+     * 所在包名
      *
      * @return
      */
-    val type: String = "",
+    val packageName: String = "",
     /**
      * 实体描述
      *
@@ -92,39 +86,33 @@ annotation class Aggregate(
      */
     val description: String = "",
     /**
-     * 关联元素名称
+     * 元素类型
      *
      * @return
      */
-    vararg val relevant: String = []
-) {
-    companion object {
-        const val TYPE_ENTITY: String = "entity"
-        const val TYPE_VALUE_OBJECT: String = "value-object"
-        const val TYPE_ENUM: String = "enum"
-        const val TYPE_REPOSITORY: String = "repository"
-        const val TYPE_DOMAIN_EVENT: String = "domain-event"
-        const val TYPE_FACTORY: String = "factory"
-        const val TYPE_FACTORY_PAYLOAD: String = "factory-payload"
-        const val TYPE_SPECIFICATION: String = "specification"
-    }
-}
+    val type: String = "",
+    /**
+     * 是否聚合根
+     * @return
+     */
+    val root: Boolean = false,
+)
 ```
 
-#### 处理 @Aggregate 注解
+#### 处理 @AggregateElement 注解
 
 ```kotlin
 private fun processAggregateAnnotations(resolver: Resolver) {
-    // 1. 查找所有带 @Aggregate 注解的符号
+    // 1. 查找所有带 @AggregateElement 注解的符号
     val aggregateSymbols = resolver.getSymbolsWithAnnotation(
-        "com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"
+        "com.only4.cap4k.ddd.core.annotation.AggregateElement"
     )
 
     // 2. 过滤出类声明
     aggregateSymbols.filterIsInstance<KSClassDeclaration>().forEach { classDecl ->
         // 3. 获取注解实例
         val annotation = classDecl.annotations.first {
-            it.shortName.asString() == "Aggregate"
+            it.shortName.asString() == "AggregateElement"
         }
 
         // 4. 读取注解参数

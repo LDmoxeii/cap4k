@@ -1,5 +1,8 @@
 package {{ packageName }}
 
+{% if aggregateElement is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{% endif -%}
 {{ use("org.springframework.data.jpa.domain.Specification") -}}
 {{ use("jakarta.persistence.criteria.CriteriaBuilder") -}}
 {{ use("jakarta.persistence.criteria.CriteriaQuery") -}}
@@ -22,6 +25,16 @@ package {{ packageName }}
 import {{ import }}
 {% endfor %}
 
+{% if aggregateElement is defined -%}
+@AggregateElement(
+    aggregate = "{{ aggregateElement.aggregate }}",
+    name = "{{ aggregateElement.name }}",
+    packageName = "{{ aggregateElement.packageName }}",
+    description = "{{ aggregateElement.description | replace({'"': '\"'}) | raw }}",
+    type = "{{ aggregateElement.type }}",
+    root = {{ aggregateElement.root }}
+)
+{% endif -%}
 class {{ typeName }}(
     private val root: Path<{{ entityName }}>,
     private val criteriaBuilder: CriteriaBuilder,

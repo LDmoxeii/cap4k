@@ -13,7 +13,7 @@ import com.only4.cap4k.plugin.codegen.ksp.models.FieldMetadata
 /**
  * KSP 注解处理器（两阶段处理）
  *
- * Phase 1: 扫描所有 @Aggregate 注解的类，构建 AnnotatedElement（包含 aggregateName）
+ * Phase 1: 扫描所有 @AggregateElement 注解的类，构建 AnnotatedElement（包含 aggregateName）
  * Phase 2: 按 aggregateName 分组，构建以聚合根为中心的 AggregateMetadata
  */
 class AnnotationProcessor(
@@ -44,7 +44,7 @@ class AnnotationProcessor(
     private var metadataGenerated = false
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
-        // Phase 1: 扫描所有 @Aggregate 注解的类
+        // Phase 1: 扫描所有 @AggregateElement 注解的类
         scanAggregateElements(resolver)
 
         return emptyList()
@@ -62,16 +62,16 @@ class AnnotationProcessor(
     }
 
     /**
-     * Phase 1: 扫描所有 @Aggregate 注解的类，构建 ElementMetadata
+     * Phase 1: 扫描所有 @AggregateElement 注解的类，构建 ElementMetadata
      */
     private fun scanAggregateElements(resolver: Resolver) {
         val aggregateSymbols = resolver.getSymbolsWithAnnotation(
-            "com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"
+            "com.only4.cap4k.ddd.core.annotation.AggregateElement"
         )
 
         aggregateSymbols.filterIsInstance<KSClassDeclaration>().forEach { classDecl ->
             val annotation = classDecl.annotations.first {
-                it.shortName.asString() == "Aggregate"
+                it.shortName.asString() == "AggregateElement"
             }
 
             // 提取注解属性
@@ -90,7 +90,7 @@ class AnnotationProcessor(
                 ?.value as? String
                 ?: ""
 
-            // 规范化类型（去掉 "Aggregate.TYPE_" 前缀）
+            // 规范化类型（兼容旧常量前缀）
             val type = normalizeType(typeRaw)
 
             val identityType = resolveIdentityType(classDecl)
@@ -118,7 +118,7 @@ class AnnotationProcessor(
 
     /**
      * 规范化类型字符串
-     * 将 "Aggregate.TYPE_ENTITY" 转换为 "entity"
+     * 将旧常量形式转换为 "entity"
      */
     private fun normalizeType(typeRaw: String): String {
         return when {
