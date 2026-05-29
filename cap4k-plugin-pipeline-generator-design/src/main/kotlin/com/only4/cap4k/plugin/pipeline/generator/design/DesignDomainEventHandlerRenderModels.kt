@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
-import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
 
 internal data class DesignDomainEventHandlerRenderModel(
     val packageName: String,
@@ -40,23 +39,6 @@ internal object DesignDomainEventHandlerRenderModelFactory {
             aggregateName = block.aggregates.single(),
             description = block.description,
             descriptionCommentText = block.description.toKDocCommentText(),
-            imports = listOf(domainEventType),
-        )
-    }
-
-    fun create(
-        eventHandlerPackageName: String,
-        domainEventType: String,
-        event: DomainEventModel,
-    ): DesignDomainEventHandlerRenderModel {
-        return DesignDomainEventHandlerRenderModel(
-            packageName = eventHandlerPackageName,
-            typeName = "${event.typeName}Subscriber",
-            domainEventTypeName = event.typeName,
-            domainEventType = domainEventType,
-            aggregateName = event.aggregateName,
-            description = event.description,
-            descriptionCommentText = event.description.toKDocCommentText(),
             imports = listOf(domainEventType),
         )
     }

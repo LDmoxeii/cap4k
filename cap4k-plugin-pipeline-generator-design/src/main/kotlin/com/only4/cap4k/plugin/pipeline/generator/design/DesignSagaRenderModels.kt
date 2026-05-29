@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
-import com.only4.cap4k.plugin.pipeline.api.SagaModel
 
 internal data class DesignSagaRenderModel(
     val packageName: String,
@@ -36,26 +35,6 @@ internal object DesignSagaRenderModelFactory {
             packageName = renderModel.packageName,
             name = renderModel.typeName,
             description = block.description,
-            requestFields = renderModel.requestFields,
-            responseFields = renderModel.responseFields,
-            imports = renderModel.imports,
-        )
-    }
-
-    fun create(
-        packageName: String,
-        saga: SagaModel,
-        typeRegistry: Map<String, String> = emptyMap(),
-    ): DesignSagaRenderModel {
-        val renderModel = DesignPayloadRenderModelFactory.createForSaga(
-            packageName = packageName,
-            saga = saga,
-            typeRegistry = typeRegistry,
-        )
-        return DesignSagaRenderModel(
-            packageName = renderModel.packageName,
-            name = renderModel.typeName,
-            description = saga.description,
             requestFields = renderModel.requestFields,
             responseFields = renderModel.responseFields,
             imports = renderModel.imports,

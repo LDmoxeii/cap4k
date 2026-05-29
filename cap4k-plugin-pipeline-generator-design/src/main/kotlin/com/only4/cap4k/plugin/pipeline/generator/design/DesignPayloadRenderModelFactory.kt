@@ -1,15 +1,8 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
-import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
 import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
-import com.only4.cap4k.plugin.pipeline.api.DesignInteractionModel
-import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
-import com.only4.cap4k.plugin.pipeline.api.IntegrationEventModel
-import com.only4.cap4k.plugin.pipeline.api.QueryModel
-import com.only4.cap4k.plugin.pipeline.api.RequestTrait
-import com.only4.cap4k.plugin.pipeline.api.SagaModel
 import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver.UnknownShortTypeFailure
@@ -160,105 +153,6 @@ internal object DesignPayloadRenderModelFactory {
         responseFields = block.resultFields,
         typeRegistry = typeRegistry,
     )
-
-    fun create(
-        packageName: String,
-        interaction: DesignInteractionModel,
-        typeRegistry: Map<String, String> = emptyMap(),
-        siblingTypeNames: Set<String> = emptySet(),
-    ): DesignRenderModel {
-        val requestNamespace = buildNamespace(interaction.requestFields, "request")
-        val responseNamespace = buildNamespace(interaction.responseFields, "response")
-        return createRenderModel(
-            packageName = packageName,
-            typeName = interaction.typeName,
-            description = interaction.description,
-            aggregateName = interaction.aggregateRef?.name,
-            aggregatePackageName = interaction.aggregateRef?.packageName,
-            requestNamespace = requestNamespace,
-            responseNamespace = responseNamespace,
-            typeRegistry = typeRegistry,
-            siblingRequestTypeNames = siblingTypeNames,
-            pageRequest = interaction is QueryModel && RequestTrait.PAGE in interaction.traits,
-        )
-    }
-
-    fun createForApiPayload(
-        packageName: String,
-        payload: ApiPayloadModel,
-        typeRegistry: Map<String, String> = emptyMap(),
-    ): DesignRenderModel {
-        val requestNamespace = buildNamespace(payload.requestFields, "request")
-        val responseNamespace = buildNamespace(payload.responseFields, "response")
-        return createRenderModel(
-            packageName = packageName,
-            typeName = payload.typeName,
-            description = payload.description,
-            aggregateName = null,
-            aggregatePackageName = null,
-            requestNamespace = requestNamespace,
-            responseNamespace = responseNamespace,
-            typeRegistry = typeRegistry,
-            pageRequest = RequestTrait.PAGE in payload.traits,
-        )
-    }
-
-    fun createForDomainEvent(
-        packageName: String,
-        event: DomainEventModel,
-        typeRegistry: Map<String, String> = emptyMap(),
-    ): DesignRenderModel {
-        val requestNamespace = buildNamespace(event.fields, "request")
-        val responseNamespace = buildNamespace(emptyList(), "response")
-        return createRenderModel(
-            packageName = packageName,
-            typeName = event.typeName,
-            description = event.description,
-            aggregateName = event.aggregateName,
-            aggregatePackageName = event.aggregatePackageName,
-            requestNamespace = requestNamespace,
-            responseNamespace = responseNamespace,
-            typeRegistry = typeRegistry,
-        )
-    }
-
-    fun createForIntegrationEvent(
-        packageName: String,
-        event: IntegrationEventModel,
-        typeRegistry: Map<String, String> = emptyMap(),
-    ): DesignRenderModel {
-        val requestNamespace = buildNamespace(event.fields, "request")
-        val responseNamespace = buildNamespace(emptyList(), "response")
-        return createRenderModel(
-            packageName = packageName,
-            typeName = event.typeName,
-            description = event.description,
-            aggregateName = null,
-            aggregatePackageName = null,
-            requestNamespace = requestNamespace,
-            responseNamespace = responseNamespace,
-            typeRegistry = typeRegistry,
-        )
-    }
-
-    fun createForSaga(
-        packageName: String,
-        saga: SagaModel,
-        typeRegistry: Map<String, String> = emptyMap(),
-    ): DesignRenderModel {
-        val requestNamespace = buildNamespace(saga.requestFields, "request")
-        val responseNamespace = buildNamespace(saga.responseFields, "response")
-        return createRenderModel(
-            packageName = packageName,
-            typeName = saga.name,
-            description = saga.description.orEmpty(),
-            aggregateName = null,
-            aggregatePackageName = null,
-            requestNamespace = requestNamespace,
-            responseNamespace = responseNamespace,
-            typeRegistry = typeRegistry,
-        )
-    }
 
     private fun createForBlock(
         packageName: String,
