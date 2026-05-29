@@ -7,34 +7,36 @@ import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
 class DesignCommandArtifactPlanner : GeneratorProvider {
-    override val id: String = "design-command"
+    override val id: String = "command"
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        if (model.commands.isEmpty()) {
+        val blocks = model.designBlocks.filter { block -> block.selects(id) }
+        if (blocks.isEmpty()) {
             return emptyList()
         }
 
         val applicationRoot = requireRelativeModuleRoot(config, "application")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
 
-        return model.commands.map { command ->
+        return blocks.map { block ->
+            val typeName = block.commandTypeName()
             val siblingTypeNames = model.designInteractionSiblingTypeNames(
-                packageName = command.packageName,
-                currentTypeName = command.typeName,
+                packageName = block.packageName,
+                currentTypeName = typeName,
             )
-            val packageName = artifactLayout.designCommandPackage(command.packageName)
+            val packageName = artifactLayout.designCommandPackage(block.packageName)
 
             ArtifactPlanItem(
                 generatorId = id,
                 moduleRole = "application",
                 templateId = "design/command.kt.peb",
-                outputPath = artifactLayout.kotlinSourcePath(applicationRoot, packageName, command.typeName),
-                context = DesignPayloadRenderModelFactory.create(
+                outputPath = artifactLayout.kotlinSourcePath(applicationRoot, packageName, typeName),
+                context = DesignPayloadRenderModelFactory.createForCommandBlock(
                     packageName = packageName,
-                    interaction = command,
+                    block = block,
                     typeRegistry = config.designTypeRegistryFqns(model),
                     siblingTypeNames = siblingTypeNames,
-                ).toContextMap(),
+                ).toContextMap() + mapOf("buildingBlock" to block.buildingBlockContext(id)),
                 conflictPolicy = config.templates.conflictPolicy,
             )
         }

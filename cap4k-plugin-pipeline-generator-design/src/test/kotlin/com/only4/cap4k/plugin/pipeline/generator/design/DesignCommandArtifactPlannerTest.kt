@@ -1,17 +1,15 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
-import com.only4.cap4k.plugin.pipeline.api.AggregateRef
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
-import com.only4.cap4k.plugin.pipeline.api.CommandModel
-import com.only4.cap4k.plugin.pipeline.api.CommandVariant
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
-import com.only4.cap4k.plugin.pipeline.api.QueryModel
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
@@ -23,19 +21,22 @@ import org.junit.jupiter.api.Test
 class DesignCommandArtifactPlannerTest {
 
     @Test
-    fun `designCommand plans only command artifacts`() {
+    fun `designCommand plans only command family blocks`() {
         val planner = DesignCommandArtifactPlanner()
+        assertEquals("command", planner.id)
 
         val items = planner.plan(
             config = projectConfig(modules = mapOf("application" to "demo-application")),
             model = CanonicalModel(
-                commands = listOf(commandModel()),
-                queries = listOf(queryModel()),
+                designBlocks = listOf(
+                    commandBlock(),
+                    queryBlock(),
+                ),
             ),
         )
 
         val command = items.single()
-        assertEquals("design-command", command.generatorId)
+        assertEquals("command", command.generatorId)
         assertEquals("application", command.moduleRole)
         assertEquals("design/command.kt.peb", command.templateId)
         assertEquals(
@@ -45,10 +46,24 @@ class DesignCommandArtifactPlannerTest {
         assertEquals("com.acme.demo.application.commands.order.submit", command.context["packageName"])
         assertEquals("SubmitOrderCmd", command.context["typeName"])
         assertEquals("submit order", command.context["description"])
-        assertEquals("Order", command.context["aggregateName"])
+        assertEquals(null, command.context["aggregateName"])
         assertEquals(emptyList<String>(), command.context["imports"])
         assertEquals(emptyList<DesignRenderFieldModel>(), command.context["requestFields"])
         assertEquals(emptyList<DesignRenderFieldModel>(), command.context["responseFields"])
+        assertEquals(
+            mapOf(
+                "tag" to "command",
+                "name" to "SubmitOrder",
+                "packageName" to "order.submit",
+                "description" to "submit order",
+                "descriptionKotlinStringLiteral" to "\"submit order\"",
+                "aggregates" to listOf("Order"),
+                "eventName" to "",
+                "family" to "command",
+                "variant" to "",
+            ),
+            command.context["buildingBlock"],
+        )
         assertEquals(ConflictPolicy.SKIP, command.conflictPolicy)
     }
 
@@ -59,11 +74,11 @@ class DesignCommandArtifactPlannerTest {
         val items = planner.plan(
             config = projectConfig(modules = mapOf("application" to "demo-application")),
             model = CanonicalModel(
-                commands = listOf(
-                    commandModel(
+                designBlocks = listOf(
+                    commandBlock(
                         packageName = "content",
-                        typeName = "CreateContentCmd",
-                        requestFields = listOf(FieldModel("authorId", "AuthorId")),
+                        name = "CreateContent",
+                        fields = listOf(FieldModel("authorId", "AuthorId")),
                     )
                 ),
                 strongIds = listOf(
@@ -97,10 +112,10 @@ class DesignCommandArtifactPlannerTest {
                 ),
             ),
             model = CanonicalModel(
-                commands = listOf(
-                    commandModel(
+                designBlocks = listOf(
+                    commandBlock(
                         packageName = "message.create",
-                        typeName = "CreateUserMessageCmd",
+                        name = "CreateUserMessage",
                     ),
                 ),
             ),
@@ -122,12 +137,12 @@ class DesignCommandArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = mapOf("application" to "demo-application")),
                 model = CanonicalModel(
-                    commands = listOf(
-                        commandModel(
-                            typeName = "CreateOrderCmd",
-                            requestFields = listOf(FieldModel("other", "ArchiveOrderCmd")),
+                    designBlocks = listOf(
+                        commandBlock(
+                            name = "CreateOrder",
+                            fields = listOf(FieldModel("other", "ArchiveOrderCmd")),
                         ),
-                        commandModel(typeName = "ArchiveOrderCmd"),
+                        commandBlock(name = "ArchiveOrder"),
                     ),
                 ),
             )
@@ -144,13 +159,16 @@ class DesignCommandArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = mapOf("application" to "demo-application")),
                 model = CanonicalModel(
-                    commands = listOf(
-                        commandModel(
-                            typeName = "CreateOrderCmd",
-                            requestFields = listOf(FieldModel("other", "FindOrderQry")),
+                    designBlocks = listOf(
+                        commandBlock(
+                            name = "CreateOrder",
+                            fields = listOf(FieldModel("other", "FindOrderQry")),
+                        ),
+                        queryBlock(
+                            packageName = "order.submit",
+                            name = "FindOrder",
                         ),
                     ),
-                    queries = listOf(queryModel(packageName = "order.submit", typeName = "FindOrderQry")),
                 ),
             )
         }
@@ -165,34 +183,38 @@ class DesignCommandArtifactPlannerTest {
         val error = assertThrows(IllegalStateException::class.java) {
             planner.plan(
                 config = projectConfig(modules = emptyMap()),
-                model = CanonicalModel(commands = listOf(commandModel())),
+                model = CanonicalModel(designBlocks = listOf(commandBlock())),
             )
         }
 
         assertEquals("application module is required", error.message)
     }
 
-    private fun commandModel(
+    private fun commandBlock(
         packageName: String = "order.submit",
-        typeName: String = "SubmitOrderCmd",
-        requestFields: List<FieldModel> = emptyList(),
-    ) = CommandModel(
+        name: String = "SubmitOrder",
+        fields: List<FieldModel> = emptyList(),
+        artifacts: List<ArtifactSelectionModel> = listOf(ArtifactSelectionModel("command")),
+    ) = DesignBlockModel(
+        tag = "command",
         packageName = packageName,
-        typeName = typeName,
+        name = name,
         description = "submit order",
-        aggregateRef = AggregateRef("Order", "com.acme.demo.domain.aggregates.order"),
-        requestFields = requestFields,
-        variant = CommandVariant.DEFAULT,
+        aggregates = listOf("Order"),
+        artifacts = artifacts,
+        fields = fields,
     )
 
-    private fun queryModel(
+    private fun queryBlock(
         packageName: String = "order.read",
-        typeName: String = "FindOrderQry",
-    ) = QueryModel(
+        name: String = "FindOrder",
+    ) = DesignBlockModel(
+        tag = "query",
         packageName = packageName,
-        typeName = typeName,
+        name = name,
         description = "find order",
-        aggregateRef = AggregateRef("Order", "com.acme.demo.domain.aggregates.order"),
+        aggregates = listOf("Order"),
+        artifacts = listOf(ArtifactSelectionModel("query")),
     )
 
     private fun projectConfig(
@@ -203,7 +225,7 @@ class DesignCommandArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        generators = mapOf("design-command" to GeneratorConfig()),
+        generators = mapOf("command" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         artifactLayout = artifactLayout,
     )

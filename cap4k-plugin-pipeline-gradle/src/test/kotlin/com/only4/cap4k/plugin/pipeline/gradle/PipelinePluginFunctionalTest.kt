@@ -2676,8 +2676,8 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kPlan domain event flow fails when design domain event handler misses application module path`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-handler-no-application")
+    fun `cap4kPlan domain event flow fails when domain subscriber misses application module path`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-domain-subscriber-no-application")
         copyFixture(projectDir, "design-domain-event-sample")
 
         val buildFile = projectDir.resolve("build.gradle.kts")

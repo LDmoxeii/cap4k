@@ -1,10 +1,10 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
-import com.only4.cap4k.plugin.pipeline.api.IntegrationEventModel
-import com.only4.cap4k.plugin.pipeline.api.IntegrationEventRole
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
@@ -14,18 +14,19 @@ import org.junit.jupiter.api.Test
 class DesignIntegrationEventSubscriberArtifactPlannerTest {
 
     @Test
-    fun `plans subscribers only for inbound integration events`() {
+    fun `plans subscribers only for selected inbound integration event blocks`() {
         val planner = DesignIntegrationEventSubscriberArtifactPlanner()
+        assertEquals("integration-subscriber", planner.id)
 
         val items = planner.plan(
             config = projectConfig(modules = mapOf("application" to "demo-application")),
             model = CanonicalModel(
-                integrationEvents = listOf(
-                    integrationEvent(role = IntegrationEventRole.INBOUND),
+                designBlocks = listOf(
+                    integrationEvent(subscriber = true),
                     integrationEvent(
-                        role = IntegrationEventRole.OUTBOUND,
+                        subscriber = false,
                         packageName = "billing",
-                        typeName = "InvoicePaidIntegrationEvent",
+                        name = "InvoicePaid",
                         eventName = "invoice.paid",
                     ),
                 ),
@@ -33,7 +34,7 @@ class DesignIntegrationEventSubscriberArtifactPlannerTest {
         )
 
         val subscriber = items.single()
-        assertEquals("design-integration-event-subscriber", subscriber.generatorId)
+        assertEquals("integration-subscriber", subscriber.generatorId)
         assertEquals("design/integration_event_subscriber.kt.peb", subscriber.templateId)
         assertEquals(
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/OrderCreatedIntegrationEventSubscriber.kt",
@@ -60,16 +61,18 @@ class DesignIntegrationEventSubscriberArtifactPlannerTest {
     }
 
     private fun integrationEvent(
-        role: IntegrationEventRole,
+        subscriber: Boolean,
         packageName: String = "order",
-        typeName: String = "OrderCreatedIntegrationEvent",
+        name: String = "OrderCreated",
         eventName: String = "order.created",
-    ) = IntegrationEventModel(
+    ) = DesignBlockModel(
+        tag = "integration_event",
         packageName = packageName,
-        typeName = typeName,
+        name = name,
         description = "order */ created event",
-        role = role,
         eventName = eventName,
+        artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")) +
+            if (subscriber) listOf(ArtifactSelectionModel("integration-subscriber")) else emptyList(),
     )
 
     private fun projectConfig(modules: Map<String, String>) = ProjectConfig(
@@ -77,7 +80,7 @@ class DesignIntegrationEventSubscriberArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        generators = mapOf("design-integration-event-subscriber" to GeneratorConfig()),
+        generators = mapOf("integration-subscriber" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
     )
 }

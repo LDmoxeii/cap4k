@@ -1,17 +1,18 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
-import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 
-internal fun domainEventBuildingBlockContext(
-    event: DomainEventModel,
+internal fun DesignBlockModel.buildingBlockContext(
+    family: String,
+    variant: String = selection(family)?.variant.orEmpty(),
 ): Map<String, Any?> = mapOf(
-    "tag" to "domain_event",
-    "name" to event.typeName,
-    "packageName" to event.packageName,
-    "description" to event.description,
-    "descriptionKotlinStringLiteral" to event.description.toKotlinStringLiteral(),
-    "aggregates" to listOf(event.aggregateName),
-    "eventName" to "",
-    "family" to "domain-event",
-    "variant" to "",
+    "tag" to tag,
+    "name" to name,
+    "packageName" to packageName,
+    "description" to description,
+    "descriptionKotlinStringLiteral" to description.toKotlinStringLiteral(),
+    "aggregates" to aggregates,
+    "eventName" to eventName,
+    "family" to family,
+    "variant" to variant,
 )

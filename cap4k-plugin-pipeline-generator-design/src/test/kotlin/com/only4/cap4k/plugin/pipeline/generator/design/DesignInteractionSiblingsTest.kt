@@ -8,7 +8,7 @@ class DesignInteractionSiblingsTest {
     @Test
     fun `sibling lookup bytecode does not depend on coroutine spilling internals`() {
         val resourcePath =
-            "com/only4/cap4k/plugin/pipeline/generator/design/DesignInteractionSiblingsKt\$designInteractionSiblingTypeNames\$1.class"
+            "com/only4/cap4k/plugin/pipeline/generator/design/DesignBlockSelectionKt.class"
         val bytecode = javaClass.classLoader.getResourceAsStream(resourcePath)
             ?.use { stream -> stream.readBytes() }
             ?: return

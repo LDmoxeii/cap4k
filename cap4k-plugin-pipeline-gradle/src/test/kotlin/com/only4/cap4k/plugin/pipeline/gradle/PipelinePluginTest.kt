@@ -342,7 +342,7 @@ class PipelinePluginTest {
                 projectConfig(
                     modules = mapOf("application" to "demo-application"),
                     sources = mapOf("design-json" to SourceConfig()),
-                    generators = mapOf("design-query" to GeneratorConfig()),
+                    generators = mapOf("query" to GeneratorConfig()),
                 )
             )
         )
@@ -370,10 +370,10 @@ class PipelinePluginTest {
             generators = mapOf(
                 "aggregate" to GeneratorConfig(),
                 "aggregate-projection" to GeneratorConfig(),
-                "design-query" to GeneratorConfig(),
-                "design-query-handler" to GeneratorConfig(),
-                "design-integration-event" to GeneratorConfig(),
-                "design-integration-event-subscriber" to GeneratorConfig(),
+                "query" to GeneratorConfig(),
+                "query-handler" to GeneratorConfig(),
+                "integration-event" to GeneratorConfig(),
+                "integration-subscriber" to GeneratorConfig(),
                 "drawing-board" to GeneratorConfig(),
                 "flow" to GeneratorConfig(),
             ),
@@ -394,8 +394,8 @@ class PipelinePluginTest {
                 "ir-analysis" to SourceConfig(),
             ),
             generators = mapOf(
-                "design-integration-event" to GeneratorConfig(),
-                "design-integration-event-subscriber" to GeneratorConfig(),
+                "integration-event" to GeneratorConfig(),
+                "integration-subscriber" to GeneratorConfig(),
                 "types-value-object" to GeneratorConfig(),
                 "drawing-board" to GeneratorConfig(),
                 "flow" to GeneratorConfig(),
@@ -406,7 +406,7 @@ class PipelinePluginTest {
 
         assertEquals(setOf("design-json", "value-object-manifest"), sourceConfig.sources.keys)
         assertEquals(
-            setOf("design-integration-event", "design-integration-event-subscriber", "types-value-object"),
+            setOf("integration-event", "integration-subscriber", "types-value-object"),
             sourceConfig.generators.keys,
         )
     }

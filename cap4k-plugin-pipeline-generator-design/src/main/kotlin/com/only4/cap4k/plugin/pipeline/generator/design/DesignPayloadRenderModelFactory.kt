@@ -1,8 +1,10 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DesignInteractionModel
 import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
+import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.IntegrationEventModel
 import com.only4.cap4k.plugin.pipeline.api.QueryModel
@@ -53,6 +55,110 @@ internal object DesignPayloadRenderModelFactory {
         "MutableList",
         "MutableSet",
         "Set",
+    )
+
+    fun createForCommandBlock(
+        packageName: String,
+        block: DesignBlockModel,
+        typeRegistry: Map<String, String> = emptyMap(),
+        siblingTypeNames: Set<String> = emptySet(),
+    ): DesignRenderModel = createForBlock(
+        packageName = packageName,
+        typeName = block.commandTypeName(),
+        description = block.description,
+        requestFields = block.fields,
+        responseFields = block.resultFields,
+        typeRegistry = typeRegistry,
+        siblingRequestTypeNames = siblingTypeNames,
+    )
+
+    fun createForQueryBlock(
+        packageName: String,
+        block: DesignBlockModel,
+        pageRequest: Boolean,
+        typeRegistry: Map<String, String> = emptyMap(),
+        siblingTypeNames: Set<String> = emptySet(),
+    ): DesignRenderModel = createForBlock(
+        packageName = packageName,
+        typeName = block.queryTypeName(),
+        description = block.description,
+        requestFields = block.fields,
+        responseFields = block.resultFields,
+        typeRegistry = typeRegistry,
+        siblingRequestTypeNames = siblingTypeNames,
+        pageRequest = pageRequest,
+    )
+
+    fun createForClientBlock(
+        packageName: String,
+        block: DesignBlockModel,
+        typeRegistry: Map<String, String> = emptyMap(),
+        siblingTypeNames: Set<String> = emptySet(),
+    ): DesignRenderModel = createForBlock(
+        packageName = packageName,
+        typeName = block.clientTypeName(),
+        description = block.description,
+        requestFields = block.fields,
+        responseFields = block.resultFields,
+        typeRegistry = typeRegistry,
+        siblingRequestTypeNames = siblingTypeNames,
+    )
+
+    fun createForApiPayloadBlock(
+        packageName: String,
+        block: DesignBlockModel,
+        pageRequest: Boolean,
+        typeRegistry: Map<String, String> = emptyMap(),
+    ): DesignRenderModel = createForBlock(
+        packageName = packageName,
+        typeName = block.apiPayloadTypeName(),
+        description = block.description,
+        requestFields = block.fields,
+        responseFields = block.resultFields,
+        typeRegistry = typeRegistry,
+        pageRequest = pageRequest,
+    )
+
+    fun createForDomainEventBlock(
+        packageName: String,
+        block: DesignBlockModel,
+        aggregate: EntityModel,
+        typeRegistry: Map<String, String> = emptyMap(),
+    ): DesignRenderModel = createForBlock(
+        packageName = packageName,
+        typeName = block.domainEventTypeName(),
+        description = block.description,
+        aggregateName = aggregate.name,
+        aggregatePackageName = aggregate.packageName,
+        requestFields = block.fields,
+        responseFields = emptyList(),
+        typeRegistry = typeRegistry,
+    )
+
+    fun createForIntegrationEventBlock(
+        packageName: String,
+        block: DesignBlockModel,
+        typeRegistry: Map<String, String> = emptyMap(),
+    ): DesignRenderModel = createForBlock(
+        packageName = packageName,
+        typeName = block.integrationEventTypeName(),
+        description = block.description,
+        requestFields = block.fields,
+        responseFields = emptyList(),
+        typeRegistry = typeRegistry,
+    )
+
+    fun createForSagaBlock(
+        packageName: String,
+        block: DesignBlockModel,
+        typeRegistry: Map<String, String> = emptyMap(),
+    ): DesignRenderModel = createForBlock(
+        packageName = packageName,
+        typeName = block.name,
+        description = block.description,
+        requestFields = block.fields,
+        responseFields = block.resultFields,
+        typeRegistry = typeRegistry,
     )
 
     fun create(
@@ -151,6 +257,34 @@ internal object DesignPayloadRenderModelFactory {
             requestNamespace = requestNamespace,
             responseNamespace = responseNamespace,
             typeRegistry = typeRegistry,
+        )
+    }
+
+    private fun createForBlock(
+        packageName: String,
+        typeName: String,
+        description: String,
+        requestFields: List<FieldModel>,
+        responseFields: List<FieldModel>,
+        typeRegistry: Map<String, String>,
+        siblingRequestTypeNames: Set<String> = emptySet(),
+        pageRequest: Boolean = false,
+        aggregateName: String? = null,
+        aggregatePackageName: String? = null,
+    ): DesignRenderModel {
+        val requestNamespace = buildNamespace(requestFields, "request")
+        val responseNamespace = buildNamespace(responseFields, "response")
+        return createRenderModel(
+            packageName = packageName,
+            typeName = typeName,
+            description = description,
+            aggregateName = aggregateName,
+            aggregatePackageName = aggregatePackageName,
+            requestNamespace = requestNamespace,
+            responseNamespace = responseNamespace,
+            typeRegistry = typeRegistry,
+            siblingRequestTypeNames = siblingRequestTypeNames,
+            pageRequest = pageRequest,
         )
     }
 

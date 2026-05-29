@@ -1,10 +1,10 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
-import com.only4.cap4k.plugin.pipeline.api.IntegrationEventModel
-import com.only4.cap4k.plugin.pipeline.api.IntegrationEventRole
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 
 internal fun DesignRenderModel.toIntegrationEventContextMap(
-    event: IntegrationEventModel,
+    block: DesignBlockModel,
+    variant: String,
 ): Map<String, Any?> = mapOf(
     "packageName" to packageName,
     "typeName" to typeName,
@@ -12,14 +12,15 @@ internal fun DesignRenderModel.toIntegrationEventContextMap(
     "descriptionText" to descriptionText,
     "descriptionCommentText" to descriptionCommentText,
     "descriptionKotlinStringLiteral" to descriptionKotlinStringLiteral,
-    "role" to event.role.contextValue(),
-    "eventName" to event.eventName,
-    "eventNameKotlinStringLiteral" to event.eventName.toKotlinStringLiteral(),
-    "inbound" to (event.role == IntegrationEventRole.INBOUND),
-    "outbound" to (event.role == IntegrationEventRole.OUTBOUND),
+    "role" to variant,
+    "eventName" to block.eventName,
+    "eventNameKotlinStringLiteral" to block.eventName.toKotlinStringLiteral(),
+    "inbound" to (variant == "inbound"),
+    "outbound" to (variant == "outbound"),
     "imports" to imports,
     "fields" to requestFields,
     "nestedTypes" to requestNestedTypes,
+    "buildingBlock" to block.buildingBlockContext("integration-event", variant),
 )
 
 internal data class DesignIntegrationEventSubscriberRenderModel(
@@ -54,22 +55,22 @@ internal object DesignIntegrationEventSubscriberRenderModelFactory {
     fun create(
         subscriberPackageName: String,
         eventType: String,
-        event: IntegrationEventModel,
+        block: DesignBlockModel,
+        variant: String,
     ): DesignIntegrationEventSubscriberRenderModel {
+        val eventTypeName = block.integrationEventTypeName()
         return DesignIntegrationEventSubscriberRenderModel(
             packageName = subscriberPackageName,
-            typeName = "${event.typeName}Subscriber",
-            eventTypeName = event.typeName,
+            typeName = "${eventTypeName}Subscriber",
+            eventTypeName = eventTypeName,
             eventType = eventType,
-            description = event.description,
-            descriptionCommentText = event.description.toKDocCommentText(),
-            role = event.role.contextValue(),
-            eventName = event.eventName,
-            inbound = event.role == IntegrationEventRole.INBOUND,
-            outbound = event.role == IntegrationEventRole.OUTBOUND,
+            description = block.description,
+            descriptionCommentText = block.description.toKDocCommentText(),
+            role = variant,
+            eventName = block.eventName,
+            inbound = variant == "inbound",
+            outbound = variant == "outbound",
             imports = listOf(eventType),
         )
     }
 }
-
-private fun IntegrationEventRole.contextValue(): String = name.lowercase()
