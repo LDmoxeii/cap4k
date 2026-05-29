@@ -406,19 +406,12 @@ internal fun inferSourceDependencies(project: Project, config: ProjectConfig): L
     val inferredDependencies = linkedSetOf<Task>()
     val allProjects = project.rootProject.allprojects
 
-    val generatorIds = config.generators.keys
-    val shouldDependOnKsp = generatorIds.any {
-        it == "design-command" || it == "design-query" || it == "design-domain-event"
-    } &&
-        config.sources.containsKey("ksp-metadata")
-    if (shouldDependOnKsp) {
-        val kspInputDir = config.sources["ksp-metadata"]
-            ?.options
-            ?.get("inputDir")
-            ?.toString()
-        if (kspInputDir != null) {
-            inferredDependencies += relevantTasksForInputDir(allProjects, kspInputDir, "kspKotlin")
-        }
+    val kspInputDir = config.sources["ksp-metadata"]
+        ?.options
+        ?.get("inputDir")
+        ?.toString()
+    if (kspInputDir != null) {
+        inferredDependencies += relevantTasksForInputDir(allProjects, kspInputDir, "kspKotlin")
     }
 
     return inferredDependencies.toList()

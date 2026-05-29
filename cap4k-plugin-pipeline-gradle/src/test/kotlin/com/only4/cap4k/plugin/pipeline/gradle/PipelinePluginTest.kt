@@ -808,7 +808,7 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `design command with ksp metadata depends on relevant ksp task only`() {
+    fun `ksp metadata input dir depends on relevant ksp task only`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-ksp-root")
         val rootProject = ProjectBuilder.builder()
             .withProjectDir(rootProjectDir)
@@ -829,7 +829,7 @@ class PipelinePluginTest {
                         options = mapOf("inputDir" to domainProject.layout.buildDirectory.dir("generated/ksp/main").get().asFile.absolutePath),
                     )
                 ),
-                generators = mapOf("design-command" to GeneratorConfig()),
+                generators = emptyMap(),
             )
         )
 
@@ -837,7 +837,7 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `design domain event with ksp metadata depends on relevant ksp task only`() {
+    fun `ksp metadata without input dir does not infer ksp task`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-ksp-domain-event-root")
         val rootProject = ProjectBuilder.builder()
             .withProjectDir(rootProjectDir)
@@ -854,15 +854,13 @@ class PipelinePluginTest {
             rootProject,
             projectConfig(
                 sources = mapOf(
-                    "ksp-metadata" to SourceConfig(
-                        options = mapOf("inputDir" to domainProject.layout.buildDirectory.dir("generated/ksp/main").get().asFile.absolutePath),
-                    )
+                    "ksp-metadata" to SourceConfig()
                 ),
-                generators = mapOf("design-domain-event" to GeneratorConfig()),
+                generators = emptyMap(),
             )
         )
 
-        assertEquals(listOf(":domain:kspKotlin"), dependencies.map { it.path })
+        assertEquals(emptyList<String>(), dependencies.map { it.path })
     }
 
     @Test
