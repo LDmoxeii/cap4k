@@ -275,7 +275,6 @@ open class Cap4kSourcesExtension @Inject constructor(objects: ObjectFactory) {
 }
 
 open class DesignJsonSourceExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
     val manifestFile: Property<String> = objects.property(String::class.java)
     val files: ConfigurableFileCollection = objects.fileCollection()
 }
@@ -296,7 +295,6 @@ open class DbSourceExtension @Inject constructor(objects: ObjectFactory) {
 }
 
 open class IrAnalysisSourceExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
     val inputDirs: ConfigurableFileCollection = objects.fileCollection()
 }
 
@@ -386,11 +384,9 @@ open class AggregateProjectionGeneratorExtension @Inject constructor(objects: Ob
 }
 
 open class DrawingBoardGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }
 
 open class FlowGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }
 
 open class Cap4kBootstrapExtension @Inject constructor(objects: ObjectFactory) {

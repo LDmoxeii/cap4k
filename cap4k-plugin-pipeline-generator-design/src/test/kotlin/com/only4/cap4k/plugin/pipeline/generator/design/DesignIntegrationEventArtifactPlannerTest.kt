@@ -97,7 +97,7 @@ class DesignIntegrationEventArtifactPlannerTest {
         modules = modules,
         sources = emptyMap(),
         typeRegistry = TypeRegistryConfig(entries = mapOf("UUID" to TypeRegistryEntry("java.util.UUID"))),
-        generators = mapOf("design-integration-event" to GeneratorConfig(enabled = true)),
+        generators = mapOf("design-integration-event" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
     )
 }

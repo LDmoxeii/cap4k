@@ -189,19 +189,18 @@ internal fun artifactAddonClasspath(project: Project): FileCollection =
         ?: project.files()
 
 private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf(
-    extension.sources.designJson.enabled,
     extension.sources.kspMetadata.enabled,
     extension.sources.db.enabled,
-    extension.sources.irAnalysis.enabled,
 ).any { it.orNull == true } ||
+    extension.sources.designJson.manifestFile.orNull?.isNotBlank() == true ||
+    !extension.sources.designJson.files.isEmpty ||
+    !extension.sources.irAnalysis.inputDirs.isEmpty ||
     !extension.types.enumManifest.files.isEmpty ||
     !extension.types.valueObjectManifest.files.isEmpty
 
 private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean = listOf(
     extension.generators.aggregate.enabled,
     extension.generators.aggregateProjection.enabled,
-    extension.generators.drawingBoard.enabled,
-    extension.generators.flow.enabled,
 ).any { it.orNull == true }
 
 internal fun sourceTaskConfig(config: ProjectConfig): ProjectConfig =
@@ -223,7 +222,7 @@ internal fun analysisTaskConfig(config: ProjectConfig): ProjectConfig =
     )
 
 internal fun ensureAggregateDomainJpaDependency(project: Project, config: ProjectConfig) {
-    if (!config.enabledGeneratorIds().contains("aggregate")) {
+    if ("aggregate" !in config.generators) {
         return
     }
     ensureJpaDependency(project, config, moduleRole = "domain")
@@ -231,14 +230,14 @@ internal fun ensureAggregateDomainJpaDependency(project: Project, config: Projec
 }
 
 internal fun ensureAggregateProjectionAdapterJpaDependency(project: Project, config: ProjectConfig) {
-    if (!config.enabledGeneratorIds().contains("aggregate-projection")) {
+    if ("aggregate-projection" !in config.generators) {
         return
     }
     ensureJpaDependency(project, config, moduleRole = "adapter")
 }
 
 internal fun ensureValueObjectDomainDependencies(project: Project, config: ProjectConfig) {
-    if (!config.enabledGeneratorIds().contains("types-value-object")) {
+    if ("value-object-manifest" !in config.sources) {
         return
     }
     ensureJpaDependency(project, config, moduleRole = "domain")
@@ -312,14 +311,14 @@ private fun ensureImplementationDependency(
 internal fun generatedSourceModuleRoles(config: ProjectConfig): Set<String> {
     val roles = linkedSetOf<String>()
     val aggregate = config.generators["aggregate"]
-    if (aggregate?.enabled == true) {
+    if (aggregate != null) {
         roles += "domain"
         roles += "adapter"
         if (aggregate.options["artifact.unique"] as? Boolean == true) {
             roles += "application"
         }
     }
-    if (config.generators["aggregate-projection"]?.enabled == true) {
+    if ("aggregate-projection" in config.generators) {
         roles += "adapter"
     }
     return roles.filterTo(linkedSetOf()) { role -> role in config.modules }
@@ -407,11 +406,11 @@ internal fun inferSourceDependencies(project: Project, config: ProjectConfig): L
     val inferredDependencies = linkedSetOf<Task>()
     val allProjects = project.rootProject.allprojects
 
-    val enabledGenerators = config.enabledGeneratorIds()
-    val shouldDependOnKsp = enabledGenerators.any {
+    val generatorIds = config.generators.keys
+    val shouldDependOnKsp = generatorIds.any {
         it == "design-command" || it == "design-query" || it == "design-domain-event"
     } &&
-        config.enabledSourceIds().contains("ksp-metadata")
+        config.sources.containsKey("ksp-metadata")
     if (shouldDependOnKsp) {
         val kspInputDir = config.sources["ksp-metadata"]
             ?.options
@@ -428,8 +427,7 @@ internal fun inferSourceDependencies(project: Project, config: ProjectConfig): L
 internal fun inferAnalysisDependencies(project: Project, config: ProjectConfig): List<Task> {
     val inferredDependencies = linkedSetOf<Task>()
     val allProjects = project.rootProject.allprojects
-    val shouldDependOnCompileKotlin = config.enabledSourceIds().contains("ir-analysis") &&
-        config.enabledGeneratorIds().any { it == "flow" || it == "drawing-board" }
+    val shouldDependOnCompileKotlin = config.sources.containsKey("ir-analysis")
     if (shouldDependOnCompileKotlin) {
         val inputDirs = config.sources["ir-analysis"]
             ?.options
@@ -538,7 +536,7 @@ internal fun generatedSourceTaskInputSnapshot(rootProject: Project, config: Proj
 }
 
 private fun sanitizedDbSourceSnapshot(source: SourceConfig?): Map<String, Any?>? {
-    if (source == null || !source.enabled) {
+    if (source == null) {
         return null
     }
     val options = source.options
@@ -555,7 +553,7 @@ private fun sanitizedDbSourceSnapshot(source: SourceConfig?): Map<String, Any?>?
 }
 
 private fun sanitizedSourceSnapshot(source: SourceConfig?): Map<String, Any?>? {
-    if (source == null || !source.enabled) {
+    if (source == null) {
         return null
     }
     return linkedMapOf(
@@ -565,7 +563,7 @@ private fun sanitizedSourceSnapshot(source: SourceConfig?): Map<String, Any?>? {
 }
 
 private fun sanitizedGeneratorSnapshot(generator: GeneratorConfig?): Map<String, Any?>? {
-    if (generator == null || !generator.enabled) {
+    if (generator == null) {
         return null
     }
     return linkedMapOf(
@@ -604,9 +602,6 @@ internal fun generatedSourceTaskInputFiles(
 
 internal fun generatedSourceTaskHasUntrackedLiveDbInput(project: Project, config: ProjectConfig): Boolean {
     val dbSource = config.sources["db"] ?: return false
-    if (!dbSource.enabled) {
-        return false
-    }
     val dbUrl = dbSource.options["url"]?.toString().orEmpty()
     return dbRunScriptInputFiles(project, dbUrl).isEmpty()
 }
@@ -736,7 +731,6 @@ private fun ProjectConfig.withValueObjectManifestSourceConfig(project: Project):
     }
     val files = typeRegistry.valueObjectManifestFiles.map { path -> project.file(path).absolutePath }
     val sourceConfig = SourceConfig(
-        enabled = true,
         options = mapOf("files" to files),
     )
     return copy(

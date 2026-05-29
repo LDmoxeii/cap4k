@@ -101,7 +101,7 @@ class DesignClientHandlerArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        generators = mapOf("design-client-handler" to GeneratorConfig(enabled = true)),
+        generators = mapOf("design-client-handler" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         artifactLayout = artifactLayout,
     )

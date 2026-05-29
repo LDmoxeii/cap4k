@@ -9,7 +9,6 @@ cap4k {
     }
     sources {
         designJson {
-            enabled.set(true)
             manifestFile.set("iterate/design-manifest.json")
         }
     }

@@ -52,7 +52,7 @@ class DesignClientArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        generators = mapOf("design-client" to GeneratorConfig(enabled = true)),
+        generators = mapOf("design-client" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
     )
 }

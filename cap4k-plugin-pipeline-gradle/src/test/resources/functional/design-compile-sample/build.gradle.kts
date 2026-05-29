@@ -10,7 +10,6 @@ cap4k {
     }
     sources {
         designJson {
-            enabled.set(true)
             files.from("design/design.json")
         }
         kspMetadata {

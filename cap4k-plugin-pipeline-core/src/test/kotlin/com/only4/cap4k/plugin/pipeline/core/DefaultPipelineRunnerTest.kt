@@ -34,6 +34,121 @@ import java.nio.file.Path
 class DefaultPipelineRunnerTest {
 
     @Test
+    fun `collects source provider when source config key is present`() {
+        var receivedSourceConfig: SourceConfig? = null
+        var receivedSnapshots: List<SourceSnapshot> = emptyList()
+        val sourceProvider = object : SourceProvider {
+            override val id: String = "design-json"
+
+            override fun collect(config: ProjectConfig): SourceSnapshot {
+                receivedSourceConfig = config.sources.getValue(id)
+                return DesignSpecSnapshot(entries = emptyList())
+            }
+        }
+
+        DefaultPipelineRunner(
+            sources = listOf(sourceProvider),
+            generators = emptyList(),
+            assembler = object : CanonicalAssembler {
+                override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
+                    receivedSnapshots = snapshots
+                    return CanonicalAssemblyResult(CanonicalModel())
+                }
+            },
+            renderer = object : ArtifactRenderer {
+                override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> =
+                    emptyList()
+            },
+            exporter = NoopArtifactExporter(),
+        ).run(
+            configuredConfig(
+                generators = emptyMap(),
+            )
+        )
+
+        assertEquals(SourceConfig(options = emptyMap()), receivedSourceConfig)
+        assertEquals(listOf("design-json"), receivedSnapshots.map { it.id })
+    }
+
+    @Test
+    fun `does not collect source provider when source config key is absent`() {
+        var collected = false
+        var receivedSnapshots: List<SourceSnapshot> = listOf(DesignSpecSnapshot(entries = emptyList()))
+        val sourceProvider = object : SourceProvider {
+            override val id: String = "design-json"
+
+            override fun collect(config: ProjectConfig): SourceSnapshot {
+                collected = true
+                return DesignSpecSnapshot(entries = emptyList())
+            }
+        }
+
+        DefaultPipelineRunner(
+            sources = listOf(sourceProvider),
+            generators = emptyList(),
+            assembler = object : CanonicalAssembler {
+                override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
+                    receivedSnapshots = snapshots
+                    return CanonicalAssemblyResult(CanonicalModel())
+                }
+            },
+            renderer = object : ArtifactRenderer {
+                override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> =
+                    emptyList()
+            },
+            exporter = NoopArtifactExporter(),
+        ).run(
+            configuredConfig(
+                generators = emptyMap(),
+            ).copy(sources = emptyMap())
+        )
+
+        assertEquals(false, collected)
+        assertEquals(emptyList<SourceSnapshot>(), receivedSnapshots)
+    }
+
+    @Test
+    fun `model driven built in planner runs without generator config key`() {
+        val plannedItem = ArtifactPlanItem(
+            generatorId = "design-command",
+            moduleRole = "app",
+            templateId = "design/command.kt.peb",
+            outputPath = "generated/CreateOrderCmd.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        var rendererReceivedPlanItems: List<ArtifactPlanItem> = emptyList()
+        val generatorProvider = object : GeneratorProvider {
+            override val id: String = "design-command"
+
+            override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> =
+                listOf(plannedItem)
+        }
+
+        val result = DefaultPipelineRunner(
+            sources = emptyList(),
+            generators = listOf(generatorProvider),
+            assembler = object : CanonicalAssembler {
+                override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult =
+                    CanonicalAssemblyResult(CanonicalModel())
+            },
+            renderer = object : ArtifactRenderer {
+                override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> {
+                    rendererReceivedPlanItems = planItems
+                    return emptyList()
+                }
+            },
+            exporter = NoopArtifactExporter(),
+        ).run(
+            configuredConfig(
+                generators = emptyMap(),
+            ).copy(sources = emptyMap())
+        )
+
+        assertEquals(listOf(plannedItem), rendererReceivedPlanItems)
+        assertEquals(listOf(plannedItem), result.planItems)
+    }
+
+    @Test
     fun `addon provider contributes plan item after built-in generator item`() {
         val builtInItem = ArtifactPlanItem(
             generatorId = "design-command",
@@ -481,11 +596,11 @@ class DefaultPipelineRunnerTest {
                 return expectedPlanItems
             }
         }
-        val unconfiguredGeneratorProvider = object : GeneratorProvider {
-            override val id: String = "unconfigured-generator"
+        val configKeyRequiredGeneratorProvider = object : GeneratorProvider {
+            override val id: String = "aggregate"
 
             override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-                callOrder += "plan-unconfigured"
+                callOrder += "plan-aggregate"
                 return emptyList()
             }
         }
@@ -522,7 +637,7 @@ class DefaultPipelineRunnerTest {
 
         val runner = DefaultPipelineRunner(
             sources = listOf(configuredSourceProvider, unconfiguredSourceProvider),
-            generators = listOf(configuredGeneratorProvider, unconfiguredGeneratorProvider),
+            generators = listOf(configuredGeneratorProvider, configKeyRequiredGeneratorProvider),
             assembler = assembler,
             renderer = renderer,
             exporter = exporter,

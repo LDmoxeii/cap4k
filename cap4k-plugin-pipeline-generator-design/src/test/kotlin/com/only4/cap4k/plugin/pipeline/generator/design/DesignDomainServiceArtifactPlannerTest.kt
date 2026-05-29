@@ -66,7 +66,7 @@ class DesignDomainServiceArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        generators = mapOf("design-domain-service" to GeneratorConfig(enabled = true)),
+        generators = mapOf("design-domain-service" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
     )
 }

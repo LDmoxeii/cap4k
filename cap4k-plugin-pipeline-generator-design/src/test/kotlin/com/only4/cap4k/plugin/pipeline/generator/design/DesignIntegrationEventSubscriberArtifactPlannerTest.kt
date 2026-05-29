@@ -77,7 +77,7 @@ class DesignIntegrationEventSubscriberArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        generators = mapOf("design-integration-event-subscriber" to GeneratorConfig(enabled = true)),
+        generators = mapOf("design-integration-event-subscriber" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
     )
 }

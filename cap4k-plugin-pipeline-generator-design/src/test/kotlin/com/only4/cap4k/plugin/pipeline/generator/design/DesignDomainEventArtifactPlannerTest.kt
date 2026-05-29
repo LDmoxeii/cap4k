@@ -119,7 +119,7 @@ class DesignDomainEventArtifactPlannerTest {
         modules = modules,
         sources = emptyMap(),
         typeRegistry = TypeRegistryConfig(entries = mapOf("UUID" to TypeRegistryEntry("java.util.UUID"))),
-        generators = mapOf("design-domain-event" to GeneratorConfig(enabled = true)),
+        generators = mapOf("design-domain-event" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
     )
 }

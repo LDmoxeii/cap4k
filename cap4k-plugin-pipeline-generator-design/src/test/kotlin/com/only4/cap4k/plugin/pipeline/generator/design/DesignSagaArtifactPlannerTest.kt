@@ -87,7 +87,7 @@ class DesignSagaArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        generators = mapOf("design-saga" to GeneratorConfig(enabled = true)),
+        generators = mapOf("design-saga" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
     )
 }

@@ -25,7 +25,6 @@ cap4k {
             excludeTables.set(emptyList())
         }
         designJson {
-            enabled.set(true)
             files.from("design/design.json")
         }
     }

@@ -1322,7 +1322,6 @@ class PipelinePluginFunctionalTest {
                 cap4k {
                     sources {
                         designJson {
-                            enabled.set(true)
                             files.from("design/design.json")
                         }
                         kspMetadata {
@@ -2237,24 +2236,6 @@ class PipelinePluginFunctionalTest {
                     }
                     drawingBoard {
                         outputRoot.set("design")
-                    }
-                }
-                """.trimIndent()
-            ).replace(
-                """
-                generators {
-                    flow {
-                        enabled.set(true)
-                    }
-                }
-                """.trimIndent(),
-                """
-                generators {
-                    flow {
-                        enabled.set(true)
-                    }
-                    drawingBoard {
-                        enabled.set(true)
                     }
                 }
                 """.trimIndent()

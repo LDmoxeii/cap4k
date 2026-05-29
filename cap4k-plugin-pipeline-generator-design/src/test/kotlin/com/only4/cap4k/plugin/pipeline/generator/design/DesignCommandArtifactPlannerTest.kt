@@ -203,7 +203,7 @@ class DesignCommandArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        generators = mapOf("design-command" to GeneratorConfig(enabled = true)),
+        generators = mapOf("design-command" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         artifactLayout = artifactLayout,
     )

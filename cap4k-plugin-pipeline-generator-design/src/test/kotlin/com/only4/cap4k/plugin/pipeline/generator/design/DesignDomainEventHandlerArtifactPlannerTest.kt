@@ -155,7 +155,7 @@ class DesignDomainEventHandlerArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        generators = mapOf("design-domain-event-handler" to GeneratorConfig(enabled = true)),
+        generators = mapOf("design-domain-event-handler" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         artifactLayout = artifactLayout,
     )

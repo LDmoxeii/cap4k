@@ -22,6 +22,8 @@ class DefaultPipelineRunner(
     private val includePlanItem: (ArtifactPlanItem) -> Boolean = { true },
     private val addonProviders: List<ArtifactAddonProvider> = emptyList(),
 ) : PipelineRunner {
+    private val configKeyRequiredGeneratorIds = setOf("aggregate", "aggregate-projection")
+
     override fun run(config: ProjectConfig): PipelineResult {
         validateAddonProviders(config)
 
@@ -42,7 +44,7 @@ class DefaultPipelineRunner(
         val model = assembly.model
 
         val builtInPlanItems = generators
-            .filter { it.id in config.generators }
+            .filter { it.id !in configKeyRequiredGeneratorIds || it.id in config.generators }
             .flatMap { it.plan(config, model) }
             .map { ProvenancedPlanItem(it) }
 
