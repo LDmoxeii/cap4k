@@ -53,7 +53,7 @@ class DefaultPipelineRunnerTest {
         val result = runWithCapturedPlanItems(
             plannedItems = listOf(builtInItem),
             addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
-            config = enabledConfig(),
+            config = configuredConfig(),
         )
 
         assertEquals(listOf(builtInItem, addonItem), result.rendererReceivedPlanItems)
@@ -63,7 +63,7 @@ class DefaultPipelineRunnerTest {
     @Test
     fun `addon receives assembled canonical model and project config`() {
         val assembledModel = CanonicalModel()
-        val config = enabledConfig()
+        val config = configuredConfig()
         var receivedContext: ArtifactAddonContext? = null
         val addon = object : ArtifactAddonProvider {
             override val id: String = "sample-addon"
@@ -101,7 +101,7 @@ class DefaultPipelineRunnerTest {
         runWithCapturedPlanItems(
             plannedItems = emptyList(),
             addonProviders = listOf(addon),
-            config = enabledConfig(
+            config = configuredConfig(
                 addons = mapOf(
                     "sample-addon" to AddonProviderConfig(
                         id = "sample-addon",
@@ -120,7 +120,7 @@ class DefaultPipelineRunnerTest {
             runWithCapturedPlanItems(
                 plannedItems = emptyList(),
                 addonProviders = listOf(addonProvider("sample-addon", emptyList())),
-                config = enabledConfig(
+                config = configuredConfig(
                     addons = mapOf(
                         "sample-addon" to AddonProviderConfig(
                             id = "other-addon",
@@ -143,7 +143,7 @@ class DefaultPipelineRunnerTest {
             runWithCapturedPlanItems(
                 plannedItems = emptyList(),
                 addonProviders = emptyList(),
-                config = enabledConfig(
+                config = configuredConfig(
                     addons = mapOf(
                         "missing-addon" to AddonProviderConfig(
                             id = "missing-addon",
@@ -171,7 +171,7 @@ class DefaultPipelineRunnerTest {
             runWithCapturedPlanItems(
                 plannedItems = emptyList(),
                 addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
-                config = enabledConfig(),
+                config = configuredConfig(),
             )
         }
 
@@ -197,7 +197,7 @@ class DefaultPipelineRunnerTest {
             runWithCapturedPlanItems(
                 plannedItems = emptyList(),
                 addonProviders = listOf(addon),
-                config = enabledConfig(),
+                config = configuredConfig(),
             )
         }
 
@@ -224,7 +224,7 @@ class DefaultPipelineRunnerTest {
         val result = runWithCapturedPlanItems(
             plannedItems = emptyList(),
             addonProviders = listOf(addonProvider("sample-addon", listOf(includedAddonItem, excludedAddonItem))),
-            config = enabledConfig(
+            config = configuredConfig(
                 templates = TemplateConfig(
                     preset = "default",
                     overrideDirs = emptyList(),
@@ -261,7 +261,7 @@ class DefaultPipelineRunnerTest {
             runWithCapturedPlanItems(
                 plannedItems = emptyList(),
                 addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
-                config = enabledConfig(),
+                config = configuredConfig(),
                 transformPlanItem = {
                     it.copy(
                         generatorId = "design-command",
@@ -292,7 +292,7 @@ class DefaultPipelineRunnerTest {
         val result = runWithCapturedPlanItems(
             plannedItems = listOf(builtInItem),
             addonProviders = listOf(addonProvider("sample-addon", emptyList())),
-            config = enabledConfig(),
+            config = configuredConfig(),
             transformPlanItem = {
                 if (it.generatorId == "design-command") transformedBuiltInItem else it
             },
@@ -311,7 +311,7 @@ class DefaultPipelineRunnerTest {
             runWithCapturedPlanItems(
                 plannedItems = emptyList(),
                 addonProviders = listOf(first, second),
-                config = enabledConfig(),
+                config = configuredConfig(),
             )
         }
 
@@ -331,7 +331,7 @@ class DefaultPipelineRunnerTest {
         val result = runWithCapturedPlanItems(
             plannedItems = emptyList(),
             addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
-            config = enabledConfig(generators = emptyMap()),
+            config = configuredConfig(generators = emptyMap()),
         )
 
         assertEquals(listOf(addonItem), result.rendererReceivedPlanItems)
@@ -350,7 +350,7 @@ class DefaultPipelineRunnerTest {
 
         val result = runWithCapturedPlanItems(
             plannedItems = listOf(plannedItem),
-            config = enabledConfig(
+            config = configuredConfig(
                 templates = TemplateConfig(
                     preset = "default",
                     overrideDirs = emptyList(),
@@ -381,8 +381,8 @@ class DefaultPipelineRunnerTest {
 
         val result = runWithCapturedPlanItems(
             plannedItems = listOf(plannedItem),
-            config = enabledConfig(
-                generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+            config = configuredConfig(
+                generators = mapOf("aggregate" to GeneratorConfig()),
                 templates = TemplateConfig(
                     preset = "default",
                     overrideDirs = emptyList(),
@@ -412,7 +412,7 @@ class DefaultPipelineRunnerTest {
 
         val result = runWithCapturedPlanItems(
             plannedItems = listOf(plannedItem),
-            config = enabledConfig(
+            config = configuredConfig(
                 templates = TemplateConfig(
                     preset = "default",
                     overrideDirs = emptyList(),
@@ -432,14 +432,14 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
-    fun `run executes enabled providers in order and returns expected pipeline result`() {
+    fun `run executes configured providers in order and returns expected pipeline result`() {
         val callOrder = mutableListOf<String>()
         val tempRoot = Files.createTempDirectory("pipeline-runner-test")
         val skippedPath = tempRoot.resolve("generated/Skipped.kt")
         Files.createDirectories(skippedPath.parent)
         Files.writeString(skippedPath, "existing-content")
 
-        val enabledSourceProvider = object : SourceProvider {
+        val configuredSourceProvider = object : SourceProvider {
             override val id: String = "design-json"
 
             override fun collect(config: ProjectConfig): SourceSnapshot {
@@ -447,12 +447,12 @@ class DefaultPipelineRunnerTest {
                 return DesignSpecSnapshot(entries = emptyList())
             }
         }
-        val disabledSourceProvider = object : SourceProvider {
-            override val id: String = "disabled-source"
+        val unconfiguredSourceProvider = object : SourceProvider {
+            override val id: String = "unconfigured-source"
 
             override fun collect(config: ProjectConfig): SourceSnapshot {
-                callOrder += "collect-disabled"
-                return DesignSpecSnapshot(id = "disabled-source", entries = emptyList())
+                callOrder += "collect-unconfigured"
+                return DesignSpecSnapshot(id = "unconfigured-source", entries = emptyList())
             }
         }
 
@@ -473,7 +473,7 @@ class DefaultPipelineRunnerTest {
             ),
         )
 
-        val enabledGeneratorProvider = object : GeneratorProvider {
+        val configuredGeneratorProvider = object : GeneratorProvider {
             override val id: String = "design-command"
 
             override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
@@ -481,11 +481,11 @@ class DefaultPipelineRunnerTest {
                 return expectedPlanItems
             }
         }
-        val disabledGeneratorProvider = object : GeneratorProvider {
-            override val id: String = "disabled-generator"
+        val unconfiguredGeneratorProvider = object : GeneratorProvider {
+            override val id: String = "unconfigured-generator"
 
             override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-                callOrder += "plan-disabled"
+                callOrder += "plan-unconfigured"
                 return emptyList()
             }
         }
@@ -521,8 +521,8 @@ class DefaultPipelineRunnerTest {
         val exporter = FilesystemArtifactExporter(tempRoot)
 
         val runner = DefaultPipelineRunner(
-            sources = listOf(enabledSourceProvider, disabledSourceProvider),
-            generators = listOf(enabledGeneratorProvider, disabledGeneratorProvider),
+            sources = listOf(configuredSourceProvider, unconfiguredSourceProvider),
+            generators = listOf(configuredGeneratorProvider, unconfiguredGeneratorProvider),
             assembler = assembler,
             renderer = renderer,
             exporter = exporter,
@@ -533,14 +533,8 @@ class DefaultPipelineRunnerTest {
                 basePackage = "com.only4.cap4k.sample",
                 layout = ProjectLayout.SINGLE_MODULE,
                 modules = mapOf("app" to "sample-app"),
-                sources = mapOf(
-                    "design-json" to SourceConfig(enabled = true),
-                    "disabled-source" to SourceConfig(enabled = false),
-                ),
-                generators = mapOf(
-                    "design-command" to GeneratorConfig(enabled = true),
-                    "disabled-generator" to GeneratorConfig(enabled = false),
-                ),
+                sources = mapOf("design-json" to SourceConfig()),
+                generators = mapOf("design-command" to GeneratorConfig()),
                 templates = TemplateConfig(
                     preset = "default",
                     overrideDirs = emptyList(),
@@ -563,7 +557,7 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
-    fun `run fails fast when enabled generator has no registered provider`() {
+    fun `run fails fast when configured generator has no registered provider`() {
         val callOrder = mutableListOf<String>()
         val sourceProvider = object : SourceProvider {
             override val id: String = "design-json"
@@ -600,8 +594,8 @@ class DefaultPipelineRunnerTest {
                     basePackage = "com.only4.cap4k.sample",
                     layout = ProjectLayout.SINGLE_MODULE,
                     modules = mapOf("app" to "sample-app"),
-                    sources = mapOf("design-json" to SourceConfig(enabled = true)),
-                    generators = mapOf("missing-generator" to GeneratorConfig(enabled = true)),
+                    sources = mapOf("design-json" to SourceConfig()),
+                    generators = mapOf("missing-generator" to GeneratorConfig()),
                     templates = TemplateConfig(
                         preset = "default",
                         overrideDirs = emptyList(),
@@ -611,7 +605,7 @@ class DefaultPipelineRunnerTest {
             )
         }
 
-        assertEquals("enabled generators have no registered providers: missing-generator", error.message)
+        assertEquals("configured generators have no registered providers: missing-generator", error.message)
         assertEquals(emptyList<String>(), callOrder)
     }
 
@@ -626,7 +620,7 @@ class DefaultPipelineRunnerTest {
         )
 
         val error = assertThrows(IllegalArgumentException::class.java) {
-            runner.run(enabledConfig())
+            runner.run(configuredConfig())
         }
 
         assertTrue(error.message?.contains("outside") == true)
@@ -649,7 +643,7 @@ class DefaultPipelineRunnerTest {
         )
 
         assertThrows(IllegalStateException::class.java) {
-            runner.run(enabledConfig())
+            runner.run(configuredConfig())
         }
     }
 
@@ -707,10 +701,9 @@ class DefaultPipelineRunnerTest {
                 basePackage = "com.acme.demo",
                 layout = ProjectLayout.MULTI_MODULE,
                 modules = mapOf("domain" to "demo-domain", "adapter" to "demo-adapter"),
-                sources = mapOf("db" to SourceConfig(enabled = true)),
+                sources = mapOf("db" to SourceConfig()),
                 generators = mapOf(
                     "aggregate" to GeneratorConfig(
-                        enabled = true,
                         options = mapOf("unsupportedTablePolicy" to "SKIP"),
                     )
                 ),
@@ -825,8 +818,8 @@ class DefaultPipelineRunnerTest {
         )
     }
 
-    private fun enabledConfig(
-        generators: Map<String, GeneratorConfig> = mapOf("design-command" to GeneratorConfig(enabled = true)),
+    private fun configuredConfig(
+        generators: Map<String, GeneratorConfig> = mapOf("design-command" to GeneratorConfig()),
         templates: TemplateConfig = TemplateConfig(
             preset = "default",
             overrideDirs = emptyList(),
@@ -838,7 +831,7 @@ class DefaultPipelineRunnerTest {
             basePackage = "com.only4.cap4k.sample",
             layout = ProjectLayout.SINGLE_MODULE,
             modules = mapOf("app" to "sample-app"),
-            sources = mapOf("design-json" to SourceConfig(enabled = true)),
+            sources = mapOf("design-json" to SourceConfig()),
             generators = generators,
             templates = templates,
             addons = addons,

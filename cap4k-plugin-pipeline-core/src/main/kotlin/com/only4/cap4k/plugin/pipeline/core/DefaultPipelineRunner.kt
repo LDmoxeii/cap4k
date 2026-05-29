@@ -25,27 +25,24 @@ class DefaultPipelineRunner(
     override fun run(config: ProjectConfig): PipelineResult {
         validateAddonProviders(config)
 
-        val enabledGeneratorIds = config.generators.asSequence()
-            .filter { it.value.enabled }
-            .map { it.key }
-            .toSet()
+        val configuredGeneratorIds = config.generators.keys
         val installedGeneratorIds = generators.map { it.id }.toSet()
-        val missingGeneratorIds = enabledGeneratorIds
+        val missingGeneratorIds = configuredGeneratorIds
             .filter { it !in installedGeneratorIds }
             .sorted()
         require(missingGeneratorIds.isEmpty()) {
-            "enabled generators have no registered providers: ${missingGeneratorIds.joinToString(", ")}"
+            "configured generators have no registered providers: ${missingGeneratorIds.joinToString(", ")}"
         }
 
         val snapshots = sources
-            .filter { config.sources[it.id]?.enabled == true }
+            .filter { it.id in config.sources }
             .map { it.collect(config) }
 
         val assembly = assembler.assemble(config, snapshots)
         val model = assembly.model
 
         val builtInPlanItems = generators
-            .filter { config.generators[it.id]?.enabled == true }
+            .filter { it.id in config.generators }
             .flatMap { it.plan(config, model) }
             .map { ProvenancedPlanItem(it) }
 

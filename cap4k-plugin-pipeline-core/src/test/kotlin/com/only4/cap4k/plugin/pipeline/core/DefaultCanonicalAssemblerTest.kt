@@ -3107,7 +3107,7 @@ class DefaultCanonicalAssemblerTest {
     fun `aggregate projection only does not validate write model id strategy`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7").copy(
-                generators = mapOf("aggregate-projection" to GeneratorConfig(enabled = true)),
+                generators = mapOf("aggregate-projection" to GeneratorConfig()),
             ),
             tables = listOf(
                 table(
@@ -5016,7 +5016,6 @@ class DefaultCanonicalAssemblerTest {
             config = baseAggregateConfig(
                 generators = mapOf(
                     "aggregate" to GeneratorConfig(
-                        enabled = true,
                         options = mapOf("unsupportedTablePolicy" to "SKIP"),
                     )
                 )
@@ -5064,7 +5063,6 @@ class DefaultCanonicalAssemblerTest {
             config = baseAggregateConfig(
                 generators = mapOf(
                     "aggregate" to GeneratorConfig(
-                        enabled = true,
                         options = mapOf("unsupportedTablePolicy" to "SKIP"),
                     )
                 )
@@ -5108,7 +5106,6 @@ class DefaultCanonicalAssemblerTest {
             config = baseAggregateConfig(
                 generators = mapOf(
                     "aggregate" to GeneratorConfig(
-                        enabled = true,
                         options = mapOf("unsupportedTablePolicy" to "SKIP"),
                     )
                 )

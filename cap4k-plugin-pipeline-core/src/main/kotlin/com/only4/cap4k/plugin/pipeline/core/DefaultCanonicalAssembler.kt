@@ -933,6 +933,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
     private fun ProjectConfig.isAggregateProjectionOnly(): Boolean =
-        generators["aggregate-projection"]?.enabled == true &&
-            generators["aggregate"]?.enabled != true
+        "aggregate-projection" in generators &&
+            "aggregate" !in generators
 }
