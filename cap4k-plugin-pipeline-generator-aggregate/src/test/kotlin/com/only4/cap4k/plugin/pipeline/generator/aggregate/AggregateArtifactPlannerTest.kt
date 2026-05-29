@@ -3008,6 +3008,40 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `schema metadata does not fail unresolved child aggregate ownership`() {
+        val childEntity = EntityModel(
+            name = "VideoFile",
+            packageName = "com.acme.demo.domain.aggregates.video",
+            tableName = "video_file",
+            comment = "video file entity",
+            fields = listOf(FieldModel("id", "Long")),
+            idField = FieldModel("id", "Long"),
+            aggregateRoot = false,
+            parentEntityName = null,
+        )
+        val model = CanonicalModel(
+            schemas = listOf(
+                SchemaModel(
+                    name = "SVideoFile",
+                    packageName = "com.acme.demo.domain._share.meta.video",
+                    entityName = "VideoFile",
+                    comment = "video file schema",
+                    fields = childEntity.fields,
+                )
+            ),
+            entities = listOf(childEntity),
+            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(childEntity)),
+        )
+
+        val item = SchemaArtifactPlanner().plan(aggregateConfig(), model).single()
+
+        assertEquals("aggregate/schema.kt.peb", item.templateId)
+        assertEquals("SVideoFile", item.context["typeName"])
+        assertEquals(false, item.context["isAggregateRoot"])
+        assertFalse(item.context.containsKey("aggregateElement"))
+    }
+
+    @Test
     fun `unique planners keep child entity artifacts in root aggregate package without child repository`() {
         val rootEntity = EntityModel(
             name = "Video",

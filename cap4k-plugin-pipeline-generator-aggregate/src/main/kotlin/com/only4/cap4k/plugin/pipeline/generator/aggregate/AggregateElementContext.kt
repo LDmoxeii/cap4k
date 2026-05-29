@@ -66,6 +66,13 @@ internal fun aggregateRootName(entity: EntityModel, entities: List<EntityModel>)
     return resolve(entity)
 }
 
+internal fun aggregateRootNameOrNull(entity: EntityModel, entities: List<EntityModel>): String? =
+    try {
+        aggregateRootName(entity, entities)
+    } catch (_: IllegalArgumentException) {
+        null
+    }
+
 internal fun strongIdAggregateElementContext(strongId: StrongIdModel): Map<String, Any?> =
     aggregateElementContext(
         aggregate = when (strongId.kind) {
