@@ -82,6 +82,13 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 context = mapOf(
                     "packageName" to packageName,
                     "typeName" to typeName,
+                    "aggregateElement" to aggregateElementContext(
+                        aggregate = entity.name,
+                        name = typeName,
+                        packageName = packageName,
+                        description = entity.comment,
+                        type = "factory",
+                    ),
                     "payloadTypeName" to "Payload",
                     "payloadMetadataName" to "${entity.name}Payload",
                     "payloadWriteSurfaceResolved" to (resolvedPolicy != null),

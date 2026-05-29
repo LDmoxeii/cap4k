@@ -13,6 +13,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
+import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
@@ -175,6 +176,86 @@ class AggregateArtifactPlannerTest {
         }
         assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, plan.single { it.templateId == "aggregate/factory.kt.peb" }.outputKind)
         assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, plan.single { it.templateId == "aggregate/specification.kt.peb" }.outputKind)
+        assertAggregateElement(
+            plan.single { it.templateId == "aggregate/entity.kt.peb" },
+            aggregate = "VideoPost",
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            description = "video post",
+            type = "entity",
+            root = true,
+        )
+        assertAggregateElement(
+            plan.single { it.templateId == "aggregate/schema.kt.peb" },
+            aggregate = "VideoPost",
+            name = "SVideoPost",
+            packageName = "com.acme.demo.domain._share.meta.video_post",
+            description = "video post",
+            type = "schema",
+            root = false,
+        )
+        assertAggregateElement(
+            plan.single { it.templateId == "aggregate/repository.kt.peb" },
+            aggregate = "VideoPost",
+            name = "VideoPostRepository",
+            packageName = "com.acme.demo.adapter.domain.repositories",
+            description = "",
+            type = "repository",
+            root = false,
+        )
+        assertAggregateElement(
+            plan.single { it.templateId == "aggregate/factory.kt.peb" },
+            aggregate = "VideoPost",
+            name = "VideoPostFactory",
+            packageName = "com.acme.demo.domain.aggregates.video_post.factory",
+            description = "video post",
+            type = "factory",
+            root = false,
+        )
+        assertAggregateElement(
+            plan.single { it.templateId == "aggregate/specification.kt.peb" },
+            aggregate = "VideoPost",
+            name = "VideoPostSpecification",
+            packageName = "com.acme.demo.domain.aggregates.video_post.specification",
+            description = "video post",
+            type = "specification",
+            root = false,
+        )
+        assertAggregateElement(
+            plan.single { it.templateId == "aggregate/unique_query.kt.peb" },
+            aggregate = "VideoPost",
+            name = "UniqueVideoPostSlugQry",
+            packageName = "com.acme.demo.application.queries.video_post.unique",
+            description = "",
+            type = "unique-query",
+            root = false,
+        )
+        assertAggregateElement(
+            plan.single { it.templateId == "aggregate/unique_query_handler.kt.peb" },
+            aggregate = "VideoPost",
+            name = "UniqueVideoPostSlugQryHandler",
+            packageName = "com.acme.demo.adapter.queries.video_post.unique",
+            description = "",
+            type = "unique-query-handler",
+            root = false,
+        )
+        assertAggregateElement(
+            plan.single { it.templateId == "aggregate/unique_validator.kt.peb" },
+            aggregate = "VideoPost",
+            name = "UniqueVideoPostSlug",
+            packageName = "com.acme.demo.application.validators.video_post.unique",
+            description = "",
+            type = "unique-validator",
+            root = false,
+        )
+        assertFalse(
+            plan.single { it.templateId == "aggregate/enum.kt.peb" && it.context["typeName"] == "SharedStatus" }
+                .context.containsKey("aggregateElement")
+        )
+        assertFalse(
+            plan.single { it.templateId == "aggregate/enum.kt.peb" && it.context["typeName"] == "VideoPostVisibility" }
+                .context.containsKey("aggregateElement")
+        )
     }
 
     @Test
@@ -195,6 +276,13 @@ class AggregateArtifactPlannerTest {
                         packageName = "com.acme.demo.domain.shared.ids",
                         kind = StrongIdKind.REFERENCE,
                     ),
+                    StrongIdModel(
+                        typeName = "ContentRefId",
+                        packageName = "com.acme.demo.domain.aggregates.content",
+                        kind = StrongIdKind.AGGREGATE_REFERENCE,
+                        ownerAggregateName = "Content",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
+                    ),
                 ),
             )
         )
@@ -202,7 +290,7 @@ class AggregateArtifactPlannerTest {
         val strongIdItems = plan.filter { it.templateId == "aggregate/strong_id.kt.peb" }
         val itemsByType = strongIdItems.associateBy { it.context["typeName"] }
 
-        assertEquals(2, strongIdItems.size)
+        assertEquals(3, strongIdItems.size)
         assertAll(
             {
                 val contentId = itemsByType.getValue("ContentId")
@@ -217,6 +305,15 @@ class AggregateArtifactPlannerTest {
                 assertEquals(ArtifactOutputKind.GENERATED_SOURCE, contentId.outputKind)
                 assertEquals(ConflictPolicy.OVERWRITE, contentId.conflictPolicy)
                 assertEquals("demo-domain/build/generated/cap4k/main/kotlin", contentId.resolvedOutputRoot)
+                assertAggregateElement(
+                    contentId,
+                    aggregate = "Content",
+                    name = "ContentId",
+                    packageName = "com.acme.demo.domain.aggregates.content",
+                    description = "",
+                    type = "strong-id",
+                    root = true,
+                )
             },
             {
                 val authorId = itemsByType.getValue("AuthorId")
@@ -231,6 +328,35 @@ class AggregateArtifactPlannerTest {
                 assertEquals(ArtifactOutputKind.GENERATED_SOURCE, authorId.outputKind)
                 assertEquals(ConflictPolicy.OVERWRITE, authorId.conflictPolicy)
                 assertEquals("demo-domain/build/generated/cap4k/main/kotlin", authorId.resolvedOutputRoot)
+                assertAggregateElement(
+                    authorId,
+                    aggregate = "",
+                    name = "AuthorId",
+                    packageName = "com.acme.demo.domain.shared.ids",
+                    description = "",
+                    type = "strong-id",
+                    root = false,
+                )
+            },
+            {
+                val contentRefId = itemsByType.getValue("ContentRefId")
+                assertEquals("domain", contentRefId.moduleRole)
+                assertEquals(
+                    "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/content/ContentRefId.kt",
+                    contentRefId.outputPath,
+                )
+                assertEquals("com.acme.demo.domain.aggregates.content", contentRefId.context["packageName"])
+                assertEquals(StrongIdKind.AGGREGATE_REFERENCE.name, contentRefId.context["kind"])
+                assertEquals(false, contentRefId.context["canGenerateNew"])
+                assertAggregateElement(
+                    contentRefId,
+                    aggregate = "Content",
+                    name = "ContentRefId",
+                    packageName = "com.acme.demo.domain.aggregates.content",
+                    description = "",
+                    type = "strong-id",
+                    root = false,
+                )
             },
         )
     }
@@ -4505,4 +4631,24 @@ class AggregateArtifactPlannerTest {
             physicalName = physicalName,
             columns = columns.toList(),
         )
+
+    private fun assertAggregateElement(
+        item: ArtifactPlanItem,
+        aggregate: String,
+        name: String,
+        packageName: String,
+        description: String,
+        type: String,
+        root: Boolean,
+    ) {
+        @Suppress("UNCHECKED_CAST")
+        val aggregateElement = item.context["aggregateElement"] as? Map<String, Any?>
+
+        assertEquals(aggregate, aggregateElement?.get("aggregate"), item.templateId)
+        assertEquals(name, aggregateElement?.get("name"), item.templateId)
+        assertEquals(packageName, aggregateElement?.get("packageName"), item.templateId)
+        assertEquals(description, aggregateElement?.get("description"), item.templateId)
+        assertEquals(type, aggregateElement?.get("type"), item.templateId)
+        assertEquals(root, aggregateElement?.get("root"), item.templateId)
+    }
 }

@@ -824,6 +824,18 @@ class PipelinePluginFunctionalTest {
         val behaviorFile = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt"
         )
+        val schemaFile = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt")
+        )
+        val entityFile = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
+        )
+        val repositoryFile = projectDir.resolve(
+            generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt")
+        )
+        val strongIdFile = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostId.kt")
+        )
         val uniqueQueryFile = projectDir.resolve(
             generatedSource(
                 "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt"
@@ -842,33 +854,20 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.exists())
-        assertTrue(
-            File(
-                projectDir.toFile(),
-                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt")
-            ).exists()
-        )
-        assertTrue(
-            File(
-                projectDir.toFile(),
-                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
-            ).exists()
-        )
-        val generatedVideoPostContent = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
-        ).readText()
-        assertTrue(
-            File(
-                projectDir.toFile(),
-                generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt")
-            ).exists()
-        )
+        assertTrue(schemaFile.toFile().exists())
+        assertTrue(entityFile.toFile().exists())
+        val generatedVideoPostContent = entityFile.readText()
+        assertTrue(repositoryFile.toFile().exists())
+        assertTrue(strongIdFile.toFile().exists())
         assertTrue(factoryFile.toFile().exists())
         assertTrue(specificationFile.toFile().exists())
         assertTrue(behaviorFile.toFile().exists())
         assertTrue(uniqueQueryFile.toFile().exists())
         assertTrue(uniqueQueryHandlerFile.toFile().exists())
         assertTrue(uniqueValidatorFile.toFile().exists())
+        val schemaContent = schemaFile.readText()
+        val repositoryContent = repositoryFile.readText()
+        val strongIdContent = strongIdFile.readText()
         val factoryContent = factoryFile.readText()
         val specificationContent = specificationFile.readText()
         val uniqueQueryContent = uniqueQueryFile.readText()
@@ -877,6 +876,78 @@ class PipelinePluginFunctionalTest {
         assertFalse(generatedVideoPostContent.contains(legacyAggregateAnnotationFq))
         assertFalse(generatedVideoPostContent.contains(legacyAggregateCall))
         assertFalse(generatedVideoPostContent.contains(legacyAggregateTypeEntity))
+        assertAggregateElementContent(
+            generatedVideoPostContent,
+            aggregate = "VideoPost",
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            type = "entity",
+            root = true,
+        )
+        assertAggregateElementContent(
+            schemaContent,
+            aggregate = "VideoPost",
+            name = "SVideoPost",
+            packageName = "com.acme.demo.domain._share.meta.video_post",
+            type = "schema",
+            root = false,
+        )
+        assertAggregateElementContent(
+            repositoryContent,
+            aggregate = "VideoPost",
+            name = "VideoPostRepository",
+            packageName = "com.acme.demo.adapter.domain.repositories",
+            type = "repository",
+            root = false,
+        )
+        assertAggregateElementContent(
+            strongIdContent,
+            aggregate = "VideoPost",
+            name = "VideoPostId",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            type = "strong-id",
+            root = true,
+        )
+        assertAggregateElementContent(
+            factoryContent,
+            aggregate = "VideoPost",
+            name = "VideoPostFactory",
+            packageName = "com.acme.demo.domain.aggregates.video_post.factory",
+            type = "factory",
+            root = false,
+        )
+        assertAggregateElementContent(
+            specificationContent,
+            aggregate = "VideoPost",
+            name = "VideoPostSpecification",
+            packageName = "com.acme.demo.domain.aggregates.video_post.specification",
+            type = "specification",
+            root = false,
+        )
+        assertAggregateElementContent(
+            uniqueQueryContent,
+            aggregate = "VideoPost",
+            name = "UniqueVideoPostSlugQry",
+            packageName = "com.acme.demo.application.queries.video_post.unique",
+            type = "unique-query",
+            root = false,
+        )
+        assertAggregateElementContent(
+            uniqueQueryHandlerContent,
+            aggregate = "VideoPost",
+            name = "UniqueVideoPostSlugQryHandler",
+            packageName = "com.acme.demo.adapter.queries.video_post.unique",
+            type = "unique-query-handler",
+            root = false,
+        )
+        assertAggregateElementContent(
+            uniqueValidatorContent,
+            aggregate = "VideoPost",
+            name = "UniqueVideoPostSlug",
+            packageName = "com.acme.demo.application.validators.video_post.unique",
+            type = "unique-validator",
+            root = false,
+        )
         assertTrue(planFile.readText().contains("\"items\""))
         assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/entity.kt.peb\""))
@@ -2468,11 +2539,20 @@ class PipelinePluginFunctionalTest {
         assertTrue(eventFile.toFile().exists())
         assertTrue(handlerFile.toFile().exists())
         assertTrue(eventContent.contains("@DomainEvent"))
+        assertTrue(eventContent.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
+        assertTrue(eventContent.contains("@BuildingBlock("))
+        assertTrue(eventContent.contains("tag = \"domain_event\""))
+        assertTrue(eventContent.contains("name = \"OrderCreatedDomainEvent\""))
+        assertTrue(eventContent.contains("packageName = \"com.acme.demo.domain.aggregates.order.events\""))
+        assertTrue(eventContent.contains("description = \"order */ \\\"created\\\" event\""))
+        assertTrue(eventContent.contains("aggregates = [\"Order\"]"))
+        assertTrue(eventContent.contains("eventName = \"\""))
+        assertTrue(eventContent.contains("family = \"domain-event\""))
+        assertTrue(eventContent.contains("variant = \"\""))
         assertFalse(eventContent.contains(legacyAggregateCall))
         assertFalse(eventContent.contains(legacyAggregateAnnotationFq))
         assertTrue(eventContent.contains("* order * / \"created\" event"))
         assertFalse(eventContent.contains("* order */ \"created\" event"))
-        assertFalse(eventContent.contains("description = "))
         assertFalse(eventContent.contains("&quot;"))
         assertTrue(eventContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
         assertTrue(eventContent.contains("import java.util.UUID"))
@@ -2979,6 +3059,23 @@ class PipelinePluginFunctionalTest {
 
     private fun generatedSource(relativePath: String): String =
         relativePath.replace("/src/main/kotlin/", "/build/generated/cap4k/main/kotlin/")
+
+    private fun assertAggregateElementContent(
+        content: String,
+        aggregate: String,
+        name: String,
+        packageName: String,
+        type: String,
+        root: Boolean,
+    ) {
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.AggregateElement"))
+        assertTrue(content.contains("@AggregateElement("))
+        assertTrue(content.contains("aggregate = \"$aggregate\""))
+        assertTrue(content.contains("name = \"$name\""))
+        assertTrue(content.contains("packageName = \"$packageName\""))
+        assertTrue(content.contains("type = \"$type\""))
+        assertTrue(content.contains("root = $root"))
+    }
 
     private fun Path.appendTemplateOverrideBlock() {
         writeText(

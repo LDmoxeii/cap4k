@@ -43,6 +43,16 @@ class DesignDomainEventArtifactPlannerTest {
         assertEquals("Order", event.context["aggregateName"])
         assertEquals("com.acme.demo.domain.order.Order", event.context["aggregateType"])
         assertEquals(false, event.context["persist"])
+        @Suppress("UNCHECKED_CAST")
+        val buildingBlock = event.context["buildingBlock"] as? Map<String, Any?>
+        assertEquals("domain_event", buildingBlock?.get("tag"))
+        assertEquals("OrderCreatedDomainEvent", buildingBlock?.get("name"))
+        assertEquals("com.acme.demo.domain.aggregates.order.events", buildingBlock?.get("packageName"))
+        assertEquals("order */ \"created\" event", buildingBlock?.get("description"))
+        assertEquals(listOf("Order"), buildingBlock?.get("aggregates"))
+        assertEquals("", buildingBlock?.get("eventName"))
+        assertEquals("domain-event", buildingBlock?.get("family"))
+        assertEquals("", buildingBlock?.get("variant"))
         assertTrue(event.context.containsKey("fields"))
         assertTrue(event.context.containsKey("nestedTypes"))
         assertEquals(

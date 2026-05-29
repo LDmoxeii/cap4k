@@ -6559,6 +6559,80 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `domain event preset renders building block metadata when provided`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-building-block-design-domain-event")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-domain-event",
+                    moduleRole = "domain",
+                    templateId = "design/domain_event.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.order.events",
+                        "typeName" to "OrderCreatedDomainEvent",
+                        "buildingBlock" to mapOf(
+                            "tag" to "domain_event",
+                            "name" to "OrderCreatedDomainEvent",
+                            "packageName" to "com.acme.demo.domain.order.events",
+                            "description" to "order */ \"created\" event",
+                            "aggregates" to listOf("Order"),
+                            "eventName" to "",
+                            "family" to "domain-event",
+                            "variant" to "",
+                        ),
+                        "description" to "order */ \"created\" event",
+                        "descriptionText" to "order */ \"created\" event",
+                        "descriptionCommentText" to "order * / \"created\" event",
+                        "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" event\"",
+                        "aggregateName" to "Order",
+                        "aggregateType" to "com.acme.demo.domain.order.Order",
+                        "persist" to true,
+                        "imports" to listOf("java.util.UUID"),
+                        "fields" to listOf(
+                            mapOf("name" to "reason", "renderedType" to "String", "nullable" to false),
+                        ),
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
+        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("tag = \"domain_event\""))
+        assertTrue(content.contains("name = \"OrderCreatedDomainEvent\""))
+        assertTrue(content.contains("packageName = \"com.acme.demo.domain.order.events\""))
+        assertTrue(content.contains("description = \"order */ \\\"created\\\" event\""))
+        assertTrue(content.contains("aggregates = [\"Order\"]"))
+        assertTrue(content.contains("eventName = \"\""))
+        assertTrue(content.contains("family = \"domain-event\""))
+        assertTrue(content.contains("variant = \"\""))
+        assertFalse(content.contains("&quot;"))
+    }
+
+    @Test
     fun `integration event preset renders event annotation with literal event name and role subscribers`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-integration-event")
         val renderer = PebbleArtifactRenderer(

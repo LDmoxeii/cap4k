@@ -25,6 +25,13 @@ internal class SpecificationArtifactPlanner : AggregateArtifactFamilyPlanner {
                 context = mapOf(
                     "packageName" to packageName,
                     "typeName" to typeName,
+                    "aggregateElement" to aggregateElementContext(
+                        aggregate = entity.name,
+                        name = typeName,
+                        packageName = packageName,
+                        description = entity.comment,
+                        type = "specification",
+                    ),
                     "entityName" to entity.name,
                     "entityTypeFqn" to entityTypeFqn,
                     "aggregateName" to entity.name,

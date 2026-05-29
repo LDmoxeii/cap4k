@@ -12,6 +12,7 @@ internal class UniqueValidatorArtifactPlanner : AggregateArtifactFamilyPlanner {
 
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         return plannedSelections.flatMap { (entity, selections) ->
+            val aggregateName = aggregateRootName(entity, model.entities)
             val packageKey = aggregatePackageKey(config, entity.packageName)
             val packageName = artifactLayout.aggregateUniqueValidatorPackage(packageKey)
             val queryPackageName = artifactLayout.aggregateUniqueQueryPackage(packageKey)
@@ -41,6 +42,13 @@ internal class UniqueValidatorArtifactPlanner : AggregateArtifactFamilyPlanner {
                     context = mapOf(
                         "packageName" to packageName,
                         "typeName" to selection.validatorTypeName,
+                        "aggregateElement" to aggregateElementContext(
+                            aggregate = aggregateName,
+                            name = selection.validatorTypeName,
+                            packageName = packageName,
+                            description = "",
+                            type = "unique-validator",
+                        ),
                         "queryTypeName" to selection.queryTypeName,
                         "queryTypeFqn" to "$queryPackageName.${selection.queryTypeName}",
                         "requestProps" to requestProps,
