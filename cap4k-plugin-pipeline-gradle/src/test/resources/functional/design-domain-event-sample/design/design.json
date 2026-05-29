@@ -3,14 +3,25 @@
     "tag": "domain_event",
     "package": "order",
     "name": "OrderCreated",
-    "desc": "order created event",
-    "aggregates": ["Order"],
-    "persist": true,
-    "requestFields": [
-      { "name": "reason", "type": "String" },
-      { "name": "snapshot", "type": "Snapshot", "nullable": true },
-      { "name": "snapshot.traceId", "type": "java.util.UUID" }
+    "description": "order created event",
+    "aggregates": [
+      "Order"
     ],
-    "responseFields": []
+    "persist": true,
+    "fields": [
+      {
+        "name": "reason",
+        "type": "String"
+      },
+      {
+        "name": "snapshot",
+        "type": "Snapshot",
+        "nullable": true
+      },
+      {
+        "name": "snapshot.traceId",
+        "type": "java.util.UUID"
+      }
+    ]
   }
 ]

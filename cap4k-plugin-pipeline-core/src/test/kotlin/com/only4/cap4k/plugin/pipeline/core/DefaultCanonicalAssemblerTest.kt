@@ -1,6 +1,5 @@
 package com.only4.cap4k.plugin.pipeline.core
 
-import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
 import com.only4.cap4k.plugin.pipeline.api.CommandVariant
 import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
@@ -29,7 +28,6 @@ import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.IntegrationEventRole
-import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
@@ -998,16 +996,7 @@ class DefaultCanonicalAssemblerTest {
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                            rootPackageName = "com.acme.demo.domain.aggregates.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
+                aggregateSnapshot("order"),
             ),
         ).model
 
@@ -1244,16 +1233,7 @@ class DefaultCanonicalAssemblerTest {
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                            rootPackageName = "com.acme.demo.domain.aggregates.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
+                aggregateSnapshot("order"),
             ),
         ).model
 
@@ -1315,16 +1295,7 @@ class DefaultCanonicalAssemblerTest {
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "UserMessage",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.user_message.UserMessage",
-                            rootPackageName = "com.acme.demo.domain.aggregates.user_message",
-                            rootClassName = "UserMessage",
-                        )
-                    )
-                ),
+                aggregateSnapshot("user_message"),
             ),
         ).model
 
@@ -1335,7 +1306,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `domain event resolves aggregate package from canonical aggregate entities before ksp metadata`() {
+    fun `domain event resolves aggregate package from canonical aggregate entities`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -1367,71 +1338,11 @@ class DefaultCanonicalAssemblerTest {
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.legacy.order.Order",
-                            rootPackageName = "com.acme.legacy.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
             ),
         ).model
 
         assertEquals("Order", model.domainEvents.single().aggregateName)
         assertEquals("com.acme.demo.domain.aggregates.order", model.domainEvents.single().aggregatePackageName)
-    }
-
-    @Test
-    fun `domain event falls back to ksp metadata when canonical aggregate data is absent`() {
-        val assembler = DefaultCanonicalAssembler()
-
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "domain_event",
-                            packageName = "order",
-                            name = "OrderCreated",
-                            description = "order created event",
-                            aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                    )
-                ),
-                DbSchemaSnapshot(
-                    tables = listOf(
-                        DbTableSnapshot(
-                            tableName = "video_post",
-                            comment = "",
-                            columns = listOf(
-                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                            ),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                        ),
-                    )
-                ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.legacy.order.Order",
-                            rootPackageName = "com.acme.legacy.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
-            ),
-        ).model
-
-        assertEquals("Order", model.domainEvents.single().aggregateName)
-        assertEquals("com.acme.legacy.order", model.domainEvents.single().aggregatePackageName)
     }
 
     @Test
@@ -1455,16 +1366,7 @@ class DefaultCanonicalAssemblerTest {
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                            rootPackageName = "com.acme.demo.domain.aggregates.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
+                aggregateSnapshot("order"),
             ),
         )
         }
@@ -1493,16 +1395,7 @@ class DefaultCanonicalAssemblerTest {
                             ),
                         )
                     ),
-                    KspMetadataSnapshot(
-                        aggregates = listOf(
-                            AggregateMetadataRecord(
-                                aggregateName = "Order",
-                                rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                                rootPackageName = "com.acme.demo.domain.aggregates.order",
-                                rootClassName = "Order",
-                            )
-                        )
-                    ),
+                    aggregateSnapshot("order"),
                 ),
             )
         }
@@ -1531,16 +1424,7 @@ class DefaultCanonicalAssemblerTest {
                             ),
                         )
                     ),
-                    KspMetadataSnapshot(
-                        aggregates = listOf(
-                            AggregateMetadataRecord(
-                                aggregateName = "Order",
-                                rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                                rootPackageName = "com.acme.demo.domain.aggregates.order",
-                                rootClassName = "Order",
-                            )
-                        )
-                    ),
+                    aggregateSnapshot("order"),
                 ),
             )
         }
@@ -1549,7 +1433,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `maps design entries and ksp aggregates into typed canonical interactions`() {
+    fun `maps design entries and canonical aggregates into typed canonical interactions`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -1584,16 +1468,7 @@ class DefaultCanonicalAssemblerTest {
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                            rootPackageName = "com.acme.demo.domain.aggregates.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
+                aggregateSnapshot("order"),
             ),
         ).model
 
@@ -1767,16 +1642,7 @@ class DefaultCanonicalAssemblerTest {
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                            rootPackageName = "com.acme.demo.domain.aggregates.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
+                aggregateSnapshot("order"),
             ),
         ).model
 
@@ -1794,16 +1660,7 @@ class DefaultCanonicalAssemblerTest {
         val model = assembler.assemble(
             config = baseConfig(),
             snapshots = listOf(
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                            rootPackageName = "com.acme.demo.domain.aggregates.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
+                aggregateSnapshot("order"),
             ),
         ).model
 
@@ -1813,7 +1670,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `leaves request aggregate ref null when ksp metadata has no match`() {
+    fun `leaves request aggregate ref null when canonical aggregate metadata has no match`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -1832,16 +1689,7 @@ class DefaultCanonicalAssemblerTest {
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Customer",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.customer.Customer",
-                            rootPackageName = "com.acme.demo.domain.aggregates.customer",
-                            rootClassName = "Customer",
-                        )
-                    )
-                ),
+                aggregateSnapshot("customer"),
             ),
         ).model
 
@@ -5752,6 +5600,25 @@ class DefaultCanonicalAssemblerTest {
         exposed = exposed,
         refAggregate = refAggregate,
         refId = refId,
+    )
+
+    private fun aggregateSnapshot(
+        aggregateName: String,
+        packageName: String = "com.acme.demo.domain.aggregates.$aggregateName",
+        className: String = aggregateName.replaceFirstChar { it.uppercase() },
+    ): DbSchemaSnapshot = DbSchemaSnapshot(
+        tables = listOf(
+            DbTableSnapshot(
+                tableName = aggregateName,
+                comment = "",
+                columns = listOf(
+                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                ),
+                primaryKey = listOf("id"),
+                uniqueConstraints = emptyList(),
+                aggregateRoot = true,
+            ),
+        ),
     )
 
     private fun baseConfig(): ProjectConfig {

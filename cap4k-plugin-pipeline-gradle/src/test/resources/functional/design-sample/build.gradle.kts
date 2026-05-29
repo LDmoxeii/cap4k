@@ -13,9 +13,5 @@ cap4k {
         designJson {
             files.from("design/design.json")
         }
-        kspMetadata {
-            enabled.set(true)
-            inputDir.set("domain/build/generated/ksp/main/resources/metadata")
-        }
     }
 }

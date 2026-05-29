@@ -63,7 +63,6 @@ bootstrap {
 ```kotlin
 sources {
     designJson { enabled.set(true); files.from("design/design.json") }
-    kspMetadata { enabled.set(true); inputDir.set("path/to/metadata") }
     db { enabled.set(true); url.set("jdbc:..."); schema.set("PUBLIC") }
     irAnalysis { enabled.set(true); inputDirs.from("path/to/ir-analysis") }
 }
@@ -77,7 +76,6 @@ types {
 | source block | 常用字段 | 服务哪条任务链路 |
 | --- | --- | --- |
 | `designJson` | `enabled`, `files`, `manifestFile` | `cap4kPlan` / `cap4kGenerate` |
-| `kspMetadata` | `enabled`, `inputDir` | `cap4kPlan` / `cap4kGenerate` |
 | `db` | `enabled`, `url`, `username`, `password`, `schema`, `includeTables`, `excludeTables` | `cap4kPlan` / `cap4kGenerate` |
 | `irAnalysis` | `enabled`, `inputDirs` | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
 

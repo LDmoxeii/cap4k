@@ -23,7 +23,6 @@ dependencies {
     implementation(project(":cap4k-plugin-pipeline-source-enum-manifest"))
     implementation(project(":cap4k-plugin-pipeline-source-value-object-manifest"))
     implementation(project(":cap4k-plugin-pipeline-source-ir-analysis"))
-    implementation(project(":cap4k-plugin-pipeline-source-ksp-metadata"))
     implementation(project(":cap4k-plugin-pipeline-generator-design"))
     implementation(project(":cap4k-plugin-pipeline-generator-types"))
     implementation(libs.gson)

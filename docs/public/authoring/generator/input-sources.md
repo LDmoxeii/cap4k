@@ -2,7 +2,7 @@
 
 本页说明业务项目作者如何准备 cap4k 生成器输入。输入源是生成器合同，不是随手写给工具看的备注。
 
-本页示例语境统一回到 [示例总览](../examples/index.md)：DB / design / enum manifest / value-object manifest / KSP 输入最终都服务于同一个内容发布与媒体处理项目。
+本页示例语境统一回到 [示例总览](../examples/index.md)：DB / design / enum manifest / value-object manifest / IR 输入最终都服务于同一个内容发布与媒体处理项目。
 
 除 `sources {}` 里的 source provider 之外，`types {}` 里的 `enumManifest`、`valueObjectManifest` 和 `registryFile` 也属于 generation input contract。它们不提供 use-case surface，也不替代 DDL / design。
 
@@ -242,16 +242,6 @@ enum manifest 是 JSON 数组，每个枚举包含：
 它配合 DB `@T=<TypeName>` 使用。重复 type name 会被拒绝。manifest entry 不需要再写 `types.registryFile` entry。
 
 `generateTranslation` 已从 enum manifest 移除。enum translation 属于 addon 生成方向，不属于核心 aggregate generation 开关。
-
-## KSP metadata
-
-`sources.kspMetadata` 用于读取聚合元数据，支撑 design-driven artifact 生成。典型场景是 design generator 需要理解已有聚合、请求契约或元数据关系。
-
-作者规则：
-
-- 需要 KSP metadata 的 design 生成，应先确保相关模块已能产生 metadata；
-- 当 `cap4kPlan` 依赖 KSP 输出时，先看计划和任务依赖，不要手工移动 generated metadata；
-- metadata 是生成 / 分析输入，不是业务逻辑落点。
 
 ## IR analysis
 

@@ -219,11 +219,6 @@ data class DesignSpecSnapshot(
     val entries: List<DesignSpecEntry>,
 ) : SourceSnapshot
 
-data class KspMetadataSnapshot(
-    override val id: String = "ksp-metadata",
-    val aggregates: List<AggregateMetadataRecord>,
-) : SourceSnapshot
-
 data class IrAnalysisSnapshot(
     override val id: String = "ir-analysis",
     val inputDirs: List<String>,

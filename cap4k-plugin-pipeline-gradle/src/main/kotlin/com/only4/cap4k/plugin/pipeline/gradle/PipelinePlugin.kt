@@ -45,7 +45,6 @@ import com.only4.cap4k.plugin.pipeline.source.db.DbSchemaSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.designjson.DesignJsonSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.enummanifest.EnumManifestSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.ir.IrAnalysisSourceProvider
-import com.only4.cap4k.plugin.pipeline.source.ksp.KspMetadataSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.valueobject.ValueObjectManifestSourceProvider
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateProjectionArtifactPlanner
 import org.gradle.api.file.FileCollection
@@ -161,7 +160,7 @@ private const val JACKSON_MODULE_KOTLIN_NAME = "jackson-module-kotlin"
 private const val JACKSON_MODULE_KOTLIN_COORDINATE =
     "$JACKSON_MODULE_KOTLIN_GROUP:$JACKSON_MODULE_KOTLIN_NAME:2.17.2"
 private const val CAP4K_ADDON_CONFIGURATION_NAME = "cap4kAddon"
-private val SOURCE_TASK_SOURCE_IDS = setOf("db", "design-json", "ksp-metadata", "enum-manifest", "value-object-manifest")
+private val SOURCE_TASK_SOURCE_IDS = setOf("db", "design-json", "enum-manifest", "value-object-manifest")
 private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "design-command",
     "design-query",
@@ -189,7 +188,6 @@ internal fun artifactAddonClasspath(project: Project): FileCollection =
         ?: project.files()
 
 private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf(
-    extension.sources.kspMetadata.enabled,
     extension.sources.db.enabled,
 ).any { it.orNull == true } ||
     extension.sources.designJson.manifestFile.orNull?.isNotBlank() == true ||
@@ -393,7 +391,7 @@ internal fun wireGeneratedSourceCompilation(
     }
 }
 
-private val GENERATED_SOURCE_CONSUMER_TASK_NAMES = setOf("compileKotlin", "kspKotlin")
+private val GENERATED_SOURCE_CONSUMER_TASK_NAMES = setOf("compileKotlin")
 
 internal fun inferDependencies(project: Project, config: ProjectConfig): List<Task> {
     val mergedDependencies = linkedSetOf<Task>()
@@ -402,19 +400,11 @@ internal fun inferDependencies(project: Project, config: ProjectConfig): List<Ta
     return mergedDependencies.toList()
 }
 
-internal fun inferSourceDependencies(project: Project, config: ProjectConfig): List<Task> {
-    val inferredDependencies = linkedSetOf<Task>()
-    val allProjects = project.rootProject.allprojects
-
-    val kspInputDir = config.sources["ksp-metadata"]
-        ?.options
-        ?.get("inputDir")
-        ?.toString()
-    if (kspInputDir != null) {
-        inferredDependencies += relevantTasksForInputDir(allProjects, kspInputDir, "kspKotlin")
-    }
-
-    return inferredDependencies.toList()
+internal fun inferSourceDependencies(
+    @Suppress("UNUSED_PARAMETER") project: Project,
+    @Suppress("UNUSED_PARAMETER") config: ProjectConfig,
+): List<Task> {
+    return emptyList()
 }
 
 internal fun inferAnalysisDependencies(project: Project, config: ProjectConfig): List<Task> {
@@ -660,7 +650,6 @@ internal fun buildSourceRunner(
             EnumManifestSourceProvider(),
             ValueObjectManifestSourceProvider(),
             DesignJsonSourceProvider(),
-            KspMetadataSourceProvider(),
         ),
         generators = listOf(
             DesignCommandArtifactPlanner(),

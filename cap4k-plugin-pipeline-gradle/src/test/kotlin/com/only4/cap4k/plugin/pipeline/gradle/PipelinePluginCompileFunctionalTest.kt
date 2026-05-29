@@ -557,38 +557,6 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate generated source compilation wires ksp consumers to cap4kGenerateSources`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-generated-source-ksp")
-        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-persistence-compile-sample")
-        val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts")
-        domainBuildFile.writeText(
-            domainBuildFile.readText() +
-                """
-
-                tasks.register("kspKotlin") {
-                    inputs.dir(layout.buildDirectory.dir("generated/cap4k/main/kotlin"))
-                    doLast {
-                        println("fake ksp consumes cap4k generated source")
-                    }
-                }
-
-                tasks.named("compileKotlin") {
-                    dependsOn("kspKotlin")
-                }
-                """.trimIndent()
-        )
-
-        val compileResult = FunctionalFixtureSupport
-            .runner(projectDir, ":demo-domain:compileKotlin")
-            .build()
-
-        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
-        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":demo-domain:kspKotlin")?.outcome)
-        assertTrue(compileResult.output.contains("fake ksp consumes cap4k generated source"))
-        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
-    }
-
-    @Test
     fun `aggregate direct parent lazy override fails fast during domain compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-direct-parent-lazy-override-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")

@@ -18,7 +18,6 @@ class Cap4kProjectConfigFactoryTest {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
-        assertFalse(extension.sources.kspMetadata.enabled.get())
         assertFalse(extension.sources.db.enabled.get())
         assertFalse(extension.generators.aggregate.enabled.get())
         assertFalse(extension.generators.aggregateProjection.enabled.get())
@@ -1131,7 +1130,6 @@ class Cap4kProjectConfigFactoryTest {
             basePackage.set("com.acme.demo")
         }
         extension.sources {
-            kspMetadata { enabled.set(false) }
             db {
                 enabled.set(false)
                 url.set("jdbc:h2:mem:test")
@@ -1224,25 +1222,6 @@ class Cap4kProjectConfigFactoryTest {
         val config = Cap4kProjectConfigFactory().build(project, extension)
 
         assertFalse("design-json" in config.sources)
-    }
-
-    @Test
-    fun `enabled ksp metadata source requires input dir`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-        }
-        extension.sources {
-            kspMetadata { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("sources.kspMetadata.inputDir is required when kspMetadata is enabled.", error.message)
     }
 
     @Test

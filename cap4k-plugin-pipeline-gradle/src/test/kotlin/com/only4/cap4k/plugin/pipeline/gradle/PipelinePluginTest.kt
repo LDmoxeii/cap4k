@@ -365,7 +365,6 @@ class PipelinePluginTest {
                 "db" to SourceConfig(),
                 "enum-manifest" to SourceConfig(),
                 "design-json" to SourceConfig(),
-                "ksp-metadata" to SourceConfig(),
                 "ir-analysis" to SourceConfig(),
             ),
             generators = mapOf(
@@ -391,7 +390,6 @@ class PipelinePluginTest {
         val config = projectConfig(
             sources = mapOf(
                 "design-json" to SourceConfig(),
-                "ksp-metadata" to SourceConfig(),
                 "value-object-manifest" to SourceConfig(),
                 "ir-analysis" to SourceConfig(),
             ),
@@ -406,7 +404,7 @@ class PipelinePluginTest {
 
         val sourceConfig = sourceTaskConfig(config)
 
-        assertEquals(setOf("design-json", "ksp-metadata", "value-object-manifest"), sourceConfig.sources.keys)
+        assertEquals(setOf("design-json", "value-object-manifest"), sourceConfig.sources.keys)
         assertEquals(
             setOf("design-integration-event", "design-integration-event-subscriber", "types-value-object"),
             sourceConfig.generators.keys,
@@ -422,37 +420,6 @@ class PipelinePluginTest {
         assertTrue(generatorProviderTypes(runner).contains(DesignIntegrationEventArtifactPlanner::class.java))
         assertTrue(generatorProviderTypes(runner).contains(DesignIntegrationEventSubscriberArtifactPlanner::class.java))
         assertTrue(generatorProviderTypes(runner).contains(ValueObjectArtifactPlanner::class.java))
-    }
-
-    @Test
-    fun `generated source dependency inference ignores design ksp metadata`() {
-        val rootProjectDir = tempProjectDir("pipeline-plugin-generated-source-ksp-root")
-        val rootProject = ProjectBuilder.builder()
-            .withProjectDir(rootProjectDir)
-            .build()
-        val domainProject = ProjectBuilder.builder()
-            .withName("domain")
-            .withProjectDir(rootProjectDir.resolve("domain"))
-            .withParent(rootProject)
-            .build()
-        domainProject.tasks.register("kspKotlin")
-
-        val config = projectConfig(
-            sources = mapOf(
-                "db" to SourceConfig(),
-                "ksp-metadata" to SourceConfig(
-                    options = mapOf("inputDir" to domainProject.layout.buildDirectory.dir("generated/ksp/main").get().asFile.absolutePath),
-                ),
-            ),
-            generators = mapOf(
-                "aggregate" to GeneratorConfig(),
-                "design-query" to GeneratorConfig(),
-            ),
-        )
-
-        val dependencies = inferSourceDependencies(rootProject, generatedSourceTaskConfig(config))
-
-        assertEquals(emptyList<String>(), dependencies.map { it.path })
     }
 
     @Test
@@ -808,62 +775,6 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `ksp metadata input dir depends on relevant ksp task only`() {
-        val rootProjectDir = tempProjectDir("pipeline-plugin-ksp-root")
-        val rootProject = ProjectBuilder.builder()
-            .withProjectDir(rootProjectDir)
-            .build()
-        val domainProject = ProjectBuilder.builder()
-            .withName("domain")
-            .withParent(rootProject)
-            .withProjectDir(rootProjectDir.resolve("domain"))
-            .build()
-        domainProject.tasks.register("kspKotlin")
-        rootProject.tasks.register("kspKotlin")
-
-        val dependencies = inferDependencies(
-            rootProject,
-            projectConfig(
-                sources = mapOf(
-                    "ksp-metadata" to SourceConfig(
-                        options = mapOf("inputDir" to domainProject.layout.buildDirectory.dir("generated/ksp/main").get().asFile.absolutePath),
-                    )
-                ),
-                generators = emptyMap(),
-            )
-        )
-
-        assertEquals(listOf(":domain:kspKotlin"), dependencies.map { it.path })
-    }
-
-    @Test
-    fun `ksp metadata without input dir does not infer ksp task`() {
-        val rootProjectDir = tempProjectDir("pipeline-plugin-ksp-domain-event-root")
-        val rootProject = ProjectBuilder.builder()
-            .withProjectDir(rootProjectDir)
-            .build()
-        val domainProject = ProjectBuilder.builder()
-            .withName("domain")
-            .withParent(rootProject)
-            .withProjectDir(rootProjectDir.resolve("domain"))
-            .build()
-        domainProject.tasks.register("kspKotlin")
-        rootProject.tasks.register("kspKotlin")
-
-        val dependencies = inferDependencies(
-            rootProject,
-            projectConfig(
-                sources = mapOf(
-                    "ksp-metadata" to SourceConfig()
-                ),
-                generators = emptyMap(),
-            )
-        )
-
-        assertEquals(emptyList<String>(), dependencies.map { it.path })
-    }
-
-    @Test
     fun `flow with ir analysis depends on relevant compile task only`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-flow-root")
         val rootProject = ProjectBuilder.builder()
@@ -961,7 +872,6 @@ class PipelinePluginTest {
             .withProjectDir(projectDir)
             .build()
         project.tasks.register("compileKotlin")
-        project.tasks.register("kspKotlin")
 
         val dependencies = inferDependencies(
             project,

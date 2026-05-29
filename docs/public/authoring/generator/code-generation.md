@@ -2,7 +2,7 @@
 
 > 这页定义项目作者默认应如何使用 `cap4kPlan` 与 `cap4kGenerate`，以及何时必须读 `build/cap4k/plan.json`。
 
-生成前先确认输入源：DB / design / enum manifest / KSP / IR 见 [生成输入源](input-sources.md)。端到端生成物 ownership 见 [项目编写工作流](../project-authoring-workflow.md#4-区分生成物骨架快照手写代码)。示例语境统一回到 [示例总览](../examples/index.md) 的内容发布与媒体处理项目。
+生成前先确认输入源：DB / design / enum manifest / value-object manifest / IR 见 [生成输入源](input-sources.md)。端到端生成物 ownership 见 [项目编写工作流](../project-authoring-workflow.md#4-区分生成物骨架快照手写代码)。示例语境统一回到 [示例总览](../examples/index.md) 的内容发布与媒体处理项目。
 
 ## 何时先跑 `cap4kPlan`
 
@@ -10,7 +10,7 @@
 
 - 新项目第一次准备生成业务源码。
 - `project { }`、`sources { }`、`generators { }`、`layout { }`、`templates { }` 改过之后。
-- `design.json`、数据库 schema、KSP metadata、共享枚举清单或 value-object manifest 刚改完，你需要确认新增、删除或迁移的产物。
+- `design.json`、数据库 schema、共享枚举清单或 value-object manifest 刚改完，你需要确认新增、删除或迁移的产物。
 - 你不确定某个产物会落到哪个模块、哪个输出根，或到底属于 generated source 还是 checked-in source。
 
 `cap4kPlan` 的硬边界很明确：

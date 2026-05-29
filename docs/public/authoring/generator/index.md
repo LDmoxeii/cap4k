@@ -14,7 +14,7 @@
 ## 最小原理
 
 - 生成步骤顺序是固定的；作者只需要准备输入、启用需要的生成族、确认输出落点，不需要自己编排阶段顺序。
-- `sources { }` 先提供设计、数据库、KSP 元数据或 IR 分析输入；插件会先把这些输入整理成统一的生成计划。
+- `sources { }` 先提供设计、数据库、manifest 或 IR 分析输入；插件会先把这些输入整理成统一的生成计划。
 - `cap4kPlan` 先回答“这次将生成什么、落到哪里、由哪类输出根持有”。
 - `cap4kGenerate` 再真正落源码产物。
 - `cap4kAnalysis*` 只负责导出观察材料，不是默认主生成路径。
@@ -39,7 +39,7 @@
 ## 阅读顺序
 
 1. [Bootstrap](bootstrap.md)
-2. [输入源：DB / design / enum manifest / KSP / IR](input-sources.md)
+2. [输入源：DB / design / enum manifest / value-object manifest / IR](input-sources.md)
 3. [Code Generation](code-generation.md)
 4. [Code Analysis](code-analysis.md)
 5. [Addon 与 SPI 使用](addons-and-spi.md)

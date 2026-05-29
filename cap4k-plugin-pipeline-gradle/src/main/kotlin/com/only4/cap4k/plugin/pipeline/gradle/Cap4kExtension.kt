@@ -253,16 +253,11 @@ open class OutputRootLayoutExtension @Inject constructor(objects: ObjectFactory)
 
 open class Cap4kSourcesExtension @Inject constructor(objects: ObjectFactory) {
     val designJson: DesignJsonSourceExtension = objects.newInstance(DesignJsonSourceExtension::class.java)
-    val kspMetadata: KspMetadataSourceExtension = objects.newInstance(KspMetadataSourceExtension::class.java)
     val db: DbSourceExtension = objects.newInstance(DbSourceExtension::class.java)
     val irAnalysis: IrAnalysisSourceExtension = objects.newInstance(IrAnalysisSourceExtension::class.java)
 
     fun designJson(block: DesignJsonSourceExtension.() -> Unit) {
         designJson.block()
-    }
-
-    fun kspMetadata(block: KspMetadataSourceExtension.() -> Unit) {
-        kspMetadata.block()
     }
 
     fun db(block: DbSourceExtension.() -> Unit) {
@@ -277,11 +272,6 @@ open class Cap4kSourcesExtension @Inject constructor(objects: ObjectFactory) {
 open class DesignJsonSourceExtension @Inject constructor(objects: ObjectFactory) {
     val manifestFile: Property<String> = objects.property(String::class.java)
     val files: ConfigurableFileCollection = objects.fileCollection()
-}
-
-open class KspMetadataSourceExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-    val inputDir: Property<String> = objects.property(String::class.java)
 }
 
 open class DbSourceExtension @Inject constructor(objects: ObjectFactory) {
@@ -512,9 +502,6 @@ internal val Cap4kExtension.adapterModulePath: Property<String>
 
 internal val Cap4kExtension.designFiles: ConfigurableFileCollection
     get() = sources.designJson.files
-
-internal val Cap4kExtension.kspMetadataDir: Property<String>
-    get() = sources.kspMetadata.inputDir
 
 internal val Cap4kExtension.irAnalysisInputDirs: ConfigurableFileCollection
     get() = sources.irAnalysis.inputDirs

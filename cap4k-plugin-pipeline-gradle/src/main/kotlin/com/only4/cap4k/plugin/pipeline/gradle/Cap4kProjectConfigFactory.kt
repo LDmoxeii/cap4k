@@ -33,7 +33,6 @@ class Cap4kProjectConfigFactory {
         val sourceStates = SourceStates(
             designJsonConfigured = extension.sources.designJson.manifestFile.optionalValue() != null ||
                 !extension.sources.designJson.files.isEmpty,
-            kspMetadataEnabled = extension.sources.kspMetadata.enabled.get(),
             dbEnabled = extension.sources.db.enabled.get(),
             irAnalysisConfigured = !extension.sources.irAnalysis.inputDirs.isEmpty,
             enumManifestConfigured = !extension.types.enumManifest.files.isEmpty,
@@ -138,22 +137,6 @@ class Cap4kProjectConfigFactory {
                 val files = extension.sources.designJson.files.files.map(File::getAbsolutePath).sorted()
                 put("design-json", SourceConfig(options = mapOf("files" to files)))
             }
-        }
-
-        if (states.kspMetadataEnabled) {
-            put(
-                "ksp-metadata",
-                SourceConfig(
-                    options = mapOf(
-                        "inputDir" to project.file(
-                            extension.sources.kspMetadata.inputDir.requiredWhenEnabled(
-                                "sources.kspMetadata.inputDir",
-                                "kspMetadata"
-                            )
-                        ).absolutePath
-                    ),
-                )
-            )
         }
 
         if (states.dbEnabled) {
@@ -360,7 +343,6 @@ class Cap4kProjectConfigFactory {
 
 private data class SourceStates(
     val designJsonConfigured: Boolean,
-    val kspMetadataEnabled: Boolean,
     val dbEnabled: Boolean,
     val irAnalysisConfigured: Boolean,
     val enumManifestConfigured: Boolean,

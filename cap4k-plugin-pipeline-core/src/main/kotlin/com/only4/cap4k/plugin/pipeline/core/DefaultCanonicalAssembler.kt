@@ -32,7 +32,6 @@ import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IntegrationEventModel
 import com.only4.cap4k.plugin.pipeline.api.IntegrationEventRole
-import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnostics
@@ -68,59 +67,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             .map { entry -> entry.toDesignBlockModel() }
             .toList()
 
-        val aggregateLookup = snapshots
-            .filterIsInstance<KspMetadataSnapshot>()
-            .flatMap { it.aggregates }
-            .associateBy { it.aggregateName }
-
         val analysisSnapshot = snapshots.filterIsInstance<IrAnalysisSnapshot>().firstOrNull()
-
-        val commands = designSnapshot?.entries.orEmpty()
-            .asSequence()
-            .filter { entry -> entry.tag == "command" }
-            .map { entry ->
-                CommandModel(
-                    packageName = entry.packageName,
-                    typeName = "${entry.name}Cmd",
-                    description = entry.description,
-                    aggregateRef = entry.requestAggregateRef(aggregateLookup),
-                    requestFields = entry.primaryFields(),
-                    responseFields = entry.resultPayloadFields(),
-                    variant = CommandVariant.DEFAULT,
-                )
-            }
-            .toList()
-
-        val queries = designSnapshot?.entries.orEmpty()
-            .asSequence()
-            .filter { entry -> entry.tag == "query" }
-            .map { entry ->
-                QueryModel(
-                    packageName = entry.packageName,
-                    typeName = "${entry.name}Qry",
-                    description = entry.description,
-                    aggregateRef = entry.requestAggregateRef(aggregateLookup),
-                    requestFields = entry.primaryFields(),
-                    responseFields = entry.resultPayloadFields(),
-                    traits = entry.traits,
-                )
-            }
-            .toList()
-
-        val clients = designSnapshot?.entries.orEmpty()
-            .asSequence()
-            .filter { entry -> entry.tag == "client" }
-            .map { entry ->
-                ClientModel(
-                    packageName = entry.packageName,
-                    typeName = "${entry.name}Cli",
-                    description = entry.description,
-                    aggregateRef = entry.requestAggregateRef(aggregateLookup),
-                    requestFields = entry.primaryFields(),
-                    responseFields = entry.resultPayloadFields(),
-                )
-            }
-            .toList()
 
         val apiPayloads = designSnapshot?.entries.orEmpty()
             .asSequence()
@@ -336,6 +283,52 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     )
                 }
             )
+        val commands = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag == "command" }
+            .map { entry ->
+                CommandModel(
+                    packageName = entry.packageName,
+                    typeName = "${entry.name}Cmd",
+                    description = entry.description,
+                    aggregateRef = entry.requestAggregateRef(aggregateEntityMetadata),
+                    requestFields = entry.primaryFields(),
+                    responseFields = entry.resultPayloadFields(),
+                    variant = CommandVariant.DEFAULT,
+                )
+            }
+            .toList()
+
+        val queries = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag == "query" }
+            .map { entry ->
+                QueryModel(
+                    packageName = entry.packageName,
+                    typeName = "${entry.name}Qry",
+                    description = entry.description,
+                    aggregateRef = entry.requestAggregateRef(aggregateEntityMetadata),
+                    requestFields = entry.primaryFields(),
+                    responseFields = entry.resultPayloadFields(),
+                    traits = entry.traits,
+                )
+            }
+            .toList()
+
+        val clients = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag == "client" }
+            .map { entry ->
+                ClientModel(
+                    packageName = entry.packageName,
+                    typeName = "${entry.name}Cli",
+                    description = entry.description,
+                    aggregateRef = entry.requestAggregateRef(aggregateEntityMetadata),
+                    requestFields = entry.primaryFields(),
+                    responseFields = entry.resultPayloadFields(),
+                )
+            }
+            .toList()
         val domainEvents = designSnapshot?.entries.orEmpty()
             .asSequence()
             .filter { entry -> entry.tag == "domain_event" }
@@ -345,7 +338,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     entry = entry,
                     aggregateName = aggregateName,
                     aggregateEntityMetadata = aggregateEntityMetadata,
-                    aggregateLookup = aggregateLookup,
                 )
                 DomainEventModel(
                     packageName = resolveDomainEventPackageKey(aggregate.rootPackageName, config),
@@ -846,10 +838,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         entry: DesignSpecEntry,
         aggregateName: String,
         aggregateEntityMetadata: Map<String, AggregateMetadataRecord>,
-        aggregateLookup: Map<String, AggregateMetadataRecord>,
     ): AggregateMetadataRecord {
         return aggregateEntityMetadata[aggregateName]
-            ?: aggregateLookup[aggregateName]
             ?: throw IllegalArgumentException("domain_event ${entry.name} references missing aggregate metadata: $aggregateName")
     }
 
