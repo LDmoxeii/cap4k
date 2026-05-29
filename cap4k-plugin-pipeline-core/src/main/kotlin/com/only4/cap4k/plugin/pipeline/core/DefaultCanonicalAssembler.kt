@@ -176,7 +176,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     packageName = entry.packageName,
                     typeName = entry.name.toIntegrationEventTypeName(),
                     description = entry.description,
-                    role = entry.integrationEventRole(integrationEventArtifact),
+                    role = entry.integrationEventRole(integrationEventArtifact, explicitArtifacts = entry.artifacts != null),
                     eventName = entry.integrationEventName(),
                     fields = entry.integrationEventRequestFields(),
                 )
@@ -789,16 +789,22 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return "${element.tag}|${element.packageName}|${element.name}"
     }
 
-    private fun DesignSpecEntry.integrationEventRole(integrationEventArtifact: ArtifactSelectionModel): IntegrationEventRole {
-        return when (role) {
+    private fun DesignSpecEntry.integrationEventRole(
+        integrationEventArtifact: ArtifactSelectionModel,
+        explicitArtifacts: Boolean,
+    ): IntegrationEventRole {
+        if (!explicitArtifacts) {
+            when (role) {
+                "inbound" -> return IntegrationEventRole.INBOUND
+                "outbound" -> return IntegrationEventRole.OUTBOUND
+                null -> Unit
+                else -> throw IllegalArgumentException("integration_event $name must declare role inbound or outbound.")
+            }
+        }
+        return when (integrationEventArtifact.variant) {
             "inbound" -> IntegrationEventRole.INBOUND
             "outbound" -> IntegrationEventRole.OUTBOUND
-            null -> when (integrationEventArtifact.variant) {
-                "inbound" -> IntegrationEventRole.INBOUND
-                "outbound" -> IntegrationEventRole.OUTBOUND
-                else -> throw IllegalArgumentException("integration_event $name must select integration-event variant inbound or outbound.")
-            }
-            else -> throw IllegalArgumentException("integration_event $name must declare role inbound or outbound.")
+            else -> throw IllegalArgumentException("integration_event $name must select integration-event variant inbound or outbound.")
         }
     }
 

@@ -223,6 +223,38 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `explicit integration event artifact variant overrides legacy role in typed projection`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "integration_event",
+                            packageName = "order.events",
+                            name = "OrderCreated",
+                            description = "order created",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            eventName = "order.created",
+                            role = "outbound",
+                            artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        assertEquals(
+            listOf(ArtifactSelectionModel("integration-event", "inbound")),
+            model.designBlocks.single().artifacts,
+        )
+        assertEquals(IntegrationEventRole.INBOUND, model.integrationEvents.single().role)
+    }
+
+    @Test
     fun `explicit query page artifact does not add query handler default`() {
         val model = DefaultCanonicalAssembler().assemble(
             config = baseConfig(),
