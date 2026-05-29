@@ -8,6 +8,37 @@ import org.junit.jupiter.api.Test
 class PipelineModelsTest {
 
     @Test
+    fun `design block stores artifact selections`() {
+        val block = DesignBlockModel(
+            tag = "query",
+            packageName = "order.read",
+            name = "FindOrderPage",
+            description = "Find order page",
+            aggregates = listOf("Order"),
+            artifacts = listOf(
+                ArtifactSelectionModel(family = "query", variant = "page"),
+                ArtifactSelectionModel(family = "query-handler"),
+            ),
+            fields = listOf(FieldModel(name = "keyword", type = "String", nullable = true)),
+            resultFields = listOf(FieldModel(name = "orderNo", type = "String")),
+        )
+
+        assertEquals("query", block.tag)
+        assertEquals(listOf("Order"), block.aggregates)
+        assertEquals("page", block.artifacts.first().variant)
+        assertEquals("query-handler", block.artifacts.last().family)
+        assertEquals("keyword", block.fields.single().name)
+        assertEquals("orderNo", block.resultFields.single().name)
+    }
+
+    @Test
+    fun `canonical model defaults design blocks to empty list`() {
+        val model = CanonicalModel()
+
+        assertEquals(emptyList<DesignBlockModel>(), model.designBlocks)
+    }
+
+    @Test
     fun `artifact addon provider can create plan items from canonical context`() {
         val provider = object : ArtifactAddonProvider {
             override val id: String = "sample-addon"

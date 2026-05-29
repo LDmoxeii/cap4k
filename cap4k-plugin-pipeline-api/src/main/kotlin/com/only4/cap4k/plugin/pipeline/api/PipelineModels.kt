@@ -92,6 +92,24 @@ data class DesignSpecEntry(
     val eventName: String? = null,
 )
 
+data class ArtifactSelectionModel(
+    val family: String,
+    val variant: String = "",
+)
+
+data class DesignBlockModel(
+    val tag: String,
+    val packageName: String,
+    val name: String,
+    val description: String = "",
+    val aggregates: List<String> = emptyList(),
+    val eventName: String = "",
+    val persist: Boolean? = null,
+    val artifacts: List<ArtifactSelectionModel>,
+    val fields: List<FieldModel> = emptyList(),
+    val resultFields: List<FieldModel> = emptyList(),
+)
+
 data class DesignFieldSnapshot(
     val name: String,
     val type: String,
@@ -578,6 +596,7 @@ data class StrongIdModel(
 data class CanonicalModel(
     val project: ProjectModel = ProjectModel(),
     val aggregates: List<AggregateModel> = emptyList(),
+    val designBlocks: List<DesignBlockModel> = emptyList(),
     val commands: List<CommandModel> = emptyList(),
     val queries: List<QueryModel> = emptyList(),
     val clients: List<ClientModel> = emptyList(),
