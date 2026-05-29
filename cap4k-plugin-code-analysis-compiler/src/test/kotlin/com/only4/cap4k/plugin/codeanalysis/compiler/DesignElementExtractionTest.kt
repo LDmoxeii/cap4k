@@ -1,11 +1,161 @@
 package com.only4.cap4k.plugin.codeanalysis.compiler
 
 import com.tschuchort.compiletesting.SourceFile
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class DesignElementExtractionTest {
+    @Test
+    fun `recovers and merges design blocks from BuildingBlock annotations`() {
+        val sources = listOf(
+            SourceFile.kotlin(
+                "BuildingBlock.kt",
+                """
+                    package com.only4.cap4k.ddd.core.annotation
+
+                    annotation class BuildingBlock(
+                        val tag: String,
+                        val name: String,
+                        val packageName: String,
+                        val description: String = "",
+                        val aggregates: Array<String> = [],
+                        val eventName: String = "",
+                        val family: String = "",
+                        val variant: String = "",
+                    )
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "FindOrder.kt",
+                """
+                    package demo.application.queries.order
+
+                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+
+                    @BuildingBlock(
+                        tag = "query",
+                        packageName = "order.read",
+                        name = "FindOrder",
+                        description = "Find order",
+                        aggregates = ["Order"],
+                        family = "query",
+                        variant = "detail",
+                    )
+                    data class FindOrder(
+                        val orderId: Long,
+                        val keyword: String? = null,
+                    ) {
+                        data class Response(val orderNo: String)
+                    }
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "FindOrderQueryHandler.kt",
+                """
+                    package demo.adapter.queries.order
+
+                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+
+                    @BuildingBlock(
+                        tag = "query",
+                        packageName = "order.read",
+                        name = "FindOrder",
+                        description = "Find order",
+                        aggregates = ["Order"],
+                        family = "query-handler",
+                    )
+                    class FindOrderQueryHandler
+                """.trimIndent()
+            )
+        )
+
+        val outputDir = compileWithCap4kPlugin(sources)
+        val json = outputDir.resolve("design-elements.json").toFile().readText()
+        val objects = extractTopLevelObjects(json)
+        val findOrderBlocks = objects.filter { it.contains("\"tag\":\"query\"") && it.contains("\"name\":\"FindOrder\"") }
+
+        assertEquals(1, findOrderBlocks.size)
+        val findOrder = findOrderBlocks.single()
+        assertTrue(findOrder.contains("\"package\":\"order.read\""))
+        assertTrue(findOrder.contains("\"description\":\"Find order\""))
+        assertTrue(findOrder.contains("\"aggregates\":[\"Order\"]"))
+        assertTrue(findOrder.contains("\"artifacts\":[{\"family\":\"query\",\"variant\":\"detail\"},{\"family\":\"query-handler\"}]"))
+        assertTrue(findOrder.contains("\"fields\":[{\"name\":\"orderId\",\"type\":\"Long\",\"nullable\":false}"))
+        assertTrue(findOrder.contains("\"name\":\"keyword\",\"type\":\"String\",\"nullable\":true,\"defaultValue\":\"null\""))
+        assertTrue(findOrder.contains("\"resultFields\":[{\"name\":\"orderNo\",\"type\":\"String\",\"nullable\":false}]"))
+        assertFalse(json.contains("\"desc\""))
+        assertFalse(json.contains("\"traits\""))
+        assertFalse(json.contains("\"role\""))
+        assertFalse(json.contains("\"entity\""))
+        assertFalse(json.contains("\"requestFields\""))
+        assertFalse(json.contains("\"responseFields\""))
+    }
+
+    @Test
+    fun `rejects conflicting BuildingBlock shared metadata`() {
+        val sources = listOf(
+            SourceFile.kotlin(
+                "BuildingBlock.kt",
+                """
+                    package com.only4.cap4k.ddd.core.annotation
+
+                    annotation class BuildingBlock(
+                        val tag: String,
+                        val name: String,
+                        val packageName: String,
+                        val description: String = "",
+                        val aggregates: Array<String> = [],
+                        val eventName: String = "",
+                        val family: String = "",
+                        val variant: String = "",
+                    )
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "FindOrder.kt",
+                """
+                    package demo.application.queries.order
+
+                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+
+                    @BuildingBlock(
+                        tag = "query",
+                        packageName = "order.read",
+                        name = "FindOrder",
+                        description = "Find order",
+                        family = "query",
+                    )
+                    class FindOrder
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "FindOrderQueryHandler.kt",
+                """
+                    package demo.adapter.queries.order
+
+                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+
+                    @BuildingBlock(
+                        tag = "query",
+                        packageName = "order.read",
+                        name = "FindOrder",
+                        description = "Find order differently",
+                        family = "query-handler",
+                    )
+                    class FindOrderQueryHandler
+                """.trimIndent()
+            )
+        )
+
+        val messages = compileWithCap4kPluginExpectingFailure(sources)
+
+        assertTrue(
+            messages.contains("conflicting BuildingBlock metadata for query order.read FindOrder: description"),
+        )
+    }
+
     @Test
     fun `emits design-elements json from request and payload`() {
         val sources = listOf(
@@ -222,55 +372,7 @@ class DesignElementExtractionTest {
 
         val outputDir = compileWithCap4kPlugin(sources)
         val json = outputDir.resolve("design-elements.json").toFile().readText()
-        val objects = extractTopLevelObjects(json)
-        assertTrue(json.contains("\"tag\":\"command\""))
-        assertTrue(json.contains("\"name\":\"IssueToken\""))
-        assertTrue(json.contains("\"name\":\"SubmitOrder\""))
-        assertTrue(json.contains("\"cmdValue\""))
-        assertTrue(json.contains("\"cmdResult\""))
-        assertTrue(json.contains("\"tag\":\"query\""))
-        assertTrue(json.contains("\"name\":\"AutoLogin\""))
-        assertTrue(json.contains("\"sessionToken\""))
-        assertTrue(json.contains("\"tag\":\"client\""))
-        assertTrue(json.contains("\"name\":\"CaptchaGen\""))
-        assertTrue(json.contains("\"cliAccount\""))
-        assertTrue(json.contains("\"captchaId\""))
-        assertTrue(json.contains("\"tag\":\"api_payload\""))
-        assertTrue(json.contains("\"account.accountNumber\""))
-        assertTrue(json.contains("\"name\":\"FindOrderPage\""))
-        assertTrue(findObject(objects, "query", "FindOrderPage").contains("\"traits\":[\"page\"]"))
-        assertTrue(findObject(objects, "api_payload", "getOrderPage").contains("\"traits\":[\"page\"]"))
-        assertTrue(json.contains("\"tag\":\"domain_event\""))
-        assertTrue(json.contains("\"name\":\"UserCreated\""))
-        assertTrue(json.contains("\"entity\":\"User\""))
-        assertTrue(json.contains("\"persist\":true"))
-        val autoLogin = findObject(objects, "query", "AutoLogin")
-        assertTrue(autoLogin.contains("\"requestFields\":[]"))
-        val fireAndForget = findObject(objects, "command", "FireAndForget")
-        assertTrue(fireAndForget.contains("\"responseFields\":[]"))
-        val topCmd = findObject(objects, "command", "Top")
-        assertTrue(topCmd.contains("\"package\":\"\""))
-        val topQry = findObject(objects, "query", "Top")
-        assertTrue(topQry.contains("\"package\":\"\""))
-        val topCli = findObject(objects, "client", "Top")
-        assertTrue(topCli.contains("\"package\":\"\""))
-        val userCreated = findObject(objects, "domain_event", "UserCreated")
-        assertTrue(userCreated.contains("\"package\":\"user\""))
-        assertTrue(userCreated.contains("\"responseFields\":[]"))
-        val mediaProcessing = findObject(objects, "integration_event", "MediaProcessingCallbackIntegrationEvent")
-        assertTrue(mediaProcessing.contains("\"package\":\"media.processing\""))
-        assertTrue(mediaProcessing.contains("\"role\":\"inbound\""))
-        assertTrue(mediaProcessing.contains("\"eventName\":\"cap4k.reference.contentstudio.media-processing.succeeded\""))
-        assertTrue(mediaProcessing.contains("\"name\":\"externalTaskId\""))
-        assertTrue(mediaProcessing.contains("\"type\":\"String\""))
-        assertTrue(mediaProcessing.contains("\"responseFields\":[]"))
-        val contentPublished = findObject(objects, "integration_event", "ContentPublishedIntegrationEvent")
-        assertTrue(contentPublished.contains("\"package\":\"content\""))
-        assertTrue(contentPublished.contains("\"role\":\"outbound\""))
-        assertTrue(contentPublished.contains("\"eventName\":\"cap4k.reference.content.published\""))
-        assertFalse(json.contains("IgnoredRuntimeIntegrationEvent"))
-        assertFalse(json.contains("\"package\":\"account.BatchSaveAccountList.Converter\""))
-        assertFalse(json.contains("\"name\":\"companion\""))
+        assertEquals("[]", json)
     }
 
     @Test
@@ -443,24 +545,7 @@ class DesignElementExtractionTest {
 
         val outputDir = compileWithCap4kPlugin(sources)
         val json = outputDir.resolve("design-elements.json").toFile().readText()
-        val objects = extractTopLevelObjects(json)
-        val category = findObject(objects, "validator", "CategoryMustExist")
-        val danmuku = findObject(objects, "validator", "DanmukuDeletePermission")
-
-        assertTrue(category.contains("\"package\":\"category\""))
-        assertTrue(category.contains("\"message\":\"category missing\""))
-        assertTrue(category.contains("\"targets\":[\"FIELD\",\"VALUE_PARAMETER\"]"))
-        assertTrue(category.contains("\"valueType\":\"Long\""))
-        assertTrue(danmuku.contains("\"package\":\"danmuku\""))
-        assertTrue(danmuku.contains("\"message\":\"no delete permission\""))
-        assertTrue(danmuku.contains("\"targets\":[\"CLASS\"]"))
-        assertTrue(danmuku.contains("\"valueType\":\"Any\""))
-        assertTrue(danmuku.contains("\"name\":\"danmukuIdField\""))
-        assertTrue(danmuku.contains("\"defaultValue\":\"danmukuId\""))
-        assertFalse(json.contains("UniqueUserMessageMessageKey"))
-        assertFalse(json.contains("VideoDeletePermission"))
-        assertFalse(json.contains("MixedUnsupportedTarget"))
-        assertFalse(json.contains("ClassScalarValidator"))
+        assertEquals("[]", json)
     }
 
     @Test
@@ -478,13 +563,10 @@ class DesignElementExtractionTest {
             )
         )
 
-        val messages = compileWithCap4kPluginExpectingFailure(sources)
+        val outputDir = compileWithCap4kPlugin(sources)
+        val json = outputDir.resolve("design-elements.json").toFile().readText()
 
-        assertTrue(
-            messages.contains(
-                "api_payload legacyPayload must define nested Response; legacy nested Item is not supported by analysis projection.",
-            ),
-        )
+        assertEquals("[]", json)
     }
 
     @Test
@@ -508,13 +590,10 @@ class DesignElementExtractionTest {
             )
         )
 
-        val messages = compileWithCap4kPluginExpectingFailure(sources)
+        val outputDir = compileWithCap4kPlugin(sources)
+        val json = outputDir.resolve("design-elements.json").toFile().readText()
 
-        assertTrue(
-            messages.contains(
-                "integration_event MissingEventNameIntegrationEvent must declare non-blank @IntegrationEvent value.",
-            ),
-        )
+        assertEquals("[]", json)
     }
 
     private fun extractTopLevelObjects(json: String): List<String> {

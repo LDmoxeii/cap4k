@@ -127,7 +127,6 @@ private data class EntityMethodRef(
 private data class ClassIndex(
     val aggregateInfoByClass: Map<String, AggregateInfo>,
     val aggregateRootsByName: Map<String, String>,
-    val payloadToAggregateName: Map<String, String>,
     val entityMethodNamesByClass: Map<String, Set<String>>,
     val domainEventClasses: Set<String>,
     val integrationEventClasses: Set<String>,
@@ -223,12 +222,11 @@ private class ClassIndexBuilder(
 ) : IrVisitorVoid() {
     private val aggregateInfoByClass = mutableMapOf<String, AggregateInfo>()
     private val aggregateRootsByName = mutableMapOf<String, String>()
-    private val payloadToAggregateName = mutableMapOf<String, String>()
     private val entityMethodNamesByClass = mutableMapOf<String, MutableSet<String>>()
     private val domainEventClasses = mutableSetOf<String>()
     private val integrationEventClasses = mutableSetOf<String>()
 
-    private val aggregateAnn = FqName(options.aggregateAnnFq)
+    private val aggregateElementAnn = FqName(options.aggregateElementAnnFq)
     private val domainEventAnn = FqName(options.domainEventAnnFq)
     private val integrationEventAnn = FqName(options.integrationEventAnnFq)
 
@@ -246,7 +244,7 @@ private class ClassIndexBuilder(
             integrationEventClasses.add(fqcn)
         }
 
-        val aggInfo = declaration.readAggregateInfo(aggregateAnn)
+        val aggInfo = declaration.readAggregateElementInfo(aggregateElementAnn)
         if (aggInfo != null) {
             aggregateInfoByClass[fqcn] = aggInfo
             when (aggInfo.type) {
@@ -259,8 +257,6 @@ private class ClassIndexBuilder(
                         .map { it.name.asString() }
                         .forEach { names.add(it) }
                 }
-                AGG_TYPE_FACTORY_PAYLOAD -> payloadToAggregateName[fqcn] = aggInfo.aggregateName
-                AGG_TYPE_DOMAIN_EVENT -> domainEventClasses.add(fqcn)
             }
         }
 
@@ -270,7 +266,6 @@ private class ClassIndexBuilder(
     fun build(): ClassIndex = ClassIndex(
         aggregateInfoByClass = aggregateInfoByClass.toMap(),
         aggregateRootsByName = aggregateRootsByName.toMap(),
-        payloadToAggregateName = payloadToAggregateName.toMap(),
         entityMethodNamesByClass = entityMethodNamesByClass.mapValues { it.value.toSet() },
         domainEventClasses = domainEventClasses.toSet(),
         integrationEventClasses = integrationEventClasses.toSet(),
@@ -304,7 +299,7 @@ private class GraphCollector(
         "org.springframework.web.bind.annotation.PatchMapping"
     ).map(::FqName).toSet()
 
-    private val aggregateAnn = FqName(options.aggregateAnnFq)
+    private val aggregateElementAnn = FqName(options.aggregateElementAnnFq)
     private val domainEventAnn = FqName(options.domainEventAnnFq)
     private val integrationEventAnn = FqName(options.integrationEventAnnFq)
     private val eventListenerAnn = FqName(options.eventListenerAnnFq)
@@ -666,13 +661,7 @@ private class GraphCollector(
     }
 
     private fun resolveAggregateRootFromPayload(payloadClass: IrClass): String? {
-        val payloadFq = payloadClass.fqNameWhenAvailable?.asString() ?: return null
-        val aggName = index.payloadToAggregateName[payloadFq]
-            ?: payloadClass.readAggregateInfo(aggregateAnn)
-                ?.takeIf { it.type == AGG_TYPE_FACTORY_PAYLOAD }
-                ?.aggregateName
-            ?: return null
-        return aggregateRootsByName[aggName]
+        return null
     }
 
     private fun resolveAggregateRootFromExpression(expression: IrExpression?): String? {
@@ -827,7 +816,7 @@ private class GraphCollector(
         val fq = fqNameWhenAvailable?.asString() ?: return null
         return aggregateInfoCache.getOrPut(fq) {
             index.aggregateInfoByClass[fq]
-                ?: readAggregateInfo(aggregateAnn)
+                ?: readAggregateElementInfo(aggregateElementAnn)
                 ?: inferGeneratedEntityAggregateInfo(applicationSideIdAnn)
         }
     }
@@ -1017,8 +1006,8 @@ private fun IrClass.findSuperTypeArgument(fqName: FqName, index: Int): IrType? {
     }
 }
 
-private fun IrClass.readAggregateInfo(aggregateAnn: FqName): AggregateInfo? {
-    val ann = annotations.firstOrNull { it.symbol.owner.parentAsClass.fqNameWhenAvailable == aggregateAnn }
+private fun IrClass.readAggregateElementInfo(aggregateElementAnn: FqName): AggregateInfo? {
+    val ann = annotations.firstOrNull { it.symbol.owner.parentAsClass.fqNameWhenAvailable == aggregateElementAnn }
         ?: return null
     val aggregateName = ann.getStringArg("aggregate") ?: ""
     val type = ann.getStringArg("type") ?: ""
@@ -1139,8 +1128,6 @@ private fun IrExpression.unwrapExpression(): IrExpression {
 }
 
 private const val AGG_TYPE_ENTITY = "entity"
-private const val AGG_TYPE_FACTORY_PAYLOAD = "factory-payload"
-private const val AGG_TYPE_DOMAIN_EVENT = "domain-event"
 
 private class JsonFileMetadataSink(private val outputDir: String) : MetadataSink {
     override fun write(nodes: Sequence<Node>, relationships: Sequence<Relationship>) {

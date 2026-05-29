@@ -1,71 +1,51 @@
 package com.only4.cap4k.plugin.codeanalysis.compiler
 
 import com.only4.cap4k.plugin.codeanalysis.core.model.DesignElement
+import com.only4.cap4k.plugin.codeanalysis.core.model.DesignArtifact
 import com.only4.cap4k.plugin.codeanalysis.core.model.DesignField
-import com.only4.cap4k.plugin.codeanalysis.core.model.DesignParameter
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class DesignElementJsonWriterTest {
     @Test
-    fun `serializes design elements with fields and defaults`() {
+    fun `serializes public design block schema with fields artifacts and defaults`() {
         val elements = listOf(
             DesignElement(
                 tag = "api_payload",
                 `package` = "account",
                 name = "batchSaveAccountList",
-                desc = "",
+                description = "batch save accounts",
                 aggregates = emptyList(),
-                entity = null,
                 persist = true,
-                traits = listOf("page"),
-                requestFields = listOf(
+                artifacts = listOf(
+                    DesignArtifact(family = "api-payload", variant = "list"),
+                    DesignArtifact(family = "api-payload-handler"),
+                ),
+                fields = listOf(
                     DesignField("globalId", "String", false, "0"),
                     DesignField("account.accountNumber", "String", false, null)
                 ),
-                responseFields = listOf(DesignField("result", "Boolean", false, null))
+                resultFields = listOf(DesignField("result", "Boolean", false, null))
             )
         )
 
         val json = DesignElementJsonWriter().write(elements)
         assertTrue(json.contains("\"name\":\"batchSaveAccountList\""))
+        assertTrue(json.contains("\"description\":\"batch save accounts\""))
         assertTrue(json.contains("\"defaultValue\":\"0\""))
         assertTrue(json.contains("\"nullable\":false"))
         assertTrue(json.contains("\"persist\":true"))
-        assertTrue(json.contains("\"traits\":[\"page\"]"))
+        assertTrue(json.contains("\"artifacts\":[{\"family\":\"api-payload\",\"variant\":\"list\"},{\"family\":\"api-payload-handler\"}]"))
+        assertTrue(json.contains("\"fields\":["))
+        assertTrue(json.contains("\"resultFields\":["))
         assertTrue(json.contains("\"account.accountNumber\""))
-    }
-
-    @Test
-    fun `serializes validator projection fields`() {
-        val elements = listOf(
-            DesignElement(
-                tag = "validator",
-                `package` = "danmuku",
-                name = "DanmukuDeletePermission",
-                desc = "delete permission",
-                message = "no\rdelete\tpermission\b\u000C",
-                targets = listOf("CLASS"),
-                valueType = "Any",
-                parameters = listOf(
-                    DesignParameter(
-                        name = "danmukuIdField",
-                        type = "String",
-                        nullable = false,
-                        defaultValue = "danmuku\r\t\b\u000C",
-                    ),
-                ),
-            )
-        )
-
-        val json = DesignElementJsonWriter().write(elements)
-
-        assertTrue(json.contains("\"tag\":\"validator\""))
-        assertTrue(json.contains("\"message\":\"no\\rdelete\\tpermission\\b\\f\""))
-        assertTrue(json.contains("\"targets\":[\"CLASS\"]"))
-        assertTrue(json.contains("\"valueType\":\"Any\""))
-        assertTrue(json.contains("\"parameters\":[{\"name\":\"danmukuIdField\""))
-        assertTrue(json.contains("\"defaultValue\":\"danmuku\\r\\t\\b\\f\""))
+        assertFalse(json.contains("\"desc\""))
+        assertFalse(json.contains("\"traits\""))
+        assertFalse(json.contains("\"role\""))
+        assertFalse(json.contains("\"entity\""))
+        assertFalse(json.contains("\"requestFields\""))
+        assertFalse(json.contains("\"responseFields\""))
     }
 
     @Test
@@ -75,18 +55,18 @@ class DesignElementJsonWriterTest {
                 tag = "integration_event",
                 `package` = "media.processing",
                 name = "MediaProcessingCallbackIntegrationEvent",
-                desc = "",
-                role = "inbound",
+                description = "media processing completed",
                 eventName = "cap4k.reference.contentstudio.media-processing.succeeded",
-                requestFields = listOf(DesignField("externalTaskId", "String", false, null)),
-                responseFields = emptyList(),
+                fields = listOf(DesignField("externalTaskId", "String", false, null)),
+                resultFields = emptyList(),
             )
         )
 
         val json = DesignElementJsonWriter().write(elements)
 
         assertTrue(json.contains("\"tag\":\"integration_event\""))
-        assertTrue(json.contains("\"role\":\"inbound\""))
+        assertTrue(json.contains("\"description\":\"media processing completed\""))
         assertTrue(json.contains("\"eventName\":\"cap4k.reference.contentstudio.media-processing.succeeded\""))
+        assertFalse(json.contains("\"role\""))
     }
 }

@@ -207,7 +207,13 @@ class AnalysisOutputCorrectnessTest {
         val rels = compileRelationships(
             categorySources(
                 categoryBody = """
-                    @com.only4.cap4k.ddd.core.annotation.AggregateElement(aggregate = "Category", type = "entity", root = true)
+                    @com.only4.cap4k.ddd.core.annotation.AggregateElement(
+                        aggregate = "Category",
+                        type = "entity",
+                        name = "Category",
+                        packageName = "demo.domain.aggregates.category",
+                        root = true,
+                    )
                     class Category {
                         fun changeSort(sort: Int) {
                             CategorySortChanged(sort)
@@ -230,7 +236,7 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
-    fun `supported stable defaults survive request projection into design-elements json`() {
+    fun `supported stable defaults survive building block projection into design-elements json`() {
         val json = compileDesignElements(
             stableDefaultSources(
                 channelsType = "Set<CaptchaChannel>",
@@ -267,9 +273,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field channels",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field channels"),
         )
     }
 
@@ -284,9 +288,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field referenceTitle",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field referenceTitle"),
         )
     }
 
@@ -301,9 +303,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field privateReferenceTitle",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field privateReferenceTitle"),
         )
     }
 
@@ -318,9 +318,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field referenceTitle",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field referenceTitle"),
         )
     }
 
@@ -337,9 +335,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field privatePolicy",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field privatePolicy"),
         )
     }
 
@@ -356,9 +352,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field privatePreferredChannel",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field privatePreferredChannel"),
         )
     }
 
@@ -438,9 +432,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field dynamicTopLevelFieldTitle",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field dynamicTopLevelFieldTitle"),
         )
     }
 
@@ -457,9 +449,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field dynamicJavaFieldTitle",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field dynamicJavaFieldTitle"),
         )
     }
 
@@ -678,6 +668,8 @@ class AnalysisOutputCorrectnessTest {
                     annotation class AggregateElement(
                         val aggregate: String = "",
                         val type: String = "",
+                        val name: String = "",
+                        val packageName: String = "",
                         val root: Boolean = false
                     )
                 """.trimIndent()
@@ -790,6 +782,8 @@ class AnalysisOutputCorrectnessTest {
                     annotation class AggregateElement(
                         val aggregate: String = "",
                         val type: String = "",
+                        val name: String = "",
+                        val packageName: String = "",
                         val root: Boolean = false
                     )
                 """.trimIndent()
@@ -989,10 +983,28 @@ class AnalysisOutputCorrectnessTest {
                 """.trimIndent(),
             ),
             SourceFile.kotlin(
+                "BuildingBlock.kt",
+                """
+                    package com.only4.cap4k.ddd.core.annotation
+
+                    annotation class BuildingBlock(
+                        val tag: String,
+                        val name: String,
+                        val packageName: String,
+                        val description: String = "",
+                        val aggregates: Array<String> = [],
+                        val eventName: String = "",
+                        val family: String = "",
+                        val variant: String = "",
+                    )
+                """.trimIndent(),
+            ),
+            SourceFile.kotlin(
                 "IssueCaptchaCmd.kt",
                 """
                     package demo.application.commands.auth
 
+                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
                     import com.only4.cap4k.ddd.core.application.RequestParam
                     import demo.application.shared.defaults.CaptchaStableDefaults
                     import demo.application.shared.defaults.SharedCaptchaChannel
@@ -1031,6 +1043,13 @@ class AnalysisOutputCorrectnessTest {
                     object CaptchaPolicy
 
                     object IssueCaptchaCmd {
+                        @BuildingBlock(
+                            tag = "command",
+                            packageName = "auth",
+                            name = "IssueCaptcha",
+                            description = "issue captcha",
+                            family = "command",
+                        )
                         data class Request(
                             val note: String? = null,
                             val title: String = "inline",
@@ -1049,7 +1068,9 @@ class AnalysisOutputCorrectnessTest {
                             val objectGetterReferenceTitle: String = SharedGetterDefaults.OBJECT_DEFAULT_TITLE,
                             val privateReferenceTitle: String = $privateReferenceTitleDefaultExpression,
                             $extraRequestFields
-                        ) : RequestParam<Response>
+                        ) : RequestParam<IssueCaptchaCmd.Response> {
+                            data class Response(val issued: Boolean)
+                        }
 
                         data class Response(val issued: Boolean)
                     }
@@ -1183,14 +1204,26 @@ class AnalysisOutputCorrectnessTest {
     companion object {
         private const val UNDEFINED_OFFSET = -1
         private const val DEFAULT_CATEGORY_BODY = """
-            @AggregateElement(aggregate = "Category", type = "entity", root = true)
+            @AggregateElement(
+                aggregate = "Category",
+                type = "entity",
+                name = "Category",
+                packageName = "demo.domain.aggregates.category",
+                root = true,
+            )
             class Category
         """
         private const val GENERATED_STYLE_CATEGORY_BODY = """
             import jakarta.persistence.Entity
             import jakarta.persistence.Table
 
-            @AggregateElement(aggregate = "Category", type = "entity", root = true)
+            @AggregateElement(
+                aggregate = "Category",
+                type = "entity",
+                name = "Category",
+                packageName = "demo.domain.aggregates.category",
+                root = true,
+            )
             @Entity
             @Table(name = "category")
             class Category()

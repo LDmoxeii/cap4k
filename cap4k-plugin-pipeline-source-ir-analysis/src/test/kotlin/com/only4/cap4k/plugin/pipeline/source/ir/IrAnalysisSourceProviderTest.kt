@@ -4,7 +4,6 @@ import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
-import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import java.nio.file.Files
@@ -89,14 +88,18 @@ class IrAnalysisSourceProviderTest {
                 "tag": "command",
                 "package": "orders",
                 "name": "SubmitOrder",
-                "desc": "submit order",
+                "description": "submit order",
                 "aggregates": ["Order"],
-                "requestFields": [
+                "artifacts": [
+                  {"family": "command", "variant": "default"},
+                  {"family": "command-handler"}
+                ],
+                "fields": [
                   {"name": "orderId", "type": "Long", "nullable": false, "defaultValue": "0"},
                   {"name": " ", "type": "String"},
                   null
                 ],
-                "responseFields": [
+                "resultFields": [
                   {"name": "accepted", "type": "Boolean"},
                   {"type": "String"}
                 ]
@@ -105,26 +108,26 @@ class IrAnalysisSourceProviderTest {
                 "tag": "domain_event",
                 "package": "",
                 "name": "OrderCreated",
-                "entity": "Order",
+                "description": "order created domain event",
+                "aggregates": ["Order"],
                 "persist": true
               },
               {
                 "tag": "query",
                 "package": "orders",
                 "name": "FindOrderPage",
-                "desc": "find order page",
-                "traits": ["page"],
-                "requestFields": [],
-                "responseFields": []
+                "description": "find order page",
+                "artifacts": [{"family": "query", "variant": "page"}],
+                "fields": [],
+                "resultFields": []
               },
               {
                 "tag": "integration_event",
                 "package": "orders.events",
                 "name": "OrderCreated",
-                "desc": "order created integration event",
-                "role": "inbound",
+                "description": "order created integration event",
                 "eventName": "order.created",
-                "requestFields": [
+                "fields": [
                   {"name": "orderId", "type": "Long"}
                 ]
               },
@@ -132,7 +135,7 @@ class IrAnalysisSourceProviderTest {
                 "tag": " ",
                 "package": "ignored",
                 "name": "Ignored",
-                "desc": "ignored"
+                "description": "ignored"
               }
             ]
             """.trimIndent()
@@ -155,19 +158,19 @@ class IrAnalysisSourceProviderTest {
         assertEquals("accepted", snapshot.designElements.first().responseFields.first().name)
         assertEquals("Boolean", snapshot.designElements.first().responseFields.first().type)
         val pageQuery = snapshot.designElements.single { it.name == "FindOrderPage" }
-        assertEquals(setOf(RequestTrait.PAGE), pageQuery.traits)
+        assertTrue(pageQuery.traits.isEmpty())
         val integrationEvent = snapshot.designElements.single { it.tag == "integration_event" }
-        assertEquals("inbound", integrationEvent.role)
+        assertEquals(null, integrationEvent.role)
         assertEquals("order.created", integrationEvent.eventName)
         assertEquals(listOf("orderId"), integrationEvent.requestFields.map { it.name })
         val domainEvent = snapshot.designElements.single { it.tag == "domain_event" }
         assertEquals("", domainEvent.packageName)
         assertEquals("OrderCreated", domainEvent.name)
-        assertEquals("", domainEvent.description)
-        assertTrue(domainEvent.aggregates.isEmpty())
+        assertEquals("order created domain event", domainEvent.description)
+        assertEquals(listOf("Order"), domainEvent.aggregates)
         assertTrue(domainEvent.requestFields.isEmpty())
         assertTrue(domainEvent.responseFields.isEmpty())
-        assertEquals("Order", domainEvent.entity)
+        assertEquals(null, domainEvent.entity)
         assertEquals(true, domainEvent.persist)
     }
 
@@ -184,9 +187,9 @@ class IrAnalysisSourceProviderTest {
                 "tag": "command",
                 "package": "orders",
                 "name": "SubmitOrder",
-                "desc": "submit order",
-                "requestFields": { "name": "orderId" },
-                "responseFields": "not-an-array"
+                "description": "submit order",
+                "fields": { "name": "orderId" },
+                "resultFields": "not-an-array"
               }
             ]
             """.trimIndent()
@@ -230,7 +233,6 @@ class IrAnalysisSourceProviderTest {
             modules = emptyMap(),
             sources = mapOf(
                 "ir-analysis" to SourceConfig(
-                    enabled = true,
                     options = mapOf("inputDirs" to inputDirs.toList()),
                 )
             ),
