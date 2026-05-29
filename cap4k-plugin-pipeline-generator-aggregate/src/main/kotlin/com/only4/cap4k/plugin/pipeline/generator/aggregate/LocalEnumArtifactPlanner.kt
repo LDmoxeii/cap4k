@@ -4,9 +4,10 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
+import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
-import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
+import com.only4.cap4k.plugin.pipeline.api.ownerAggregate
 
 internal class LocalEnumArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
@@ -20,15 +21,32 @@ internal class LocalEnumArtifactPlanner : AggregateArtifactFamilyPlanner {
                 if (
                     model.valueObjects.any { valueObject ->
                         valueObject.name == typeBinding &&
-                            when (valueObject.scope) {
-                                ValueObjectScope.SHARED -> true
-                                ValueObjectScope.AGGREGATE ->
-                                    valueObject.aggregate == aggregateRootNameByEntity[entity.key()]
-                            }
+                            (valueObject.aggregates.isEmpty() ||
+                                valueObject.ownerAggregate == aggregateRootNameByEntity[entity.key()])
                     }
                 ) return@forEach
                 val key = LocalEnumCandidateKey(entity.packageName, typeBinding)
-                candidates.putIfAbsent(key, LocalEnumCandidate(entity.packageName, typeBinding, field))
+                putCandidate(
+                    candidates = candidates,
+                    key = key,
+                    candidate = LocalEnumCandidate(entity.packageName, typeBinding, field.enumItems),
+                )
+            }
+        }
+        model.sharedEnums.forEach { definition ->
+            val ownerAggregateName = definition.aggregates.singleOrNull() ?: return@forEach
+            val ownerPackages = model.entities
+                .filter { entity -> aggregateRootNameByEntity[entity.key()] == ownerAggregateName }
+                .map { it.packageName }
+                .distinct()
+                .ifEmpty { listOf(resolveOwnedManifestOwnerPackage(definition.packageName, artifactLayout)) }
+            ownerPackages.forEach { ownerPackage ->
+                val key = LocalEnumCandidateKey(ownerPackage, definition.typeName)
+                putCandidate(
+                    candidates = candidates,
+                    key = key,
+                    candidate = LocalEnumCandidate(ownerPackage, definition.typeName, definition.items),
+                )
             }
         }
 
@@ -46,7 +64,7 @@ internal class LocalEnumArtifactPlanner : AggregateArtifactFamilyPlanner {
                 context = mapOf(
                     "packageName" to packageName,
                     "typeName" to typeName,
-                    "items" to local.field.enumItems.map { item ->
+                    "items" to local.items.map { item ->
                         mapOf(
                             "value" to item.value,
                             "name" to item.name,
@@ -56,6 +74,29 @@ internal class LocalEnumArtifactPlanner : AggregateArtifactFamilyPlanner {
                 ),
             )
         }
+    }
+
+    private fun putCandidate(
+        candidates: MutableMap<LocalEnumCandidateKey, LocalEnumCandidate>,
+        key: LocalEnumCandidateKey,
+        candidate: LocalEnumCandidate,
+    ) {
+        val previous = candidates[key]
+        require(previous == null || previous.items == candidate.items) {
+            "conflicting local enum definition for ${candidate.ownerPackageName}.enums.${candidate.typeBinding}"
+        }
+        candidates.putIfAbsent(key, candidate)
+    }
+
+    private fun resolveOwnedManifestOwnerPackage(
+        packageName: String,
+        artifactLayout: ArtifactLayoutResolver,
+    ): String {
+        val trimmed = packageName.trim()
+        if ('.' in trimmed) {
+            return trimmed
+        }
+        return artifactLayout.aggregateEntityPackage(trimmed)
     }
 
     private fun buildAggregateRootNameByEntity(entities: List<EntityModel>): Map<EntityKey, String> {
@@ -98,7 +139,7 @@ private data class LocalEnumCandidateKey(
 private data class LocalEnumCandidate(
     val ownerPackageName: String,
     val typeBinding: String,
-    val field: FieldModel,
+    val items: List<EnumItemModel>,
 )
 
 private data class EntityKey(

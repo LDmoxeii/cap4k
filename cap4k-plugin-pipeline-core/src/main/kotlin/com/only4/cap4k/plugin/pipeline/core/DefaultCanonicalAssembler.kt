@@ -47,7 +47,7 @@ import com.only4.cap4k.plugin.pipeline.api.TypeRegistryModel
 import com.only4.cap4k.plugin.pipeline.api.UnsupportedAggregateTable
 import com.only4.cap4k.plugin.pipeline.api.UnsupportedTablePolicy
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectManifestSnapshot
-import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
+import com.only4.cap4k.plugin.pipeline.api.ownerAggregate
 import java.util.Locale
 
 interface CanonicalAssembler {
@@ -368,22 +368,12 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             valueTransform = { it.packageName },
         )
         validateDuplicateTypeSimpleNames(
-            sharedEnums = sharedEnums.map { it.typeName },
-            localEnums = entities.flatMap { entity ->
-                entity.fields.mapNotNull { field ->
-                    field.typeBinding
-                        ?.takeIf { it.isNotBlank() && field.enumItems.isNotEmpty() }
-                        ?.let { typeBinding ->
-                            LocalEnumTypeName(
-                                owner = entity.packageName,
-                                simpleName = typeBinding,
-                                items = field.enumItems,
-                            )
-                        }
-                }
-            },
+            sharedEnums = sharedEnums
+                .filter { it.aggregates.isEmpty() }
+                .map { it.typeName },
+            localEnums = buildLocalEnumTypeNames(entities, sharedEnums),
             sharedValueObjects = valueObjects
-                .filter { it.scope == ValueObjectScope.SHARED }
+                .filter { it.aggregates.isEmpty() }
                 .map { valueObject ->
                     SharedValueObjectTypeName(
                         simpleName = valueObject.name,
@@ -391,11 +381,12 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     )
                 },
             localValueObjects = valueObjects
-                .filter { it.scope == ValueObjectScope.AGGREGATE }
+                .filter { it.ownerAggregate != null }
                 .map { valueObject ->
+                    val ownerAggregate = requireNotNull(valueObject.ownerAggregate)
                     LocalValueObjectTypeName(
-                        owner = aggregateEntityPackageByName[valueObject.aggregate].orEmpty()
-                            .ifBlank { valueObject.aggregate.orEmpty() },
+                        owner = aggregateEntityPackageByName[ownerAggregate].orEmpty()
+                            .ifBlank { ownerAggregate },
                         simpleName = valueObject.name,
                         packageName = valueObject.packageName,
                     )
@@ -1081,6 +1072,72 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
         fun ArtifactSelectionModel.selectionKey(): String =
             if (variant.isBlank()) family else "$family:$variant"
+    }
+
+    private fun buildLocalEnumTypeNames(
+        entities: List<EntityModel>,
+        sharedEnums: List<com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition>,
+    ): List<LocalEnumTypeName> {
+        val entitiesByKey = entities.associateBy { it.packageName to it.name }
+        val entitiesByName = entities.groupBy { it.name }
+        val resolving = mutableSetOf<Pair<String, String>>()
+        val resolved = linkedMapOf<Pair<String, String>, String>()
+
+        fun aggregateRootName(entity: EntityModel): String {
+            val key = entity.packageName to entity.name
+            resolved[key]?.let { return it }
+            if (!resolving.add(key)) {
+                return entity.name
+            }
+            val parentEntityName = entity.parentEntityName?.takeIf { it.isNotBlank() }
+            val rootName = when {
+                entity.aggregateRoot -> entity.name
+                parentEntityName == null -> entity.name
+                else -> {
+                    val parent = entitiesByKey[entity.packageName to parentEntityName]
+                        ?: entitiesByName[parentEntityName]?.singleOrNull()
+                    parent?.let { aggregateRootName(it) } ?: entity.name
+                }
+            }
+            resolving.remove(key)
+            resolved[key] = rootName
+            return rootName
+        }
+
+        val fieldEnums = entities.flatMap { entity ->
+            entity.fields.mapNotNull { field ->
+                field.typeBinding
+                    ?.takeIf { it.isNotBlank() && field.enumItems.isNotEmpty() }
+                    ?.let { typeBinding ->
+                        LocalEnumTypeName(
+                            owner = entity.packageName,
+                            simpleName = typeBinding,
+                            items = field.enumItems,
+                        )
+                    }
+            }
+        }
+        val manifestEnums = sharedEnums.flatMap { definition ->
+            val ownerAggregateName = definition.aggregates.singleOrNull() ?: return@flatMap emptyList()
+            val ownerEntities = entities.filter { entity -> aggregateRootName(entity) == ownerAggregateName }
+            if (ownerEntities.isEmpty()) {
+                return@flatMap listOf(
+                    LocalEnumTypeName(
+                        owner = ownerAggregateName,
+                        simpleName = definition.typeName,
+                        items = definition.items,
+                    )
+                )
+            }
+            ownerEntities.map { entity ->
+                    LocalEnumTypeName(
+                        owner = entity.packageName,
+                        simpleName = definition.typeName,
+                        items = definition.items,
+                    )
+            }
+        }
+        return fieldEnums + manifestEnums
     }
 
     private fun ProjectConfig.isAggregateProjectionOnly(): Boolean =

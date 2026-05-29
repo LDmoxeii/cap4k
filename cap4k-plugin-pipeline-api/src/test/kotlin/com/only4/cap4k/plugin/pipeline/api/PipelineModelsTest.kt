@@ -299,8 +299,6 @@ class PipelineModelsTest {
         val valueObject = ValueObjectModel(
             name = "Money",
             packageName = "shared.values",
-            scope = ValueObjectScope.SHARED,
-            aggregate = null,
             storage = ValueObjectStorage.JSON,
             fields = listOf(FieldModel(name = "amount", type = "BigDecimal")),
         )
@@ -347,7 +345,7 @@ class PipelineModelsTest {
         assertEquals(listOf(strongId), model.strongIds)
         assertEquals(listOf(sharedEnum), model.sharedEnums)
         assertEquals(listOf(valueObject), model.valueObjects)
-        assertEquals(ValueObjectScope.SHARED, model.valueObjects.single().scope)
+        assertEquals(emptyList<String>(), model.valueObjects.single().aggregates)
         assertEquals(ValueObjectStorage.JSON, model.valueObjects.single().storage)
         assertEquals(listOf(FieldModel(name = "amount", type = "BigDecimal")), model.valueObjects.single().fields)
         assertEquals(listOf(domainService), model.domainServices)

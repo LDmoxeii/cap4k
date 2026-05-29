@@ -251,7 +251,7 @@ class AggregateProjectionArtifactPlannerTest {
             layout = ProjectLayout.MULTI_MODULE,
             modules = mapOf("adapter" to "demo-adapter"),
             sources = emptyMap(),
-            generators = mapOf("aggregate-projection" to GeneratorConfig(enabled = true)),
+            generators = mapOf("aggregate-projection" to GeneratorConfig()),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         )
 }

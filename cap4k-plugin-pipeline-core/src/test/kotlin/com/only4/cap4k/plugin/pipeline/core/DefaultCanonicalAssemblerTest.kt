@@ -47,7 +47,6 @@ import com.only4.cap4k.plugin.pipeline.api.TypeRegistryModel
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectManifestSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
-import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectStorage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -584,7 +583,6 @@ class DefaultCanonicalAssemblerTest {
                 ValueObjectModel(
                     name = "Money",
                     packageName = "shared.values",
-                    scope = ValueObjectScope.SHARED,
                     storage = ValueObjectStorage.JSON,
                     fields = listOf(FieldModel(name = "amount", type = "BigDecimal")),
                 )
@@ -734,21 +732,19 @@ class DefaultCanonicalAssemblerTest {
                 ValueObjectModel(
                     name = "Snapshot",
                     packageName = "content.values",
-                    scope = ValueObjectScope.AGGREGATE,
-                    aggregate = "Content",
+                    aggregates = listOf("Content"),
                 ),
                 ValueObjectModel(
                     name = "Snapshot",
                     packageName = "review.values",
-                    scope = ValueObjectScope.AGGREGATE,
-                    aggregate = "Review",
+                    aggregates = listOf("Review"),
                 ),
             )
         )
 
         val model = assemble(valueObjects = valueObjects)
 
-        assertEquals(listOf("Content", "Review"), model.valueObjects.map { it.aggregate })
+        assertEquals(listOf(listOf("Content"), listOf("Review")), model.valueObjects.map { it.aggregates })
     }
 
     @Test
@@ -758,8 +754,7 @@ class DefaultCanonicalAssemblerTest {
                 ValueObjectModel(
                     name = "Status",
                     packageName = "content.values",
-                    scope = ValueObjectScope.AGGREGATE,
-                    aggregate = "Content",
+                    aggregates = listOf("Content"),
                 ),
             )
         )
@@ -801,7 +796,6 @@ class DefaultCanonicalAssemblerTest {
                 ValueObjectModel(
                     name = "Status",
                     packageName = "shared.values",
-                    scope = ValueObjectScope.SHARED,
                     storage = ValueObjectStorage.JSON,
                 )
             )
@@ -2560,13 +2554,11 @@ class DefaultCanonicalAssemblerTest {
                         ValueObjectModel(
                             name = "PublishWindow",
                             packageName = "com.acme.demo.domain.shared.values",
-                            scope = ValueObjectScope.SHARED,
                         ),
                         ValueObjectModel(
                             name = "PublishWindow",
                             packageName = "com.acme.demo.domain.aggregates.content.values",
-                            scope = ValueObjectScope.AGGREGATE,
-                            aggregate = "Content",
+                            aggregates = listOf("Content"),
                         ),
                     )
                 )
@@ -2615,7 +2607,6 @@ class DefaultCanonicalAssemblerTest {
                         ValueObjectModel(
                             name = "PublishWindow",
                             packageName = "com.acme.demo.domain.shared.values",
-                            scope = ValueObjectScope.SHARED,
                         ),
                     )
                 )
@@ -2684,8 +2675,7 @@ class DefaultCanonicalAssemblerTest {
                         ValueObjectModel(
                             name = "PublishWindow",
                             packageName = "com.acme.demo.domain.aggregates.content.values",
-                            scope = ValueObjectScope.AGGREGATE,
-                            aggregate = "Content",
+                            aggregates = listOf("Content"),
                         ),
                     )
                 )
@@ -2713,12 +2703,10 @@ class DefaultCanonicalAssemblerTest {
                         ValueObjectModel(
                             name = "PublishWindow",
                             packageName = "content.values.primary",
-                            scope = ValueObjectScope.SHARED,
                         ),
                         ValueObjectModel(
                             name = "PublishWindow",
                             packageName = "content.values.secondary",
-                            scope = ValueObjectScope.SHARED,
                         ),
                     )
                 )
@@ -2759,14 +2747,12 @@ class DefaultCanonicalAssemblerTest {
                             ValueObjectModel(
                                 name = "PublishWindow",
                                 packageName = "content.values.primary",
-                                scope = ValueObjectScope.AGGREGATE,
-                                aggregate = "Content",
+                                aggregates = listOf("Content"),
                             ),
                             ValueObjectModel(
                                 name = "PublishWindow",
                                 packageName = "content.values.secondary",
-                                scope = ValueObjectScope.AGGREGATE,
-                                aggregate = "Content",
+                                aggregates = listOf("Content"),
                             ),
                         )
                     )

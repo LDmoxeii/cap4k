@@ -8,7 +8,6 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectManifestSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
-import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectStorage
 import java.nio.file.Path
 
@@ -42,19 +41,18 @@ class ValueObjectManifestSourceProvider : SourceProvider {
 
     private fun JsonObject.toValueObject(): ValueObjectModel {
         val name = requiredString("name")
-        val scope = valueObjectScope(requiredString("scope"), name)
-        val aggregate = optionalString("aggregate")
-        require(scope != ValueObjectScope.AGGREGATE || !aggregate.isNullOrBlank()) {
-            "value object $name aggregate scope requires aggregate"
+        val removedFields = listOf("scope", "aggregate").filter(::has)
+        require(removedFields.isEmpty()) {
+            "value object $name fields ${removedFields.joinToString(" and ")} are removed; use aggregates instead"
         }
-        require(scope != ValueObjectScope.SHARED || aggregate.isNullOrBlank()) {
-            "value object $name shared scope must not set aggregate"
+        val aggregates = optionalStringArray("aggregates")
+        require(aggregates.size <= 1) {
+            "value object $name may declare at most one aggregate"
         }
         return ValueObjectModel(
             name = name,
             packageName = requiredString("package"),
-            scope = scope,
-            aggregate = aggregate,
+            aggregates = aggregates,
             storage = valueObjectStorage(optionalString("storage") ?: "json", name),
             fields = optionalArray("fields").map { fieldElement ->
                 val fieldJson = fieldElement.asJsonObject
@@ -71,7 +69,7 @@ class ValueObjectManifestSourceProvider : SourceProvider {
 
     private fun validateDuplicateNames(valueObjects: List<ValueObjectModel>) {
         val duplicateSharedName = valueObjects
-            .filter { it.scope == ValueObjectScope.SHARED }
+            .filter { it.aggregates.isEmpty() }
             .groupingBy { it.name }
             .eachCount()
             .entries
@@ -82,8 +80,10 @@ class ValueObjectManifestSourceProvider : SourceProvider {
         }
 
         val duplicateAggregateName = valueObjects
-            .filter { it.scope == ValueObjectScope.AGGREGATE }
-            .groupingBy { requireNotNull(it.aggregate) to it.name }
+            .mapNotNull { valueObject ->
+                valueObject.aggregates.singleOrNull()?.let { owner -> owner to valueObject.name }
+            }
+            .groupingBy { it }
             .eachCount()
             .entries
             .firstOrNull { it.value > 1 }
@@ -92,13 +92,6 @@ class ValueObjectManifestSourceProvider : SourceProvider {
             "duplicate aggregate value object definition: ${duplicateAggregateName!!.second} in ${duplicateAggregateName.first}"
         }
     }
-
-    private fun valueObjectScope(value: String, name: String): ValueObjectScope =
-        when (value) {
-            "shared" -> ValueObjectScope.SHARED
-            "aggregate" -> ValueObjectScope.AGGREGATE
-            else -> throw IllegalArgumentException("value object $name scope must be shared or aggregate")
-        }
 
     private fun valueObjectStorage(value: String, name: String): ValueObjectStorage =
         when (value) {
@@ -122,6 +115,9 @@ private fun JsonObject.optionalBoolean(field: String): Boolean? =
 
 private fun JsonObject.optionalArray(field: String): List<JsonElement> =
     if (has(field) && !get(field).isJsonNull) getAsJsonArray(field).toList() else emptyList()
+
+private fun JsonObject.optionalStringArray(field: String): List<String> =
+    if (has(field) && !get(field).isJsonNull) getAsJsonArray(field).map { it.asString } else emptyList()
 
 private fun Any?.asPathList(): List<Path> =
     when (this) {

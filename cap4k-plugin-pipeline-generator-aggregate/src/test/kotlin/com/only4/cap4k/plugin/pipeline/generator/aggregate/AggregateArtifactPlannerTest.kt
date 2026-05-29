@@ -38,7 +38,6 @@ import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
-import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
 import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -890,8 +889,7 @@ class AggregateArtifactPlannerTest {
                     ValueObjectModel(
                         name = "PublishWindow",
                         packageName = "com.acme.demo.domain.aggregates.content.values",
-                        scope = ValueObjectScope.AGGREGATE,
-                        aggregate = "Content",
+                        aggregates = listOf("Content"),
                     )
                 ),
                 aggregateEntityJpa = listOf(
@@ -953,7 +951,6 @@ class AggregateArtifactPlannerTest {
                     ValueObjectModel(
                         name = "PublishWindow",
                         packageName = "com.acme.demo.domain.shared.values",
-                        scope = ValueObjectScope.SHARED,
                     )
                 ),
                 aggregateEntityJpa = listOf(
@@ -1043,8 +1040,7 @@ class AggregateArtifactPlannerTest {
                     ValueObjectModel(
                         name = "PublishWindow",
                         packageName = "com.acme.demo.domain.aggregates.content.values",
-                        scope = ValueObjectScope.AGGREGATE,
-                        aggregate = "Content",
+                        aggregates = listOf("Content"),
                     )
                 ),
                 aggregateEntityJpa = listOf(
@@ -2337,7 +2333,6 @@ class AggregateArtifactPlannerTest {
             aggregateConfig(
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to "jdbc:h2:mem:test;MODE=MySQL;DATABASE_TO_UPPER=false"
                         ),
@@ -2652,7 +2647,7 @@ class AggregateArtifactPlannerTest {
                 "adapter" to "demo-adapter",
             ),
             sources = emptyMap(),
-            generators = mapOf("aggregate" to GeneratorConfig(enabled = true, options = allAggregateArtifactsEnabled())),
+            generators = mapOf("aggregate" to GeneratorConfig(options = allAggregateArtifactsEnabled())),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         )
 
@@ -2974,7 +2969,7 @@ class AggregateArtifactPlannerTest {
                 "adapter" to "demo-adapter",
             ),
             sources = emptyMap(),
-            generators = mapOf("aggregate" to GeneratorConfig(enabled = true, options = allAggregateArtifactsEnabled())),
+            generators = mapOf("aggregate" to GeneratorConfig(options = allAggregateArtifactsEnabled())),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         )
 
@@ -4477,7 +4472,7 @@ class AggregateArtifactPlannerTest {
                 adapterModule?.let { put("adapter", it) }
             },
             sources = sources,
-            generators = mapOf("aggregate" to GeneratorConfig(enabled = true, options = options)),
+            generators = mapOf("aggregate" to GeneratorConfig(options = options)),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             artifactLayout = artifactLayout,
         )

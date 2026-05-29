@@ -168,12 +168,8 @@ data class SharedEnumDefinition(
     val typeName: String,
     val packageName: String,
     val items: List<EnumItemModel>,
+    val aggregates: List<String> = emptyList(),
 )
-
-enum class ValueObjectScope {
-    SHARED,
-    AGGREGATE,
-}
 
 enum class ValueObjectStorage {
     JSON,
@@ -182,12 +178,14 @@ enum class ValueObjectStorage {
 data class ValueObjectModel(
     val name: String,
     val packageName: String,
-    val scope: ValueObjectScope,
-    val aggregate: String? = null,
+    val aggregates: List<String> = emptyList(),
     val storage: ValueObjectStorage = ValueObjectStorage.JSON,
     val fields: List<FieldModel> = emptyList(),
     val description: String? = null,
 )
+
+val ValueObjectModel.ownerAggregate: String?
+    get() = aggregates.singleOrNull()
 
 data class DomainServiceModel(
     val name: String,
