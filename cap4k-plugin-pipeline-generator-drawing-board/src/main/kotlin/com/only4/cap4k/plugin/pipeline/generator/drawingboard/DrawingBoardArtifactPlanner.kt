@@ -10,10 +10,7 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
     override val id: String = "drawing-board"
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        val drawingBoard = model.drawingBoard
-            ?: throw IllegalArgumentException(
-                "drawing-board generator requires at least one parsed design-elements.json input.",
-            )
+        val drawingBoard = model.drawingBoard ?: return emptyList()
 
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val outputRoot = artifactLayout.drawingBoardOutputRoot()

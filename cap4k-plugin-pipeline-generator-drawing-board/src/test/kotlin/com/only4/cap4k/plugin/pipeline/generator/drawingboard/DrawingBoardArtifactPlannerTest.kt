@@ -12,6 +12,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
 
@@ -103,17 +104,12 @@ class DrawingBoardArtifactPlannerTest {
     }
 
     @Test
-    fun `fails when drawing board slice is missing`() {
+    fun `returns empty plan when drawing board slice is missing`() {
         val planner = DrawingBoardArtifactPlanner()
 
-        val ex = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(config(), CanonicalModel())
-        }
+        val plan = planner.plan(config(), CanonicalModel())
 
-        assertEquals(
-            "drawing-board generator requires at least one parsed design-elements.json input.",
-            ex.message,
-        )
+        assertTrue(plan.isEmpty())
     }
 
     private fun config(outputRoot: String = "design"): ProjectConfig =
@@ -123,9 +119,7 @@ class DrawingBoardArtifactPlannerTest {
             modules = emptyMap(),
             sources = emptyMap(),
             generators = mapOf(
-                "drawing-board" to GeneratorConfig(
-                    enabled = true,
-                ),
+                "drawing-board" to GeneratorConfig(),
             ),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             artifactLayout = ArtifactLayoutConfig(drawingBoard = OutputRootLayout(outputRoot)),
