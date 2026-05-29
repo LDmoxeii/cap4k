@@ -60,6 +60,7 @@ class ValueObjectArtifactPlannerTest {
         assertEquals("com.acme.demo.domain.shared.values", item.context["packageName"])
         assertEquals("Money", item.context["typeName"])
         assertEquals("Money", item.context["name"])
+        assertEquals(null, item.context["description"])
         assertEquals("ValueObjectArtifactPlanner", item.context["planner"])
         assertEquals(emptyList<String>(), item.context["aggregates"])
         assertEquals(ValueObjectStorage.JSON.name, item.context["storage"])
@@ -67,6 +68,17 @@ class ValueObjectArtifactPlannerTest {
             listOf("com.acme.demo.domain.shared.types.CurrencyCode", "java.math.BigDecimal"),
             item.context["imports"],
         )
+
+        val buildingBlock = item.context["buildingBlock"] as Map<*, *>
+        assertEquals("value_object", buildingBlock["tag"])
+        assertEquals("Money", buildingBlock["name"])
+        assertEquals("com.acme.demo.domain.shared.values", buildingBlock["packageName"])
+        assertEquals(null, buildingBlock["description"])
+        assertEquals("\"\"", buildingBlock["descriptionKotlinStringLiteral"])
+        assertEquals(emptyList<String>(), buildingBlock["aggregates"])
+        assertEquals("", buildingBlock["eventName"])
+        assertEquals("value-object", buildingBlock["family"])
+        assertEquals("", buildingBlock["variant"])
 
         val fields = item.context["fields"] as List<*>
         assertEquals(
@@ -91,9 +103,10 @@ class ValueObjectArtifactPlannerTest {
                         fields = listOf(FieldModel("amount", "String")),
                     ),
                     ValueObjectModel(
-                        name = "ReviewSnapshot",
-                        packageName = "com.acme.demo.domain.aggregates.review.values",
-                        aggregates = listOf("Review"),
+                        name = "OrderSnapshot",
+                        packageName = "com.acme.demo.domain.aggregates.order.values",
+                        description = "Captured order state",
+                        aggregates = listOf("Order"),
                         fields = listOf(FieldModel("content", "String")),
                     ),
                 )
@@ -103,10 +116,25 @@ class ValueObjectArtifactPlannerTest {
         assertEquals(
             listOf(
                 "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/Money.kt",
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/review/values/ReviewSnapshot.kt",
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/values/OrderSnapshot.kt",
             ),
             items.map { it.outputPath },
         )
+
+        val aggregateLocal = items.single { it.context["typeName"] == "OrderSnapshot" }
+        assertEquals(listOf("Order"), aggregateLocal.context["aggregates"])
+        assertEquals("Captured order state", aggregateLocal.context["description"])
+
+        val buildingBlock = aggregateLocal.context["buildingBlock"] as Map<*, *>
+        assertEquals("value_object", buildingBlock["tag"])
+        assertEquals("OrderSnapshot", buildingBlock["name"])
+        assertEquals("com.acme.demo.domain.aggregates.order.values", buildingBlock["packageName"])
+        assertEquals("Captured order state", buildingBlock["description"])
+        assertEquals("\"Captured order state\"", buildingBlock["descriptionKotlinStringLiteral"])
+        assertEquals(listOf("Order"), buildingBlock["aggregates"])
+        assertEquals("", buildingBlock["eventName"])
+        assertEquals("value-object", buildingBlock["family"])
+        assertEquals("", buildingBlock["variant"])
     }
 
     @Test

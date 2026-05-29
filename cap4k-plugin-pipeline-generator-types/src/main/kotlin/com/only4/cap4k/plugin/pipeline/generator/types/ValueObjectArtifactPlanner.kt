@@ -62,10 +62,23 @@ private data class ValueObjectRenderModel(
         "name" to name,
         "description" to description,
         "aggregates" to aggregates,
+        "buildingBlock" to buildingBlockContext(),
         "storage" to storage,
         "imports" to imports,
         "fields" to fields.map { it.toContextMap() },
         "planner" to "ValueObjectArtifactPlanner",
+    )
+
+    private fun buildingBlockContext(): Map<String, Any?> = mapOf(
+        "tag" to "value_object",
+        "name" to name,
+        "packageName" to packageName,
+        "description" to description,
+        "descriptionKotlinStringLiteral" to description.orEmpty().toKotlinStringLiteral(),
+        "aggregates" to aggregates,
+        "eventName" to "",
+        "family" to "value-object",
+        "variant" to "",
     )
 }
 

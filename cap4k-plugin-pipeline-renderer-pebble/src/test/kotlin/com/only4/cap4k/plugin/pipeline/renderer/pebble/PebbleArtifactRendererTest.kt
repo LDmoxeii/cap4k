@@ -153,6 +153,14 @@ class PebbleArtifactRendererTest {
                 "packageName" to "com.acme.demo.domain.shared.values",
                 "typeName" to "Money",
                 "name" to "Money",
+                "buildingBlock" to buildingBlockContext(
+                    tag = "value_object",
+                    name = "Money",
+                    packageName = "com.acme.demo.domain.shared.values",
+                    description = "money */ \"amount\" \\value ${'$'}currency",
+                    aggregates = listOf("Order"),
+                    family = "value-object",
+                ),
                 "imports" to listOf(
                     "com.acme.demo.domain.shared.types.CurrencyCode",
                     "java.math.BigDecimal",
@@ -169,9 +177,19 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("import com.fasterxml.jackson.databind.ObjectMapper"))
         assertTrue(content.contains("import com.fasterxml.jackson.module.kotlin.readValue"))
         assertTrue(content.contains("import jakarta.persistence.AttributeConverter"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
         assertFalse(content.contains("import jakarta.persistence.Converter"))
         assertTrue(content.contains("import com.acme.demo.domain.shared.types.CurrencyCode"))
         assertTrue(content.contains("import java.math.BigDecimal"))
+        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("tag = \"value_object\""))
+        assertTrue(content.contains("name = \"Money\""))
+        assertTrue(content.contains("packageName = \"com.acme.demo.domain.shared.values\""))
+        assertTrue(content.contains("description = \"money */ \\\"amount\\\" \\\\value \\${'$'}currency\""))
+        assertTrue(content.contains("aggregates = [\"Order\"]"))
+        assertTrue(content.contains("eventName = \"\""))
+        assertTrue(content.contains("family = \"value-object\""))
+        assertTrue(content.contains("variant = \"\""))
         assertTrue(content.contains("data class Money("))
         assertTrue(content.contains("val amount: BigDecimal,"))
         assertTrue(content.contains("val currency: CurrencyCode?"))
