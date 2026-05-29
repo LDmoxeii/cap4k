@@ -367,6 +367,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             keySelector = { it.name },
             valueTransform = { it.packageName },
         )
+        validateTypeManifestOwnership(sharedEnums, valueObjects)
         validateDuplicateTypeSimpleNames(
             sharedEnums = sharedEnums
                 .filter { it.aggregates.isEmpty() }
@@ -898,6 +899,18 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 unsupportedTables = unsupportedTables.sortedBy { it.tableName },
             )
         )
+    }
+
+    private fun validateTypeManifestOwnership(
+        sharedEnums: Iterable<com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition>,
+        valueObjects: Iterable<com.only4.cap4k.plugin.pipeline.api.ValueObjectModel>,
+    ) {
+        sharedEnums.firstOrNull { it.aggregates.size > 1 }?.let { definition ->
+            throw IllegalArgumentException("enum ${definition.typeName} may declare at most one aggregate")
+        }
+        valueObjects.firstOrNull { it.aggregates.size > 1 }?.let { valueObject ->
+            throw IllegalArgumentException("value object ${valueObject.name} may declare at most one aggregate")
+        }
     }
 
     private fun validateDuplicateTypeSimpleNames(

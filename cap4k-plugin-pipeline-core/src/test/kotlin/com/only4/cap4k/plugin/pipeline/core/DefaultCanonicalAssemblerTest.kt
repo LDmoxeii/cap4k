@@ -790,6 +790,48 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler rejects enum manifest with more than one aggregate`() {
+        val enumManifest = EnumManifestSnapshot(
+            definitions = listOf(
+                SharedEnumDefinition(
+                    typeName = "OrderStatus",
+                    packageName = "order.enums",
+                    items = listOf(EnumItemModel(1, "PAID", "Paid")),
+                    aggregates = listOf("Order", "Payment"),
+                ),
+            )
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                config = baseAggregateConfig(),
+                snapshots = listOf(enumManifest),
+            )
+        }
+
+        assertEquals("enum OrderStatus may declare at most one aggregate", error.message)
+    }
+
+    @Test
+    fun `assembler rejects value object manifest with more than one aggregate`() {
+        val valueObjects = ValueObjectManifestSnapshot(
+            valueObjects = listOf(
+                ValueObjectModel(
+                    name = "Money",
+                    packageName = "shared.values",
+                    aggregates = listOf("Order", "Payment"),
+                ),
+            )
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assemble(valueObjects = valueObjects)
+        }
+
+        assertEquals("value object Money may declare at most one aggregate", error.message)
+    }
+
+    @Test
     fun `fails on duplicate simple type names across enum value object and registry`() {
         val valueObjects = ValueObjectManifestSnapshot(
             valueObjects = listOf(
