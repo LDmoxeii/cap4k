@@ -731,6 +731,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             name = name,
             description = description,
             aggregates = aggregates,
+            artifacts = artifacts,
             entity = if (normalizedTag == "domain_event") null else entity,
             persist = persist,
             traits = traits,

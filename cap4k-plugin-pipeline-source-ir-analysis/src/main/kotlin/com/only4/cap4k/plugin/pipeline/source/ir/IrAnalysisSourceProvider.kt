@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.pipeline.source.ir
 
 import com.google.gson.JsonElement
 import com.google.gson.JsonParser
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
@@ -90,35 +91,66 @@ class IrAnalysisSourceProvider : SourceProvider {
 
     private fun parseDesignElements(file: File): List<DesignElementSnapshot> {
         val array = file.reader(Charsets.UTF_8).use { JsonParser.parseReader(it).asJsonArray }
-        return array.mapNotNull { element ->
-            val obj = element.asJsonObjectOrNull() ?: return@mapNotNull null
+        return array.mapIndexed { index, element ->
+            val obj = element.asJsonObjectOrNull()
+                ?: throw IllegalArgumentException("design element at index $index must be an object")
             val tag = obj.stringValue("tag").orEmpty().trim()
             if (tag.isEmpty()) {
-                return@mapNotNull null
+                throw IllegalArgumentException("design element at index $index must declare non-blank tag")
             }
+            val packageName = obj.stringValue("package").orEmpty().trim()
+            val name = obj.stringValue("name").orEmpty().trim()
+            val context = "design element $tag $packageName $name"
             DesignElementSnapshot(
                 tag = tag,
-                packageName = obj.stringValue("package").orEmpty().trim(),
-                name = obj.stringValue("name").orEmpty().trim(),
+                packageName = packageName,
+                name = name,
                 description = obj.stringValue("description").orEmpty().trim(),
                 aggregates = obj.stringList("aggregates"),
+                artifacts = parseArtifacts(obj.jsonArrayOrNull("artifacts", context), context),
                 persist = obj.booleanValue("persist"),
                 eventName = obj.stringValue("eventName"),
-                requestFields = parseDesignFields(obj.jsonArrayOrEmpty("fields")),
-                responseFields = parseDesignFields(obj.jsonArrayOrEmpty("resultFields")),
+                requestFields = parseDesignFields(obj.jsonArrayOrNull("fields", context), context, "fields"),
+                responseFields = parseDesignFields(obj.jsonArrayOrNull("resultFields", context), context, "resultFields"),
             )
         }
     }
 
-    private fun parseDesignFields(array: com.google.gson.JsonArray?): List<DesignFieldSnapshot> {
+    private fun parseArtifacts(
+        array: com.google.gson.JsonArray?,
+        context: String,
+    ): List<ArtifactSelectionModel> {
         if (array == null) {
             return emptyList()
         }
-        return array.mapNotNull { element ->
-            val obj = element.asJsonObjectOrNull() ?: return@mapNotNull null
+        return array.mapIndexed { index, element ->
+            val obj = element.asJsonObjectOrNull()
+                ?: throw IllegalArgumentException("$context artifacts[$index] must be an object")
+            val family = obj.stringValue("family").orEmpty().trim()
+            if (family.isEmpty()) {
+                throw IllegalArgumentException("$context artifacts[$index] must declare non-blank family")
+            }
+            ArtifactSelectionModel(
+                family = family,
+                variant = obj.stringValue("variant").orEmpty().trim(),
+            )
+        }
+    }
+
+    private fun parseDesignFields(
+        array: com.google.gson.JsonArray?,
+        context: String,
+        fieldName: String,
+    ): List<DesignFieldSnapshot> {
+        if (array == null) {
+            return emptyList()
+        }
+        return array.mapIndexed { index, element ->
+            val obj = element.asJsonObjectOrNull()
+                ?: throw IllegalArgumentException("$context $fieldName[$index] must be an object")
             val name = obj.stringValue("name").orEmpty().trim()
             if (name.isEmpty()) {
-                return@mapNotNull null
+                throw IllegalArgumentException("$context $fieldName[$index] must declare non-blank name")
             }
             DesignFieldSnapshot(
                 name = name,
@@ -166,9 +198,15 @@ class IrAnalysisSourceProvider : SourceProvider {
         return if (element.isJsonPrimitive && element.asJsonPrimitive.isBoolean) element.asBoolean else null
     }
 
-    private fun com.google.gson.JsonObject.jsonArrayOrEmpty(name: String): com.google.gson.JsonArray? {
+    private fun com.google.gson.JsonObject.jsonArrayOrNull(
+        name: String,
+        context: String,
+    ): com.google.gson.JsonArray? {
         val element = get(name) ?: return null
-        return if (element.isJsonArray) element.asJsonArray else null
+        if (!element.isJsonArray) {
+            throw IllegalArgumentException("$context field '$name' must be an array")
+        }
+        return element.asJsonArray
     }
 
     private fun com.google.gson.JsonObject.stringList(name: String): List<String> {

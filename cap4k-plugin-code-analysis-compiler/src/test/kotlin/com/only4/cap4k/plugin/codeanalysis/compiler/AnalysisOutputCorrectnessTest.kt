@@ -358,7 +358,7 @@ class AnalysisOutputCorrectnessTest {
 
     @Test
     fun `multi statement composite defaults fail request projection explicitly`() {
-        val collector = DesignElementCollector(Cap4kOptions(), emptyMap())
+        val collector = DesignElementCollector(Cap4kOptions())
         val param = irValueParameterWithDefault(
             name = "smuggledTitle",
             expression = irCompositeExpression(
@@ -383,7 +383,7 @@ class AnalysisOutputCorrectnessTest {
 
     @Test
     fun `multi statement block defaults fail request projection explicitly`() {
-        val collector = DesignElementCollector(Cap4kOptions(), emptyMap())
+        val collector = DesignElementCollector(Cap4kOptions())
         val param = irValueParameterWithDefault(
             name = "smuggledBlockTitle",
             expression = irBlockExpression(
@@ -408,7 +408,7 @@ class AnalysisOutputCorrectnessTest {
 
     @Test
     fun `multi statement composite backed field initializers are not treated as stable constants`() {
-        val collector = DesignElementCollector(Cap4kOptions(), emptyMap())
+        val collector = DesignElementCollector(Cap4kOptions())
         val field = irFieldWithInitializer(
             irCompositeExpression(
                 irIntConst(1),

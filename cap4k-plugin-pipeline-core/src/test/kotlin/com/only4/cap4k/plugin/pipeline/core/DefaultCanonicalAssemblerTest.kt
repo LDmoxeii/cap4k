@@ -1761,6 +1761,10 @@ class DefaultCanonicalAssemblerTest {
                             name = "SubmitOrder",
                             description = "submit order",
                             aggregates = listOf("Order"),
+                            artifacts = listOf(
+                                ArtifactSelectionModel(family = "command", variant = "default"),
+                                ArtifactSelectionModel(family = "command-handler"),
+                            ),
                             entity = "Order",
                             persist = true,
                             requestFields = listOf(supportedField),
@@ -1830,6 +1834,10 @@ class DefaultCanonicalAssemblerTest {
                 name = "SubmitOrder",
                 description = "submit order",
                 aggregates = listOf("Order"),
+                artifacts = listOf(
+                    ArtifactSelectionModel(family = "command", variant = "default"),
+                    ArtifactSelectionModel(family = "command-handler"),
+                ),
                 entity = "Order",
                 persist = true,
                 requestFields = listOf(DrawingBoardFieldModel(name = "orderId", type = "Long", nullable = false, defaultValue = "0")),

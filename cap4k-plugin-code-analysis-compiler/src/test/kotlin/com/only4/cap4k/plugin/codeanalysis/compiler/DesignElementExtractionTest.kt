@@ -94,6 +94,62 @@ class DesignElementExtractionTest {
     }
 
     @Test
+    fun `recovers generated outer BuildingBlock request and response classes`() {
+        val sources = listOf(
+            SourceFile.kotlin(
+                "BuildingBlock.kt",
+                """
+                    package com.only4.cap4k.ddd.core.annotation
+
+                    annotation class BuildingBlock(
+                        val tag: String,
+                        val name: String,
+                        val packageName: String,
+                        val description: String = "",
+                        val aggregates: Array<String> = [],
+                        val eventName: String = "",
+                        val family: String = "",
+                        val variant: String = "",
+                    )
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "SubmitOrderCmd.kt",
+                """
+                    package demo.application.commands.order
+
+                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+
+                    @BuildingBlock(
+                        tag = "command",
+                        packageName = "order.submit",
+                        name = "SubmitOrder",
+                        description = "Submit order",
+                        aggregates = ["Order"],
+                        family = "command",
+                    )
+                    object SubmitOrderCmd {
+                        data class Request(
+                            val orderId: Long,
+                            val note: String? = null,
+                        )
+
+                        data class Response(val accepted: Boolean)
+                    }
+                """.trimIndent()
+            )
+        )
+
+        val outputDir = compileWithCap4kPlugin(sources)
+        val json = outputDir.resolve("design-elements.json").toFile().readText()
+        val submitOrder = findObject(extractTopLevelObjects(json), "command", "SubmitOrder")
+
+        assertTrue(submitOrder.contains("\"fields\":[{\"name\":\"orderId\",\"type\":\"Long\",\"nullable\":false}"))
+        assertTrue(submitOrder.contains("\"name\":\"note\",\"type\":\"String\",\"nullable\":true,\"defaultValue\":\"null\""))
+        assertTrue(submitOrder.contains("\"resultFields\":[{\"name\":\"accepted\",\"type\":\"Boolean\",\"nullable\":false}]"))
+    }
+
+    @Test
     fun `rejects conflicting BuildingBlock shared metadata`() {
         val sources = listOf(
             SourceFile.kotlin(

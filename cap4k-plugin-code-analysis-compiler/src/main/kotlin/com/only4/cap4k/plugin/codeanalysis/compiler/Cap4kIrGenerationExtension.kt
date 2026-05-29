@@ -51,8 +51,7 @@ class Cap4kIrGenerationExtension : IrGenerationExtension {
         val filePaths = moduleFragment.files.map { it.fileEntry.name }
         val outDir = resolveOutputDir(filePaths, fallback)
         JsonFileMetadataSink(outDir.toString()).write(collector.nodesAsSequence(), collector.relsAsSequence())
-        val requestAggregates = buildRequestAggregateMap(collector.relsAsSequence())
-        val designElements = DesignElementCollector(options, requestAggregates).collect(moduleFragment)
+        val designElements = DesignElementCollector(options).collect(moduleFragment)
         (outDir / "design-elements.json").writeText(DesignElementJsonWriter().write(designElements))
     }
 }
@@ -60,34 +59,6 @@ class Cap4kIrGenerationExtension : IrGenerationExtension {
 private fun resolveOutputDir(filePaths: Iterable<String>, fallback: Path): Path {
     val moduleRoot = findModuleRootBySrc(filePaths) ?: findModuleRootByGradle(filePaths)
     return (moduleRoot ?: fallback).resolve("build").resolve("cap4k-code-analysis").createDirectories()
-}
-
-private fun buildRequestAggregateMap(rels: Sequence<Relationship>): Map<String, List<String>> {
-    val requestToHandlers = mutableMapOf<String, MutableSet<String>>()
-    val handlerToAggregates = mutableMapOf<String, MutableSet<String>>()
-    rels.forEach { rel ->
-        when (rel.type) {
-            RelationshipType.CommandToCommandHandler,
-            RelationshipType.QueryToQueryHandler,
-            RelationshipType.CliToCliHandler -> {
-                requestToHandlers.getOrPut(rel.fromId) { linkedSetOf() }.add(rel.toId)
-            }
-            RelationshipType.CommandHandlerToAggregate -> {
-                handlerToAggregates.getOrPut(rel.fromId) { linkedSetOf() }.add(rel.toId)
-            }
-            else -> Unit
-        }
-    }
-    val result = mutableMapOf<String, List<String>>()
-    requestToHandlers.forEach { (requestId, handlers) ->
-        val aggregates = handlers.flatMap { handler -> handlerToAggregates[handler].orEmpty() }
-            .map(::typeDisplayNameForFqcn)
-            .distinct()
-        if (aggregates.isNotEmpty()) {
-            result[requestId] = aggregates
-        }
-    }
-    return result
 }
 
 private fun findModuleRootBySrc(filePaths: Iterable<String>): Path? {

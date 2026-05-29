@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.source.ir
 
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
@@ -82,8 +83,6 @@ class IrAnalysisSourceProviderTest {
         dir.resolve("design-elements.json").writeText(
             """
             [
-              null,
-              "not-an-object",
               {
                 "tag": "command",
                 "package": "orders",
@@ -95,13 +94,10 @@ class IrAnalysisSourceProviderTest {
                   {"family": "command-handler"}
                 ],
                 "fields": [
-                  {"name": "orderId", "type": "Long", "nullable": false, "defaultValue": "0"},
-                  {"name": " ", "type": "String"},
-                  null
+                  {"name": "orderId", "type": "Long", "nullable": false, "defaultValue": "0"}
                 ],
                 "resultFields": [
-                  {"name": "accepted", "type": "Boolean"},
-                  {"type": "String"}
+                  {"name": "accepted", "type": "Boolean"}
                 ]
               },
               {
@@ -130,12 +126,6 @@ class IrAnalysisSourceProviderTest {
                 "fields": [
                   {"name": "orderId", "type": "Long"}
                 ]
-              },
-              {
-                "tag": " ",
-                "package": "ignored",
-                "name": "Ignored",
-                "description": "ignored"
               }
             ]
             """.trimIndent()
@@ -149,6 +139,13 @@ class IrAnalysisSourceProviderTest {
         assertEquals("SubmitOrder", snapshot.designElements.first().name)
         assertEquals("submit order", snapshot.designElements.first().description)
         assertEquals(listOf("Order"), snapshot.designElements.first().aggregates)
+        assertEquals(
+            listOf(
+                ArtifactSelectionModel(family = "command", variant = "default"),
+                ArtifactSelectionModel(family = "command-handler"),
+            ),
+            snapshot.designElements.first().artifacts,
+        )
         assertEquals(1, snapshot.designElements.first().requestFields.size)
         assertEquals("orderId", snapshot.designElements.first().requestFields.first().name)
         assertEquals("Long", snapshot.designElements.first().requestFields.first().type)
@@ -158,6 +155,7 @@ class IrAnalysisSourceProviderTest {
         assertEquals("accepted", snapshot.designElements.first().responseFields.first().name)
         assertEquals("Boolean", snapshot.designElements.first().responseFields.first().type)
         val pageQuery = snapshot.designElements.single { it.name == "FindOrderPage" }
+        assertEquals(listOf(ArtifactSelectionModel(family = "query", variant = "page")), pageQuery.artifacts)
         assertTrue(pageQuery.traits.isEmpty())
         val integrationEvent = snapshot.designElements.single { it.tag == "integration_event" }
         assertEquals(null, integrationEvent.role)
@@ -175,31 +173,37 @@ class IrAnalysisSourceProviderTest {
     }
 
     @Test
-    fun `collect skips malformed nested request and response fields`() {
-        val dir = Files.createTempDirectory("cap4k-ir-malformed-fields")
-
-        dir.resolve("nodes.json").writeText("""[]""")
-        dir.resolve("rels.json").writeText("""[]""")
-        dir.resolve("design-elements.json").writeText(
-            """
-            [
-              {
-                "tag": "command",
-                "package": "orders",
-                "name": "SubmitOrder",
-                "description": "submit order",
-                "fields": { "name": "orderId" },
-                "resultFields": "not-an-array"
-              }
-            ]
-            """.trimIndent()
+    fun `collect fails clearly for malformed design element shape`() {
+        val cases = listOf(
+            """[null]""" to "design element at index 0 must be an object",
+            """[{"tag":" ","package":"orders","name":"SubmitOrder","description":"submit order"}]""" to
+                "design element at index 0 must declare non-blank tag",
+            """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","fields":{"name":"orderId"}}]""" to
+                "design element command orders SubmitOrder field 'fields' must be an array",
+            """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","resultFields":"bad"}]""" to
+                "design element command orders SubmitOrder field 'resultFields' must be an array",
+            """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","fields":[null]}]""" to
+                "design element command orders SubmitOrder fields[0] must be an object",
+            """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","fields":[{"name":" ","type":"Long"}]}]""" to
+                "design element command orders SubmitOrder fields[0] must declare non-blank name",
+            """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","artifacts":[null]}]""" to
+                "design element command orders SubmitOrder artifacts[0] must be an object",
+            """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","artifacts":[{"variant":"default"}]}]""" to
+                "design element command orders SubmitOrder artifacts[0] must declare non-blank family",
         )
 
-        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString())) as IrAnalysisSnapshot
+        cases.forEachIndexed { index, (json, expectedMessage) ->
+            val dir = Files.createTempDirectory("cap4k-ir-malformed-fields-$index")
+            dir.resolve("nodes.json").writeText("""[]""")
+            dir.resolve("rels.json").writeText("""[]""")
+            dir.resolve("design-elements.json").writeText(json)
 
-        assertEquals(1, snapshot.designElements.size)
-        assertTrue(snapshot.designElements.first().requestFields.isEmpty())
-        assertTrue(snapshot.designElements.first().responseFields.isEmpty())
+            val error = assertThrows<IllegalArgumentException> {
+                IrAnalysisSourceProvider().collect(config(dir.toString()))
+            }
+
+            assertEquals(expectedMessage, error.message)
+        }
     }
 
     @Test

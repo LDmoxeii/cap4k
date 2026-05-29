@@ -42,7 +42,6 @@ import org.jetbrains.kotlin.name.FqName
 
 class DesignElementCollector(
     private val options: Cap4kOptions,
-    @Suppress("UNUSED_PARAMETER") requestAggregates: Map<String, List<String>>
 ) : IrVisitorVoid() {
     private val blocks = LinkedHashMap<BlockKey, MutableDesignBlock>()
     private val typeFormatter = IrTypeFormatter()
@@ -76,8 +75,10 @@ class DesignElementCollector(
         }
 
         val nestedTypes = collectNestedTypes(declaration)
+        val requestClass = findNestedClass(declaration, "Request")
+        val fieldsRoot = requestClass ?: declaration
         val fields = collectFields(
-            declaration,
+            fieldsRoot,
             nestedTypes,
             DefaultValueContext("$tag $name field"),
         )
