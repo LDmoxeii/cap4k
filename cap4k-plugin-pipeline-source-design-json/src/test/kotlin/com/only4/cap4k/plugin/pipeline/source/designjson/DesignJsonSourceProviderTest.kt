@@ -1,7 +1,9 @@
 package com.only4.cap4k.plugin.pipeline.source.designjson
 
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
+import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
@@ -32,16 +34,20 @@ class DesignJsonSourceProviderTest {
         assertEquals("order.submit", snapshot.entries.first().packageName)
         assertEquals("submit order command", snapshot.entries.first().description)
         assertEquals(listOf("Order"), snapshot.entries.first().aggregates)
-        assertEquals(1, snapshot.entries.first().requestFields.size)
-        assertEquals("orderId", snapshot.entries.first().requestFields.first().name)
-        assertEquals("Long", snapshot.entries.first().requestFields.first().type)
-        assertEquals(emptyList<Any>(), snapshot.entries.first().responseFields)
+        assertEquals(emptyList<FieldModel>(), snapshot.entries.first().requestFields)
+        assertEquals(emptyList<FieldModel>(), snapshot.entries.first().responseFields)
+        assertEquals(null, snapshot.entries.first().artifacts)
+        assertEquals(1, snapshot.entries.first().fields.size)
+        assertEquals("orderId", snapshot.entries.first().fields.first().name)
+        assertEquals("Long", snapshot.entries.first().fields.first().type)
+        assertEquals(emptyList<FieldModel>(), snapshot.entries.first().resultFields)
         assertEquals("query", snapshot.entries.last().tag)
         assertEquals("FindOrder", snapshot.entries.last().name)
-        assertEquals("orderId", snapshot.entries.last().requestFields.first().name)
-        assertEquals("Long", snapshot.entries.last().requestFields.first().type)
-        assertEquals("status", snapshot.entries.last().responseFields.first().name)
-        assertEquals("String", snapshot.entries.last().responseFields.first().type)
+        assertEquals(null, snapshot.entries.last().artifacts)
+        assertEquals("orderId", snapshot.entries.last().fields.first().name)
+        assertEquals("Long", snapshot.entries.last().fields.first().type)
+        assertEquals("status", snapshot.entries.last().resultFields.first().name)
+        assertEquals("String", snapshot.entries.last().resultFields.first().type)
     }
 
     @Test
@@ -74,10 +80,45 @@ class DesignJsonSourceProviderTest {
 
         assertEquals("Find order page", entry.description)
         assertEquals(listOf("Order"), entry.aggregates)
-        assertEquals("keyword", entry.requestFields.single().name)
-        assertEquals(true, entry.requestFields.single().nullable)
-        assertEquals("orderNo", entry.responseFields.single().name)
-        assertEquals(listOf("query:page", "query-handler"), entry.targets)
+        assertEquals(emptyList<FieldModel>(), entry.requestFields)
+        assertEquals(emptyList<FieldModel>(), entry.responseFields)
+        assertEquals(emptyList<String>(), entry.targets)
+        assertEquals(null, entry.message)
+        assertEquals("keyword", entry.fields.single().name)
+        assertEquals(true, entry.fields.single().nullable)
+        assertEquals("orderNo", entry.resultFields.single().name)
+        assertEquals(
+            listOf(
+                ArtifactSelectionModel("query", "page"),
+                ArtifactSelectionModel("query-handler"),
+            ),
+            entry.artifacts,
+        )
+    }
+
+    @Test
+    fun `parses explicit empty artifact selections as authoritative empty list`() {
+        val tempFile = tempDir.resolve("empty-artifacts.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "query",
+                    "package": "order.read",
+                    "name": "FindOrder",
+                    "description": "find order",
+                    "artifacts": [],
+                    "fields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
+
+        assertEquals(emptyList<ArtifactSelectionModel>(), snapshot.entries.single().artifacts)
     }
 
     @Test
@@ -136,7 +177,7 @@ class DesignJsonSourceProviderTest {
         val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
 
         assertEquals("create order", snapshot.entries.first().description)
-        assertEquals("kotlin.String", snapshot.entries.first().requestFields.first().type)
+        assertEquals("kotlin.String", snapshot.entries.first().fields.first().type)
     }
 
     @Test
@@ -260,7 +301,7 @@ class DesignJsonSourceProviderTest {
         assertEquals("integration_event", entry.tag)
         assertEquals(null, entry.role)
         assertEquals("content.published", entry.eventName)
-        assertEquals("contentId", entry.requestFields.single().name)
+        assertEquals("contentId", entry.fields.single().name)
     }
 
     @Test
@@ -374,7 +415,7 @@ class DesignJsonSourceProviderTest {
 
         assertEquals(listOf("domain_service", "saga"), snapshot.entries.map { it.tag })
         assertEquals(listOf("Content"), snapshot.entries[0].aggregates)
-        assertEquals("contentId", snapshot.entries[1].requestFields.single().name)
+        assertEquals("contentId", snapshot.entries[1].fields.single().name)
     }
 
     @Test
@@ -515,8 +556,8 @@ class DesignJsonSourceProviderTest {
 
         val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
 
-        assertEquals("myself", snapshot.entries.single().requestFields.single().type)
-        assertEquals("Selfie", snapshot.entries.single().responseFields.single().type)
+        assertEquals("myself", snapshot.entries.single().fields.single().type)
+        assertEquals("Selfie", snapshot.entries.single().resultFields.single().type)
     }
 
     @Test

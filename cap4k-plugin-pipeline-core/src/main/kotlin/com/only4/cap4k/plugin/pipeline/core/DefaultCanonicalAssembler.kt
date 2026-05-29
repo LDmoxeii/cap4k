@@ -84,8 +84,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     typeName = "${entry.name}Cmd",
                     description = entry.description,
                     aggregateRef = entry.requestAggregateRef(aggregateLookup),
-                    requestFields = entry.requestFields,
-                    responseFields = entry.responseFields,
+                    requestFields = entry.primaryFields(),
+                    responseFields = entry.resultPayloadFields(),
                     variant = CommandVariant.DEFAULT,
                 )
             }
@@ -100,8 +100,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     typeName = "${entry.name}Qry",
                     description = entry.description,
                     aggregateRef = entry.requestAggregateRef(aggregateLookup),
-                    requestFields = entry.requestFields,
-                    responseFields = entry.responseFields,
+                    requestFields = entry.primaryFields(),
+                    responseFields = entry.resultPayloadFields(),
                     traits = entry.traits,
                 )
             }
@@ -116,8 +116,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     typeName = "${entry.name}Cli",
                     description = entry.description,
                     aggregateRef = entry.requestAggregateRef(aggregateLookup),
-                    requestFields = entry.requestFields,
-                    responseFields = entry.responseFields,
+                    requestFields = entry.primaryFields(),
+                    responseFields = entry.resultPayloadFields(),
                 )
             }
             .toList()
@@ -130,8 +130,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     packageName = entry.packageName,
                     typeName = entry.name.normalizeUpperCamelTypeName(),
                     description = entry.description,
-                    requestFields = entry.requestFields,
-                    responseFields = entry.responseFields,
+                    requestFields = entry.primaryFields(),
+                    responseFields = entry.resultPayloadFields(),
                     traits = entry.traits,
                 )
             }
@@ -158,8 +158,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     name = entry.name,
                     packageName = entry.packageName,
                     description = entry.description,
-                    requestFields = entry.requestFields,
-                    responseFields = entry.responseFields,
+                    requestFields = entry.primaryFields(),
+                    responseFields = entry.resultPayloadFields(),
                 )
             }
             .toList()
@@ -350,7 +350,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     aggregateName = aggregateName,
                     aggregatePackageName = aggregate.rootPackageName,
                     persist = entry.persist ?: false,
-                    fields = entry.requestFields.filterNot { it.name.equals("entity", ignoreCase = true) },
+                    fields = entry.primaryFields().filterNot { it.name.equals("entity", ignoreCase = true) },
                 )
             }
             .toList()
@@ -620,6 +620,12 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         )
     }
 
+    private fun DesignSpecEntry.primaryFields(): List<FieldModel> =
+        fields.ifEmpty { requestFields }
+
+    private fun DesignSpecEntry.resultPayloadFields(): List<FieldModel> =
+        resultFields.ifEmpty { responseFields }
+
     private fun DesignSpecEntry.toDesignBlockModel(): DesignBlockModel {
         validateDesignBlockSharedFields()
         val artifactSelections = resolveDesignBlockArtifacts()
@@ -632,28 +638,20 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             eventName = eventName.orEmpty(),
             persist = persist,
             artifacts = artifactSelections,
-            fields = requestFields,
-            resultFields = responseFields,
+            fields = fields,
+            resultFields = resultFields,
         )
     }
 
     private fun DesignSpecEntry.validateDesignBlockSharedFields() {
-        if (message == PublicDesignJsonMarker) {
-            require(traits.isEmpty()) {
-                "design entry $name cannot declare traits on tag: $tag"
-            }
-            require(role == null) {
-                "design entry $name cannot declare role on tag: $tag"
-            }
-            require(eventName.isNullOrBlank() || tag in EventNameTags) {
-                "design entry $name cannot declare eventName on tag: $tag"
-            }
-            require(persist == null || tag == "domain_event") {
-                "design entry $name cannot declare persist on tag: $tag"
-            }
-            require(responseFields.isEmpty() || tag in ResultFieldTags) {
-                "design entry $name cannot declare resultFields on tag: $tag"
-            }
+        require(eventName.isNullOrBlank() || tag in EventNameTags) {
+            "design entry $name cannot declare eventName on tag: $tag"
+        }
+        require(persist == null || tag == "domain_event") {
+            "design entry $name cannot declare persist on tag: $tag"
+        }
+        require(resultFields.isEmpty() || tag in ResultFieldTags) {
+            "design entry $name cannot declare resultFields on tag: $tag"
         }
         if (tag == "domain_event") {
             val aggregateCount = aggregates.size
@@ -664,11 +662,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
     private fun DesignSpecEntry.resolveDesignBlockArtifacts(): List<ArtifactSelectionModel> {
-        val artifacts = if (targets.isEmpty()) {
-            defaultArtifactsFor(tag)
-        } else {
-            targets.map { it.toArtifactSelection(name) }
-        }
+        val artifacts = artifacts ?: defaultArtifactsFor(tag)
         validateArtifactSelections(artifacts)
         return artifacts
     }
@@ -715,16 +709,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 "integration_event $name integration-subscriber requires integration-event:inbound."
             }
         }
-    }
-
-    private fun String.toArtifactSelection(entryName: String): ArtifactSelectionModel {
-        val parts = split(':', limit = 2)
-        val family = parts[0].trim()
-        require(family.isNotEmpty()) {
-            "design entry $entryName has blank artifact family"
-        }
-        val variant = parts.getOrNull(1)?.trim().orEmpty()
-        return ArtifactSelectionModel(family = family, variant = variant)
     }
 
     private fun defaultArtifactsFor(tag: String): List<ArtifactSelectionModel> =
@@ -822,10 +806,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
     private fun DesignSpecEntry.integrationEventRequestFields(): List<FieldModel> {
-        require(requestFields.isNotEmpty()) {
+        val fields = primaryFields()
+        require(fields.isNotEmpty()) {
             "integration_event $name must declare at least one requestField."
         }
-        return requestFields
+        return fields
     }
 
     private fun String.normalizeUpperCamelTypeName(): String {
@@ -1046,8 +1031,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
     private companion object {
-        const val PublicDesignJsonMarker = "design-json-public-v2"
-
         val SupportedDesignBlockTags = setOf(
             "command",
             "query",

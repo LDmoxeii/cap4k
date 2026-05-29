@@ -70,8 +70,10 @@ class DefaultCanonicalAssemblerTest {
                             name = "FindOrder",
                             description = "find order",
                             aggregates = listOf("Order"),
-                            requestFields = listOf(FieldModel(name = "orderNo", type = "String")),
-                            responseFields = listOf(FieldModel(name = "status", type = "String")),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                            fields = listOf(FieldModel(name = "orderNo", type = "String")),
+                            resultFields = listOf(FieldModel(name = "status", type = "String")),
                         ),
                     ),
                 ),
@@ -105,8 +107,9 @@ class DefaultCanonicalAssemblerTest {
                             name = "OrderCreated",
                             description = "order created",
                             aggregates = emptyList(),
-                            requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            requestFields = emptyList(),
                             responseFields = emptyList(),
+                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
                             eventName = "order.created",
                         ),
                     ),
@@ -134,10 +137,14 @@ class DefaultCanonicalAssemblerTest {
                                 name = "OrderCreated",
                                 description = "order created",
                                 aggregates = emptyList(),
-                                requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
+                                requestFields = emptyList(),
                                 responseFields = emptyList(),
+                                fields = listOf(FieldModel(name = "orderId", type = "Long")),
                                 eventName = "order.created",
-                                targets = listOf("integration-event:outbound", "integration-subscriber"),
+                                artifacts = listOf(
+                                    ArtifactSelectionModel("integration-event", "outbound"),
+                                    ArtifactSelectionModel("integration-subscriber"),
+                                ),
                             ),
                         ),
                     ),
@@ -164,10 +171,14 @@ class DefaultCanonicalAssemblerTest {
                             name = "OrderCreated",
                             description = "order created",
                             aggregates = emptyList(),
-                            requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            requestFields = emptyList(),
                             responseFields = emptyList(),
+                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
                             eventName = "order.created",
-                            targets = listOf("integration-event:inbound", "integration-subscriber"),
+                            artifacts = listOf(
+                                ArtifactSelectionModel("integration-event", "inbound"),
+                                ArtifactSelectionModel("integration-subscriber"),
+                            ),
                         ),
                     ),
                 ),
@@ -198,7 +209,7 @@ class DefaultCanonicalAssemblerTest {
                             aggregates = listOf("Order"),
                             requestFields = emptyList(),
                             responseFields = emptyList(),
-                            targets = listOf("query:page"),
+                            artifacts = listOf(ArtifactSelectionModel("query", "page")),
                         ),
                     ),
                 ),
@@ -212,31 +223,56 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `explicit empty artifact selections do not use default expansion`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            description = "find order",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                            artifacts = emptyList(),
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        assertEquals(emptyList<ArtifactSelectionModel>(), model.designBlocks.single().artifacts)
+    }
+
+    @Test
     fun `design block validation rejects unsupported families variants and duplicate selections`() {
         val cases = listOf(
             Triple(
-                listOf("unsupported"),
+                listOf(ArtifactSelectionModel("unsupported")),
                 "unsupported design artifact family on FindOrder: unsupported",
                 "unsupported-family",
             ),
             Triple(
-                listOf("query:stream"),
+                listOf(ArtifactSelectionModel("query", "stream")),
                 "design entry FindOrder artifact query has unsupported variant: stream",
                 "unsupported-variant",
             ),
             Triple(
-                listOf("query", "query"),
+                listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query")),
                 "design entry FindOrder has duplicate artifact selection: query",
                 "duplicate",
             ),
             Triple(
-                listOf("query", "query:page"),
+                listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query", "page")),
                 "design entry FindOrder has conflicting query variants",
                 "conflicting-query-variant",
             ),
         )
 
-        cases.forEach { (targets, expectedMessage, _) ->
+        cases.forEach { (artifacts, expectedMessage, _) ->
             val error = assertThrows(IllegalArgumentException::class.java) {
                 DefaultCanonicalAssembler().assemble(
                     config = baseConfig(),
@@ -251,7 +287,7 @@ class DefaultCanonicalAssemblerTest {
                                     aggregates = emptyList(),
                                     requestFields = emptyList(),
                                     responseFields = emptyList(),
-                                    targets = targets,
+                                    artifacts = artifacts,
                                 ),
                             ),
                         ),
@@ -278,8 +314,8 @@ class DefaultCanonicalAssemblerTest {
                                 description = "submit order",
                                 aggregates = emptyList(),
                                 requestFields = emptyList(),
-                                responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
-                                message = "design-json-public-v2",
+                                responseFields = emptyList(),
+                                resultFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
                             ),
                         ),
                     ),

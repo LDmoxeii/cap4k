@@ -1,8 +1,10 @@
 package com.only4.cap4k.plugin.pipeline.source.designjson
 
 import com.google.gson.JsonArray
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
@@ -104,7 +106,7 @@ class DesignJsonSourceProvider : SourceProvider {
             rejectRemovedFields(obj, name)
             val fields = parseFields(obj["fields"]?.asJsonArray)
             val resultFields = parseFields(obj["resultFields"]?.asJsonArray)
-            val artifacts = parseArtifacts(obj["artifacts"]?.asJsonArray)
+            val artifacts = parseArtifacts(obj["artifacts"])
             val eventName = parseIntegrationEventName(obj, tag, name)
             validateResultFields(tag, name, resultFields)
             validatePersist(tag, name, obj)
@@ -118,13 +120,9 @@ class DesignJsonSourceProvider : SourceProvider {
                 description = obj["description"]?.asString ?: "",
                 aggregates = obj["aggregates"]?.asJsonArray?.map { it.asString } ?: emptyList(),
                 persist = obj["persist"]?.asBoolean,
-                traits = emptySet(),
-                requestFields = fields,
-                responseFields = resultFields,
-                message = PublicDesignJsonMarker,
-                targets = artifacts,
-                valueType = null,
-                role = null,
+                artifacts = artifacts,
+                fields = fields,
+                resultFields = resultFields,
                 eventName = eventName,
             )
         }
@@ -213,19 +211,16 @@ class DesignJsonSourceProvider : SourceProvider {
         error("design entry package is required for tag: $tag")
     }
 
-    private fun parseArtifacts(array: JsonArray?): List<String> {
-        if (array == null) {
-            return emptyList()
+    private fun parseArtifacts(element: JsonElement?): List<ArtifactSelectionModel>? {
+        if (element == null) {
+            return null
         }
-        return array.map { element ->
-            val artifact = element.asJsonObject
+        val array = element.asJsonArray
+        return array.map { artifactElement ->
+            val artifact = artifactElement.asJsonObject
             val family = artifact["family"].asString
             val variant = artifact["variant"]?.asString?.trim().orEmpty()
-            if (variant.isEmpty()) {
-                family
-            } else {
-                "$family:$variant"
-            }
+            ArtifactSelectionModel(family = family, variant = variant)
         }
     }
 
@@ -244,7 +239,4 @@ class DesignJsonSourceProvider : SourceProvider {
         }
     }
 
-    private companion object {
-        const val PublicDesignJsonMarker = "design-json-public-v2"
-    }
 }

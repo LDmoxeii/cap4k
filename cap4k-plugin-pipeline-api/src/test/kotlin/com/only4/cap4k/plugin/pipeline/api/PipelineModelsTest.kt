@@ -32,6 +32,31 @@ class PipelineModelsTest {
     }
 
     @Test
+    fun `design spec entry exposes public v2 fields and nullable artifact selections`() {
+        val requestFields = listOf(FieldModel(name = "keyword", type = "String", nullable = true))
+        val responseFields = listOf(FieldModel(name = "orderNo", type = "String"))
+        val entryWithOmittedArtifacts = DesignSpecEntry(
+            tag = "query",
+            packageName = "order.read",
+            name = "FindOrderPage",
+            description = "find order page",
+            aggregates = listOf("Order"),
+            requestFields = emptyList(),
+            responseFields = emptyList(),
+            fields = requestFields,
+            resultFields = responseFields,
+        )
+        val entryWithExplicitEmptyArtifacts = entryWithOmittedArtifacts.copy(artifacts = emptyList())
+
+        assertNull(entryWithOmittedArtifacts.artifacts)
+        assertEquals(emptyList<FieldModel>(), entryWithOmittedArtifacts.requestFields)
+        assertEquals(emptyList<FieldModel>(), entryWithOmittedArtifacts.responseFields)
+        assertEquals(requestFields, entryWithOmittedArtifacts.fields)
+        assertEquals(responseFields, entryWithOmittedArtifacts.resultFields)
+        assertEquals(emptyList<ArtifactSelectionModel>(), entryWithExplicitEmptyArtifacts.artifacts)
+    }
+
+    @Test
     fun `canonical model defaults design blocks to empty list`() {
         val model = CanonicalModel()
 
