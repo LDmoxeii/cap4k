@@ -124,6 +124,34 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `explicit empty integration event artifacts keep design block empty and skip typed integration events`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "integration_event",
+                            packageName = "order.events",
+                            name = "OrderCreated",
+                            description = "order created",
+                            aggregates = emptyList(),
+                            requestFields = emptyList(),
+                            responseFields = emptyList(),
+                            artifacts = emptyList(),
+                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            eventName = "order.created",
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        assertEquals(emptyList<ArtifactSelectionModel>(), model.designBlocks.single().artifacts)
+        assertEquals(0, model.integrationEvents.size)
+    }
+
+    @Test
     fun `integration subscriber requires explicit inbound integration event`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(

@@ -167,12 +167,16 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val integrationEvents = designSnapshot?.entries.orEmpty()
             .asSequence()
             .filter { entry -> entry.tag == "integration_event" }
-            .map { entry ->
+            .mapNotNull { entry ->
+                val effectiveArtifacts = entry.effectiveArtifacts()
+                val integrationEventArtifact = effectiveArtifacts.singleOrNull { it.family == "integration-event" }
+                    ?: return@mapNotNull null
+
                 IntegrationEventModel(
                     packageName = entry.packageName,
                     typeName = entry.name.toIntegrationEventTypeName(),
                     description = entry.description,
-                    role = entry.integrationEventRole(),
+                    role = entry.integrationEventRole(integrationEventArtifact),
                     eventName = entry.integrationEventName(),
                     fields = entry.integrationEventRequestFields(),
                 )
@@ -661,10 +665,13 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         }
     }
 
+    private fun DesignSpecEntry.effectiveArtifacts(): List<ArtifactSelectionModel> =
+        artifacts ?: defaultArtifactsFor(tag)
+
     private fun DesignSpecEntry.resolveDesignBlockArtifacts(): List<ArtifactSelectionModel> {
-        val artifacts = artifacts ?: defaultArtifactsFor(tag)
-        validateArtifactSelections(artifacts)
-        return artifacts
+        val artifactSelections = effectiveArtifacts()
+        validateArtifactSelections(artifactSelections)
+        return artifactSelections
     }
 
     private fun DesignSpecEntry.validateArtifactSelections(artifacts: List<ArtifactSelectionModel>) {
@@ -782,19 +789,14 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return "${element.tag}|${element.packageName}|${element.name}"
     }
 
-    private fun DesignSpecEntry.integrationEventRole(): IntegrationEventRole {
+    private fun DesignSpecEntry.integrationEventRole(integrationEventArtifact: ArtifactSelectionModel): IntegrationEventRole {
         return when (role) {
             "inbound" -> IntegrationEventRole.INBOUND
             "outbound" -> IntegrationEventRole.OUTBOUND
-            null -> {
-                val integrationEvent = resolveDesignBlockArtifacts()
-                    .singleOrNull { it.family == "integration-event" }
-                    ?: throw IllegalArgumentException("integration_event $name must select integration-event artifact.")
-                when (integrationEvent.variant) {
-                    "inbound" -> IntegrationEventRole.INBOUND
-                    "outbound" -> IntegrationEventRole.OUTBOUND
-                    else -> throw IllegalArgumentException("integration_event $name must select integration-event variant inbound or outbound.")
-                }
+            null -> when (integrationEventArtifact.variant) {
+                "inbound" -> IntegrationEventRole.INBOUND
+                "outbound" -> IntegrationEventRole.OUTBOUND
+                else -> throw IllegalArgumentException("integration_event $name must select integration-event variant inbound or outbound.")
             }
             else -> throw IllegalArgumentException("integration_event $name must declare role inbound or outbound.")
         }

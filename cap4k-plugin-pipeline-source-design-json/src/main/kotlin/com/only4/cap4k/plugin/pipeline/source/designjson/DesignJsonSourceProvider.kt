@@ -106,7 +106,7 @@ class DesignJsonSourceProvider : SourceProvider {
             rejectRemovedFields(obj, name)
             val fields = parseFields(obj["fields"]?.asJsonArray)
             val resultFields = parseFields(obj["resultFields"]?.asJsonArray)
-            val artifacts = parseArtifacts(obj["artifacts"])
+            val artifacts = parseArtifacts(obj["artifacts"], name)
             val eventName = parseIntegrationEventName(obj, tag, name)
             validateResultFields(tag, name, resultFields)
             validatePersist(tag, name, obj)
@@ -211,15 +211,32 @@ class DesignJsonSourceProvider : SourceProvider {
         error("design entry package is required for tag: $tag")
     }
 
-    private fun parseArtifacts(element: JsonElement?): List<ArtifactSelectionModel>? {
+    private fun parseArtifacts(element: JsonElement?, name: String): List<ArtifactSelectionModel>? {
         if (element == null) {
             return null
         }
+        require(element.isJsonArray) {
+            "design entry $name artifacts must be an array."
+        }
         val array = element.asJsonArray
-        return array.map { artifactElement ->
+        return array.mapIndexed { index, artifactElement ->
+            require(artifactElement.isJsonObject) {
+                "design entry $name artifacts[$index] must be an object."
+            }
             val artifact = artifactElement.asJsonObject
-            val family = artifact["family"].asString
-            val variant = artifact["variant"]?.asString?.trim().orEmpty()
+            val familyElement = artifact["family"]
+            require(familyElement != null && familyElement.isJsonPrimitive && familyElement.asJsonPrimitive.isString) {
+                "design entry $name artifacts[$index] artifact family must be a nonblank string."
+            }
+            val family = familyElement.asString.trim()
+            require(family.isNotEmpty()) {
+                "design entry $name artifacts[$index] artifact family must be a nonblank string."
+            }
+            val variantElement = artifact["variant"]
+            require(variantElement == null || variantElement.isJsonPrimitive && variantElement.asJsonPrimitive.isString) {
+                "design entry $name artifacts[$index] artifact variant must be a string."
+            }
+            val variant = variantElement?.asString?.trim().orEmpty()
             ArtifactSelectionModel(family = family, variant = variant)
         }
     }

@@ -122,6 +122,66 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
+    fun `rejects malformed artifact selection shape with stable entry scoped message`() {
+        val tempFile = tempDir.resolve("malformed-artifacts.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "query",
+                    "package": "order.read",
+                    "name": "FindOrder",
+                    "description": "find order",
+                    "artifacts": [
+                      "query"
+                    ],
+                    "fields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertTrue(error.message?.contains("design entry FindOrder") == true)
+        assertTrue(error.message?.contains("artifacts[0]") == true)
+    }
+
+    @Test
+    fun `rejects malformed artifact family values with stable entry scoped message`() {
+        val tempFile = tempDir.resolve("malformed-artifact-family.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "query",
+                    "package": "order.read",
+                    "name": "FindOrder",
+                    "description": "find order",
+                    "artifacts": [
+                      { "family": " " }
+                    ],
+                    "fields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertTrue(error.message?.contains("design entry FindOrder") == true)
+        assertTrue(error.message?.contains("artifact family") == true)
+    }
+
+    @Test
     fun `rejects removed public fields with stable entry message`() {
         val tempFile = tempDir.resolve("old-fields.json")
         Files.writeString(
