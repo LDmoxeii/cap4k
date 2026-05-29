@@ -15,7 +15,7 @@ This file maps generator inputs, generated artifacts, and review checks for busi
 | IR analysis | `sources.irAnalysis` | Flow and drawing-board analysis artifacts |
 | Type registry | `types.registryFile` | Simple-name type bindings and converter policy loaded into `ProjectConfig.typeRegistry` for canonical type resolution |
 
-`buildSourceRunner` registers `db`, `enum-manifest`, `value-object-manifest`, and `design-json` as source-generation providers. Public Gradle DSL configures enum and value-object manifests through `types {}` rather than `sources {}`. `buildAnalysisRunner` registers `ir-analysis` separately for `cap4kAnalysisPlan` and `cap4kAnalysisGenerate`. KSP metadata source support has been removed and is no longer part of the generation input contract.
+`buildSourceRunner` registers `db`, `enum-manifest`, `value-object-manifest`, and `design-json` as source-generation providers. Public Gradle DSL configures enum and value-object manifests through `types {}` rather than `sources {}`. `buildAnalysisRunner` registers `ir-analysis` separately for `cap4kAnalysisPlan` and `cap4kAnalysisGenerate`. KSP metadata source support and the old `cap4k-plugin-codegen-ksp` metadata producer have been removed and are no longer part of the generation input contract.
 
 `types.registryFile`, `types.enumManifest`, and `types.valueObjectManifest` are outside `sources {}` and live under `types {}` in the DSL, but they are still part of the source-generation input contract. Enum and value-object manifest entries do not need matching `types.registryFile` entries.
 
@@ -259,7 +259,7 @@ Return to `cap4k-modeling` when the missing piece is the fact contract generatio
 
 Return to `cap4k-generation` / compile / setup when the business facts already exist but the design-generation pipeline is missing required derived output or setup, including:
 
-- KSP metadata output or configuration; this source has been removed.
+- KSP metadata output or configuration; the source and old metadata producer have been removed.
 
 ## Reference-Project Checks
 
