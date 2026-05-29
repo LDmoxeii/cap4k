@@ -62,7 +62,7 @@ The pipeline keeps source ownership separate:
 - `value-object-manifest` declares value-object types.
 - `db` declares aggregate, persistence, relation, unique, strong-id, schema, projection, and DB-derived type facts.
 - `ir-analysis` is an observation input, not an authoring source.
-- `ksp-metadata` is not redesigned in #92 because it is planned for removal.
+- `ksp-metadata` is removed and is not a pipeline authoring or generation source.
 
 The canonical model changes asymmetrically:
 
