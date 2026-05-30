@@ -303,6 +303,64 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
+    fun `addon item using observation generator id is not forced to overwrite`() {
+        val addonItem = ArtifactPlanItem(
+            generatorId = "flow",
+            moduleRole = "project",
+            templateId = "addons/sample-addon/flow-observation.json.peb",
+            outputPath = "flows/addon.json",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = emptyList(),
+            addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
+            config = configuredConfig(
+                templates = TemplateConfig(
+                    preset = "default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.FAIL,
+                    templateConflictPolicies = mapOf(
+                        "addons/sample-addon/flow-observation.json.peb" to ConflictPolicy.FAIL,
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(ConflictPolicy.FAIL, result.rendererReceivedPlanItems.single().conflictPolicy)
+    }
+
+    @Test
+    fun `transformed non observation item using observation generator id is not forced to overwrite`() {
+        val checkedInItem = ArtifactPlanItem(
+            generatorId = "design-command",
+            moduleRole = "application",
+            templateId = "design/command.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/CreateOrderCmd.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        val transformedItem = checkedInItem.copy(generatorId = "drawing-board")
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = listOf(checkedInItem),
+            config = configuredConfig(
+                templates = TemplateConfig(
+                    preset = "default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.FAIL,
+                    templateConflictPolicies = mapOf(
+                        "design/command.kt.peb" to ConflictPolicy.FAIL,
+                    ),
+                ),
+            ),
+            transformPlanItem = { transformedItem },
+        )
+
+        assertEquals(ConflictPolicy.FAIL, result.rendererReceivedPlanItems.single().conflictPolicy)
+        assertEquals(ConflictPolicy.FAIL, result.pipelineResult.planItems.single().conflictPolicy)
+    }
+
+    @Test
     fun `addon receives assembled canonical model and project config`() {
         val assembledModel = CanonicalModel()
         val config = configuredConfig()

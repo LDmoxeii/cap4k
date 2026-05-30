@@ -76,7 +76,7 @@ class DefaultPipelineRunner(
                     validateAddonTemplateNamespace(item.planItem, providerId)
                 }
             }
-            .map { resolveConflictPolicy(it.planItem, config) }
+            .map { resolveConflictPolicy(it, config) }
 
         val renderedArtifacts = renderer.render(planItems, config)
         val writtenPaths = exporter.export(renderedArtifacts)
@@ -126,25 +126,46 @@ class DefaultPipelineRunner(
         }
     }
 
-    private fun resolveConflictPolicy(item: ArtifactPlanItem, config: ProjectConfig): ArtifactPlanItem {
+    private fun resolveConflictPolicy(item: ProvenancedPlanItem, config: ProjectConfig): ArtifactPlanItem {
+        val planItem = item.planItem
         val resolvedConflictPolicy = when (item.outputKind) {
             ArtifactOutputKind.GENERATED_SOURCE -> ConflictPolicy.OVERWRITE
-            else -> if (item.generatorId in observationOutputGeneratorIds) {
+            else -> if (item.isBuiltInObservationOutput()) {
                 ConflictPolicy.OVERWRITE
             } else {
-                config.templates.templateConflictPolicies[item.templateId] ?: item.conflictPolicy
+                config.templates.templateConflictPolicies[planItem.templateId] ?: planItem.conflictPolicy
             }
         }
 
-        return item.copy(conflictPolicy = resolvedConflictPolicy)
+        return planItem.copy(conflictPolicy = resolvedConflictPolicy)
+    }
+
+    private fun ProvenancedPlanItem.isBuiltInObservationOutput(): Boolean {
+        if (addonProviderId != null) {
+            return false
+        }
+
+        return originalGeneratorId in observationOutputGeneratorIds &&
+            originalTemplateId in observationOutputTemplateIds
     }
 
     private companion object {
         val observationOutputGeneratorIds = setOf("drawing-board", "flow")
+        val observationOutputTemplateIds = setOf(
+            "drawing-board/document.json.peb",
+            "flow/entry.json.peb",
+            "flow/entry.mmd.peb",
+            "flow/index.json.peb",
+        )
     }
 
     private data class ProvenancedPlanItem(
         val planItem: ArtifactPlanItem,
         val addonProviderId: String? = null,
-    )
+        val originalGeneratorId: String = planItem.generatorId,
+        val originalTemplateId: String = planItem.templateId,
+    ) {
+        val outputKind: ArtifactOutputKind
+            get() = planItem.outputKind
+    }
 }
