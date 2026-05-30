@@ -23,6 +23,7 @@ import com.only4.cap4k.plugin.pipeline.core.FilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.NoopArtifactExporter
 import com.only4.cap4k.plugin.pipeline.bootstrap.DddMultiModuleBootstrapPresetProvider
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.aggregate.EnumManifestArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignApiPayloadArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignClientArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignClientHandlerArtifactPlanner
@@ -665,6 +666,7 @@ internal fun buildSourceRunner(
             DesignIntegrationEventArtifactPlanner(),
             DesignIntegrationEventSubscriberArtifactPlanner(),
             ValueObjectArtifactPlanner(),
+            EnumManifestArtifactPlanner(),
             AggregateArtifactPlanner(),
             AggregateProjectionArtifactPlanner(),
         ),

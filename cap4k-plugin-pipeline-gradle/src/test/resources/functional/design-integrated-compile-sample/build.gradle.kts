@@ -29,6 +29,9 @@ cap4k {
         }
     }
     types {
+        enumManifest {
+            files.from("design/enums.json")
+        }
         valueObjectManifest {
             files.from("design/value-objects.json")
         }

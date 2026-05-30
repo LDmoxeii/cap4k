@@ -3,18 +3,18 @@
     "tag": "client",
     "package": "orders.api",
     "name": "FetchOrder",
-    "desc": "fetch order",
+    "description": "fetch order",
     "aggregates": [
       "Order"
     ],
-    "requestFields": [
+    "fields": [
       {
         "name": "id",
         "type": "Long",
         "nullable": false
       }
     ],
-    "responseFields": [
+    "resultFields": [
       {
         "name": "status",
         "type": "String",
@@ -26,32 +26,32 @@
     "tag": "command",
     "package": "orders.api",
     "name": "SubmitOrder",
-    "desc": "submit order",
+    "description": "submit order",
     "aggregates": [
       "Order"
     ],
-    "entity": "OrderEntity",
-    "persist": true,
-    "requestFields": [
+    "fields": [
       {
         "name": "remark",
         "type": "String",
         "nullable": true,
         "defaultValue": "draft"
       }
-    ],
-    "responseFields": []
+    ]
   },
   {
     "tag": "query",
     "package": "orders.read",
     "name": "FindOrderPage",
-    "desc": "find order page",
-    "traits": [
-      "page"
+    "description": "find order page",
+    "artifacts": [
+      {
+        "family": "query",
+        "variant": "page"
+      }
     ],
-    "requestFields": [],
-    "responseFields": [
+    "fields": [],
+    "resultFields": [
       {
         "name": "page",
         "type": "PageData<Item>",
@@ -63,12 +63,15 @@
     "tag": "api_payload",
     "package": "orders.read",
     "name": "FindOrderPage",
-    "desc": "find order page payload",
-    "traits": [
-      "page"
+    "description": "find order page payload",
+    "artifacts": [
+      {
+        "family": "api-payload",
+        "variant": "page"
+      }
     ],
-    "requestFields": [],
-    "responseFields": [
+    "fields": [],
+    "resultFields": [
       {
         "name": "page",
         "type": "PageData<Item>",
@@ -80,24 +83,17 @@
     "tag": "domain_event",
     "package": "orders.events",
     "name": "OrderCreated",
-    "desc": "order created",
+    "description": "order created",
     "aggregates": [
       "Order"
     ],
-    "entity": "Order",
     "persist": false,
-    "requestFields": [
-      {
-        "name": "entity",
-        "type": "Order",
-        "nullable": false
-      },
+    "fields": [
       {
         "name": "reason",
         "type": "String",
         "nullable": false
       }
-    ],
-    "responseFields": []
+    ]
   }
 ]

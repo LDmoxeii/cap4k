@@ -164,7 +164,6 @@ class AggregateArtifactPlannerTest {
             plan.single { it.templateId == "aggregate/unique_query.kt.peb" },
             plan.single { it.templateId == "aggregate/unique_query_handler.kt.peb" },
             plan.single { it.templateId == "aggregate/unique_validator.kt.peb" },
-            plan.single { it.templateId == "aggregate/enum.kt.peb" && it.context["typeName"] == "SharedStatus" },
             plan.single { it.templateId == "aggregate/enum.kt.peb" && it.context["typeName"] == "VideoPostVisibility" },
         )
 
@@ -247,10 +246,6 @@ class AggregateArtifactPlannerTest {
             description = "",
             type = "unique-validator",
             root = false,
-        )
-        assertFalse(
-            plan.single { it.templateId == "aggregate/enum.kt.peb" && it.context["typeName"] == "SharedStatus" }
-                .context.containsKey("aggregateElement")
         )
         assertFalse(
             plan.single { it.templateId == "aggregate/enum.kt.peb" && it.context["typeName"] == "VideoPostVisibility" }
@@ -3523,8 +3518,8 @@ class AggregateArtifactPlannerTest {
 
         val items = planner.plan(config, model)
 
-        assertTrue(items.any { it.templateId == "aggregate/enum.kt.peb" && it.outputPath.endsWith("/domain/shared/enums/Status.kt") })
         assertTrue(items.any { it.templateId == "aggregate/enum.kt.peb" && it.outputPath.endsWith("/domain/aggregates/video_post/enums/VideoPostVisibility.kt") })
+        val localEnumPlan = items.single { it.templateId == "aggregate/enum.kt.peb" && it.context["typeName"] == "VideoPostVisibility" }
         val entityPlan = items.single { it.templateId == "aggregate/entity.kt.peb" }
         val schemaPlan = items.single { it.templateId == "aggregate/schema.kt.peb" }
         @Suppress("UNCHECKED_CAST")
@@ -3570,6 +3565,92 @@ class AggregateArtifactPlannerTest {
         assertEquals(
             listOf("com.acme.demo.domain.aggregates.video_post.enums.VideoPostVisibility"),
             schemaFields.single { it["name"] == "visibility" }["typeImports"],
+        )
+        assertFalse(localEnumPlan.context.containsKey("buildingBlock"))
+    }
+
+    @Test
+    fun `enum manifest planner emits building block metadata without aggregate generator config`() {
+        val videoPostEntity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val dbEnumEntity = EntityModel(
+            name = "Review",
+            packageName = "com.acme.demo.domain.aggregates.review",
+            tableName = "review",
+            comment = "review",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel(
+                    name = "reviewState",
+                    type = "ReviewState",
+                    typeBinding = "ReviewState",
+                    enumItems = listOf(EnumItemModel(0, "PENDING", "Pending")),
+                    columnName = "review_state",
+                ),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val items = EnumManifestArtifactPlanner().plan(
+            aggregateConfig().copy(generators = emptyMap()),
+            CanonicalModel(
+                entities = listOf(videoPostEntity, dbEnumEntity),
+                sharedEnums = listOf(
+                    SharedEnumDefinition(
+                        typeName = "Status",
+                        packageName = "shared",
+                        items = listOf(
+                            EnumItemModel(0, "DRAFT", "Draft"),
+                            EnumItemModel(1, "PUBLISHED", "Published"),
+                        ),
+                    ),
+                    SharedEnumDefinition(
+                        typeName = "Visibility",
+                        packageName = "ignored",
+                        aggregates = listOf("VideoPost"),
+                        items = listOf(EnumItemModel(0, "HIDDEN", "Hidden")),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(2, items.size)
+        val sharedEnum = items.single { it.context["typeName"] == "Status" }
+        val ownedEnum = items.single { it.context["typeName"] == "Visibility" }
+        assertFalse(items.any { it.context["typeName"] == "ReviewState" })
+
+        assertEquals("enum", sharedEnum.generatorId)
+        assertEquals(
+            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt",
+            sharedEnum.outputPath,
+        )
+        assertBuildingBlock(
+            sharedEnum,
+            tag = "enum",
+            name = "Status",
+            packageName = "shared",
+            aggregates = emptyList(),
+            family = "enum",
+            variant = "",
+        )
+        assertEquals("enum", ownedEnum.generatorId)
+        assertEquals(
+            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/Visibility.kt",
+            ownedEnum.outputPath,
+        )
+        assertBuildingBlock(
+            ownedEnum,
+            tag = "enum",
+            name = "Visibility",
+            packageName = "ignored",
+            aggregates = listOf("VideoPost"),
+            family = "enum",
+            variant = "",
         )
     }
 
@@ -3660,10 +3741,6 @@ class AggregateArtifactPlannerTest {
             model,
         )
 
-        val sharedEnum = items.single {
-            it.templateId == "aggregate/enum.kt.peb" &&
-                it.context["typeName"] == "Status"
-        }
         val localEnum = items.single {
             it.templateId == "aggregate/enum.kt.peb" &&
                 it.context["typeName"] == "Visibility"
@@ -3675,11 +3752,6 @@ class AggregateArtifactPlannerTest {
         @Suppress("UNCHECKED_CAST")
         val schemaFields = schemaPlan.context.getValue("fields") as List<Map<String, Any?>>
 
-        assertEquals(
-            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/catalog/shared/types/Status.kt",
-            sharedEnum.outputPath,
-        )
-        assertEquals("com.acme.demo.domain.catalog.shared.types", sharedEnum.context["packageName"])
         assertEquals(
             "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/model/video_post/enums/Visibility.kt",
             localEnum.outputPath,
@@ -3705,9 +3777,8 @@ class AggregateArtifactPlannerTest {
 
     @Test
     fun `shared enum planning stays stable when no entities are present`() {
-        val planner = AggregateArtifactPlanner()
         val config = aggregateConfig()
-        val items = planner.plan(
+        val items = EnumManifestArtifactPlanner().plan(
             config,
             CanonicalModel(
                 sharedEnums = listOf(
@@ -4685,6 +4756,26 @@ class AggregateArtifactPlannerTest {
         assertEquals(description.toTestKotlinStringLiteral(), aggregateElement?.get("descriptionKotlinStringLiteral"), item.templateId)
         assertEquals(type, aggregateElement?.get("type"), item.templateId)
         assertEquals(root, aggregateElement?.get("root"), item.templateId)
+    }
+
+    private fun assertBuildingBlock(
+        item: ArtifactPlanItem,
+        tag: String,
+        name: String,
+        packageName: String,
+        aggregates: List<String>,
+        family: String,
+        variant: String,
+    ) {
+        @Suppress("UNCHECKED_CAST")
+        val buildingBlock = item.context["buildingBlock"] as? Map<String, Any?>
+
+        assertEquals(tag, buildingBlock?.get("tag"), item.templateId)
+        assertEquals(name, buildingBlock?.get("name"), item.templateId)
+        assertEquals(packageName, buildingBlock?.get("packageName"), item.templateId)
+        assertEquals(aggregates, buildingBlock?.get("aggregates"), item.templateId)
+        assertEquals(family, buildingBlock?.get("family"), item.templateId)
+        assertEquals(variant, buildingBlock?.get("variant"), item.templateId)
     }
 
     private fun String.toTestKotlinStringLiteral(): String {

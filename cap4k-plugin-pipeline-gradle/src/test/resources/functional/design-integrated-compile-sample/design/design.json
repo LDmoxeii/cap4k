@@ -42,6 +42,15 @@
         "name": "status",
         "type": "String"
       }
+    ],
+    "artifacts": [
+      {
+        "family": "query",
+        "variant": "page"
+      },
+      {
+        "family": "query-handler"
+      }
     ]
   },
   {
@@ -120,6 +129,35 @@
       {
         "name": "snapshot.traceId",
         "type": "String"
+      }
+    ]
+  },
+  {
+    "tag": "integration_event",
+    "package": "payment.integration",
+    "name": "PaymentReceivedIntegrationEvent",
+    "description": "payment received",
+    "eventName": "payment.received",
+    "aggregates": [
+      "Order"
+    ],
+    "fields": [
+      {
+        "name": "paymentId",
+        "type": "String"
+      },
+      {
+        "name": "orderId",
+        "type": "Long"
+      }
+    ],
+    "artifacts": [
+      {
+        "family": "integration-event",
+        "variant": "inbound"
+      },
+      {
+        "family": "integration-subscriber"
       }
     ]
   },

@@ -1,9 +1,24 @@
+{% if buildingBlock is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.BuildingBlock") -}}
+{% endif -%}
 {{ use("com.only4.cap4k.ddd.core.application.RequestParam") -}}
 package {{ packageName }}
 
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
+{% if buildingBlock is defined -%}
+@BuildingBlock(
+    tag = "{{ buildingBlock.tag }}",
+    name = "{{ buildingBlock.name }}",
+    packageName = "{{ buildingBlock.packageName }}",
+    description = {{ buildingBlock.descriptionKotlinStringLiteral | raw }},
+    aggregates = [{% for aggregate in buildingBlock.aggregates %}"{{ aggregate }}"{% if not loop.last %}, {% endif %}{% endfor %}],
+    eventName = "{{ buildingBlock.eventName }}",
+    family = "{{ buildingBlock.family }}",
+    variant = "{{ buildingBlock.variant }}"
+)
+{% endif -%}
 object {{ typeName }} {
 
 {% if requestFields.size > 0 %}

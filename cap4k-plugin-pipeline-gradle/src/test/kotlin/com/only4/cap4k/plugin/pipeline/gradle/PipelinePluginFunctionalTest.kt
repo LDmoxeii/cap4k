@@ -2303,14 +2303,131 @@ class PipelinePluginFunctionalTest {
         assertTrue(projectDir.resolve("design/drawing_board_command.json").toFile().exists())
         val queryContent = projectDir.resolve("design/drawing_board_query.json").readText()
         val payloadContent = projectDir.resolve("design/drawing_board_api_payload.json").readText()
-        assertTrue(queryContent.contains("\"traits\": [\"page\"]"))
-        assertTrue(payloadContent.contains("\"traits\": [\"page\"]"))
+        assertTrue(queryContent.contains("\"family\": \"query\""))
+        assertTrue(queryContent.contains("\"variant\": \"page\""))
+        assertTrue(payloadContent.contains("\"family\": \"api-payload\""))
+        assertTrue(payloadContent.contains("\"variant\": \"page\""))
+        assertFalse(queryContent.contains("\"traits\""))
+        assertFalse(payloadContent.contains("\"traits\""))
         val domainEventFile = projectDir.resolve("design/drawing_board_domain_event.json")
         assertTrue(domainEventFile.toFile().exists())
         val domainEventContent = domainEventFile.readText()
         assertTrue(domainEventContent.contains("\"tag\": \"domain_event\""))
         assertTrue(domainEventContent.contains("\"name\": \"reason\""))
         assertFalse(domainEventContent.contains("\"name\": \"entity\""))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `issue 92 metadata contract supports generation analysis and drawing board round trip`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-issue-92-round-trip")
+        copyCompileFixture(projectDir, "design-integrated-compile-sample")
+
+        val generateResult = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan", "cap4kGenerate")
+            .build()
+
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertBuildingBlockSource(
+            projectDir.resolve(
+                "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt"
+            ).readText(),
+            family = "query",
+            variant = "page",
+        )
+        assertBuildingBlockSource(
+            projectDir.resolve(
+                "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/payment/integration/PaymentReceivedIntegrationEvent.kt"
+            ).readText(),
+            family = "integration-event",
+            variant = "inbound",
+        )
+        assertBuildingBlockSource(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt"
+            ).readText(),
+            family = "domain-event",
+            variant = "",
+        )
+        assertBuildingBlockSource(
+            projectDir.resolve(
+                generatedSource(
+                    "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/OrderStage.kt"
+                )
+            ).readText(),
+            family = "enum",
+            variant = "",
+        )
+        assertBuildingBlockSource(
+            projectDir.resolve(
+                generatedSource(
+                    "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/enums/OrderSignal.kt"
+                )
+            ).readText(),
+            family = "enum",
+            variant = "",
+        )
+        val valueObjectContent = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/OrderAddress.kt"
+        ).readText()
+        assertBuildingBlockSource(valueObjectContent, family = "value-object", variant = "")
+        assertTrue(valueObjectContent.contains("aggregates = [\"Order\"]"))
+
+        writeIssue92AnalysisFixture(projectDir)
+        val analysisResult = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kAnalysisPlan", "cap4kAnalysisGenerate")
+            .build()
+
+        assertTrue(analysisResult.output.contains("BUILD SUCCESSFUL"))
+        val roundTripFiles = listOf(
+            "analysis-design/drawing_board_query.json",
+            "analysis-design/drawing_board_integration_event.json",
+            "analysis-design/drawing_board_domain_event.json",
+        )
+        roundTripFiles.forEach { relativePath ->
+            val content = projectDir.resolve(relativePath).readText()
+            assertFalse(content.contains("\"desc\""))
+            assertFalse(content.contains("\"requestFields\""))
+            assertFalse(content.contains("\"responseFields\""))
+            assertFalse(content.contains("\"traits\""))
+            assertFalse(content.contains("\"role\""))
+        }
+        assertTrue(projectDir.resolve("analysis-design/drawing_board_query.json").readText().contains("\"artifacts\""))
+        assertTrue(
+            projectDir.resolve("analysis-design/drawing_board_integration_event.json")
+                .readText()
+                .contains("\"artifacts\"")
+        )
+
+        val roundTripBuildFile = projectDir.resolve("build.gradle.kts")
+        roundTripBuildFile.writeText(
+            roundTripBuildFile.readText().replace(
+                """files.from("design/design.json")""",
+                """
+                files.from(
+                    "analysis-design/drawing_board_query.json",
+                    "analysis-design/drawing_board_integration_event.json",
+                    "analysis-design/drawing_board_domain_event.json"
+                )
+                """.trimIndent(),
+            )
+        )
+
+        val roundTripPlanResult = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .build()
+
+        assertTrue(roundTripPlanResult.output.contains("BUILD SUCCESSFUL"))
+        val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
+        assertTrue(planContent.contains("FindOrderQry.kt"))
+        assertTrue(planContent.contains("PaymentReceivedIntegrationEvent.kt"))
+        assertTrue(planContent.contains("OrderCreatedDomainEvent.kt"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -3075,6 +3192,99 @@ class PipelinePluginFunctionalTest {
         assertTrue(content.contains("packageName = \"$packageName\""))
         assertTrue(content.contains("type = \"$type\""))
         assertTrue(content.contains("root = $root"))
+    }
+
+    private fun assertBuildingBlockSource(
+        content: String,
+        family: String,
+        variant: String,
+    ) {
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
+        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("family = \"$family\""))
+        assertTrue(content.contains("variant = \"$variant\""))
+        assertFalse(content.contains(legacyAggregateCall))
+        assertFalse(content.contains(legacyAggregateAnnotationFq))
+    }
+
+    private fun writeIssue92AnalysisFixture(projectDir: Path) {
+        val analysisDir = projectDir.resolve("analysis/app/build/cap4k-code-analysis")
+        Files.createDirectories(analysisDir)
+        analysisDir.resolve("nodes.json").writeText("""[]""")
+        analysisDir.resolve("rels.json").writeText("""[]""")
+        analysisDir.resolve("design-elements.json").writeText(
+            """
+            [
+              {
+                "tag": "query",
+                "package": "order.read",
+                "name": "FindOrder",
+                "description": "find order",
+                "aggregates": ["Order"],
+                "artifacts": [
+                  { "family": "query", "variant": "page" },
+                  { "family": "query-handler" }
+                ],
+                "fields": [
+                  { "name": "orderId", "type": "Long", "nullable": false }
+                ],
+                "resultFields": [
+                  { "name": "orderId", "type": "Long", "nullable": false }
+                ]
+              },
+              {
+                "tag": "integration_event",
+                "package": "payment.integration",
+                "name": "PaymentReceivedIntegrationEvent",
+                "description": "payment received",
+                "eventName": "payment.received",
+                "aggregates": ["Order"],
+                "artifacts": [
+                  { "family": "integration-event", "variant": "inbound" },
+                  { "family": "integration-subscriber" }
+                ],
+                "fields": [
+                  { "name": "paymentId", "type": "String", "nullable": false },
+                  { "name": "orderId", "type": "Long", "nullable": false }
+                ]
+              },
+              {
+                "tag": "domain_event",
+                "package": "order",
+                "name": "OrderCreated",
+                "description": "order created",
+                "aggregates": ["Order"],
+                "persist": false,
+                "fields": [
+                  { "name": "reason", "type": "String", "nullable": false }
+                ]
+              }
+            ]
+            """.trimIndent()
+        )
+
+        projectDir.resolve("build.gradle.kts").writeText(
+            projectDir.resolve("build.gradle.kts").readText().replace("\r\n", "\n") +
+                """
+
+                cap4k {
+                    sources {
+                        irAnalysis {
+                            inputDirs.from("analysis/app/build/cap4k-code-analysis")
+                        }
+                    }
+                    layout {
+                        drawingBoard {
+                            outputRoot.set("analysis-design")
+                        }
+                    }
+                    generators {
+                        drawingBoard {
+                        }
+                    }
+                }
+                """.trimIndent()
+        )
     }
 
     private fun Path.appendTemplateOverrideBlock() {

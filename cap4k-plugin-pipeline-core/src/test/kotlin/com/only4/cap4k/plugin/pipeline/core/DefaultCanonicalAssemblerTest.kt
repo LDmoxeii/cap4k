@@ -10,6 +10,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
@@ -1931,6 +1932,144 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("order.created", integrationEvent.eventName)
         assertEquals(listOf("orderId", "buyerId"), integrationEvent.requestFields.map { it.name })
         assertEquals(listOf("integration_event"), board.elementsByTag.keys.toList())
+    }
+
+    @Test
+    fun `drawing board accepts domain service and saga recovered design blocks with default artifacts omitted`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val result = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                IrAnalysisSnapshot(
+                    inputDirs = emptyList(),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                    designElements = listOf(
+                        DesignElementSnapshot(
+                            tag = "domain_service",
+                            packageName = "order.domain",
+                            name = "OrderPolicyService",
+                            description = "order policy service",
+                            aggregates = listOf("Order"),
+                            artifacts = listOf(ArtifactSelectionModel("domain-service")),
+                        ),
+                        DesignElementSnapshot(
+                            tag = "saga",
+                            packageName = "order.application",
+                            name = "PublishOrderSaga",
+                            description = "publish order saga",
+                            aggregates = listOf("Order"),
+                            artifacts = listOf(ArtifactSelectionModel("saga")),
+                            requestFields = listOf(DesignFieldSnapshot(name = "orderId", type = "Long")),
+                            responseFields = listOf(DesignFieldSnapshot(name = "accepted", type = "Boolean")),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val board = requireNotNull(result.model.drawingBoard)
+        assertEquals(listOf("domain_service", "saga"), board.elementsByTag.keys.toList())
+
+        val domainService = board.elementsByTag.getValue("domain_service").single()
+        assertEquals("OrderPolicyService", domainService.name)
+        assertEquals(listOf("Order"), domainService.aggregates)
+        assertEquals(emptyList<ArtifactSelectionModel>(), domainService.designJsonArtifacts)
+
+        val saga = board.elementsByTag.getValue("saga").single()
+        assertEquals("PublishOrderSaga", saga.name)
+        assertEquals(listOf("orderId"), saga.fields.map { it.name })
+        assertEquals(listOf("accepted"), saga.resultFields.map { it.name })
+        assertEquals(emptyList<ArtifactSelectionModel>(), saga.designJsonArtifacts)
+    }
+
+    @Test
+    fun `recovered design elements populate canonical design blocks`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val result = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                IrAnalysisSnapshot(
+                    inputDirs = emptyList(),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                    designElements = listOf(
+                        DesignElementSnapshot(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            description = "find order",
+                            aggregates = listOf("Order"),
+                            artifacts = listOf(ArtifactSelectionModel("query", "page")),
+                            requestFields = listOf(DesignFieldSnapshot(name = "orderId", type = "Long")),
+                            responseFields = listOf(DesignFieldSnapshot(name = "status", type = "String")),
+                        ),
+                        DesignElementSnapshot(
+                            tag = "domain_event",
+                            packageName = "order.events",
+                            name = "OrderCreated",
+                            description = "order created",
+                            aggregates = listOf("Order"),
+                            persist = true,
+                            requestFields = listOf(
+                                DesignFieldSnapshot(name = "entity", type = "Order"),
+                                DesignFieldSnapshot(name = "reason", type = "String"),
+                            ),
+                        ),
+                        DesignElementSnapshot(
+                            tag = "saga",
+                            packageName = "order.application",
+                            name = "PublishOrderSaga",
+                            description = "publish order saga",
+                            aggregates = listOf("Order"),
+                            requestFields = listOf(DesignFieldSnapshot(name = "orderId", type = "Long")),
+                            responseFields = listOf(DesignFieldSnapshot(name = "accepted", type = "Boolean")),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                DesignBlockModel(
+                    tag = "query",
+                    packageName = "order.read",
+                    name = "FindOrder",
+                    description = "find order",
+                    aggregates = listOf("Order"),
+                    artifacts = listOf(ArtifactSelectionModel("query", "page")),
+                    fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                    resultFields = listOf(FieldModel(name = "status", type = "String")),
+                ),
+                DesignBlockModel(
+                    tag = "domain_event",
+                    packageName = "order.events",
+                    name = "OrderCreated",
+                    description = "order created",
+                    aggregates = listOf("Order"),
+                    persist = true,
+                    artifacts = listOf(
+                        ArtifactSelectionModel("domain-event"),
+                        ArtifactSelectionModel("domain-subscriber"),
+                    ),
+                    fields = listOf(FieldModel(name = "reason", type = "String")),
+                ),
+                DesignBlockModel(
+                    tag = "saga",
+                    packageName = "order.application",
+                    name = "PublishOrderSaga",
+                    description = "publish order saga",
+                    aggregates = listOf("Order"),
+                    artifacts = listOf(ArtifactSelectionModel("saga")),
+                    fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                    resultFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+                ),
+            ),
+            result.model.designBlocks,
+        )
     }
 
     @Test

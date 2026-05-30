@@ -118,6 +118,23 @@ class PebbleArtifactRendererTest {
             "variant" to variant,
         )
 
+    private fun assertBuildingBlockAnnotation(
+        content: String,
+        tag: String,
+        name: String,
+        family: String,
+        variant: String = "",
+        aggregates: List<String> = listOf("Order"),
+    ) {
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
+        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("tag = \"$tag\""))
+        assertTrue(content.contains("name = \"$name\""))
+        assertTrue(content.contains("aggregates = [${aggregates.joinToString(", ") { "\"$it\"" }}]"))
+        assertTrue(content.contains("family = \"$family\""))
+        assertTrue(content.contains("variant = \"$variant\""))
+    }
+
     private fun String.toTestKotlinStringLiteral(): String {
         val escaped = buildString {
             this@toTestKotlinStringLiteral.forEach { char ->
@@ -4680,6 +4697,7 @@ class PebbleArtifactRendererTest {
         assertFalse(elements[0].asJsonObject.has("responseFields"))
         assertFalse(elements[0].asJsonObject.has("traits"))
         assertFalse(elements[0].asJsonObject.has("role"))
+        assertFalse(elements[0].asJsonObject.has("eventName"))
         assertFalse(elements[0].asJsonObject.has("entity"))
         assertFalse(elements[0].asJsonObject.has("message"))
         assertFalse(elements[0].asJsonObject.has("targets"))
@@ -6796,6 +6814,195 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("family = \"domain-event\""))
         assertTrue(content.contains("variant = \"\""))
         assertFalse(content.contains("&quot;"))
+    }
+
+    @Test
+    fun `design authoring templates render building block metadata when provided`() {
+        val payload = renderTemplate(
+            templateId = "design/api_payload.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/api/order/OrderPayload.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.api.order",
+                "typeName" to "OrderPayload",
+                "pageRequest" to true,
+                "requestFields" to listOf(mapOf("name" to "keyword", "renderedType" to "String?", "nullable" to true)),
+                "requestNestedTypes" to emptyList<Map<String, Any?>>(),
+                "responseFields" to listOf(mapOf("name" to "orderNo", "renderedType" to "String", "nullable" to false)),
+                "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                "imports" to emptyList<String>(),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "api_payload",
+                    name = "OrderPayload",
+                    packageName = "order",
+                    family = "api-payload",
+                    variant = "page",
+                    aggregates = listOf("Order"),
+                ),
+            ),
+        )
+        assertBuildingBlockAnnotation(payload, tag = "api_payload", name = "OrderPayload", family = "api-payload", variant = "page")
+
+        val domainSubscriber = renderTemplate(
+            templateId = "design/domain_event_handler.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.subscribers.domain.order",
+                "typeName" to "OrderCreatedDomainEventSubscriber",
+                "domainEventTypeName" to "OrderCreatedDomainEvent",
+                "domainEventType" to "com.acme.demo.domain.order.events.OrderCreatedDomainEvent",
+                "descriptionCommentText" to "order created",
+                "imports" to listOf("com.acme.demo.domain.order.events.OrderCreatedDomainEvent"),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "domain_event",
+                    name = "OrderCreatedDomainEvent",
+                    packageName = "order",
+                    family = "domain-subscriber",
+                    aggregates = listOf("Order"),
+                ),
+            ),
+        )
+        assertBuildingBlockAnnotation(
+            domainSubscriber,
+            tag = "domain_event",
+            name = "OrderCreatedDomainEvent",
+            family = "domain-subscriber",
+        )
+
+        val integrationEvent = renderTemplate(
+            templateId = "design/integration_event.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/events/integration/inbound/order/OrderAcceptedIntegrationEvent.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.events.integration.inbound.order",
+                "typeName" to "OrderAcceptedIntegrationEvent",
+                "descriptionCommentText" to "order accepted",
+                "eventName" to "order.accepted",
+                "eventNameKotlinStringLiteral" to "\"order.accepted\"",
+                "inbound" to true,
+                "outbound" to false,
+                "imports" to emptyList<String>(),
+                "fields" to listOf(mapOf("name" to "orderId", "renderedType" to "String", "nullable" to false)),
+                "nestedTypes" to emptyList<Map<String, Any?>>(),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "integration_event",
+                    name = "OrderAcceptedIntegrationEvent",
+                    packageName = "order",
+                    eventName = "order.accepted",
+                    family = "integration-event",
+                    variant = "inbound",
+                    aggregates = listOf("Order"),
+                ),
+            ),
+        )
+        assertBuildingBlockAnnotation(
+            integrationEvent,
+            tag = "integration_event",
+            name = "OrderAcceptedIntegrationEvent",
+            family = "integration-event",
+            variant = "inbound",
+        )
+
+        val integrationSubscriber = renderTemplate(
+            templateId = "design/integration_event_subscriber.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/order/OrderAcceptedIntegrationEventSubscriber.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.subscribers.integration.inbound.order",
+                "typeName" to "OrderAcceptedIntegrationEventSubscriber",
+                "eventTypeName" to "OrderAcceptedIntegrationEvent",
+                "eventType" to "com.acme.demo.application.events.integration.inbound.order.OrderAcceptedIntegrationEvent",
+                "descriptionCommentText" to "order accepted",
+                "imports" to listOf("com.acme.demo.application.events.integration.inbound.order.OrderAcceptedIntegrationEvent"),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "integration_event",
+                    name = "OrderAcceptedIntegrationEvent",
+                    packageName = "order",
+                    eventName = "order.accepted",
+                    family = "integration-subscriber",
+                    aggregates = listOf("Order"),
+                ),
+            ),
+        )
+        assertBuildingBlockAnnotation(
+            integrationSubscriber,
+            tag = "integration_event",
+            name = "OrderAcceptedIntegrationEvent",
+            family = "integration-subscriber",
+        )
+
+        val domainService = renderTemplate(
+            templateId = "design/domain_service.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/OrderPublicationPolicy.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.order",
+                "name" to "OrderPublicationPolicy",
+                "imports" to emptyList<String>(),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "domain_service",
+                    name = "OrderPublicationPolicy",
+                    packageName = "order",
+                    family = "domain-service",
+                    aggregates = listOf("Order"),
+                ),
+            ),
+        )
+        assertBuildingBlockAnnotation(domainService, tag = "domain_service", name = "OrderPublicationPolicy", family = "domain-service")
+
+        val saga = renderTemplate(
+            templateId = "design/saga.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/OrderFulfillmentSaga.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.sagas.order",
+                "name" to "OrderFulfillmentSaga",
+                "requestFields" to listOf(mapOf("name" to "orderId", "renderedType" to "String", "nullable" to false)),
+                "responseFields" to listOf(mapOf("name" to "accepted", "renderedType" to "Boolean", "nullable" to false)),
+                "imports" to emptyList<String>(),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "saga",
+                    name = "OrderFulfillmentSaga",
+                    packageName = "order",
+                    family = "saga",
+                    aggregates = listOf("Order"),
+                ),
+            ),
+        )
+        assertBuildingBlockAnnotation(saga, tag = "saga", name = "OrderFulfillmentSaga", family = "saga")
+    }
+
+    @Test
+    fun `enum template renders building block only when manifest context is supplied`() {
+        val manifestEnum = renderTemplate(
+            templateId = "aggregate/enum.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/enums/OrderStatus.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.order.enums",
+                "typeName" to "OrderStatus",
+                "imports" to emptyList<String>(),
+                "items" to listOf(
+                    mapOf("value" to 0, "name" to "DRAFT", "description" to "Draft"),
+                    mapOf("value" to 1, "name" to "SUBMITTED", "description" to "Submitted"),
+                ),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "enum",
+                    name = "OrderStatus",
+                    packageName = "order",
+                    family = "enum",
+                    aggregates = listOf("Order"),
+                ),
+            ),
+        )
+        assertBuildingBlockAnnotation(manifestEnum, tag = "enum", name = "OrderStatus", family = "enum")
+
+        val dbDerivedEnum = renderTemplate(
+            templateId = "aggregate/enum.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/enums/Visibility.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.order.enums",
+                "typeName" to "Visibility",
+                "imports" to emptyList<String>(),
+                "items" to listOf(mapOf("value" to 0, "name" to "HIDDEN", "description" to "Hidden")),
+            ),
+        )
+        assertFalse(dbDerivedEnum.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
+        assertFalse(dbDerivedEnum.contains("@BuildingBlock("))
     }
 
     @Test

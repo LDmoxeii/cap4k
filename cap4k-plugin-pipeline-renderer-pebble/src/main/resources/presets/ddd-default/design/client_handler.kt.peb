@@ -1,3 +1,6 @@
+{% if buildingBlock is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.BuildingBlock") -}}
+{% endif -%}
 {{ use("org.springframework.stereotype.Service") -}}
 {{ use("com.only4.cap4k.ddd.core.application.RequestHandler") -}}
 package {{ packageName }}
@@ -7,6 +10,18 @@ import {{ import }}
 {% endfor %}
 
 @Service
+{% if buildingBlock is defined -%}
+@BuildingBlock(
+    tag = "{{ buildingBlock.tag }}",
+    name = "{{ buildingBlock.name }}",
+    packageName = "{{ buildingBlock.packageName }}",
+    description = {{ buildingBlock.descriptionKotlinStringLiteral | raw }},
+    aggregates = [{% for aggregate in buildingBlock.aggregates %}"{{ aggregate }}"{% if not loop.last %}, {% endif %}{% endfor %}],
+    eventName = "{{ buildingBlock.eventName }}",
+    family = "{{ buildingBlock.family }}",
+    variant = "{{ buildingBlock.variant }}"
+)
+{% endif -%}
 class {{ typeName }} : RequestHandler<{{ clientTypeName }}.Request, {{ clientTypeName }}.Response> {
 
     override fun exec(request: {{ clientTypeName }}.Request): {{ clientTypeName }}.Response {

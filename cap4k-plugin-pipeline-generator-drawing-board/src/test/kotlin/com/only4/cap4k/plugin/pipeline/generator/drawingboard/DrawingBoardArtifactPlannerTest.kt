@@ -4,9 +4,11 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
+import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.OutputRootLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -34,11 +36,15 @@ class DrawingBoardArtifactPlannerTest {
                 "drawing_board_api_payload",
                 "drawing_board_domain_event",
                 "drawing_board_integration_event",
+                "drawing_board_domain_service",
+                "drawing_board_saga",
             ),
             plan.map { it.outputPath.removePrefix("design/").removeSuffix(".json") }
         )
         assertEquals(
             listOf(
+                "drawing-board/document.json.peb",
+                "drawing-board/document.json.peb",
                 "drawing-board/document.json.peb",
                 "drawing-board/document.json.peb",
                 "drawing-board/document.json.peb",
@@ -56,6 +62,8 @@ class DrawingBoardArtifactPlannerTest {
         assertEquals("api_payload", plan[3].context["drawingBoardTag"])
         assertEquals("domain_event", plan[4].context["drawingBoardTag"])
         assertEquals("integration_event", plan[5].context["drawingBoardTag"])
+        assertEquals("domain_service", plan[6].context["drawingBoardTag"])
+        assertEquals("saga", plan[7].context["drawingBoardTag"])
     }
 
     @Test
@@ -65,9 +73,8 @@ class DrawingBoardArtifactPlannerTest {
         val plan = planner.plan(
             config(),
             CanonicalModel(
-                drawingBoard = DrawingBoardModel(
-                    elements = listOf(
-                        DrawingBoardElementModel(
+                designBlocks = listOf(
+                    DesignBlockModel(
                             tag = "query",
                             packageName = "orders.queries",
                             name = "ReadOrder",
@@ -75,20 +82,20 @@ class DrawingBoardArtifactPlannerTest {
                             artifacts = listOf(
                                 ArtifactSelectionModel(family = "query", variant = "page"),
                             ),
-                            requestFields = listOf(
-                                DrawingBoardFieldModel(
+                            fields = listOf(
+                                FieldModel(
                                     name = "orderId",
                                     type = "Long",
                                 ),
                             ),
-                            responseFields = listOf(
-                                DrawingBoardFieldModel(
+                            resultFields = listOf(
+                                FieldModel(
                                     name = "status",
                                     type = "String",
                                 ),
                             ),
                         ),
-                        DrawingBoardElementModel(
+                    DesignBlockModel(
                             tag = "integration_event",
                             packageName = "orders.events",
                             name = "OrderCreated",
@@ -97,24 +104,22 @@ class DrawingBoardArtifactPlannerTest {
                                 ArtifactSelectionModel(family = "integration-event", variant = "inbound"),
                                 ArtifactSelectionModel(family = "integration-subscriber"),
                             ),
-                            requestFields = listOf(
-                                DrawingBoardFieldModel(
+                            fields = listOf(
+                                FieldModel(
                                     name = "orderId",
                                     type = "Long",
                                 ),
                             ),
-                            responseFields = emptyList(),
                         ),
                     ),
                 ),
-            ),
         )
 
         val queryContext = plan.single { it.outputPath.endsWith("drawing_board_query.json") }.context
         val integrationContext = plan.single { it.outputPath.endsWith("drawing_board_integration_event.json") }.context
-        val queryElement = (queryContext["elements"] as List<*>).filterIsInstance<DrawingBoardElementModel>().single()
+        val queryElement = (queryContext["elements"] as List<*>).filterIsInstance<DesignBlockModel>().single()
         val integrationElement = (integrationContext["elements"] as List<*>)
-            .filterIsInstance<DrawingBoardElementModel>()
+            .filterIsInstance<DesignBlockModel>()
             .single()
 
         assertEquals("query", queryElement.tag)
@@ -122,14 +127,96 @@ class DrawingBoardArtifactPlannerTest {
         assertEquals("ReadOrder", queryElement.name)
         assertEquals("read order", queryElement.description)
         assertEquals(listOf(ArtifactSelectionModel(family = "query", variant = "page")), queryElement.artifacts)
-        assertEquals(1, queryElement.requestFields.size)
-        assertEquals(1, queryElement.responseFields.size)
+        assertEquals(1, queryElement.fields.size)
+        assertEquals(1, queryElement.resultFields.size)
         assertEquals(
             listOf(
                 ArtifactSelectionModel(family = "integration-event", variant = "inbound"),
                 ArtifactSelectionModel(family = "integration-subscriber"),
             ),
             integrationElement.artifacts,
+        )
+    }
+
+    @Test
+    fun `plans from canonical design blocks when legacy drawing board is absent`() {
+        val planner = DrawingBoardArtifactPlanner()
+
+        val plan = planner.plan(
+            config(),
+            CanonicalModel(
+                designBlocks = listOf(
+                    DesignBlockModel(
+                        tag = "query",
+                        packageName = "orders.queries",
+                        name = "ReadOrder",
+                        description = "read order",
+                        artifacts = listOf(
+                            ArtifactSelectionModel("query"),
+                            ArtifactSelectionModel("query-handler"),
+                        ),
+                    ),
+                    DesignBlockModel(
+                        tag = "domain_service",
+                        packageName = "orders.domain",
+                        name = "OrderPolicyService",
+                        description = "order policy service",
+                        artifacts = listOf(ArtifactSelectionModel("domain-service")),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                "design/drawing_board_query.json",
+                "design/drawing_board_domain_service.json",
+            ),
+            plan.map { it.outputPath },
+        )
+        assertEquals(
+            listOf("ReadOrder"),
+            (plan[0].context["elements"] as List<*>).filterIsInstance<DesignBlockModel>().map { it.name },
+        )
+        assertEquals(
+            listOf("OrderPolicyService"),
+            (plan[1].context["elements"] as List<*>).filterIsInstance<DesignBlockModel>().map { it.name },
+        )
+    }
+
+    @Test
+    fun `design blocks are primary when legacy drawing board also exists`() {
+        val planner = DrawingBoardArtifactPlanner()
+
+        val plan = planner.plan(
+            config(),
+            CanonicalModel(
+                designBlocks = listOf(
+                    DesignBlockModel(
+                        tag = "query",
+                        packageName = "orders.queries",
+                        name = "CanonicalReadOrder",
+                        description = "canonical read order",
+                        artifacts = listOf(ArtifactSelectionModel("query")),
+                    ),
+                ),
+                drawingBoard = DrawingBoardModel(
+                    elements = listOf(
+                        DrawingBoardElementModel(
+                            tag = "command",
+                            packageName = "orders.commands",
+                            name = "LegacySubmitOrder",
+                            description = "legacy submit order",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(listOf("design/drawing_board_query.json"), plan.map { it.outputPath })
+        assertEquals(
+            listOf("CanonicalReadOrder"),
+            (plan.single().context["elements"] as List<*>).filterIsInstance<DesignBlockModel>().map { it.name },
         )
     }
 
@@ -178,6 +265,52 @@ class DrawingBoardArtifactPlannerTest {
         val plan = planner.plan(config(outputRoot = "design/generated"), model())
 
         assertEquals("design/generated/drawing_board_command.json", plan.first().outputPath)
+    }
+
+    @Test
+    fun `plans domain service and saga files with default artifacts omitted from context`() {
+        val planner = DrawingBoardArtifactPlanner()
+
+        val plan = planner.plan(
+            config(),
+            CanonicalModel(
+                drawingBoard = DrawingBoardModel(
+                    elements = listOf(
+                        DrawingBoardElementModel(
+                            tag = "domain_service",
+                            packageName = "orders.domain",
+                            name = "OrderPolicyService",
+                            description = "order policy service",
+                            artifacts = listOf(ArtifactSelectionModel("domain-service")),
+                        ),
+                        DrawingBoardElementModel(
+                            tag = "saga",
+                            packageName = "orders.application",
+                            name = "PublishOrderSaga",
+                            description = "publish order saga",
+                            artifacts = listOf(ArtifactSelectionModel("saga")),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                "design/drawing_board_domain_service.json",
+                "design/drawing_board_saga.json",
+            ),
+            plan.map { it.outputPath },
+        )
+        val domainService = (plan[0].context["elements"] as List<*>)
+            .filterIsInstance<DrawingBoardElementModel>()
+            .single()
+        val saga = (plan[1].context["elements"] as List<*>)
+            .filterIsInstance<DrawingBoardElementModel>()
+            .single()
+
+        assertEquals(emptyList<ArtifactSelectionModel>(), domainService.designJsonArtifacts)
+        assertEquals(emptyList<ArtifactSelectionModel>(), saga.designJsonArtifacts)
     }
 
     @Test
@@ -253,6 +386,18 @@ class DrawingBoardArtifactPlannerTest {
                         description = "order created",
                         role = "inbound",
                         eventName = "order.created",
+                    ),
+                    DrawingBoardElementModel(
+                        tag = "domain_service",
+                        packageName = "orders.domain",
+                        name = "OrderPolicyService",
+                        description = "order policy service",
+                    ),
+                    DrawingBoardElementModel(
+                        tag = "saga",
+                        packageName = "orders.application",
+                        name = "PublishOrderSaga",
+                        description = "publish order saga",
                     ),
                     DrawingBoardElementModel(
                         tag = "ignored",

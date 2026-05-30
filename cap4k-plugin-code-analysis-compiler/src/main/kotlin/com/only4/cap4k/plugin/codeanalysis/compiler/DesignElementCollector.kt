@@ -74,19 +74,24 @@ class DesignElementCollector(
             return
         }
 
+        val family = ann.getStringArg("family").orEmpty().trim()
         val nestedTypes = collectNestedTypes(declaration)
-        val requestClass = findNestedClass(declaration, "Request")
-        val fieldsRoot = requestClass ?: declaration
-        val fields = collectFields(
-            fieldsRoot,
-            nestedTypes,
-            DefaultValueContext("$tag $name field"),
-        )
-        val resultFields = findNestedClass(declaration, "Response")?.let {
-            collectFields(it, nestedTypes, DefaultValueContext("$tag $name result field"))
+        val fields = primaryFieldCarrier(declaration, family)?.let { fieldsRoot ->
+            collectFields(
+                fieldsRoot,
+                nestedTypes,
+                DefaultValueContext("$tag $name field"),
+            )
         }.orEmpty()
-        val artifact = ann.getStringArg("family").orEmpty().trim().takeIf { it.isNotEmpty() }?.let { family ->
-            DesignArtifact(family = family, variant = ann.getStringArg("variant").orEmpty().trim())
+        val resultFields = if (family.hasResultFields()) {
+            findNestedClass(declaration, "Response")?.let {
+                collectFields(it, nestedTypes, DefaultValueContext("$tag $name result field"))
+            }.orEmpty()
+        } else {
+            emptyList()
+        }
+        val artifact = family.takeIf { it.isNotEmpty() }?.let {
+            DesignArtifact(family = it, variant = ann.getStringArg("variant").orEmpty().trim())
         }
         val eventName = ann.getStringArg("eventName").orEmpty().trim()
             .ifBlank { declaration.readIntegrationEventName(integrationEventAnnFq).orEmpty() }
@@ -107,6 +112,21 @@ class DesignElementCollector(
             )
         )
     }
+
+    private fun primaryFieldCarrier(declaration: IrClass, family: String): IrClass? =
+        when (family) {
+            "command",
+            "query",
+            "client",
+            "saga",
+            "api-payload" -> findNestedClass(declaration, "Request") ?: declaration
+            "domain-event",
+            "integration-event" -> declaration
+            else -> null
+        }
+
+    private fun String.hasResultFields(): Boolean =
+        this == "query" || this == "client" || this == "saga" || this == "api-payload"
 
     private fun mergeBlock(element: DesignElement) {
         val key = BlockKey(element.tag, element.`package`, element.name)

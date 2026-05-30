@@ -15,7 +15,7 @@
 {%- if element.persist is not null %},
     "persist": {{ element.persist }}
 {%- endif %},
-{%- if element.eventName is not null %}
+{%- if element.eventName is not empty %}
     "eventName": {{ element.eventName | json | raw }},
 {%- endif %}
     "fields": [{% for field in element.fields %}

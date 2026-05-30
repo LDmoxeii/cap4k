@@ -110,7 +110,10 @@ data class DesignBlockModel(
     val artifacts: List<ArtifactSelectionModel>,
     val fields: List<FieldModel> = emptyList(),
     val resultFields: List<FieldModel> = emptyList(),
-)
+) {
+    val designJsonArtifacts: List<ArtifactSelectionModel>
+        get() = normalizedDrawingBoardArtifacts(tag, artifacts)
+}
 
 data class DesignFieldSnapshot(
     val name: String,

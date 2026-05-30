@@ -17,6 +17,7 @@ import com.only4.cap4k.plugin.pipeline.api.CommandVariant
 import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DesignFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
@@ -61,13 +62,24 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val sharedEnums = snapshots.filterIsInstance<EnumManifestSnapshot>().flatMap { it.definitions }
         val valueObjects = snapshots.filterIsInstance<ValueObjectManifestSnapshot>().flatMap { it.valueObjects }
         val typeRegistry = TypeRegistryModel(config.typeRegistry.entries)
-        val designBlocks = designSnapshot?.entries.orEmpty()
-            .asSequence()
-            .filter { entry -> entry.tag in SupportedDesignBlockTags }
-            .map { entry -> entry.toDesignBlockModel() }
-            .toList()
-
         val analysisSnapshot = snapshots.filterIsInstance<IrAnalysisSnapshot>().firstOrNull()
+        val designBlocks = (
+            designSnapshot?.entries.orEmpty()
+                .asSequence()
+                .filter { entry -> entry.tag in SupportedDesignBlockTags }
+                .map { entry -> entry.toDesignBlockModel() } +
+                analysisSnapshot
+                    ?.designElements
+                    .orEmpty()
+                    .asSequence()
+                    .mapNotNull { element -> element.toDesignBlockModelOrNull() }
+            )
+            .fold(linkedMapOf<String, DesignBlockModel>()) { acc, block ->
+                acc.putIfAbsent(designBlockKey(block), block)
+                acc
+            }
+            .values
+            .toList()
 
         val apiPayloads = designSnapshot?.entries.orEmpty()
             .asSequence()
@@ -659,20 +671,32 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
     private fun DesignSpecEntry.validateArtifactSelections(artifacts: List<ArtifactSelectionModel>) {
+        validateArtifactSelections(
+            entryName = name,
+            tag = tag,
+            artifacts = artifacts,
+        )
+    }
+
+    private fun validateArtifactSelections(
+        entryName: String,
+        tag: String,
+        artifacts: List<ArtifactSelectionModel>,
+    ) {
         artifacts.forEach { artifact ->
             val allowedVariants = SupportedArtifactFamilies[artifact.family]
-                ?: throw IllegalArgumentException("unsupported design artifact family on $name: ${artifact.family}")
+                ?: throw IllegalArgumentException("unsupported design artifact family on $entryName: ${artifact.family}")
             if (artifact.family == "integration-event") {
                 require(artifact.variant in allowedVariants) {
                     if (artifact.variant.isBlank()) {
-                        "design entry $name artifact integration-event must declare variant inbound or outbound"
+                        "design entry $entryName artifact integration-event must declare variant inbound or outbound"
                     } else {
-                        "design entry $name artifact integration-event has unsupported variant: ${artifact.variant}"
+                        "design entry $entryName artifact integration-event has unsupported variant: ${artifact.variant}"
                     }
                 }
             } else {
                 require(artifact.variant in allowedVariants) {
-                    "design entry $name artifact ${artifact.family} has unsupported variant: ${artifact.variant}"
+                    "design entry $entryName artifact ${artifact.family} has unsupported variant: ${artifact.variant}"
                 }
             }
         }
@@ -684,20 +708,23 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             .firstOrNull { it.value > 1 }
             ?.key
         require(duplicate == null) {
-            "design entry $name has duplicate artifact selection: $duplicate"
+            "design entry $entryName has duplicate artifact selection: $duplicate"
         }
 
         VariantFamilies.forEach { family ->
             val selections = artifacts.filter { it.family == family }
             require(selections.size <= 1) {
-                "design entry $name has conflicting $family variants"
+                "design entry $entryName has conflicting $family variants"
             }
         }
 
         val hasSubscriber = artifacts.any { it.family == "integration-subscriber" }
         if (hasSubscriber) {
+            require(tag == "integration_event") {
+                "design entry $entryName integration-subscriber is only supported on integration_event"
+            }
             require(artifacts.singleOrNull { it.family == "integration-event" }?.variant == "inbound") {
-                "integration_event $name integration-subscriber requires integration-event:inbound."
+                "integration_event $entryName integration-subscriber requires integration-event:inbound."
             }
         }
     }
@@ -714,6 +741,58 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "saga" -> listOf(ArtifactSelectionModel("saga"))
             else -> error("Unsupported design tag: $tag")
         }
+
+    private fun DesignElementSnapshot.toDesignBlockModelOrNull(): DesignBlockModel? {
+        val normalizedTag = normalizeDrawingBoardTag(tag)?.takeIf { it in SupportedDesignBlockTags } ?: return null
+        val artifactSelections = normalizeRecoveredDesignBlockArtifacts(
+            normalizedTag,
+            artifacts.ifEmpty { defaultArtifactsFor(normalizedTag) },
+        )
+        validateArtifactSelections(
+            entryName = name,
+            tag = normalizedTag,
+            artifacts = artifactSelections,
+        )
+        val normalizedFields = requestFields
+            .filterNot { field ->
+                normalizedTag == "domain_event" && field.name.equals("entity", ignoreCase = true)
+            }
+            .map { field -> field.toFieldModel() }
+
+        return DesignBlockModel(
+            tag = normalizedTag,
+            packageName = packageName,
+            name = name,
+            description = description,
+            aggregates = aggregates,
+            eventName = eventName.orEmpty(),
+            persist = persist,
+            artifacts = artifactSelections,
+            fields = normalizedFields,
+            resultFields = responseFields.map { field -> field.toFieldModel() },
+        )
+    }
+
+    private fun normalizeRecoveredDesignBlockArtifacts(
+        tag: String,
+        artifacts: List<ArtifactSelectionModel>,
+    ): List<ArtifactSelectionModel> =
+        artifacts.mapNotNull { artifact ->
+            val allowedVariants = SupportedArtifactFamilies[artifact.family] ?: return@mapNotNull null
+            if (artifact.variant == "default" && "" in allowedVariants) {
+                artifact.copy(variant = "")
+            } else {
+                artifact
+            }
+        }.ifEmpty { defaultArtifactsFor(tag) }
+
+    private fun DesignFieldSnapshot.toFieldModel(): FieldModel =
+        FieldModel(
+            name = name,
+            type = type,
+            nullable = nullable,
+            defaultValue = defaultValue,
+        )
 
     private fun DesignElementSnapshot.toDrawingBoardElementOrNull(): DrawingBoardElementModel? {
         val normalizedTag = normalizeDrawingBoardTag(tag) ?: return null
@@ -767,11 +846,17 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "api_payload" -> "api_payload"
             "domain_event" -> "domain_event"
             "integration_event" -> "integration_event"
+            "domain_service" -> "domain_service"
+            "saga" -> "saga"
             else -> null
         }
 
     private fun drawingBoardElementKey(element: DrawingBoardElementModel): String {
         return "${element.tag}|${element.packageName}|${element.name}"
+    }
+
+    private fun designBlockKey(block: DesignBlockModel): String {
+        return "${block.tag}|${block.packageName}|${block.name}"
     }
 
     private fun DesignSpecEntry.integrationEventRole(integrationEventArtifact: ArtifactSelectionModel): IntegrationEventRole {
@@ -1058,6 +1143,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "api_payload",
             "domain_event",
             "integration_event",
+            "domain_service",
+            "saga",
         )
         val UpperCamelSplitRegex = Regex("(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+")
 

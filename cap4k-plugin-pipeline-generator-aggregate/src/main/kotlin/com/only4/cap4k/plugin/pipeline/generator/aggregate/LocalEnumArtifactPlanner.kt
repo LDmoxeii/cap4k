@@ -33,22 +33,6 @@ internal class LocalEnumArtifactPlanner : AggregateArtifactFamilyPlanner {
                 )
             }
         }
-        model.sharedEnums.forEach { definition ->
-            val ownerAggregateName = definition.aggregates.singleOrNull() ?: return@forEach
-            val ownerPackages = model.entities
-                .filter { entity -> aggregateRootNameByEntity[entity.key()] == ownerAggregateName }
-                .map { it.packageName }
-                .distinct()
-                .ifEmpty { listOf(resolveOwnedManifestOwnerPackage(definition.packageName, artifactLayout)) }
-            ownerPackages.forEach { ownerPackage ->
-                val key = LocalEnumCandidateKey(ownerPackage, definition.typeName)
-                putCandidate(
-                    candidates = candidates,
-                    key = key,
-                    candidate = LocalEnumCandidate(ownerPackage, definition.typeName, definition.items),
-                )
-            }
-        }
 
         return candidates.values.map { local ->
             val packageName = artifactLayout.aggregateLocalEnumPackage(local.ownerPackageName)
@@ -86,17 +70,6 @@ internal class LocalEnumArtifactPlanner : AggregateArtifactFamilyPlanner {
             "conflicting local enum definition for ${candidate.ownerPackageName}.enums.${candidate.typeBinding}"
         }
         candidates.putIfAbsent(key, candidate)
-    }
-
-    private fun resolveOwnedManifestOwnerPackage(
-        packageName: String,
-        artifactLayout: ArtifactLayoutResolver,
-    ): String {
-        val trimmed = packageName.trim()
-        if ('.' in trimmed) {
-            return trimmed
-        }
-        return artifactLayout.aggregateEntityPackage(trimmed)
     }
 
     private fun buildAggregateRootNameByEntity(entities: List<EntityModel>): Map<EntityKey, String> {

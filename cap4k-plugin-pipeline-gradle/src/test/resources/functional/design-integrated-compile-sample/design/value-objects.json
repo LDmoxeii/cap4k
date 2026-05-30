@@ -3,6 +3,9 @@
     "name": "OrderAddress",
     "package": "com.acme.demo.domain.shared.values",
     "storage": "json",
+    "aggregates": [
+      "Order"
+    ],
     "fields": [
       {
         "name": "city",
