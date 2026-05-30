@@ -149,6 +149,87 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
+    fun `observation generators run without generator config keys and keep overwrite policy`() {
+        val drawingBoardItem = ArtifactPlanItem(
+            generatorId = "drawing-board",
+            moduleRole = "project",
+            templateId = "drawing-board/document.json.peb",
+            outputPath = "design/drawing_board_query.json",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        val flowItem = ArtifactPlanItem(
+            generatorId = "flow",
+            moduleRole = "project",
+            templateId = "flow/entry.json.peb",
+            outputPath = "flows/entry.json",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        val sourceProvider = object : SourceProvider {
+            override val id: String = "design-json"
+
+            override fun collect(config: ProjectConfig): SourceSnapshot = DesignSpecSnapshot(entries = emptyList())
+        }
+        val assembly = CanonicalAssemblyResult(
+            CanonicalModel(
+                drawingBoard = com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel(
+                    elements = emptyList(),
+                ),
+                analysisGraph = com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel(
+                    inputDirs = listOf("app/build/cap4k-code-analysis"),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                ),
+            ),
+        )
+
+        var rendererReceivedPlanItems: List<ArtifactPlanItem> = emptyList()
+        val runner = DefaultPipelineRunner(
+            sources = listOf(sourceProvider),
+            generators = listOf(
+                object : GeneratorProvider {
+                    override val id: String = "drawing-board"
+
+                    override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> =
+                        listOf(drawingBoardItem)
+                },
+                object : GeneratorProvider {
+                    override val id: String = "flow"
+
+                    override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> =
+                        listOf(flowItem)
+                },
+            ),
+            assembler = object : CanonicalAssembler {
+                override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult = assembly
+            },
+            renderer = object : ArtifactRenderer {
+                override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> {
+                    rendererReceivedPlanItems = planItems
+                    return emptyList()
+                }
+            },
+            exporter = NoopArtifactExporter(),
+        )
+
+        val result = runner.run(
+            configuredConfig(
+                generators = emptyMap(),
+            ).copy(
+                sources = mapOf("design-json" to SourceConfig()),
+            )
+        )
+
+        val expectedItems = listOf(
+            drawingBoardItem.copy(conflictPolicy = ConflictPolicy.OVERWRITE),
+            flowItem.copy(conflictPolicy = ConflictPolicy.OVERWRITE),
+        )
+
+        assertEquals(expectedItems, rendererReceivedPlanItems)
+        assertEquals(expectedItems, result.planItems)
+        assertTrue(result.planItems.all { it.conflictPolicy == ConflictPolicy.OVERWRITE })
+    }
+
+    @Test
     fun `addon provider contributes plan item after built-in generator item`() {
         val builtInItem = ArtifactPlanItem(
             generatorId = "design-command",
@@ -173,6 +254,52 @@ class DefaultPipelineRunnerTest {
 
         assertEquals(listOf(builtInItem, addonItem), result.rendererReceivedPlanItems)
         assertEquals(listOf(builtInItem, addonItem), result.pipelineResult.planItems)
+    }
+
+    @Test
+    fun `template conflict override forces overwrite for observation outputs`() {
+        val drawingBoardItem = ArtifactPlanItem(
+            generatorId = "drawing-board",
+            moduleRole = "project",
+            templateId = "drawing-board/document.json.peb",
+            outputPath = "design/drawing_board_query.json",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        val flowItem = ArtifactPlanItem(
+            generatorId = "flow",
+            moduleRole = "project",
+            templateId = "flow/entry.json.peb",
+            outputPath = "flows/entry.json",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = listOf(drawingBoardItem, flowItem),
+            config = configuredConfig(
+                generators = mapOf(
+                    "drawing-board" to GeneratorConfig(),
+                ),
+                templates = TemplateConfig(
+                    preset = "default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.FAIL,
+                    templateConflictPolicies = mapOf(
+                        "drawing-board/document.json.peb" to ConflictPolicy.FAIL,
+                        "flow/entry.json.peb" to ConflictPolicy.FAIL,
+                    ),
+                ),
+            ),
+            transformPlanItem = {
+                when (it.templateId) {
+                    "drawing-board/document.json.peb" -> it.copy(conflictPolicy = ConflictPolicy.SKIP)
+                    "flow/entry.json.peb" -> it.copy(conflictPolicy = ConflictPolicy.SKIP)
+                    else -> it
+                }
+            },
+        )
+
+        assertEquals(ConflictPolicy.OVERWRITE, result.rendererReceivedPlanItems[0].conflictPolicy)
+        assertEquals(ConflictPolicy.OVERWRITE, result.rendererReceivedPlanItems[1].conflictPolicy)
     }
 
     @Test

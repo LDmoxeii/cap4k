@@ -129,10 +129,18 @@ class DefaultPipelineRunner(
     private fun resolveConflictPolicy(item: ArtifactPlanItem, config: ProjectConfig): ArtifactPlanItem {
         val resolvedConflictPolicy = when (item.outputKind) {
             ArtifactOutputKind.GENERATED_SOURCE -> ConflictPolicy.OVERWRITE
-            else -> config.templates.templateConflictPolicies[item.templateId] ?: item.conflictPolicy
+            else -> if (item.generatorId in observationOutputGeneratorIds) {
+                ConflictPolicy.OVERWRITE
+            } else {
+                config.templates.templateConflictPolicies[item.templateId] ?: item.conflictPolicy
+            }
         }
 
         return item.copy(conflictPolicy = resolvedConflictPolicy)
+    }
+
+    private companion object {
+        val observationOutputGeneratorIds = setOf("drawing-board", "flow")
     }
 
     private data class ProvenancedPlanItem(

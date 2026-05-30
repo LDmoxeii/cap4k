@@ -1,9 +1,11 @@
 package com.only4.cap4k.plugin.pipeline.generator.drawingboard
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
+import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.OutputRootLayout
@@ -57,6 +59,81 @@ class DrawingBoardArtifactPlannerTest {
     }
 
     @Test
+    fun `plan item context exposes formal drawing block keys and explicit artifact selections`() {
+        val planner = DrawingBoardArtifactPlanner()
+
+        val plan = planner.plan(
+            config(),
+            CanonicalModel(
+                drawingBoard = DrawingBoardModel(
+                    elements = listOf(
+                        DrawingBoardElementModel(
+                            tag = "query",
+                            packageName = "orders.queries",
+                            name = "ReadOrder",
+                            description = "read order",
+                            artifacts = listOf(
+                                ArtifactSelectionModel(family = "query", variant = "page"),
+                            ),
+                            requestFields = listOf(
+                                DrawingBoardFieldModel(
+                                    name = "orderId",
+                                    type = "Long",
+                                ),
+                            ),
+                            responseFields = listOf(
+                                DrawingBoardFieldModel(
+                                    name = "status",
+                                    type = "String",
+                                ),
+                            ),
+                        ),
+                        DrawingBoardElementModel(
+                            tag = "integration_event",
+                            packageName = "orders.events",
+                            name = "OrderCreated",
+                            description = "order created",
+                            artifacts = listOf(
+                                ArtifactSelectionModel(family = "integration-event", variant = "inbound"),
+                                ArtifactSelectionModel(family = "integration-subscriber"),
+                            ),
+                            requestFields = listOf(
+                                DrawingBoardFieldModel(
+                                    name = "orderId",
+                                    type = "Long",
+                                ),
+                            ),
+                            responseFields = emptyList(),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val queryContext = plan.single { it.outputPath.endsWith("drawing_board_query.json") }.context
+        val integrationContext = plan.single { it.outputPath.endsWith("drawing_board_integration_event.json") }.context
+        val queryElement = (queryContext["elements"] as List<*>).filterIsInstance<DrawingBoardElementModel>().single()
+        val integrationElement = (integrationContext["elements"] as List<*>)
+            .filterIsInstance<DrawingBoardElementModel>()
+            .single()
+
+        assertEquals("query", queryElement.tag)
+        assertEquals("orders.queries", queryElement.packageName)
+        assertEquals("ReadOrder", queryElement.name)
+        assertEquals("read order", queryElement.description)
+        assertEquals(listOf(ArtifactSelectionModel(family = "query", variant = "page")), queryElement.artifacts)
+        assertEquals(1, queryElement.requestFields.size)
+        assertEquals(1, queryElement.responseFields.size)
+        assertEquals(
+            listOf(
+                ArtifactSelectionModel(family = "integration-event", variant = "inbound"),
+                ArtifactSelectionModel(family = "integration-subscriber"),
+            ),
+            integrationElement.artifacts,
+        )
+    }
+
+    @Test
     fun `rejects invalid output root values`() {
         val planner = DrawingBoardArtifactPlanner()
 
@@ -101,6 +178,16 @@ class DrawingBoardArtifactPlannerTest {
         val plan = planner.plan(config(outputRoot = "design/generated"), model())
 
         assertEquals("design/generated/drawing_board_command.json", plan.first().outputPath)
+    }
+
+    @Test
+    fun `plans overwrite conflict policy for observation outputs`() {
+        val planner = DrawingBoardArtifactPlanner()
+
+        val plan = planner.plan(config(), model())
+
+        assertTrue(plan.isNotEmpty())
+        assertTrue(plan.all { it.conflictPolicy == ConflictPolicy.OVERWRITE })
     }
 
     @Test

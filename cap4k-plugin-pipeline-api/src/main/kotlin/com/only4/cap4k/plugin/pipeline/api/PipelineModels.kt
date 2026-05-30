@@ -457,6 +457,12 @@ data class DrawingBoardElementModel(
     val role: String? = null,
     val eventName: String? = null,
 ) {
+    val fields: List<DrawingBoardFieldModel>
+        get() = designJsonRequestFields.sortedWith(DrawingBoardFieldComparator)
+
+    val resultFields: List<DrawingBoardFieldModel>
+        get() = responseFields.sortedWith(DrawingBoardFieldComparator)
+
     val designJsonRequestFields: List<DrawingBoardFieldModel>
         get() = if (tag == "domain_event") {
             requestFields.filterNot { it.name.equals("entity", ignoreCase = true) }
@@ -468,8 +474,47 @@ data class DrawingBoardElementModel(
         get() = traits.map { it.name.lowercase() }
 
     val designJsonArtifacts: List<ArtifactSelectionModel>
-        get() = artifacts
+        get() = normalizedDrawingBoardArtifacts(tag, artifacts)
 }
+
+private val DrawingBoardFieldComparator =
+    compareBy<DrawingBoardFieldModel> { it.name }
+        .thenBy { it.type }
+        .thenBy { it.nullable }
+        .thenBy { it.defaultValue.orEmpty() }
+
+private fun normalizedDrawingBoardArtifacts(
+    tag: String,
+    artifacts: List<ArtifactSelectionModel>,
+): List<ArtifactSelectionModel> {
+    val effectiveArtifacts = if (artifacts.isEmpty()) {
+        defaultDrawingBoardArtifactsFor(tag)
+    } else {
+        artifacts
+    }
+
+    val normalizedArtifacts = effectiveArtifacts.sortedWith(
+        compareBy<ArtifactSelectionModel> { it.family }.thenBy { it.variant }
+    )
+    val normalizedDefaultArtifacts = defaultDrawingBoardArtifactsFor(tag).sortedWith(
+        compareBy<ArtifactSelectionModel> { it.family }.thenBy { it.variant }
+    )
+
+    return if (normalizedArtifacts == normalizedDefaultArtifacts) emptyList() else normalizedArtifacts
+}
+
+private fun defaultDrawingBoardArtifactsFor(tag: String): List<ArtifactSelectionModel> =
+    when (tag) {
+        "command" -> listOf(ArtifactSelectionModel("command"))
+        "query" -> listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler"))
+        "client" -> listOf(ArtifactSelectionModel("client"), ArtifactSelectionModel("client-handler"))
+        "api_payload" -> listOf(ArtifactSelectionModel("api-payload"))
+        "domain_event" -> listOf(ArtifactSelectionModel("domain-event"), ArtifactSelectionModel("domain-subscriber"))
+        "integration_event" -> listOf(ArtifactSelectionModel("integration-event", "outbound"))
+        "domain_service" -> listOf(ArtifactSelectionModel("domain-service"))
+        "saga" -> listOf(ArtifactSelectionModel("saga"))
+        else -> emptyList()
+    }
 
 data class DrawingBoardModel(
     val elements: List<DrawingBoardElementModel>,

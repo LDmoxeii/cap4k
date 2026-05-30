@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.generator.drawingboard
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
@@ -30,7 +31,7 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
                             "drawingBoardTag" to tag,
                             "elements" to elements,
                         ),
-                        conflictPolicy = config.templates.conflictPolicy,
+                        conflictPolicy = ConflictPolicy.OVERWRITE,
                     ),
                 )
             }

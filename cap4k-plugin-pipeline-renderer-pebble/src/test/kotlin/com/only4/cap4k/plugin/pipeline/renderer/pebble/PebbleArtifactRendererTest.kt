@@ -4418,11 +4418,11 @@ class PebbleArtifactRendererTest {
         assertEquals("cmd", element["tag"].asString)
         assertEquals("orders.api", element["package"].asString)
         assertEquals("Submit\"Order", element["name"].asString)
-        assertEquals("line1\nline2", element["desc"].asString)
+        assertEquals("line1\nline2", element["description"].asString)
         assertEquals("Ops\\Audit", element["aggregates"].asJsonArray[1].asString)
         assertEquals(true, element["persist"].asBoolean)
-        assertEquals("say \"hi\"", element["requestFields"].asJsonArray[0].asJsonObject["defaultValue"].asString)
-        assertEquals("status", element["responseFields"].asJsonArray[0].asJsonObject["name"].asString)
+        assertEquals("say \"hi\"", element["fields"].asJsonArray[0].asJsonObject["defaultValue"].asString)
+        assertEquals("status", element["resultFields"].asJsonArray[0].asJsonObject["name"].asString)
     }
 
     @Test
@@ -4567,20 +4567,140 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("\"tag\": \"cmd\""))
         assertTrue(content.contains("\"package\": \"orders\""))
         assertTrue(content.contains("\"name\": \"SubmitOrder\""))
-        assertTrue(content.contains("\"desc\": \"submit order\""))
+        assertTrue(content.contains("\"description\": \"submit order\""))
         assertTrue(content.contains("\"aggregates\": [\"Order\"]"))
-        assertTrue(content.contains("\"entity\": \"Order\""))
         assertTrue(content.contains("\"persist\": true"))
-        assertTrue(content.contains("\"requestFields\": ["))
+        assertTrue(content.contains("\"fields\": ["))
         assertTrue(content.contains("\"name\": \"id\""))
         assertTrue(content.contains("\"nullable\": false"))
-        assertTrue(content.contains("\"responseFields\": ["))
+        assertTrue(content.contains("\"resultFields\": ["))
         assertTrue(content.contains("\"name\": \"accepted\""))
         assertTrue(content.contains("\"nullable\": true"))
         assertTrue(content.contains("\"defaultValue\": \"false\""))
         assertTrue(!content.contains("\"entity\": null"))
         assertTrue(!content.contains("\"persist\": null"))
         assertTrue(!content.contains("\"defaultValue\": null"))
+    }
+
+    @Test
+    fun `renders drawing board json with formal block keys and default artifact omission`() {
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = emptyList()
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "drawing-board",
+                    moduleRole = "project",
+                    templateId = "drawing-board/document.json.peb",
+                    outputPath = "design/drawing_board_query.json",
+                    context = mapOf(
+                        "elements" to listOf(
+                            DrawingBoardElementModel(
+                                tag = "query",
+                                packageName = "orders.queries",
+                                name = "ReadOrder",
+                                description = "read order",
+                                requestFields = listOf(
+                                    DrawingBoardFieldModel(name = "orderId", type = "Long"),
+                                ),
+                                responseFields = listOf(
+                                    DrawingBoardFieldModel(name = "status", type = "String"),
+                                ),
+                            ),
+                            DrawingBoardElementModel(
+                                tag = "query",
+                                packageName = "orders.queries",
+                                name = "PageOrders",
+                                description = "page orders",
+                                artifacts = listOf(
+                                    ArtifactSelectionModel(family = "query", variant = "page"),
+                                ),
+                                requestFields = emptyList(),
+                                responseFields = emptyList(),
+                            ),
+                            DrawingBoardElementModel(
+                                tag = "integration_event",
+                                packageName = "orders.events",
+                                name = "OrderCreated",
+                                description = "order created",
+                                requestFields = listOf(
+                                    DrawingBoardFieldModel(name = "orderId", type = "Long"),
+                                ),
+                                responseFields = emptyList(),
+                            ),
+                            DrawingBoardElementModel(
+                                tag = "integration_event",
+                                packageName = "orders.events",
+                                name = "OrderSynced",
+                                description = "order synced",
+                                artifacts = listOf(
+                                    ArtifactSelectionModel(family = "integration-event", variant = "inbound"),
+                                    ArtifactSelectionModel(family = "integration-subscriber"),
+                                ),
+                                requestFields = listOf(
+                                    DrawingBoardFieldModel(name = "orderId", type = "Long"),
+                                ),
+                                responseFields = emptyList(),
+                            ),
+                        )
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        val elements = JsonParser.parseString(content).asJsonArray
+
+        assertEquals("query", elements[0].asJsonObject["tag"].asString)
+        assertEquals("orders.queries", elements[0].asJsonObject["package"].asString)
+        assertEquals("ReadOrder", elements[0].asJsonObject["name"].asString)
+        assertEquals("read order", elements[0].asJsonObject["description"].asString)
+        assertTrue(elements[0].asJsonObject["fields"].asJsonArray.size() == 1)
+        assertTrue(elements[0].asJsonObject["resultFields"].asJsonArray.size() == 1)
+        assertFalse(elements[0].asJsonObject.has("desc"))
+        assertFalse(elements[0].asJsonObject.has("requestFields"))
+        assertFalse(elements[0].asJsonObject.has("responseFields"))
+        assertFalse(elements[0].asJsonObject.has("traits"))
+        assertFalse(elements[0].asJsonObject.has("role"))
+        assertFalse(elements[0].asJsonObject.has("entity"))
+        assertFalse(elements[0].asJsonObject.has("message"))
+        assertFalse(elements[0].asJsonObject.has("targets"))
+        assertFalse(elements[0].asJsonObject.has("valueType"))
+        assertFalse(elements[0].asJsonObject.has("artifacts"))
+
+        val pageQuery = elements[1].asJsonObject
+        assertEquals("PageOrders", pageQuery["name"].asString)
+        assertTrue(pageQuery.has("artifacts"))
+        assertEquals("query", pageQuery["artifacts"].asJsonArray[0].asJsonObject["family"].asString)
+        assertEquals("page", pageQuery["artifacts"].asJsonArray[0].asJsonObject["variant"].asString)
+
+        val inboundIntegration = elements[2].asJsonObject
+        assertFalse(inboundIntegration.has("artifacts"))
+
+        val explicitIntegration = elements[3].asJsonObject
+        assertEquals(2, explicitIntegration["artifacts"].asJsonArray.size())
+        assertEquals("integration-event", explicitIntegration["artifacts"].asJsonArray[0].asJsonObject["family"].asString)
+        assertEquals("inbound", explicitIntegration["artifacts"].asJsonArray[0].asJsonObject["variant"].asString)
+        assertEquals("integration-subscriber", explicitIntegration["artifacts"].asJsonArray[1].asJsonObject["family"].asString)
+        assertFalse(explicitIntegration["artifacts"].asJsonArray[1].asJsonObject.has("variant"))
     }
 
     @Test
@@ -4633,7 +4753,7 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("\\u0026"))
 
         val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
-        assertEquals("Map<String, String> <raw> & stable", element["desc"].asString)
+        assertEquals("Map<String, String> <raw> & stable", element["description"].asString)
         assertEquals("Content", element["aggregates"].asJsonArray.single().asString)
     }
 
@@ -4709,8 +4829,8 @@ class PebbleArtifactRendererTest {
         )
 
         val element = JsonParser.parseString(rendered.single().content).asJsonArray.single().asJsonObject
-        val requestFields = element["requestFields"].asJsonArray
-        val responseFields = element["responseFields"].asJsonArray
+        val requestFields = element["fields"].asJsonArray
+        val responseFields = element["resultFields"].asJsonArray
 
         assertEquals("emptySet()", requestFields[0].asJsonObject["defaultValue"].asString)
         assertEquals("null", requestFields[1].asJsonObject["defaultValue"].asString)
@@ -4777,8 +4897,8 @@ class PebbleArtifactRendererTest {
 
         val element = JsonParser.parseString(rendered.single().content).asJsonArray.single().asJsonObject
         assertTrue(!element.has("entity"))
-        assertEquals(1, element["requestFields"].asJsonArray.size())
-        assertEquals("reason", element["requestFields"].asJsonArray[0].asJsonObject["name"].asString)
+        assertEquals(1, element["fields"].asJsonArray.size())
+        assertEquals("reason", element["fields"].asJsonArray[0].asJsonObject["name"].asString)
     }
 
     @Test
@@ -4831,11 +4951,10 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
-        assertTrue(content.contains("\"role\": \"inbound\""))
         assertTrue(content.contains("\"eventName\": \"cap4k.reference.contentstudio.media-processing.succeeded\""))
 
         val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
-        assertEquals("inbound", element["role"].asString)
+        assertTrue(!element.has("role"))
         assertEquals("cap4k.reference.contentstudio.media-processing.succeeded", element["eventName"].asString)
     }
 
