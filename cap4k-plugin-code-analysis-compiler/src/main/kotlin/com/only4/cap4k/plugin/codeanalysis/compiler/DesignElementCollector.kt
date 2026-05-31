@@ -82,7 +82,7 @@ class DesignElementCollector(
                 fieldsRoot,
                 nestedTypes,
                 DefaultValueContext("$tag $name field"),
-            )
+            ).filterRecoveredFields(family)
         }.orEmpty()
         val resultFields = if (family.hasResultFields()) {
             findNestedClass(declaration, "Response")?.let {
@@ -127,6 +127,12 @@ class DesignElementCollector(
 
     private fun String.hasResultFields(): Boolean =
         this == "query" || this == "client" || this == "api-payload"
+
+    private fun List<DesignField>.filterRecoveredFields(family: String): List<DesignField> =
+        when (family) {
+            "domain-event" -> filterNot { field -> field.name == "entity" || field.name.startsWith("entity.") }
+            else -> this
+        }
 
     private fun mergeBlock(element: DesignElement) {
         val key = BlockKey(element.tag, element.`package`, element.name)

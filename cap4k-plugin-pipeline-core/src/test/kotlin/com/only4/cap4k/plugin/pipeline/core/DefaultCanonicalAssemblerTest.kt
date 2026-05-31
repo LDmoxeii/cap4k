@@ -824,48 +824,31 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `client design tags map into canonical clients`() {
+    fun `client design rejects legacy aliases`() {
         val assembler = DefaultCanonicalAssembler()
 
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "client_legacy_alias",
-                            packageName = "auth.client",
-                            name = "IssueToken",
-                            description = "issue token",
-                            aggregates = emptyList(),
+        listOf("client_legacy_alias", "clients_legacy_alias").forEach { tag ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                assembler.assemble(
+                    config = baseConfig(),
+                    snapshots = listOf(
+                        DesignSpecSnapshot(
+                            entries = listOf(
+                                DesignSpecEntry(
+                                    tag = tag,
+                                    packageName = "auth.client",
+                                    name = "IssueToken",
+                                    description = "issue token",
+                                    aggregates = emptyList(),
+                                ),
+                            )
                         ),
-                        DesignSpecEntry(
-                            tag = "client",
-                            packageName = "auth.client",
-                            name = "RefreshToken",
-                            description = "refresh token",
-                            aggregates = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "clients_legacy_alias",
-                            packageName = "auth.client",
-                            name = "RevokeToken",
-                            description = "revoke token",
-                            aggregates = emptyList(),
-                        ),
-                    )
-                ),
-            ),
-        ).model
+                    ),
+                )
+            }
 
-        assertEquals(
-            listOf("RefreshToken"),
-            model.designBlocks.filter { it.tag == "client" }.map { it.name },
-        )
-        assertEquals(
-            listOf("auth.client"),
-            model.designBlocks.filter { it.tag == "client" }.map { it.packageName },
-        )
+            assertEquals("Unsupported design tag: $tag", error.message)
+        }
     }
 
     @Test
@@ -963,63 +946,31 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `api payload design block skips legacy payload aliases`() {
+    fun `api payload design block rejects legacy payload aliases`() {
         val assembler = DefaultCanonicalAssembler()
 
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "payload_legacy_alias",
-                            packageName = "auth.payload",
-                            name = "LegacyPayload",
-                            description = "legacy payload alias",
-                            aggregates = emptyList(),
+        listOf("payload_legacy_alias", "request_payload", "req_payload", "request", "req").forEach { tag ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                assembler.assemble(
+                    config = baseConfig(),
+                    snapshots = listOf(
+                        DesignSpecSnapshot(
+                            entries = listOf(
+                                DesignSpecEntry(
+                                    tag = tag,
+                                    packageName = "auth.payload",
+                                    name = "LegacyPayload",
+                                    description = "legacy payload alias",
+                                    aggregates = emptyList(),
+                                ),
+                            )
                         ),
-                        DesignSpecEntry(
-                            tag = "request_payload",
-                            packageName = "auth.payload",
-                            name = "LegacyRequestPayload",
-                            description = "legacy request payload alias",
-                            aggregates = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "req_payload",
-                            packageName = "auth.payload",
-                            name = "LegacyReqPayload",
-                            description = "legacy req payload alias",
-                            aggregates = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "request",
-                            packageName = "auth.payload",
-                            name = "LegacyRequest",
-                            description = "legacy request alias",
-                            aggregates = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "req",
-                            packageName = "auth.payload",
-                            name = "LegacyReq",
-                            description = "legacy req alias",
-                            aggregates = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "api_payload",
-                            packageName = "auth.payload",
-                            name = "BatchSaveAccountList",
-                            description = "canonical payload",
-                            aggregates = emptyList(),
-                        ),
-                    )
-                ),
-            ),
-        ).model
+                    ),
+                )
+            }
 
-        assertEquals(1, model.designBlocks.count { it.tag == "api_payload" })
-        assertEquals("BatchSaveAccountList", model.designBlocks.single { it.tag == "api_payload" }.name)
+            assertEquals("Unsupported design tag: $tag", error.message)
+        }
     }
 
     @Test
@@ -1084,13 +1035,6 @@ class DefaultCanonicalAssemblerTest {
                             packageName = "order",
                             name = "orderCreated",
                             description = "lower camel",
-                            aggregates = listOf("Order"),
-                        ),
-                        DesignSpecEntry(
-                            tag = "domain-event",
-                            packageName = "order",
-                            name = "IgnoredOrderCreated",
-                            description = "unsupported alias",
                             aggregates = listOf("Order"),
                         ),
                     )
@@ -1341,138 +1285,70 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `skips entries with unsupported tags`() {
+    fun `design spec assembly rejects unsupported tags`() {
         val assembler = DefaultCanonicalAssembler()
 
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "evt",
-                            packageName = "order.events",
-                            name = "OrderCreated",
-                            description = "order created event",
-                            aggregates = listOf("Order"),
-                        ),
-                        DesignSpecEntry(
-                            tag = "command",
-                            packageName = "order.submit",
-                            name = "SubmitOrder",
-                            description = "submit order",
-                            aggregates = listOf("Order"),
-                        ),
-                    )
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembler.assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "evt",
+                                packageName = "order.events",
+                                name = "OrderCreated",
+                                description = "order created event",
+                                aggregates = listOf("Order"),
+                            ),
+                        )
+                    ),
                 ),
-            ),
-        ).model
+            )
+        }
 
-        assertEquals(1, model.designBlocks.count { it.tag == "command" })
-        assertEquals("SubmitOrder", model.designBlocks.single { it.tag == "command" }.name)
-        assertEquals(emptyList<String>(), model.designBlocks.filter { it.tag == "query" }.map { it.name })
-        assertEquals(emptyList<String>(), model.designBlocks.filter { it.tag == "client" }.map { it.name })
+        assertEquals("Unsupported design tag: evt", error.message)
     }
 
     @Test
-    fun `design spec assembly ignores non exact canonical tags and historical aliases`() {
+    fun `design spec assembly rejects non exact canonical tags and historical aliases`() {
         val assembler = DefaultCanonicalAssembler()
 
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "COMMAND",
-                            packageName = "order.submit",
-                            name = "UpperCommand",
-                            description = "upper command",
-                            aggregates = emptyList(),
+        listOf(
+            "COMMAND",
+            "Query",
+            "Client",
+            "API_PAYLOAD",
+            "DOMAIN_EVENT",
+            "cmd",
+            "qry",
+            "cli",
+            "clients",
+            "payload",
+            "de",
+            "domain-event",
+        ).forEach { tag ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                assembler.assemble(
+                    config = baseConfig(),
+                    snapshots = listOf(
+                        DesignSpecSnapshot(
+                            entries = listOf(
+                                DesignSpecEntry(
+                                    tag = tag,
+                                    packageName = "order.submit",
+                                    name = "UnsupportedTagBlock",
+                                    description = "unsupported tag",
+                                    aggregates = emptyList(),
+                                ),
+                            )
                         ),
-                        DesignSpecEntry(
-                            tag = "Query",
-                            packageName = "order.read",
-                            name = "MixedQuery",
-                            description = "mixed query",
-                            aggregates = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "Client",
-                            packageName = "order.remote",
-                            name = "MixedClient",
-                            description = "mixed client",
-                            aggregates = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "API_PAYLOAD",
-                            packageName = "order.payload",
-                            name = "UpperPayload",
-                            description = "upper payload",
-                            aggregates = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "DOMAIN_EVENT",
-                            packageName = "order.events",
-                            name = "UpperDomainEvent",
-                            description = "upper domain event",
-                            aggregates = listOf("Order"),
-                            persist = true,
-                        ),
-                        DesignSpecEntry(
-                            tag = "cmd",
-                            packageName = "order.submit",
-                            name = "LegacyCommand",
-                            description = "legacy command",
-                            aggregates = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "qry",
-                            packageName = "order.read",
-                            name = "LegacyQuery",
-                            description = "legacy query",
-                            aggregates = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "cli",
-                            packageName = "order.remote",
-                            name = "LegacyClient",
-                            description = "legacy client",
-                            aggregates = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "clients",
-                            packageName = "order.remote",
-                            name = "LegacyClients",
-                            description = "legacy clients",
-                            aggregates = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "payload",
-                            packageName = "order.payload",
-                            name = "LegacyPayload",
-                            description = "legacy payload",
-                            aggregates = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "de",
-                            packageName = "order.events",
-                            name = "LegacyDomainEvent",
-                            description = "legacy domain event",
-                            aggregates = listOf("Order"),
-                            persist = true,
-                        ),
-                    )
-                ),
-                aggregateSnapshot("order"),
-            ),
-        ).model
+                    ),
+                )
+            }
 
-        assertEquals(emptyList<String>(), model.designBlocks.filter { it.tag == "command" }.map { it.name })
-        assertEquals(emptyList<String>(), model.designBlocks.filter { it.tag == "query" }.map { it.name })
-        assertEquals(emptyList<String>(), model.designBlocks.filter { it.tag == "client" }.map { it.name })
-        assertEquals(emptyList<String>(), model.designBlocks.filter { it.tag == "api_payload" }.map { it.name })
-        assertEquals(emptyList<String>(), model.domainEvents.map { it.typeName })
+            assertEquals("Unsupported design tag: $tag", error.message)
+        }
     }
 
     @Test

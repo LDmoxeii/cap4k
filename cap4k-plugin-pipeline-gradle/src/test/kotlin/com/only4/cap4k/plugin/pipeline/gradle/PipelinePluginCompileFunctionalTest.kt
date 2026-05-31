@@ -767,6 +767,37 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
+    fun `enum manifest only generation participates in domain compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-enum-manifest-domain-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "enum-manifest-compile-sample")
+
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin", "-x", "cap4kGenerateSources")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateCompileResult.task(":demo-domain:compileKotlin")?.outcome,
+        )
+        assertTrue(beforeGenerateCompileResult.output.contains("Status"))
+
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .build()
+        val generatedEnum = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt")
+        ).readText()
+
+        assertGeneratedFilesExist(
+            projectDir,
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt"),
+        )
+        assertTrue(generatedEnum.contains("enum class Status"))
+        assertTrue(generatedEnum.contains("class Converter : AttributeConverter<Status, Int>"))
+        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
     fun `aggregate unique query and validator generation participates in application compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-unique-application-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")

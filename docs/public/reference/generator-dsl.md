@@ -21,7 +21,7 @@ cap4k {
 | `project { }` | 声明 `basePackage` 与模块路径 |
 | `types { }` | 注册额外短名类型 |
 | `sources { }` | 声明输入来源 |
-| `generators { }` | 启用要参与的生成族 |
+| `generators { }` | 配置生成族选项 |
 | `templates { }` | 配置源码生成模板、覆盖目录、冲突策略 |
 | `bootstrap { }` | 配置 bootstrap 任务族 |
 | `layout { }` | 调整包根、包后缀与分析产物输出根 |
@@ -62,9 +62,9 @@ bootstrap {
 
 ```kotlin
 sources {
-    designJson { enabled.set(true); files.from("design/design.json") }
+    designJson { files.from("design/design.json") }
     db { enabled.set(true); url.set("jdbc:..."); schema.set("PUBLIC") }
-    irAnalysis { enabled.set(true); inputDirs.from("path/to/ir-analysis") }
+    irAnalysis { inputDirs.from("path/to/ir-analysis") }
 }
 
 types {
@@ -75,9 +75,9 @@ types {
 
 | source block | 常用字段 | 服务哪条任务链路 |
 | --- | --- | --- |
-| `designJson` | `enabled`, `files`, `manifestFile` | `cap4kPlan` / `cap4kGenerate` |
+| `designJson` | `files`, `manifestFile` | `cap4kPlan` / `cap4kGenerate` |
 | `db` | `enabled`, `url`, `username`, `password`, `schema`, `includeTables`, `excludeTables` | `cap4kPlan` / `cap4kGenerate` |
-| `irAnalysis` | `enabled`, `inputDirs` | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
+| `irAnalysis` | `inputDirs` | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
 
 `enumManifest` 和 `valueObjectManifest` 是 `types {}` 输入合同，不是 `sources {}` family。枚举和值对象 manifest entry 不需要再额外写一条 `types.registryFile` entry。
 
@@ -89,22 +89,20 @@ types {
 
 ```kotlin
 generators {
-    aggregate { enabled.set(true) }
-    flow { enabled.set(true) }
-    drawingBoard { enabled.set(true) }
+    aggregate { unsupportedTablePolicy.set("FAIL") }
 }
 ```
 
 | generator family | 说明 | 主要任务 |
 | --- | --- | --- |
-| design family | 无公开 generator switch；启用 `sources.designJson` 后自动规划 `command`、`query`、`client`、`api_payload`、`domain_event`、`integration_event`、`domain_service`、`saga` 相关源码 | `cap4kPlan` / `cap4kGenerate` |
+| design family | 无公开 generator switch；配置 `sources.designJson.files` 或 `sources.designJson.manifestFile` 后自动规划 `command`、`query`、`client`、`api_payload`、`domain_event`、`integration_event`、`domain_service`、`saga` 相关源码 | `cap4kPlan` / `cap4kGenerate` |
 | aggregate | 聚合骨架及相关产物 | `cap4kPlan` / `cap4kGenerate` |
-| `flow` | 流程观察材料 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
-| `drawingBoard` | 设计 / 文档观察材料 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
+| flow | 流程观察材料；无公开 generator switch，由 `sources.irAnalysis.inputDirs` 驱动 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
+| drawingBoard | 设计 / 文档观察材料；无公开 generator switch，由 `sources.irAnalysis.inputDirs` 驱动 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
 
-启用 `sources.designJson` 即可进入 design family planning，不再需要 `designCommand`、`designQuery`、`designDomainEvent` 等公开 generator switch。`aggregate` / `aggregateProjection` 仍通过各自 DSL block 表示配置存在，并由 block 内部 artifact options 控制可选 DB-derived 产物；`flow` 和 `drawingBoard` 由 `sources.irAnalysis.inputDirs` 驱动。
+`sources.designJson.files` 或 `sources.designJson.manifestFile` 存在即可进入 design family planning，不再需要公开 design-family generator switch。`aggregate` / `aggregateProjection` 仍通过各自 DSL block 表示配置存在，并由 block 内部 artifact options 控制可选 DB-derived 产物；flow 和 drawing-board 观察产物由 `sources.irAnalysis.inputDirs` 驱动。
 
-`tag = "integration_event"` 会生成事件契约类，要求启用 `sources.designJson` 且配置 `project.applicationModulePath`。对应 design entry 必须声明 `eventName`、至少一个 `fields` 字段，并保持 `resultFields` 为空。方向通过 `artifacts[{ family: "integration-event", variant: "inbound" | "outbound" }]` 表达；只有同时显式选择 `integration-subscriber` 且事件 variant 为 `inbound` 时才会生成 Spring `@EventListener` subscriber。
+`tag = "integration_event"` 会生成事件契约类，要求配置 `sources.designJson.files` 或 `sources.designJson.manifestFile`，并配置 `project.applicationModulePath`。对应 design entry 必须声明 `eventName`、至少一个 `fields` 字段，并保持 `resultFields` 为空。方向通过 `artifacts[{ family: "integration-event", variant: "inbound" | "outbound" }]` 表达；只有同时显式选择 `integration-subscriber` 且事件 variant 为 `inbound` 时才会生成 Spring `@EventListener` subscriber。
 
 ## `aggregate { }`
 
@@ -207,14 +205,14 @@ design family：
 
 ```kotlin
 project { basePackage.set("com.acme.demo"); applicationModulePath.set("demo-application"); adapterModulePath.set("demo-adapter") }
-sources { designJson { enabled.set(true); files.from("design/design.json") } }
+sources { designJson { files.from("design/design.json") } }
 ```
 
 integration event：
 
 ```kotlin
 project { basePackage.set("com.acme.demo"); applicationModulePath.set("demo-application") }
-sources { designJson { enabled.set(true); files.from("design/design.json") } }
+sources { designJson { files.from("design/design.json") } }
 ```
 
 默认布局会把事件契约放到 application 层的 `application.subscribers.integration.<variant>.<designPackage>` 下，把 inbound subscriber 骨架放到 `application.subscribers.integration` 下。模板覆盖文件名是 `design/integration_event.kt.peb` 和 `design/integration_event_subscriber.kt.peb`。
@@ -231,6 +229,5 @@ analysis family：
 
 ```kotlin
 project { basePackage.set("com.acme.demo") }
-sources { irAnalysis { enabled.set(true); inputDirs.from("path/to/ir-analysis") } }
-generators { flow { enabled.set(true) } }
+sources { irAnalysis { inputDirs.from("path/to/ir-analysis") } }
 ```

@@ -54,7 +54,7 @@ Rules:
 
 - `query` and `api_payload` may use artifact variants such as `list` or `page`.
 - `domain_event` entries can produce domain-event subscriber/handler shells through `DesignDomainEventHandlerArtifactPlanner`.
-- `domain_event` supports `persist`, may omit `package`, and reserves request field name `entity`, which is derived from the first aggregate entry. If `aggregates` is missing or empty, the design contract is incomplete and should return to modeling.
+- `domain_event` supports `persist`, may omit `package`, and must declare exactly one aggregate. Public `fields` do not include a synthetic aggregate entity; missing or empty `aggregates` means the modeling input is incomplete and should return to modeling.
 - `integration_event` requires an `integration-event` artifact with `variant` `inbound` or `outbound`, `eventName`, at least one `fields` entry, and empty `resultFields`.
 - inbound `integration_event` entries can produce subscriber shells through `DesignIntegrationEventSubscriberArtifactPlanner`.
 - `domain_service` entries produce domain-module service skeletons.

@@ -111,7 +111,7 @@ class Cap4kProjectConfigFactory {
         if (generators.aggregateProjectionConfigured) {
             put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
         }
-        if (sources.valueObjectManifestConfigured) {
+        if (sources.enumManifestConfigured || sources.valueObjectManifestConfigured) {
             put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
         }
     }

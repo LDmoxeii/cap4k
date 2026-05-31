@@ -55,9 +55,14 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val valueObjects = snapshots.filterIsInstance<ValueObjectManifestSnapshot>().flatMap { it.valueObjects }
         val typeRegistry = TypeRegistryModel(config.typeRegistry.entries)
         val analysisSnapshot = snapshots.filterIsInstance<IrAnalysisSnapshot>().firstOrNull()
-        val designBlocks = designSnapshot?.entries.orEmpty()
+        val designEntries = designSnapshot?.entries.orEmpty()
+        designEntries.forEach { entry ->
+            require(entry.tag in SupportedDesignBlockTags) {
+                "Unsupported design tag: ${entry.tag}"
+            }
+        }
+        val designBlocks = designEntries
             .asSequence()
-            .filter { entry -> entry.tag in SupportedDesignBlockTags }
             .map { entry -> entry.toDesignBlockModel() }
             .fold(linkedMapOf<String, DesignBlockModel>()) { acc, block ->
                 val key = designBlockKey(block)

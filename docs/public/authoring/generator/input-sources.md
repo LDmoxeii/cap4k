@@ -213,8 +213,7 @@ value-object manifest 是 JSON 数组。当前支持 JSON-backed 值对象，并
 附加规则：
 
 - `query` 和 `api_payload` 支持 `artifacts` 里的 `variant = "page"`；
-- `domain_event` 支持 `persist`；
-- `domain_event` 可以省略 package；它必须恰好声明一个 aggregate，保留 field `entity` 不允许作者显式声明，因为它会从 `aggregates[0]` 派生。缺失或空 aggregate 都属于不完整 modeling input；
+- `domain_event` 支持 `persist`，可以省略 `package`，且必须恰好声明一个 aggregate；公共 `fields` 不包含 synthetic aggregate entity，缺失或空 aggregate 都属于不完整 modeling input；
 - `integration_event` 支持 `artifacts[{ family: "integration-event", variant: "inbound" | "outbound" }]` 和 `eventName`，必须至少声明一个 `fields` 字段，且 `resultFields` 必须为空；`integration-subscriber` 只允许搭配 inbound integration event，outbound 只生成事件契约；
 - `domain_service` 表达领域服务 skeleton，生成到 domain module；
 - `saga` 表达 saga param / result / handler skeleton，生成到 application module；
@@ -235,7 +234,7 @@ enum manifest 是 JSON 数组，每个枚举包含：
 
 - `name`
 - `package`
-- `items[]`，其中有 `value`、`name`、`desc`
+- `items[]`，其中有 `value`、`name`、`desc`；这里的 `desc` 是 enum item 描述字段，不是 design JSON 的 `description`
 
 它配合 DB `@T=<TypeName>` 使用。重复 type name 会被拒绝。manifest entry 不需要再写 `types.registryFile` entry。
 

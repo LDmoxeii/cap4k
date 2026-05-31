@@ -427,6 +427,73 @@ class DesignElementExtractionTest {
     }
 
     @Test
+    fun `generated domain event recovery excludes synthetic entity constructor parameter`() {
+        val sources = listOf(
+            SourceFile.kotlin(
+                "BuildingBlock.kt",
+                """
+                    package com.only4.cap4k.ddd.core.annotation
+
+                    annotation class BuildingBlock(
+                        val tag: String,
+                        val name: String,
+                        val packageName: String,
+                        val description: String = "",
+                        val aggregates: Array<String> = [],
+                        val eventName: String = "",
+                        val family: String = "",
+                        val variant: String = "",
+                    )
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "DomainEvent.kt",
+                """
+                    package com.only4.cap4k.ddd.core.domain.event.annotation
+                    annotation class DomainEvent(val value: String = "", val persist: Boolean = false)
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "OrderCreated.kt",
+                """
+                    package demo.domain.aggregates.order.events
+
+                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+                    import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
+
+                    class Order
+
+                    @BuildingBlock(
+                        tag = "domain_event",
+                        packageName = "order.events",
+                        name = "OrderCreated",
+                        description = "order created",
+                        aggregates = ["Order"],
+                        family = "domain-event",
+                    )
+                    @DomainEvent(persist = true)
+                    data class OrderCreated(
+                        val entity: Order,
+                        val orderId: Long,
+                        val reason: String? = null,
+                    )
+                """.trimIndent()
+            )
+        )
+
+        val outputDir = compileWithCap4kPlugin(sources)
+        val json = outputDir.resolve("design-elements.json").toFile().readText()
+        val orderCreated = findObject(extractTopLevelObjects(json), "domain_event", "OrderCreated")
+
+        assertTrue(orderCreated.contains("\"artifacts\":[{\"family\":\"domain-event\"}]"))
+        assertTrue(orderCreated.contains("\"fields\":[{\"name\":\"orderId\",\"type\":\"Long\",\"nullable\":false}"))
+        assertTrue(orderCreated.contains("\"name\":\"reason\",\"type\":\"String\",\"nullable\":true,\"defaultValue\":\"null\""))
+        assertFalse(orderCreated.contains("\"name\":\"entity\""))
+        assertFalse(json.contains("\"requestFields\""))
+        assertFalse(json.contains("\"responseFields\""))
+    }
+
+    @Test
     fun `integration subscriber dependencies do not conflict with event body fields`() {
         val sources = listOf(
             SourceFile.kotlin(

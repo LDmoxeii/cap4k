@@ -165,6 +165,33 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
+    fun `enum manifest only config carries domain module and source options`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+        }
+        extension.types {
+            enumManifest {
+                files.from("design/enums.json")
+            }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(mapOf("domain" to "demo-domain"), config.modules)
+        assertEquals(setOf("enum-manifest"), config.sources.keys)
+        assertEquals(
+            mapOf("files" to listOf(project.file("design/enums.json").absolutePath)),
+            config.sources.getValue("enum-manifest").options,
+        )
+        assertEquals(listOf("design/enums.json"), config.typeRegistry.enumManifestFiles)
+        assertTrue(config.generators.isEmpty())
+    }
+
+    @Test
     fun `addons block maps provider scoped options`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)

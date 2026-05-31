@@ -359,6 +359,20 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `generated source module roles include domain for enum manifest only`() {
+        assertEquals(
+            setOf("domain"),
+            generatedSourceModuleRoles(
+                projectConfig(
+                    modules = mapOf("domain" to "demo-domain"),
+                    sources = mapOf("enum-manifest" to SourceConfig()),
+                    generators = emptyMap(),
+                )
+            )
+        )
+    }
+
+    @Test
     fun `generated source task config keeps only generated source generation inputs`() {
         val config = projectConfig(
             sources = mapOf(
@@ -956,6 +970,36 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `enum manifest generation wires jakarta persistence api into resolved domain module`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-enum-manifest-domain-dependency-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        domainProject.configurations.create("implementation")
+
+        ensureEnumManifestDomainDependencies(
+            rootProject,
+            projectConfig(
+                modules = mapOf("domain" to "demo-domain"),
+                sources = mapOf("enum-manifest" to SourceConfig()),
+                generators = emptyMap(),
+            )
+        )
+
+        val implementationDependencies = domainProject.configurations.getByName("implementation").dependencies
+        assertTrue(
+            implementationDependencies.any { dependency ->
+                dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
+            }
+        )
+    }
+
+    @Test
     fun `value object generation does not duplicate json converter dependencies`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-value-object-domain-dependency-dedup-root")
         val rootProject = ProjectBuilder.builder()
@@ -1021,6 +1065,35 @@ class PipelinePluginTest {
                 modules = mapOf("domain" to "demo-domain"),
                 sources = mapOf("db" to SourceConfig()),
                 generators = mapOf("aggregate" to GeneratorConfig()),
+            )
+        )
+
+        val dependencyCount = domainProject.configurations.getByName("implementation").dependencies.count { dependency ->
+            dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
+        }
+        assertEquals(1, dependencyCount)
+    }
+
+    @Test
+    fun `enum manifest generation does not duplicate jakarta persistence api dependency`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-enum-manifest-domain-dependency-dedup-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        domainProject.configurations.create("implementation")
+        domainProject.dependencies.add("implementation", "jakarta.persistence:jakarta.persistence-api:3.1.0")
+
+        ensureEnumManifestDomainDependencies(
+            rootProject,
+            projectConfig(
+                modules = mapOf("domain" to "demo-domain"),
+                sources = mapOf("enum-manifest" to SourceConfig()),
+                generators = emptyMap(),
             )
         )
 

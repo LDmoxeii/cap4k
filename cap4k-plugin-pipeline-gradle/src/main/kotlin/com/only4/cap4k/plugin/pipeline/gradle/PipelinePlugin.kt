@@ -122,6 +122,7 @@ class PipelinePlugin : Plugin<Project> {
             val config = configFactory.build(project, extension)
             ensureAggregateDomainJpaDependency(project, config)
             ensureAggregateProjectionAdapterJpaDependency(project, config)
+            ensureEnumManifestDomainDependencies(project, config)
             ensureValueObjectDomainDependencies(project, config)
             val inferredSourceDependencies = inferSourceDependencies(project, config)
             if (inferredSourceDependencies.isNotEmpty()) {
@@ -234,6 +235,13 @@ internal fun ensureAggregateProjectionAdapterJpaDependency(project: Project, con
     ensureJpaDependency(project, config, moduleRole = "adapter")
 }
 
+internal fun ensureEnumManifestDomainDependencies(project: Project, config: ProjectConfig) {
+    if ("enum-manifest" !in config.sources) {
+        return
+    }
+    ensureJpaDependency(project, config, moduleRole = "domain")
+}
+
 internal fun ensureValueObjectDomainDependencies(project: Project, config: ProjectConfig) {
     if ("value-object-manifest" !in config.sources) {
         return
@@ -318,6 +326,9 @@ internal fun generatedSourceModuleRoles(config: ProjectConfig): Set<String> {
     }
     if ("aggregate-projection" in config.generators) {
         roles += "adapter"
+    }
+    if ("enum-manifest" in config.sources) {
+        roles += "domain"
     }
     return roles.filterTo(linkedSetOf()) { role -> role in config.modules }
 }

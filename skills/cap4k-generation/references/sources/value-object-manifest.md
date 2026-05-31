@@ -17,7 +17,7 @@ Rules:
 - use it for JSON-backed value objects that should generate checked-in source.
 - manifest entries do not need matching `types.registryFile` entries.
 - omit `aggregates` for shared value objects.
-- set `aggregates` to one or more aggregate names for aggregate-local value objects.
+- set `aggregates` to zero or one aggregate name; one aggregate means aggregate-local ownership.
 - duplicate names are rejected within the same aggregate.
 - `storage` currently supports `json`.
 - each value object must declare at least one field with `name` and `type`.

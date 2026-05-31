@@ -189,7 +189,8 @@ class DesignJsonSourceProviderTest {
                     "desc": "old",
                     "requestFields": [],
                     "responseFields": [],
-                    "traits": ["page"]
+                    "traits": ["page"],
+                    "entity": "Order"
                   }
                 ]
             """.trimIndent(),
@@ -201,7 +202,7 @@ class DesignJsonSourceProviderTest {
         }
 
         assertEquals(
-            "design entry FindOrder uses removed fields: desc, requestFields, responseFields, traits",
+            "design entry FindOrder uses removed fields: desc, requestFields, responseFields, traits, entity",
             error.message,
         )
     }
