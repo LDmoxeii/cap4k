@@ -8,7 +8,6 @@ cap4k {
     }
     sources {
         irAnalysis {
-            enabled.set(true)
             inputDirs.from("analysis/app/build/cap4k-code-analysis")
         }
     }
@@ -19,7 +18,6 @@ cap4k {
     }
     generators {
         drawingBoard {
-            enabled.set(true)
         }
     }
     templates {

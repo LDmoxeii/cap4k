@@ -14,6 +14,7 @@ internal class UniqueQueryHandlerArtifactPlanner : AggregateArtifactFamilyPlanne
 
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         return plannedSelections.flatMap { (entity, selections) ->
+            val aggregateName = aggregateRootName(entity, model.entities)
             val packageKey = aggregatePackageKey(config, entity.packageName)
             val packageName = artifactLayout.aggregateUniqueQueryHandlerPackage(packageKey)
             val queryPackageName = artifactLayout.aggregateUniqueQueryPackage(packageKey)
@@ -42,6 +43,13 @@ internal class UniqueQueryHandlerArtifactPlanner : AggregateArtifactFamilyPlanne
                     context = mapOf(
                         "packageName" to packageName,
                         "typeName" to selection.queryHandlerTypeName,
+                        "aggregateElement" to aggregateElementContext(
+                            aggregate = aggregateName,
+                            name = selection.queryHandlerTypeName,
+                            packageName = packageName,
+                            description = "",
+                            type = "unique-query-handler",
+                        ),
                         "queryTypeName" to selection.queryTypeName,
                         "queryTypeFqn" to "$queryPackageName.${selection.queryTypeName}",
                         "repositoryTypeName" to repository?.name,

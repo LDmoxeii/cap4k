@@ -7,32 +7,34 @@ import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
 class DesignQueryHandlerArtifactPlanner : GeneratorProvider {
-    override val id: String = "design-query-handler"
+    override val id: String = "query-handler"
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        if (model.queries.isEmpty()) {
+        val blocks = model.designBlocks.filter { block -> block.selects(id) }
+        if (blocks.isEmpty()) {
             return emptyList()
         }
 
         val adapterRoot = requireRelativeModuleRoot(config, "adapter")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
 
-        return model.queries
+        return blocks
             .asSequence()
-            .map { query ->
-                val packageName = artifactLayout.designQueryHandlerPackage(query.packageName)
-                val queryType = "${artifactLayout.designQueryPackage(query.packageName)}.${query.typeName}"
+            .map { block ->
+                val queryTypeName = block.queryTypeName()
+                val packageName = artifactLayout.designQueryHandlerPackage(block.packageName)
+                val queryType = "${artifactLayout.designQueryPackage(block.packageName)}.$queryTypeName"
 
                 ArtifactPlanItem(
                     generatorId = id,
                     moduleRole = "adapter",
                     templateId = "design/query_handler.kt.peb",
-                    outputPath = artifactLayout.kotlinSourcePath(adapterRoot, packageName, "${query.typeName}Handler"),
+                    outputPath = artifactLayout.kotlinSourcePath(adapterRoot, packageName, "${queryTypeName}Handler"),
                     context = DesignQueryHandlerRenderModelFactory.create(
                         packageName = packageName,
                         queryType = queryType,
-                        query = query,
-                    ).toContextMap(),
+                        block = block,
+                    ).toContextMap() + mapOf("buildingBlock" to block.buildingBlockContext(id)),
                     conflictPolicy = config.templates.conflictPolicy,
                 )
             }

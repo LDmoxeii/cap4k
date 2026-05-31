@@ -22,30 +22,38 @@ class DefaultPipelineRunner(
     private val includePlanItem: (ArtifactPlanItem) -> Boolean = { true },
     private val addonProviders: List<ArtifactAddonProvider> = emptyList(),
 ) : PipelineRunner {
+    private val configKeyRequiredGeneratorIds = setOf("aggregate", "aggregate-projection")
+
     override fun run(config: ProjectConfig): PipelineResult {
         validateAddonProviders(config)
 
-        val enabledGeneratorIds = config.generators.asSequence()
-            .filter { it.value.enabled }
-            .map { it.key }
-            .toSet()
+        val configuredSourceIds = config.sources.keys
+        val installedSourceIds = sources.map { it.id }.toSet()
+        val missingSourceIds = configuredSourceIds
+            .filter { it !in installedSourceIds }
+            .sorted()
+        require(missingSourceIds.isEmpty()) {
+            "configured sources have no registered providers: ${missingSourceIds.joinToString(", ")}"
+        }
+
+        val configuredGeneratorIds = config.generators.keys
         val installedGeneratorIds = generators.map { it.id }.toSet()
-        val missingGeneratorIds = enabledGeneratorIds
+        val missingGeneratorIds = configuredGeneratorIds
             .filter { it !in installedGeneratorIds }
             .sorted()
         require(missingGeneratorIds.isEmpty()) {
-            "enabled generators have no registered providers: ${missingGeneratorIds.joinToString(", ")}"
+            "configured generators have no registered providers: ${missingGeneratorIds.joinToString(", ")}"
         }
 
         val snapshots = sources
-            .filter { config.sources[it.id]?.enabled == true }
+            .filter { it.id in config.sources }
             .map { it.collect(config) }
 
         val assembly = assembler.assemble(config, snapshots)
         val model = assembly.model
 
         val builtInPlanItems = generators
-            .filter { config.generators[it.id]?.enabled == true }
+            .filter { it.id !in configKeyRequiredGeneratorIds || it.id in config.generators }
             .flatMap { it.plan(config, model) }
             .map { ProvenancedPlanItem(it) }
 
@@ -77,7 +85,7 @@ class DefaultPipelineRunner(
                     validateAddonTemplateNamespace(item.planItem, providerId)
                 }
             }
-            .map { resolveConflictPolicy(it.planItem, config) }
+            .map { resolveConflictPolicy(it, config) }
 
         val renderedArtifacts = renderer.render(planItems, config)
         val writtenPaths = exporter.export(renderedArtifacts)
@@ -127,17 +135,43 @@ class DefaultPipelineRunner(
         }
     }
 
-    private fun resolveConflictPolicy(item: ArtifactPlanItem, config: ProjectConfig): ArtifactPlanItem {
-        val resolvedConflictPolicy = when (item.outputKind) {
-            ArtifactOutputKind.GENERATED_SOURCE -> ConflictPolicy.OVERWRITE
-            else -> config.templates.templateConflictPolicies[item.templateId] ?: item.conflictPolicy
+    private fun resolveConflictPolicy(item: ProvenancedPlanItem, config: ProjectConfig): ArtifactPlanItem {
+        val planItem = item.planItem
+        val resolvedConflictPolicy = if (item.isBuiltInObservationOutput()) {
+            ConflictPolicy.OVERWRITE
+        } else {
+            config.templates.templateConflictPolicies[planItem.templateId] ?: planItem.conflictPolicy
         }
 
-        return item.copy(conflictPolicy = resolvedConflictPolicy)
+        return planItem.copy(conflictPolicy = resolvedConflictPolicy)
+    }
+
+    private fun ProvenancedPlanItem.isBuiltInObservationOutput(): Boolean {
+        if (addonProviderId != null) {
+            return false
+        }
+
+        return originalGeneratorId in observationOutputGeneratorIds &&
+            originalTemplateId in observationOutputTemplateIds
+    }
+
+    private companion object {
+        val observationOutputGeneratorIds = setOf("drawing-board", "flow")
+        val observationOutputTemplateIds = setOf(
+            "drawing-board/document.json.peb",
+            "flow/entry.json.peb",
+            "flow/entry.mmd.peb",
+            "flow/index.json.peb",
+        )
     }
 
     private data class ProvenancedPlanItem(
         val planItem: ArtifactPlanItem,
         val addonProviderId: String? = null,
-    )
+        val originalGeneratorId: String = planItem.generatorId,
+        val originalTemplateId: String = planItem.templateId,
+    ) {
+        val outputKind: ArtifactOutputKind
+            get() = planItem.outputKind
+    }
 }

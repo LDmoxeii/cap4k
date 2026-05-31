@@ -1,5 +1,8 @@
 package {{ packageName }}
 
+{% if buildingBlock is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.BuildingBlock") -}}
+{% endif -%}
 {{ use("com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent") -}}
 {% for import in imports(imports) -%}
 import {{ import }}
@@ -12,6 +15,18 @@ import {{ import }}
     value = {{ eventNameKotlinStringLiteral | raw }},
     subscriber = {% if inbound %}"\${spring.application.name:}"{% else %}IntegrationEvent.NONE_SUBSCRIBER{% endif %}
 )
+{% if buildingBlock is defined -%}
+@BuildingBlock(
+    tag = {{ buildingBlock.tagKotlinStringLiteral | raw }},
+    name = {{ buildingBlock.nameKotlinStringLiteral | raw }},
+    packageName = {{ buildingBlock.packageNameKotlinStringLiteral | raw }},
+    description = {{ buildingBlock.descriptionKotlinStringLiteral | raw }},
+    aggregates = [{% for aggregate in buildingBlock.aggregateKotlinStringLiterals %}{{ aggregate | raw }}{% if not loop.last %}, {% endif %}{% endfor %}],
+    eventName = {{ buildingBlock.eventNameKotlinStringLiteral | raw }},
+    family = {{ buildingBlock.familyKotlinStringLiteral | raw }},
+    variant = {{ buildingBlock.variantKotlinStringLiteral | raw }}
+)
+{% endif -%}
 data class {{ typeName }}(
 {%- for field in fields %}
     val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}

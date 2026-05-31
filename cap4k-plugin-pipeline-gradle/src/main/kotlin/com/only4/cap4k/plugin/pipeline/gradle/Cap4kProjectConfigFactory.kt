@@ -31,18 +31,16 @@ class Cap4kProjectConfigFactory {
         val basePackage = extension.project.basePackage.required("project.basePackage")
 
         val sourceStates = SourceStates(
-            designJsonEnabled = extension.sources.designJson.enabled.get(),
-            kspMetadataEnabled = extension.sources.kspMetadata.enabled.get(),
+            designJsonConfigured = extension.sources.designJson.manifestFile.optionalValue() != null ||
+                !extension.sources.designJson.files.isEmpty,
             dbEnabled = extension.sources.db.enabled.get(),
-            irAnalysisEnabled = extension.sources.irAnalysis.enabled.get(),
-            enumManifestEnabled = !extension.types.enumManifest.files.isEmpty,
-            valueObjectManifestEnabled = !extension.types.valueObjectManifest.files.isEmpty,
+            irAnalysisConfigured = !extension.sources.irAnalysis.inputDirs.isEmpty,
+            enumManifestConfigured = !extension.types.enumManifest.files.isEmpty,
+            valueObjectManifestConfigured = !extension.types.valueObjectManifest.files.isEmpty,
         )
         val generatorStates = GeneratorStates(
-            aggregateEnabled = extension.generators.aggregate.enabled.get(),
-            aggregateProjectionEnabled = extension.generators.aggregateProjection.enabled.get(),
-            flowEnabled = extension.generators.flow.enabled.get(),
-            drawingBoardEnabled = extension.generators.drawingBoard.enabled.get(),
+            aggregateConfigured = extension.generators.aggregate.configured,
+            aggregateProjectionConfigured = extension.generators.aggregateProjection.configured,
         )
 
         validateProjectRules(extension, generatorStates)
@@ -77,17 +75,17 @@ class Cap4kProjectConfigFactory {
     }
 
     private fun validateProjectRules(extension: Cap4kExtension, generators: GeneratorStates) {
-        if (generators.aggregateEnabled) {
+        if (generators.aggregateConfigured) {
             val missingDomain = extension.project.domainModulePath.optionalValue() == null
             val missingApplication = extension.project.applicationModulePath.optionalValue() == null
             val missingAdapter = extension.project.adapterModulePath.optionalValue() == null
             if (missingDomain || missingApplication || missingAdapter) {
                 throw IllegalArgumentException(
-                    "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is enabled."
+                    "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is configured."
                 )
             }
         }
-        if (generators.aggregateProjectionEnabled) {
+        if (generators.aggregateProjectionConfigured) {
             extension.project.adapterModulePath.requiredWhenEnabled(
                 "project.adapterModulePath",
                 "aggregateProjection"
@@ -100,20 +98,20 @@ class Cap4kProjectConfigFactory {
         sources: SourceStates,
         generators: GeneratorStates,
     ): Map<String, String> = buildMap {
-        if (sources.designJsonEnabled) {
+        if (sources.designJsonConfigured) {
             extension.project.domainModulePath.optionalValue()?.let { put("domain", it) }
             extension.project.applicationModulePath.optionalValue()?.let { put("application", it) }
             extension.project.adapterModulePath.optionalValue()?.let { put("adapter", it) }
         }
-        if (generators.aggregateEnabled) {
+        if (generators.aggregateConfigured) {
             put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
             put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
             put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
         }
-        if (generators.aggregateProjectionEnabled) {
+        if (generators.aggregateProjectionConfigured) {
             put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
         }
-        if (sources.valueObjectManifestEnabled) {
+        if (sources.enumManifestConfigured || sources.valueObjectManifestConfigured) {
             put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
         }
     }
@@ -123,13 +121,12 @@ class Cap4kProjectConfigFactory {
         extension: Cap4kExtension,
         states: SourceStates,
     ): Map<String, SourceConfig> = buildMap {
-        if (states.designJsonEnabled) {
+        if (states.designJsonConfigured) {
             val manifestFile = extension.sources.designJson.manifestFile.optionalValue()?.let { project.file(it).absolutePath }
             if (manifestFile != null) {
                 put(
                     "design-json",
                     SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "manifestFile" to manifestFile,
                             "projectDir" to project.projectDir.absolutePath,
@@ -138,28 +135,8 @@ class Cap4kProjectConfigFactory {
                 )
             } else {
                 val files = extension.sources.designJson.files.files.map(File::getAbsolutePath).sorted()
-                if (files.isEmpty()) {
-                    throw IllegalArgumentException("sources.designJson.files must not be empty when designJson is enabled.")
-                }
-                put("design-json", SourceConfig(enabled = true, options = mapOf("files" to files)))
+                put("design-json", SourceConfig(options = mapOf("files" to files)))
             }
-        }
-
-        if (states.kspMetadataEnabled) {
-            put(
-                "ksp-metadata",
-                SourceConfig(
-                    enabled = true,
-                    options = mapOf(
-                        "inputDir" to project.file(
-                            extension.sources.kspMetadata.inputDir.requiredWhenEnabled(
-                                "sources.kspMetadata.inputDir",
-                                "kspMetadata"
-                            )
-                        ).absolutePath
-                    ),
-                )
-            )
         }
 
         if (states.dbEnabled) {
@@ -174,22 +151,20 @@ class Cap4kProjectConfigFactory {
             extension.sources.db.schema.optionalValue()?.let { options["schema"] = it }
             extension.sources.db.includeTables.normalizedValues().takeIf { it.isNotEmpty() }?.let { options["includeTables"] = it }
             extension.sources.db.excludeTables.normalizedValues().takeIf { it.isNotEmpty() }?.let { options["excludeTables"] = it }
-            put("db", SourceConfig(enabled = true, options = options))
+            put("db", SourceConfig(options = options))
         }
 
-        if (states.irAnalysisEnabled) {
+        if (states.irAnalysisConfigured) {
             val inputDirs = extension.sources.irAnalysis.inputDirs.files.map(File::getAbsolutePath).sorted()
-            if (inputDirs.isEmpty()) {
-                throw IllegalArgumentException("sources.irAnalysis.inputDirs must not be empty when irAnalysis is enabled.")
-            }
-            put("ir-analysis", SourceConfig(enabled = true, options = mapOf("inputDirs" to inputDirs)))
+            put("ir-analysis", SourceConfig(options = mapOf("inputDirs" to inputDirs)))
         }
-        if (states.enumManifestEnabled) {
+        if (states.enumManifestConfigured) {
             val files = extension.types.enumManifest.files.files.map(File::getAbsolutePath).sorted()
-            put("enum-manifest", SourceConfig(enabled = true, options = mapOf("files" to files)))
+            put("enum-manifest", SourceConfig(options = mapOf("files" to files)))
         }
-        if (states.valueObjectManifestEnabled) {
-            put("value-object-manifest", SourceConfig(enabled = true))
+        if (states.valueObjectManifestConfigured) {
+            val files = extension.types.valueObjectManifest.files.files.map(File::getAbsolutePath).sorted()
+            put("value-object-manifest", SourceConfig(options = mapOf("files" to files)))
         }
     }
 
@@ -198,20 +173,11 @@ class Cap4kProjectConfigFactory {
         sources: SourceStates,
         states: GeneratorStates,
     ): Map<String, GeneratorConfig> = buildMap {
-        if (sources.designJsonEnabled) {
-            DESIGN_PLANNER_GENERATOR_IDS.forEach { generatorId ->
-                put(generatorId, GeneratorConfig(enabled = true))
-            }
-        }
-        if (sources.valueObjectManifestEnabled) {
-            put("types-value-object", GeneratorConfig(enabled = true))
-        }
-        if (states.aggregateEnabled) {
+        if (states.aggregateConfigured) {
             val aggregate = extension.generators.aggregate
             put(
                 "aggregate",
                 GeneratorConfig(
-                    enabled = true,
                     options = mapOf(
                         "unsupportedTablePolicy" to aggregate.unsupportedTablePolicy
                             .normalized()
@@ -224,14 +190,8 @@ class Cap4kProjectConfigFactory {
                 )
             )
         }
-        if (states.aggregateProjectionEnabled) {
-            put("aggregate-projection", GeneratorConfig(enabled = true))
-        }
-        if (states.flowEnabled) {
-            put("flow", GeneratorConfig(enabled = true))
-        }
-        if (states.drawingBoardEnabled) {
-            put("drawing-board", GeneratorConfig(enabled = true))
+        if (states.aggregateProjectionConfigured) {
+            put("aggregate-projection", GeneratorConfig())
         }
     }
 
@@ -349,17 +309,11 @@ class Cap4kProjectConfigFactory {
         }
 
     private fun validateGeneratorDependencies(sources: SourceStates, generators: GeneratorStates) {
-        if (generators.aggregateEnabled && !sources.dbEnabled) {
-            throw IllegalArgumentException("aggregate generator requires enabled db source.")
+        if (generators.aggregateConfigured && !sources.dbEnabled) {
+            throw IllegalArgumentException("aggregate generator requires db source.")
         }
-        if (generators.aggregateProjectionEnabled && !sources.dbEnabled) {
-            throw IllegalArgumentException("aggregateProjection generator requires enabled db source.")
-        }
-        if (generators.flowEnabled && !sources.irAnalysisEnabled) {
-            throw IllegalArgumentException("flow generator requires enabled irAnalysis source.")
-        }
-        if (generators.drawingBoardEnabled && !sources.irAnalysisEnabled) {
-            throw IllegalArgumentException("drawingBoard generator requires enabled irAnalysis source.")
+        if (generators.aggregateProjectionConfigured && !sources.dbEnabled) {
+            throw IllegalArgumentException("aggregateProjection generator requires db source.")
         }
     }
 
@@ -388,34 +342,16 @@ class Cap4kProjectConfigFactory {
 }
 
 private data class SourceStates(
-    val designJsonEnabled: Boolean,
-    val kspMetadataEnabled: Boolean,
+    val designJsonConfigured: Boolean,
     val dbEnabled: Boolean,
-    val irAnalysisEnabled: Boolean,
-    val enumManifestEnabled: Boolean,
-    val valueObjectManifestEnabled: Boolean,
+    val irAnalysisConfigured: Boolean,
+    val enumManifestConfigured: Boolean,
+    val valueObjectManifestConfigured: Boolean,
 )
 
 private data class GeneratorStates(
-    val aggregateEnabled: Boolean,
-    val aggregateProjectionEnabled: Boolean,
-    val flowEnabled: Boolean,
-    val drawingBoardEnabled: Boolean,
-)
-
-private val DESIGN_PLANNER_GENERATOR_IDS = listOf(
-    "design-command",
-    "design-query",
-    "design-query-handler",
-    "design-client",
-    "design-client-handler",
-    "design-api-payload",
-    "design-domain-event",
-    "design-domain-event-handler",
-    "design-domain-service",
-    "design-saga",
-    "design-integration-event",
-    "design-integration-event-subscriber",
+    val aggregateConfigured: Boolean,
+    val aggregateProjectionConfigured: Boolean,
 )
 
 private fun Property<String>.required(path: String): String =

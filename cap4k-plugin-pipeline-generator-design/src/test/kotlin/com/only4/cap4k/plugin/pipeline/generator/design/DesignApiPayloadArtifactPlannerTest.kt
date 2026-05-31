@@ -1,15 +1,13 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
-import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
-import com.only4.cap4k.plugin.pipeline.api.CommandModel
-import com.only4.cap4k.plugin.pipeline.api.CommandVariant
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
-import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -21,21 +19,22 @@ class DesignApiPayloadArtifactPlannerTest {
     @Test
     fun `api payload planner plans adapter payload artifact with nested request and response hierarchy`() {
         val planner = DesignApiPayloadArtifactPlanner()
+        assertEquals("api-payload", planner.id)
 
         val items = planner.plan(
             config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
             model = CanonicalModel(
-                apiPayloads = listOf(
-                    ApiPayloadModel(
+                designBlocks = listOf(
+                    apiPayloadBlock(
                         packageName = "account",
-                        typeName = "BatchSaveAccountList",
+                        name = "BatchSaveAccountList",
                         description = "batch save account list payload",
-                        requestFields = listOf(
+                        fields = listOf(
                             FieldModel("address", "Address", nullable = true),
                             FieldModel("address.city", "String"),
                             FieldModel("address.zipCode", "String"),
                         ),
-                        responseFields = listOf(
+                        resultFields = listOf(
                             FieldModel("result", "Result", nullable = true),
                             FieldModel("result.success", "Boolean"),
                         ),
@@ -45,7 +44,7 @@ class DesignApiPayloadArtifactPlannerTest {
         )
 
         val payload = items.single()
-        assertEquals("design-api-payload", payload.generatorId)
+        assertEquals("api-payload", payload.generatorId)
         assertEquals("design/api_payload.kt.peb", payload.templateId)
         assertEquals(
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt",
@@ -58,7 +57,7 @@ class DesignApiPayloadArtifactPlannerTest {
             listOf(
                 DesignRenderFieldModel(name = "address", renderedType = "Address?", nullable = true),
             ),
-            payload.context["requestFields"],
+            payload.context["fields"],
         )
         assertEquals(
             listOf(
@@ -70,13 +69,13 @@ class DesignApiPayloadArtifactPlannerTest {
                     ),
                 ),
             ),
-            payload.context["requestNestedTypes"],
+            payload.context["nestedTypes"],
         )
         assertEquals(
             listOf(
                 DesignRenderFieldModel(name = "result", renderedType = "Result?", nullable = true),
             ),
-            payload.context["responseFields"],
+            payload.context["resultFields"],
         )
         assertEquals(
             listOf(
@@ -87,7 +86,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     ),
                 ),
             ),
-            payload.context["responseNestedTypes"],
+            payload.context["resultNestedTypes"],
         )
     }
 
@@ -98,12 +97,12 @@ class DesignApiPayloadArtifactPlannerTest {
         val items = planner.plan(
             config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
             model = CanonicalModel(
-                apiPayloads = listOf(
-                    ApiPayloadModel(
+                designBlocks = listOf(
+                    apiPayloadBlock(
                         packageName = "video",
-                        typeName = "SyncVideoPostProcessStatus",
+                        name = "SyncVideoPostProcessStatus",
                         description = "sync video post process status",
-                        requestFields = listOf(
+                        fields = listOf(
                             FieldModel("fileList", "List<FileItem>"),
                             FieldModel("fileList[].fileIndex", "Int"),
                             FieldModel("fileList[].variants", "List<VariantItem>"),
@@ -118,7 +117,7 @@ class DesignApiPayloadArtifactPlannerTest {
         val payload = items.single()
         assertEquals(
             listOf(DesignRenderFieldModel(name = "fileList", renderedType = "List<FileItem>")),
-            payload.context["requestFields"],
+            payload.context["fields"],
         )
         assertEquals(
             listOf(
@@ -137,7 +136,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     ),
                 ),
             ),
-            payload.context["requestNestedTypes"],
+            payload.context["nestedTypes"],
         )
     }
 
@@ -149,12 +148,12 @@ class DesignApiPayloadArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
                 model = CanonicalModel(
-                    apiPayloads = listOf(
-                        ApiPayloadModel(
+                    designBlocks = listOf(
+                        apiPayloadBlock(
                             packageName = "category",
-                            typeName = "GetCategoryTree",
+                            name = "GetCategoryTree",
                             description = "get category tree",
-                            responseFields = listOf(
+                            resultFields = listOf(
                                 FieldModel("categoryId", "Long"),
                                 FieldModel("children", "List<self>", nullable = true),
                             ),
@@ -174,13 +173,13 @@ class DesignApiPayloadArtifactPlannerTest {
         val items = planner.plan(
             config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
             model = CanonicalModel(
-                apiPayloads = listOf(
-                    ApiPayloadModel(
+                designBlocks = listOf(
+                    apiPayloadBlock(
                         packageName = "order",
-                        typeName = "FindOrderPagePayload",
+                        name = "FindOrderPagePayload",
                         description = "find order page payload",
-                        traits = setOf(RequestTrait.PAGE),
-                        responseFields = listOf(
+                        variant = "page",
+                        resultFields = listOf(
                             FieldModel("page", "com.only4.cap4k.ddd.core.share.PageData<Item>"),
                             FieldModel("page.list[].orderId", "Long"),
                             FieldModel("page.list[].title", "String"),
@@ -194,7 +193,7 @@ class DesignApiPayloadArtifactPlannerTest {
         assertEquals(true, payload.context["pageRequest"])
         assertEquals(
             listOf(DesignRenderFieldModel(name = "page", renderedType = "PageData<Item>")),
-            payload.context["responseFields"],
+            payload.context["resultFields"],
         )
         assertEquals(
             listOf(
@@ -206,7 +205,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     ),
                 ),
             ),
-            payload.context["responseNestedTypes"],
+            payload.context["resultNestedTypes"],
         )
         assertEquals(listOf("com.only4.cap4k.ddd.core.share.PageData"), payload.context["imports"])
     }
@@ -219,12 +218,12 @@ class DesignApiPayloadArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
                 model = CanonicalModel(
-                    apiPayloads = listOf(
-                        ApiPayloadModel(
+                    designBlocks = listOf(
+                        apiPayloadBlock(
                             packageName = "order",
-                            typeName = "FindOrderResultsPayload",
+                            name = "FindOrderResultsPayload",
                             description = "find order results payload",
-                            responseFields = listOf(
+                            resultFields = listOf(
                                 FieldModel("results", "com.only4.cap4k.ddd.core.share.PageData<Item>"),
                                 FieldModel("results.list[].id", "Long"),
                             ),
@@ -248,12 +247,12 @@ class DesignApiPayloadArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
                 model = CanonicalModel(
-                    apiPayloads = listOf(
-                        ApiPayloadModel(
+                    designBlocks = listOf(
+                        apiPayloadBlock(
                             packageName = "order",
-                            typeName = "FindOrderResultsPayload",
+                            name = "FindOrderResultsPayload",
                             description = "find order results payload",
-                            responseFields = listOf(
+                            resultFields = listOf(
                                 FieldModel("results", "com.only4.cap4k.ddd.core.share.PageData<Item>"),
                             ),
                         ),
@@ -276,12 +275,12 @@ class DesignApiPayloadArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
                 model = CanonicalModel(
-                    apiPayloads = listOf(
-                        ApiPayloadModel(
+                    designBlocks = listOf(
+                        apiPayloadBlock(
                             packageName = "order",
-                            typeName = "FindOrderPagePayload",
+                            name = "FindOrderPagePayload",
                             description = "find order page payload",
-                            responseFields = listOf(
+                            resultFields = listOf(
                                 FieldModel("page", "com.only4.cap4k.ddd.core.share.PageData<Item>"),
                             ),
                         ),
@@ -304,12 +303,12 @@ class DesignApiPayloadArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
                 model = CanonicalModel(
-                    apiPayloads = listOf(
-                        ApiPayloadModel(
+                    designBlocks = listOf(
+                        apiPayloadBlock(
                             packageName = "order",
-                            typeName = "FindOrderPagePayload",
+                            name = "FindOrderPagePayload",
                             description = "find order page payload",
-                            responseFields = listOf(
+                            resultFields = listOf(
                                 FieldModel("page", "com.only4.cap4k.ddd.core.share.PageData"),
                             ),
                         ),
@@ -332,12 +331,12 @@ class DesignApiPayloadArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
                 model = CanonicalModel(
-                    apiPayloads = listOf(
-                        ApiPayloadModel(
+                    designBlocks = listOf(
+                        apiPayloadBlock(
                             packageName = "order",
-                            typeName = "FindOrderPagePayload",
+                            name = "FindOrderPagePayload",
                             description = "find order page payload",
-                            requestFields = listOf(
+                            fields = listOf(
                                 FieldModel("page", "com.only4.cap4k.ddd.core.share.PageData<Item>"),
                                 FieldModel("page.list[].id", "Long"),
                             ),
@@ -361,12 +360,12 @@ class DesignApiPayloadArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
                 model = CanonicalModel(
-                    apiPayloads = listOf(
-                        ApiPayloadModel(
+                    designBlocks = listOf(
+                        apiPayloadBlock(
                             packageName = "order",
-                            typeName = "FindOrderPagePayload",
+                            name = "FindOrderPagePayload",
                             description = "find order page payload",
-                            responseFields = listOf(
+                            resultFields = listOf(
                                 FieldModel("page", "com.only4.cap4k.ddd.core.share.PageData<Item>"),
                                 FieldModel("page.list[].id", "Long"),
                                 FieldModel("page.total", "Long"),
@@ -390,12 +389,12 @@ class DesignApiPayloadArtifactPlannerTest {
         val items = planner.plan(
             config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
             model = CanonicalModel(
-                apiPayloads = listOf(
-                    ApiPayloadModel(
+                designBlocks = listOf(
+                    apiPayloadBlock(
                         packageName = "video",
-                        typeName = "RecursiveVariantPayload",
+                        name = "RecursiveVariantPayload",
                         description = "recursive variant payload",
-                        requestFields = listOf(
+                        fields = listOf(
                             FieldModel("variants", "List<VariantItem>"),
                             FieldModel("variants[].quality", "String"),
                             FieldModel("variants[].children", "List<VariantItem>"),
@@ -416,7 +415,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     ),
                 ),
             ),
-            payload.context["requestNestedTypes"],
+            payload.context["nestedTypes"],
         )
     }
 
@@ -427,16 +426,16 @@ class DesignApiPayloadArtifactPlannerTest {
         val items = planner.plan(
             config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
             model = CanonicalModel(
-                apiPayloads = listOf(
-                    ApiPayloadModel(
+                designBlocks = listOf(
+                    apiPayloadBlock(
                         packageName = "message",
-                        typeName = "MessageGroupPayload",
+                        name = "MessageGroupPayload",
                         description = "message group payload",
-                        requestFields = listOf(
+                        fields = listOf(
                             FieldModel("list", "List<Item>"),
                             FieldModel("list[].requestValue", "String"),
                         ),
-                        responseFields = listOf(
+                        resultFields = listOf(
                             FieldModel("list", "List<Item>"),
                             FieldModel("list[].messageType", "Int"),
                             FieldModel("list[].count", "Int"),
@@ -454,7 +453,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     fields = listOf(DesignRenderFieldModel(name = "requestValue", renderedType = "String")),
                 ),
             ),
-            payload.context["requestNestedTypes"],
+            payload.context["nestedTypes"],
         )
         assertEquals(
             listOf(
@@ -466,7 +465,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     ),
                 ),
             ),
-            payload.context["responseNestedTypes"],
+            payload.context["resultNestedTypes"],
         )
     }
 
@@ -477,15 +476,15 @@ class DesignApiPayloadArtifactPlannerTest {
         val items = planner.plan(
             config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
             model = CanonicalModel(
-                apiPayloads = listOf(
-                    ApiPayloadModel(
+                designBlocks = listOf(
+                    apiPayloadBlock(
                         packageName = "message",
-                        typeName = "ExternalItemPayload",
+                        name = "ExternalItemPayload",
                         description = "external item payload",
-                        requestFields = listOf(
+                        fields = listOf(
                             FieldModel("externalItem", "com.acme.shared.Item"),
                         ),
-                        responseFields = listOf(
+                        resultFields = listOf(
                             FieldModel("list", "List<Item>"),
                             FieldModel("list[].id", "Long"),
                         ),
@@ -497,7 +496,7 @@ class DesignApiPayloadArtifactPlannerTest {
         val payload = items.single()
         assertEquals(
             listOf(DesignRenderFieldModel(name = "externalItem", renderedType = "Item")),
-            payload.context["requestFields"],
+            payload.context["fields"],
         )
         assertEquals(listOf("com.acme.shared.Item"), payload.context["imports"])
         assertEquals(
@@ -507,7 +506,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     fields = listOf(DesignRenderFieldModel(name = "id", renderedType = "Long")),
                 ),
             ),
-            payload.context["responseNestedTypes"],
+            payload.context["resultNestedTypes"],
         )
     }
 
@@ -518,12 +517,12 @@ class DesignApiPayloadArtifactPlannerTest {
         val items = planner.plan(
             config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
             model = CanonicalModel(
-                apiPayloads = listOf(
-                    ApiPayloadModel(
+                designBlocks = listOf(
+                    apiPayloadBlock(
                         packageName = "message",
-                        typeName = "RequestItemCollisionPayload",
+                        name = "RequestItemCollisionPayload",
                         description = "request item collision payload",
-                        requestFields = listOf(
+                        fields = listOf(
                             FieldModel("list", "List<Item>"),
                             FieldModel("list[].id", "Long"),
                             FieldModel("externalItem", "com.acme.shared.Item"),
@@ -539,7 +538,7 @@ class DesignApiPayloadArtifactPlannerTest {
                 DesignRenderFieldModel(name = "list", renderedType = "List<Item>"),
                 DesignRenderFieldModel(name = "externalItem", renderedType = "com.acme.shared.Item"),
             ),
-            payload.context["requestFields"],
+            payload.context["fields"],
         )
         assertEquals(emptyList<String>(), payload.context["imports"])
         assertEquals(
@@ -549,7 +548,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     fields = listOf(DesignRenderFieldModel(name = "id", renderedType = "Long")),
                 ),
             ),
-            payload.context["requestNestedTypes"],
+            payload.context["nestedTypes"],
         )
     }
 
@@ -561,15 +560,15 @@ class DesignApiPayloadArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
                 model = CanonicalModel(
-                    apiPayloads = listOf(
-                        ApiPayloadModel(
+                    designBlocks = listOf(
+                        apiPayloadBlock(
                             packageName = "message",
-                            typeName = "ExternalItemPayload",
+                            name = "ExternalItemPayload",
                             description = "external item payload",
-                            requestFields = listOf(
+                            fields = listOf(
                                 FieldModel("externalItem", "Item"),
                             ),
-                            responseFields = listOf(
+                            resultFields = listOf(
                                 FieldModel("list", "List<Item>"),
                                 FieldModel("list[].id", "Long"),
                             ),
@@ -591,12 +590,12 @@ class DesignApiPayloadArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
                 model = CanonicalModel(
-                    apiPayloads = listOf(
-                        ApiPayloadModel(
+                    designBlocks = listOf(
+                        apiPayloadBlock(
                             packageName = "account",
-                            typeName = "DuplicateAddressPayload",
+                            name = "DuplicateAddressPayload",
                             description = "duplicate address payload",
-                            requestFields = listOf(
+                            fields = listOf(
                                 FieldModel("address", "Address"),
                                 FieldModel("address.city", "String"),
                                 FieldModel("address.city", "Int"),
@@ -617,12 +616,13 @@ class DesignApiPayloadArtifactPlannerTest {
         val items = planner.plan(
             config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
             model = CanonicalModel(
-                commands = listOf(
-                    CommandModel(
+                designBlocks = listOf(
+                    designBlock(
+                        tag = "command",
+                        family = "command",
                         packageName = "order.submit",
-                        typeName = "SubmitOrderCmd",
+                        name = "SubmitOrderCmd",
                         description = "submit order",
-                        variant = CommandVariant.DEFAULT,
                     ),
                 ),
             ),
@@ -639,10 +639,10 @@ class DesignApiPayloadArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = emptyMap()),
                 model = CanonicalModel(
-                    apiPayloads = listOf(
-                        ApiPayloadModel(
+                    designBlocks = listOf(
+                        apiPayloadBlock(
                             packageName = "account",
-                            typeName = "BatchSaveAccountList",
+                            name = "BatchSaveAccountList",
                             description = "batch save account list payload",
                         ),
                     ),
@@ -661,12 +661,12 @@ class DesignApiPayloadArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
                 model = CanonicalModel(
-                    apiPayloads = listOf(
-                        ApiPayloadModel(
+                    designBlocks = listOf(
+                        apiPayloadBlock(
                             packageName = "account",
-                            typeName = "BatchSaveAccountList",
+                            name = "BatchSaveAccountList",
                             description = "batch save account list payload",
-                            requestFields = listOf(
+                            fields = listOf(
                                 FieldModel("address.city", "String"),
                                 FieldModel("address.zipCode", "String"),
                             ),
@@ -687,12 +687,12 @@ class DesignApiPayloadArtifactPlannerTest {
             planner.plan(
                 config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
                 model = CanonicalModel(
-                    apiPayloads = listOf(
-                        ApiPayloadModel(
+                    designBlocks = listOf(
+                        apiPayloadBlock(
                             packageName = "account",
-                            typeName = "BatchSaveAccountList",
+                            name = "BatchSaveAccountList",
                             description = "batch save account list payload",
-                            requestFields = listOf(
+                            fields = listOf(
                                 FieldModel("address", "String"),
                                 FieldModel("address.city", "String"),
                             ),
@@ -710,7 +710,24 @@ class DesignApiPayloadArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        generators = mapOf("design-api-payload" to GeneratorConfig(enabled = true)),
+        generators = mapOf("api-payload" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+    )
+
+    private fun apiPayloadBlock(
+        packageName: String,
+        name: String,
+        description: String,
+        variant: String = "",
+        fields: List<FieldModel> = emptyList(),
+        resultFields: List<FieldModel> = emptyList(),
+    ) = DesignBlockModel(
+        tag = "api_payload",
+        packageName = packageName,
+        name = name,
+        description = description,
+        artifacts = listOf(ArtifactSelectionModel("api-payload", variant)),
+        fields = fields,
+        resultFields = resultFields,
     )
 }

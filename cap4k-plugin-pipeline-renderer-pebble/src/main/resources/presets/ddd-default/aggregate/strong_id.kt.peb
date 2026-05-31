@@ -1,5 +1,8 @@
 package {{ packageName }}
 
+{% if aggregateElement is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{% endif -%}
 {{ use("com.fasterxml.jackson.annotation.JsonCreator") -}}
 {{ use("com.fasterxml.jackson.annotation.JsonValue") -}}
 {{ use("com.only4.cap4k.ddd.core.domain.id.StrongId") -}}
@@ -11,6 +14,16 @@ package {{ packageName }}
 import {{ import }}
 {% endfor %}
 
+{% if aggregateElement is defined -%}
+@AggregateElement(
+    aggregate = {{ aggregateElement.aggregateKotlinStringLiteral | raw }},
+    name = {{ aggregateElement.nameKotlinStringLiteral | raw }},
+    packageName = {{ aggregateElement.packageNameKotlinStringLiteral | raw }},
+    description = {{ aggregateElement.descriptionKotlinStringLiteral | raw }},
+    type = {{ aggregateElement.typeKotlinStringLiteral | raw }},
+    root = {{ aggregateElement.root }}
+)
+{% endif -%}
 @Embeddable
 class {{ typeName }} protected constructor() : StrongId, Serializable {
     @Column(name = "value", nullable = false, updatable = false, length = 36)

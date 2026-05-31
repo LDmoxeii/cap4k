@@ -6,7 +6,6 @@ import com.alibaba.fastjson.parser.Feature
 import com.alibaba.fastjson.serializer.SerializerFeature.IgnoreNonFieldGetter
 import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
 import com.only4.cap4k.ddd.core.application.RequestParam
-import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
@@ -15,14 +14,6 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.time.LocalDateTime
 
-@Aggregate(
-    aggregate = "saga",
-    name = "SagaProcess",
-    root = false,
-    type = Aggregate.TYPE_ENTITY,
-    relevant = ["Saga"],
-    description = "SAGA事务-子环节"
-)
 @Entity
 @Table(name = "`__saga_process`")
 @DynamicInsert

@@ -15,16 +15,34 @@ class EnumManifestSourceProvider : SourceProvider {
     override fun collect(config: ProjectConfig): EnumManifestSnapshot {
         val options = config.sources[id]?.options ?: emptyMap()
         val definitions = resolveFiles(options).flatMap(::parseFile)
-        val duplicate = definitions
+        validateDuplicateNames(definitions)
+        return EnumManifestSnapshot(definitions = definitions)
+    }
+
+    private fun validateDuplicateNames(definitions: List<SharedEnumDefinition>) {
+        val duplicateShared = definitions
+            .filter { it.aggregates.isEmpty() }
             .groupingBy { it.typeName }
             .eachCount()
             .entries
             .firstOrNull { it.value > 1 }
             ?.key
-        require(duplicate == null) {
-            "duplicate shared enum definition: $duplicate"
+        require(duplicateShared == null) {
+            "duplicate shared enum definition: $duplicateShared"
         }
-        return EnumManifestSnapshot(definitions = definitions)
+
+        val duplicateOwned = definitions
+            .mapNotNull { definition ->
+                definition.aggregates.singleOrNull()?.let { owner -> owner to definition.typeName }
+            }
+            .groupingBy { it }
+            .eachCount()
+            .entries
+            .firstOrNull { it.value > 1 }
+            ?.key
+        require(duplicateOwned == null) {
+            "duplicate aggregate enum definition: ${duplicateOwned!!.second} in ${duplicateOwned.first}"
+        }
     }
 
     private fun resolveFiles(options: Map<String, Any?>): List<File> {
@@ -44,6 +62,11 @@ class EnumManifestSourceProvider : SourceProvider {
             SharedEnumDefinition(
                 typeName = json.requiredString("name"),
                 packageName = json.requiredString("package"),
+                aggregates = json.optionalStringArray("aggregates").also { aggregates ->
+                    require(aggregates.size <= 1) {
+                        "enum ${json.requiredString("name")} may declare at most one aggregate"
+                    }
+                },
                 items = json.requiredArray("items").map { item ->
                     val itemJson = item.asJsonObject
                     EnumItemModel(
@@ -64,3 +87,10 @@ private val REMOVED_TRANSLATION_FLAG = "generate" + "Translation"
 private fun JsonObject.requiredInt(field: String): Int = get(field).asInt
 
 private fun JsonObject.requiredArray(field: String) = getAsJsonArray(field)
+
+private fun JsonObject.optionalStringArray(field: String): List<String> =
+    if (has(field) && !get(field).isJsonNull) {
+        getAsJsonArray(field).map { it.asString }
+    } else {
+        emptyList()
+    }

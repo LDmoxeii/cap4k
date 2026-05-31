@@ -8,7 +8,7 @@
 
 - 新项目还没有 cap4k 已受管理的工程根时，先用 bootstrap 建立根与模块骨架。
 - 你要演示或预览默认多模块布局，但还不想写进真实宿主根时，用 `PREVIEW_SUBTREE`。
-- 你已经有一个 cap4k 受管项目，只是在更新 `design.json`、数据库 schema、KSP 元数据或 aggregate 配置时，不要把 bootstrap 当默认起手式，直接进入 `cap4kPlan`。
+- 你已经有一个 cap4k 受管项目，只是在更新 `design.json`、数据库 schema或 aggregate 配置时，不要把 bootstrap 当默认起手式，直接进入 `cap4kPlan`。
 
 当前作者视角下，bootstrap 只是一条很窄的骨架任务族：
 
@@ -30,7 +30,7 @@
 
 ## bootstrap 不负责什么
 
-- 不负责读取 `sources { }` 里的设计、数据库、KSP 元数据或 IR 分析输入。
+- 不负责读取 `sources { }` 里的设计、数据库或 IR 分析输入。
 - 不负责生成命令、查询、聚合、handler、subscriber 这些业务源码。
 - 不会替你自动跑 `cap4kPlan` 或 `cap4kGenerate`。
 - 不会把任意旧 Gradle 根静默接管成已受管理的工程根；`IN_PLACE` 只支持已经带 bootstrap 管理片段的工程根。
@@ -40,7 +40,7 @@
 
 1. 确认宿主根与四个模块名符合项目现实。
 2. 在根工程补全 `cap4k { project { } sources { } generators { } }`。
-3. 准备真实输入：`design.json`、数据库 schema、KSP metadata，或显式要做 analysis 时的 IR 输入。
+3. 准备真实输入：`design.json`、数据库 schema，或显式要做 analysis 时的 IR 输入。
 4. 跑 `cap4kPlan`，读取 `build/cap4k/plan.json`。
 5. 只有在计划符合预期后，才跑 `cap4kGenerate`。
 

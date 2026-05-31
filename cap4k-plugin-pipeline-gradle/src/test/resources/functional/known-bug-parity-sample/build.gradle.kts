@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
@@ -25,13 +25,11 @@ cap4k {
             excludeTables.set(emptyList())
         }
         designJson {
-            enabled.set(true)
             files.from("design/design.json")
         }
     }
     generators {
         aggregate {
-            enabled.set(true)
             specialFields {
                 idDefaultStrategy.set("identity")
             }

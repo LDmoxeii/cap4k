@@ -5,7 +5,6 @@ import com.alibaba.fastjson.annotation.JSONField
 import com.alibaba.fastjson.parser.Feature
 import com.alibaba.fastjson.serializer.SerializerFeature
 import com.only4.cap4k.ddd.core.application.RequestParam
-import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.annotation.Retry
 import jakarta.persistence.*
@@ -18,13 +17,6 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
 
-@Aggregate(
-    aggregate = "request",
-    name = "Request",
-    root = true,
-    type = Aggregate.TYPE_ENTITY,
-    description = "请求记录"
-)
 @Entity
 @Table(name = "`__request`")
 @DynamicInsert

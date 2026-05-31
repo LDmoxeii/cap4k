@@ -12,11 +12,10 @@ This file maps generator inputs, generated artifacts, and review checks for busi
 | Design JSON | `sources.designJson` | Commands, queries, clients, payloads, domain events, integration events, domain services, sagas, handlers |
 | Enum manifest | `types.enumManifest` | Shared enum definitions referenced by DB `@Type` |
 | Value-object manifest | `types.valueObjectManifest` | JSON-backed value-object source with shared/aggregate scope and nested converter |
-| KSP metadata | `sources.kspMetadata` | Aggregate metadata for design-driven artifacts |
 | IR analysis | `sources.irAnalysis` | Flow and drawing-board analysis artifacts |
 | Type registry | `types.registryFile` | Simple-name type bindings and converter policy loaded into `ProjectConfig.typeRegistry` for canonical type resolution |
 
-`buildSourceRunner` registers `db`, `enum-manifest`, `value-object-manifest`, `design-json`, and `ksp-metadata` as source-generation providers. Public Gradle DSL configures enum and value-object manifests through `types {}` rather than `sources {}`. `buildAnalysisRunner` registers `ir-analysis` separately for `cap4kAnalysisPlan` and `cap4kAnalysisGenerate`.
+`buildSourceRunner` registers `db`, `enum-manifest`, `value-object-manifest`, and `design-json` as source-generation providers. Public Gradle DSL configures enum and value-object manifests through `types {}` rather than `sources {}`. `buildAnalysisRunner` registers `ir-analysis` separately for `cap4kAnalysisPlan` and `cap4kAnalysisGenerate`. KSP metadata source support and the old `cap4k-plugin-codegen-ksp` metadata producer have been removed and are no longer part of the generation input contract.
 
 `types.registryFile`, `types.enumManifest`, and `types.valueObjectManifest` are outside `sources {}` and live under `types {}` in the DSL, but they are still part of the source-generation input contract. Enum and value-object manifest entries do not need matching `types.registryFile` entries.
 
@@ -89,16 +88,16 @@ Supported `tag` values:
 | `domain_service` | domain service skeleton |
 | `saga` | saga param/result/handler skeleton |
 
-Common fields include `package`, `name`, `desc`, `aggregates`, `requestFields`, and `responseFields`.
+Common fields include `package`, `name`, `description`, `aggregates`, `artifacts`, `fields`, and `resultFields`.
 
 Additional support:
 
-- `query` and `api_payload` support request trait `page`.
+- `query` and `api_payload` support page shape through artifact variant `page`.
 - `domain_event` supports `persist`.
-- `domain_event` can omit package and reserves request field `entity`; the field is derived from `aggregates[0]`, and canonical assembly requires exactly one aggregate entry.
-- `integration_event` requires `role` (`inbound` or `outbound`) and non-blank `eventName`.
-- `integration_event` must declare at least one request field; request fields become the event payload. `responseFields` must be empty.
-- `integration_event` with `role = inbound` can generate a Spring `@EventListener` subscriber; `role = outbound` generates only the event contract.
+- `domain_event` can omit package and must declare exactly one aggregate entry; public `fields` do not include the synthetic aggregate entity constructor parameter.
+- `integration_event` requires an `integration-event` artifact variant (`inbound` or `outbound`) and non-blank `eventName`.
+- `integration_event` must declare at least one `fields` entry; fields become the event payload. `resultFields` must be empty.
+- `integration_event` with `variant = inbound` can generate a Spring `@EventListener` subscriber; `variant = outbound` generates only the event contract.
 - `domain_service` generates domain-module skeletons.
 - `saga` generates application-module param, result, and handler skeletons.
 - Manifest-file mode resolves design entries relative to `projectDir` and rejects blank `manifestFile`, empty manifest arrays, blank entries, duplicate entries, and entries that escape `projectDir`.
@@ -162,8 +161,8 @@ Built-in aggregate planning covers:
 
 Built-in aggregate projection planning is separate from aggregate generation:
 
-- DSL block: `generators.aggregateProjection.enabled`;
-- default: disabled;
+- DSL block: `generators.aggregateProjection`;
+- default: absent unless the block is configured;
 - source requirement: enabled `sources.db`;
 - generator id: `aggregate-projection`;
 - output root: adapter module `build/generated/cap4k/main/kotlin`;
@@ -182,7 +181,7 @@ Output ownership:
 Task routing:
 
 - `cap4kGenerate` is the normal source-generation task for the planned source pipeline. It uses the source-task runner path and exports planned design + aggregate artifacts across output kinds.
-- `cap4kGenerateSources` is the generated-source-only path. It uses the generated-source runner path and exports only `GENERATED_SOURCE` items, currently for aggregate / aggregate-projection families.
+- `cap4kGenerateSources` is the generated-source-only path. It uses the generated-source runner path and exports only `GENERATED_SOURCE` items, currently for aggregate, aggregate-projection, and enum manifest families.
 
 Important artifact boundaries:
 
@@ -196,13 +195,13 @@ Important artifact boundaries:
 
 ## Design Outputs
 
-Design source planning is automatic once `sources.designJson` is enabled. There are no public design-family generator switches; only `aggregate`, `flow`, and `drawingBoard` remain public generator switches.
+Design source planning is automatic once `sources.designJson.files` or `sources.designJson.manifestFile` is configured. There are no public design-family generator switches. Flow and drawing-board outputs are observation artifacts driven by `sources.irAnalysis.inputDirs`.
 
 Design generator families are internal planner IDs, including command, query, query handler, client, client handler, API payload, domain event, domain-event handler, integration event, integration-event subscriber, domain service, and saga planners.
 
 `design-domain-event-handler` plans subscriber files for each domain event, so `domain_event` is not payload-only. Handler skeletons are author-maintained code. If generated into active source roots, their conflict policy should preserve user edits after the first generation.
 
-Integration event contracts are generated under `<basePackage>.application.subscribers.integration.<role>.<designPackage>`. Subscriber skeletons are generated only for inbound events under `<basePackage>.application.subscribers.integration` and use Spring `@EventListener`; outbound events expose the contract but do not subscribe to themselves.
+Integration event contracts are generated under `<basePackage>.application.subscribers.integration.<variant>.<designPackage>`. Subscriber skeletons are generated only for inbound events under `<basePackage>.application.subscribers.integration` and use Spring `@EventListener`; outbound events expose the contract but do not subscribe to themselves.
 
 ## Addon Outputs
 
@@ -260,9 +259,7 @@ Return to `cap4k-modeling` when the missing piece is the fact contract generatio
 
 Return to `cap4k-generation` / compile / setup when the business facts already exist but the design-generation pipeline is missing required derived output or setup, including:
 
-- KSP metadata output;
-- KSP metadata configuration;
-- the compile/setup path that produces KSP metadata for design generation.
+- KSP metadata output or configuration; the source and old metadata producer have been removed.
 
 ## Reference-Project Checks
 

@@ -1,6 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
-import com.only4.cap4k.plugin.pipeline.api.ClientModel
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 
 internal data class DesignClientHandlerRenderModel(
     val packageName: String,
@@ -17,11 +17,12 @@ internal data class DesignClientHandlerRenderModel(
 }
 
 internal object DesignClientHandlerRenderModelFactory {
-    fun create(packageName: String, clientType: String, client: ClientModel): DesignClientHandlerRenderModel {
+    fun create(packageName: String, clientType: String, block: DesignBlockModel): DesignClientHandlerRenderModel {
+        val clientTypeName = block.clientTypeName()
         return DesignClientHandlerRenderModel(
             packageName = packageName,
-            typeName = "${client.typeName}Handler",
-            clientTypeName = client.typeName,
+            typeName = "${clientTypeName}Handler",
+            clientTypeName = clientTypeName,
             imports = listOf(clientType),
         )
     }

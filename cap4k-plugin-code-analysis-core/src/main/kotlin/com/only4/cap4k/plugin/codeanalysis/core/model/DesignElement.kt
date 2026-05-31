@@ -4,29 +4,21 @@ data class DesignElement(
     val tag: String,
     val `package`: String,
     val name: String,
-    val desc: String,
+    val description: String = "",
     val aggregates: List<String> = emptyList(),
-    val entity: String? = null,
+    val eventName: String = "",
     val persist: Boolean? = null,
-    val traits: List<String> = emptyList(),
-    val requestFields: List<DesignField> = emptyList(),
-    val responseFields: List<DesignField> = emptyList(),
-    val message: String? = null,
-    val targets: List<String> = emptyList(),
-    val valueType: String? = null,
-    val parameters: List<DesignParameter> = emptyList(),
-    val role: String? = null,
-    val eventName: String? = null,
+    val artifacts: List<DesignArtifact> = emptyList(),
+    val fields: List<DesignField> = emptyList(),
+    val resultFields: List<DesignField> = emptyList(),
+)
+
+data class DesignArtifact(
+    val family: String,
+    val variant: String = "",
 )
 
 data class DesignField(
-    val name: String,
-    val type: String,
-    val nullable: Boolean = false,
-    val defaultValue: String? = null,
-)
-
-data class DesignParameter(
     val name: String,
     val type: String,
     val nullable: Boolean = false,

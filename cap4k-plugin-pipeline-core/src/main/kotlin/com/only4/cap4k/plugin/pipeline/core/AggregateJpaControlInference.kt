@@ -9,7 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverterKind
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
-import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
+import com.only4.cap4k.plugin.pipeline.api.ownerAggregate
 import java.util.Locale
 
 internal object AggregateJpaControlInference {
@@ -30,8 +30,8 @@ internal object AggregateJpaControlInference {
                 "ambiguous type binding for $typeName: matches both shared enum and general type registry"
             )
         }
-        val localEnumOwnership = buildLocalEnumOwnership(entities)
         val aggregateRootNameByEntity = buildAggregateRootNameByEntity(entities)
+        val localEnumOwnership = buildLocalEnumOwnership(entities, sharedEnums, aggregateRootNameByEntity)
         val tableByName = schema?.tables?.associateBy { it.tableName.lowercase(Locale.ROOT) }.orEmpty()
 
         return entities.map { entity ->
@@ -125,8 +125,7 @@ internal object AggregateJpaControlInference {
         valueObjects: List<ValueObjectModel>,
     ): ConverterBinding? {
         val localMatches = valueObjects.filter { valueObject ->
-            valueObject.scope == ValueObjectScope.AGGREGATE &&
-                valueObject.aggregate == ownerAggregateName &&
+            valueObject.ownerAggregate == ownerAggregateName &&
                 valueObject.name == typeName
         }
         if (localMatches.size > 1) {
@@ -135,7 +134,7 @@ internal object AggregateJpaControlInference {
         localMatches.singleOrNull()?.let { return it.toConverterBinding() }
 
         val sharedMatches = valueObjects.filter { valueObject ->
-            valueObject.scope == ValueObjectScope.SHARED &&
+            valueObject.aggregates.isEmpty() &&
                 valueObject.name == typeName
         }
         if (sharedMatches.size > 1) {
@@ -144,7 +143,11 @@ internal object AggregateJpaControlInference {
         return sharedMatches.singleOrNull()?.toConverterBinding()
     }
 
-    private fun buildLocalEnumOwnership(entities: List<EntityModel>): Set<LocalEnumOwnerKey> {
+    private fun buildLocalEnumOwnership(
+        entities: List<EntityModel>,
+        manifestDefinitions: List<SharedEnumDefinition>,
+        aggregateRootNameByEntity: Map<EntityKey, String>,
+    ): Set<LocalEnumOwnerKey> {
         val owners = linkedMapOf<LocalEnumOwnerKey, List<com.only4.cap4k.plugin.pipeline.api.EnumItemModel>>()
 
         entities.forEach { entity ->
@@ -162,6 +165,24 @@ internal object AggregateJpaControlInference {
                 }
                 owners.putIfAbsent(key, field.enumItems)
             }
+        }
+        manifestDefinitions.forEach { definition ->
+            val ownerAggregateName = definition.aggregates.singleOrNull() ?: return@forEach
+            entities
+                .filter { entity -> aggregateRootNameByEntity[entity.key()] == ownerAggregateName }
+                .forEach { entity ->
+                    val key = LocalEnumOwnerKey(
+                        ownerPackageName = entity.packageName,
+                        typeBinding = definition.typeName,
+                    )
+                    val previous = owners[key]
+                    if (previous != null && previous != definition.items) {
+                        throw IllegalArgumentException(
+                            "conflicting local enum definition for ${buildLocalEnumFqn(entity.packageName, definition.typeName)}"
+                        )
+                    }
+                    owners.putIfAbsent(key, definition.items)
+                }
         }
 
         return owners.keys
@@ -202,7 +223,7 @@ internal object AggregateJpaControlInference {
         definitions: List<SharedEnumDefinition>,
         artifactLayout: ArtifactLayoutResolver,
     ): Map<String, String> {
-        return definitions.associate { definition ->
+        return definitions.filter { it.aggregates.isEmpty() }.associate { definition ->
             val packageName = resolveSharedEnumPackageName(
                 packageName = definition.packageName,
                 artifactLayout = artifactLayout,

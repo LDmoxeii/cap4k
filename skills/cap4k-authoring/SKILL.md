@@ -24,7 +24,7 @@ If a task matches multiple rows, read `references/route-map.md` before choosing 
 | Task | Use Skill |
 |---|---|
 | Clarify business intent, aggregate boundaries, DDD concepts, events | `cap4k-modeling` |
-| Bootstrap or generate from DB/design/enum/KSP/addon inputs | `cap4k-generation` |
+| Bootstrap or generate from DB/design/enum/value-object/addon inputs | `cap4k-generation` |
 | Implement command/query/subscriber/job/controller project code | `cap4k-implementation` |
 | Design or implement service-boundary interaction | `cap4k-service-integration` |
 | Run tests, compile, analysis, flow/drawing-board, final evidence | `cap4k-verification` |

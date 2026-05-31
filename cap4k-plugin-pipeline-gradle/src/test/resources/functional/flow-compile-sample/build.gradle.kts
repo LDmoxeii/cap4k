@@ -58,7 +58,6 @@ cap4k {
     }
     sources {
         irAnalysis {
-            enabled.set(true)
             inputDirs.from(analysisDir)
         }
     }
@@ -69,7 +68,6 @@ cap4k {
     }
     generators {
         flow {
-            enabled.set(true)
         }
     }
     templates {

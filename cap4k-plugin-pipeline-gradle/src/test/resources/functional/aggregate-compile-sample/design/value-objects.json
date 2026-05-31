@@ -1,14 +1,24 @@
 [
   {
     "name": "MediaProcessingResultSnapshot",
-    "scope": "aggregate",
-    "aggregate": "MediaProcessingTask",
     "package": "com.acme.demo.domain.aggregates.media_processing_task.values",
     "storage": "json",
     "fields": [
-      { "name": "externalTaskId", "type": "String" },
-      { "name": "state", "type": "String" },
-      { "name": "processedFileCount", "type": "Int" }
+      {
+        "name": "externalTaskId",
+        "type": "String"
+      },
+      {
+        "name": "state",
+        "type": "String"
+      },
+      {
+        "name": "processedFileCount",
+        "type": "Int"
+      }
+    ],
+    "aggregates": [
+      "MediaProcessingTask"
     ]
   }
 ]

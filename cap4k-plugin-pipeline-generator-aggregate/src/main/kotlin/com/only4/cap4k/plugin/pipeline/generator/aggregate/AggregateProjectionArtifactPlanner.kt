@@ -79,6 +79,13 @@ class AggregateProjectionArtifactPlanner : GeneratorProvider {
                 context = mapOf(
                     "packageName" to packageName,
                     "typeName" to typeName,
+                    "aggregateElement" to aggregateElementContext(
+                        aggregate = aggregateRootName(entity, model.entities),
+                        name = typeName,
+                        packageName = packageName,
+                        description = entity.comment,
+                        type = "projection",
+                    ),
                     "sourceTypeName" to entity.name,
                     "sourcePackageName" to entity.packageName,
                     "comment" to entity.comment,

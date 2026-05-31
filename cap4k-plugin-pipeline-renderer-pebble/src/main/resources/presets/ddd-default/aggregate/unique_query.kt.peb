@@ -1,10 +1,23 @@
 package {{ packageName }}
 
+{% if aggregateElement is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{% endif -%}
 {{ use("com.only4.cap4k.ddd.core.application.RequestParam") -}}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
 
+{% if aggregateElement is defined -%}
+@AggregateElement(
+    aggregate = {{ aggregateElement.aggregateKotlinStringLiteral | raw }},
+    name = {{ aggregateElement.nameKotlinStringLiteral | raw }},
+    packageName = {{ aggregateElement.packageNameKotlinStringLiteral | raw }},
+    description = {{ aggregateElement.descriptionKotlinStringLiteral | raw }},
+    type = {{ aggregateElement.typeKotlinStringLiteral | raw }},
+    root = {{ aggregateElement.root }}
+)
+{% endif -%}
 object {{ typeName }} {
 
     data class Request(

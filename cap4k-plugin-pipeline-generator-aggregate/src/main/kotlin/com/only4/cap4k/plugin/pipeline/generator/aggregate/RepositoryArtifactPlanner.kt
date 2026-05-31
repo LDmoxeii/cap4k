@@ -20,6 +20,7 @@ internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 entityName = repository.entityName,
                 entities = entitiesByName[repository.entityName].orEmpty(),
             )
+            val aggregateName = aggregateRootName(entity, model.entities)
             val strongId = entity?.let { resolveAggregateRootStrongId(model, it) }
             val idType = strongId?.typeName ?: repository.idType
             val idTypeFqn = strongId?.fqn()
@@ -33,9 +34,16 @@ internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 context = mapOf(
                     "packageName" to repository.packageName,
                     "typeName" to repository.name,
+                    "aggregateElement" to aggregateElementContext(
+                        aggregate = aggregateName,
+                        name = repository.name,
+                        packageName = repository.packageName,
+                        description = "",
+                        type = "repository",
+                    ),
                     "entityName" to repository.entityName,
                     "entityTypeFqn" to entity?.let { buildEntityFqn(it.packageName, repository.entityName) }.orEmpty(),
-                    "aggregateName" to repository.entityName,
+                    "aggregateName" to aggregateName,
                     "idType" to idType,
                     "idTypeFqn" to idTypeFqn,
                     "supportQuerydsl" to false,

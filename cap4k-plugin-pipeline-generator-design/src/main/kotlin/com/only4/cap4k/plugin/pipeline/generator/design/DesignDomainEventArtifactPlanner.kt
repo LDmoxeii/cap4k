@@ -7,41 +7,47 @@ import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
 class DesignDomainEventArtifactPlanner : GeneratorProvider {
-    override val id: String = "design-domain-event"
+    override val id: String = "domain-event"
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        if (model.domainEvents.isEmpty()) {
+        val blocks = model.designBlocks.filter { block -> block.selects(id) }
+        if (blocks.isEmpty()) {
             return emptyList()
         }
 
         val domainRoot = requireRelativeModuleRoot(config, "domain")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
 
-        return model.domainEvents.map { event ->
-            val packageName = artifactLayout.designDomainEventPackage(event.packageName)
-            val renderModel = DesignPayloadRenderModelFactory.createForDomainEvent(
+        return blocks.map { block ->
+            val aggregate = block.ownerAggregateEntity(model)
+            val packageKey = block.domainEventPackageKey(config, model)
+            val typeName = block.domainEventTypeName()
+            val packageName = artifactLayout.designDomainEventPackage(packageKey)
+            val renderModel = DesignPayloadRenderModelFactory.createForDomainEventBlock(
                 packageName = packageName,
-                event = event,
+                block = block,
+                aggregate = aggregate,
                 typeRegistry = config.designTypeRegistryFqns(model),
             )
             ArtifactPlanItem(
                 generatorId = id,
                 moduleRole = "domain",
                 templateId = "design/domain_event.kt.peb",
-                outputPath = artifactLayout.kotlinSourcePath(domainRoot, packageName, event.typeName),
+                outputPath = artifactLayout.kotlinSourcePath(domainRoot, packageName, typeName),
                 context = mapOf(
                     "packageName" to renderModel.packageName,
                     "typeName" to renderModel.typeName,
+                    "buildingBlock" to block.buildingBlockContext(id),
                     "description" to renderModel.description,
                     "descriptionText" to renderModel.descriptionText,
                     "descriptionCommentText" to renderModel.descriptionCommentText,
                     "descriptionKotlinStringLiteral" to renderModel.descriptionKotlinStringLiteral,
                     "aggregateName" to renderModel.aggregateName,
-                    "aggregateType" to "${event.aggregatePackageName}.${event.aggregateName}",
-                    "persist" to event.persist,
+                    "aggregateType" to "${aggregate.packageName}.${aggregate.name}",
+                    "persist" to (block.persist ?: false),
                     "imports" to renderModel.imports,
-                    "fields" to renderModel.requestFields,
-                    "nestedTypes" to renderModel.requestNestedTypes,
+                    "fields" to renderModel.fields,
+                    "nestedTypes" to renderModel.nestedTypes,
                 ),
                 conflictPolicy = config.templates.conflictPolicy,
             )

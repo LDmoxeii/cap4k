@@ -2,7 +2,7 @@
 
 > 这页定义项目作者默认应如何使用 `cap4kPlan` 与 `cap4kGenerate`，以及何时必须读 `build/cap4k/plan.json`。
 
-生成前先确认输入源：DB / design / enum manifest / KSP / IR 见 [生成输入源](input-sources.md)。端到端生成物 ownership 见 [项目编写工作流](../project-authoring-workflow.md#4-区分生成物骨架快照手写代码)。示例语境统一回到 [示例总览](../examples/index.md) 的内容发布与媒体处理项目。
+生成前先确认输入源：DB / design / enum manifest / value-object manifest / IR 见 [生成输入源](input-sources.md)。端到端生成物 ownership 见 [项目编写工作流](../project-authoring-workflow.md#4-区分生成物骨架快照手写代码)。示例语境统一回到 [示例总览](../examples/index.md) 的内容发布与媒体处理项目。
 
 ## 何时先跑 `cap4kPlan`
 
@@ -10,7 +10,7 @@
 
 - 新项目第一次准备生成业务源码。
 - `project { }`、`sources { }`、`generators { }`、`layout { }`、`templates { }` 改过之后。
-- `design.json`、数据库 schema、KSP metadata、共享枚举清单或 value-object manifest 刚改完，你需要确认新增、删除或迁移的产物。
+- `design.json`、数据库 schema、共享枚举清单或 value-object manifest 刚改完，你需要确认新增、删除或迁移的产物。
 - 你不确定某个产物会落到哪个模块、哪个输出根，或到底属于 generated source 还是 checked-in source。
 
 `cap4kPlan` 的硬边界很明确：
@@ -113,7 +113,7 @@
 - JSON-backed value object 可以来自 `types.valueObjectManifest`，生成 checked-in source，默认 `SKIP`，converter 直接嵌套在生成的 value-object class 内。manifest entry 不需要再写 `types.registryFile` entry。
 - inline 或外部手写自定义类型可以继续通过 `@T` / `types.registryFile` 映射聚合字段和 converter；这类值对象 class、构造 / 校验 / 归一化、converter 仍属于作者手写主面。
 - `domain_event` 不是 payload-only 入口。当前 design 生成会同时规划 domain event 契约与对应 subscriber / handler 壳；如果这类 skeleton 缺失，默认动作是回到 generation，而不是先手写占位。
-- `integration_event` 是 application 层的设计契约。它必须声明 `role`、`eventName`、至少一个 `requestFields` 字段，并保持 `responseFields` 为空。`role = "inbound"` 会生成事件类和用于把外部事实转内部命令的 inbound subscriber 骨架；`role = "outbound"` 只生成事件类。subscriber 身份不写入 design JSON，默认 inbound 模板使用 Spring placeholder `\${spring.application.name:}`。
+- `integration_event` 是 application 层的设计契约。它必须声明 `artifacts[{ family: "integration-event", variant: "inbound" | "outbound" }]`、`eventName`、至少一个 `fields` 字段，并保持 `resultFields` 为空。`variant = "inbound"` 会生成事件类和用于把外部事实转内部命令的 inbound subscriber 骨架；`variant = "outbound"` 只生成事件类。subscriber 身份不写入 design JSON，默认 inbound 模板使用 Spring placeholder `\${spring.application.name:}`。
 - relation 和字段映射事实属于 aggregate / entity generation input。它们会影响 aggregate 主体、JPA 映射和相关模板上下文，但不是独立 output family，也不该被当成单独的 implementation backlog 项。
 - 当 `plan.json` 里某个文件持续作为计划产物出现时，不要因为它落在 `src/main/kotlin` 就默认把它当成随意手写文件；先回到 [生成 / 手写边界](../generation-boundaries.md) 做判断。
 

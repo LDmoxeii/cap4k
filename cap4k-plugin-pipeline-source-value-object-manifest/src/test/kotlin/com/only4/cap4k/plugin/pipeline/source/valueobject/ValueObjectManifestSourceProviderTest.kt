@@ -1,6 +1,5 @@
 package com.only4.cap4k.plugin.pipeline.source.valueobject
 
-import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -14,16 +13,16 @@ class ValueObjectManifestSourceProviderTest {
     lateinit var tempDir: Path
 
     @Test
-    fun `parses shared and aggregate json value objects`() {
+    fun `parses shared and aggregate owned json value objects`() {
         val file = tempDir.resolve("value-objects.json")
         file.writeText(
             """
             [
               {
                 "name": "Money",
-                "scope": "shared",
                 "package": "shared.values",
                 "storage": "json",
+                "aggregates": [],
                 "fields": [
                   { "name": "amount", "type": "BigDecimal" },
                   { "name": "currency", "type": "String" }
@@ -31,10 +30,9 @@ class ValueObjectManifestSourceProviderTest {
               },
               {
                 "name": "PublishWindow",
-                "scope": "aggregate",
-                "aggregate": "Content",
                 "package": "content.values",
                 "storage": "json",
+                "aggregates": ["Content"],
                 "fields": [
                   { "name": "startAt", "type": "Instant", "nullable": true }
                 ]
@@ -46,45 +44,18 @@ class ValueObjectManifestSourceProviderTest {
         val snapshot = ValueObjectManifestSourceProvider().load(listOf(file))
 
         assertEquals(2, snapshot.valueObjects.size)
-        assertEquals(ValueObjectScope.SHARED, snapshot.valueObjects[0].scope)
-        assertEquals(ValueObjectScope.AGGREGATE, snapshot.valueObjects[1].scope)
-        assertEquals("Content", snapshot.valueObjects[1].aggregate)
+        assertEquals(emptyList<String>(), snapshot.valueObjects[0].aggregates)
+        assertEquals(listOf("Content"), snapshot.valueObjects[1].aggregates)
     }
 
     @Test
-    fun `aggregate scope requires aggregate name`() {
-        val file = tempDir.resolve("value-objects.json")
-        file.writeText(
-            """
-            [
-              {
-                "name": "PublishWindow",
-                "scope": "aggregate",
-                "package": "content.values",
-                "storage": "json",
-                "fields": []
-              }
-            ]
-            """.trimIndent()
-        )
-
-        val error = assertThrows<IllegalArgumentException> {
-            ValueObjectManifestSourceProvider().load(listOf(file))
-        }
-
-        assertTrue(error.message!!.contains("aggregate scope requires aggregate"))
-    }
-
-    @Test
-    fun `shared scope rejects aggregate name`() {
+    fun `omitted aggregates defaults to shared value object`() {
         val file = tempDir.resolve("value-objects.json")
         file.writeText(
             """
             [
               {
                 "name": "Money",
-                "scope": "shared",
-                "aggregate": "Content",
                 "package": "shared.values",
                 "storage": "json",
                 "fields": []
@@ -93,33 +64,36 @@ class ValueObjectManifestSourceProviderTest {
             """.trimIndent()
         )
 
+        val snapshot = ValueObjectManifestSourceProvider().load(listOf(file))
+
+        assertEquals(emptyList<String>(), snapshot.valueObjects.single().aggregates)
+    }
+
+    @Test
+    fun `rejects removed scope and aggregate fields`() {
+        val file = tempDir.resolve("value-objects.json")
+        file.writeText(
+            """
+            [
+              { "name": "Money", "package": "shared.values", "scope": "shared", "aggregate": "Order", "fields": [] }
+            ]
+            """.trimIndent()
+        )
+
         val error = assertThrows<IllegalArgumentException> {
             ValueObjectManifestSourceProvider().load(listOf(file))
         }
 
-        assertTrue(error.message!!.contains("shared scope must not set aggregate"))
+        assertTrue(error.message!!.contains("value object Money fields scope and aggregate are removed; use aggregates instead"))
     }
 
     @Test
-    fun `rejects unsupported scope and storage`() {
-        val invalidScope = tempDir.resolve("invalid-scope.json")
-        invalidScope.writeText(
-            """
-            [
-              { "name": "Money", "scope": "global", "package": "shared.values", "storage": "json", "fields": [] }
-            ]
-            """.trimIndent()
-        )
-        val scopeError = assertThrows<IllegalArgumentException> {
-            ValueObjectManifestSourceProvider().load(listOf(invalidScope))
-        }
-        assertTrue(scopeError.message!!.contains("scope must be shared or aggregate"))
-
+    fun `rejects unsupported storage`() {
         val invalidStorage = tempDir.resolve("invalid-storage.json")
         invalidStorage.writeText(
             """
             [
-              { "name": "Money", "scope": "shared", "package": "shared.values", "storage": "table", "fields": [] }
+              { "name": "Money", "package": "shared.values", "storage": "table", "fields": [] }
             ]
             """.trimIndent()
         )
@@ -137,7 +111,6 @@ class ValueObjectManifestSourceProviderTest {
             [
               {
                 "name": "Money",
-                "scope": "shared",
                 "package": "shared.values",
                 "storage": "json",
                 "fields": [
@@ -161,8 +134,8 @@ class ValueObjectManifestSourceProviderTest {
         duplicateShared.writeText(
             """
             [
-              { "name": "Money", "scope": "shared", "package": "shared.values", "storage": "json", "fields": [] },
-              { "name": "Money", "scope": "shared", "package": "shared.other", "storage": "json", "fields": [] }
+              { "name": "Money", "package": "shared.values", "storage": "json", "fields": [] },
+              { "name": "Money", "package": "shared.other", "storage": "json", "fields": [] }
             ]
             """.trimIndent()
         )
@@ -175,9 +148,9 @@ class ValueObjectManifestSourceProviderTest {
         duplicateAggregate.writeText(
             """
             [
-              { "name": "Window", "scope": "aggregate", "aggregate": "Content", "package": "content.values", "storage": "json", "fields": [] },
-              { "name": "Window", "scope": "aggregate", "aggregate": "Content", "package": "content.other", "storage": "json", "fields": [] },
-              { "name": "Window", "scope": "aggregate", "aggregate": "Campaign", "package": "campaign.values", "storage": "json", "fields": [] }
+              { "name": "Window", "aggregates": ["Content"], "package": "content.values", "storage": "json", "fields": [] },
+              { "name": "Window", "aggregates": ["Content"], "package": "content.other", "storage": "json", "fields": [] },
+              { "name": "Window", "aggregates": ["Campaign"], "package": "campaign.values", "storage": "json", "fields": [] }
             ]
             """.trimIndent()
         )
@@ -185,5 +158,23 @@ class ValueObjectManifestSourceProviderTest {
             ValueObjectManifestSourceProvider().load(listOf(duplicateAggregate))
         }
         assertTrue(aggregateError.message!!.contains("duplicate aggregate value object definition: Window in Content"))
+    }
+
+    @Test
+    fun `value object manifest rejects multiple aggregate owners`() {
+        val file = tempDir.resolve("multiple-aggregates.json")
+        file.writeText(
+            """
+            [
+              { "name": "Money", "package": "shared.values", "aggregates": ["Order", "Payment"], "fields": [] }
+            ]
+            """.trimIndent()
+        )
+
+        val error = assertThrows<IllegalArgumentException> {
+            ValueObjectManifestSourceProvider().load(listOf(file))
+        }
+
+        assertEquals("value object Money may declare at most one aggregate", error.message)
     }
 }

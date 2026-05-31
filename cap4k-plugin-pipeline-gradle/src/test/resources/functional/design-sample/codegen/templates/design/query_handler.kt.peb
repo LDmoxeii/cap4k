@@ -9,9 +9,9 @@ import {{ import }}
 @Service
 class {{ typeName }} : Query<{{ queryTypeName }}.Request, {{ queryTypeName }}.Response> {
     override fun exec(request: {{ queryTypeName }}.Request): {{ queryTypeName }}.Response {
-{% if responseFields|length > 0 %}
+{% if resultFields|length > 0 %}
         return {{ queryTypeName }}.Response(
-{% for field in responseFields %}
+{% for field in resultFields %}
             {{ field.name }} = TODO("set {{ field.name }}"){% if not loop.last %},{% endif %}
 {% endfor %}
         )

@@ -3,13 +3,15 @@
     "tag": "command",
     "package": "video.encrypt",
     "name": "GenerateVideoHlsKey",
-    "desc": "generate key",
-    "aggregates": ["VideoPost"],
-    "requestFields": [
-      { "name": "videoPostId", "type": "Long" }
+    "description": "generate key",
+    "aggregates": [
+      "VideoPost"
     ],
-    "responseFields": [
-      { "name": "keyId", "type": "String" }
+    "fields": [
+      {
+        "name": "videoPostId",
+        "type": "Long"
+      }
     ]
   }
 ]

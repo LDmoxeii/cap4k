@@ -214,8 +214,8 @@ class PipelinePluginCompileFunctionalTest {
         val designFile = projectDir.resolve("design/design.json")
         designFile.writeText(
             designFile.readText().replace(
-                "\"desc\": \"order \\\"created\\\" event\"",
-                "\"desc\": \"order */ created\"",
+                "\"description\": \"order \\\"created\\\" event\"",
+                "\"description\": \"order */ created\"",
             )
         )
 
@@ -557,38 +557,6 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate generated source compilation wires ksp consumers to cap4kGenerateSources`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-generated-source-ksp")
-        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-persistence-compile-sample")
-        val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts")
-        domainBuildFile.writeText(
-            domainBuildFile.readText() +
-                """
-
-                tasks.register("kspKotlin") {
-                    inputs.dir(layout.buildDirectory.dir("generated/cap4k/main/kotlin"))
-                    doLast {
-                        println("fake ksp consumes cap4k generated source")
-                    }
-                }
-
-                tasks.named("compileKotlin") {
-                    dependsOn("kspKotlin")
-                }
-                """.trimIndent()
-        )
-
-        val compileResult = FunctionalFixtureSupport
-            .runner(projectDir, ":demo-domain:compileKotlin")
-            .build()
-
-        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
-        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":demo-domain:kspKotlin")?.outcome)
-        assertTrue(compileResult.output.contains("fake ksp consumes cap4k generated source"))
-        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
-    }
-
-    @Test
     fun `aggregate direct parent lazy override fails fast during domain compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-direct-parent-lazy-override-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
@@ -684,10 +652,9 @@ class PipelinePluginCompileFunctionalTest {
         )
         val buildFile = projectDir.resolve("build.gradle.kts")
         val patchedBuildFile = buildFile.readText().replace(
-            Regex("""aggregate\s*\{\s*enabled\.set\(true\)\s*}"""),
+            Regex("""aggregate\s*\{\s*}"""),
             """
             |aggregate {
-            |            enabled.set(true)
             |            specialFields {
             |                idDefaultStrategy.set("identity")
             |            }
@@ -795,6 +762,37 @@ class PipelinePluginCompileFunctionalTest {
         assertFalse(generatedEntity.contains("@GeneratedValue"))
         assertFalse(generatedEntity.contains("@Version"))
         assertFalse(generatedEntity.contains("@DynamicInsert"))
+        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
+    fun `enum manifest only generation participates in domain compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-enum-manifest-domain-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "enum-manifest-compile-sample")
+
+        val beforeGenerateCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin", "-x", "cap4kGenerateSources")
+            .buildAndFail()
+        assertEquals(
+            TaskOutcome.FAILED,
+            beforeGenerateCompileResult.task(":demo-domain:compileKotlin")?.outcome,
+        )
+        assertTrue(beforeGenerateCompileResult.output.contains("Status"))
+
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .build()
+        val generatedEnum = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt")
+        ).readText()
+
+        assertGeneratedFilesExist(
+            projectDir,
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt"),
+        )
+        assertTrue(generatedEnum.contains("enum class Status"))
+        assertTrue(generatedEnum.contains("class Converter : AttributeConverter<Status, Int>"))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }

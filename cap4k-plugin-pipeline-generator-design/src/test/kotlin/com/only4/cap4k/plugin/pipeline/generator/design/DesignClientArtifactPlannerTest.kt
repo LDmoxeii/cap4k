@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
-import com.only4.cap4k.plugin.pipeline.api.ClientModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -15,6 +14,7 @@ class DesignClientArtifactPlannerTest {
     @Test
     fun `plans client artifacts into application distributed clients path`() {
         val planner = DesignClientArtifactPlanner()
+        assertEquals("client", planner.id)
 
         val items = planner.plan(
             config = projectConfig(
@@ -24,10 +24,12 @@ class DesignClientArtifactPlannerTest {
                 )
             ),
             model = CanonicalModel(
-                clients = listOf(
-                    ClientModel(
+                designBlocks = listOf(
+                    designBlock(
+                        tag = "client",
+                        family = "client",
                         packageName = "authorize",
-                        typeName = "IssueTokenCli",
+                        name = "IssueToken",
                         description = "issue token",
                     ),
                 ),
@@ -35,7 +37,7 @@ class DesignClientArtifactPlannerTest {
         )
 
         val client = items.single()
-        assertEquals("design-client", client.generatorId)
+        assertEquals("client", client.generatorId)
         assertEquals("design/client.kt.peb", client.templateId)
         assertEquals(
             "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt",
@@ -52,7 +54,7 @@ class DesignClientArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        generators = mapOf("design-client" to GeneratorConfig(enabled = true)),
+        generators = mapOf("client" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
     )
 }

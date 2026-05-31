@@ -13,7 +13,6 @@ import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
-import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectStorage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -37,7 +36,6 @@ class ValueObjectArtifactPlannerTest {
                     ValueObjectModel(
                         name = "Money",
                         packageName = "com.acme.demo.domain.shared.values",
-                        scope = ValueObjectScope.SHARED,
                         storage = ValueObjectStorage.JSON,
                         fields = listOf(
                             FieldModel("amount", "java.math.BigDecimal"),
@@ -62,13 +60,25 @@ class ValueObjectArtifactPlannerTest {
         assertEquals("com.acme.demo.domain.shared.values", item.context["packageName"])
         assertEquals("Money", item.context["typeName"])
         assertEquals("Money", item.context["name"])
+        assertEquals(null, item.context["description"])
         assertEquals("ValueObjectArtifactPlanner", item.context["planner"])
-        assertEquals(ValueObjectScope.SHARED.name, item.context["scope"])
+        assertEquals(emptyList<String>(), item.context["aggregates"])
         assertEquals(ValueObjectStorage.JSON.name, item.context["storage"])
         assertEquals(
             listOf("com.acme.demo.domain.shared.types.CurrencyCode", "java.math.BigDecimal"),
             item.context["imports"],
         )
+
+        val buildingBlock = item.context["buildingBlock"] as Map<*, *>
+        assertEquals("value_object", buildingBlock["tag"])
+        assertEquals("Money", buildingBlock["name"])
+        assertEquals("com.acme.demo.domain.shared.values", buildingBlock["packageName"])
+        assertEquals(null, buildingBlock["description"])
+        assertEquals("\"\"", buildingBlock["descriptionKotlinStringLiteral"])
+        assertEquals(emptyList<String>(), buildingBlock["aggregates"])
+        assertEquals("", buildingBlock["eventName"])
+        assertEquals("value-object", buildingBlock["family"])
+        assertEquals("", buildingBlock["variant"])
 
         val fields = item.context["fields"] as List<*>
         assertEquals(
@@ -90,14 +100,13 @@ class ValueObjectArtifactPlannerTest {
                     ValueObjectModel(
                         name = "Money",
                         packageName = "com.acme.demo.domain.shared.values",
-                        scope = ValueObjectScope.SHARED,
                         fields = listOf(FieldModel("amount", "String")),
                     ),
                     ValueObjectModel(
-                        name = "ReviewSnapshot",
-                        packageName = "com.acme.demo.domain.aggregates.review.values",
-                        scope = ValueObjectScope.AGGREGATE,
-                        aggregate = "Review",
+                        name = "OrderSnapshot",
+                        packageName = "com.acme.demo.domain.aggregates.order.values",
+                        description = "Captured order state",
+                        aggregates = listOf("Order"),
                         fields = listOf(FieldModel("content", "String")),
                     ),
                 )
@@ -107,10 +116,25 @@ class ValueObjectArtifactPlannerTest {
         assertEquals(
             listOf(
                 "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/Money.kt",
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/review/values/ReviewSnapshot.kt",
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/values/OrderSnapshot.kt",
             ),
             items.map { it.outputPath },
         )
+
+        val aggregateLocal = items.single { it.context["typeName"] == "OrderSnapshot" }
+        assertEquals(listOf("Order"), aggregateLocal.context["aggregates"])
+        assertEquals("Captured order state", aggregateLocal.context["description"])
+
+        val buildingBlock = aggregateLocal.context["buildingBlock"] as Map<*, *>
+        assertEquals("value_object", buildingBlock["tag"])
+        assertEquals("OrderSnapshot", buildingBlock["name"])
+        assertEquals("com.acme.demo.domain.aggregates.order.values", buildingBlock["packageName"])
+        assertEquals("Captured order state", buildingBlock["description"])
+        assertEquals("\"Captured order state\"", buildingBlock["descriptionKotlinStringLiteral"])
+        assertEquals(listOf("Order"), buildingBlock["aggregates"])
+        assertEquals("", buildingBlock["eventName"])
+        assertEquals("value-object", buildingBlock["family"])
+        assertEquals("", buildingBlock["variant"])
     }
 
     @Test
@@ -122,13 +146,11 @@ class ValueObjectArtifactPlannerTest {
                     ValueObjectModel(
                         name = "Currency",
                         packageName = "com.acme.demo.domain.shared.types",
-                        scope = ValueObjectScope.SHARED,
                         fields = listOf(FieldModel("code", "String")),
                     ),
                     ValueObjectModel(
                         name = "Money",
                         packageName = "com.acme.demo.domain.shared.values",
-                        scope = ValueObjectScope.SHARED,
                         fields = listOf(FieldModel("currency", "Currency")),
                     ),
                 )
@@ -162,8 +184,7 @@ class ValueObjectArtifactPlannerTest {
                     ValueObjectModel(
                         name = "ContentSnapshot",
                         packageName = "com.acme.demo.domain.aggregates.audit.values",
-                        scope = ValueObjectScope.AGGREGATE,
-                        aggregate = "Audit",
+                        aggregates = listOf("Audit"),
                         fields = listOf(FieldModel("contentId", "ContentId")),
                     ),
                 ),
@@ -195,8 +216,7 @@ class ValueObjectArtifactPlannerTest {
                     ValueObjectModel(
                         name = "ReviewSnapshot",
                         packageName = "com.acme.demo.domain.aggregates.review.values",
-                        scope = ValueObjectScope.AGGREGATE,
-                        aggregate = "Review",
+                        aggregates = listOf("Review"),
                         fields = listOf(FieldModel("reviewerId", "ReviewerId")),
                     ),
                 ),
@@ -236,8 +256,7 @@ class ValueObjectArtifactPlannerTest {
                     ValueObjectModel(
                         name = "ContentSnapshot",
                         packageName = "com.acme.demo.domain.aggregates.audit.values",
-                        scope = ValueObjectScope.AGGREGATE,
-                        aggregate = "Audit",
+                        aggregates = listOf("Audit"),
                         fields = listOf(FieldModel("contentId", "ContentId")),
                     ),
                 ),
@@ -257,7 +276,6 @@ class ValueObjectArtifactPlannerTest {
                         ValueObjectModel(
                             name = "Money",
                             packageName = "com.acme.demo.domain.shared.values",
-                            scope = ValueObjectScope.SHARED,
                             fields = emptyList(),
                         )
                     )
@@ -278,7 +296,6 @@ class ValueObjectArtifactPlannerTest {
                         ValueObjectModel(
                             name = "Money",
                             packageName = "com.acme.demo.domain.shared.values",
-                            scope = ValueObjectScope.SHARED,
                             fields = listOf(FieldModel("amount", "String")),
                         )
                     )
@@ -301,7 +318,7 @@ class ValueObjectArtifactPlannerTest {
             basePackage = "com.acme.demo",
             layout = ProjectLayout.MULTI_MODULE,
             modules = modules,
-            generators = mapOf("types-value-object" to GeneratorConfig(enabled = true)),
+            generators = mapOf("types-value-object" to GeneratorConfig()),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             typeRegistry = typeRegistry,
         )

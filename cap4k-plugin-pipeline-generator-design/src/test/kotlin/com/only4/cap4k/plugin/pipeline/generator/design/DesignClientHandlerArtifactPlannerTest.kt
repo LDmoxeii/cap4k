@@ -2,7 +2,6 @@ package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
-import com.only4.cap4k.plugin.pipeline.api.ClientModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.PackageLayout
@@ -17,6 +16,7 @@ class DesignClientHandlerArtifactPlannerTest {
     @Test
     fun `plans client handler artifacts into adapter distributed clients path`() {
         val planner = DesignClientHandlerArtifactPlanner()
+        assertEquals("client-handler", planner.id)
 
         val items = planner.plan(
             config = projectConfig(
@@ -26,18 +26,14 @@ class DesignClientHandlerArtifactPlannerTest {
                 )
             ),
             model = CanonicalModel(
-                clients = listOf(
-                    ClientModel(
-                        packageName = "authorize",
-                        typeName = "IssueTokenCli",
-                        description = "issue token",
-                    ),
+                designBlocks = listOf(
+                    clientBlock(),
                 ),
             ),
         )
 
         val handler = items.single()
-        assertEquals("design-client-handler", handler.generatorId)
+        assertEquals("client-handler", handler.generatorId)
         assertEquals("design/client_handler.kt.peb", handler.templateId)
         assertEquals(
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt",
@@ -56,6 +52,33 @@ class DesignClientHandlerArtifactPlannerTest {
     }
 
     @Test
+    fun `client block without client handler selection does not emit handler`() {
+        val planner = DesignClientHandlerArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(
+                modules = mapOf(
+                    "application" to "demo-application",
+                    "adapter" to "demo-adapter",
+                )
+            ),
+            model = CanonicalModel(
+                designBlocks = listOf(
+                    designBlock(
+                        tag = "client",
+                        family = "client",
+                        packageName = "authorize",
+                        name = "IssueToken",
+                        description = "issue token",
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(emptyList<Any>(), items)
+    }
+
+    @Test
     fun `custom client handler layout imports client from custom client layout`() {
         val planner = DesignClientHandlerArtifactPlanner()
 
@@ -71,13 +94,7 @@ class DesignClientHandlerArtifactPlannerTest {
                 ),
             ),
             model = CanonicalModel(
-                clients = listOf(
-                    ClientModel(
-                        packageName = "authorize",
-                        typeName = "IssueTokenCli",
-                        description = "issue token",
-                    ),
-                ),
+                designBlocks = listOf(clientBlock()),
             ),
         )
 
@@ -101,8 +118,16 @@ class DesignClientHandlerArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        generators = mapOf("design-client-handler" to GeneratorConfig(enabled = true)),
+        generators = mapOf("client-handler" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         artifactLayout = artifactLayout,
+    )
+
+    private fun clientBlock() = designBlock(
+        tag = "client",
+        family = "client-handler",
+        packageName = "authorize",
+        name = "IssueToken",
+        description = "issue token",
     )
 }

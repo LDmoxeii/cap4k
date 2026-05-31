@@ -6,7 +6,6 @@ import com.alibaba.fastjson.parser.Feature
 import com.alibaba.fastjson.serializer.SerializerFeature.IgnoreNonFieldGetter
 import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
-import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.annotation.Retry
@@ -20,7 +19,6 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
 
-@Aggregate(aggregate = "event", name = "Event", root = true, type = Aggregate.TYPE_ENTITY, description = "事件")
 @Entity
 @Table(name = "`__event`")
 @DynamicInsert

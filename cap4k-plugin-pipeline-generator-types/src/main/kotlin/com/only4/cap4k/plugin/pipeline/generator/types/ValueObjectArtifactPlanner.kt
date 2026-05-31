@@ -51,8 +51,7 @@ private data class ValueObjectRenderModel(
     val typeName: String,
     val name: String,
     val description: String?,
-    val scope: String,
-    val aggregate: String?,
+    val aggregates: List<String>,
     val storage: String,
     val imports: List<String>,
     val fields: List<ValueObjectFieldRenderModel>,
@@ -62,12 +61,31 @@ private data class ValueObjectRenderModel(
         "typeName" to typeName,
         "name" to name,
         "description" to description,
-        "scope" to scope,
-        "aggregate" to aggregate,
+        "aggregates" to aggregates,
+        "buildingBlock" to buildingBlockContext(),
         "storage" to storage,
         "imports" to imports,
         "fields" to fields.map { it.toContextMap() },
         "planner" to "ValueObjectArtifactPlanner",
+    )
+
+    private fun buildingBlockContext(): Map<String, Any?> = mapOf(
+        "tag" to "value_object",
+        "tagKotlinStringLiteral" to "value_object".toKotlinStringLiteral(),
+        "name" to name,
+        "nameKotlinStringLiteral" to name.toKotlinStringLiteral(),
+        "packageName" to packageName,
+        "packageNameKotlinStringLiteral" to packageName.toKotlinStringLiteral(),
+        "description" to description,
+        "descriptionKotlinStringLiteral" to description.orEmpty().toKotlinStringLiteral(),
+        "aggregates" to aggregates,
+        "aggregateKotlinStringLiterals" to aggregates.map { it.toKotlinStringLiteral() },
+        "eventName" to "",
+        "eventNameKotlinStringLiteral" to "".toKotlinStringLiteral(),
+        "family" to "value-object",
+        "familyKotlinStringLiteral" to "value-object".toKotlinStringLiteral(),
+        "variant" to "",
+        "variantKotlinStringLiteral" to "".toKotlinStringLiteral(),
     )
 }
 
@@ -100,8 +118,7 @@ private object ValueObjectRenderModelFactory {
             typeName = valueObject.name,
             name = valueObject.name,
             description = valueObject.description,
-            scope = valueObject.scope.name,
-            aggregate = valueObject.aggregate,
+            aggregates = valueObject.aggregates,
             storage = valueObject.storage.name,
             imports = plannedFields.flatMap { (_, resolved) -> resolved.imports }.distinct().sorted(),
             fields = plannedFields.map { (field, resolved) ->

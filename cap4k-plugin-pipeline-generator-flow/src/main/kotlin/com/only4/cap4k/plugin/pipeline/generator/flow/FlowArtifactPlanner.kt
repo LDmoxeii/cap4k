@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.generator.flow
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
@@ -23,7 +24,7 @@ class FlowArtifactPlanner : GeneratorProvider {
                     templateId = "flow/entry.json.peb",
                     outputPath = artifactLayout.projectResourcePath(outputRoot, "${flow.slug}.json"),
                     context = mapOf("jsonContent" to flow.jsonContent),
-                    conflictPolicy = config.templates.conflictPolicy,
+                    conflictPolicy = ConflictPolicy.OVERWRITE,
                 ),
                 ArtifactPlanItem(
                     generatorId = id,
@@ -31,7 +32,7 @@ class FlowArtifactPlanner : GeneratorProvider {
                     templateId = "flow/entry.mmd.peb",
                     outputPath = artifactLayout.projectResourcePath(outputRoot, "${flow.slug}.mmd"),
                     context = mapOf("mermaidText" to flow.mermaidText),
-                    conflictPolicy = config.templates.conflictPolicy,
+                    conflictPolicy = ConflictPolicy.OVERWRITE,
                 ),
             )
         }
@@ -42,7 +43,7 @@ class FlowArtifactPlanner : GeneratorProvider {
             templateId = "flow/index.json.peb",
             outputPath = artifactLayout.projectResourcePath(outputRoot, "index.json"),
             context = mapOf("jsonContent" to plannedFlows.indexJsonContent),
-            conflictPolicy = config.templates.conflictPolicy,
+            conflictPolicy = ConflictPolicy.OVERWRITE,
         )
     }
 }

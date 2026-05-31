@@ -1,6 +1,7 @@
-package com.only4.cap4k.plugin.pipeline.gradle
+﻿package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.google.gson.JsonParser
+import com.google.gson.JsonObject
 import com.only4.cap4k.plugin.pipeline.gradle.FunctionalFixtureSupport.copyCompileFixture
 import com.only4.cap4k.plugin.pipeline.gradle.FunctionalFixtureSupport.copyFixture
 import org.gradle.testkit.runner.GradleRunner
@@ -19,14 +20,17 @@ import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
 class PipelinePluginFunctionalTest {
+    private val legacyAggregateAnnotationFq =
+        listOf("com.only4.cap4k.ddd.core.domain", "aggregate.annotation.Aggregate").joinToString(".")
+    private val legacyAggregateCall = "@" + "Aggregate("
+    private val legacyAggregateTypeEntity = listOf("Aggregate", "TYPE_ENTITY").joinToString(".")
+
 
     @OptIn(ExperimentalPathApi::class)
     @Test
     fun `cap4kPlan writes pretty printed plan json`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-plan")
         copyCompileFixture(projectDir, "design-integrated-compile-sample")
-
-        val metadataFile = projectDir.resolve("demo-domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -37,7 +41,6 @@ class PipelinePluginFunctionalTest {
         val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(metadataFile.toFile().exists())
         assertTrue(planFile.exists())
         assertTrue(planFile.readText().contains("\n  \"items\""))
         assertTrue(planFile.readText().contains("\"diagnostics\""))
@@ -61,8 +64,6 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-generate")
         copyFixture(projectDir)
 
-        val metadataFile = projectDir.resolve("domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
-
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
             .withPluginClasspath()
@@ -70,7 +71,6 @@ class PipelinePluginFunctionalTest {
             .build()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(metadataFile.toFile().exists())
         val commandFile = projectDir.resolve(
             "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt"
         )
@@ -84,7 +84,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(queryFile.toFile().exists())
         assertTrue(commandContent.contains("import java.time.LocalDateTime"))
         assertTrue(commandContent.contains("import java.util.UUID"))
-        assertFalse(commandContent.contains("import com.foo.Status"))
+        assertTrue(commandContent.contains("import com.foo.Status"))
         assertFalse(commandContent.contains("import com.bar.Status"))
         assertTrue(commandContent.contains("object SubmitOrderCmd"))
         assertTrue(commandContent.contains("data class Request("))
@@ -93,18 +93,13 @@ class PipelinePluginFunctionalTest {
         assertTrue(commandContent.contains("val mirroredSubmittedAt: LocalDateTime"))
         assertTrue(commandContent.contains("val externalId: UUID"))
         assertTrue(commandContent.contains("val trackingId: UUID"))
-        assertTrue(commandContent.contains("val requestStatus: com.foo.Status"))
+        assertTrue(commandContent.contains("val requestStatus: Status"))
         assertTrue(commandContent.contains("val address: Address?"))
         assertFalse(commandContent.contains("val address: Address??"))
         assertTrue(commandContent.contains("data class Address("))
         assertTrue(commandContent.contains("val city: String"))
         assertTrue(commandContent.contains("val addressId: UUID"))
-        assertTrue(commandContent.contains("data class Response("))
-        assertTrue(commandContent.contains("val result: Result?"))
-        assertFalse(commandContent.contains("val result: Result??"))
-        assertTrue(commandContent.contains("val responseStatus: com.bar.Status"))
-        assertTrue(commandContent.contains("data class Result("))
-        assertTrue(commandContent.contains("val receiptId: UUID"))
+        assertTrue(commandContent.contains("data object Response"))
 
         assertTrue(queryContent.contains("object FindOrderQry"))
         assertTrue(queryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
@@ -134,8 +129,6 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-generate-list-page")
         copyFixture(projectDir)
 
-        val metadataFile = projectDir.resolve("domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
-
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
             .withPluginClasspath()
@@ -143,8 +136,6 @@ class PipelinePluginFunctionalTest {
             .build()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(metadataFile.toFile().exists())
-
         val listQueryFile = projectDir.resolve(
             "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderListQry.kt"
         )
@@ -159,6 +150,7 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(listQueryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
         assertFalse(listQueryContent.contains("import com.foo.Status"))
+        assertTrue(listQueryContent.contains("import com.bar.Status"))
         assertTrue(listQueryContent.contains("class Request : RequestParam<Response>"))
         assertTrue(listQueryContent.contains("data class Response("))
         assertTrue(listQueryContent.contains("val items: List<Item>"))
@@ -334,27 +326,27 @@ class PipelinePluginFunctionalTest {
         assertTrue(commandContent.contains("import java.io.Serializable"))
         assertTrue(commandContent.contains("object SubmitOrderCmd : Serializable"))
         assertTrue(commandContent.contains("data class Request("))
-        assertTrue(commandContent.contains("data class Response("))
+        assertTrue(commandContent.contains("class Response : Serializable"))
         assertTrue(commandContent.contains("import java.time.LocalDateTime"))
         assertTrue(commandContent.contains("import java.util.UUID"))
-        assertFalse(commandContent.contains("import com.foo.Status"))
+        assertTrue(commandContent.contains("import com.foo.Status"))
         assertFalse(commandContent.contains("import com.bar.Status"))
         assertTrue(commandContent.contains("val orderId: Long = 1L"))
         assertTrue(commandContent.contains("val title: String = \"demo\""))
         assertTrue(commandContent.contains("val createdAt: LocalDateTime = java.time.LocalDateTime.MIN"))
         assertTrue(commandContent.contains("val mirroredSubmittedAt: LocalDateTime"))
         assertTrue(commandContent.contains("val trackingId: UUID"))
-        assertTrue(commandContent.contains("val requestStatus: com.foo.Status"))
-        assertTrue(commandContent.contains("val responseStatus: com.bar.Status"))
+        assertTrue(commandContent.contains("val requestStatus: Status"))
+        assertFalse(commandContent.contains("val responseStatus: com.bar.Status"))
         assertTrue(commandContent.contains("val address: Address?"))
         assertFalse(commandContent.contains("val address: Address??"))
-        assertTrue(commandContent.contains("val result: Result?"))
+        assertFalse(commandContent.contains("val result: Result?"))
         assertFalse(commandContent.contains("val result: Result??"))
         assertTrue(commandContent.contains("data class Address("))
         assertTrue(commandContent.contains("val city: String"))
         assertTrue(commandContent.contains("val addressId: UUID"))
-        assertTrue(commandContent.contains("data class Result("))
-        assertTrue(commandContent.contains("val receiptId: UUID"))
+        assertFalse(commandContent.contains("data class Result("))
+        assertFalse(commandContent.contains("val receiptId: UUID"))
         assertTrue(queryContent.contains("object FindOrderQry"))
         assertTrue(queryContent.contains("data class Request("))
         assertTrue(queryContent.contains("data class Response("))
@@ -707,21 +699,19 @@ class PipelinePluginFunctionalTest {
                 "tag": "command",
                 "package": "video.publish",
                 "name": "StartVideoProcessing",
-                "desc": "start video processing",
+                "description": "start video processing",
                 "aggregates": ["Video"],
-                "requestFields": [
+                "fields": [
                   { "name": "fileSpec", "type": "VideoPostProcessingFileSpecQry" }
-                ],
-                "responseFields": []
+                ]
               },
               {
                 "tag": "query",
                 "package": "video.publish",
                 "name": "VideoPostProcessingFileSpec",
-                "desc": "video processing file spec",
+                "description": "video processing file spec",
                 "aggregates": ["Video"],
-                "requestFields": [],
-                "responseFields": []
+                "fields": []
               }
             ]
             """.trimIndent()
@@ -743,15 +733,17 @@ class PipelinePluginFunctionalTest {
         copyFixture(projectDir, "design-sample")
 
         val designFile = projectDir.resolve("design/design.json")
-        designFile.writeText(
-            designFile.readText().replace(
-                """{ "name": "requestStatus", "type": "com.foo.Status" },""",
-                """
-                { "name": "requestStatus", "type": "com.foo.Status" },
-                  { "name": "ambiguousStatus", "type": "Status" },
-                """.trimIndent()
-            )
+        val designEntries = JsonParser.parseString(designFile.readText()).asJsonArray
+        val findOrder = designEntries
+            .map { it.asJsonObject }
+            .single { it["name"].asString == "FindOrder" }
+        findOrder["fields"].asJsonArray.add(
+            JsonObject().apply {
+                addProperty("name", "ambiguousStatus")
+                addProperty("type", "Status")
+            }
         )
+        designFile.writeText(designEntries.toString())
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -833,6 +825,18 @@ class PipelinePluginFunctionalTest {
         val behaviorFile = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt"
         )
+        val schemaFile = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt")
+        )
+        val entityFile = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
+        )
+        val repositoryFile = projectDir.resolve(
+            generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt")
+        )
+        val strongIdFile = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostId.kt")
+        )
         val uniqueQueryFile = projectDir.resolve(
             generatedSource(
                 "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt"
@@ -851,51 +855,99 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.exists())
-        assertTrue(
-            File(
-                projectDir.toFile(),
-                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt")
-            ).exists()
-        )
-        assertTrue(
-            File(
-                projectDir.toFile(),
-                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
-            ).exists()
-        )
-        val generatedVideoPostContent = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
-        ).readText()
-        assertTrue(
-            File(
-                projectDir.toFile(),
-                generatedSource("demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/VideoPostRepository.kt")
-            ).exists()
-        )
+        assertTrue(schemaFile.toFile().exists())
+        assertTrue(entityFile.toFile().exists())
+        val generatedVideoPostContent = entityFile.readText()
+        assertTrue(repositoryFile.toFile().exists())
+        assertTrue(strongIdFile.toFile().exists())
         assertTrue(factoryFile.toFile().exists())
         assertTrue(specificationFile.toFile().exists())
         assertTrue(behaviorFile.toFile().exists())
         assertTrue(uniqueQueryFile.toFile().exists())
         assertTrue(uniqueQueryHandlerFile.toFile().exists())
         assertTrue(uniqueValidatorFile.toFile().exists())
+        val schemaContent = schemaFile.readText()
+        val repositoryContent = repositoryFile.readText()
+        val strongIdContent = strongIdFile.readText()
         val factoryContent = factoryFile.readText()
         val specificationContent = specificationFile.readText()
         val uniqueQueryContent = uniqueQueryFile.readText()
         val uniqueQueryHandlerContent = uniqueQueryHandlerFile.readText()
         val uniqueValidatorContent = uniqueValidatorFile.readText()
-        assertTrue(generatedVideoPostContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"))
-        assertTrue(
-            generatedVideoPostContent.contains(
-                """
-                @Aggregate(
-                    aggregate = "VideoPost",
-                    name = "VideoPost",
-                    type = Aggregate.TYPE_ENTITY,
-                    root = true,
-                    description = ""
-                )
-                """.trimIndent()
-            )
+        assertFalse(generatedVideoPostContent.contains(legacyAggregateAnnotationFq))
+        assertFalse(generatedVideoPostContent.contains(legacyAggregateCall))
+        assertFalse(generatedVideoPostContent.contains(legacyAggregateTypeEntity))
+        assertAggregateElementContent(
+            generatedVideoPostContent,
+            aggregate = "VideoPost",
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            type = "entity",
+            root = true,
+        )
+        assertAggregateElementContent(
+            schemaContent,
+            aggregate = "VideoPost",
+            name = "SVideoPost",
+            packageName = "com.acme.demo.domain._share.meta.video_post",
+            type = "schema",
+            root = false,
+        )
+        assertAggregateElementContent(
+            repositoryContent,
+            aggregate = "VideoPost",
+            name = "VideoPostRepository",
+            packageName = "com.acme.demo.adapter.domain.repositories",
+            type = "repository",
+            root = false,
+        )
+        assertAggregateElementContent(
+            strongIdContent,
+            aggregate = "VideoPost",
+            name = "VideoPostId",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            type = "strong-id",
+            root = true,
+        )
+        assertAggregateElementContent(
+            factoryContent,
+            aggregate = "VideoPost",
+            name = "VideoPostFactory",
+            packageName = "com.acme.demo.domain.aggregates.video_post.factory",
+            type = "factory",
+            root = false,
+        )
+        assertAggregateElementContent(
+            specificationContent,
+            aggregate = "VideoPost",
+            name = "VideoPostSpecification",
+            packageName = "com.acme.demo.domain.aggregates.video_post.specification",
+            type = "specification",
+            root = false,
+        )
+        assertAggregateElementContent(
+            uniqueQueryContent,
+            aggregate = "VideoPost",
+            name = "UniqueVideoPostSlugQry",
+            packageName = "com.acme.demo.application.queries.video_post.unique",
+            type = "unique-query",
+            root = false,
+        )
+        assertAggregateElementContent(
+            uniqueQueryHandlerContent,
+            aggregate = "VideoPost",
+            name = "UniqueVideoPostSlugQryHandler",
+            packageName = "com.acme.demo.adapter.queries.video_post.unique",
+            type = "unique-query-handler",
+            root = false,
+        )
+        assertAggregateElementContent(
+            uniqueValidatorContent,
+            aggregate = "VideoPost",
+            name = "UniqueVideoPostSlug",
+            packageName = "com.acme.demo.application.validators.video_post.unique",
+            type = "unique-validator",
+            root = false,
         )
         assertTrue(planFile.readText().contains("\"items\""))
         assertTrue(planFile.readText().contains("\"diagnostics\""))
@@ -1054,7 +1106,7 @@ class PipelinePluginFunctionalTest {
             ),
             outputKind = "GENERATED_SOURCE",
             resolvedOutputRoot = "demo-domain/build/generated/cap4k/main/kotlin",
-            conflictPolicy = "OVERWRITE",
+            conflictPolicy = "FAIL",
         )
     }
 
@@ -1240,14 +1292,12 @@ class PipelinePluginFunctionalTest {
                 .replace("\r\n", "\n")
                 .replace(
                     """        aggregate {
-            enabled.set(true)
             specialFields {
                 idDefaultStrategy.set("identity")
             }
         }""",
                     """        aggregateProjection {
-            enabled.set(true)
-        }""",
+            }""",
                 )
         )
 
@@ -1277,8 +1327,8 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kGenerateSources does not depend on design ksp metadata`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-generated-sources-no-ksp")
+    fun `cap4kGenerateSources uses explicit design input without auxiliary source tasks`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-generated-sources-design-only")
         copyFixture(projectDir, "aggregate-minimal-sample")
         val designFile = projectDir.resolve("design/design.json")
         Files.createDirectories(designFile.parent)
@@ -1289,10 +1339,11 @@ class PipelinePluginFunctionalTest {
                 "tag": "query",
                 "package": "video_post.read",
                 "name": "FindVideoPost",
-                "requestFields": [
+                "description": "find video post",
+                "fields": [
                   { "name": "id", "type": "Long" }
                 ],
-                "responseFields": [
+                "resultFields": [
                   { "name": "title", "type": "String" }
                 ]
               }
@@ -1304,30 +1355,10 @@ class PipelinePluginFunctionalTest {
             buildFile.readText() +
                 """
 
-                val generatedKspMetadataDir = project(":demo-domain").layout.buildDirectory
-                    .dir("generated/ksp/main/resources/metadata")
-                    .get()
-                    .asFile
-                    .absolutePath
-                    .replace("\\", "/")
-
-                project(":demo-domain") {
-                    tasks.register("kspKotlin") {
-                        doLast {
-                            throw org.gradle.api.GradleException("cap4kGenerateSources must not run kspKotlin")
-                        }
-                    }
-                }
-
                 cap4k {
                     sources {
                         designJson {
-                            enabled.set(true)
                             files.from("design/design.json")
-                        }
-                        kspMetadata {
-                            enabled.set(true)
-                            inputDir.set(generatedKspMetadataDir)
                         }
                     }
                 }
@@ -1339,7 +1370,6 @@ class PipelinePluginFunctionalTest {
             .build()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertFalse(result.output.contains("cap4kGenerateSources must not run kspKotlin"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1561,10 +1591,9 @@ class PipelinePluginFunctionalTest {
         )
         val buildFile = projectDir.resolve("build.gradle.kts")
         val patchedBuildFile = buildFile.readText().replace(
-            Regex("""aggregate\s*\{\s*enabled\.set\(true\)\s*}"""),
+            Regex("""aggregate\s*\{\s*}"""),
             """
             |aggregate {
-            |            enabled.set(true)
             |            specialFields {
             |                idDefaultStrategy.set("identity")
             |            }
@@ -1952,10 +1981,9 @@ class PipelinePluginFunctionalTest {
         val buildFileContent = buildFile.readText().replace("\r\n", "\n")
         buildFile.writeText(
             buildFileContent.replace(
-                Regex("""aggregate\s*\{\s*enabled\.set\(true\)\s*}"""),
+                Regex("""aggregate\s*\{\s*}"""),
                 """
                 |aggregate {
-                |            enabled.set(true)
                 |            specialFields {
                 |                managedDefaultColumns.set(listOf(" created_by "))
                 |            }
@@ -2077,7 +2105,7 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(
             result.output.contains(
-                "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is enabled."
+                "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is configured."
             )
         )
         assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
@@ -2107,8 +2135,6 @@ class PipelinePluginFunctionalTest {
                 )
         )
 
-        val metadataFile = projectDir.resolve("domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
-
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
             .withPluginClasspath()
@@ -2120,7 +2146,6 @@ class PipelinePluginFunctionalTest {
                 "sources.db.url is required when db is enabled."
             )
         )
-        assertFalse(metadataFile.toFile().exists())
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -2149,7 +2174,6 @@ class PipelinePluginFunctionalTest {
                 )
         )
 
-        val metadataFile = projectDir.resolve("domain/build/generated/ksp/main/resources/metadata/aggregate-Order.json")
         val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
 
         val result = GradleRunner.create()
@@ -2159,7 +2183,6 @@ class PipelinePluginFunctionalTest {
             .build()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(metadataFile.toFile().exists())
         assertTrue(planFile.exists())
     }
 
@@ -2240,24 +2263,6 @@ class PipelinePluginFunctionalTest {
                     }
                 }
                 """.trimIndent()
-            ).replace(
-                """
-                generators {
-                    flow {
-                        enabled.set(true)
-                    }
-                }
-                """.trimIndent(),
-                """
-                generators {
-                    flow {
-                        enabled.set(true)
-                    }
-                    drawingBoard {
-                        enabled.set(true)
-                    }
-                }
-                """.trimIndent()
             )
         )
 
@@ -2295,14 +2300,131 @@ class PipelinePluginFunctionalTest {
         assertTrue(projectDir.resolve("design/drawing_board_command.json").toFile().exists())
         val queryContent = projectDir.resolve("design/drawing_board_query.json").readText()
         val payloadContent = projectDir.resolve("design/drawing_board_api_payload.json").readText()
-        assertTrue(queryContent.contains("\"traits\": [\"page\"]"))
-        assertTrue(payloadContent.contains("\"traits\": [\"page\"]"))
+        assertTrue(queryContent.contains("\"family\": \"query\""))
+        assertTrue(queryContent.contains("\"variant\": \"page\""))
+        assertTrue(payloadContent.contains("\"family\": \"api-payload\""))
+        assertTrue(payloadContent.contains("\"variant\": \"page\""))
+        assertFalse(queryContent.contains("\"traits\""))
+        assertFalse(payloadContent.contains("\"traits\""))
         val domainEventFile = projectDir.resolve("design/drawing_board_domain_event.json")
         assertTrue(domainEventFile.toFile().exists())
         val domainEventContent = domainEventFile.readText()
         assertTrue(domainEventContent.contains("\"tag\": \"domain_event\""))
         assertTrue(domainEventContent.contains("\"name\": \"reason\""))
         assertFalse(domainEventContent.contains("\"name\": \"entity\""))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `issue 92 metadata contract supports generation analysis and drawing board round trip`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-issue-92-round-trip")
+        copyCompileFixture(projectDir, "design-integrated-compile-sample")
+
+        val generateResult = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan", "cap4kGenerate")
+            .build()
+
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertBuildingBlockSource(
+            projectDir.resolve(
+                "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt"
+            ).readText(),
+            family = "query",
+            variant = "page",
+        )
+        assertBuildingBlockSource(
+            projectDir.resolve(
+                "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/payment/integration/PaymentReceivedIntegrationEvent.kt"
+            ).readText(),
+            family = "integration-event",
+            variant = "inbound",
+        )
+        assertBuildingBlockSource(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt"
+            ).readText(),
+            family = "domain-event",
+            variant = "",
+        )
+        assertBuildingBlockSource(
+            projectDir.resolve(
+                generatedSource(
+                    "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/OrderStage.kt"
+                )
+            ).readText(),
+            family = "enum",
+            variant = "",
+        )
+        assertBuildingBlockSource(
+            projectDir.resolve(
+                generatedSource(
+                    "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/enums/OrderSignal.kt"
+                )
+            ).readText(),
+            family = "enum",
+            variant = "",
+        )
+        val valueObjectContent = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/OrderAddress.kt"
+        ).readText()
+        assertBuildingBlockSource(valueObjectContent, family = "value-object", variant = "")
+        assertTrue(valueObjectContent.contains("aggregates = [\"Order\"]"))
+
+        writeIssue92AnalysisFixture(projectDir)
+        val analysisResult = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kAnalysisPlan", "cap4kAnalysisGenerate")
+            .build()
+
+        assertTrue(analysisResult.output.contains("BUILD SUCCESSFUL"))
+        val roundTripFiles = listOf(
+            "analysis-design/drawing_board_query.json",
+            "analysis-design/drawing_board_integration_event.json",
+            "analysis-design/drawing_board_domain_event.json",
+        )
+        roundTripFiles.forEach { relativePath ->
+            val content = projectDir.resolve(relativePath).readText()
+            assertFalse(content.contains("\"desc\""))
+            assertFalse(content.contains("\"requestFields\""))
+            assertFalse(content.contains("\"responseFields\""))
+            assertFalse(content.contains("\"traits\""))
+            assertFalse(content.contains("\"role\""))
+        }
+        assertTrue(projectDir.resolve("analysis-design/drawing_board_query.json").readText().contains("\"artifacts\""))
+        assertTrue(
+            projectDir.resolve("analysis-design/drawing_board_integration_event.json")
+                .readText()
+                .contains("\"artifacts\"")
+        )
+
+        val roundTripBuildFile = projectDir.resolve("build.gradle.kts")
+        roundTripBuildFile.writeText(
+            roundTripBuildFile.readText().replace(
+                """files.from("design/design.json")""",
+                """
+                files.from(
+                    "analysis-design/drawing_board_query.json",
+                    "analysis-design/drawing_board_integration_event.json",
+                    "analysis-design/drawing_board_domain_event.json"
+                )
+                """.trimIndent(),
+            )
+        )
+
+        val roundTripPlanResult = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .build()
+
+        assertTrue(roundTripPlanResult.output.contains("BUILD SUCCESSFUL"))
+        val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
+        assertTrue(planContent.contains("FindOrderQry.kt"))
+        assertTrue(planContent.contains("PaymentReceivedIntegrationEvent.kt"))
+        assertTrue(planContent.contains("OrderCreatedDomainEvent.kt"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -2508,12 +2630,9 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-generate")
         copyFixture(projectDir, "design-domain-event-sample")
         val designFile = projectDir.resolve("design/design.json")
-        designFile.writeText(
-            designFile.readText().replace(
-                "\"desc\": \"order created event\"",
-                "\"desc\": \"order */ \\\"created\\\" event\"",
-            )
-        )
+        val designEntries = JsonParser.parseString(designFile.readText()).asJsonArray
+        designEntries.single().asJsonObject.addProperty("description", "order */ \"created\" \\event ${'$'}status")
+        designFile.writeText(designEntries.toString())
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -2534,15 +2653,22 @@ class PipelinePluginFunctionalTest {
         assertTrue(eventFile.toFile().exists())
         assertTrue(handlerFile.toFile().exists())
         assertTrue(eventContent.contains("@DomainEvent"))
-        assertTrue(eventContent.contains("@Aggregate("))
-        assertTrue(eventContent.contains("aggregate = \"Order\""))
-        assertTrue(eventContent.contains("name = \"OrderCreatedDomainEvent\""))
-        assertTrue(eventContent.contains("type = Aggregate.TYPE_DOMAIN_EVENT"))
-        assertTrue(eventContent.contains("* order * / \"created\" event"))
-        assertFalse(eventContent.contains("* order */ \"created\" event"))
-        assertTrue(eventContent.contains("description = \"order */ \\\"created\\\" event\""))
+        assertTrue(eventContent.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
+        assertTrue(eventContent.contains("@BuildingBlock("))
+        assertTrue(eventContent.contains("tag = \"domain_event\""))
+        assertTrue(eventContent.contains("name = \"OrderCreated\""))
+        assertTrue(eventContent.contains("packageName = \"order\""))
+        assertTrue(eventContent.contains("description = \"order */ \\\"created\\\" \\\\event \\${'$'}status\""))
+        assertTrue(eventContent.contains("aggregates = [\"Order\"]"))
+        assertTrue(eventContent.contains("eventName = \"\""))
+        assertTrue(eventContent.contains("family = \"domain-event\""))
+        assertTrue(eventContent.contains("variant = \"\""))
+        assertFalse(eventContent.contains(legacyAggregateCall))
+        assertFalse(eventContent.contains(legacyAggregateAnnotationFq))
+        assertTrue(eventContent.contains("* order * / \"created\" \\event ${'$'}status"))
+        assertFalse(eventContent.contains("* order */ \"created\" \\event ${'$'}status"))
         assertFalse(eventContent.contains("&quot;"))
-        assertTrue(eventContent.contains("import com.acme.demo.domain.order.Order"))
+        assertTrue(eventContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
         assertTrue(eventContent.contains("import java.util.UUID"))
         assertTrue(eventContent.contains("class OrderCreatedDomainEvent("))
         assertTrue(eventContent.contains("val entity: Order"))
@@ -2550,8 +2676,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(eventContent.contains("val traceId: UUID"))
         assertTrue(handlerContent.contains("@Service"))
         assertTrue(handlerContent.contains("@EventListener(OrderCreatedDomainEvent::class)"))
-        assertTrue(handlerContent.contains("* order * / \"created\" event"))
-        assertFalse(handlerContent.contains("* order */ \"created\" event"))
+        assertTrue(handlerContent.contains("* order * / \"created\" \\event ${'$'}status"))
+        assertFalse(handlerContent.contains("* order */ \"created\" \\event ${'$'}status"))
         assertTrue(handlerContent.contains("class OrderCreatedDomainEventSubscriber"))
     }
 
@@ -2664,8 +2790,8 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kPlan domain event flow fails when design domain event handler misses application module path`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-handler-no-application")
+    fun `cap4kPlan domain event flow fails when domain subscriber misses application module path`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-domain-subscriber-no-application")
         copyFixture(projectDir, "design-domain-event-sample")
 
         val buildFile = projectDir.resolve("build.gradle.kts")
@@ -2692,8 +2818,8 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kPlan domain event flow succeeds without ksp metadata when aggregate source data exists`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-aggregate-fallback")
+    fun `cap4kPlan domain event flow succeeds when aggregate source data exists`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-aggregate-source")
         copyFixture(projectDir, "design-domain-event-sample")
         val designFile = projectDir.resolve("design/design.json")
         designFile.writeText(designFile.readText().replace("\"Order\"", "\"VideoPost\""))
@@ -2708,42 +2834,18 @@ class PipelinePluginFunctionalTest {
 
         val buildFile = projectDir.resolve("build.gradle.kts")
         val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        val buildFileWithDbVars = buildFileContent.replace(
-            "cap4k {",
-            """
-            val schemaScriptPath = layout.projectDirectory.file("schema.sql").asFile.absolutePath.replace("\\", "/")
-            val dbFilePath = layout.buildDirectory.file("h2/demo").get().asFile.absolutePath.replace("\\", "/")
-
-            cap4k {
-            """.trimIndent()
-        )
         buildFile.writeText(
-            buildFileWithDbVars.replace(
-                """
-                |        kspMetadata {
-                |            enabled.set(true)
-                |            inputDir.set("design/metadata")
-                |        }
-                """.trimMargin(),
-                """
-                |        kspMetadata {
-                |            enabled.set(false)
-                |            inputDir.set("design/metadata")
-                |        }
-                |        db {
-                |            enabled.set(true)
-                |            url.set("jdbc:h2:file:${'$'}dbFilePath;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false;INIT=RUNSCRIPT FROM '${'$'}schemaScriptPath'")
-                |            username.set("sa")
-                |            password.set("secret")
-                |            schema.set("PUBLIC")
-                |            includeTables.set(listOf("video_post"))
-                |            excludeTables.set(emptyList())
-                |        }
-                """.trimMargin(),
+            buildFileContent.replace(
+                "includeTables.set(listOf(\"order\"))",
+                "includeTables.set(listOf(\"video_post\"))",
             ) +
                 """
 
                 cap4k {
+                    project {
+                        applicationModulePath.set("demo-application")
+                        adapterModulePath.set("demo-adapter")
+                    }
                     generators {
                         aggregate {
                             specialFields {
@@ -2768,7 +2870,7 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kPlan domain event flow still fails clearly when neither aggregate data nor ksp metadata can resolve aggregate`() {
+    fun `cap4kPlan domain event flow fails clearly when aggregate source data cannot resolve aggregate`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-missing-aggregate-metadata")
         copyFixture(projectDir, "design-domain-event-sample")
 
@@ -2776,18 +2878,8 @@ class PipelinePluginFunctionalTest {
         val buildFileContent = buildFile.readText().replace("\r\n", "\n")
         buildFile.writeText(
             buildFileContent.replace(
-                """
-                |        kspMetadata {
-                |            enabled.set(true)
-                |            inputDir.set("design/metadata")
-                |        }
-                """.trimMargin(),
-                """
-                |        kspMetadata {
-                |            enabled.set(false)
-                |            inputDir.set("design/metadata")
-                |        }
-                """.trimMargin(),
+                "includeTables.set(listOf(\"order\"))",
+                "includeTables.set(listOf(\"video_post\"))",
             )
         )
 
@@ -2924,7 +3016,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(commandContent.contains(") : RequestParam<Response>"))
         assertTrue(commandContent.contains("class Handler : Command<Request, Response>"))
         assertTrue(commandContent.contains("Mediator.uow.save()"))
-        assertTrue(commandContent.replace("\r\n", "\n").contains(") : RequestParam<Response>\n\n    data class Response("))
+        assertTrue(commandContent.replace("\r\n", "\n").contains(") : RequestParam<Response>\n\n    data object Response"))
 
         val clientContent = clientFile.readText()
         assertTrue(clientContent.contains(") : RequestParam<Response>"))
@@ -3085,6 +3177,116 @@ class PipelinePluginFunctionalTest {
 
     private fun generatedSource(relativePath: String): String =
         relativePath.replace("/src/main/kotlin/", "/build/generated/cap4k/main/kotlin/")
+
+    private fun assertAggregateElementContent(
+        content: String,
+        aggregate: String,
+        name: String,
+        packageName: String,
+        type: String,
+        root: Boolean,
+    ) {
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.AggregateElement"))
+        assertTrue(content.contains("@AggregateElement("))
+        assertTrue(content.contains("aggregate = \"$aggregate\""))
+        assertTrue(content.contains("name = \"$name\""))
+        assertTrue(content.contains("packageName = \"$packageName\""))
+        assertTrue(content.contains("type = \"$type\""))
+        assertTrue(content.contains("root = $root"))
+    }
+
+    private fun assertBuildingBlockSource(
+        content: String,
+        family: String,
+        variant: String,
+    ) {
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
+        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("family = \"$family\""))
+        assertTrue(content.contains("variant = \"$variant\""))
+        assertFalse(content.contains(legacyAggregateCall))
+        assertFalse(content.contains(legacyAggregateAnnotationFq))
+    }
+
+    private fun writeIssue92AnalysisFixture(projectDir: Path) {
+        val analysisDir = projectDir.resolve("analysis/app/build/cap4k-code-analysis")
+        Files.createDirectories(analysisDir)
+        analysisDir.resolve("nodes.json").writeText("""[]""")
+        analysisDir.resolve("rels.json").writeText("""[]""")
+        analysisDir.resolve("design-elements.json").writeText(
+            """
+            [
+              {
+                "tag": "query",
+                "package": "order.read",
+                "name": "FindOrder",
+                "description": "find order",
+                "aggregates": ["Order"],
+                "artifacts": [
+                  { "family": "query", "variant": "page" },
+                  { "family": "query-handler" }
+                ],
+                "fields": [
+                  { "name": "orderId", "type": "Long", "nullable": false }
+                ],
+                "resultFields": [
+                  { "name": "orderId", "type": "Long", "nullable": false }
+                ]
+              },
+              {
+                "tag": "integration_event",
+                "package": "payment.integration",
+                "name": "PaymentReceivedIntegrationEvent",
+                "description": "payment received",
+                "eventName": "payment.received",
+                "aggregates": ["Order"],
+                "artifacts": [
+                  { "family": "integration-event", "variant": "inbound" },
+                  { "family": "integration-subscriber" }
+                ],
+                "fields": [
+                  { "name": "paymentId", "type": "String", "nullable": false },
+                  { "name": "orderId", "type": "Long", "nullable": false }
+                ]
+              },
+              {
+                "tag": "domain_event",
+                "package": "order",
+                "name": "OrderCreated",
+                "description": "order created",
+                "aggregates": ["Order"],
+                "persist": false,
+                "fields": [
+                  { "name": "reason", "type": "String", "nullable": false }
+                ]
+              }
+            ]
+            """.trimIndent()
+        )
+
+        projectDir.resolve("build.gradle.kts").writeText(
+            projectDir.resolve("build.gradle.kts").readText().replace("\r\n", "\n") +
+                """
+
+                cap4k {
+                    sources {
+                        irAnalysis {
+                            inputDirs.from("analysis/app/build/cap4k-code-analysis")
+                        }
+                    }
+                    layout {
+                        drawingBoard {
+                            outputRoot.set("analysis-design")
+                        }
+                    }
+                    generators {
+                        drawingBoard {
+                        }
+                    }
+                }
+                """.trimIndent()
+        )
+    }
 
     private fun Path.appendTemplateOverrideBlock() {
         writeText(

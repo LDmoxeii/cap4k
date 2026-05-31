@@ -15,8 +15,6 @@ import org.springframework.context.ApplicationEventPublisher
 import org.springframework.messaging.Message
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import java.util.Collections
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
@@ -29,6 +27,9 @@ import java.util.concurrent.TimeUnit
  */
 @DisplayName("DefaultEventPublisher 测试")
 class DefaultEventPublisherTest {
+
+    private val fixedNow = LocalDateTime.of(1970, 1, 1, 0, 0, 0, 500_000_000)
+    private val fixedNextSecond = LocalDateTime.of(1970, 1, 1, 0, 0, 1, 0)
 
     private lateinit var eventSubscriberManager: EventSubscriberManager
     private lateinit var integrationEventPublishers: List<IntegrationEventPublisher>
@@ -350,17 +351,9 @@ class DefaultEventPublisherTest {
         @DisplayName("应该处理延迟领域事件")
         fun `should handle delayed domain events`() {
             // given
-            val calls = Collections.synchronizedList(mutableListOf<String>())
-            val dispatchStarted = CountDownLatch(1)
-            val completed = CountDownLatch(1)
-            val futureTime = LocalDateTime.now().plusSeconds(2)
+            val calls = mutableListOf<String>()
             val applicationEventPublisher = mockk<ApplicationEventPublisher>()
             val derivedEventRecord = mockk<EventRecord>()
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
-                persist = true,
-                scheduleTime = futureTime
-            )
             val realIntegrationManager = DefaultIntegrationEventSupervisor(
                 mockk(relaxed = true),
                 eventRecordRepository,
@@ -368,7 +361,7 @@ class DefaultEventPublisherTest {
                 applicationEventPublisher,
                 "test-service"
             )
-            val delayedPublisher = DefaultEventPublisher(
+            val delayedPublisher = CapturingDefaultEventPublisher(
                 eventSubscriberManager,
                 integrationEventPublishers,
                 eventRecordRepository,
@@ -396,30 +389,41 @@ class DefaultEventPublisherTest {
                 calls.add("saveIntegration")
                 derivedEventRecord
             }
+            every { eventSubscriberManager.dispatch(any()) } answers {
+                assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
+                realIntegrationManager.attach(TestIntegrationEvent("derived"))
+                calls.add("dispatch")
+            }
+            val eventRecord = createTestEventRecord(
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
+                persist = true,
+                scheduleTime = fixedNextSecond
+            )
             every { eventRecord.endDelivery(any()) } answers {
                 calls.add("endDelivery")
             }
             every { eventRecordRepository.save(eventRecord) } answers {
                 calls.add("saveSource")
-                completed.countDown()
                 eventRecord
-            }
-            every { eventSubscriberManager.dispatch(any()) } answers {
-                assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
-                realIntegrationManager.attach(TestIntegrationEvent("derived"))
-                calls.add("dispatch")
-                dispatchStarted.countDown()
             }
 
             // when
             delayedPublisher.publish(eventRecord)
+            val scheduled = delayedPublisher.singleScheduled()
 
-            // then
-            assertFalse(dispatchStarted.await(500, TimeUnit.MILLISECONDS))
-            assertTrue(completed.await(5, TimeUnit.SECONDS))
+            // then - delayed dispatch is scheduled, not executed early
+            assertScheduledWithPositiveMillis(scheduled)
+            verify(exactly = 0) { eventSubscriberManager.dispatch(any()) }
+            verify(exactly = 0) { eventRecordRepository.create() }
+            verify(exactly = 0) { applicationEventPublisher.publishEvent(any()) }
+            verify(exactly = 0) { eventRecord.endDelivery(any()) }
+            verify(exactly = 0) { eventRecordRepository.save(eventRecord) }
+
+            scheduled.command.run()
+
             assertEquals(
                 listOf("dispatch", "createIntegration", "saveIntegration", "publishIntegrationCommitted", "endDelivery", "saveSource"),
-                calls.toList()
+                calls
             )
             assertTrue(EventRuntimeContext.currentOrNull() == null)
         }
@@ -428,14 +432,7 @@ class DefaultEventPublisherTest {
         @DisplayName("延迟领域事件调度失败时不应泄漏附加的集成事件")
         fun `should discard attached integration events when delayed domain dispatch fails`() {
             // given
-            val dispatchStarted = CountDownLatch(1)
-            val futureTime = LocalDateTime.now().plusSeconds(2)
             val applicationEventPublisher = mockk<ApplicationEventPublisher>(relaxed = true)
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
-                persist = true,
-                scheduleTime = futureTime
-            )
             val realIntegrationManager = DefaultIntegrationEventSupervisor(
                 mockk(relaxed = true),
                 eventRecordRepository,
@@ -443,7 +440,7 @@ class DefaultEventPublisherTest {
                 applicationEventPublisher,
                 "test-service"
             )
-            val delayedPublisher = DefaultEventPublisher(
+            val delayedPublisher = CapturingDefaultEventPublisher(
                 eventSubscriberManager,
                 integrationEventPublishers,
                 eventRecordRepository,
@@ -458,17 +455,31 @@ class DefaultEventPublisherTest {
             every { eventSubscriberManager.dispatch(any()) } answers {
                 assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
                 realIntegrationManager.attach(TestIntegrationEvent("derived"))
-                dispatchStarted.countDown()
                 throw RuntimeException("Dispatch failed")
             }
+            val eventRecord = createTestEventRecord(
+                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
+                persist = true,
+                scheduleTime = fixedNextSecond
+            )
 
             // when
             delayedPublisher.publish(eventRecord)
+            val scheduled = delayedPublisher.singleScheduled()
 
-            // then
-            assertFalse(dispatchStarted.await(500, TimeUnit.MILLISECONDS))
-            assertTrue(dispatchStarted.await(5, TimeUnit.SECONDS))
-            Thread.sleep(200)
+            // then - delayed dispatch is scheduled, not executed early
+            assertScheduledWithPositiveMillis(scheduled)
+            verify(exactly = 0) { eventSubscriberManager.dispatch(any()) }
+            verify(exactly = 0) { eventRecordRepository.create() }
+            verify(exactly = 0) { applicationEventPublisher.publishEvent(any()) }
+            verify(exactly = 0) { eventRecord.endDelivery(any()) }
+            verify(exactly = 0) { eventRecordRepository.save(eventRecord) }
+
+            assertThrows<DomainException> {
+                scheduled.command.run()
+            }
+
+            verify(exactly = 1) { eventSubscriberManager.dispatch(any()) }
             verify(exactly = 0) { eventRecordRepository.create() }
             verify(exactly = 0) { applicationEventPublisher.publishEvent(any()) }
             verify(exactly = 0) { eventRecord.endDelivery(any()) }
@@ -519,17 +530,35 @@ class DefaultEventPublisherTest {
         @DisplayName("应该处理延迟集成事件")
         fun `should handle delayed integration events`() {
             // given
-            val futureTime = LocalDateTime.now().plusMinutes(5)
+            val delayedPublisher = CapturingDefaultEventPublisher(
+                eventSubscriberManager,
+                integrationEventPublishers,
+                eventRecordRepository,
+                eventMessageInterceptorManager,
+                domainEventInterceptorManager,
+                integrationEventInterceptorManager,
+                integrationEventManager,
+                integrationEventPublisherCallback,
+                threadPoolSize
+            )
             val eventRecord = createTestEventRecord(
                 eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION,
-                scheduleTime = futureTime
+                scheduleTime = fixedNextSecond
             )
 
             // when
-            publisher.publish(eventRecord)
+            delayedPublisher.publish(eventRecord)
+            val scheduled = delayedPublisher.singleScheduled()
 
-            // then - 延迟事件应该被调度
-            Thread.sleep(100) // 给调度器一些时间
+            // then - delayed integration publishing is scheduled, not executed early
+            assertScheduledWithPositiveMillis(scheduled)
+            verify(exactly = 0) { integrationEventPublishers[0].publish(any(), any()) }
+            verify(exactly = 0) { integrationEventPublishers[1].publish(any(), any()) }
+
+            scheduled.command.run()
+
+            verify(exactly = 1) { integrationEventPublishers[0].publish(eventRecord, integrationEventPublisherCallback) }
+            verify(exactly = 1) { integrationEventPublishers[1].publish(eventRecord, integrationEventPublisherCallback) }
         }
     }
 
@@ -731,6 +760,17 @@ class DefaultEventPublisherTest {
             threadPoolSize
         )
 
+    private fun assertScheduledWithPositiveMillis(scheduled: ScheduledCall) {
+        assertEquals(TimeUnit.MILLISECONDS, scheduled.unit)
+        assertEquals(500, scheduled.delay)
+    }
+
+    private data class ScheduledCall(
+        val command: Runnable,
+        val delay: Long,
+        val unit: TimeUnit,
+    )
+
     private class TestableDefaultEventPublisher(
         eventSubscriberManager: EventSubscriberManager,
         integrationEventPublishers: List<IntegrationEventPublisher>,
@@ -754,6 +794,41 @@ class DefaultEventPublisherTest {
     ) {
         fun publishDomain(event: EventRecord) {
             internalPublish4DomainEvent(event)
+        }
+    }
+
+    private class CapturingDefaultEventPublisher(
+        eventSubscriberManager: EventSubscriberManager,
+        integrationEventPublishers: List<IntegrationEventPublisher>,
+        eventRecordRepository: EventRecordRepository,
+        eventMessageInterceptorManager: EventMessageInterceptorManager,
+        domainEventInterceptorManager: DomainEventInterceptorManager,
+        integrationEventInterceptorManager: IntegrationEventInterceptorManager,
+        integrationEventManager: IntegrationEventManager,
+        integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
+        threadPoolSize: Int,
+    ) : DefaultEventPublisher(
+        eventSubscriberManager,
+        integrationEventPublishers,
+        eventRecordRepository,
+        eventMessageInterceptorManager,
+        domainEventInterceptorManager,
+        integrationEventInterceptorManager,
+        integrationEventManager,
+        integrationEventPublisherCallback,
+        threadPoolSize
+    ) {
+        private val scheduledCalls = mutableListOf<ScheduledCall>()
+
+        override fun now(): LocalDateTime = LocalDateTime.of(1970, 1, 1, 0, 0, 0, 500_000_000)
+
+        override fun schedule(command: Runnable, delay: Long, unit: TimeUnit) {
+            scheduledCalls.add(ScheduledCall(command, delay, unit))
+        }
+
+        fun singleScheduled(): ScheduledCall {
+            assertEquals(1, scheduledCalls.size)
+            return scheduledCalls.single()
         }
     }
 
