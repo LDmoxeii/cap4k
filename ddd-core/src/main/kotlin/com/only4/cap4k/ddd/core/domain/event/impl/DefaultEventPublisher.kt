@@ -38,6 +38,15 @@ open class DefaultEventPublisher(
 
     companion object {
         private val log = LoggerFactory.getLogger(DefaultEventPublisher::class.java)
+
+        private fun delayMillis(delay: Duration): Long {
+            val millis = delay.toMillis()
+            return if (delay == Duration.ofMillis(millis)) {
+                millis.coerceAtLeast(1)
+            } else {
+                (millis + 1).coerceAtLeast(1)
+            }
+        }
     }
 
     private val executor: ScheduledExecutorService by lazy {
@@ -68,7 +77,7 @@ open class DefaultEventPublisher(
                 ZoneOffset.UTC
             )
             if (scheduleAt != null) {
-                delay = Duration.between(LocalDateTime.now(), scheduleAt)
+                delay = Duration.between(now(), scheduleAt)
             }
         }
 
@@ -78,9 +87,9 @@ open class DefaultEventPublisher(
                 if (delay.isNegative || delay.isZero) {
                     internalPublish4IntegrationEvent(event)
                 } else {
-                    executor.schedule({
+                    schedule({
                         internalPublish4IntegrationEvent(event)
-                    }, delay.seconds, TimeUnit.SECONDS)
+                    }, delayMillis(delay), TimeUnit.MILLISECONDS)
                 }
             }
 
@@ -95,13 +104,19 @@ open class DefaultEventPublisher(
                         internalPublish4DomainEvent(event)
                     }
                 } else {
-                    executor.schedule({
+                    schedule({
                         internalPublish4DomainEvent(event)
-                    }, delay.seconds, TimeUnit.SECONDS)
+                    }, delayMillis(delay), TimeUnit.MILLISECONDS)
                 }
             }
         }
     }
+
+    protected open fun schedule(command: Runnable, delay: Long, unit: TimeUnit) {
+        executor.schedule(command, delay, unit)
+    }
+
+    protected open fun now(): LocalDateTime = LocalDateTime.now()
 
     override fun resume(eventRecord: EventRecord, minNextTryTime: LocalDateTime) {
         val now = LocalDateTime.now()
