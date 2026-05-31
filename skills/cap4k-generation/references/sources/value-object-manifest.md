@@ -16,9 +16,9 @@ Rules:
 
 - use it for JSON-backed value objects that should generate checked-in source.
 - manifest entries do not need matching `types.registryFile` entries.
-- `scope` must be `shared` or `aggregate`.
-- `scope = shared` must not set `aggregate`.
-- `scope = aggregate` must set `aggregate`; duplicate names are rejected within the same aggregate.
+- omit `aggregates` for shared value objects.
+- set `aggregates` to one or more aggregate names for aggregate-local value objects.
+- duplicate names are rejected within the same aggregate.
 - `storage` currently supports `json`.
 - each value object must declare at least one field with `name` and `type`.
 - generated value-object source is `CHECKED_IN_SOURCE`; default conflict policy is `SKIP`.

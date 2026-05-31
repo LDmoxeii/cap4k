@@ -46,7 +46,7 @@
 - 让值对象服务于聚合行为，而不是替代聚合行为。比如 `Content` 负责“是否允许发布”，值对象只负责把输入值保持成合法、可比较、可复用的业务值。
 - callback 主路径和 polling 备用路径都先在 adapter / application 层完成外部协议转换，再统一构造同一种值对象进入 `MediaProcessingTask`。
 - 如果数据库需要 JSON、嵌入字段或列展开，那是持久化层决定如何承载；领域层仍然只关心这个值对象长什么业务样。当前 JSON-backed 形态可以由 `@T` + `types.valueObjectManifest` 生成 checked-in source，也可以由 `@T` + `types.registryFile` 接入手写类型。
-- `types.valueObjectManifest` 用 `scope = "shared"` 或 `scope = "aggregate"` 区分共享值对象和聚合独立值对象；`scope = "aggregate"` 必须声明 `aggregate`，`scope = "shared"` 不能声明 `aggregate`。
+- `types.valueObjectManifest` 用 `aggregates` 区分共享值对象和聚合独立值对象；空数组表示 shared，单个 aggregate 名称表示 aggregate-owned。
 
 ## 常见误用
 
@@ -63,7 +63,7 @@
 - 这段值语义是否真的被多个业务动作共享，或者真的需要独立校验与等值规则。
 - `Content` 与 `MediaProcessingTask` 的聚合行为是否仍然清晰，没有被值对象碎片替代。
 - JSON 字段是否只被当作 persistence carrier，而不是领域定义本身。
-- manifest 值对象是否清楚声明 `scope`，并且 generated checked-in source 的 `SKIP` ownership 已经在 `plan.json` 中确认。
+- manifest 值对象是否清楚声明 `aggregates` ownership，并且 generated checked-in source 的 `SKIP` ownership 已经在 `plan.json` 中确认。
 - `@VO` 是否只在确实需要 table-backed 值对象时使用，而不是被当成“用了值对象就必须建表”的默认动作。
 - 如果作者把 `ExternalMediaTaskId` 归到值对象，审阅者是否能看到明确的值语义、归一化或等值规则，而不只是 ID 防混淆诉求。
 - callback 主路径与 polling 备用路径进入内部后，是否构造成同一种值表达。

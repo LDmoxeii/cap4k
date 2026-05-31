@@ -71,14 +71,21 @@ private data class ValueObjectRenderModel(
 
     private fun buildingBlockContext(): Map<String, Any?> = mapOf(
         "tag" to "value_object",
+        "tagKotlinStringLiteral" to "value_object".toKotlinStringLiteral(),
         "name" to name,
+        "nameKotlinStringLiteral" to name.toKotlinStringLiteral(),
         "packageName" to packageName,
+        "packageNameKotlinStringLiteral" to packageName.toKotlinStringLiteral(),
         "description" to description,
         "descriptionKotlinStringLiteral" to description.orEmpty().toKotlinStringLiteral(),
         "aggregates" to aggregates,
+        "aggregateKotlinStringLiterals" to aggregates.map { it.toKotlinStringLiteral() },
         "eventName" to "",
+        "eventNameKotlinStringLiteral" to "".toKotlinStringLiteral(),
         "family" to "value-object",
+        "familyKotlinStringLiteral" to "value-object".toKotlinStringLiteral(),
         "variant" to "",
+        "variantKotlinStringLiteral" to "".toKotlinStringLiteral(),
     )
 }
 

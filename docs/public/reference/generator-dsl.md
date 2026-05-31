@@ -102,9 +102,9 @@ generators {
 | `flow` | 流程观察材料 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
 | `drawingBoard` | 设计 / 文档观察材料 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
 
-启用 `sources.designJson` 即可进入 design family planning，不再需要 `designCommand`、`designQuery`、`designDomainEvent` 等公开 generator switch。只有 `aggregate`、`flow`、`drawingBoard` 仍需要在 `generators {}` 中显式启用。
+启用 `sources.designJson` 即可进入 design family planning，不再需要 `designCommand`、`designQuery`、`designDomainEvent` 等公开 generator switch。`aggregate` / `aggregateProjection` 仍通过各自 DSL block 表示配置存在，并由 block 内部 artifact options 控制可选 DB-derived 产物；`flow` 和 `drawingBoard` 由 `sources.irAnalysis.inputDirs` 驱动。
 
-`tag = "integration_event"` 会生成事件契约类，要求启用 `sources.designJson` 且配置 `project.applicationModulePath`。对应 design entry 必须声明 `role`、`eventName`、至少一个 `requestFields` 字段，并保持 `responseFields` 为空。只有 `role = "inbound"` 的事件会生成 Spring `@EventListener` subscriber；`role = "outbound"` 只生成事件契约，不生成 subscriber。
+`tag = "integration_event"` 会生成事件契约类，要求启用 `sources.designJson` 且配置 `project.applicationModulePath`。对应 design entry 必须声明 `eventName`、至少一个 `fields` 字段，并保持 `resultFields` 为空。方向通过 `artifacts[{ family: "integration-event", variant: "inbound" | "outbound" }]` 表达；只有同时显式选择 `integration-subscriber` 且事件 variant 为 `inbound` 时才会生成 Spring `@EventListener` subscriber。
 
 ## `aggregate { }`
 
@@ -112,7 +112,6 @@ generators {
 
 ```kotlin
 aggregate {
-    enabled.set(true)
     unsupportedTablePolicy.set("FAIL")
     specialFields {
         idDefaultStrategy.set("uuid7")
@@ -130,7 +129,6 @@ aggregate {
 
 | 字段 | 含义 |
 | --- | --- |
-| `enabled` | 启用 aggregate 族 |
 | `unsupportedTablePolicy` | 不支持表结构时的策略 |
 | `specialFields.idDefaultStrategy` | 默认 ID 策略 |
 | `specialFields.deletedDefaultColumn` | 默认逻辑删除列 |
@@ -219,14 +217,14 @@ project { basePackage.set("com.acme.demo"); applicationModulePath.set("demo-appl
 sources { designJson { enabled.set(true); files.from("design/design.json") } }
 ```
 
-默认布局会把事件契约放到 application 层的 `application.subscribers.integration.<role>.<designPackage>` 下，把 inbound subscriber 骨架放到 `application.subscribers.integration` 下。模板覆盖文件名是 `design/integration_event.kt.peb` 和 `design/integration_event_subscriber.kt.peb`。
+默认布局会把事件契约放到 application 层的 `application.subscribers.integration.<variant>.<designPackage>` 下，把 inbound subscriber 骨架放到 `application.subscribers.integration` 下。模板覆盖文件名是 `design/integration_event.kt.peb` 和 `design/integration_event_subscriber.kt.peb`。
 
 aggregate family：
 
 ```kotlin
 project { basePackage.set("com.acme.demo"); domainModulePath.set("demo-domain"); applicationModulePath.set("demo-application"); adapterModulePath.set("demo-adapter") }
 sources { db { enabled.set(true); url.set("jdbc:..."); schema.set("PUBLIC") } }
-generators { aggregate { enabled.set(true) } }
+generators { aggregate { unsupportedTablePolicy.set("FAIL") } }
 ```
 
 analysis family：

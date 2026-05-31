@@ -980,8 +980,15 @@ private fun IrClass.findSuperTypeArgument(fqName: FqName, index: Int): IrType? {
 private fun IrClass.readAggregateElementInfo(aggregateElementAnn: FqName): AggregateInfo? {
     val ann = annotations.firstOrNull { it.symbol.owner.parentAsClass.fqNameWhenAvailable == aggregateElementAnn }
         ?: return null
-    val aggregateName = ann.getStringArg("aggregate") ?: ""
-    val type = ann.getStringArg("type") ?: ""
+    val className = fqNameWhenAvailable?.asString() ?: name.asString()
+    val aggregateName = ann.getStringArg("aggregate").orEmpty().trim()
+    val type = ann.getStringArg("type").orEmpty().trim()
+    require(type.isNotEmpty()) {
+        "AggregateElement annotation on $className must declare non-blank type"
+    }
+    require(type in SUPPORTED_AGGREGATE_ELEMENT_TYPES) {
+        "AggregateElement annotation on $className has unsupported type: $type"
+    }
     val root = ann.getBooleanArg("root") ?: false
     val resolvedName = if (aggregateName.isNotEmpty()) aggregateName else name.asString()
     return AggregateInfo(resolvedName, type, root)
@@ -1099,6 +1106,18 @@ private fun IrExpression.unwrapExpression(): IrExpression {
 }
 
 private const val AGG_TYPE_ENTITY = "entity"
+private val SUPPORTED_AGGREGATE_ELEMENT_TYPES = setOf(
+    "schema",
+    AGG_TYPE_ENTITY,
+    "repository",
+    "factory",
+    "specification",
+    "unique-query",
+    "unique-query-handler",
+    "unique-validator",
+    "strong-id",
+    "projection",
+)
 
 private class JsonFileMetadataSink(private val outputDir: String) : MetadataSink {
     override fun write(nodes: Sequence<Node>, relationships: Sequence<Relationship>) {

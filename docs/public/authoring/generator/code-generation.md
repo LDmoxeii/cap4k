@@ -113,7 +113,7 @@
 - JSON-backed value object 可以来自 `types.valueObjectManifest`，生成 checked-in source，默认 `SKIP`，converter 直接嵌套在生成的 value-object class 内。manifest entry 不需要再写 `types.registryFile` entry。
 - inline 或外部手写自定义类型可以继续通过 `@T` / `types.registryFile` 映射聚合字段和 converter；这类值对象 class、构造 / 校验 / 归一化、converter 仍属于作者手写主面。
 - `domain_event` 不是 payload-only 入口。当前 design 生成会同时规划 domain event 契约与对应 subscriber / handler 壳；如果这类 skeleton 缺失，默认动作是回到 generation，而不是先手写占位。
-- `integration_event` 是 application 层的设计契约。它必须声明 `role`、`eventName`、至少一个 `requestFields` 字段，并保持 `responseFields` 为空。`role = "inbound"` 会生成事件类和用于把外部事实转内部命令的 inbound subscriber 骨架；`role = "outbound"` 只生成事件类。subscriber 身份不写入 design JSON，默认 inbound 模板使用 Spring placeholder `\${spring.application.name:}`。
+- `integration_event` 是 application 层的设计契约。它必须声明 `artifacts[{ family: "integration-event", variant: "inbound" | "outbound" }]`、`eventName`、至少一个 `fields` 字段，并保持 `resultFields` 为空。`variant = "inbound"` 会生成事件类和用于把外部事实转内部命令的 inbound subscriber 骨架；`variant = "outbound"` 只生成事件类。subscriber 身份不写入 design JSON，默认 inbound 模板使用 Spring placeholder `\${spring.application.name:}`。
 - relation 和字段映射事实属于 aggregate / entity generation input。它们会影响 aggregate 主体、JPA 映射和相关模板上下文，但不是独立 output family，也不该被当成单独的 implementation backlog 项。
 - 当 `plan.json` 里某个文件持续作为计划产物出现时，不要因为它落在 `src/main/kotlin` 就默认把它当成随意手写文件；先回到 [生成 / 手写边界](../generation-boundaries.md) 做判断。
 

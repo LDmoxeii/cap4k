@@ -97,29 +97,36 @@ class DesignJsonSourceProvider : SourceProvider {
     }
 
     private fun parseFile(file: File): List<DesignSpecEntry> {
-        val array = file.reader(Charsets.UTF_8).use { JsonParser.parseReader(it).asJsonArray }
-        return array.map { element ->
+        val root = file.reader(Charsets.UTF_8).use { JsonParser.parseReader(it) }
+        require(root.isJsonArray) {
+            "design-json file ${file.path} root must be an array."
+        }
+        val array = root.asJsonArray
+        return array.mapIndexed { index, element ->
+            require(element.isJsonObject) {
+                "design-json file ${file.path} design entry[$index] must be an object."
+            }
             val obj = element.asJsonObject
-            val rawTag = obj["tag"].asString
-            val name = obj["name"].asString
+            val rawTag = readRequiredString(obj, "tag", "design entry", trim = false)
+            val name = readRequiredString(obj, "name", "design entry")
             val tag = parseTag(rawTag)
             rejectRemovedFields(obj, name)
-            val fields = parseFields(obj["fields"]?.asJsonArray)
-            val resultFields = parseFields(obj["resultFields"]?.asJsonArray)
+            val fields = parseFields(obj["fields"], name, "fields")
+            val resultFields = parseFields(obj["resultFields"], name, "resultFields")
             val artifacts = parseArtifacts(obj["artifacts"], name)
             val eventName = parseIntegrationEventName(obj, tag, name)
+            val persist = parsePersist(obj, tag, name)
             validateResultFields(tag, name, resultFields)
-            validatePersist(tag, name, obj)
             validateEventName(tag, name, obj)
             validateReservedFields(tag, name, fields)
             validateNoSelfTypes(name, fields + resultFields)
             DesignSpecEntry(
                 tag = tag,
-                packageName = readPackageName(obj["package"]?.asString, tag),
+                packageName = readPackageName(readOptionalString(obj, "package", "design entry $name"), tag),
                 name = name,
-                description = obj["description"]?.asString ?: "",
-                aggregates = obj["aggregates"]?.asJsonArray?.map { it.asString } ?: emptyList(),
-                persist = obj["persist"]?.asBoolean,
+                description = readOptionalString(obj, "description", "design entry $name").orEmpty(),
+                aggregates = parseStringArray(obj["aggregates"], name, "aggregates"),
+                persist = persist,
                 artifacts = artifacts,
                 fields = fields,
                 resultFields = resultFields,
@@ -146,11 +153,18 @@ class DesignJsonSourceProvider : SourceProvider {
         if (tag !in eventNameTags) {
             return null
         }
-        val eventName = obj["eventName"]?.asString?.trim()
+        val eventName = readOptionalString(obj, "eventName", "design entry $name")?.trim()
         require(tag != "integration_event" || !eventName.isNullOrEmpty()) {
             "integration_event $name must declare eventName."
         }
         return eventName
+    }
+
+    private fun parsePersist(obj: JsonObject, tag: String, name: String): Boolean? {
+        require(tag == "domain_event" || !obj.has("persist")) {
+            "design entry $name cannot declare persist on tag: $tag"
+        }
+        return readOptionalBoolean(obj, "persist", "design entry $name")
     }
 
     private fun validateResultFields(
@@ -172,12 +186,6 @@ class DesignJsonSourceProvider : SourceProvider {
         }
     }
 
-    private fun validatePersist(tag: String, name: String, obj: JsonObject) {
-        require(tag == "domain_event" || !obj.has("persist")) {
-            "design entry $name cannot declare persist on tag: $tag"
-        }
-    }
-
     private fun validateEventName(tag: String, name: String, obj: JsonObject) {
         require(tag in eventNameTags || !obj.has("eventName")) {
             "design entry $name cannot declare eventName on tag: $tag"
@@ -192,11 +200,11 @@ class DesignJsonSourceProvider : SourceProvider {
         }
     }
 
-    private fun validateReservedFields(tag: String, name: String, requestFields: List<FieldModel>) {
+    private fun validateReservedFields(tag: String, name: String, fields: List<FieldModel>) {
         if (tag != "domain_event") {
             return
         }
-        require(requestFields.none { it.name.equals("entity", ignoreCase = true) }) {
+        require(fields.none { it.name.equals("entity", ignoreCase = true) }) {
             "domain_event $name field 'entity' is reserved and derived from aggregates[0]."
         }
     }
@@ -241,19 +249,83 @@ class DesignJsonSourceProvider : SourceProvider {
         }
     }
 
-    private fun parseFields(array: JsonArray?): List<FieldModel> {
-        if (array == null) {
+    private fun parseFields(element: JsonElement?, entryName: String, fieldName: String): List<FieldModel> {
+        if (element == null) {
             return emptyList()
         }
-        return array.map { element ->
+        require(element.isJsonArray) {
+            "design entry $entryName $fieldName must be an array."
+        }
+        val array = element.asJsonArray
+        return array.mapIndexed { index, element ->
+            require(element.isJsonObject) {
+                "design entry $entryName $fieldName[$index] must be an object."
+            }
             val field = element.asJsonObject
             FieldModel(
-                name = field["name"].asString,
-                type = field["type"]?.asString ?: "kotlin.String",
-                nullable = field["nullable"]?.asBoolean ?: false,
-                defaultValue = field["defaultValue"]?.asString,
+                name = readRequiredString(field, "name", "design entry $entryName $fieldName[$index] field"),
+                type = readRequiredString(field, "type", "design entry $entryName $fieldName[$index] field"),
+                nullable = readOptionalBoolean(field, "nullable", "design entry $entryName $fieldName[$index] field")
+                    ?: false,
+                defaultValue = readOptionalString(
+                    field,
+                    "defaultValue",
+                    "design entry $entryName $fieldName[$index] field",
+                ),
             )
         }
     }
+
+    private fun parseStringArray(element: JsonElement?, entryName: String, fieldName: String): List<String> {
+        if (element == null) {
+            return emptyList()
+        }
+        require(element.isJsonArray) {
+            "design entry $entryName $fieldName must be an array."
+        }
+        val array = element.asJsonArray
+        return array.mapIndexed { index, item ->
+            require(item.isStringPrimitive()) {
+                "design entry $entryName $fieldName[$index] must be a nonblank string."
+            }
+            item.asString.trim().also { value ->
+                require(value.isNotEmpty()) {
+                    "design entry $entryName $fieldName[$index] must be a nonblank string."
+                }
+            }
+        }
+    }
+
+    private fun readRequiredString(
+        obj: JsonObject,
+        fieldName: String,
+        context: String,
+        trim: Boolean = true,
+    ): String {
+        val value = readOptionalString(obj, fieldName, context)
+        require(!value.isNullOrBlank()) {
+            "$context $fieldName must be a nonblank string."
+        }
+        return if (trim) value.trim() else value
+    }
+
+    private fun readOptionalString(obj: JsonObject, fieldName: String, context: String): String? {
+        val element = obj[fieldName] ?: return null
+        require(element.isStringPrimitive()) {
+            "$context $fieldName must be a nonblank string."
+        }
+        return element.asString
+    }
+
+    private fun readOptionalBoolean(obj: JsonObject, fieldName: String, context: String): Boolean? {
+        val element = obj[fieldName] ?: return null
+        require(element.isJsonPrimitive && element.asJsonPrimitive.isBoolean) {
+            "$context $fieldName must be a boolean."
+        }
+        return element.asBoolean
+    }
+
+    private fun JsonElement.isStringPrimitive(): Boolean =
+        isJsonPrimitive && asJsonPrimitive.isString
 
 }

@@ -13,11 +13,15 @@ internal fun aggregateElementContext(
     root: Boolean = false,
 ): Map<String, Any?> = mapOf(
     "aggregate" to aggregate,
+    "aggregateKotlinStringLiteral" to aggregate.toKotlinStringLiteral(),
     "name" to name,
+    "nameKotlinStringLiteral" to name.toKotlinStringLiteral(),
     "packageName" to packageName,
+    "packageNameKotlinStringLiteral" to packageName.toKotlinStringLiteral(),
     "description" to description,
     "descriptionKotlinStringLiteral" to description.toKotlinStringLiteral(),
     "type" to type,
+    "typeKotlinStringLiteral" to type.toKotlinStringLiteral(),
     "root" to root,
 )
 

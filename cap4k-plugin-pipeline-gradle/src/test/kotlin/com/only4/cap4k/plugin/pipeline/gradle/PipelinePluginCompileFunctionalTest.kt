@@ -214,8 +214,8 @@ class PipelinePluginCompileFunctionalTest {
         val designFile = projectDir.resolve("design/design.json")
         designFile.writeText(
             designFile.readText().replace(
-                "\"desc\": \"order \\\"created\\\" event\"",
-                "\"desc\": \"order */ created\"",
+                "\"description\": \"order \\\"created\\\" event\"",
+                "\"description\": \"order */ created\"",
             )
         )
 
@@ -652,10 +652,9 @@ class PipelinePluginCompileFunctionalTest {
         )
         val buildFile = projectDir.resolve("build.gradle.kts")
         val patchedBuildFile = buildFile.readText().replace(
-            Regex("""aggregate\s*\{\s*enabled\.set\(true\)\s*}"""),
+            Regex("""aggregate\s*\{\s*}"""),
             """
             |aggregate {
-            |            enabled.set(true)
             |            specialFields {
             |                idDefaultStrategy.set("identity")
             |            }

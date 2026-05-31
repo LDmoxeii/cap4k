@@ -6,16 +6,16 @@ internal data class DesignSagaRenderModel(
     val packageName: String,
     val name: String,
     val description: String?,
-    val requestFields: List<DesignRenderFieldModel>,
-    val responseFields: List<DesignRenderFieldModel>,
+    val fields: List<DesignRenderFieldModel>,
+    val resultFields: List<DesignRenderFieldModel>,
     val imports: List<String>,
 ) {
     fun toContextMap(): Map<String, Any?> = mapOf(
         "packageName" to packageName,
         "name" to name,
         "description" to description,
-        "requestFields" to requestFields,
-        "responseFields" to responseFields,
+        "fields" to fields,
+        "resultFields" to resultFields,
         "imports" to imports,
     )
 }
@@ -35,8 +35,8 @@ internal object DesignSagaRenderModelFactory {
             packageName = renderModel.packageName,
             name = renderModel.typeName,
             description = block.description,
-            requestFields = renderModel.requestFields,
-            responseFields = renderModel.responseFields,
+            fields = renderModel.fields,
+            resultFields = renderModel.resultFields,
             imports = renderModel.imports,
         )
     }

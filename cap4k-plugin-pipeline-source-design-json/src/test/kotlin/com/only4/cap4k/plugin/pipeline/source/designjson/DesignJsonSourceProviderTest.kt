@@ -34,8 +34,6 @@ class DesignJsonSourceProviderTest {
         assertEquals("order.submit", snapshot.entries.first().packageName)
         assertEquals("submit order command", snapshot.entries.first().description)
         assertEquals(listOf("Order"), snapshot.entries.first().aggregates)
-        assertEquals(emptyList<FieldModel>(), snapshot.entries.first().requestFields)
-        assertEquals(emptyList<FieldModel>(), snapshot.entries.first().responseFields)
         assertEquals(null, snapshot.entries.first().artifacts)
         assertEquals(1, snapshot.entries.first().fields.size)
         assertEquals("orderId", snapshot.entries.first().fields.first().name)
@@ -80,10 +78,6 @@ class DesignJsonSourceProviderTest {
 
         assertEquals("Find order page", entry.description)
         assertEquals(listOf("Order"), entry.aggregates)
-        assertEquals(emptyList<FieldModel>(), entry.requestFields)
-        assertEquals(emptyList<FieldModel>(), entry.responseFields)
-        assertEquals(emptyList<String>(), entry.targets)
-        assertEquals(null, entry.message)
         assertEquals("keyword", entry.fields.single().name)
         assertEquals(true, entry.fields.single().nullable)
         assertEquals("orderNo", entry.resultFields.single().name)
@@ -213,7 +207,28 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
-    fun `defaults missing field type to kotlin String`() {
+    fun `rejects malformed top level design json shape with stable message`() {
+        val rootObject = tempDir.resolve("root-object.json")
+        Files.writeString(rootObject, """{"tag":"query"}""", StandardCharsets.UTF_8)
+
+        val rootError = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(rootObject.toString()))
+        }
+
+        assertTrue(rootError.message!!.contains("root must be an array"))
+
+        val entryString = tempDir.resolve("entry-string.json")
+        Files.writeString(entryString, """["query"]""", StandardCharsets.UTF_8)
+
+        val entryError = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(entryString.toString()))
+        }
+
+        assertTrue(entryError.message!!.contains("design entry[0] must be an object"))
+    }
+
+    @Test
+    fun `rejects missing field type`() {
         val tempFile = tempDir.resolve("default-type-design.json")
         Files.writeString(
             tempFile,
@@ -234,10 +249,14 @@ class DesignJsonSourceProviderTest {
             StandardCharsets.UTF_8,
         )
 
-        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
 
-        assertEquals("create order", snapshot.entries.first().description)
-        assertEquals("kotlin.String", snapshot.entries.first().fields.first().type)
+        assertEquals(
+            "design entry CreateOrder fields[0] field type must be a nonblank string.",
+            error.message,
+        )
     }
 
     @Test
@@ -475,6 +494,36 @@ class DesignJsonSourceProviderTest {
         assertEquals(listOf("domain_service", "saga"), snapshot.entries.map { it.tag })
         assertEquals(listOf("Content"), snapshot.entries[0].aggregates)
         assertEquals("contentId", snapshot.entries[1].fields.single().name)
+    }
+
+    @Test
+    fun `rejects saga result fields`() {
+        val tempFile = tempDir.resolve("saga-result-fields.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "saga",
+                    "package": "content.workflow",
+                    "name": "PublishContentSaga",
+                    "description": "publish content",
+                    "fields": [{ "name": "contentId", "type": "ContentId" }],
+                    "resultFields": [{ "name": "accepted", "type": "Boolean" }]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals(
+            "design entry PublishContentSaga cannot declare resultFields on tag: saga",
+            error.message,
+        )
     }
 
     @Test

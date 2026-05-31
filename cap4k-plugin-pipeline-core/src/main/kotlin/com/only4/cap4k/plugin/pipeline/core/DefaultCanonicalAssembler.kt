@@ -7,13 +7,9 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
 import com.only4.cap4k.plugin.pipeline.api.AggregateRef
 import com.only4.cap4k.plugin.pipeline.api.AggregateDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
-import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
-import com.only4.cap4k.plugin.pipeline.api.ClientModel
-import com.only4.cap4k.plugin.pipeline.api.CommandModel
-import com.only4.cap4k.plugin.pipeline.api.CommandVariant
 import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
@@ -31,14 +27,10 @@ import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.EnumManifestSnapshot
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
-import com.only4.cap4k.plugin.pipeline.api.IntegrationEventModel
-import com.only4.cap4k.plugin.pipeline.api.IntegrationEventRole
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnostics
-import com.only4.cap4k.plugin.pipeline.api.QueryModel
 import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
-import com.only4.cap4k.plugin.pipeline.api.SagaModel
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SourceSnapshot
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
@@ -63,37 +55,16 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val valueObjects = snapshots.filterIsInstance<ValueObjectManifestSnapshot>().flatMap { it.valueObjects }
         val typeRegistry = TypeRegistryModel(config.typeRegistry.entries)
         val analysisSnapshot = snapshots.filterIsInstance<IrAnalysisSnapshot>().firstOrNull()
-        val designBlocks = (
-            designSnapshot?.entries.orEmpty()
-                .asSequence()
-                .filter { entry -> entry.tag in SupportedDesignBlockTags }
-                .map { entry -> entry.toDesignBlockModel() } +
-                analysisSnapshot
-                    ?.designElements
-                    .orEmpty()
-                    .asSequence()
-                    .mapNotNull { element -> element.toDesignBlockModelOrNull() }
-            )
+        val designBlocks = designSnapshot?.entries.orEmpty()
+            .asSequence()
+            .filter { entry -> entry.tag in SupportedDesignBlockTags }
+            .map { entry -> entry.toDesignBlockModel() }
             .fold(linkedMapOf<String, DesignBlockModel>()) { acc, block ->
-                acc.putIfAbsent(designBlockKey(block), block)
+                val key = designBlockKey(block)
+                acc[key] = acc[key]?.let { existing -> mergeDesignBlocks(existing, block) } ?: block
                 acc
             }
             .values
-            .toList()
-
-        val apiPayloads = designSnapshot?.entries.orEmpty()
-            .asSequence()
-            .filter { entry -> entry.tag == "api_payload" }
-            .map { entry ->
-                ApiPayloadModel(
-                    packageName = entry.packageName,
-                    typeName = entry.name.normalizeUpperCamelTypeName(),
-                    description = entry.description,
-                    requestFields = entry.primaryFields(),
-                    responseFields = entry.resultPayloadFields(),
-                    traits = entry.traits,
-                )
-            }
             .toList()
 
         val domainServices = designSnapshot?.entries.orEmpty()
@@ -105,39 +76,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     packageName = entry.packageName,
                     description = entry.description,
                     aggregates = entry.aggregates,
-                )
-            }
-            .toList()
-
-        val sagas = designSnapshot?.entries.orEmpty()
-            .asSequence()
-            .filter { entry -> entry.tag == "saga" }
-            .map { entry ->
-                SagaModel(
-                    name = entry.name,
-                    packageName = entry.packageName,
-                    description = entry.description,
-                    requestFields = entry.primaryFields(),
-                    responseFields = entry.resultPayloadFields(),
-                )
-            }
-            .toList()
-
-        val integrationEvents = designSnapshot?.entries.orEmpty()
-            .asSequence()
-            .filter { entry -> entry.tag == "integration_event" }
-            .mapNotNull { entry ->
-                val effectiveArtifacts = entry.effectiveArtifacts()
-                val integrationEventArtifact = effectiveArtifacts.singleOrNull { it.family == "integration-event" }
-                    ?: return@mapNotNull null
-
-                IntegrationEventModel(
-                    packageName = entry.packageName,
-                    typeName = entry.name.toIntegrationEventTypeName(),
-                    description = entry.description,
-                    role = entry.integrationEventRole(integrationEventArtifact),
-                    eventName = entry.integrationEventName(),
-                    fields = entry.integrationEventRequestFields(),
                 )
             }
             .toList()
@@ -295,52 +233,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     )
                 }
             )
-        val commands = designSnapshot?.entries.orEmpty()
-            .asSequence()
-            .filter { entry -> entry.tag == "command" }
-            .map { entry ->
-                CommandModel(
-                    packageName = entry.packageName,
-                    typeName = "${entry.name}Cmd",
-                    description = entry.description,
-                    aggregateRef = entry.requestAggregateRef(aggregateEntityMetadata),
-                    requestFields = entry.primaryFields(),
-                    responseFields = entry.resultPayloadFields(),
-                    variant = CommandVariant.DEFAULT,
-                )
-            }
-            .toList()
-
-        val queries = designSnapshot?.entries.orEmpty()
-            .asSequence()
-            .filter { entry -> entry.tag == "query" }
-            .map { entry ->
-                QueryModel(
-                    packageName = entry.packageName,
-                    typeName = "${entry.name}Qry",
-                    description = entry.description,
-                    aggregateRef = entry.requestAggregateRef(aggregateEntityMetadata),
-                    requestFields = entry.primaryFields(),
-                    responseFields = entry.resultPayloadFields(),
-                    traits = entry.traits,
-                )
-            }
-            .toList()
-
-        val clients = designSnapshot?.entries.orEmpty()
-            .asSequence()
-            .filter { entry -> entry.tag == "client" }
-            .map { entry ->
-                ClientModel(
-                    packageName = entry.packageName,
-                    typeName = "${entry.name}Cli",
-                    description = entry.description,
-                    aggregateRef = entry.requestAggregateRef(aggregateEntityMetadata),
-                    requestFields = entry.primaryFields(),
-                    responseFields = entry.resultPayloadFields(),
-                )
-            }
-            .toList()
         val domainEvents = designSnapshot?.entries.orEmpty()
             .asSequence()
             .filter { entry -> entry.tag == "domain_event" }
@@ -460,7 +352,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             .mapNotNull { it.toDrawingBoardElementOrNull() }
             .fold(linkedMapOf<String, DrawingBoardElementModel>()) { acc, element ->
                 val key = drawingBoardElementKey(element)
-                acc.putIfAbsent(key, element)
+                acc[key] = acc[key]?.let { existing -> mergeDrawingBoardElements(existing, element) } ?: element
                 acc
             }
             .values
@@ -476,10 +368,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return CanonicalAssemblyResult(
             model = CanonicalModel(
                 designBlocks = designBlocks,
-                commands = commands,
-                queries = queries,
-                clients = clients,
-                apiPayloads = apiPayloads,
                 domainEvents = domainEvents,
                 schemas = aggregateModels.map { it.first },
                 entities = entities,
@@ -494,11 +382,9 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 aggregatePersistenceProviderControls = aggregatePersistenceProviderControls,
                 aggregateIdPolicyControls = aggregateIdPolicyControls,
                 aggregateSpecialFieldResolvedPolicies = specialFieldResolution.resolvedPolicies,
-                integrationEvents = integrationEvents,
                 strongIds = strongIds,
                 valueObjects = valueObjects,
                 domainServices = domainServices,
-                sagas = sagas,
                 typeRegistry = typeRegistry,
             ),
             diagnostics = diagnostics,
@@ -609,22 +495,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         }
     }
 
-    private fun DesignSpecEntry.requestAggregateRef(
-        aggregateLookup: Map<String, AggregateMetadataRecord>,
-    ): AggregateRef? {
-        val aggregateName = aggregates.firstOrNull() ?: return null
-        val aggregate = aggregateLookup[aggregateName] ?: return null
-        return AggregateRef(
-            name = aggregateName,
-            packageName = aggregate.rootPackageName,
-        )
-    }
-
     private fun DesignSpecEntry.primaryFields(): List<FieldModel> =
-        fields.ifEmpty { requestFields }
-
-    private fun DesignSpecEntry.resultPayloadFields(): List<FieldModel> =
-        resultFields.ifEmpty { responseFields }
+        fields
 
     private fun DesignSpecEntry.toDesignBlockModel(): DesignBlockModel {
         validateDesignBlockSharedFields()
@@ -638,6 +510,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             eventName = eventName.orEmpty(),
             persist = persist,
             artifacts = artifactSelections,
+            artifactsDeclared = artifacts != null,
             fields = fields,
             resultFields = resultFields,
         )
@@ -657,6 +530,14 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             val aggregateCount = aggregates.size
             require(aggregateCount == 1) {
                 "domain_event $name must declare exactly one aggregate, but found $aggregateCount."
+            }
+        }
+        if (tag == "integration_event" && effectiveArtifacts().any { it.family == "integration-event" }) {
+            require(!eventName.isNullOrBlank()) {
+                "integration_event $name must declare eventName."
+            }
+            require(fields.isNotEmpty()) {
+                "integration_event $name must declare at least one fields entry."
             }
         }
     }
@@ -746,14 +627,15 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val normalizedTag = normalizeDrawingBoardTag(tag)?.takeIf { it in SupportedDesignBlockTags } ?: return null
         val artifactSelections = normalizeRecoveredDesignBlockArtifacts(
             normalizedTag,
-            artifacts.ifEmpty { defaultArtifactsFor(normalizedTag) },
+            artifacts,
+            artifactsDeclared,
         )
         validateArtifactSelections(
             entryName = name,
             tag = normalizedTag,
             artifacts = artifactSelections,
         )
-        val normalizedFields = requestFields
+        val normalizedFields = fields
             .filterNot { field ->
                 normalizedTag == "domain_event" && field.name.equals("entity", ignoreCase = true)
             }
@@ -768,23 +650,22 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             eventName = eventName.orEmpty(),
             persist = persist,
             artifacts = artifactSelections,
+            artifactsDeclared = artifactsDeclared,
             fields = normalizedFields,
-            resultFields = responseFields.map { field -> field.toFieldModel() },
+            resultFields = resultFields.map { field -> field.toFieldModel() },
         )
     }
 
     private fun normalizeRecoveredDesignBlockArtifacts(
         tag: String,
         artifacts: List<ArtifactSelectionModel>,
+        artifactsDeclared: Boolean,
     ): List<ArtifactSelectionModel> =
-        artifacts.mapNotNull { artifact ->
-            val allowedVariants = SupportedArtifactFamilies[artifact.family] ?: return@mapNotNull null
-            if (artifact.variant == "default" && "" in allowedVariants) {
-                artifact.copy(variant = "")
-            } else {
-                artifact
-            }
-        }.ifEmpty { defaultArtifactsFor(tag) }
+        if (artifactsDeclared) {
+            artifacts
+        } else {
+            artifacts.ifEmpty { defaultArtifactsFor(tag) }
+        }
 
     private fun DesignFieldSnapshot.toFieldModel(): FieldModel =
         FieldModel(
@@ -799,7 +680,12 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         if (normalizedTag !in SupportedDrawingBoardTags) {
             return null
         }
-        val normalizedRequestFields = requestFields
+        validateArtifactSelections(
+            entryName = name,
+            tag = normalizedTag,
+            artifacts = artifacts,
+        )
+        val normalizedFields = fields
             .filterNot { field ->
                 normalizedTag == "domain_event" && field.name.equals("entity", ignoreCase = true)
             }
@@ -811,13 +697,9 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             description = description,
             aggregates = aggregates,
             artifacts = artifacts,
-            entity = if (normalizedTag == "domain_event") null else entity,
+            artifactsDeclared = artifactsDeclared,
             persist = persist,
-            traits = traits,
-            message = message,
-            targets = targets,
-            valueType = valueType,
-            requestFields = normalizedRequestFields.map { field ->
+            fields = normalizedFields.map { field ->
                 DrawingBoardFieldModel(
                     name = field.name,
                     type = field.type,
@@ -825,7 +707,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     defaultValue = field.defaultValue,
                 )
             },
-            responseFields = responseFields.map { field ->
+            resultFields = resultFields.map { field ->
                 DrawingBoardFieldModel(
                     name = field.name,
                     type = field.type,
@@ -833,7 +715,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     defaultValue = field.defaultValue,
                 )
             },
-            role = role,
             eventName = eventName,
         )
     }
@@ -859,23 +740,129 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return "${block.tag}|${block.packageName}|${block.name}"
     }
 
-    private fun DesignSpecEntry.integrationEventRole(integrationEventArtifact: ArtifactSelectionModel): IntegrationEventRole {
-        return when (integrationEventArtifact.variant) {
-            "inbound" -> IntegrationEventRole.INBOUND
-            "outbound" -> IntegrationEventRole.OUTBOUND
-            else -> throw IllegalArgumentException("integration_event $name must select integration-event variant inbound or outbound.")
+    private fun mergeDesignBlocks(
+        existing: DesignBlockModel,
+        incoming: DesignBlockModel,
+    ): DesignBlockModel {
+        val context = "${existing.tag} ${existing.packageName} ${existing.name}"
+        require(existing.tag == incoming.tag && existing.packageName == incoming.packageName && existing.name == incoming.name) {
+            "cannot merge different design blocks: $context"
         }
+
+        validateArtifactSelections(
+            entryName = existing.name,
+            tag = existing.tag,
+            artifacts = existing.artifacts + incoming.artifacts,
+        )
+        val artifacts = (existing.artifacts + incoming.artifacts)
+            .distinctBy { it.selectionKey() }
+
+        return existing.copy(
+            description = mergeStringMetadata(context, "description", existing.description, incoming.description),
+            aggregates = mergeListMetadata(context, "aggregates", existing.aggregates, incoming.aggregates),
+            eventName = mergeStringMetadata(context, "eventName", existing.eventName, incoming.eventName),
+            persist = mergeBooleanMetadata(context, "persist", existing.persist, incoming.persist),
+            artifacts = artifacts,
+            fields = mergeFieldMetadata(context, "fields", existing.fields, incoming.fields),
+            resultFields = mergeFieldMetadata(context, "resultFields", existing.resultFields, incoming.resultFields),
+        )
     }
 
-    private fun DesignSpecEntry.integrationEventName(): String {
-        return eventName?.takeIf { it.isNotBlank() }
-            ?: throw IllegalArgumentException("integration_event $name must declare eventName.")
+    private fun mergeStringMetadata(
+        context: String,
+        field: String,
+        existing: String,
+        incoming: String,
+    ): String {
+        if (incoming.isBlank()) return existing
+        if (existing.isBlank()) return incoming
+        require(existing == incoming) { "conflicting design block metadata for $context: $field" }
+        return existing
+    }
+
+    private fun <T> mergeListMetadata(
+        context: String,
+        field: String,
+        existing: List<T>,
+        incoming: List<T>,
+    ): List<T> {
+        if (incoming.isEmpty()) return existing
+        if (existing.isEmpty()) return incoming
+        require(existing == incoming) { "conflicting design block metadata for $context: $field" }
+        return existing
+    }
+
+    private fun mergeBooleanMetadata(
+        context: String,
+        field: String,
+        existing: Boolean?,
+        incoming: Boolean?,
+    ): Boolean? {
+        if (incoming == null) return existing
+        if (existing == null) return incoming
+        require(existing == incoming) { "conflicting design block metadata for $context: $field" }
+        return existing
+    }
+
+    private fun mergeFieldMetadata(
+        context: String,
+        field: String,
+        existing: List<FieldModel>,
+        incoming: List<FieldModel>,
+    ): List<FieldModel> = mergeListMetadata(context, field, existing, incoming)
+
+    private fun mergeDrawingBoardElements(
+        existing: DrawingBoardElementModel,
+        incoming: DrawingBoardElementModel,
+    ): DrawingBoardElementModel {
+        val context = "${existing.tag} ${existing.packageName} ${existing.name}"
+        require(existing.tag == incoming.tag && existing.packageName == incoming.packageName && existing.name == incoming.name) {
+            "cannot merge different drawing-board elements: $context"
+        }
+
+        val artifacts = (existing.artifacts + incoming.artifacts)
+            .distinctBy { it.selectionKey() }
+        validateArtifactSelections(
+            entryName = existing.name,
+            tag = existing.tag,
+            artifacts = artifacts,
+        )
+
+        return existing.copy(
+            description = mergeStringMetadata(context, "description", existing.description, incoming.description),
+            aggregates = mergeListMetadata(context, "aggregates", existing.aggregates, incoming.aggregates),
+            artifacts = artifacts,
+            artifactsDeclared = existing.artifactsDeclared || incoming.artifactsDeclared,
+            persist = mergeBooleanMetadata(context, "persist", existing.persist, incoming.persist),
+            fields = mergeDrawingBoardFieldMetadata(context, "fields", existing.fields, incoming.fields),
+            resultFields = mergeDrawingBoardFieldMetadata(context, "resultFields", existing.resultFields, incoming.resultFields),
+            eventName = mergeNullableStringMetadata(context, "eventName", existing.eventName, incoming.eventName),
+        )
+    }
+
+    private fun mergeDrawingBoardFieldMetadata(
+        context: String,
+        field: String,
+        existing: List<DrawingBoardFieldModel>,
+        incoming: List<DrawingBoardFieldModel>,
+    ): List<DrawingBoardFieldModel> = mergeListMetadata(context, field, existing, incoming)
+
+    private fun mergeNullableStringMetadata(
+        context: String,
+        field: String,
+        existing: String?,
+        incoming: String?,
+    ): String? {
+        if (incoming.isNullOrBlank()) return existing
+        if (existing.isNullOrBlank()) return incoming
+        require(existing == incoming) { "conflicting design block metadata for $context: $field" }
+        return existing
     }
 
     private fun DesignSpecEntry.integrationEventRequestFields(): List<FieldModel> {
         val fields = primaryFields()
         require(fields.isNotEmpty()) {
-            "integration_event $name must declare at least one requestField."
+            "integration_event $name must declare at least one fields entry."
         }
         return fields
     }

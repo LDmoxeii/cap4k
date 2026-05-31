@@ -110,7 +110,7 @@ class DefaultPipelineRunnerTest {
     @Test
     fun `model driven built in planner runs without generator config key`() {
         val plannedItem = ArtifactPlanItem(
-            generatorId = "design-command",
+            generatorId = "command",
             moduleRole = "app",
             templateId = "design/command.kt.peb",
             outputPath = "generated/CreateOrderCmd.kt",
@@ -118,7 +118,7 @@ class DefaultPipelineRunnerTest {
         )
         var rendererReceivedPlanItems: List<ArtifactPlanItem> = emptyList()
         val generatorProvider = object : GeneratorProvider {
-            override val id: String = "design-command"
+            override val id: String = "command"
 
             override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> =
                 listOf(plannedItem)
@@ -232,7 +232,7 @@ class DefaultPipelineRunnerTest {
     @Test
     fun `addon provider contributes plan item after built-in generator item`() {
         val builtInItem = ArtifactPlanItem(
-            generatorId = "design-command",
+            generatorId = "command",
             moduleRole = "app",
             templateId = "design/command.kt.peb",
             outputPath = "generated/CreateOrderCmd.kt",
@@ -333,7 +333,7 @@ class DefaultPipelineRunnerTest {
     @Test
     fun `transformed non observation item using observation generator id is not forced to overwrite`() {
         val checkedInItem = ArtifactPlanItem(
-            generatorId = "design-command",
+            generatorId = "command",
             moduleRole = "application",
             templateId = "design/command.kt.peb",
             outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/CreateOrderCmd.kt",
@@ -564,7 +564,7 @@ class DefaultPipelineRunnerTest {
                 config = configuredConfig(),
                 transformPlanItem = {
                     it.copy(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         templateId = "design/command.kt.peb",
                     )
                 },
@@ -581,7 +581,7 @@ class DefaultPipelineRunnerTest {
     @Test
     fun `does not validate built-in item as addon item when transformed generator id matches addon provider id`() {
         val builtInItem = ArtifactPlanItem(
-            generatorId = "design-command",
+            generatorId = "command",
             moduleRole = "app",
             templateId = "design/command.kt.peb",
             outputPath = "generated/CreateOrderCmd.kt",
@@ -594,7 +594,7 @@ class DefaultPipelineRunnerTest {
             addonProviders = listOf(addonProvider("sample-addon", emptyList())),
             config = configuredConfig(),
             transformPlanItem = {
-                if (it.generatorId == "design-command") transformedBuiltInItem else it
+                if (it.generatorId == "command") transformedBuiltInItem else it
             },
         )
 
@@ -641,7 +641,7 @@ class DefaultPipelineRunnerTest {
     @Test
     fun `template conflict override beats planner default for checked-in source items`() {
         val plannedItem = ArtifactPlanItem(
-            generatorId = "design-command",
+            generatorId = "command",
             moduleRole = "application",
             templateId = "design/command.kt.peb",
             outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/CreateOrderCmd.kt",
@@ -669,7 +669,7 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
-    fun `generated source items keep overwrite even when template override conflicts`() {
+    fun `generated source items honor template conflict overrides when not observation outputs`() {
         val plannedItem = ArtifactPlanItem(
             generatorId = "aggregate",
             moduleRole = "domain",
@@ -694,7 +694,7 @@ class DefaultPipelineRunnerTest {
             ),
         )
 
-        val expectedResolvedItem = plannedItem.copy(conflictPolicy = ConflictPolicy.OVERWRITE)
+        val expectedResolvedItem = plannedItem.copy(conflictPolicy = ConflictPolicy.FAIL)
 
         assertEquals(listOf(expectedResolvedItem), result.rendererReceivedPlanItems)
         assertEquals(listOf(expectedResolvedItem), result.pipelineResult.planItems)
@@ -703,7 +703,7 @@ class DefaultPipelineRunnerTest {
     @Test
     fun `include plan item hook observes pre resolution conflict policy`() {
         val plannedItem = ArtifactPlanItem(
-            generatorId = "design-command",
+            generatorId = "command",
             moduleRole = "application",
             templateId = "design/command.kt.peb",
             outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/CreateOrderCmd.kt",
@@ -758,14 +758,14 @@ class DefaultPipelineRunnerTest {
 
         val expectedPlanItems = listOf(
             ArtifactPlanItem(
-                generatorId = "design-command",
+                generatorId = "command",
                 moduleRole = "app",
                 templateId = "template-overwrite",
                 outputPath = "generated/Request.kt",
                 conflictPolicy = ConflictPolicy.OVERWRITE,
             ),
             ArtifactPlanItem(
-                generatorId = "design-command",
+                generatorId = "command",
                 moduleRole = "app",
                 templateId = "template-skip",
                 outputPath = "generated/Skipped.kt",
@@ -774,7 +774,7 @@ class DefaultPipelineRunnerTest {
         )
 
         val configuredGeneratorProvider = object : GeneratorProvider {
-            override val id: String = "design-command"
+            override val id: String = "command"
 
             override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
                 callOrder += "plan"
@@ -834,7 +834,7 @@ class DefaultPipelineRunnerTest {
                 layout = ProjectLayout.SINGLE_MODULE,
                 modules = mapOf("app" to "sample-app"),
                 sources = mapOf("design-json" to SourceConfig()),
-                generators = mapOf("design-command" to GeneratorConfig()),
+                generators = mapOf("command" to GeneratorConfig()),
                 templates = TemplateConfig(
                     preset = "default",
                     overrideDirs = emptyList(),
@@ -906,6 +906,51 @@ class DefaultPipelineRunnerTest {
         }
 
         assertEquals("configured generators have no registered providers: missing-generator", error.message)
+        assertEquals(emptyList<String>(), callOrder)
+    }
+
+    @Test
+    fun `run fails fast when configured source has no registered provider`() {
+        val callOrder = mutableListOf<String>()
+        val assembler = object : CanonicalAssembler {
+            override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
+                callOrder += "normalize"
+                return CanonicalAssemblyResult(CanonicalModel())
+            }
+        }
+        val renderer = object : ArtifactRenderer {
+            override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> {
+                callOrder += "render"
+                return emptyList()
+            }
+        }
+
+        val runner = DefaultPipelineRunner(
+            sources = emptyList(),
+            generators = emptyList(),
+            assembler = assembler,
+            renderer = renderer,
+            exporter = NoopArtifactExporter(),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runner.run(
+                ProjectConfig(
+                    basePackage = "com.only4.cap4k.sample",
+                    layout = ProjectLayout.SINGLE_MODULE,
+                    modules = mapOf("app" to "sample-app"),
+                    sources = mapOf("unknown-source" to SourceConfig()),
+                    generators = emptyMap(),
+                    templates = TemplateConfig(
+                        preset = "default",
+                        overrideDirs = emptyList(),
+                        conflictPolicy = ConflictPolicy.OVERWRITE,
+                    ),
+                )
+            )
+        }
+
+        assertEquals("configured sources have no registered providers: unknown-source", error.message)
         assertEquals(emptyList<String>(), callOrder)
     }
 
@@ -1038,7 +1083,7 @@ class DefaultPipelineRunnerTest {
         }
 
         val generatorProvider = object : GeneratorProvider {
-            override val id: String = "design-command"
+            override val id: String = "command"
 
             override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
                 return listOf(
@@ -1091,7 +1136,7 @@ class DefaultPipelineRunnerTest {
             ),
             generators = listOf(
                 object : GeneratorProvider {
-                    override val id: String = config.generators.keys.firstOrNull() ?: "design-command"
+                    override val id: String = config.generators.keys.firstOrNull() ?: "command"
 
                     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> = plannedItems
                 }
@@ -1119,7 +1164,7 @@ class DefaultPipelineRunnerTest {
     }
 
     private fun configuredConfig(
-        generators: Map<String, GeneratorConfig> = mapOf("design-command" to GeneratorConfig()),
+        generators: Map<String, GeneratorConfig> = mapOf("command" to GeneratorConfig()),
         templates: TemplateConfig = TemplateConfig(
             preset = "default",
             overrideDirs = emptyList(),

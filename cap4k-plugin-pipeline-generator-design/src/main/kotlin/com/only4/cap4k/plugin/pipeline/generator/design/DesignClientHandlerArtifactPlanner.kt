@@ -35,7 +35,7 @@ class DesignClientHandlerArtifactPlanner : GeneratorProvider {
                         clientType = clientType,
                         block = block,
                     ).toContextMap() + mapOf(
-                        "responseFields" to block.resultFields
+                        "resultFields" to block.resultFields
                             .asSequence()
                             .filterNot { it.name.contains('.') }
                             .map { field -> mapOf("name" to field.name) }

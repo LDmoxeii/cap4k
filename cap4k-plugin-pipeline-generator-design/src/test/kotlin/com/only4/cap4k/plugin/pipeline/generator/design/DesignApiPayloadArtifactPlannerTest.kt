@@ -57,7 +57,7 @@ class DesignApiPayloadArtifactPlannerTest {
             listOf(
                 DesignRenderFieldModel(name = "address", renderedType = "Address?", nullable = true),
             ),
-            payload.context["requestFields"],
+            payload.context["fields"],
         )
         assertEquals(
             listOf(
@@ -69,13 +69,13 @@ class DesignApiPayloadArtifactPlannerTest {
                     ),
                 ),
             ),
-            payload.context["requestNestedTypes"],
+            payload.context["nestedTypes"],
         )
         assertEquals(
             listOf(
                 DesignRenderFieldModel(name = "result", renderedType = "Result?", nullable = true),
             ),
-            payload.context["responseFields"],
+            payload.context["resultFields"],
         )
         assertEquals(
             listOf(
@@ -86,7 +86,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     ),
                 ),
             ),
-            payload.context["responseNestedTypes"],
+            payload.context["resultNestedTypes"],
         )
     }
 
@@ -117,7 +117,7 @@ class DesignApiPayloadArtifactPlannerTest {
         val payload = items.single()
         assertEquals(
             listOf(DesignRenderFieldModel(name = "fileList", renderedType = "List<FileItem>")),
-            payload.context["requestFields"],
+            payload.context["fields"],
         )
         assertEquals(
             listOf(
@@ -136,7 +136,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     ),
                 ),
             ),
-            payload.context["requestNestedTypes"],
+            payload.context["nestedTypes"],
         )
     }
 
@@ -193,7 +193,7 @@ class DesignApiPayloadArtifactPlannerTest {
         assertEquals(true, payload.context["pageRequest"])
         assertEquals(
             listOf(DesignRenderFieldModel(name = "page", renderedType = "PageData<Item>")),
-            payload.context["responseFields"],
+            payload.context["resultFields"],
         )
         assertEquals(
             listOf(
@@ -205,7 +205,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     ),
                 ),
             ),
-            payload.context["responseNestedTypes"],
+            payload.context["resultNestedTypes"],
         )
         assertEquals(listOf("com.only4.cap4k.ddd.core.share.PageData"), payload.context["imports"])
     }
@@ -415,7 +415,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     ),
                 ),
             ),
-            payload.context["requestNestedTypes"],
+            payload.context["nestedTypes"],
         )
     }
 
@@ -453,7 +453,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     fields = listOf(DesignRenderFieldModel(name = "requestValue", renderedType = "String")),
                 ),
             ),
-            payload.context["requestNestedTypes"],
+            payload.context["nestedTypes"],
         )
         assertEquals(
             listOf(
@@ -465,7 +465,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     ),
                 ),
             ),
-            payload.context["responseNestedTypes"],
+            payload.context["resultNestedTypes"],
         )
     }
 
@@ -496,7 +496,7 @@ class DesignApiPayloadArtifactPlannerTest {
         val payload = items.single()
         assertEquals(
             listOf(DesignRenderFieldModel(name = "externalItem", renderedType = "Item")),
-            payload.context["requestFields"],
+            payload.context["fields"],
         )
         assertEquals(listOf("com.acme.shared.Item"), payload.context["imports"])
         assertEquals(
@@ -506,7 +506,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     fields = listOf(DesignRenderFieldModel(name = "id", renderedType = "Long")),
                 ),
             ),
-            payload.context["responseNestedTypes"],
+            payload.context["resultNestedTypes"],
         )
     }
 
@@ -538,7 +538,7 @@ class DesignApiPayloadArtifactPlannerTest {
                 DesignRenderFieldModel(name = "list", renderedType = "List<Item>"),
                 DesignRenderFieldModel(name = "externalItem", renderedType = "com.acme.shared.Item"),
             ),
-            payload.context["requestFields"],
+            payload.context["fields"],
         )
         assertEquals(emptyList<String>(), payload.context["imports"])
         assertEquals(
@@ -548,7 +548,7 @@ class DesignApiPayloadArtifactPlannerTest {
                     fields = listOf(DesignRenderFieldModel(name = "id", renderedType = "Long")),
                 ),
             ),
-            payload.context["requestNestedTypes"],
+            payload.context["nestedTypes"],
         )
     }
 

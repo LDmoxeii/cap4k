@@ -8,13 +8,13 @@ import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
-import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.OutputRootLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -73,8 +73,9 @@ class DrawingBoardArtifactPlannerTest {
         val plan = planner.plan(
             config(),
             CanonicalModel(
-                designBlocks = listOf(
-                    DesignBlockModel(
+                drawingBoard = DrawingBoardModel(
+                    elements = listOf(
+                        DrawingBoardElementModel(
                             tag = "query",
                             packageName = "orders.queries",
                             name = "ReadOrder",
@@ -83,19 +84,19 @@ class DrawingBoardArtifactPlannerTest {
                                 ArtifactSelectionModel(family = "query", variant = "page"),
                             ),
                             fields = listOf(
-                                FieldModel(
+                                DrawingBoardFieldModel(
                                     name = "orderId",
                                     type = "Long",
                                 ),
                             ),
                             resultFields = listOf(
-                                FieldModel(
+                                DrawingBoardFieldModel(
                                     name = "status",
                                     type = "String",
                                 ),
                             ),
                         ),
-                    DesignBlockModel(
+                        DrawingBoardElementModel(
                             tag = "integration_event",
                             packageName = "orders.events",
                             name = "OrderCreated",
@@ -105,7 +106,7 @@ class DrawingBoardArtifactPlannerTest {
                                 ArtifactSelectionModel(family = "integration-subscriber"),
                             ),
                             fields = listOf(
-                                FieldModel(
+                                DrawingBoardFieldModel(
                                     name = "orderId",
                                     type = "Long",
                                 ),
@@ -113,13 +114,14 @@ class DrawingBoardArtifactPlannerTest {
                         ),
                     ),
                 ),
+            ),
         )
 
         val queryContext = plan.single { it.outputPath.endsWith("drawing_board_query.json") }.context
         val integrationContext = plan.single { it.outputPath.endsWith("drawing_board_integration_event.json") }.context
-        val queryElement = (queryContext["elements"] as List<*>).filterIsInstance<DesignBlockModel>().single()
+        val queryElement = (queryContext["elements"] as List<*>).filterIsInstance<DrawingBoardElementModel>().single()
         val integrationElement = (integrationContext["elements"] as List<*>)
-            .filterIsInstance<DesignBlockModel>()
+            .filterIsInstance<DrawingBoardElementModel>()
             .single()
 
         assertEquals("query", queryElement.tag)
@@ -139,7 +141,7 @@ class DrawingBoardArtifactPlannerTest {
     }
 
     @Test
-    fun `plans from canonical design blocks when legacy drawing board is absent`() {
+    fun `does not plan from authoring design blocks without analysis drawing board`() {
         val planner = DrawingBoardArtifactPlanner()
 
         val plan = planner.plan(
@@ -167,25 +169,11 @@ class DrawingBoardArtifactPlannerTest {
             ),
         )
 
-        assertEquals(
-            listOf(
-                "design/drawing_board_query.json",
-                "design/drawing_board_domain_service.json",
-            ),
-            plan.map { it.outputPath },
-        )
-        assertEquals(
-            listOf("ReadOrder"),
-            (plan[0].context["elements"] as List<*>).filterIsInstance<DesignBlockModel>().map { it.name },
-        )
-        assertEquals(
-            listOf("OrderPolicyService"),
-            (plan[1].context["elements"] as List<*>).filterIsInstance<DesignBlockModel>().map { it.name },
-        )
+        assertTrue(plan.isEmpty())
     }
 
     @Test
-    fun `design blocks are primary when legacy drawing board also exists`() {
+    fun `plans from analysis drawing board when authoring design blocks also exist`() {
         val planner = DrawingBoardArtifactPlanner()
 
         val plan = planner.plan(
@@ -213,10 +201,10 @@ class DrawingBoardArtifactPlannerTest {
             ),
         )
 
-        assertEquals(listOf("design/drawing_board_query.json"), plan.map { it.outputPath })
+        assertEquals(listOf("design/drawing_board_command.json"), plan.map { it.outputPath })
         assertEquals(
-            listOf("CanonicalReadOrder"),
-            (plan.single().context["elements"] as List<*>).filterIsInstance<DesignBlockModel>().map { it.name },
+            listOf("LegacySubmitOrder"),
+            (plan.single().context["elements"] as List<*>).filterIsInstance<DrawingBoardElementModel>().map { it.name },
         )
     }
 
@@ -309,8 +297,8 @@ class DrawingBoardArtifactPlannerTest {
             .filterIsInstance<DrawingBoardElementModel>()
             .single()
 
-        assertEquals(emptyList<ArtifactSelectionModel>(), domainService.designJsonArtifacts)
-        assertEquals(emptyList<ArtifactSelectionModel>(), saga.designJsonArtifacts)
+        assertFalse(domainService.includeDesignJsonArtifacts)
+        assertFalse(saga.includeDesignJsonArtifacts)
     }
 
     @Test
@@ -384,7 +372,7 @@ class DrawingBoardArtifactPlannerTest {
                         packageName = "orders.events",
                         name = "OrderCreated",
                         description = "order created",
-                        role = "inbound",
+                        artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
                         eventName = "order.created",
                     ),
                     DrawingBoardElementModel(

@@ -87,7 +87,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -141,7 +140,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -200,7 +198,6 @@ class DbSchemaSourceProviderTest {
                     modules = emptyMap(),
                     sources = mapOf(
                         "db" to SourceConfig(
-                            enabled = true,
                             options = mapOf(
                                 "url" to url,
                                 "username" to "sa",
@@ -246,7 +243,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -296,7 +292,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -347,7 +342,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -396,7 +390,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -444,7 +437,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -487,7 +479,6 @@ class DbSchemaSourceProviderTest {
                     modules = emptyMap(),
                     sources = mapOf(
                         "db" to SourceConfig(
-                            enabled = true,
                             options = mapOf(
                                 "url" to url,
                                 "username" to "sa",
@@ -534,7 +525,6 @@ class DbSchemaSourceProviderTest {
                     modules = emptyMap(),
                     sources = mapOf(
                         "db" to SourceConfig(
-                            enabled = true,
                             options = mapOf(
                                 "url" to url,
                                 "username" to "sa",
@@ -584,7 +574,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -633,7 +622,6 @@ class DbSchemaSourceProviderTest {
                     modules = emptyMap(),
                     sources = mapOf(
                         "db" to SourceConfig(
-                            enabled = true,
                             options = mapOf(
                                 "url" to url,
                                 "username" to "sa",
@@ -683,7 +671,6 @@ class DbSchemaSourceProviderTest {
                     modules = emptyMap(),
                     sources = mapOf(
                         "db" to SourceConfig(
-                            enabled = true,
                             options = mapOf(
                                 "url" to url,
                                 "username" to "sa",
@@ -730,7 +717,6 @@ class DbSchemaSourceProviderTest {
                     modules = emptyMap(),
                     sources = mapOf(
                         "db" to SourceConfig(
-                            enabled = true,
                             options = mapOf(
                                 "url" to url,
                                 "username" to "sa",
@@ -773,7 +759,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -818,7 +803,6 @@ class DbSchemaSourceProviderTest {
                     modules = emptyMap(),
                     sources = mapOf(
                         "db" to SourceConfig(
-                            enabled = true,
                             options = mapOf(
                                 "url" to url,
                                 "username" to "sa",
@@ -864,7 +848,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -915,7 +898,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -963,7 +945,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -1020,7 +1001,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -1061,7 +1041,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -1110,7 +1089,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to url,
                             "username" to "sa",
@@ -1158,7 +1136,6 @@ class DbSchemaSourceProviderTest {
                 modules = emptyMap(),
                 sources = mapOf(
                     "db" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "url" to "jdbc:h2:file:$dbFile;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false",
                             "username" to "sa",

@@ -15,6 +15,8 @@ import java.io.File
 class IrAnalysisSourceProvider : SourceProvider {
     override val id: String = "ir-analysis"
 
+    private val removedPublicFields = listOf("desc", "requestFields", "responseFields", "traits", "role", "scope", "entity")
+
     override fun collect(config: ProjectConfig): IrAnalysisSnapshot {
         val inputDirs = (config.sources[id]?.options?.get("inputDirs") as? List<*> ?: emptyList<Any>())
             .map { it.toString().trim() }
@@ -23,7 +25,6 @@ class IrAnalysisSourceProvider : SourceProvider {
 
         val nodesById = linkedMapOf<String, IrNodeSnapshot>()
         val edgeKeys = linkedSetOf<EdgeKey>()
-        val designElementKeys = linkedSetOf<DesignElementKey>()
         val designElements = mutableListOf<DesignElementSnapshot>()
 
         inputDirs.forEach { inputDir ->
@@ -45,12 +46,7 @@ class IrAnalysisSourceProvider : SourceProvider {
 
             val designElementsFile = File(dir, "design-elements.json")
             if (designElementsFile.exists()) {
-                parseDesignElements(designElementsFile).forEach { element ->
-                    val key = DesignElementKey(element.tag, element.packageName, element.name)
-                    if (designElementKeys.add(key)) {
-                        designElements.add(element)
-                    }
-                }
+                designElements.addAll(parseDesignElements(designElementsFile))
             }
         }
 
@@ -70,13 +66,12 @@ class IrAnalysisSourceProvider : SourceProvider {
     }
 
     private fun parseNodes(file: File): List<IrNodeSnapshot> {
-        val array = file.reader(Charsets.UTF_8).use { JsonParser.parseReader(it).asJsonArray }
-        return array.mapNotNull { element ->
-            val obj = element.asJsonObjectOrNull() ?: return@mapNotNull null
-            val id = obj.stringValue("id").orEmpty().trim()
-            if (id.isEmpty()) {
-                return@mapNotNull null
-            }
+        val array = parseRequiredArray(file, "nodes")
+        return array.mapIndexed { index, element ->
+            val context = "ir-analysis nodes[${index}]"
+            val obj = element.asJsonObjectOrNull()
+                ?: throw IllegalArgumentException("$context must be an object")
+            val id = obj.requiredString("id", context)
             val normalizedName = obj.stringValue("name").orEmpty().trim().ifBlank { shortNameForId(id) }
             val normalizedFullName = obj.stringValue("fullName").orEmpty().trim().ifBlank { id }
             val normalizedType = obj.stringValue("type").orEmpty().trim().ifBlank { "unknown" }
@@ -90,32 +85,35 @@ class IrAnalysisSourceProvider : SourceProvider {
     }
 
     private fun parseDesignElements(file: File): List<DesignElementSnapshot> {
-        val array = file.reader(Charsets.UTF_8).use { JsonParser.parseReader(it).asJsonArray }
+        val array = parseRequiredArray(file, "design-elements")
         return array.mapIndexed { index, element ->
             val obj = element.asJsonObjectOrNull()
                 ?: throw IllegalArgumentException("design element at index $index must be an object")
-            val tag = obj.stringValue("tag").orEmpty().trim()
-            if (tag.isEmpty()) {
-                throw IllegalArgumentException("design element at index $index must declare non-blank tag")
-            }
-            val packageName = obj.stringValue("package").orEmpty().trim()
-            val name = obj.stringValue("name").orEmpty().trim()
-            if (name.isEmpty()) {
-                throw IllegalArgumentException("design element at index $index must declare non-blank name")
-            }
+            val tag = obj.requiredString("tag", "design element at index $index")
+            val packageName = obj.optionalString("package", "design element $tag").orEmpty().trim()
+            val name = obj.requiredString("name", "design element at index $index")
+            rejectRemovedFields(obj, name)
             val context = "design element $tag $packageName $name"
             DesignElementSnapshot(
                 tag = tag,
                 packageName = packageName,
                 name = name,
-                description = obj.stringValue("description").orEmpty().trim(),
-                aggregates = obj.stringList("aggregates"),
+                description = obj.optionalString("description", context).orEmpty().trim(),
+                aggregates = obj.stringList("aggregates", context),
                 artifacts = parseArtifacts(obj.jsonArrayOrNull("artifacts", context), context),
-                persist = obj.booleanValue("persist"),
-                eventName = obj.stringValue("eventName"),
-                requestFields = parseDesignFields(obj.jsonArrayOrNull("fields", context), context, "fields"),
-                responseFields = parseDesignFields(obj.jsonArrayOrNull("resultFields", context), context, "resultFields"),
+                artifactsDeclared = obj.has("artifacts"),
+                persist = obj.optionalBoolean("persist", context),
+                eventName = obj.optionalString("eventName", context),
+                fields = parseDesignFields(obj.jsonArrayOrNull("fields", context), context, "fields"),
+                resultFields = parseDesignFields(obj.jsonArrayOrNull("resultFields", context), context, "resultFields"),
             )
+        }
+    }
+
+    private fun rejectRemovedFields(obj: com.google.gson.JsonObject, name: String) {
+        val removed = removedPublicFields.filter { obj.has(it) }
+        require(removed.isEmpty()) {
+            "design element $name uses removed fields: ${removed.joinToString(", ")}"
         }
     }
 
@@ -129,13 +127,9 @@ class IrAnalysisSourceProvider : SourceProvider {
         return array.mapIndexed { index, element ->
             val obj = element.asJsonObjectOrNull()
                 ?: throw IllegalArgumentException("$context artifacts[$index] must be an object")
-            val family = obj.stringValue("family").orEmpty().trim()
-            if (family.isEmpty()) {
-                throw IllegalArgumentException("$context artifacts[$index] must declare non-blank family")
-            }
             ArtifactSelectionModel(
-                family = family,
-                variant = obj.stringValue("variant").orEmpty().trim(),
+                family = obj.requiredString("family", "$context artifacts[$index]"),
+                variant = obj.optionalString("variant", "$context artifacts[$index]").orEmpty().trim(),
             )
         }
     }
@@ -151,33 +145,24 @@ class IrAnalysisSourceProvider : SourceProvider {
         return array.mapIndexed { index, element ->
             val obj = element.asJsonObjectOrNull()
                 ?: throw IllegalArgumentException("$context $fieldName[$index] must be an object")
-            val name = obj.stringValue("name").orEmpty().trim()
-            if (name.isEmpty()) {
-                throw IllegalArgumentException("$context $fieldName[$index] must declare non-blank name")
-            }
-            val type = obj.stringValue("type").orEmpty().trim()
-            if (type.isEmpty()) {
-                throw IllegalArgumentException("$context $fieldName[$index] must declare non-blank type")
-            }
             DesignFieldSnapshot(
-                name = name,
-                type = type,
-                nullable = obj.booleanValue("nullable") ?: false,
-                defaultValue = obj.stringValue("defaultValue"),
+                name = obj.requiredString("name", "$context $fieldName[$index]"),
+                type = obj.requiredString("type", "$context $fieldName[$index]"),
+                nullable = obj.optionalBoolean("nullable", "$context $fieldName[$index]") ?: false,
+                defaultValue = obj.optionalString("defaultValue", "$context $fieldName[$index]"),
             )
         }
     }
 
     private fun parseEdges(file: File): List<IrEdgeSnapshot> {
-        val array = file.reader(Charsets.UTF_8).use { JsonParser.parseReader(it).asJsonArray }
-        return array.mapNotNull { element ->
-            val obj = element.asJsonObjectOrNull() ?: return@mapNotNull null
-            val fromId = obj.stringValue("fromId").orEmpty().trim()
-            val toId = obj.stringValue("toId").orEmpty().trim()
-            val type = obj.stringValue("type").orEmpty().trim()
-            if (fromId.isEmpty() || toId.isEmpty() || type.isEmpty()) {
-                return@mapNotNull null
-            }
+        val array = parseRequiredArray(file, "rels")
+        return array.mapIndexed { index, element ->
+            val context = "ir-analysis rels[${index}]"
+            val obj = element.asJsonObjectOrNull()
+                ?: throw IllegalArgumentException("$context must be an object")
+            val fromId = obj.requiredString("fromId", context)
+            val toId = obj.requiredString("toId", context)
+            val type = obj.requiredString("type", context)
             IrEdgeSnapshot(
                 fromId = fromId,
                 toId = toId,
@@ -185,6 +170,14 @@ class IrAnalysisSourceProvider : SourceProvider {
                 label = obj.stringValue("label"),
             )
         }
+    }
+
+    private fun parseRequiredArray(file: File, label: String): com.google.gson.JsonArray {
+        val root = file.reader(Charsets.UTF_8).use { JsonParser.parseReader(it) }
+        require(root.isJsonArray) {
+            "ir-analysis $label file ${file.path} root must be an array"
+        }
+        return root.asJsonArray
     }
 
     private fun shortNameForId(id: String): String {
@@ -205,6 +198,39 @@ class IrAnalysisSourceProvider : SourceProvider {
         return if (element.isJsonPrimitive && element.asJsonPrimitive.isBoolean) element.asBoolean else null
     }
 
+    private fun com.google.gson.JsonObject.requiredString(
+        name: String,
+        context: String,
+    ): String {
+        val value = optionalString(name, context)
+        if (value.isNullOrBlank()) {
+            throw IllegalArgumentException("$context must declare non-blank $name")
+        }
+        return value.trim()
+    }
+
+    private fun com.google.gson.JsonObject.optionalString(
+        name: String,
+        context: String,
+    ): String? {
+        val element = get(name) ?: return null
+        if (!element.isJsonPrimitive || !element.asJsonPrimitive.isString) {
+            throw IllegalArgumentException("$context field '$name' must be a string")
+        }
+        return element.asString
+    }
+
+    private fun com.google.gson.JsonObject.optionalBoolean(
+        name: String,
+        context: String,
+    ): Boolean? {
+        val element = get(name) ?: return null
+        if (!element.isJsonPrimitive || !element.asJsonPrimitive.isBoolean) {
+            throw IllegalArgumentException("$context field '$name' must be a boolean")
+        }
+        return element.asBoolean
+    }
+
     private fun com.google.gson.JsonObject.jsonArrayOrNull(
         name: String,
         context: String,
@@ -216,14 +242,20 @@ class IrAnalysisSourceProvider : SourceProvider {
         return element.asJsonArray
     }
 
-    private fun com.google.gson.JsonObject.stringList(name: String): List<String> {
+    private fun com.google.gson.JsonObject.stringList(name: String, context: String): List<String> {
         val element = get(name) ?: return emptyList()
-        val array = if (element.isJsonArray) element.asJsonArray else return emptyList()
-        return array.mapNotNull { item ->
-            if (!item.isJsonPrimitive) {
-                return@mapNotNull null
+        if (!element.isJsonArray) {
+            throw IllegalArgumentException("$context field '$name' must be an array")
+        }
+        return element.asJsonArray.mapIndexed { index, item ->
+            if (!item.isJsonPrimitive || !item.asJsonPrimitive.isString) {
+                throw IllegalArgumentException("$context $name[$index] must be a non-blank string")
             }
-            item.asString.trim().takeIf { it.isNotEmpty() }
+            item.asString.trim().also { value ->
+                if (value.isEmpty()) {
+                    throw IllegalArgumentException("$context $name[$index] must be a non-blank string")
+                }
+            }
         }
     }
 }
@@ -235,8 +267,3 @@ private data class EdgeKey(
     val label: String?,
 )
 
-private data class DesignElementKey(
-    val tag: String,
-    val packageName: String,
-    val name: String,
-)

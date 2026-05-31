@@ -20,11 +20,11 @@ import {{ import }}
 @Service
 {% if aggregateElement is defined -%}
 @AggregateElement(
-    aggregate = "{{ aggregateElement.aggregate }}",
-    name = "{{ aggregateElement.name }}",
-    packageName = "{{ aggregateElement.packageName }}",
+    aggregate = {{ aggregateElement.aggregateKotlinStringLiteral | raw }},
+    name = {{ aggregateElement.nameKotlinStringLiteral | raw }},
+    packageName = {{ aggregateElement.packageNameKotlinStringLiteral | raw }},
     description = {{ aggregateElement.descriptionKotlinStringLiteral | raw }},
-    type = "{{ aggregateElement.type }}",
+    type = {{ aggregateElement.typeKotlinStringLiteral | raw }},
     root = {{ aggregateElement.root }}
 )
 {% endif -%}

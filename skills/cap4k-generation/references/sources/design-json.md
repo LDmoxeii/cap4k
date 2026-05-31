@@ -17,10 +17,11 @@ Common fields:
 
 - `package`
 - `name`
-- `desc`
+- `description`
 - `aggregates`
-- `requestFields`
-- `responseFields`
+- `artifacts`
+- `fields`
+- `resultFields`
 
 Minimal example:
 
@@ -30,30 +31,31 @@ Minimal example:
     "tag": "command",
     "package": "content.write",
     "name": "SubmitContentForReviewCmd",
-    "desc": "submit content for review",
+    "description": "submit content for review",
     "aggregates": ["Content"],
-    "requestFields": [{ "name": "contentId", "type": "String" }],
-    "responseFields": []
+    "artifacts": [{ "family": "command" }],
+    "fields": [{ "name": "contentId", "type": "String" }],
+    "resultFields": []
   },
   {
     "tag": "integration_event",
     "package": "media.processing",
     "name": "MediaProcessedIntegrationEvent",
-    "desc": "media processed",
-    "role": "inbound",
+    "description": "media processed",
     "eventName": "media.processed",
-    "requestFields": [{ "name": "taskId", "type": "String" }],
-    "responseFields": []
+    "artifacts": [{ "family": "integration-event", "variant": "inbound" }],
+    "fields": [{ "name": "taskId", "type": "String" }],
+    "resultFields": []
   }
 ]
 ```
 
 Rules:
 
-- `query` and `api_payload` may use request trait `page`.
+- `query` and `api_payload` may use artifact variants such as `list` or `page`.
 - `domain_event` entries can produce domain-event subscriber/handler shells through `DesignDomainEventHandlerArtifactPlanner`.
 - `domain_event` supports `persist`, may omit `package`, and reserves request field name `entity`, which is derived from the first aggregate entry. If `aggregates` is missing or empty, the design contract is incomplete and should return to modeling.
-- `integration_event` requires `role`, `eventName`, at least one `requestFields` entry, and empty `responseFields`.
+- `integration_event` requires an `integration-event` artifact with `variant` `inbound` or `outbound`, `eventName`, at least one `fields` entry, and empty `resultFields`.
 - inbound `integration_event` entries can produce subscriber shells through `DesignIntegrationEventSubscriberArtifactPlanner`.
 - `domain_service` entries produce domain-module service skeletons.
 - `saga` entries produce application-module param, result, and handler skeletons.

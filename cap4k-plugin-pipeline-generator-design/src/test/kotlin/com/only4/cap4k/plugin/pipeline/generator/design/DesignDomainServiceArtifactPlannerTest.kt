@@ -38,14 +38,21 @@ class DesignDomainServiceArtifactPlannerTest {
         assertEquals(
             mapOf(
                 "tag" to "domain_service",
+                "tagKotlinStringLiteral" to "\"domain_service\"",
                 "name" to "ContentPublicationPolicy",
+                "nameKotlinStringLiteral" to "\"ContentPublicationPolicy\"",
                 "packageName" to "content.domain",
+                "packageNameKotlinStringLiteral" to "\"content.domain\"",
                 "description" to "publication policy",
                 "descriptionKotlinStringLiteral" to "\"publication policy\"",
                 "aggregates" to listOf("Content"),
+                "aggregateKotlinStringLiterals" to listOf("\"Content\""),
                 "eventName" to "",
+                "eventNameKotlinStringLiteral" to "\"\"",
                 "family" to "domain-service",
+                "familyKotlinStringLiteral" to "\"domain-service\"",
                 "variant" to "",
+                "variantKotlinStringLiteral" to "\"\"",
             ),
             item.context["buildingBlock"],
         )

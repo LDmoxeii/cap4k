@@ -78,8 +78,8 @@ class DesignDomainEventArtifactPlannerTest {
             ),
             event.context["nestedTypes"],
         )
-        assertTrue(!event.context.containsKey("responseFields"))
-        assertTrue(!event.context.containsKey("responseNestedTypes"))
+        assertTrue(!event.context.containsKey("resultFields"))
+        assertTrue(!event.context.containsKey("resultNestedTypes"))
         val fields = event.context["fields"] as List<*>
         assertTrue(fields.none { (it as? DesignRenderFieldModel)?.name == "entity" })
     }

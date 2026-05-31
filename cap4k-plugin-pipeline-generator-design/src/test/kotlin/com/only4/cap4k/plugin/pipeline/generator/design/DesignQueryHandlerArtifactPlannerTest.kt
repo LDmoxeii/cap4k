@@ -87,14 +87,14 @@ class DesignQueryHandlerArtifactPlannerTest {
             listOf("com.acme.demo.application.queries.order.read.FindOrderQry"),
             items[0].context["imports"],
         )
-        val responseFields = requireNotNull(items[0].context["responseFields"] as? List<*>)
+        val resultFields = requireNotNull(items[0].context["resultFields"] as? List<*>)
             .map { requireNotNull(it as? DesignQueryHandlerResponseFieldModel) }
         assertEquals(
             listOf(
                 DesignQueryHandlerResponseFieldModel("responseStatus"),
                 DesignQueryHandlerResponseFieldModel("snapshot"),
             ),
-            responseFields,
+            resultFields,
         )
     }
 

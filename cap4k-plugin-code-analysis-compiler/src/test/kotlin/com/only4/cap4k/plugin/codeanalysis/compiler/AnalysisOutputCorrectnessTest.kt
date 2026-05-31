@@ -77,6 +77,89 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
+    fun `aggregate element fails fast for blank type`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            categorySources(
+                useTopLevelBehavior = true,
+                categoryBody = """
+                    @AggregateElement(
+                        aggregate = "Category",
+                        type = " ",
+                        name = "Category",
+                        packageName = "demo.domain.aggregates.category",
+                        root = true,
+                    )
+                    class Category
+                """.trimIndent(),
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent(),
+            )
+        )
+
+        assertTrue(
+            messages.contains("AggregateElement annotation on demo.domain.aggregates.category.Category must declare non-blank type"),
+        )
+    }
+
+    @Test
+    fun `aggregate element fails fast for unknown type`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            categorySources(
+                useTopLevelBehavior = true,
+                categoryBody = """
+                    @AggregateElement(
+                        aggregate = "Category",
+                        type = "unknown",
+                        name = "Category",
+                        packageName = "demo.domain.aggregates.category",
+                        root = true,
+                    )
+                    class Category
+                """.trimIndent(),
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent(),
+            )
+        )
+
+        assertTrue(
+            messages.contains("AggregateElement annotation on demo.domain.aggregates.category.Category has unsupported type: unknown"),
+        )
+    }
+
+    @Test
+    fun `aggregate element accepts projection type without aggregate node`() {
+        val rels = compileRelationships(
+            categorySources(
+                useTopLevelBehavior = true,
+                categoryBody = """
+                    @AggregateElement(
+                        aggregate = "Category",
+                        type = "projection",
+                        name = "CategoryView",
+                        packageName = "demo.domain.aggregates.category",
+                    )
+                    class Category
+                """.trimIndent(),
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent(),
+            )
+        )
+
+        assertTrue(
+            rels.none { it.fromId == "demo.domain.aggregates.category.Category" || it.toId == "demo.domain.aggregates.category.Category" },
+        )
+    }
+
+    @Test
     fun `top level behavior on generated style entity keeps exact domain event edge`() {
         val rels = compileRelationships(
             categorySources(

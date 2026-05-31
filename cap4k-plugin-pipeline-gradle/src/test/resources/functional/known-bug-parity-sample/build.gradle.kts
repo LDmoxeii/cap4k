@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
@@ -30,7 +30,6 @@ cap4k {
     }
     generators {
         aggregate {
-            enabled.set(true)
             specialFields {
                 idDefaultStrategy.set("identity")
             }

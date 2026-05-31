@@ -1,4 +1,4 @@
-package com.only4.cap4k.plugin.pipeline.gradle
+﻿package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.google.gson.JsonParser
 import com.google.gson.JsonObject
@@ -165,12 +165,13 @@ class PipelinePluginFunctionalTest {
         assertFalse(listQueryContent.contains("List" + "Query<"))
 
         assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.PageRequest"))
         assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.share.PageData"))
         assertFalse(pageQueryContent.contains("import com.foo.Status"))
         assertTrue(pageQueryContent.contains("data class Request("))
-        assertFalse(pageQueryContent.contains("override val pageNum: Int = 1"))
-        assertFalse(pageQueryContent.contains("override val pageSize: Int"))
-        assertTrue(pageQueryContent.contains(") : RequestParam<Response>"))
+        assertTrue(pageQueryContent.contains("override val pageNum: Int = 1"))
+        assertTrue(pageQueryContent.contains("override val pageSize: Int"))
+        assertTrue(pageQueryContent.contains(") : PageRequest, RequestParam<Response>"))
         assertTrue(pageQueryContent.contains("val keyword: String"))
         assertTrue(pageQueryContent.contains("val createdAfter: LocalDateTime"))
         assertTrue(pageQueryContent.contains("val requestStatus: com.foo.Status"))
@@ -476,7 +477,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(listQueryContent.contains("class Request : RequestParam<Response>"))
         assertTrue(pageQueryContent.contains("object FindOrderPageQry"))
         assertTrue(pageQueryContent.contains("data class Request("))
-        assertTrue(pageQueryContent.contains(") : RequestParam<Response>"))
+        assertTrue(pageQueryContent.contains(") : PageRequest, RequestParam<Response>"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1105,7 +1106,7 @@ class PipelinePluginFunctionalTest {
             ),
             outputKind = "GENERATED_SOURCE",
             resolvedOutputRoot = "demo-domain/build/generated/cap4k/main/kotlin",
-            conflictPolicy = "OVERWRITE",
+            conflictPolicy = "FAIL",
         )
     }
 
@@ -1291,14 +1292,12 @@ class PipelinePluginFunctionalTest {
                 .replace("\r\n", "\n")
                 .replace(
                     """        aggregate {
-            enabled.set(true)
             specialFields {
                 idDefaultStrategy.set("identity")
             }
         }""",
                     """        aggregateProjection {
-            enabled.set(true)
-        }""",
+            }""",
                 )
         )
 
@@ -1592,10 +1591,9 @@ class PipelinePluginFunctionalTest {
         )
         val buildFile = projectDir.resolve("build.gradle.kts")
         val patchedBuildFile = buildFile.readText().replace(
-            Regex("""aggregate\s*\{\s*enabled\.set\(true\)\s*}"""),
+            Regex("""aggregate\s*\{\s*}"""),
             """
             |aggregate {
-            |            enabled.set(true)
             |            specialFields {
             |                idDefaultStrategy.set("identity")
             |            }
@@ -1983,10 +1981,9 @@ class PipelinePluginFunctionalTest {
         val buildFileContent = buildFile.readText().replace("\r\n", "\n")
         buildFile.writeText(
             buildFileContent.replace(
-                Regex("""aggregate\s*\{\s*enabled\.set\(true\)\s*}"""),
+                Regex("""aggregate\s*\{\s*}"""),
                 """
                 |aggregate {
-                |            enabled.set(true)
                 |            specialFields {
                 |                managedDefaultColumns.set(listOf(" created_by "))
                 |            }
@@ -2108,7 +2105,7 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(
             result.output.contains(
-                "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is enabled."
+                "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is configured."
             )
         )
         assertFalse(projectDir.resolve("build/cap4k/plan.json").toFile().exists())
@@ -2659,7 +2656,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(eventContent.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
         assertTrue(eventContent.contains("@BuildingBlock("))
         assertTrue(eventContent.contains("tag = \"domain_event\""))
-        assertTrue(eventContent.contains("name = \"OrderCreatedDomainEvent\""))
+        assertTrue(eventContent.contains("name = \"OrderCreated\""))
         assertTrue(eventContent.contains("packageName = \"order\""))
         assertTrue(eventContent.contains("description = \"order */ \\\"created\\\" \\\\event \\${'$'}status\""))
         assertTrue(eventContent.contains("aggregates = [\"Order\"]"))
@@ -2845,6 +2842,10 @@ class PipelinePluginFunctionalTest {
                 """
 
                 cap4k {
+                    project {
+                        applicationModulePath.set("demo-application")
+                        adapterModulePath.set("demo-adapter")
+                    }
                     generators {
                         aggregate {
                             specialFields {

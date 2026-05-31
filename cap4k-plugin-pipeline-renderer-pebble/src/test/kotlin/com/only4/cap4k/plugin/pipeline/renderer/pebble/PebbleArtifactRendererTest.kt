@@ -88,11 +88,15 @@ class PebbleArtifactRendererTest {
     ): Map<String, Any?> =
         mapOf(
             "aggregate" to aggregate,
+            "aggregateKotlinStringLiteral" to aggregate.toTestKotlinStringLiteral(),
             "name" to name,
+            "nameKotlinStringLiteral" to name.toTestKotlinStringLiteral(),
             "packageName" to packageName,
+            "packageNameKotlinStringLiteral" to packageName.toTestKotlinStringLiteral(),
             "description" to description,
             "descriptionKotlinStringLiteral" to description.toTestKotlinStringLiteral(),
             "type" to type,
+            "typeKotlinStringLiteral" to type.toTestKotlinStringLiteral(),
             "root" to root,
         )
 
@@ -108,14 +112,21 @@ class PebbleArtifactRendererTest {
     ): Map<String, Any?> =
         mapOf(
             "tag" to tag,
+            "tagKotlinStringLiteral" to tag.toTestKotlinStringLiteral(),
             "name" to name,
+            "nameKotlinStringLiteral" to name.toTestKotlinStringLiteral(),
             "packageName" to packageName,
+            "packageNameKotlinStringLiteral" to packageName.toTestKotlinStringLiteral(),
             "description" to description,
             "descriptionKotlinStringLiteral" to description.toTestKotlinStringLiteral(),
             "aggregates" to aggregates,
+            "aggregateKotlinStringLiterals" to aggregates.map { it.toTestKotlinStringLiteral() },
             "eventName" to eventName,
+            "eventNameKotlinStringLiteral" to eventName.toTestKotlinStringLiteral(),
             "family" to family,
+            "familyKotlinStringLiteral" to family.toTestKotlinStringLiteral(),
             "variant" to variant,
+            "variantKotlinStringLiteral" to variant.toTestKotlinStringLiteral(),
         )
 
     private fun assertBuildingBlockAnnotation(
@@ -242,8 +253,8 @@ class PebbleArtifactRendererTest {
             context = mapOf(
                 "packageName" to "content.workflow",
                 "name" to "PublishContentSaga",
-                "requestFields" to listOf(mapOf("name" to "contentId", "renderedType" to "ContentId")),
-                "responseFields" to listOf(mapOf("name" to "accepted", "renderedType" to "Boolean")),
+                "fields" to listOf(mapOf("name" to "contentId", "renderedType" to "ContentId")),
+                "resultFields" to listOf(mapOf("name" to "accepted", "renderedType" to "Boolean")),
                 "imports" to emptyList<String>(),
             ),
         )
@@ -628,12 +639,12 @@ class PebbleArtifactRendererTest {
                 "descriptionKotlinStringLiteral" to "\"create content\"",
                 "aggregateName" to null,
                 "imports" to listOf("com.acme.demo.domain.shared.ids.AuthorId"),
-                "requestFields" to listOf(
+                "fields" to listOf(
                     mapOf("name" to "authorId", "renderedType" to "AuthorId", "nullable" to false),
                 ),
-                "responseFields" to emptyList<Map<String, Any?>>(),
-                "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                "resultFields" to emptyList<Map<String, Any?>>(),
+                "nestedTypes" to emptyList<Map<String, Any?>>(),
+                "resultNestedTypes" to emptyList<Map<String, Any?>>(),
                 "pageRequest" to false,
             ),
         )
@@ -1342,7 +1353,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-query",
+                    generatorId = "query",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/Demo.kt",
@@ -1418,7 +1429,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-query",
+                    generatorId = "query",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/resources/demo.json",
@@ -1669,7 +1680,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -1721,7 +1732,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -1778,7 +1789,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -1838,7 +1849,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -1882,7 +1893,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -1929,7 +1940,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -1976,7 +1987,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -2029,7 +2040,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -2037,14 +2048,14 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.application.queries",
                         "typeName" to "FindOrderQry",
                         "imports" to emptyList<String>(),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "orderId", "type" to "Long", "nullable" to false),
                         ),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to listOf(
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to listOf(
                             mapOf("name" to "status", "type" to "String", "nullable" to false),
                         ),
-                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultNestedTypes" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 )
@@ -2079,7 +2090,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -2122,7 +2133,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/command.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
@@ -2130,13 +2141,13 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.application.commands.order.submit",
                         "typeName" to "SubmitOrderCmd",
                         "imports" to listOf("java.time.LocalDateTime", "java.util.UUID"),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "orderId", "renderedType" to "Long", "nullable" to false),
                             mapOf("name" to "address", "renderedType" to "Address?", "nullable" to true),
                             mapOf("name" to "createdAt", "renderedType" to "LocalDateTime", "nullable" to false),
                             mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false),
                         ),
-                        "requestNestedTypes" to listOf(
+                        "nestedTypes" to listOf(
                             mapOf(
                                 "name" to "Address",
                                 "fields" to listOf(
@@ -2145,11 +2156,11 @@ class PebbleArtifactRendererTest {
                                 ),
                             ),
                         ),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "item", "renderedType" to "Item?", "nullable" to true),
                             mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Item",
                                 "fields" to listOf(
@@ -2218,16 +2229,16 @@ class PebbleArtifactRendererTest {
         )
         val commonFields = mapOf(
             "imports" to emptyList<String>(),
-            "requestFields" to commonRequestFields,
-            "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-            "responseFields" to commonResponseFields,
-            "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+            "fields" to commonRequestFields,
+            "nestedTypes" to emptyList<Map<String, Any?>>(),
+            "resultFields" to commonResponseFields,
+            "resultNestedTypes" to emptyList<Map<String, Any?>>(),
         )
 
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-query",
+                    generatorId = "query",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/edu/only4/danmaku/application/queries/message/read/FindUserMessageQry.kt",
@@ -2238,7 +2249,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.OVERWRITE
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/command.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/edu/only4/danmaku/application/commands/message/create/CreateUserMessageCmd.kt",
@@ -2268,11 +2279,11 @@ class PebbleArtifactRendererTest {
                         "packageName" to "edu.only4.danmaku.adapter.portal.api.payload.message",
                         "typeName" to "CreateUserMessagePayload",
                         "imports" to emptyList<String>(),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "messageKey", "renderedType" to "String", "nullable" to false),
                             mapOf("name" to "body", "renderedType" to "Body?", "nullable" to true),
                         ),
-                        "requestNestedTypes" to listOf(
+                        "nestedTypes" to listOf(
                             mapOf(
                                 "name" to "Body",
                                 "fields" to listOf(
@@ -2280,10 +2291,10 @@ class PebbleArtifactRendererTest {
                                 ),
                             ),
                         ),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "receipt", "renderedType" to "Receipt?", "nullable" to true),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Receipt",
                                 "fields" to listOf(
@@ -2357,7 +2368,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `renders field default values in preset command design template`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-command-defaults")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-command-defaults")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -2368,7 +2379,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/command.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
@@ -2376,11 +2387,11 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.application.commands.order.submit",
                         "typeName" to "SubmitOrderCmd",
                         "imports" to emptyList<String>(),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "title", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"demo\""),
                             mapOf("name" to "retryCount", "renderedType" to "Long", "nullable" to false, "defaultValue" to "1L"),
                         ),
-                        "requestNestedTypes" to listOf(
+                        "nestedTypes" to listOf(
                             mapOf(
                                 "name" to "Metadata",
                                 "fields" to listOf(
@@ -2388,10 +2399,10 @@ class PebbleArtifactRendererTest {
                                 ),
                             ),
                         ),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "enabled", "renderedType" to "Boolean", "nullable" to false, "defaultValue" to "true"),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Result",
                                 "fields" to listOf(
@@ -2427,7 +2438,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `renders field default values in preset query design template`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-defaults")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-query-defaults")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -2438,7 +2449,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -2446,10 +2457,10 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.application.queries",
                         "typeName" to "FindOrderQry",
                         "imports" to emptyList<String>(),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "status", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"ACTIVE\""),
                         ),
-                        "requestNestedTypes" to listOf(
+                        "nestedTypes" to listOf(
                             mapOf(
                                 "name" to "Criteria",
                                 "fields" to listOf(
@@ -2457,10 +2468,10 @@ class PebbleArtifactRendererTest {
                                 ),
                             ),
                         ),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "fallback", "renderedType" to "Boolean", "nullable" to false, "defaultValue" to "false"),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Result",
                                 "fields" to listOf(
@@ -2495,7 +2506,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `default query preset uses request param contract`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-contract")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-query-contract")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -2506,7 +2517,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -2517,16 +2528,16 @@ class PebbleArtifactRendererTest {
                             "java.time.LocalDateTime",
                             "java.util.UUID",
                         ),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "lookupId", "renderedType" to "UUID", "nullable" to false),
                             mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false),
                             mapOf("name" to "createdAfter", "renderedType" to "LocalDateTime", "nullable" to false),
                         ),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to listOf(
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to listOf(
                             mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false),
                         ),
-                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultNestedTypes" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 )
@@ -2561,7 +2572,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `renders query page request with complete response envelope`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-page-contract")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-query-page-contract")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -2572,7 +2583,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderPageQry.kt",
@@ -2583,14 +2594,14 @@ class PebbleArtifactRendererTest {
                             "com.only4.cap4k.ddd.core.share.PageData",
                         ),
                         "pageRequest" to true,
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "keyword", "renderedType" to "String?", "nullable" to true),
                         ),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to listOf(
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to listOf(
                             mapOf("name" to "page", "renderedType" to "PageData<Item>", "nullable" to false),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Item",
                                 "fields" to listOf(
@@ -2661,14 +2672,14 @@ class PebbleArtifactRendererTest {
                         "typeName" to "FindOrderPage",
                         "imports" to listOf("com.only4.cap4k.ddd.core.share.PageData"),
                         "pageRequest" to true,
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "keyword", "renderedType" to "String?", "nullable" to true),
                         ),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to listOf(
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to listOf(
                             mapOf("name" to "page", "renderedType" to "PageData<Item>", "nullable" to false),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Item",
                                 "fields" to listOf(
@@ -2728,7 +2739,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt",
@@ -2736,10 +2747,10 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.application.queries.order.read",
                         "typeName" to "FindOrderQry",
                         "imports" to emptyList<String>(),
-                        "requestFields" to emptyList<Map<String, Any?>>(),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
-                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "fields" to emptyList<Map<String, Any?>>(),
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to emptyList<Map<String, Any?>>(),
+                        "resultNestedTypes" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 )
@@ -4393,9 +4404,8 @@ class PebbleArtifactRendererTest {
                                 name = "Submit\"Order",
                                 description = "line1\nline2",
                                 aggregates = listOf("Order", "Ops\\Audit"),
-                                entity = "OrderEntity",
                                 persist = true,
-                                requestFields = listOf(
+                                fields = listOf(
                                     DrawingBoardFieldModel(
                                         name = "remark",
                                         type = "String",
@@ -4403,7 +4413,7 @@ class PebbleArtifactRendererTest {
                                         defaultValue = "say \"hi\""
                                     )
                                 ),
-                                responseFields = listOf(
+                                resultFields = listOf(
                                     DrawingBoardFieldModel(
                                         name = "status",
                                         type = "String",
@@ -4475,7 +4485,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = outputPath,
@@ -4528,9 +4538,8 @@ class PebbleArtifactRendererTest {
                                 name = "SubmitOrder",
                                 description = "submit order",
                                 aggregates = listOf("Order"),
-                                entity = "Order",
                                 persist = true,
-                                requestFields = listOf(
+                                fields = listOf(
                                     DrawingBoardFieldModel(
                                         name = "id",
                                         type = "Long",
@@ -4538,7 +4547,7 @@ class PebbleArtifactRendererTest {
                                         defaultValue = null
                                     )
                                 ),
-                                responseFields = listOf(
+                                resultFields = listOf(
                                     DrawingBoardFieldModel(
                                         name = "accepted",
                                         type = "Boolean",
@@ -4553,8 +4562,8 @@ class PebbleArtifactRendererTest {
                                 name = "FindOrder",
                                 description = "find order",
                                 aggregates = emptyList(),
-                                requestFields = emptyList(),
-                                responseFields = emptyList()
+                                fields = emptyList(),
+                                resultFields = emptyList()
                             )
                         )
                     ),
@@ -4622,10 +4631,10 @@ class PebbleArtifactRendererTest {
                                 packageName = "orders.queries",
                                 name = "ReadOrder",
                                 description = "read order",
-                                requestFields = listOf(
+                                fields = listOf(
                                     DrawingBoardFieldModel(name = "orderId", type = "Long"),
                                 ),
-                                responseFields = listOf(
+                                resultFields = listOf(
                                     DrawingBoardFieldModel(name = "status", type = "String"),
                                 ),
                             ),
@@ -4637,18 +4646,18 @@ class PebbleArtifactRendererTest {
                                 artifacts = listOf(
                                     ArtifactSelectionModel(family = "query", variant = "page"),
                                 ),
-                                requestFields = emptyList(),
-                                responseFields = emptyList(),
+                                fields = emptyList(),
+                                resultFields = emptyList(),
                             ),
                             DrawingBoardElementModel(
                                 tag = "integration_event",
                                 packageName = "orders.events",
                                 name = "OrderCreated",
                                 description = "order created",
-                                requestFields = listOf(
+                                fields = listOf(
                                     DrawingBoardFieldModel(name = "orderId", type = "Long"),
                                 ),
-                                responseFields = emptyList(),
+                                resultFields = emptyList(),
                             ),
                             DrawingBoardElementModel(
                                 tag = "integration_event",
@@ -4659,10 +4668,20 @@ class PebbleArtifactRendererTest {
                                     ArtifactSelectionModel(family = "integration-event", variant = "inbound"),
                                     ArtifactSelectionModel(family = "integration-subscriber"),
                                 ),
-                                requestFields = listOf(
+                                fields = listOf(
                                     DrawingBoardFieldModel(name = "orderId", type = "Long"),
                                 ),
-                                responseFields = emptyList(),
+                                resultFields = emptyList(),
+                            ),
+                            DrawingBoardElementModel(
+                                tag = "query",
+                                packageName = "orders.queries",
+                                name = "QueryWithoutArtifacts",
+                                description = "query without generated artifacts",
+                                artifacts = emptyList(),
+                                artifactsDeclared = true,
+                                fields = emptyList(),
+                                resultFields = emptyList(),
                             ),
                         )
                     ),
@@ -4719,6 +4738,11 @@ class PebbleArtifactRendererTest {
         assertEquals("inbound", explicitIntegration["artifacts"].asJsonArray[0].asJsonObject["variant"].asString)
         assertEquals("integration-subscriber", explicitIntegration["artifacts"].asJsonArray[1].asJsonObject["family"].asString)
         assertFalse(explicitIntegration["artifacts"].asJsonArray[1].asJsonObject.has("variant"))
+
+        val explicitEmptyArtifacts = elements[4].asJsonObject
+        assertEquals("QueryWithoutArtifacts", explicitEmptyArtifacts["name"].asString)
+        assertTrue(explicitEmptyArtifacts.has("artifacts"))
+        assertEquals(0, explicitEmptyArtifacts["artifacts"].asJsonArray.size())
     }
 
     @Test
@@ -4798,7 +4822,7 @@ class PebbleArtifactRendererTest {
                                 packageName = "demo.application.shared",
                                 name = "IssueCaptcha",
                                 description = "issue captcha",
-                                requestFields = listOf(
+                                fields = listOf(
                                     DrawingBoardFieldModel(
                                         name = "channels",
                                         type = "Set<String>",
@@ -4812,7 +4836,7 @@ class PebbleArtifactRendererTest {
                                         defaultValue = "null",
                                     ),
                                 ),
-                                responseFields = listOf(
+                                resultFields = listOf(
                                     DrawingBoardFieldModel(
                                         name = "channel",
                                         type = "SharedCaptchaChannel",
@@ -4847,18 +4871,18 @@ class PebbleArtifactRendererTest {
         )
 
         val element = JsonParser.parseString(rendered.single().content).asJsonArray.single().asJsonObject
-        val requestFields = element["fields"].asJsonArray
-        val responseFields = element["resultFields"].asJsonArray
+        val fields = element["fields"].asJsonArray
+        val resultFields = element["resultFields"].asJsonArray
 
-        assertEquals("emptySet()", requestFields[0].asJsonObject["defaultValue"].asString)
-        assertEquals("null", requestFields[1].asJsonObject["defaultValue"].asString)
+        assertEquals("emptySet()", fields[0].asJsonObject["defaultValue"].asString)
+        assertEquals("null", fields[1].asJsonObject["defaultValue"].asString)
         assertEquals(
             "demo.application.shared.defaults.SharedCaptchaChannel.IMAGE",
-            responseFields[0].asJsonObject["defaultValue"].asString,
+            resultFields[0].asJsonObject["defaultValue"].asString,
         )
         assertEquals(
             "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-            responseFields[1].asJsonObject["defaultValue"].asString,
+            resultFields[1].asJsonObject["defaultValue"].asString,
         )
     }
 
@@ -4886,13 +4910,12 @@ class PebbleArtifactRendererTest {
                                 name = "OrderCreated",
                                 description = "order created",
                                 aggregates = listOf("Order"),
-                                entity = "Order",
                                 persist = false,
-                                requestFields = listOf(
+                                fields = listOf(
                                     DrawingBoardFieldModel(name = "entity", type = "Order"),
                                     DrawingBoardFieldModel(name = "reason", type = "String"),
                                 ),
-                                responseFields = emptyList(),
+                                resultFields = emptyList(),
                             )
                         )
                     ),
@@ -4942,11 +4965,11 @@ class PebbleArtifactRendererTest {
                                 packageName = "contentstudio.events",
                                 name = "MediaProcessingSucceeded",
                                 description = "media processing succeeded",
-                                requestFields = listOf(
+                                fields = listOf(
                                     DrawingBoardFieldModel(name = "mediaId", type = "Long"),
                                 ),
-                                responseFields = emptyList(),
-                                role = "inbound",
+                                resultFields = emptyList(),
+                                artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
                                 eventName = "cap4k.reference.contentstudio.media-processing.succeeded",
                             )
                         )
@@ -4998,7 +5021,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -5047,7 +5070,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -5099,7 +5122,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/first.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/First.kt",
@@ -5107,7 +5130,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/second.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/Second.kt",
@@ -5450,7 +5473,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -5499,7 +5522,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -5537,7 +5560,7 @@ class PebbleArtifactRendererTest {
                 {% for importValue in imports(imports) %}
                 import {{ importValue }}
                 {% endfor %}
-                {% for field in requestFields %}
+                {% for field in fields %}
                 val {{ field.name }}: {{ type(field) | raw }} = {{ field.defaultValue }}
                 {% endfor %}
                 """.trimIndent()
@@ -5553,7 +5576,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/command.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/SubmitOrderCmd.kt",
@@ -5562,7 +5585,7 @@ class PebbleArtifactRendererTest {
                             "java.time.LocalDateTime",
                             "java.util.UUID",
                         ),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "retryCount", "renderedType" to "Long", "nullable" to false, "defaultValue" to "1L"),
                             mapOf("name" to "createdAt", "renderedType" to "LocalDateTime", "nullable" to false, "defaultValue" to "java.time.LocalDateTime.MIN"),
                             mapOf("name" to "enabled", "renderedType" to "Boolean", "nullable" to false, "defaultValue" to "true"),
@@ -5616,7 +5639,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -5663,7 +5686,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -5710,7 +5733,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -5757,7 +5780,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -5804,7 +5827,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -5856,7 +5879,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -5911,7 +5934,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -5946,7 +5969,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `default query handler preset renders service stub`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-handler-contract")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-query-handler-contract")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -5957,7 +5980,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-query-handler",
+                    generatorId = "query-handler",
                     moduleRole = "adapter",
                     templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt",
@@ -5967,7 +5990,7 @@ class PebbleArtifactRendererTest {
                         "description" to "find order query",
                         "queryTypeName" to "FindOrderQry",
                         "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderQry"),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "responseStatus"),
                             mapOf("name" to "snapshot"),
                         ),
@@ -6013,7 +6036,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `query handler preset renders unified contracts for collection shaped responses`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-handler-unified-contracts")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-query-handler-unified-contracts")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -6024,7 +6047,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-query-handler",
+                    generatorId = "query-handler",
                     moduleRole = "adapter",
                     templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt",
@@ -6034,14 +6057,14 @@ class PebbleArtifactRendererTest {
                         "description" to "find order list query",
                         "queryTypeName" to "FindOrderListQry",
                         "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderListQry"),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "responseStatus"),
                         ),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-query-handler",
+                    generatorId = "query-handler",
                     moduleRole = "adapter",
                     templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt",
@@ -6051,7 +6074,7 @@ class PebbleArtifactRendererTest {
                         "description" to "find order page query",
                         "queryTypeName" to "FindOrderPageQry",
                         "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderPageQry"),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "responseStatus"),
                         ),
                     ),
@@ -6107,7 +6130,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `query handler presets return object response when response fields are empty`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-handler-empty-response")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-query-handler-empty-response")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -6118,7 +6141,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-query-handler",
+                    generatorId = "query-handler",
                     moduleRole = "adapter",
                     templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt",
@@ -6128,12 +6151,12 @@ class PebbleArtifactRendererTest {
                         "description" to "find order query",
                         "queryTypeName" to "FindOrderQry",
                         "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderQry"),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-query-handler",
+                    generatorId = "query-handler",
                     moduleRole = "adapter",
                     templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt",
@@ -6143,12 +6166,12 @@ class PebbleArtifactRendererTest {
                         "description" to "find order list query",
                         "queryTypeName" to "FindOrderListQry",
                         "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderListQry"),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-query-handler",
+                    generatorId = "query-handler",
                     moduleRole = "adapter",
                     templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt",
@@ -6158,7 +6181,7 @@ class PebbleArtifactRendererTest {
                         "description" to "find order page query",
                         "queryTypeName" to "FindOrderPageQry",
                         "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderPageQry"),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 )
@@ -6214,13 +6237,13 @@ class PebbleArtifactRendererTest {
                             "java.time.LocalDateTime",
                             "java.util.UUID",
                         ),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "account", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"guest\""),
                             mapOf("name" to "issuedAt", "renderedType" to "LocalDateTime", "nullable" to false),
                             mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false),
                             mapOf("name" to "profile", "renderedType" to "Profile?", "nullable" to true),
                         ),
-                        "requestNestedTypes" to listOf(
+                        "nestedTypes" to listOf(
                             mapOf(
                                 "name" to "Profile",
                                 "fields" to listOf(
@@ -6229,13 +6252,13 @@ class PebbleArtifactRendererTest {
                                 ),
                             ),
                         ),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "token", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"demo-token\""),
                             mapOf("name" to "expiresAt", "renderedType" to "LocalDateTime", "nullable" to false),
                             mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false),
                             mapOf("name" to "payload", "renderedType" to "Payload?", "nullable" to true),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Payload",
                                 "fields" to listOf(
@@ -6308,7 +6331,7 @@ class PebbleArtifactRendererTest {
                         "typeName" to "IssueTokenCliHandler",
                         "clientTypeName" to "IssueTokenCli",
                         "imports" to listOf("com.acme.demo.application.distributed.clients.authorize.IssueTokenCli"),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "token"),
                             mapOf("name" to "expiresAt"),
                         ),
@@ -6373,12 +6396,12 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.application.distributed.clients.authorize",
                         "typeName" to "IssueTokenCli",
                         "imports" to emptyList<String>(),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "account", "renderedType" to "String", "nullable" to false),
                         ),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
-                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to emptyList<Map<String, Any?>>(),
+                        "resultNestedTypes" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
@@ -6392,7 +6415,7 @@ class PebbleArtifactRendererTest {
                         "typeName" to "IssueTokenCliHandler",
                         "clientTypeName" to "IssueTokenCli",
                         "imports" to listOf("com.acme.demo.application.distributed.clients.authorize.IssueTokenCli"),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 )
@@ -6448,12 +6471,12 @@ class PebbleArtifactRendererTest {
                             "java.util.UUID  ",
                             "  ",
                         ),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "address", "renderedType" to "Address?", "nullable" to true),
                             mapOf("name" to "note", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"demo\""),
                             mapOf("name" to "requestedAt", "renderedType" to "LocalDateTime", "nullable" to false),
                         ),
-                        "requestNestedTypes" to listOf(
+                        "nestedTypes" to listOf(
                             mapOf(
                                 "name" to "Address",
                                 "fields" to listOf(
@@ -6462,12 +6485,12 @@ class PebbleArtifactRendererTest {
                                 ),
                             ),
                         ),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "result", "renderedType" to "Result?", "nullable" to true),
                             mapOf("name" to "code", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"ok\""),
                             mapOf("name" to "responseId", "renderedType" to "UUID", "nullable" to false),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Result",
                                 "fields" to listOf(
@@ -6567,10 +6590,10 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.adapter.portal.api.payload.account",
                         "typeName" to "BatchSaveAccountList",
                         "imports" to emptyList<String>(),
-                        "requestFields" to emptyList<Map<String, Any?>>(),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
-                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "fields" to emptyList<Map<String, Any?>>(),
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to emptyList<Map<String, Any?>>(),
+                        "resultNestedTypes" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 )
@@ -6681,7 +6704,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `domain event preset resolves domain event handler template and renders event listener contract`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-domain-event-handler")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-domain-subscriber")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -6692,7 +6715,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-domain-event-handler",
+                    generatorId = "domain-subscriber",
                     moduleRole = "application",
                     templateId = "design/domain_event_handler.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
@@ -6761,16 +6784,14 @@ class PebbleArtifactRendererTest {
                     context = mapOf(
                         "packageName" to "com.acme.demo.domain.order.events",
                         "typeName" to "OrderCreatedDomainEvent",
-                        "buildingBlock" to mapOf(
-                            "tag" to "domain_event",
-                            "name" to "OrderCreatedDomainEvent",
-                            "packageName" to "order",
-                            "description" to "order */ \"created\" \\event ${'$'}status",
-                            "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" \\\\event \\${'$'}status\"",
-                            "aggregates" to listOf("Order"),
-                            "eventName" to "",
-                            "family" to "domain-event",
-                            "variant" to "",
+                        "buildingBlock" to buildingBlockContext(
+                            tag = "domain_event",
+                            name = "OrderCreatedDomainEvent",
+                            family = "domain-event",
+                            packageName = "or\"der\\pkg ${'$'}status",
+                            description = "order */ \"created\" \\event ${'$'}status",
+                            aggregates = listOf("Or\"der\\${'$'}status"),
+                            eventName = "order.\"created\"\\${'$'}event",
                         ),
                         "description" to "order */ \"created\" \\event ${'$'}status",
                         "descriptionText" to "order */ \"created\" \\event ${'$'}status",
@@ -6807,10 +6828,10 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@BuildingBlock("))
         assertTrue(content.contains("tag = \"domain_event\""))
         assertTrue(content.contains("name = \"OrderCreatedDomainEvent\""))
-        assertTrue(content.contains("packageName = \"order\""))
+        assertTrue(content.contains("packageName = ${"or\"der\\pkg ${'$'}status".toTestKotlinStringLiteral()}"))
         assertTrue(content.contains("description = \"order */ \\\"created\\\" \\\\event \\${'$'}status\""))
-        assertTrue(content.contains("aggregates = [\"Order\"]"))
-        assertTrue(content.contains("eventName = \"\""))
+        assertTrue(content.contains("aggregates = [${"Or\"der\\${'$'}status".toTestKotlinStringLiteral()}]"))
+        assertTrue(content.contains("eventName = ${"order.\"created\"\\${'$'}event".toTestKotlinStringLiteral()}"))
         assertTrue(content.contains("family = \"domain-event\""))
         assertTrue(content.contains("variant = \"\""))
         assertFalse(content.contains("&quot;"))
@@ -6825,10 +6846,10 @@ class PebbleArtifactRendererTest {
                 "packageName" to "com.acme.demo.application.api.order",
                 "typeName" to "OrderPayload",
                 "pageRequest" to true,
-                "requestFields" to listOf(mapOf("name" to "keyword", "renderedType" to "String?", "nullable" to true)),
-                "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                "responseFields" to listOf(mapOf("name" to "orderNo", "renderedType" to "String", "nullable" to false)),
-                "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                "fields" to listOf(mapOf("name" to "keyword", "renderedType" to "String?", "nullable" to true)),
+                "nestedTypes" to emptyList<Map<String, Any?>>(),
+                "resultFields" to listOf(mapOf("name" to "orderNo", "renderedType" to "String", "nullable" to false)),
+                "resultNestedTypes" to emptyList<Map<String, Any?>>(),
                 "imports" to emptyList<String>(),
                 "buildingBlock" to buildingBlockContext(
                     tag = "api_payload",
@@ -6952,8 +6973,8 @@ class PebbleArtifactRendererTest {
             context = mapOf(
                 "packageName" to "com.acme.demo.application.sagas.order",
                 "name" to "OrderFulfillmentSaga",
-                "requestFields" to listOf(mapOf("name" to "orderId", "renderedType" to "String", "nullable" to false)),
-                "responseFields" to listOf(mapOf("name" to "accepted", "renderedType" to "Boolean", "nullable" to false)),
+                "fields" to listOf(mapOf("name" to "orderId", "renderedType" to "String", "nullable" to false)),
+                "resultFields" to listOf(mapOf("name" to "accepted", "renderedType" to "Boolean", "nullable" to false)),
                 "imports" to emptyList<String>(),
                 "buildingBlock" to buildingBlockContext(
                     tag = "saga",
@@ -7006,7 +7027,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `integration event preset renders event annotation with literal event name and role subscribers`() {
+    fun `integration event preset renders event annotation with literal event name and variant subscribers`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-integration-event")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
@@ -7029,7 +7050,7 @@ class PebbleArtifactRendererTest {
                         "descriptionText" to "order */ \"created\" event",
                         "descriptionCommentText" to "order * / \"created\" event",
                         "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" event\"",
-                        "role" to "inbound",
+                        "variant" to "inbound",
                         "eventName" to "order.created",
                         "eventNameKotlinStringLiteral" to "\"order.created\"",
                         "inbound" to true,
@@ -7054,7 +7075,7 @@ class PebbleArtifactRendererTest {
                         "descriptionText" to "invoice paid event",
                         "descriptionCommentText" to "invoice paid event",
                         "descriptionKotlinStringLiteral" to "\"invoice paid event\"",
-                        "role" to "outbound",
+                        "variant" to "outbound",
                         "eventName" to "invoice.\$paid\\completed",
                         "eventNameKotlinStringLiteral" to "\"invoice.\\\$paid\\\\completed\"",
                         "inbound" to false,
@@ -7104,7 +7125,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `integration event subscriber preset renders spring event listener without EventSubscriber contract`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-integration-event-subscriber")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-integration-subscriber")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -7115,7 +7136,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-integration-event-subscriber",
+                    generatorId = "integration-subscriber",
                     moduleRole = "application",
                     templateId = "design/integration_event_subscriber.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/order/OrderCreatedIntegrationEventSubscriber.kt",
@@ -7125,7 +7146,7 @@ class PebbleArtifactRendererTest {
                         "eventTypeName" to "OrderCreatedIntegrationEvent",
                         "eventType" to "com.acme.demo.application.events.integration.inbound.order.OrderCreatedIntegrationEvent",
                         "eventName" to "order.created",
-                        "role" to "inbound",
+                        "variant" to "inbound",
                         "inbound" to true,
                         "outbound" to false,
                         "description" to "order */ created event",
@@ -7207,7 +7228,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-domain-event-handler",
+                    generatorId = "domain-subscriber",
                     moduleRole = "application",
                     templateId = "design/domain_event_handler.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",

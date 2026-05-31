@@ -46,8 +46,8 @@ class DesignDomainEventArtifactPlanner : GeneratorProvider {
                     "aggregateType" to "${aggregate.packageName}.${aggregate.name}",
                     "persist" to (block.persist ?: false),
                     "imports" to renderModel.imports,
-                    "fields" to renderModel.requestFields,
-                    "nestedTypes" to renderModel.requestNestedTypes,
+                    "fields" to renderModel.fields,
+                    "nestedTypes" to renderModel.nestedTypes,
                 ),
                 conflictPolicy = config.templates.conflictPolicy,
             )

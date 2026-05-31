@@ -48,19 +48,26 @@ class DesignCommandArtifactPlannerTest {
         assertEquals("submit order", command.context["description"])
         assertEquals(null, command.context["aggregateName"])
         assertEquals(emptyList<String>(), command.context["imports"])
-        assertEquals(emptyList<DesignRenderFieldModel>(), command.context["requestFields"])
-        assertEquals(emptyList<DesignRenderFieldModel>(), command.context["responseFields"])
+        assertEquals(emptyList<DesignRenderFieldModel>(), command.context["fields"])
+        assertEquals(emptyList<DesignRenderFieldModel>(), command.context["resultFields"])
         assertEquals(
             mapOf(
                 "tag" to "command",
+                "tagKotlinStringLiteral" to "\"command\"",
                 "name" to "SubmitOrder",
+                "nameKotlinStringLiteral" to "\"SubmitOrder\"",
                 "packageName" to "order.submit",
+                "packageNameKotlinStringLiteral" to "\"order.submit\"",
                 "description" to "submit order",
                 "descriptionKotlinStringLiteral" to "\"submit order\"",
                 "aggregates" to listOf("Order"),
+                "aggregateKotlinStringLiterals" to listOf("\"Order\""),
                 "eventName" to "",
+                "eventNameKotlinStringLiteral" to "\"\"",
                 "family" to "command",
+                "familyKotlinStringLiteral" to "\"command\"",
                 "variant" to "",
+                "variantKotlinStringLiteral" to "\"\"",
             ),
             command.context["buildingBlock"],
         )
@@ -96,7 +103,7 @@ class DesignCommandArtifactPlannerTest {
         assertEquals(listOf("com.acme.demo.domain.shared.ids.AuthorId"), command.context["imports"])
         assertEquals(
             listOf(DesignRenderFieldModel(name = "authorId", renderedType = "AuthorId")),
-            command.context["requestFields"],
+            command.context["fields"],
         )
     }
 

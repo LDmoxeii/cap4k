@@ -39,8 +39,8 @@ class Cap4kProjectConfigFactory {
             valueObjectManifestConfigured = !extension.types.valueObjectManifest.files.isEmpty,
         )
         val generatorStates = GeneratorStates(
-            aggregateEnabled = extension.generators.aggregate.enabled.get(),
-            aggregateProjectionEnabled = extension.generators.aggregateProjection.enabled.get(),
+            aggregateConfigured = extension.generators.aggregate.configured,
+            aggregateProjectionConfigured = extension.generators.aggregateProjection.configured,
         )
 
         validateProjectRules(extension, generatorStates)
@@ -75,17 +75,17 @@ class Cap4kProjectConfigFactory {
     }
 
     private fun validateProjectRules(extension: Cap4kExtension, generators: GeneratorStates) {
-        if (generators.aggregateEnabled) {
+        if (generators.aggregateConfigured) {
             val missingDomain = extension.project.domainModulePath.optionalValue() == null
             val missingApplication = extension.project.applicationModulePath.optionalValue() == null
             val missingAdapter = extension.project.adapterModulePath.optionalValue() == null
             if (missingDomain || missingApplication || missingAdapter) {
                 throw IllegalArgumentException(
-                    "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is enabled."
+                    "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is configured."
                 )
             }
         }
-        if (generators.aggregateProjectionEnabled) {
+        if (generators.aggregateProjectionConfigured) {
             extension.project.adapterModulePath.requiredWhenEnabled(
                 "project.adapterModulePath",
                 "aggregateProjection"
@@ -103,12 +103,12 @@ class Cap4kProjectConfigFactory {
             extension.project.applicationModulePath.optionalValue()?.let { put("application", it) }
             extension.project.adapterModulePath.optionalValue()?.let { put("adapter", it) }
         }
-        if (generators.aggregateEnabled) {
+        if (generators.aggregateConfigured) {
             put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
             put("application", extension.project.applicationModulePath.required("project.applicationModulePath"))
             put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
         }
-        if (generators.aggregateProjectionEnabled) {
+        if (generators.aggregateProjectionConfigured) {
             put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
         }
         if (sources.valueObjectManifestConfigured) {
@@ -173,7 +173,7 @@ class Cap4kProjectConfigFactory {
         sources: SourceStates,
         states: GeneratorStates,
     ): Map<String, GeneratorConfig> = buildMap {
-        if (states.aggregateEnabled) {
+        if (states.aggregateConfigured) {
             val aggregate = extension.generators.aggregate
             put(
                 "aggregate",
@@ -190,7 +190,7 @@ class Cap4kProjectConfigFactory {
                 )
             )
         }
-        if (states.aggregateProjectionEnabled) {
+        if (states.aggregateProjectionConfigured) {
             put("aggregate-projection", GeneratorConfig())
         }
     }
@@ -309,10 +309,10 @@ class Cap4kProjectConfigFactory {
         }
 
     private fun validateGeneratorDependencies(sources: SourceStates, generators: GeneratorStates) {
-        if (generators.aggregateEnabled && !sources.dbEnabled) {
+        if (generators.aggregateConfigured && !sources.dbEnabled) {
             throw IllegalArgumentException("aggregate generator requires db source.")
         }
-        if (generators.aggregateProjectionEnabled && !sources.dbEnabled) {
+        if (generators.aggregateProjectionConfigured && !sources.dbEnabled) {
             throw IllegalArgumentException("aggregateProjection generator requires db source.")
         }
     }
@@ -350,8 +350,8 @@ private data class SourceStates(
 )
 
 private data class GeneratorStates(
-    val aggregateEnabled: Boolean,
-    val aggregateProjectionEnabled: Boolean,
+    val aggregateConfigured: Boolean,
+    val aggregateProjectionConfigured: Boolean,
 )
 
 private fun Property<String>.required(path: String): String =

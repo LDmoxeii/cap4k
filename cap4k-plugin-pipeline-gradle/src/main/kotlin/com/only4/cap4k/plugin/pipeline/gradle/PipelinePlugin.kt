@@ -197,10 +197,9 @@ private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf
     !extension.types.enumManifest.files.isEmpty ||
     !extension.types.valueObjectManifest.files.isEmpty
 
-private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean = listOf(
-    extension.generators.aggregate.enabled,
-    extension.generators.aggregateProjection.enabled,
-).any { it.orNull == true }
+private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean =
+    extension.generators.aggregate.configured ||
+        extension.generators.aggregateProjection.configured
 
 internal fun sourceTaskConfig(config: ProjectConfig): ProjectConfig =
     config.copy(
@@ -524,7 +523,7 @@ private fun sanitizedDbSourceSnapshot(source: SourceConfig?): Map<String, Any?>?
         return null
     }
     val options = source.options
-    val snapshot = linkedMapOf<String, Any?>("enabled" to true)
+    val snapshot = linkedMapOf<String, Any?>()
     listOf("url", "username", "schema", "includeTables", "excludeTables").forEach { key ->
         if (options.containsKey(key)) {
             snapshot[key] = options[key]
@@ -541,7 +540,6 @@ private fun sanitizedSourceSnapshot(source: SourceConfig?): Map<String, Any?>? {
         return null
     }
     return linkedMapOf(
-        "enabled" to true,
         "options" to source.options.toSortedMap(),
     )
 }
@@ -551,7 +549,6 @@ private fun sanitizedGeneratorSnapshot(generator: GeneratorConfig?): Map<String,
         return null
     }
     return linkedMapOf(
-        "enabled" to true,
         "options" to generator.options.toSortedMap(),
     )
 }

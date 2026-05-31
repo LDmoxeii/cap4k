@@ -19,8 +19,6 @@ class Cap4kProjectConfigFactoryTest {
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
         assertFalse(extension.sources.db.enabled.get())
-        assertFalse(extension.generators.aggregate.enabled.get())
-        assertFalse(extension.generators.aggregateProjection.enabled.get())
         assertEquals("FAIL", extension.generators.aggregate.unsupportedTablePolicy.get())
         assertEquals("uuid7", extension.generators.aggregate.specialFields.idDefaultStrategy.get())
         assertEquals("", extension.generators.aggregate.specialFields.deletedDefaultColumn.get())
@@ -76,6 +74,17 @@ class Cap4kProjectConfigFactoryTest {
 
         extension.project {
             basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:test")
+                username.set("sa")
+                password.set("secret")
+            }
         }
         extension.generators {
             aggregate {
@@ -898,7 +907,6 @@ class Cap4kProjectConfigFactoryTest {
         }
         extension.generators {
             aggregate {
-                enabled.set(true)
                 unsupportedTablePolicy.set("SKIP")
             }
         }
@@ -932,7 +940,6 @@ class Cap4kProjectConfigFactoryTest {
         }
         extension.generators {
             aggregate {
-                enabled.set(true)
                 artifacts {
                     factory.set(true)
                     specification.set(true)
@@ -971,7 +978,7 @@ class Cap4kProjectConfigFactoryTest {
             }
         }
         extension.generators {
-            aggregate { enabled.set(true) }
+            aggregate { }
         }
 
         val config = Cap4kProjectConfigFactory().build(project, extension)
@@ -1005,7 +1012,7 @@ class Cap4kProjectConfigFactoryTest {
             }
         }
         extension.generators {
-            aggregateProjection { enabled.set(true) }
+            aggregateProjection { }
         }
 
         val config = Cap4kProjectConfigFactory().build(project, extension)
@@ -1031,7 +1038,7 @@ class Cap4kProjectConfigFactoryTest {
             }
         }
         extension.generators {
-            aggregateProjection { enabled.set(true) }
+            aggregateProjection { }
         }
 
         val error = assertThrows(IllegalArgumentException::class.java) {
@@ -1051,7 +1058,7 @@ class Cap4kProjectConfigFactoryTest {
             adapterModulePath.set("demo-adapter")
         }
         extension.generators {
-            aggregateProjection { enabled.set(true) }
+            aggregateProjection { }
         }
 
         val error = assertThrows(IllegalArgumentException::class.java) {
@@ -1135,9 +1142,6 @@ class Cap4kProjectConfigFactoryTest {
                 url.set("jdbc:h2:mem:test")
             }
         }
-        extension.generators {
-            aggregate { enabled.set(false) }
-        }
 
         val config = Cap4kProjectConfigFactory().build(project, extension)
 
@@ -1195,7 +1199,7 @@ class Cap4kProjectConfigFactoryTest {
             }
         }
         extension.generators {
-            aggregate { enabled.set(true) }
+            aggregate { }
         }
 
         val error = assertThrows(IllegalArgumentException::class.java) {
@@ -1203,7 +1207,7 @@ class Cap4kProjectConfigFactoryTest {
         }
 
         assertEquals(
-            "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is enabled.",
+            "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is configured.",
             error.message
         )
     }
@@ -1316,7 +1320,7 @@ class Cap4kProjectConfigFactoryTest {
             adapterModulePath.set("demo-adapter")
         }
         extension.generators {
-            aggregate { enabled.set(true) }
+            aggregate { }
         }
 
         val error = assertThrows(IllegalArgumentException::class.java) {

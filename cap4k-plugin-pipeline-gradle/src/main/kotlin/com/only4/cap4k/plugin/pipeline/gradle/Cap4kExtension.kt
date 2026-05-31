@@ -296,10 +296,12 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
     val flow: FlowGeneratorExtension = objects.newInstance(FlowGeneratorExtension::class.java)
 
     fun aggregate(block: AggregateGeneratorExtension.() -> Unit) {
+        aggregate.configured = true
         aggregate.block()
     }
 
     fun aggregateProjection(block: AggregateProjectionGeneratorExtension.() -> Unit) {
+        aggregateProjection.configured = true
         aggregateProjection.block()
     }
 
@@ -313,7 +315,7 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
 }
 
 open class AggregateGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    internal var configured: Boolean = false
     val unsupportedTablePolicy: Property<String> = objects.property(String::class.java).convention("FAIL")
     val specialFields: AggregateSpecialFieldsExtension =
         objects.newInstance(AggregateSpecialFieldsExtension::class.java)
@@ -370,7 +372,7 @@ open class AggregateGeneratorArtifactsExtension @Inject constructor(objects: Obj
 }
 
 open class AggregateProjectionGeneratorExtension @Inject constructor(objects: ObjectFactory) {
-    val enabled: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    internal var configured: Boolean = false
 }
 
 open class DrawingBoardGeneratorExtension @Inject constructor(objects: ObjectFactory) {

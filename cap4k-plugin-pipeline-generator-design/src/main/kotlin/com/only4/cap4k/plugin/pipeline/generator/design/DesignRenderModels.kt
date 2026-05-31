@@ -25,10 +25,10 @@ internal data class DesignRenderModel(
     val descriptionKotlinStringLiteral: String,
     val aggregateName: String?,
     val imports: List<String>,
-    val requestFields: List<DesignRenderFieldModel>,
-    val responseFields: List<DesignRenderFieldModel>,
-    val requestNestedTypes: List<DesignRenderNestedTypeModel>,
-    val responseNestedTypes: List<DesignRenderNestedTypeModel>,
+    val fields: List<DesignRenderFieldModel>,
+    val resultFields: List<DesignRenderFieldModel>,
+    val nestedTypes: List<DesignRenderNestedTypeModel>,
+    val resultNestedTypes: List<DesignRenderNestedTypeModel>,
     val pageRequest: Boolean = false,
 ) {
     fun toContextMap(): Map<String, Any?> = mapOf(
@@ -40,10 +40,10 @@ internal data class DesignRenderModel(
         "descriptionKotlinStringLiteral" to descriptionKotlinStringLiteral,
         "aggregateName" to aggregateName,
         "imports" to imports,
-        "requestFields" to requestFields,
-        "responseFields" to responseFields,
-        "requestNestedTypes" to requestNestedTypes,
-        "responseNestedTypes" to responseNestedTypes,
+        "fields" to fields,
+        "resultFields" to resultFields,
+        "nestedTypes" to nestedTypes,
+        "resultNestedTypes" to resultNestedTypes,
         "pageRequest" to pageRequest,
     )
 }

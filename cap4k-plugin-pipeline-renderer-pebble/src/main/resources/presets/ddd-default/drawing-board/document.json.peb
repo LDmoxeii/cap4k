@@ -6,7 +6,7 @@
     "name": {{ element.name | json | raw }},
     "description": {{ element.description | json | raw }},
     "aggregates": [{% for aggregate in element.aggregates %}{{ aggregate | json | raw }}{% if not loop.last %}, {% endif %}{% endfor %}]
-{%- if element.designJsonArtifacts|length > 0 %},
+{%- if element.includeDesignJsonArtifacts %},
     "artifacts": [{% for artifact in element.designJsonArtifacts %}{
       "family": {{ artifact.family | json | raw }}{% if artifact.variant is not empty %},
       "variant": {{ artifact.variant | json | raw }}{% endif %}
@@ -18,7 +18,7 @@
 {%- if element.eventName is not empty %}
     "eventName": {{ element.eventName | json | raw }},
 {%- endif %}
-    "fields": [{% for field in element.fields %}
+    "fields": [{% for field in element.designJsonFields %}
       {
         "name": {{ field.name | json | raw }},
         "type": {{ field.type | json | raw }},

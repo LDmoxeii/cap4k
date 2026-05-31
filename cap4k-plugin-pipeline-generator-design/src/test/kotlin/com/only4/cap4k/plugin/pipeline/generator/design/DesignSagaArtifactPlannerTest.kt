@@ -58,11 +58,11 @@ class DesignSagaArtifactPlannerTest {
         assertEquals(listOf("com.acme.demo.domain.shared.ids.ContentId"), item.context["imports"])
         assertEquals(
             listOf(DesignRenderFieldModel(name = "contentId", renderedType = "ContentId")),
-            item.context["requestFields"],
+            item.context["fields"],
         )
         assertEquals(
             listOf(DesignRenderFieldModel(name = "accepted", renderedType = "Boolean")),
-            item.context["responseFields"],
+            item.context["resultFields"],
         )
         @Suppress("UNCHECKED_CAST")
         val buildingBlock = item.context["buildingBlock"] as Map<String, Any?>

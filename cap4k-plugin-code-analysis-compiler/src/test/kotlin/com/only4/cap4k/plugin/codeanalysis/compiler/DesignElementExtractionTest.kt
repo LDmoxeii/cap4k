@@ -151,7 +151,7 @@ class DesignElementExtractionTest {
     }
 
     @Test
-    fun `recovers generated outer BuildingBlock saga request and response classes`() {
+    fun `recovers generated outer BuildingBlock saga artifact without DTO metadata`() {
         val sources = listOf(
             SourceFile.kotlin(
                 "BuildingBlock.kt",
@@ -210,12 +210,12 @@ class DesignElementExtractionTest {
         val recoverPayment = findObject(extractTopLevelObjects(json), "saga", "RecoverPayment")
 
         assertTrue(recoverPayment.contains("\"artifacts\":[{\"family\":\"saga\"}]"))
-        assertTrue(recoverPayment.contains("\"fields\":[{\"name\":\"paymentId\",\"type\":\"Long\",\"nullable\":false}"))
-        assertTrue(recoverPayment.contains("\"name\":\"attempt\",\"type\":\"Attempt\",\"nullable\":false}"))
-        assertTrue(recoverPayment.contains("\"name\":\"attempt.number\",\"type\":\"Int\",\"nullable\":false}"))
-        assertTrue(recoverPayment.contains("\"name\":\"attempt.reason\",\"type\":\"String\",\"nullable\":false}"))
-        assertTrue(recoverPayment.contains("\"resultFields\":[{\"name\":\"recovered\",\"type\":\"Boolean\",\"nullable\":false}"))
-        assertTrue(recoverPayment.contains("\"name\":\"nextAction\",\"type\":\"String\",\"nullable\":true,\"defaultValue\":\"null\""))
+        assertTrue(recoverPayment.contains("\"fields\":[]"))
+        assertTrue(recoverPayment.contains("\"resultFields\":[]"))
+        assertFalse(recoverPayment.contains("paymentId"))
+        assertFalse(recoverPayment.contains("attempt"))
+        assertFalse(recoverPayment.contains("recovered"))
+        assertFalse(recoverPayment.contains("nextAction"))
     }
 
     @Test
@@ -278,6 +278,76 @@ class DesignElementExtractionTest {
 
         assertTrue(
             messages.contains("conflicting BuildingBlock metadata for query order.read FindOrder: description"),
+        )
+    }
+
+    @Test
+    fun `rejects BuildingBlock annotations with blank required identity`() {
+        val annotationSource = SourceFile.kotlin(
+            "BuildingBlock.kt",
+            """
+                package com.only4.cap4k.ddd.core.annotation
+
+                annotation class BuildingBlock(
+                    val tag: String,
+                    val name: String,
+                    val packageName: String,
+                    val description: String = "",
+                    val aggregates: Array<String> = [],
+                    val eventName: String = "",
+                    val family: String = "",
+                    val variant: String = "",
+                )
+            """.trimIndent()
+        )
+        val blankTagMessages = compileWithCap4kPluginExpectingFailure(
+            listOf(
+                annotationSource,
+                SourceFile.kotlin(
+                    "BlankTagBlock.kt",
+                    """
+                        package demo.application.queries.order
+
+                        import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+
+                        @BuildingBlock(
+                            tag = " ",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            family = "query",
+                        )
+                        class BlankTagBlock
+                    """.trimIndent()
+                ),
+            )
+        )
+        val blankFamilyMessages = compileWithCap4kPluginExpectingFailure(
+            listOf(
+                annotationSource,
+                SourceFile.kotlin(
+                    "BlankFamilyBlock.kt",
+                    """
+                        package demo.application.queries.order
+
+                        import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+
+                        @BuildingBlock(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            family = " ",
+                        )
+                        class BlankFamilyBlock
+                    """.trimIndent()
+                ),
+            )
+        )
+
+        assertTrue(
+            blankTagMessages.contains("BuildingBlock annotation on demo.application.queries.order.BlankTagBlock must declare non-blank tag"),
+        )
+        assertTrue(
+            blankFamilyMessages.contains("BuildingBlock annotation on demo.application.queries.order.BlankFamilyBlock must declare non-blank family"),
         )
     }
 
@@ -587,7 +657,6 @@ class DesignElementExtractionTest {
                 """
                     package demo.domain.aggregates.user.events
                     @com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent(persist = true)
-                    @com.only4.cap4k.ddd.core.annotation.AggregateElement(aggregate = "User", type = "domain-event")
                     data class UserCreated(val userId: Long)
                 """.trimIndent()
             ),

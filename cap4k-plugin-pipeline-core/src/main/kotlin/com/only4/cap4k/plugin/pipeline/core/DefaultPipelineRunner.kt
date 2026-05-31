@@ -27,6 +27,15 @@ class DefaultPipelineRunner(
     override fun run(config: ProjectConfig): PipelineResult {
         validateAddonProviders(config)
 
+        val configuredSourceIds = config.sources.keys
+        val installedSourceIds = sources.map { it.id }.toSet()
+        val missingSourceIds = configuredSourceIds
+            .filter { it !in installedSourceIds }
+            .sorted()
+        require(missingSourceIds.isEmpty()) {
+            "configured sources have no registered providers: ${missingSourceIds.joinToString(", ")}"
+        }
+
         val configuredGeneratorIds = config.generators.keys
         val installedGeneratorIds = generators.map { it.id }.toSet()
         val missingGeneratorIds = configuredGeneratorIds
@@ -128,13 +137,10 @@ class DefaultPipelineRunner(
 
     private fun resolveConflictPolicy(item: ProvenancedPlanItem, config: ProjectConfig): ArtifactPlanItem {
         val planItem = item.planItem
-        val resolvedConflictPolicy = when (item.outputKind) {
-            ArtifactOutputKind.GENERATED_SOURCE -> ConflictPolicy.OVERWRITE
-            else -> if (item.isBuiltInObservationOutput()) {
-                ConflictPolicy.OVERWRITE
-            } else {
-                config.templates.templateConflictPolicies[planItem.templateId] ?: planItem.conflictPolicy
-            }
+        val resolvedConflictPolicy = if (item.isBuiltInObservationOutput()) {
+            ConflictPolicy.OVERWRITE
+        } else {
+            config.templates.templateConflictPolicies[planItem.templateId] ?: planItem.conflictPolicy
         }
 
         return planItem.copy(conflictPolicy = resolvedConflictPolicy)

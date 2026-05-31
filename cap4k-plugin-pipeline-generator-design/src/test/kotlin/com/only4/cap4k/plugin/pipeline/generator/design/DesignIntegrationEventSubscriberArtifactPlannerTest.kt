@@ -50,7 +50,7 @@ class DesignIntegrationEventSubscriberArtifactPlannerTest {
             subscriber.context["eventType"],
         )
         assertEquals("order.created", subscriber.context["eventName"])
-        assertEquals("inbound", subscriber.context["role"])
+        assertEquals("inbound", subscriber.context["variant"])
         assertEquals(true, subscriber.context["inbound"])
         assertEquals(false, subscriber.context["outbound"])
         assertEquals("order * / created event", subscriber.context["descriptionCommentText"])

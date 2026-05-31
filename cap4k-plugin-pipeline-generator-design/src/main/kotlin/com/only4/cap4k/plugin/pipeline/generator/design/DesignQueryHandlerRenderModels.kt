@@ -13,7 +13,7 @@ internal data class DesignQueryHandlerRenderModel(
     val queryTypeName: String,
     val queryTypeFqn: String,
     val imports: List<String>,
-    val responseFields: List<DesignQueryHandlerResponseFieldModel>,
+    val resultFields: List<DesignQueryHandlerResponseFieldModel>,
 ) {
     fun toContextMap(): Map<String, Any?> = mapOf(
         "packageName" to packageName,
@@ -22,7 +22,7 @@ internal data class DesignQueryHandlerRenderModel(
         "queryTypeName" to queryTypeName,
         "queryTypeFqn" to queryTypeFqn,
         "imports" to imports,
-        "responseFields" to responseFields,
+        "resultFields" to resultFields,
     )
 }
 
@@ -36,7 +36,7 @@ internal object DesignQueryHandlerRenderModelFactory {
             queryTypeName = queryTypeName,
             queryTypeFqn = queryType,
             imports = listOf(queryType),
-            responseFields = block.resultFields
+            resultFields = block.resultFields
                 .asSequence()
                 .filterNot { it.name.contains('.') }
                 .map { DesignQueryHandlerResponseFieldModel(it.name) }

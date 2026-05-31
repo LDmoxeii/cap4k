@@ -59,8 +59,8 @@ internal object DesignPayloadRenderModelFactory {
         packageName = packageName,
         typeName = block.commandTypeName(),
         description = block.description,
-        requestFields = block.fields,
-        responseFields = block.resultFields,
+        fields = block.fields,
+        resultFields = block.resultFields,
         typeRegistry = typeRegistry,
         siblingRequestTypeNames = siblingTypeNames,
     )
@@ -75,8 +75,8 @@ internal object DesignPayloadRenderModelFactory {
         packageName = packageName,
         typeName = block.queryTypeName(),
         description = block.description,
-        requestFields = block.fields,
-        responseFields = block.resultFields,
+        fields = block.fields,
+        resultFields = block.resultFields,
         typeRegistry = typeRegistry,
         siblingRequestTypeNames = siblingTypeNames,
         pageRequest = pageRequest,
@@ -91,8 +91,8 @@ internal object DesignPayloadRenderModelFactory {
         packageName = packageName,
         typeName = block.clientTypeName(),
         description = block.description,
-        requestFields = block.fields,
-        responseFields = block.resultFields,
+        fields = block.fields,
+        resultFields = block.resultFields,
         typeRegistry = typeRegistry,
         siblingRequestTypeNames = siblingTypeNames,
     )
@@ -106,8 +106,8 @@ internal object DesignPayloadRenderModelFactory {
         packageName = packageName,
         typeName = block.apiPayloadTypeName(),
         description = block.description,
-        requestFields = block.fields,
-        responseFields = block.resultFields,
+        fields = block.fields,
+        resultFields = block.resultFields,
         typeRegistry = typeRegistry,
         pageRequest = pageRequest,
     )
@@ -123,8 +123,8 @@ internal object DesignPayloadRenderModelFactory {
         description = block.description,
         aggregateName = aggregate.name,
         aggregatePackageName = aggregate.packageName,
-        requestFields = block.fields,
-        responseFields = emptyList(),
+        fields = block.fields,
+        resultFields = emptyList(),
         typeRegistry = typeRegistry,
     )
 
@@ -136,8 +136,8 @@ internal object DesignPayloadRenderModelFactory {
         packageName = packageName,
         typeName = block.integrationEventTypeName(),
         description = block.description,
-        requestFields = block.fields,
-        responseFields = emptyList(),
+        fields = block.fields,
+        resultFields = emptyList(),
         typeRegistry = typeRegistry,
     )
 
@@ -149,8 +149,8 @@ internal object DesignPayloadRenderModelFactory {
         packageName = packageName,
         typeName = block.name,
         description = block.description,
-        requestFields = block.fields,
-        responseFields = block.resultFields,
+        fields = block.fields,
+        resultFields = block.resultFields,
         typeRegistry = typeRegistry,
     )
 
@@ -158,16 +158,16 @@ internal object DesignPayloadRenderModelFactory {
         packageName: String,
         typeName: String,
         description: String,
-        requestFields: List<FieldModel>,
-        responseFields: List<FieldModel>,
+        fields: List<FieldModel>,
+        resultFields: List<FieldModel>,
         typeRegistry: Map<String, String>,
         siblingRequestTypeNames: Set<String> = emptySet(),
         pageRequest: Boolean = false,
         aggregateName: String? = null,
         aggregatePackageName: String? = null,
     ): DesignRenderModel {
-        val requestNamespace = buildNamespace(requestFields, "request")
-        val responseNamespace = buildNamespace(responseFields, "response")
+        val requestNamespace = buildNamespace(fields, "request")
+        val responseNamespace = buildNamespace(resultFields, "response")
         return createRenderModel(
             packageName = packageName,
             typeName = typeName,
@@ -227,10 +227,10 @@ internal object DesignPayloadRenderModelFactory {
         )
         val requestRenderedTypes = ArrayDeque(requestImportPlan.renderedTypes)
         val responseRenderedTypes = ArrayDeque(responseImportPlan.renderedTypes)
-        val requestFields = renderFields(requestNamespace.fields, requestRenderedTypes)
-        val requestNestedTypes = renderNestedTypes(requestNamespace.nestedTypes, requestRenderedTypes)
-        val responseFields = renderFields(responseNamespace.fields, responseRenderedTypes)
-        val responseNestedTypes = renderNestedTypes(responseNamespace.nestedTypes, responseRenderedTypes)
+        val fields = renderFields(requestNamespace.fields, requestRenderedTypes)
+        val nestedTypes = renderNestedTypes(requestNamespace.nestedTypes, requestRenderedTypes)
+        val resultFields = renderFields(responseNamespace.fields, responseRenderedTypes)
+        val resultNestedTypes = renderNestedTypes(responseNamespace.nestedTypes, responseRenderedTypes)
 
         return DesignRenderModel(
             packageName = packageName,
@@ -241,10 +241,10 @@ internal object DesignPayloadRenderModelFactory {
             descriptionKotlinStringLiteral = description.toKotlinStringLiteral(),
             aggregateName = aggregateName,
             imports = (requestImportPlan.imports + responseImportPlan.imports).distinct().sorted(),
-            requestFields = requestFields,
-            responseFields = responseFields,
-            requestNestedTypes = requestNestedTypes,
-            responseNestedTypes = responseNestedTypes,
+            fields = fields,
+            resultFields = resultFields,
+            nestedTypes = nestedTypes,
+            resultNestedTypes = resultNestedTypes,
             pageRequest = pageRequest,
         )
     }

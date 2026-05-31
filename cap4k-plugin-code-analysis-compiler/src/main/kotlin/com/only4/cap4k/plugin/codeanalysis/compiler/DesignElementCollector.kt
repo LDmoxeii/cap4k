@@ -67,14 +67,15 @@ class DesignElementCollector(
     }
 
     private fun collectBuildingBlock(declaration: IrClass, ann: IrConstructorCall) {
+        val className = declaration.fqNameWhenAvailable?.asString() ?: declaration.name.asString()
         val tag = ann.getStringArg("tag").orEmpty().trim()
         val name = ann.getStringArg("name").orEmpty().trim()
         val packageName = ann.getStringArg("packageName").orEmpty().trim()
-        if (tag.isEmpty() || name.isEmpty()) {
-            return
-        }
-
         val family = ann.getStringArg("family").orEmpty().trim()
+        require(tag.isNotEmpty()) { "BuildingBlock annotation on $className must declare non-blank tag" }
+        require(name.isNotEmpty()) { "BuildingBlock annotation on $className must declare non-blank name" }
+        require(family.isNotEmpty()) { "BuildingBlock annotation on $className must declare non-blank family" }
+
         val nestedTypes = collectNestedTypes(declaration)
         val fields = primaryFieldCarrier(declaration, family)?.let { fieldsRoot ->
             collectFields(
@@ -118,7 +119,6 @@ class DesignElementCollector(
             "command",
             "query",
             "client",
-            "saga",
             "api-payload" -> findNestedClass(declaration, "Request") ?: declaration
             "domain-event",
             "integration-event" -> declaration
@@ -126,7 +126,7 @@ class DesignElementCollector(
         }
 
     private fun String.hasResultFields(): Boolean =
-        this == "query" || this == "client" || this == "saga" || this == "api-payload"
+        this == "query" || this == "client" || this == "api-payload"
 
     private fun mergeBlock(element: DesignElement) {
         val key = BlockKey(element.tag, element.`package`, element.name)

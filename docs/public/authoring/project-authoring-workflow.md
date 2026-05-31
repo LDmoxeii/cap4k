@@ -41,7 +41,7 @@
   DDL 用表、列、关系、唯一约束和注释表达可生成的聚合结构。
   design JSON 用 `command`、`query`、`client`、`api_payload`、`domain_event`、`integration_event`、`domain_service`、`saga` 表达用例、接口和骨架意图；`validator` 不是 core design tag。
   `types.enumManifest` 用于共享枚举定义，配合 DB `@Type` 使用；manifest entry 不需要重复写入 `types.registryFile`。
-  `types.valueObjectManifest` 用于 JSON backed value object source；用 `scope = shared | aggregate` 区分共享和聚合独立值对象。
+  `types.valueObjectManifest` 用于 JSON backed value object source；用 `aggregates` 区分共享和值对象 owner aggregate，空表示 shared，单值表示 aggregate-owned。
 
 输入源细节见 [生成输入源](generator/input sources.md)。如果某个概念不能被当前输入源表达，应先标成缺口，不要伪装成已有生成能力。
 

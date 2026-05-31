@@ -252,7 +252,7 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `pipeline dependency inference is enabled by input presence or explicit generator gates`() {
+    fun `pipeline dependency inference is enabled by input presence or configured generator blocks`() {
         val irProject = ProjectBuilder.builder().build()
         irProject.pluginManager.apply(PipelinePlugin::class.java)
         val irExtension = irProject.extensions.getByType(Cap4kExtension::class.java)
@@ -262,7 +262,7 @@ class PipelinePluginTest {
         val aggregateProjectionProject = ProjectBuilder.builder().build()
         aggregateProjectionProject.pluginManager.apply(PipelinePlugin::class.java)
         val aggregateProjectionExtension = aggregateProjectionProject.extensions.getByType(Cap4kExtension::class.java)
-        aggregateProjectionExtension.generators.aggregateProjection.enabled.set(true)
+        aggregateProjectionExtension.generators.aggregateProjection { }
         assertTrue(shouldInferPipelineDependencies(aggregateProjectionExtension))
 
         val designProject = ProjectBuilder.builder().build()
@@ -611,6 +611,7 @@ class PipelinePluginTest {
         assertTrue(snapshot.contains("artifact.unique"))
         assertTrue(snapshot.contains("aggregateProjection"))
         assertTrue(snapshot.contains("demo-domain/build/generated/cap4k/main/kotlin"))
+        assertFalse(snapshot.contains("\"enabled\""))
     }
 
     @Test
@@ -1243,9 +1244,7 @@ class PipelinePluginTest {
             }
         }
         extension.generators {
-            aggregate {
-                enabled.set(true)
-            }
+            aggregate { }
         }
     }
 
@@ -1263,9 +1262,7 @@ class PipelinePluginTest {
             }
         }
         extension.generators {
-            aggregateProjection {
-                enabled.set(true)
-            }
+            aggregateProjection { }
         }
     }
 

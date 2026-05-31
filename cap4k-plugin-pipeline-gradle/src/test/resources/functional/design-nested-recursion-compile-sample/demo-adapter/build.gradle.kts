@@ -5,3 +5,7 @@ plugins {
 kotlin {
     jvmToolchain(17)
 }
+
+dependencies {
+    implementation("io.github.ldmoxeii:ddd-core:0.6.0-dev")
+}

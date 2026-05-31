@@ -53,9 +53,11 @@
         "type": "Long"
       }
     ],
-    "artifacts": {
-      "variant": "outbound",
-      "family": "integration-event"
-    }
+    "artifacts": [
+      {
+        "variant": "outbound",
+        "family": "integration-event"
+      }
+    ]
   }
 ]

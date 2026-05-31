@@ -12,14 +12,14 @@ import {{ import }}
 
 {% if buildingBlock is defined -%}
 @BuildingBlock(
-    tag = "{{ buildingBlock.tag }}",
-    name = "{{ buildingBlock.name }}",
-    packageName = "{{ buildingBlock.packageName }}",
+    tag = {{ buildingBlock.tagKotlinStringLiteral | raw }},
+    name = {{ buildingBlock.nameKotlinStringLiteral | raw }},
+    packageName = {{ buildingBlock.packageNameKotlinStringLiteral | raw }},
     description = {{ buildingBlock.descriptionKotlinStringLiteral | raw }},
-    aggregates = [{% for aggregate in buildingBlock.aggregates %}"{{ aggregate }}"{% if not loop.last %}, {% endif %}{% endfor %}],
-    eventName = "{{ buildingBlock.eventName }}",
-    family = "{{ buildingBlock.family }}",
-    variant = "{{ buildingBlock.variant }}"
+    aggregates = [{% for aggregate in buildingBlock.aggregateKotlinStringLiterals %}{{ aggregate | raw }}{% if not loop.last %}, {% endif %}{% endfor %}],
+    eventName = {{ buildingBlock.eventNameKotlinStringLiteral | raw }},
+    family = {{ buildingBlock.familyKotlinStringLiteral | raw }},
+    variant = {{ buildingBlock.variantKotlinStringLiteral | raw }}
 )
 {% endif -%}
 object {{ name }} {
@@ -31,9 +31,9 @@ object {{ name }} {
         }
     }
 
-{% if requestFields.size > 0 %}
+{% if fields.size > 0 %}
     data class Request(
-{%- for field in requestFields %}
+{%- for field in fields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
     ) : SagaParam<Response>
@@ -41,9 +41,9 @@ object {{ name }} {
     class Request : SagaParam<Response>
 {% endif %}
 
-{% if responseFields.size > 0 %}
+{% if resultFields.size > 0 %}
     data class Response(
-{%- for field in responseFields %}
+{%- for field in resultFields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
     )
