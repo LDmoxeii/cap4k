@@ -126,7 +126,7 @@ class DesignElementCollector(
         }
 
     private fun String.hasResultFields(): Boolean =
-        this == "query" || this == "client" || this == "api-payload"
+        this == "command" || this == "query" || this == "client" || this == "api-payload"
 
     private fun List<DesignField>.filterRecoveredFields(family: String): List<DesignField> =
         when (family) {

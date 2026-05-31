@@ -143,7 +143,12 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("name = \"$name\""))
         assertTrue(content.contains("aggregates = [${aggregates.joinToString(", ") { "\"$it\"" }}]"))
         assertTrue(content.contains("family = \"$family\""))
-        assertTrue(content.contains("variant = \"$variant\""))
+        assertFalse(content.contains("eventName = "))
+        if (variant.isBlank()) {
+            assertFalse(content.contains("variant = \"\""))
+        } else {
+            assertTrue(content.contains("variant = \"$variant\""))
+        }
     }
 
     private fun String.toTestKotlinStringLiteral(): String {
@@ -215,9 +220,9 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("packageName = \"com.acme.demo.domain.shared.values\""))
         assertTrue(content.contains("description = \"money */ \\\"amount\\\" \\\\value \\${'$'}currency\""))
         assertTrue(content.contains("aggregates = [\"Order\"]"))
-        assertTrue(content.contains("eventName = \"\""))
+        assertFalse(content.contains("eventName = "))
         assertTrue(content.contains("family = \"value-object\""))
-        assertTrue(content.contains("variant = \"\""))
+        assertFalse(content.contains("variant = \"\""))
         assertTrue(content.contains("data class Money("))
         assertTrue(content.contains("val amount: BigDecimal,"))
         assertTrue(content.contains("val currency: CurrencyCode?"))
@@ -4603,6 +4608,24 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("\"name\": \"accepted\""))
         assertTrue(content.contains("\"nullable\": true"))
         assertTrue(content.contains("\"defaultValue\": \"false\""))
+        assertTrue(
+            content.contains(
+                """
+                |    "fields": [
+                |      { "name": "id", "type": "Long", "nullable": false }
+                |    ],
+                """.trimMargin()
+            )
+        )
+        assertTrue(
+            content.contains(
+                """
+                |    "resultFields": [
+                |      { "name": "accepted", "type": "Boolean", "nullable": true, "defaultValue": "false" }
+                |    ]
+                """.trimMargin()
+            )
+        )
         assertTrue(!content.contains("\"entity\": null"))
         assertTrue(!content.contains("\"persist\": null"))
         assertTrue(!content.contains("\"defaultValue\": null"))
@@ -6833,7 +6856,7 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("aggregates = [${"Or\"der\\${'$'}status".toTestKotlinStringLiteral()}]"))
         assertTrue(content.contains("eventName = ${"order.\"created\"\\${'$'}event".toTestKotlinStringLiteral()}"))
         assertTrue(content.contains("family = \"domain-event\""))
-        assertTrue(content.contains("variant = \"\""))
+        assertFalse(content.contains("variant = \"\""))
         assertFalse(content.contains("&quot;"))
     }
 
