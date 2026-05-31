@@ -94,6 +94,14 @@ class AggregateProjectionArtifactPlannerTest {
         assertEquals("CategoryProjection", item.context["typeName"])
         assertEquals("Category", item.context["sourceTypeName"])
         assertEquals(category.packageName, item.context["sourcePackageName"])
+        @Suppress("UNCHECKED_CAST")
+        val aggregateElement = item.context["aggregateElement"] as? Map<String, Any?>
+        assertEquals("Category", aggregateElement?.get("aggregate"))
+        assertEquals("CategoryProjection", aggregateElement?.get("name"))
+        assertEquals("com.acme.demo.adapter.application.projections.catalog.category", aggregateElement?.get("packageName"))
+        assertEquals("Category", aggregateElement?.get("description"))
+        assertEquals("projection", aggregateElement?.get("type"))
+        assertEquals(false, aggregateElement?.get("root"))
 
         val scalarFields = item.context["scalarFields"] as List<Map<String, Any?>>
         assertEquals(listOf("id", "parentId", "name", "version"), scalarFields.map { it["name"] })
@@ -251,7 +259,7 @@ class AggregateProjectionArtifactPlannerTest {
             layout = ProjectLayout.MULTI_MODULE,
             modules = mapOf("adapter" to "demo-adapter"),
             sources = emptyMap(),
-            generators = mapOf("aggregate-projection" to GeneratorConfig(enabled = true)),
+            generators = mapOf("aggregate-projection" to GeneratorConfig()),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         )
 }

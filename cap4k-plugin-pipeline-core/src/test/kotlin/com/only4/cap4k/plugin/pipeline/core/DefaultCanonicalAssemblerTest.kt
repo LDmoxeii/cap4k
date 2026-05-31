@@ -1,15 +1,15 @@
 package com.only4.cap4k.plugin.pipeline.core
 
-import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
-import com.only4.cap4k.plugin.pipeline.api.CommandVariant
 import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
@@ -27,13 +27,10 @@ import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
-import com.only4.cap4k.plugin.pipeline.api.IntegrationEventRole
-import com.only4.cap4k.plugin.pipeline.api.KspMetadataSnapshot
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
 import com.only4.cap4k.plugin.pipeline.api.PackageLayout
-import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
@@ -46,9 +43,9 @@ import com.only4.cap4k.plugin.pipeline.api.TypeRegistryModel
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectManifestSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
-import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectStorage
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -57,7 +54,313 @@ import org.junit.jupiter.api.Test
 class DefaultCanonicalAssemblerTest {
 
     @Test
-    fun `assembler splits canonical command query client into typed canonical collections`() {
+    fun `query design block defaults to query and query handler artifacts`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            description = "find order",
+                            aggregates = listOf("Order"),
+                            fields = listOf(FieldModel(name = "orderNo", type = "String")),
+                            resultFields = listOf(FieldModel(name = "status", type = "String")),
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        val block = model.designBlocks.single()
+        assertEquals("query", block.tag)
+        assertEquals("FindOrder", block.name)
+        assertEquals(
+            listOf(
+                ArtifactSelectionModel("query"),
+                ArtifactSelectionModel("query-handler"),
+            ),
+            block.artifacts,
+        )
+        assertEquals(listOf("orderNo"), block.fields.map { it.name })
+        assertEquals(listOf("status"), block.resultFields.map { it.name })
+    }
+
+    @Test
+    fun `integration event design block defaults to outbound integration event`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "integration_event",
+                            packageName = "order.events",
+                            name = "OrderCreated",
+                            description = "order created",
+                            aggregates = emptyList(),
+                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            eventName = "order.created",
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        assertEquals(
+            listOf(ArtifactSelectionModel("integration-event", "outbound")),
+            model.designBlocks.single().artifacts,
+        )
+    }
+
+    @Test
+    fun `explicit empty integration event artifacts keep design block empty and skip typed integration events`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "integration_event",
+                            packageName = "order.events",
+                            name = "OrderCreated",
+                            description = "order created",
+                            aggregates = emptyList(),
+                            artifacts = emptyList(),
+                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            eventName = "order.created",
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        assertEquals(emptyList<ArtifactSelectionModel>(), model.designBlocks.single().artifacts)
+    }
+
+    @Test
+    fun `integration subscriber requires explicit inbound integration event`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "integration_event",
+                                packageName = "order.events",
+                                name = "OrderCreated",
+                                description = "order created",
+                                aggregates = emptyList(),
+                                fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                                eventName = "order.created",
+                                artifacts = listOf(
+                                    ArtifactSelectionModel("integration-event", "outbound"),
+                                    ArtifactSelectionModel("integration-subscriber"),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "integration_event OrderCreated integration-subscriber requires integration-event:inbound.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `integration subscriber is valid with explicit inbound integration event`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "integration_event",
+                            packageName = "order.events",
+                            name = "OrderCreated",
+                            description = "order created",
+                            aggregates = emptyList(),
+                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            eventName = "order.created",
+                            artifacts = listOf(
+                                ArtifactSelectionModel("integration-event", "inbound"),
+                                ArtifactSelectionModel("integration-subscriber"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        assertEquals(
+            listOf(
+                ArtifactSelectionModel("integration-event", "inbound"),
+                ArtifactSelectionModel("integration-subscriber"),
+            ),
+            model.designBlocks.single().artifacts,
+        )
+    }
+
+    @Test
+    fun `integration event artifact variant controls typed projection role`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "integration_event",
+                            packageName = "order.events",
+                            name = "OrderCreated",
+                            description = "order created",
+                            aggregates = emptyList(),
+                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            eventName = "order.created",
+                            artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        assertEquals(
+            listOf(ArtifactSelectionModel("integration-event", "inbound")),
+            model.designBlocks.single().artifacts,
+        )
+    }
+
+    @Test
+    fun `explicit query page artifact does not add query handler default`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrderPage",
+                            description = "find order page",
+                            aggregates = listOf("Order"),
+                            artifacts = listOf(ArtifactSelectionModel("query", "page")),
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        assertEquals(
+            listOf(ArtifactSelectionModel("query", "page")),
+            model.designBlocks.single().artifacts,
+        )
+    }
+
+    @Test
+    fun `explicit empty artifact selections do not use default expansion`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            description = "find order",
+                            aggregates = emptyList(),
+                            artifacts = emptyList(),
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        assertEquals(emptyList<ArtifactSelectionModel>(), model.designBlocks.single().artifacts)
+    }
+
+    @Test
+    fun `design block validation rejects unsupported families variants and duplicate selections`() {
+        val cases = listOf(
+            Triple(
+                listOf(ArtifactSelectionModel("unsupported")),
+                "unsupported design artifact family on FindOrder: unsupported",
+                "unsupported-family",
+            ),
+            Triple(
+                listOf(ArtifactSelectionModel("query", "stream")),
+                "design entry FindOrder artifact query has unsupported variant: stream",
+                "unsupported-variant",
+            ),
+            Triple(
+                listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query")),
+                "design entry FindOrder has duplicate artifact selection: query",
+                "duplicate",
+            ),
+            Triple(
+                listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query", "page")),
+                "design entry FindOrder has conflicting query variants",
+                "conflicting-query-variant",
+            ),
+        )
+
+        cases.forEach { (artifacts, expectedMessage, _) ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DefaultCanonicalAssembler().assemble(
+                    config = baseConfig(),
+                    snapshots = listOf(
+                        DesignSpecSnapshot(
+                            entries = listOf(
+                                DesignSpecEntry(
+                                    tag = "query",
+                                    packageName = "order.read",
+                                    name = "FindOrder",
+                                    description = "find order",
+                                    aggregates = emptyList(),
+                                    artifacts = artifacts,
+                                ),
+                            ),
+                        ),
+                    ),
+                )
+            }
+
+            assertEquals(expectedMessage, error.message)
+        }
+    }
+
+    @Test
+    fun `design block validation rejects result fields on tags without result payloads`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "command",
+                                packageName = "order",
+                                name = "SubmitOrder",
+                                description = "submit order",
+                                aggregates = emptyList(),
+                                resultFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals("design entry SubmitOrder cannot declare resultFields on tag: command", error.message)
+    }
+
+    @Test
+    fun `assembler maps canonical command query client entries into design blocks`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -71,8 +374,6 @@ class DefaultCanonicalAssemblerTest {
                             name = "CreateOrder",
                             description = "create order",
                             aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
                             tag = "query",
@@ -80,8 +381,6 @@ class DefaultCanonicalAssemblerTest {
                             name = "FindOrderList",
                             description = "list order",
                             aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
                             tag = "client",
@@ -89,22 +388,19 @@ class DefaultCanonicalAssemblerTest {
                             name = "SyncStock",
                             description = "sync stock",
                             aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                     )
                 ),
             ),
         ).model
 
-        assertEquals(listOf("CreateOrderCmd"), model.commands.map { it.typeName })
-        assertEquals(listOf("FindOrderListQry"), model.queries.map { it.typeName })
-        assertEquals(listOf("SyncStockCli"), model.clients.map { it.typeName })
-        assertEquals(CommandVariant.DEFAULT, model.commands.single().variant)
+        assertEquals(listOf("CreateOrder"), model.designBlocks.filter { it.tag == "command" }.map { it.name })
+        assertEquals(listOf("FindOrderList"), model.designBlocks.filter { it.tag == "query" }.map { it.name })
+        assertEquals(listOf("SyncStock"), model.designBlocks.filter { it.tag == "client" }.map { it.name })
     }
 
     @Test
-    fun `query names with list and page suffixes do not imply request traits`() {
+    fun `query names with list and page suffixes keep explicit design block artifacts only`() {
         val assembler = DefaultCanonicalAssembler()
 
         val result = assembler.assemble(
@@ -118,8 +414,6 @@ class DefaultCanonicalAssemblerTest {
                             name = "FindOrderList",
                             description = "find order list",
                             aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
                             tag = "query",
@@ -127,20 +421,23 @@ class DefaultCanonicalAssemblerTest {
                             name = "FindOrderPage",
                             description = "find order page",
                             aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                     )
                 ),
             ),
         )
 
-        assertEquals(listOf("FindOrderListQry", "FindOrderPageQry"), result.model.queries.map { it.typeName })
-        assertEquals(listOf(emptySet<RequestTrait>(), emptySet<RequestTrait>()), result.model.queries.map { it.traits })
+        assertEquals(
+            listOf(
+                listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler")),
+                listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler")),
+            ),
+            result.model.designBlocks.map { it.artifacts },
+        )
     }
 
     @Test
-    fun `assembler carries page traits on query and api payload canonical models`() {
+    fun `assembler carries page artifacts on query and api payload design blocks`() {
         val assembler = DefaultCanonicalAssembler()
         val result = assembler.assemble(
             config = baseConfig(),
@@ -153,9 +450,7 @@ class DefaultCanonicalAssemblerTest {
                             name = "FindOrderPage",
                             description = "find order page",
                             aggregates = emptyList(),
-                            traits = setOf(RequestTrait.PAGE),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
+                            artifacts = listOf(ArtifactSelectionModel("query", "page")),
                         ),
                         DesignSpecEntry(
                             tag = "api_payload",
@@ -163,71 +458,24 @@ class DefaultCanonicalAssemblerTest {
                             name = "FindOrderPage",
                             description = "find order page payload",
                             aggregates = emptyList(),
-                            traits = setOf(RequestTrait.PAGE),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
+                            artifacts = listOf(ArtifactSelectionModel("api-payload", "page")),
                         ),
                     ),
                 ),
             ),
         )
 
-        assertEquals(setOf(RequestTrait.PAGE), result.model.queries.single().traits)
-        assertEquals(setOf(RequestTrait.PAGE), result.model.apiPayloads.single().traits)
-    }
-
-    @Test
-    fun `assembler carries integration events into canonical model`() {
-        val assembler = DefaultCanonicalAssembler()
-
-        val result = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "integration_event",
-                            packageName = "order.events",
-                            name = "order_created",
-                            description = "order created inbound",
-                            aggregates = emptyList(),
-                            requestFields = listOf(
-                                FieldModel(name = "orderId", type = "Long"),
-                                FieldModel(name = "buyerId", type = "Long"),
-                            ),
-                            responseFields = emptyList(),
-                            role = "inbound",
-                            eventName = "order.created",
-                        ),
-                        DesignSpecEntry(
-                            tag = "integration_event",
-                            packageName = "order.events",
-                            name = "OrderPaid",
-                            description = "order paid outbound",
-                            aggregates = emptyList(),
-                            requestFields = listOf(
-                                FieldModel(name = "paymentId", type = "String"),
-                            ),
-                            responseFields = emptyList(),
-                            role = "outbound",
-                            eventName = "order.paid",
-                        ),
-                    ),
-                ),
+        assertEquals(
+            listOf(
+                ArtifactSelectionModel("query", "page"),
+                ArtifactSelectionModel("api-payload", "page"),
             ),
+            result.model.designBlocks.map { it.artifacts.single() },
         )
-
-        val integrationEvents = result.model.integrationEvents
-        assertEquals(2, integrationEvents.size)
-        assertEquals(listOf(IntegrationEventRole.INBOUND, IntegrationEventRole.OUTBOUND), integrationEvents.map { it.role })
-        assertEquals(listOf("order.created", "order.paid"), integrationEvents.map { it.eventName })
-        assertEquals(listOf("OrderCreatedIntegrationEvent", "OrderPaidIntegrationEvent"), integrationEvents.map { it.typeName })
-        assertEquals(listOf("orderId", "buyerId"), integrationEvents.first().fields.map { it.name })
-        assertEquals(listOf("paymentId"), integrationEvents[1].fields.map { it.name })
     }
 
     @Test
-    fun `assembles domain services sagas and value objects`() {
+    fun `assembles domain services and value objects`() {
         val design = DesignSpecSnapshot(
             entries = listOf(
                 DesignSpecEntry(
@@ -236,8 +484,6 @@ class DefaultCanonicalAssemblerTest {
                     name = "ContentPublicationPolicy",
                     description = "publication policy",
                     aggregates = listOf("Content"),
-                    requestFields = emptyList(),
-                    responseFields = emptyList(),
                 ),
                 DesignSpecEntry(
                     tag = "saga",
@@ -245,8 +491,7 @@ class DefaultCanonicalAssemblerTest {
                     name = "PublishContentSaga",
                     description = "publish content",
                     aggregates = emptyList(),
-                    requestFields = listOf(FieldModel(name = "contentId", type = "ContentId")),
-                    responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+                    fields = listOf(FieldModel(name = "contentId", type = "ContentId")),
                 ),
             )
         )
@@ -255,7 +500,6 @@ class DefaultCanonicalAssemblerTest {
                 ValueObjectModel(
                     name = "Money",
                     packageName = "shared.values",
-                    scope = ValueObjectScope.SHARED,
                     storage = ValueObjectStorage.JSON,
                     fields = listOf(FieldModel(name = "amount", type = "BigDecimal")),
                 )
@@ -269,9 +513,10 @@ class DefaultCanonicalAssemblerTest {
 
         assertEquals("ContentPublicationPolicy", model.domainServices.single().name)
         assertEquals(listOf("Content"), model.domainServices.single().aggregates)
-        assertEquals("PublishContentSaga", model.sagas.single().name)
-        assertEquals(listOf("contentId"), model.sagas.single().requestFields.map { it.name })
-        assertEquals(listOf("accepted"), model.sagas.single().responseFields.map { it.name })
+        val sagaBlock = model.designBlocks.single { it.tag == "saga" }
+        assertEquals("PublishContentSaga", sagaBlock.name)
+        assertEquals(listOf("contentId"), sagaBlock.fields.map { it.name })
+        assertEquals(emptyList<FieldModel>(), sagaBlock.resultFields)
         assertEquals("Money", model.valueObjects.single().name)
         assertEquals(typeRegistry.entries, model.typeRegistry.entries)
     }
@@ -405,21 +650,19 @@ class DefaultCanonicalAssemblerTest {
                 ValueObjectModel(
                     name = "Snapshot",
                     packageName = "content.values",
-                    scope = ValueObjectScope.AGGREGATE,
-                    aggregate = "Content",
+                    aggregates = listOf("Content"),
                 ),
                 ValueObjectModel(
                     name = "Snapshot",
                     packageName = "review.values",
-                    scope = ValueObjectScope.AGGREGATE,
-                    aggregate = "Review",
+                    aggregates = listOf("Review"),
                 ),
             )
         )
 
         val model = assemble(valueObjects = valueObjects)
 
-        assertEquals(listOf("Content", "Review"), model.valueObjects.map { it.aggregate })
+        assertEquals(listOf(listOf("Content"), listOf("Review")), model.valueObjects.map { it.aggregates })
     }
 
     @Test
@@ -429,8 +672,7 @@ class DefaultCanonicalAssemblerTest {
                 ValueObjectModel(
                     name = "Status",
                     packageName = "content.values",
-                    scope = ValueObjectScope.AGGREGATE,
-                    aggregate = "Content",
+                    aggregates = listOf("Content"),
                 ),
             )
         )
@@ -466,13 +708,54 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler rejects enum manifest with more than one aggregate`() {
+        val enumManifest = EnumManifestSnapshot(
+            definitions = listOf(
+                SharedEnumDefinition(
+                    typeName = "OrderStatus",
+                    packageName = "order.enums",
+                    items = listOf(EnumItemModel(1, "PAID", "Paid")),
+                    aggregates = listOf("Order", "Payment"),
+                ),
+            )
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                config = baseAggregateConfig(),
+                snapshots = listOf(enumManifest),
+            )
+        }
+
+        assertEquals("enum OrderStatus may declare at most one aggregate", error.message)
+    }
+
+    @Test
+    fun `assembler rejects value object manifest with more than one aggregate`() {
+        val valueObjects = ValueObjectManifestSnapshot(
+            valueObjects = listOf(
+                ValueObjectModel(
+                    name = "Money",
+                    packageName = "shared.values",
+                    aggregates = listOf("Order", "Payment"),
+                ),
+            )
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assemble(valueObjects = valueObjects)
+        }
+
+        assertEquals("value object Money may declare at most one aggregate", error.message)
+    }
+
+    @Test
     fun `fails on duplicate simple type names across enum value object and registry`() {
         val valueObjects = ValueObjectManifestSnapshot(
             valueObjects = listOf(
                 ValueObjectModel(
                     name = "Status",
                     packageName = "shared.values",
-                    scope = ValueObjectScope.SHARED,
                     storage = ValueObjectStorage.JSON,
                 )
             )
@@ -502,10 +785,8 @@ class DefaultCanonicalAssemblerTest {
                                 name = "OrderCreated",
                                 description = "order created inbound",
                                 aggregates = emptyList(),
-                                requestFields = emptyList(),
-                                responseFields = emptyList(),
-                                role = "inbound",
                                 eventName = " ",
+                                artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
                             ),
                         ),
                     ),
@@ -530,10 +811,8 @@ class DefaultCanonicalAssemblerTest {
                                 name = "OrderCreated",
                                 description = "order created inbound",
                                 aggregates = emptyList(),
-                                requestFields = emptyList(),
-                                responseFields = emptyList(),
-                                role = "inbound",
                                 eventName = "order.created",
+                                artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
                             ),
                         ),
                     ),
@@ -541,62 +820,39 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals("integration_event OrderCreated must declare at least one requestField.", error.message)
+        assertEquals("integration_event OrderCreated must declare at least one fields entry.", error.message)
     }
 
     @Test
-    fun `client design tags map into canonical clients`() {
+    fun `client design rejects legacy aliases`() {
         val assembler = DefaultCanonicalAssembler()
 
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "client_legacy_alias",
-                            packageName = "auth.client",
-                            name = "IssueToken",
-                            description = "issue token",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
+        listOf("client_legacy_alias", "clients_legacy_alias").forEach { tag ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                assembler.assemble(
+                    config = baseConfig(),
+                    snapshots = listOf(
+                        DesignSpecSnapshot(
+                            entries = listOf(
+                                DesignSpecEntry(
+                                    tag = tag,
+                                    packageName = "auth.client",
+                                    name = "IssueToken",
+                                    description = "issue token",
+                                    aggregates = emptyList(),
+                                ),
+                            )
                         ),
-                        DesignSpecEntry(
-                            tag = "client",
-                            packageName = "auth.client",
-                            name = "RefreshToken",
-                            description = "refresh token",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "clients_legacy_alias",
-                            packageName = "auth.client",
-                            name = "RevokeToken",
-                            description = "revoke token",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                    )
-                ),
-            ),
-        ).model
+                    ),
+                )
+            }
 
-        assertEquals(
-            listOf("RefreshTokenCli"),
-            model.clients.map { it.typeName },
-        )
-        assertEquals(
-            listOf("auth.client"),
-            model.clients.map { it.packageName },
-        )
+            assertEquals("Unsupported design tag: $tag", error.message)
+        }
     }
 
     @Test
-    fun `client naming keeps command and query mappings unchanged`() {
+    fun `client entries keep command and query design block mappings unchanged`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -610,8 +866,6 @@ class DefaultCanonicalAssemblerTest {
                             name = "SubmitOrder",
                             description = "submit order",
                             aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
                             tag = "client",
@@ -619,8 +873,6 @@ class DefaultCanonicalAssemblerTest {
                             name = "IssueToken",
                             description = "issue token",
                             aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
                             tag = "query",
@@ -628,46 +880,21 @@ class DefaultCanonicalAssemblerTest {
                             name = "FindOrder",
                             description = "find order",
                             aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                            rootPackageName = "com.acme.demo.domain.aggregates.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
+                aggregateSnapshot("order"),
             ),
         ).model
 
-        assertEquals(listOf("SubmitOrderCmd"), model.commands.map { it.typeName })
-        assertEquals(listOf("IssueTokenCli"), model.clients.map { it.typeName })
-        assertEquals(listOf("FindOrderQry"), model.queries.map { it.typeName })
-        assertEquals("Order", model.commands.single().aggregateRef?.name)
-        assertEquals("Order", model.clients.single().aggregateRef?.name)
-        assertEquals("Order", model.queries.single().aggregateRef?.name)
-        assertEquals(
-            "com.acme.demo.domain.aggregates.order",
-            model.commands.single().aggregateRef?.packageName,
-        )
-        assertEquals(
-            "com.acme.demo.domain.aggregates.order",
-            model.clients.single().aggregateRef?.packageName,
-        )
-        assertEquals(
-            "com.acme.demo.domain.aggregates.order",
-            model.queries.single().aggregateRef?.packageName,
-        )
+        assertEquals(listOf("SubmitOrder"), model.designBlocks.filter { it.tag == "command" }.map { it.name })
+        assertEquals(listOf("IssueToken"), model.designBlocks.filter { it.tag == "client" }.map { it.name })
+        assertEquals(listOf("FindOrder"), model.designBlocks.filter { it.tag == "query" }.map { it.name })
+        assertEquals(listOf(listOf("Order"), listOf("Order"), listOf("Order")), model.designBlocks.map { it.aggregates })
     }
 
     @Test
-    fun `api payload entries assemble into dedicated api payload slice and keep command assembly unchanged`() {
+    fun `api payload entries assemble into design blocks and keep command assembly unchanged`() {
         val assembler = DefaultCanonicalAssembler()
 
         val requestFields = listOf(FieldModel(name = "accountIds", type = "List<Long>"))
@@ -684,8 +911,8 @@ class DefaultCanonicalAssemblerTest {
                             name = "batchSaveAccountList",
                             description = "batch save account payload",
                             aggregates = emptyList(),
-                            requestFields = requestFields,
-                            responseFields = responseFields,
+                            fields = requestFields,
+                            resultFields = responseFields,
                         ),
                         DesignSpecEntry(
                             tag = "command",
@@ -693,102 +920,57 @@ class DefaultCanonicalAssemblerTest {
                             name = "SubmitOrder",
                             description = "submit order",
                             aggregates = listOf("Order"),
-                            requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
-                            responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
                         ),
                     )
                 ),
             ),
         ).model
 
-        assertEquals(1, model.apiPayloads.size)
-        val payload = model.apiPayloads.single()
+        assertEquals(1, model.designBlocks.count { it.tag == "api_payload" })
+        val payload = model.designBlocks.single { it.tag == "api_payload" }
         assertEquals("auth.payload", payload.packageName)
-        assertEquals("BatchSaveAccountList", payload.typeName)
+        assertEquals("batchSaveAccountList", payload.name)
         assertEquals("batch save account payload", payload.description)
-        assertEquals(requestFields, payload.requestFields)
-        assertEquals(responseFields, payload.responseFields)
+        assertEquals(requestFields, payload.fields)
+        assertEquals(responseFields, payload.resultFields)
 
-        assertEquals(1, model.commands.size)
-        val command = model.commands.single()
+        assertEquals(1, model.designBlocks.count { it.tag == "command" })
+        val command = model.designBlocks.single { it.tag == "command" }
         assertEquals("order.submit", command.packageName)
-        assertEquals("SubmitOrderCmd", command.typeName)
+        assertEquals("SubmitOrder", command.name)
         assertEquals("submit order", command.description)
-        assertNull(command.aggregateRef)
-        assertEquals(listOf(FieldModel(name = "orderId", type = "Long")), command.requestFields)
-        assertEquals(listOf(FieldModel(name = "accepted", type = "Boolean")), command.responseFields)
+        assertEquals(listOf("Order"), command.aggregates)
+        assertEquals(listOf(FieldModel(name = "orderId", type = "Long")), command.fields)
+        assertEquals(emptyList<FieldModel>(), command.resultFields)
     }
 
     @Test
-    fun `api payload slice skips legacy payload aliases`() {
+    fun `api payload design block rejects legacy payload aliases`() {
         val assembler = DefaultCanonicalAssembler()
 
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "payload_legacy_alias",
-                            packageName = "auth.payload",
-                            name = "LegacyPayload",
-                            description = "legacy payload alias",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
+        listOf("payload_legacy_alias", "request_payload", "req_payload", "request", "req").forEach { tag ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                assembler.assemble(
+                    config = baseConfig(),
+                    snapshots = listOf(
+                        DesignSpecSnapshot(
+                            entries = listOf(
+                                DesignSpecEntry(
+                                    tag = tag,
+                                    packageName = "auth.payload",
+                                    name = "LegacyPayload",
+                                    description = "legacy payload alias",
+                                    aggregates = emptyList(),
+                                ),
+                            )
                         ),
-                        DesignSpecEntry(
-                            tag = "request_payload",
-                            packageName = "auth.payload",
-                            name = "LegacyRequestPayload",
-                            description = "legacy request payload alias",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "req_payload",
-                            packageName = "auth.payload",
-                            name = "LegacyReqPayload",
-                            description = "legacy req payload alias",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "request",
-                            packageName = "auth.payload",
-                            name = "LegacyRequest",
-                            description = "legacy request alias",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "req",
-                            packageName = "auth.payload",
-                            name = "LegacyReq",
-                            description = "legacy req alias",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "api_payload",
-                            packageName = "auth.payload",
-                            name = "BatchSaveAccountList",
-                            description = "canonical payload",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                    )
-                ),
-            ),
-        ).model
+                    ),
+                )
+            }
 
-        assertEquals(1, model.apiPayloads.size)
-        assertEquals("BatchSaveAccountList", model.apiPayloads.single().typeName)
+            assertEquals("Unsupported design tag: $tag", error.message)
+        }
     }
 
     @Test
@@ -807,12 +989,11 @@ class DefaultCanonicalAssemblerTest {
                             description = "order created event",
                             aggregates = listOf("Order"),
                             persist = true,
-                            requestFields = listOf(
+                            fields = listOf(
                                 FieldModel(name = "reason", type = "String"),
                                 FieldModel(name = "snapshot", type = "Snapshot", nullable = true),
                                 FieldModel(name = "snapshot.traceId", type = "UUID"),
                             ),
-                            responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
                             tag = "domain_event",
@@ -820,8 +1001,6 @@ class DefaultCanonicalAssemblerTest {
                             name = "OrderCreatedEvt",
                             description = "evt naming keeps suffix",
                             aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
                             tag = "domain_event",
@@ -829,8 +1008,6 @@ class DefaultCanonicalAssemblerTest {
                             name = "OrderCreatedEvent",
                             description = "event naming keeps suffix",
                             aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
                             tag = "domain_event",
@@ -838,8 +1015,6 @@ class DefaultCanonicalAssemblerTest {
                             name = "order_created",
                             description = "snake case",
                             aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
                             tag = "domain_event",
@@ -847,8 +1022,6 @@ class DefaultCanonicalAssemblerTest {
                             name = "order-created",
                             description = "kebab case",
                             aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
                             tag = "domain_event",
@@ -856,8 +1029,6 @@ class DefaultCanonicalAssemblerTest {
                             name = "order created event",
                             description = "space separated words",
                             aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                         DesignSpecEntry(
                             tag = "domain_event",
@@ -865,30 +1036,10 @@ class DefaultCanonicalAssemblerTest {
                             name = "orderCreated",
                             description = "lower camel",
                             aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "domain-event",
-                            packageName = "order",
-                            name = "IgnoredOrderCreated",
-                            description = "unsupported alias",
-                            aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                            rootPackageName = "com.acme.demo.domain.aggregates.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
+                aggregateSnapshot("order"),
             ),
         ).model
 
@@ -945,21 +1096,10 @@ class DefaultCanonicalAssemblerTest {
                             name = "UserMessageCreated",
                             description = "user message created",
                             aggregates = listOf("UserMessage"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "UserMessage",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.user_message.UserMessage",
-                            rootPackageName = "com.acme.demo.domain.aggregates.user_message",
-                            rootClassName = "UserMessage",
-                        )
-                    )
-                ),
+                aggregateSnapshot("user_message"),
             ),
         ).model
 
@@ -970,7 +1110,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `domain event resolves aggregate package from canonical aggregate entities before ksp metadata`() {
+    fun `domain event resolves aggregate package from canonical aggregate entities`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -984,8 +1124,6 @@ class DefaultCanonicalAssemblerTest {
                             name = "OrderCreated",
                             description = "order created event",
                             aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                     )
                 ),
@@ -1002,71 +1140,11 @@ class DefaultCanonicalAssemblerTest {
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.legacy.order.Order",
-                            rootPackageName = "com.acme.legacy.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
             ),
         ).model
 
         assertEquals("Order", model.domainEvents.single().aggregateName)
         assertEquals("com.acme.demo.domain.aggregates.order", model.domainEvents.single().aggregatePackageName)
-    }
-
-    @Test
-    fun `domain event falls back to ksp metadata when canonical aggregate data is absent`() {
-        val assembler = DefaultCanonicalAssembler()
-
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "domain_event",
-                            packageName = "order",
-                            name = "OrderCreated",
-                            description = "order created event",
-                            aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                    )
-                ),
-                DbSchemaSnapshot(
-                    tables = listOf(
-                        DbTableSnapshot(
-                            tableName = "video_post",
-                            comment = "",
-                            columns = listOf(
-                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                            ),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                        ),
-                    )
-                ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.legacy.order.Order",
-                            rootPackageName = "com.acme.legacy.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
-            ),
-        ).model
-
-        assertEquals("Order", model.domainEvents.single().aggregateName)
-        assertEquals("com.acme.legacy.order", model.domainEvents.single().aggregatePackageName)
     }
 
     @Test
@@ -1085,21 +1163,10 @@ class DefaultCanonicalAssemblerTest {
                             name = "NoAggregate",
                             description = "missing aggregate",
                             aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                            rootPackageName = "com.acme.demo.domain.aggregates.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
+                aggregateSnapshot("order"),
             ),
         )
         }
@@ -1123,21 +1190,10 @@ class DefaultCanonicalAssemblerTest {
                                 name = "TooManyAggregates",
                                 description = "multiple aggregates",
                                 aggregates = listOf("Order", "Customer"),
-                                requestFields = emptyList(),
-                                responseFields = emptyList(),
                             ),
                         )
                     ),
-                    KspMetadataSnapshot(
-                        aggregates = listOf(
-                            AggregateMetadataRecord(
-                                aggregateName = "Order",
-                                rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                                rootPackageName = "com.acme.demo.domain.aggregates.order",
-                                rootClassName = "Order",
-                            )
-                        )
-                    ),
+                    aggregateSnapshot("order"),
                 ),
             )
         }
@@ -1161,21 +1217,10 @@ class DefaultCanonicalAssemblerTest {
                                 name = "UnknownAggregate",
                                 description = "unknown aggregate",
                                 aggregates = listOf("Unknown"),
-                                requestFields = emptyList(),
-                                responseFields = emptyList(),
                             ),
                         )
                     ),
-                    KspMetadataSnapshot(
-                        aggregates = listOf(
-                            AggregateMetadataRecord(
-                                aggregateName = "Order",
-                                rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                                rootPackageName = "com.acme.demo.domain.aggregates.order",
-                                rootClassName = "Order",
-                            )
-                        )
-                    ),
+                    aggregateSnapshot("order"),
                 ),
             )
         }
@@ -1184,7 +1229,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `maps design entries and ksp aggregates into typed canonical interactions`() {
+    fun `maps design entries and canonical aggregates into design blocks`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -1205,8 +1250,7 @@ class DefaultCanonicalAssemblerTest {
                             name = "SubmitOrder",
                             description = "submit order",
                             aggregates = listOf("Order"),
-                            requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
-                            responseFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
                         ),
                         DesignSpecEntry(
                             tag = "query",
@@ -1214,212 +1258,97 @@ class DefaultCanonicalAssemblerTest {
                             name = "FindOrder",
                             description = "find order",
                             aggregates = listOf("Order"),
-                            requestFields = listOf(FieldModel(name = "orderId", type = "Long")),
-                            responseFields = listOf(FieldModel(name = "status", type = "String")),
+                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            resultFields = listOf(FieldModel(name = "status", type = "String")),
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                            rootPackageName = "com.acme.demo.domain.aggregates.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
+                aggregateSnapshot("order"),
             ),
         ).model
 
-        assertEquals(1, model.commands.size)
-        val command = model.commands.single()
-        assertEquals("SubmitOrderCmd", command.typeName)
+        assertEquals(2, model.designBlocks.size)
+        val command = model.designBlocks.single { it.tag == "command" }
+        val query = model.designBlocks.single { it.tag == "query" }
+        assertEquals("SubmitOrder", command.name)
         assertEquals("order.submit", command.packageName)
         assertEquals("submit order", command.description)
-        assertEquals("Order", command.aggregateRef?.name)
-        assertEquals("com.acme.demo.domain.aggregates.order", command.aggregateRef?.packageName)
-        assertEquals(listOf(FieldModel(name = "orderId", type = "Long")), command.requestFields)
-        assertEquals(listOf(FieldModel(name = "accepted", type = "Boolean")), command.responseFields)
-
-        assertEquals(1, model.queries.size)
-        val query = model.queries.single()
-        assertEquals("FindOrderQry", query.typeName)
+        assertEquals(listOf("Order"), command.aggregates)
+        assertEquals(listOf(FieldModel(name = "orderId", type = "Long")), command.fields)
+        assertEquals(emptyList<FieldModel>(), command.resultFields)
+        assertEquals("FindOrder", query.name)
         assertEquals("order.read", query.packageName)
         assertEquals("find order", query.description)
-        assertEquals("Order", query.aggregateRef?.name)
-        assertEquals("com.acme.demo.domain.aggregates.order", query.aggregateRef?.packageName)
-        assertEquals(emptySet<RequestTrait>(), query.traits)
+        assertEquals(listOf("Order"), query.aggregates)
+        assertEquals(listOf(FieldModel(name = "orderId", type = "Long")), query.fields)
+        assertEquals(listOf(FieldModel(name = "status", type = "String")), query.resultFields)
     }
 
     @Test
-    fun `skips entries with unsupported tags`() {
+    fun `design spec assembly rejects unsupported tags`() {
         val assembler = DefaultCanonicalAssembler()
 
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "evt",
-                            packageName = "order.events",
-                            name = "OrderCreated",
-                            description = "order created event",
-                            aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "command",
-                            packageName = "order.submit",
-                            name = "SubmitOrder",
-                            description = "submit order",
-                            aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                    )
-                ),
-            ),
-        ).model
-
-        assertEquals(1, model.commands.size)
-        assertEquals("SubmitOrderCmd", model.commands.first().typeName)
-        assertEquals(emptyList<String>(), model.queries.map { it.typeName })
-        assertEquals(emptyList<String>(), model.clients.map { it.typeName })
-    }
-
-    @Test
-    fun `design spec assembly ignores non exact canonical tags and historical aliases`() {
-        val assembler = DefaultCanonicalAssembler()
-
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "COMMAND",
-                            packageName = "order.submit",
-                            name = "UpperCommand",
-                            description = "upper command",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "Query",
-                            packageName = "order.read",
-                            name = "MixedQuery",
-                            description = "mixed query",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "Client",
-                            packageName = "order.remote",
-                            name = "MixedClient",
-                            description = "mixed client",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "API_PAYLOAD",
-                            packageName = "order.payload",
-                            name = "UpperPayload",
-                            description = "upper payload",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "DOMAIN_EVENT",
-                            packageName = "order.events",
-                            name = "UpperDomainEvent",
-                            description = "upper domain event",
-                            aggregates = listOf("Order"),
-                            persist = true,
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "cmd",
-                            packageName = "order.submit",
-                            name = "LegacyCommand",
-                            description = "legacy command",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "qry",
-                            packageName = "order.read",
-                            name = "LegacyQuery",
-                            description = "legacy query",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "cli",
-                            packageName = "order.remote",
-                            name = "LegacyClient",
-                            description = "legacy client",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "clients",
-                            packageName = "order.remote",
-                            name = "LegacyClients",
-                            description = "legacy clients",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "payload",
-                            packageName = "order.payload",
-                            name = "LegacyPayload",
-                            description = "legacy payload",
-                            aggregates = emptyList(),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                        DesignSpecEntry(
-                            tag = "de",
-                            packageName = "order.events",
-                            name = "LegacyDomainEvent",
-                            description = "legacy domain event",
-                            aggregates = listOf("Order"),
-                            persist = true,
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
-                        ),
-                    )
-                ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                            rootPackageName = "com.acme.demo.domain.aggregates.order",
-                            rootClassName = "Order",
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembler.assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "evt",
+                                packageName = "order.events",
+                                name = "OrderCreated",
+                                description = "order created event",
+                                aggregates = listOf("Order"),
+                            ),
                         )
-                    )
+                    ),
                 ),
-            ),
-        ).model
+            )
+        }
 
-        assertEquals(emptyList<String>(), model.commands.map { it.typeName })
-        assertEquals(emptyList<String>(), model.queries.map { it.typeName })
-        assertEquals(emptyList<String>(), model.clients.map { it.typeName })
-        assertEquals(emptyList<String>(), model.apiPayloads.map { it.typeName })
-        assertEquals(emptyList<String>(), model.domainEvents.map { it.typeName })
+        assertEquals("Unsupported design tag: evt", error.message)
+    }
+
+    @Test
+    fun `design spec assembly rejects non exact canonical tags and historical aliases`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        listOf(
+            "COMMAND",
+            "Query",
+            "Client",
+            "API_PAYLOAD",
+            "DOMAIN_EVENT",
+            "cmd",
+            "qry",
+            "cli",
+            "clients",
+            "payload",
+            "de",
+            "domain-event",
+        ).forEach { tag ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                assembler.assemble(
+                    config = baseConfig(),
+                    snapshots = listOf(
+                        DesignSpecSnapshot(
+                            entries = listOf(
+                                DesignSpecEntry(
+                                    tag = tag,
+                                    packageName = "order.submit",
+                                    name = "UnsupportedTagBlock",
+                                    description = "unsupported tag",
+                                    aggregates = emptyList(),
+                                ),
+                            )
+                        ),
+                    ),
+                )
+            }
+
+            assertEquals("Unsupported design tag: $tag", error.message)
+        }
     }
 
     @Test
@@ -1429,26 +1358,15 @@ class DefaultCanonicalAssemblerTest {
         val model = assembler.assemble(
             config = baseConfig(),
             snapshots = listOf(
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Order",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.order.Order",
-                            rootPackageName = "com.acme.demo.domain.aggregates.order",
-                            rootClassName = "Order",
-                        )
-                    )
-                ),
+                aggregateSnapshot("order"),
             ),
         ).model
 
-        assertEquals(0, model.commands.size)
-        assertEquals(0, model.queries.size)
-        assertEquals(0, model.clients.size)
+        assertEquals(0, model.designBlocks.size)
     }
 
     @Test
-    fun `leaves request aggregate ref null when ksp metadata has no match`() {
+    fun `leaves request aggregate ref null when canonical aggregate metadata has no match`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -1462,26 +1380,15 @@ class DefaultCanonicalAssemblerTest {
                             name = "FindOrder",
                             description = "find order",
                             aggregates = listOf("Order"),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
                         ),
                     )
                 ),
-                KspMetadataSnapshot(
-                    aggregates = listOf(
-                        AggregateMetadataRecord(
-                            aggregateName = "Customer",
-                            rootQualifiedName = "com.acme.demo.domain.aggregates.customer.Customer",
-                            rootPackageName = "com.acme.demo.domain.aggregates.customer",
-                            rootClassName = "Customer",
-                        )
-                    )
-                ),
+                aggregateSnapshot("customer"),
             ),
         ).model
 
-        assertEquals(1, model.queries.size)
-        assertNull(model.queries.first().aggregateRef)
+        assertEquals(1, model.designBlocks.count { it.tag == "query" })
+        assertEquals(listOf("Order"), model.designBlocks.single { it.tag == "query" }.aggregates)
     }
 
     @Test
@@ -1548,21 +1455,10 @@ class DefaultCanonicalAssemblerTest {
                             name = "SubmitOrder",
                             description = "submit order",
                             aggregates = listOf("Order"),
-                            entity = "Order",
+                            artifacts = listOf(ArtifactSelectionModel(family = "command")),
                             persist = true,
-                            requestFields = listOf(supportedField),
-                            responseFields = listOf(responseField),
-                        ),
-                        DesignElementSnapshot(
-                            tag = "command",
-                            packageName = "order.submit",
-                            name = "SubmitOrder",
-                            description = "duplicate submit order",
-                            aggregates = listOf("Ignored"),
-                            entity = "Ignored",
-                            persist = false,
-                            requestFields = listOf(duplicateField),
-                            responseFields = listOf(duplicateField),
+                            fields = listOf(supportedField),
+                            resultFields = listOf(responseField),
                         ),
                         DesignElementSnapshot(
                             tag = "client",
@@ -1576,16 +1472,14 @@ class DefaultCanonicalAssemblerTest {
                             name = "FindOrder",
                             description = "find order",
                             aggregates = listOf("Order"),
-                            traits = setOf(RequestTrait.PAGE),
-                            requestFields = emptyList(),
-                            responseFields = emptyList(),
+                            artifacts = listOf(ArtifactSelectionModel("query", "page")),
                         ),
                         DesignElementSnapshot(
                             tag = "api_payload",
                             packageName = "order.payload",
                             name = "CreateOrderPayload",
                             description = "create order payload",
-                            traits = setOf(RequestTrait.PAGE),
+                            artifacts = listOf(ArtifactSelectionModel("api-payload", "page")),
                         ),
                         DesignElementSnapshot(
                             tag = "domain_event",
@@ -1593,9 +1487,8 @@ class DefaultCanonicalAssemblerTest {
                             name = "OrderCreatedDomainEvent",
                             description = "order created",
                             aggregates = listOf("Order"),
-                            entity = "Order",
                             persist = false,
-                            requestFields = listOf(entityField, reasonField),
+                            fields = listOf(entityField, reasonField),
                         ),
                         DesignElementSnapshot(
                             tag = "evt",
@@ -1617,10 +1510,10 @@ class DefaultCanonicalAssemblerTest {
                 name = "SubmitOrder",
                 description = "submit order",
                 aggregates = listOf("Order"),
-                entity = "Order",
+                artifacts = listOf(ArtifactSelectionModel(family = "command")),
                 persist = true,
-                requestFields = listOf(DrawingBoardFieldModel(name = "orderId", type = "Long", nullable = false, defaultValue = "0")),
-                responseFields = listOf(DrawingBoardFieldModel(name = "accepted", type = "Boolean")),
+                fields = listOf(DrawingBoardFieldModel(name = "orderId", type = "Long", nullable = false, defaultValue = "0")),
+                resultFields = listOf(DrawingBoardFieldModel(name = "accepted", type = "Boolean")),
             ),
             drawingBoard.elements.first(),
         )
@@ -1631,14 +1524,13 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(1, drawingBoard.elementsByTag.getValue("command").size)
         val query = drawingBoard.elementsByTag.getValue("query").single()
         assertEquals("FindOrder", query.name)
-        assertEquals(setOf(RequestTrait.PAGE), query.traits)
+        assertEquals(listOf(ArtifactSelectionModel("query", "page")), query.designJsonArtifacts)
         val apiPayload = drawingBoard.elementsByTag.getValue("api_payload").single()
         assertEquals("CreateOrderPayload", apiPayload.name)
-        assertEquals(setOf(RequestTrait.PAGE), apiPayload.traits)
+        assertEquals(listOf(ArtifactSelectionModel("api-payload", "page")), apiPayload.designJsonArtifacts)
 
         val domainEvent = drawingBoard.elementsByTag.getValue("domain_event").single()
-        assertEquals(null, domainEvent.entity)
-        assertEquals(listOf(DrawingBoardFieldModel(name = "reason", type = "String")), domainEvent.requestFields)
+        assertEquals(listOf(DrawingBoardFieldModel(name = "reason", type = "String")), domainEvent.fields)
     }
 
     @Test
@@ -1691,11 +1583,11 @@ class DefaultCanonicalAssemblerTest {
                             packageName = "order.events",
                             name = "OrderCreated",
                             description = "order created integration event",
-                            requestFields = listOf(
+                            fields = listOf(
                                 DesignFieldSnapshot(name = "orderId", type = "Long"),
                                 DesignFieldSnapshot(name = "buyerId", type = "Long"),
                             ),
-                            role = "inbound",
+                            artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
                             eventName = "order.created",
                         ),
                     ),
@@ -1706,10 +1598,262 @@ class DefaultCanonicalAssemblerTest {
         val board = requireNotNull(result.model.drawingBoard)
         val integrationEvent = board.elements.single()
         assertEquals("integration_event", integrationEvent.tag)
-        assertEquals("inbound", integrationEvent.role)
+        assertEquals(listOf(ArtifactSelectionModel("integration-event", "inbound")), integrationEvent.designJsonArtifacts)
         assertEquals("order.created", integrationEvent.eventName)
-        assertEquals(listOf("orderId", "buyerId"), integrationEvent.requestFields.map { it.name })
+        assertEquals(listOf("orderId", "buyerId"), integrationEvent.fields.map { it.name })
         assertEquals(listOf("integration_event"), board.elementsByTag.keys.toList())
+    }
+
+    @Test
+    fun `drawing board accepts domain service and saga recovered design blocks with default artifacts omitted`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val result = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                IrAnalysisSnapshot(
+                    inputDirs = emptyList(),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                    designElements = listOf(
+                        DesignElementSnapshot(
+                            tag = "domain_service",
+                            packageName = "order.domain",
+                            name = "OrderPolicyService",
+                            description = "order policy service",
+                            aggregates = listOf("Order"),
+                            artifacts = listOf(ArtifactSelectionModel("domain-service")),
+                        ),
+                        DesignElementSnapshot(
+                            tag = "saga",
+                            packageName = "order.application",
+                            name = "PublishOrderSaga",
+                            description = "publish order saga",
+                            aggregates = listOf("Order"),
+                            artifacts = listOf(ArtifactSelectionModel("saga")),
+                            fields = listOf(DesignFieldSnapshot(name = "orderId", type = "Long")),
+                            resultFields = listOf(DesignFieldSnapshot(name = "accepted", type = "Boolean")),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val board = requireNotNull(result.model.drawingBoard)
+        assertEquals(listOf("domain_service", "saga"), board.elementsByTag.keys.toList())
+
+        val domainService = board.elementsByTag.getValue("domain_service").single()
+        assertEquals("OrderPolicyService", domainService.name)
+        assertEquals(listOf("Order"), domainService.aggregates)
+        assertFalse(domainService.includeDesignJsonArtifacts)
+
+        val saga = board.elementsByTag.getValue("saga").single()
+        assertEquals("PublishOrderSaga", saga.name)
+        assertEquals(listOf("orderId"), saga.fields.map { it.name })
+        assertEquals(listOf("accepted"), saga.resultFields.map { it.name })
+        assertFalse(saga.includeDesignJsonArtifacts)
+    }
+
+    @Test
+    fun `recovered design elements populate drawing board without authoring design blocks`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val result = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                IrAnalysisSnapshot(
+                    inputDirs = emptyList(),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                    designElements = listOf(
+                        DesignElementSnapshot(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            description = "find order",
+                            aggregates = listOf("Order"),
+                            artifacts = listOf(ArtifactSelectionModel("query", "page")),
+                            fields = listOf(DesignFieldSnapshot(name = "orderId", type = "Long")),
+                            resultFields = listOf(DesignFieldSnapshot(name = "status", type = "String")),
+                        ),
+                        DesignElementSnapshot(
+                            tag = "domain_event",
+                            packageName = "order.events",
+                            name = "OrderCreated",
+                            description = "order created",
+                            aggregates = listOf("Order"),
+                            persist = true,
+                            fields = listOf(
+                                DesignFieldSnapshot(name = "entity", type = "Order"),
+                                DesignFieldSnapshot(name = "reason", type = "String"),
+                            ),
+                        ),
+                        DesignElementSnapshot(
+                            tag = "saga",
+                            packageName = "order.application",
+                            name = "PublishOrderSaga",
+                            description = "publish order saga",
+                            aggregates = listOf("Order"),
+                            fields = listOf(DesignFieldSnapshot(name = "orderId", type = "Long")),
+                            resultFields = listOf(DesignFieldSnapshot(name = "accepted", type = "Boolean")),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(emptyList<DesignBlockModel>(), result.model.designBlocks)
+        val board = requireNotNull(result.model.drawingBoard)
+        assertEquals(listOf("query", "domain_event", "saga"), board.elementsByTag.keys.toList())
+        assertEquals(listOf(ArtifactSelectionModel("query", "page")), board.elementsByTag.getValue("query").single().designJsonArtifacts)
+        assertEquals(listOf("reason"), board.elementsByTag.getValue("domain_event").single().fields.map { it.name })
+        assertEquals(listOf("accepted"), board.elementsByTag.getValue("saga").single().resultFields.map { it.name })
+    }
+
+    @Test
+    fun `recovered artifacts do not merge into matching design source block`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val result = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            description = "find order",
+                            aggregates = listOf("Order"),
+                            artifacts = listOf(ArtifactSelectionModel("query")),
+                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            resultFields = listOf(FieldModel(name = "status", type = "String")),
+                        )
+                    )
+                ),
+                IrAnalysisSnapshot(
+                    inputDirs = emptyList(),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                    designElements = listOf(
+                        DesignElementSnapshot(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            description = "find order",
+                            aggregates = listOf("Order"),
+                            artifacts = listOf(ArtifactSelectionModel("query-handler")),
+                            fields = listOf(DesignFieldSnapshot(name = "orderId", type = "Long")),
+                            resultFields = listOf(DesignFieldSnapshot(name = "status", type = "String")),
+                        )
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(listOf(ArtifactSelectionModel("query")), result.model.designBlocks.single().artifacts)
+        assertEquals(
+            listOf(ArtifactSelectionModel("query-handler")),
+            requireNotNull(result.model.drawingBoard).elements.single().designJsonArtifacts,
+        )
+    }
+
+    @Test
+    fun `drawing board merges duplicate recovered design elements`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val result = assembler.assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                IrAnalysisSnapshot(
+                    inputDirs = emptyList(),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                    designElements = listOf(
+                        DesignElementSnapshot(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            description = "find order",
+                            artifacts = listOf(ArtifactSelectionModel("query")),
+                            fields = listOf(DesignFieldSnapshot(name = "orderId", type = "Long")),
+                        ),
+                        DesignElementSnapshot(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrder",
+                            description = "find order",
+                            artifacts = listOf(ArtifactSelectionModel("query-handler")),
+                            fields = listOf(DesignFieldSnapshot(name = "orderId", type = "Long")),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val query = requireNotNull(result.model.drawingBoard).elements.single()
+        assertEquals(
+            listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler")),
+            query.designJsonArtifacts,
+        )
+    }
+
+    @Test
+    fun `canonical design blocks reject recovered default variant alias`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembler.assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    IrAnalysisSnapshot(
+                        inputDirs = emptyList(),
+                        nodes = emptyList(),
+                        edges = emptyList(),
+                        designElements = listOf(
+                            DesignElementSnapshot(
+                                tag = "command",
+                                packageName = "order.submit",
+                                name = "SubmitOrder",
+                                description = "submit order",
+                                artifacts = listOf(ArtifactSelectionModel("command", "default")),
+                            )
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals("design entry SubmitOrder artifact command has unsupported variant: default", error.message)
+    }
+
+    @Test
+    fun `canonical design blocks reject recovered unknown artifacts`() {
+        val assembler = DefaultCanonicalAssembler()
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembler.assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    IrAnalysisSnapshot(
+                        inputDirs = emptyList(),
+                        nodes = emptyList(),
+                        edges = emptyList(),
+                        designElements = listOf(
+                            DesignElementSnapshot(
+                                tag = "query",
+                                packageName = "order.read",
+                                name = "FindOrder",
+                                description = "find order",
+                                artifacts = listOf(ArtifactSelectionModel("design-query")),
+                            )
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals("unsupported design artifact family on FindOrder: design-query", error.message)
     }
 
     @Test
@@ -2231,13 +2375,11 @@ class DefaultCanonicalAssemblerTest {
                         ValueObjectModel(
                             name = "PublishWindow",
                             packageName = "com.acme.demo.domain.shared.values",
-                            scope = ValueObjectScope.SHARED,
                         ),
                         ValueObjectModel(
                             name = "PublishWindow",
                             packageName = "com.acme.demo.domain.aggregates.content.values",
-                            scope = ValueObjectScope.AGGREGATE,
-                            aggregate = "Content",
+                            aggregates = listOf("Content"),
                         ),
                     )
                 )
@@ -2286,7 +2428,6 @@ class DefaultCanonicalAssemblerTest {
                         ValueObjectModel(
                             name = "PublishWindow",
                             packageName = "com.acme.demo.domain.shared.values",
-                            scope = ValueObjectScope.SHARED,
                         ),
                     )
                 )
@@ -2355,8 +2496,7 @@ class DefaultCanonicalAssemblerTest {
                         ValueObjectModel(
                             name = "PublishWindow",
                             packageName = "com.acme.demo.domain.aggregates.content.values",
-                            scope = ValueObjectScope.AGGREGATE,
-                            aggregate = "Content",
+                            aggregates = listOf("Content"),
                         ),
                     )
                 )
@@ -2384,12 +2524,10 @@ class DefaultCanonicalAssemblerTest {
                         ValueObjectModel(
                             name = "PublishWindow",
                             packageName = "content.values.primary",
-                            scope = ValueObjectScope.SHARED,
                         ),
                         ValueObjectModel(
                             name = "PublishWindow",
                             packageName = "content.values.secondary",
-                            scope = ValueObjectScope.SHARED,
                         ),
                     )
                 )
@@ -2430,14 +2568,12 @@ class DefaultCanonicalAssemblerTest {
                             ValueObjectModel(
                                 name = "PublishWindow",
                                 packageName = "content.values.primary",
-                                scope = ValueObjectScope.AGGREGATE,
-                                aggregate = "Content",
+                                aggregates = listOf("Content"),
                             ),
                             ValueObjectModel(
                                 name = "PublishWindow",
                                 packageName = "content.values.secondary",
-                                scope = ValueObjectScope.AGGREGATE,
-                                aggregate = "Content",
+                                aggregates = listOf("Content"),
                             ),
                         )
                     )
@@ -2915,8 +3051,7 @@ class DefaultCanonicalAssemblerTest {
                             name = "CreateContent",
                             description = "create content",
                             aggregates = emptyList(),
-                            requestFields = listOf(FieldModel("authorId", "AuthorId")),
-                            responseFields = emptyList(),
+                            fields = listOf(FieldModel("authorId", "AuthorId")),
                         )
                     )
                 ),
@@ -2936,11 +3071,11 @@ class DefaultCanonicalAssemblerTest {
             ),
         )
 
-        val command = result.model.commands.single { it.typeName == "CreateContentCmd" }
+        val command = result.model.designBlocks.single { it.name == "CreateContent" }
 
-        assertEquals("AuthorId", command.requestFields.single { it.name == "authorId" }.type)
+        assertEquals("AuthorId", command.fields.single { it.name == "authorId" }.type)
         assertEquals("AuthorId", result.model.strongIds.single { it.typeName == "AuthorId" }.typeName)
-        assertEquals(1, result.model.commands.size)
+        assertEquals(1, result.model.designBlocks.count { it.tag == "command" })
     }
 
     @Test
@@ -3107,7 +3242,7 @@ class DefaultCanonicalAssemblerTest {
     fun `aggregate projection only does not validate write model id strategy`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7").copy(
-                generators = mapOf("aggregate-projection" to GeneratorConfig(enabled = true)),
+                generators = mapOf("aggregate-projection" to GeneratorConfig()),
             ),
             tables = listOf(
                 table(
@@ -5016,7 +5151,6 @@ class DefaultCanonicalAssemblerTest {
             config = baseAggregateConfig(
                 generators = mapOf(
                     "aggregate" to GeneratorConfig(
-                        enabled = true,
                         options = mapOf("unsupportedTablePolicy" to "SKIP"),
                     )
                 )
@@ -5064,7 +5198,6 @@ class DefaultCanonicalAssemblerTest {
             config = baseAggregateConfig(
                 generators = mapOf(
                     "aggregate" to GeneratorConfig(
-                        enabled = true,
                         options = mapOf("unsupportedTablePolicy" to "SKIP"),
                     )
                 )
@@ -5108,7 +5241,6 @@ class DefaultCanonicalAssemblerTest {
             config = baseAggregateConfig(
                 generators = mapOf(
                     "aggregate" to GeneratorConfig(
-                        enabled = true,
                         options = mapOf("unsupportedTablePolicy" to "SKIP"),
                     )
                 )
@@ -5398,6 +5530,25 @@ class DefaultCanonicalAssemblerTest {
         exposed = exposed,
         refAggregate = refAggregate,
         refId = refId,
+    )
+
+    private fun aggregateSnapshot(
+        aggregateName: String,
+        packageName: String = "com.acme.demo.domain.aggregates.$aggregateName",
+        className: String = aggregateName.replaceFirstChar { it.uppercase() },
+    ): DbSchemaSnapshot = DbSchemaSnapshot(
+        tables = listOf(
+            DbTableSnapshot(
+                tableName = aggregateName,
+                comment = "",
+                columns = listOf(
+                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                ),
+                primaryKey = listOf("id"),
+                uniqueConstraints = emptyList(),
+                aggregateRoot = true,
+            ),
+        ),
     )
 
     private fun baseConfig(): ProjectConfig {

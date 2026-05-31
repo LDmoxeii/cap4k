@@ -17,10 +17,6 @@ data class ProjectConfig(
     val aggregateSpecialFieldDefaults: AggregateSpecialFieldDefaultsConfig = AggregateSpecialFieldDefaultsConfig(),
     val addons: Map<String, AddonProviderConfig> = emptyMap(),
 ) {
-    fun enabledSourceIds(): Set<String> = sources.filterValues { it.enabled }.keys
-
-    fun enabledGeneratorIds(): Set<String> = generators.filterValues { it.enabled }.keys
-
     fun typeRegistryFqns(): Map<String, String> = typeRegistry.entries.mapValues { it.value.fqn }
 }
 
@@ -140,12 +136,10 @@ data class OutputRootLayout(
 )
 
 data class SourceConfig(
-    val enabled: Boolean,
     val options: Map<String, Any?> = emptyMap(),
 )
 
 data class GeneratorConfig(
-    val enabled: Boolean,
     val options: Map<String, Any?> = emptyMap(),
 )
 

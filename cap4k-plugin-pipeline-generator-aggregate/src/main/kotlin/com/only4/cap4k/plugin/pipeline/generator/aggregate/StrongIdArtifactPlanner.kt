@@ -20,6 +20,7 @@ internal class StrongIdArtifactPlanner : AggregateArtifactFamilyPlanner {
                 context = mapOf(
                     "packageName" to strongId.packageName,
                     "typeName" to strongId.typeName,
+                    "aggregateElement" to strongIdAggregateElementContext(strongId),
                     "kind" to strongId.kind.name,
                     "canGenerateNew" to (strongId.kind == StrongIdKind.AGGREGATE_ROOT),
                 ),

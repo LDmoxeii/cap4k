@@ -2,7 +2,7 @@
 
 本页说明业务项目作者如何准备 cap4k 生成器输入。输入源是生成器合同，不是随手写给工具看的备注。
 
-本页示例语境统一回到 [示例总览](../examples/index.md)：DB / design / enum manifest / value-object manifest / KSP 输入最终都服务于同一个内容发布与媒体处理项目。
+本页示例语境统一回到 [示例总览](../examples/index.md)：DB / design / enum manifest / value-object manifest / IR 输入最终都服务于同一个内容发布与媒体处理项目。
 
 除 `sources {}` 里的 source provider 之外，`types {}` 里的 `enumManifest`、`valueObjectManifest` 和 `registryFile` 也属于 generation input contract。它们不提供 use-case surface，也不替代 DDL / design。
 
@@ -143,8 +143,7 @@ value-object manifest 是 JSON 数组。当前支持 JSON-backed 值对象，并
 [
   {
     "name": "MediaProcessingResultSnapshot",
-    "scope": "aggregate",
-    "aggregate": "MediaProcessingTask",
+    "aggregates": ["MediaProcessingTask"],
     "package": "com.acme.demo.domain.media.values",
     "storage": "json",
     "fields": [
@@ -157,9 +156,8 @@ value-object manifest 是 JSON 数组。当前支持 JSON-backed 值对象，并
 
 规则：
 
-- `scope` 必须是 `shared` 或 `aggregate`；
-- `scope = "shared"` 时不能设置 `aggregate`；
-- `scope = "aggregate"` 时必须设置 `aggregate`，同名值对象只在同一 aggregate 内唯一；
+- `aggregates` 为空表示 shared；只写一个值表示 aggregate-owned；
+- `aggregates` 最多一个值对象 owner aggregate；同名值对象只在同一 aggregate 内唯一；
 - `storage` 当前只支持 `json`；
 - 每个值对象必须声明至少一个 field；
 - field 必须声明 `name` 和 `type`，可选 `nullable`；
@@ -210,14 +208,13 @@ value-object manifest 是 JSON 数组。当前支持 JSON-backed 值对象，并
 | `domain_service` | domain service skeleton |
 | `saga` | saga param / result / handler skeleton |
 
-常见字段包括 `package`、`name`、`desc`、`aggregates`、`requestFields`、`responseFields`。
+常见字段包括 `package`、`name`、`description`、`aggregates`、`fields`、`resultFields`。
 
 附加规则：
 
-- `query` 和 `api_payload` 支持 request trait `page`；
-- `domain_event` 支持 `persist`；
-- `domain_event` 可以省略 package；它必须恰好声明一个 aggregate，保留 request field `entity` 不允许作者显式声明，因为它会从 `aggregates[0]` 派生。缺失或空 aggregate 都属于不完整 modeling input；
-- `integration_event` 支持 `role`（`inbound` / `outbound`）和 `eventName`，必须至少声明一个 `requestFields` 字段，且 `responseFields` 必须为空；`inbound` 可生成把外部事实转内部命令的 subscriber 骨架，`outbound` 只生成事件契约；
+- `query` 和 `api_payload` 支持 `artifacts` 里的 `variant = "page"`；
+- `domain_event` 支持 `persist`，可以省略 `package`，且必须恰好声明一个 aggregate；公共 `fields` 不包含 synthetic aggregate entity，缺失或空 aggregate 都属于不完整 modeling input；
+- `integration_event` 支持 `artifacts[{ family: "integration-event", variant: "inbound" | "outbound" }]` 和 `eventName`，必须至少声明一个 `fields` 字段，且 `resultFields` 必须为空；`integration-subscriber` 只允许搭配 inbound integration event，outbound 只生成事件契约；
 - `domain_service` 表达领域服务 skeleton，生成到 domain module；
 - `saga` 表达 saga param / result / handler skeleton，生成到 application module；
 - manifest-file 模式把 manifest 中的 design 文件 entry 解析为相对 `projectDir` 的路径，并拒绝空白 `manifestFile`、空 manifest、空白 entry、重复 entry，以及逃出 `projectDir` 的路径。
@@ -237,21 +234,11 @@ enum manifest 是 JSON 数组，每个枚举包含：
 
 - `name`
 - `package`
-- `items[]`，其中有 `value`、`name`、`desc`
+- `items[]`，其中有 `value`、`name`、`desc`；这里的 `desc` 是 enum item 描述字段，不是 design JSON 的 `description`
 
 它配合 DB `@T=<TypeName>` 使用。重复 type name 会被拒绝。manifest entry 不需要再写 `types.registryFile` entry。
 
 `generateTranslation` 已从 enum manifest 移除。enum translation 属于 addon 生成方向，不属于核心 aggregate generation 开关。
-
-## KSP metadata
-
-`sources.kspMetadata` 用于读取聚合元数据，支撑 design-driven artifact 生成。典型场景是 design generator 需要理解已有聚合、请求契约或元数据关系。
-
-作者规则：
-
-- 需要 KSP metadata 的 design 生成，应先确保相关模块已能产生 metadata；
-- 当 `cap4kPlan` 依赖 KSP 输出时，先看计划和任务依赖，不要手工移动 generated metadata；
-- metadata 是生成 / 分析输入，不是业务逻辑落点。
 
 ## IR analysis
 

@@ -430,6 +430,33 @@ class FlowArtifactPlannerTest {
     }
 
     @Test
+    fun `plans overwrite conflict policy for observation outputs`() {
+        val planner = FlowArtifactPlanner()
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("app/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    AnalysisNodeModel(
+                        id = "OrderController::submit",
+                        name = "OrderController::submit",
+                        fullName = "OrderController::submit",
+                        type = "controllermethod",
+                    ),
+                    node("SubmitOrderCmd", "command"),
+                ),
+                edges = listOf(
+                    edge("OrderController::submit", "SubmitOrderCmd", "ControllerMethodToCommand"),
+                ),
+            ),
+        )
+
+        val plan = planner.plan(config(), model)
+
+        assertTrue(plan.isNotEmpty())
+        assertTrue(plan.all { it.conflictPolicy == ConflictPolicy.OVERWRITE })
+    }
+
+    @Test
     fun `deduplicates duplicate entry node ids before planning artifacts`() {
         val planner = FlowArtifactPlanner()
         val model = CanonicalModel(
@@ -480,9 +507,7 @@ class FlowArtifactPlannerTest {
             modules = emptyMap(),
             sources = emptyMap(),
             generators = mapOf(
-                "flow" to GeneratorConfig(
-                    enabled = true,
-                ),
+                "flow" to GeneratorConfig(),
             ),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             artifactLayout = ArtifactLayoutConfig(flow = OutputRootLayout(outputRoot)),

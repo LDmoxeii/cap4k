@@ -7,7 +7,7 @@
 
 本页说明 cap4k 项目里哪些产物默认交给生成器，哪些责任必须回到手写主面。教学主场景仍然是 [示例总览](examples/index.md) 中由 `Content`、`MediaProcessingTask` 与 `TriggerMediaProcessingCli` 组成的内容发布与处理项目。
 
-完整端到端顺序见 [项目编写工作流](project-authoring-workflow.md)，DB / design / enum manifest / KSP / IR 输入细节见 [生成输入源](generator/input-sources.md)。
+完整端到端顺序见 [项目编写工作流](project-authoring-workflow.md)，DB / design / enum manifest / value-object manifest / IR 输入细节见 [生成输入源](generator/input-sources.md)。
 
 ## 缺骨架时不手写替代
 
@@ -16,7 +16,6 @@
 | `design.json` 已能表达目标用例，但 `command` / `query` / `client` / payload / `domain_event` / `integration_event` / `domain_service` / `saga` / subscriber skeleton 没落出来 | 停止 implementation，回到 generation |
 | DDL、`@T`、唯一约束等 aggregate 事实已经存在，但 aggregate / entity / repository / factory / specification / enum / unique helper skeleton 没落出来 | 停止 implementation，回到 generation。关系和字段映射事实仍算 aggregate / entity 输入，不是独立 skeleton 家族 |
 | design entry、DDL 注释、`types.enumManifest`、`types.valueObjectManifest`、`types.registryFile` 本身缺失 | 停止 generation，回到 modeling |
-| generation 依赖的 KSP metadata 输出、配置或生产链路缺失 | 先回到 generation / compile / setup，不自动判成 modeling |
 | generator 当前明确不支持该 surface | 允许手写，但必须记录“不支持生成”的原因 |
 
 ## 全局边界矩阵
@@ -41,7 +40,7 @@
 - 先看 `build/cap4k/plan.json`：这里会列出本次 `cap4kPlan` 规划出的目标产物与落点路径。凡是被 `cap4kGenerate` 计划写入、重复生成后仍会被覆盖的目标文件，都应先视为生成主面。
 - 再看模块里的实际目录：生成后的契约骨架通常会落在业务模块的 `src/main/kotlin/.../application/commands/...`、`src/main/kotlin/.../application/queries/...`，或聚合对应的目标目录中。路径本身不自动说明“能不能手改”，是否属于生成主面要以 `plan.json` 和重复生成行为为准。
 - 再看 `conflictPolicy`：对 checked-in aggregate artifact，`behavior` 当前固定 `SKIP`，而 `factory` / `specification` 默认跟随 `templates.conflictPolicy`。这一步决定“虽然 checked in，但当前到底能不能按作者维护文件来用”。
-- 再看分析输入目录：像 `domain/build/generated/ksp/main/resources/metadata/...` 这类路径是生成或分析出来的输入资料，不是作者手写主面，也不该被当成业务逻辑落点。
+- 再看分析输入目录：像 `build/cap4k-code-analysis/...` 这类路径是生成或分析出来的输入资料，不是作者手写主面，也不该被当成业务逻辑落点。
 - 手写主面通常是作者自己维护、需要长期保留人工修改的文件，例如 `application` 下的处理器实现、`adapter/application/...`、`adapter/portal/...`、`adapter/integration/...` 中的边界转换文件。它们不依赖 `plan.json` 直接落产物，重新生成也不应该默默覆盖作者改动。
 - 对当前默认 layout 再加一条现实判断：
   - `application/commands/**`、`application/queries/**` 更常出现 request-contract family；

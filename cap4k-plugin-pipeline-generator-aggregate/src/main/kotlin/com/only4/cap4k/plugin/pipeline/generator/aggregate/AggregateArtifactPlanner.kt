@@ -19,7 +19,6 @@ class AggregateArtifactPlanner : GeneratorProvider {
         UniqueQueryHandlerArtifactPlanner(),
         UniqueValidatorArtifactPlanner(),
         StrongIdArtifactPlanner(),
-        SharedEnumArtifactPlanner(),
         LocalEnumArtifactPlanner(),
     )
 

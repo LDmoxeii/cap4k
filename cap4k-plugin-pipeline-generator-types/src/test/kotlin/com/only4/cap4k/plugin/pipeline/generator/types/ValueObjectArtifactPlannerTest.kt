@@ -7,11 +7,12 @@ import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
+import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
+import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
-import com.only4.cap4k.plugin.pipeline.api.ValueObjectScope
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectStorage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -35,7 +36,6 @@ class ValueObjectArtifactPlannerTest {
                     ValueObjectModel(
                         name = "Money",
                         packageName = "com.acme.demo.domain.shared.values",
-                        scope = ValueObjectScope.SHARED,
                         storage = ValueObjectStorage.JSON,
                         fields = listOf(
                             FieldModel("amount", "java.math.BigDecimal"),
@@ -60,13 +60,25 @@ class ValueObjectArtifactPlannerTest {
         assertEquals("com.acme.demo.domain.shared.values", item.context["packageName"])
         assertEquals("Money", item.context["typeName"])
         assertEquals("Money", item.context["name"])
+        assertEquals(null, item.context["description"])
         assertEquals("ValueObjectArtifactPlanner", item.context["planner"])
-        assertEquals(ValueObjectScope.SHARED.name, item.context["scope"])
+        assertEquals(emptyList<String>(), item.context["aggregates"])
         assertEquals(ValueObjectStorage.JSON.name, item.context["storage"])
         assertEquals(
             listOf("com.acme.demo.domain.shared.types.CurrencyCode", "java.math.BigDecimal"),
             item.context["imports"],
         )
+
+        val buildingBlock = item.context["buildingBlock"] as Map<*, *>
+        assertEquals("value_object", buildingBlock["tag"])
+        assertEquals("Money", buildingBlock["name"])
+        assertEquals("com.acme.demo.domain.shared.values", buildingBlock["packageName"])
+        assertEquals(null, buildingBlock["description"])
+        assertEquals("\"\"", buildingBlock["descriptionKotlinStringLiteral"])
+        assertEquals(emptyList<String>(), buildingBlock["aggregates"])
+        assertEquals("", buildingBlock["eventName"])
+        assertEquals("value-object", buildingBlock["family"])
+        assertEquals("", buildingBlock["variant"])
 
         val fields = item.context["fields"] as List<*>
         assertEquals(
@@ -88,14 +100,13 @@ class ValueObjectArtifactPlannerTest {
                     ValueObjectModel(
                         name = "Money",
                         packageName = "com.acme.demo.domain.shared.values",
-                        scope = ValueObjectScope.SHARED,
                         fields = listOf(FieldModel("amount", "String")),
                     ),
                     ValueObjectModel(
-                        name = "ReviewSnapshot",
-                        packageName = "com.acme.demo.domain.aggregates.review.values",
-                        scope = ValueObjectScope.AGGREGATE,
-                        aggregate = "Review",
+                        name = "OrderSnapshot",
+                        packageName = "com.acme.demo.domain.aggregates.order.values",
+                        description = "Captured order state",
+                        aggregates = listOf("Order"),
                         fields = listOf(FieldModel("content", "String")),
                     ),
                 )
@@ -105,10 +116,25 @@ class ValueObjectArtifactPlannerTest {
         assertEquals(
             listOf(
                 "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/Money.kt",
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/review/values/ReviewSnapshot.kt",
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/values/OrderSnapshot.kt",
             ),
             items.map { it.outputPath },
         )
+
+        val aggregateLocal = items.single { it.context["typeName"] == "OrderSnapshot" }
+        assertEquals(listOf("Order"), aggregateLocal.context["aggregates"])
+        assertEquals("Captured order state", aggregateLocal.context["description"])
+
+        val buildingBlock = aggregateLocal.context["buildingBlock"] as Map<*, *>
+        assertEquals("value_object", buildingBlock["tag"])
+        assertEquals("OrderSnapshot", buildingBlock["name"])
+        assertEquals("com.acme.demo.domain.aggregates.order.values", buildingBlock["packageName"])
+        assertEquals("Captured order state", buildingBlock["description"])
+        assertEquals("\"Captured order state\"", buildingBlock["descriptionKotlinStringLiteral"])
+        assertEquals(listOf("Order"), buildingBlock["aggregates"])
+        assertEquals("", buildingBlock["eventName"])
+        assertEquals("value-object", buildingBlock["family"])
+        assertEquals("", buildingBlock["variant"])
     }
 
     @Test
@@ -120,13 +146,11 @@ class ValueObjectArtifactPlannerTest {
                     ValueObjectModel(
                         name = "Currency",
                         packageName = "com.acme.demo.domain.shared.types",
-                        scope = ValueObjectScope.SHARED,
                         fields = listOf(FieldModel("code", "String")),
                     ),
                     ValueObjectModel(
                         name = "Money",
                         packageName = "com.acme.demo.domain.shared.values",
-                        scope = ValueObjectScope.SHARED,
                         fields = listOf(FieldModel("currency", "Currency")),
                     ),
                 )
@@ -143,6 +167,106 @@ class ValueObjectArtifactPlannerTest {
     }
 
     @Test
+    fun `manifest managed value object fields resolve aggregate root strong ids`() {
+        val snapshot = ValueObjectArtifactPlanner().plan(
+            config(),
+            CanonicalModel(
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "ContentId",
+                        packageName = "com.acme.demo.domain.aggregates.content",
+                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        ownerAggregateName = "Content",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
+                    ),
+                ),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "ContentSnapshot",
+                        packageName = "com.acme.demo.domain.aggregates.audit.values",
+                        aggregates = listOf("Audit"),
+                        fields = listOf(FieldModel("contentId", "ContentId")),
+                    ),
+                ),
+            ),
+        ).single()
+
+        assertEquals(listOf("com.acme.demo.domain.aggregates.content.ContentId"), snapshot.context["imports"])
+
+        val fields = snapshot.context["fields"] as List<*>
+        assertEquals(
+            mapOf("name" to "contentId", "type" to "ContentId", "renderedType" to "ContentId", "nullable" to false),
+            fields.single(),
+        )
+    }
+
+    @Test
+    fun `manifest managed value object fields resolve reference strong ids`() {
+        val snapshot = ValueObjectArtifactPlanner().plan(
+            config(),
+            CanonicalModel(
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "ReviewerId",
+                        packageName = "com.acme.demo.domain.shared.ids",
+                        kind = StrongIdKind.REFERENCE,
+                    ),
+                ),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "ReviewSnapshot",
+                        packageName = "com.acme.demo.domain.aggregates.review.values",
+                        aggregates = listOf("Review"),
+                        fields = listOf(FieldModel("reviewerId", "ReviewerId")),
+                    ),
+                ),
+            ),
+        ).single()
+
+        assertEquals(listOf("com.acme.demo.domain.shared.ids.ReviewerId"), snapshot.context["imports"])
+
+        val fields = snapshot.context["fields"] as List<*>
+        assertEquals(
+            mapOf("name" to "reviewerId", "type" to "ReviewerId", "renderedType" to "ReviewerId", "nullable" to false),
+            fields.single(),
+        )
+    }
+
+    @Test
+    fun `canonical strong ids override same name registry entries`() {
+        val snapshot = ValueObjectArtifactPlanner().plan(
+            config(
+                typeRegistry = TypeRegistryConfig(
+                    entries = mapOf(
+                        "ContentId" to TypeRegistryEntry("com.acme.external.ContentId"),
+                    ),
+                ),
+            ),
+            CanonicalModel(
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "ContentId",
+                        packageName = "com.acme.demo.domain.aggregates.content",
+                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        ownerAggregateName = "Content",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
+                    ),
+                ),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "ContentSnapshot",
+                        packageName = "com.acme.demo.domain.aggregates.audit.values",
+                        aggregates = listOf("Audit"),
+                        fields = listOf(FieldModel("contentId", "ContentId")),
+                    ),
+                ),
+            ),
+        ).single()
+
+        assertEquals(listOf("com.acme.demo.domain.aggregates.content.ContentId"), snapshot.context["imports"])
+    }
+
+    @Test
     fun `json value object requires at least one field`() {
         val error = assertThrows<IllegalArgumentException> {
             ValueObjectArtifactPlanner().plan(
@@ -152,7 +276,6 @@ class ValueObjectArtifactPlannerTest {
                         ValueObjectModel(
                             name = "Money",
                             packageName = "com.acme.demo.domain.shared.values",
-                            scope = ValueObjectScope.SHARED,
                             fields = emptyList(),
                         )
                     )
@@ -173,7 +296,6 @@ class ValueObjectArtifactPlannerTest {
                         ValueObjectModel(
                             name = "Money",
                             packageName = "com.acme.demo.domain.shared.values",
-                            scope = ValueObjectScope.SHARED,
                             fields = listOf(FieldModel("amount", "String")),
                         )
                     )
@@ -184,17 +306,20 @@ class ValueObjectArtifactPlannerTest {
         assertEquals("domain module is required", error.message)
     }
 
-    private fun config(modules: Map<String, String> = mapOf("domain" to "demo-domain")): ProjectConfig =
+    private fun config(
+        modules: Map<String, String> = mapOf("domain" to "demo-domain"),
+        typeRegistry: TypeRegistryConfig = TypeRegistryConfig(
+            entries = mapOf(
+                "CurrencyCode" to TypeRegistryEntry("com.acme.demo.domain.shared.types.CurrencyCode"),
+            ),
+        ),
+    ): ProjectConfig =
         ProjectConfig(
             basePackage = "com.acme.demo",
             layout = ProjectLayout.MULTI_MODULE,
             modules = modules,
-            generators = mapOf("types-value-object" to GeneratorConfig(enabled = true)),
+            generators = mapOf("types-value-object" to GeneratorConfig()),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
-            typeRegistry = TypeRegistryConfig(
-                entries = mapOf(
-                    "CurrencyCode" to TypeRegistryEntry("com.acme.demo.domain.shared.types.CurrencyCode"),
-                ),
-            ),
+            typeRegistry = typeRegistry,
         )
 }

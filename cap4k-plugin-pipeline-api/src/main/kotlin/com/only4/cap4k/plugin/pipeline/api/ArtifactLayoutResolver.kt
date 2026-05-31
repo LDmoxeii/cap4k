@@ -70,8 +70,12 @@ class ArtifactLayoutResolver(
     fun designDomainEventHandlerPackage(designPackage: String): String =
         packageFromLayout(artifactLayout.designDomainEventHandler, designPackage)
 
-    fun designIntegrationEventPackage(role: IntegrationEventRole, designPackage: String): String =
-        packageFromLayout(artifactLayout.designIntegrationEvent, joinPackage(role.packageSegment(), designPackage))
+    fun designIntegrationEventPackage(variant: String, designPackage: String): String {
+        require(variant == "inbound" || variant == "outbound") {
+            "integration-event variant must be inbound or outbound: $variant"
+        }
+        return packageFromLayout(artifactLayout.designIntegrationEvent, joinPackage(variant, designPackage))
+    }
 
     fun designIntegrationEventSubscriberPackage(): String =
         packageFromLayout(artifactLayout.designIntegrationEventSubscriber, "")
@@ -118,8 +122,6 @@ class ArtifactLayoutResolver(
             packageName.ifBlank { layout.defaultPackage },
             layout.packageSuffix,
         )
-
-    private fun IntegrationEventRole.packageSegment(): String = name.lowercase()
 
     private fun validatePackageLayouts() {
         validatePackageFragment(basePackage, "basePackage", allowBlank = false)

@@ -7,9 +7,8 @@
 - `@GeneratedValue=identity` / `@GeneratedValue=database-identity` are legacy compatibility for explicit database identity semantics, not the default aggregate ID path.
 - `design.json` defines `command`, `query`, `client`, `api_payload`, `domain_event`, `integration_event`, `domain_service`, and `saga` contracts; `domain_event` can derive domain-event subscriber/handler shells, and inbound `integration_event` can derive subscriber shells.
 - `types.enumManifest` supplies shared enums referenced by DB `@Type` / `@T`; enum manifest entries do not need matching `types.registryFile` entries.
-- `types.valueObjectManifest` supplies JSON-backed value-object definitions and generates checked-in source; `scope = shared | aggregate` separates shared and aggregate-local definitions.
+- `types.valueObjectManifest` supplies JSON-backed value-object definitions and generates checked-in source; omitted `aggregates` means shared, while non-empty `aggregates` lists aggregate-local owners.
 - `types.registryFile` supplies custom type FQNs and converter policy for `@T`-bound fields that are not declared by enum or value-object manifests.
-- KSP metadata supplies aggregate metadata for design-driven artifacts.
 - IR analysis is post-compile observation for flow and drawing-board output, not business source generation.
 - addons contribute extra artifacts, not business modeling facts; addon-provided validators must not mutate canonical model or built-in render context.
 - Unsupported core design tags include `value_object` and `validator`.

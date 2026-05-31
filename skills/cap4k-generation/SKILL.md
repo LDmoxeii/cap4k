@@ -26,7 +26,7 @@ Use this before writing or regenerating cap4k generated output.
 | Generate aggregate skeletons from DB | `references/sources/db-schema.md`, `references/sources/source-map.md` | `workflows/generate-from-db.md` |
 | Generate use-case or interface surfaces from design JSON | `references/sources/design-json.md`, `references/sources/source-map.md` | `workflows/generate-from-design.md` |
 | Resolve enum or custom type input contract | `references/sources/enum-manifest.md`, `references/sources/value-object-manifest.md`, `references/sources/types-registry.md`, `references/sources/source-map.md` | `workflows/generate-from-db.md` |
-| Check KSP, analysis, or addon confusion | `references/sources/ksp-and-analysis.md`, `references/sources/addons.md`, `references/sources/source-map.md` | `workflows/review-plan-json.md` |
+| Check analysis or addon confusion | `references/sources/analysis.md`, `references/sources/addons.md`, `references/sources/source-map.md` | `workflows/review-plan-json.md` |
 | Inspect ownership before writing | `rules/output-ownership.md`, `references/sources/source-map.md` | `workflows/review-plan-json.md` |
 
 ## Stop Conditions

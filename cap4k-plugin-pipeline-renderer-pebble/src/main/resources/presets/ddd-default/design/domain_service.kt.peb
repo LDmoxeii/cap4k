@@ -1,9 +1,24 @@
 package {{ packageName }}
 
+{% if buildingBlock is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.BuildingBlock") -}}
+{% endif -%}
 {{ use("com.only4.cap4k.ddd.core.domain.service.annotation.DomainService") -}}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
 
 @DomainService
+{% if buildingBlock is defined -%}
+@BuildingBlock(
+    tag = {{ buildingBlock.tagKotlinStringLiteral | raw }},
+    name = {{ buildingBlock.nameKotlinStringLiteral | raw }},
+    packageName = {{ buildingBlock.packageNameKotlinStringLiteral | raw }},
+    description = {{ buildingBlock.descriptionKotlinStringLiteral | raw }},
+    aggregates = [{% for aggregate in buildingBlock.aggregateKotlinStringLiterals %}{{ aggregate | raw }}{% if not loop.last %}, {% endif %}{% endfor %}]{% if buildingBlock.eventName is not empty %},
+    eventName = {{ buildingBlock.eventNameKotlinStringLiteral | raw }}{% endif %},
+    family = {{ buildingBlock.familyKotlinStringLiteral | raw }}{% if buildingBlock.variant is not empty %},
+    variant = {{ buildingBlock.variantKotlinStringLiteral | raw }}{% endif %}
+)
+{% endif -%}
 class {{ name }}

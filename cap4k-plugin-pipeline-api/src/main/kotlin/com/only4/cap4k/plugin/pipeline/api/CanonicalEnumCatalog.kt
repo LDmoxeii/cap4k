@@ -110,6 +110,7 @@ class CanonicalEnumCatalog private constructor(
             artifactLayout: ArtifactLayoutResolver,
             typeRegistry: Map<String, TypeRegistryEntry>,
         ): CanonicalEnumCatalog {
+            validateManifestOwnership(model.sharedEnums, model.valueObjects)
             val sharedEnumDefinitions = buildSharedEnumDefinitions(model.sharedEnums, artifactLayout)
             val sharedEnumFqns = sharedEnumDefinitions.mapValues { (_, definition) -> definition.fqn }
             val sharedEnumItems = sharedEnumDefinitions.mapValues { (_, definition) -> definition.enumItems }
@@ -118,7 +119,7 @@ class CanonicalEnumCatalog private constructor(
                     "ambiguous type binding for $typeName: matches both shared enum and general type registry"
                 )
             }
-            val localEnumDefinitions = buildLocalEnumDefinitions(model.entities, artifactLayout)
+            val localEnumDefinitions = buildLocalEnumDefinitions(model.entities, model.sharedEnums, artifactLayout)
             val localEnumFqns = localEnumDefinitions.mapValues { (_, definition) -> definition.fqn }
             val localEnumItems = localEnumDefinitions.mapValues { (_, definition) -> definition.enumItems }
             val valueObjectDefinitions = buildValueObjectDefinitions(model)
@@ -164,11 +165,25 @@ class CanonicalEnumCatalog private constructor(
             )
         }
 
+        private fun validateManifestOwnership(
+            enums: List<SharedEnumDefinition>,
+            valueObjects: List<ValueObjectModel>,
+        ) {
+            enums.firstOrNull { it.aggregates.size > 1 }?.let { definition ->
+                throw IllegalArgumentException("enum ${definition.typeName} may declare at most one aggregate")
+            }
+            valueObjects.firstOrNull { it.aggregates.size > 1 }?.let { valueObject ->
+                throw IllegalArgumentException("value object ${valueObject.name} may declare at most one aggregate")
+            }
+        }
+
         private fun buildSharedEnumDefinitions(
             definitions: List<SharedEnumDefinition>,
             artifactLayout: ArtifactLayoutResolver,
         ): Map<String, SharedEnumDefinitionPlan> {
-            val grouped = definitions.groupBy { it.typeName.trim() }
+            val grouped = definitions
+                .filter { it.aggregates.isEmpty() }
+                .groupBy { it.typeName.trim() }
             grouped.entries.firstOrNull { it.value.size > 1 }?.key?.let { duplicated ->
                 throw IllegalArgumentException("duplicate shared enum definition: $duplicated")
             }
@@ -197,9 +212,11 @@ class CanonicalEnumCatalog private constructor(
 
         private fun buildLocalEnumDefinitions(
             entities: List<EntityModel>,
+            manifestDefinitions: List<SharedEnumDefinition>,
             artifactLayout: ArtifactLayoutResolver,
         ): Map<LocalEnumOwnerKey, LocalEnumDefinition> {
-            val grouped = entities
+            val aggregateRootNameByEntity = buildAggregateRootNameByEntity(entities)
+            val fieldDefinitions = entities
                 .flatMap { entity ->
                     entity.fields.mapNotNull { field ->
                         val typeBinding = field.typeBinding?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
@@ -216,7 +233,38 @@ class CanonicalEnumCatalog private constructor(
                         )
                     }
                 }
-                .groupBy({ it.first }, { it.second })
+            val manifestOwnedDefinitions = manifestDefinitions
+                .mapNotNull { definition ->
+                    val ownerAggregateName = definition.aggregates.singleOrNull() ?: return@mapNotNull null
+                    val ownerEntities = entities.filter { entity ->
+                        aggregateRootNameByEntity[entity.key()] == ownerAggregateName
+                    }
+                    if (ownerEntities.isEmpty()) {
+                        return@mapNotNull listOf(
+                            LocalEnumOwnerKey(
+                                ownerPackageName = ownerAggregateName,
+                                typeBinding = definition.typeName,
+                            ) to LocalEnumDefinition(
+                                fqn = buildOwnedManifestEnumFqn(definition, artifactLayout),
+                                ownerScope = ownerAggregateName,
+                                enumItems = definition.items,
+                            )
+                        )
+                    }
+                    ownerEntities.map { entity ->
+                        LocalEnumOwnerKey(
+                            ownerPackageName = entity.packageName,
+                            typeBinding = definition.typeName,
+                        ) to LocalEnumDefinition(
+                            fqn = buildLocalEnumFqn(entity, definition.typeName, artifactLayout),
+                            ownerScope = entity.tableName.lowercase(Locale.ROOT),
+                            enumItems = definition.items,
+                        )
+                    }
+                }
+                .flatten()
+
+            val grouped = (fieldDefinitions + manifestOwnedDefinitions).groupBy({ it.first }, { it.second })
 
             grouped.entries.firstOrNull { entry ->
                 entry.value.map { it.enumItems }.distinct().size > 1
@@ -233,13 +281,32 @@ class CanonicalEnumCatalog private constructor(
         ): String =
             "${artifactLayout.aggregateLocalEnumPackage(entity.packageName)}.$typeName"
 
+        private fun buildOwnedManifestEnumFqn(
+            definition: SharedEnumDefinition,
+            artifactLayout: ArtifactLayoutResolver,
+        ): String {
+            val packageName = resolveOwnedManifestEnumOwnerPackage(definition.packageName, artifactLayout)
+            return "${artifactLayout.aggregateLocalEnumPackage(packageName)}.${definition.typeName}"
+        }
+
+        private fun resolveOwnedManifestEnumOwnerPackage(
+            packageName: String,
+            artifactLayout: ArtifactLayoutResolver,
+        ): String {
+            val trimmed = packageName.trim()
+            if ('.' in trimmed) {
+                return trimmed
+            }
+            return artifactLayout.aggregateEntityPackage(trimmed)
+        }
+
         private fun buildValueObjectDefinitions(model: CanonicalModel): ValueObjectDefinitions {
             val aggregateRootNameByEntity = buildAggregateRootNameByEntity(model.entities)
             val localDefinitions = model.valueObjects
-                .filter { it.scope == ValueObjectScope.AGGREGATE }
+                .filter { it.ownerAggregate != null }
                 .flatMap { valueObject ->
                     model.entities
-                        .filter { entity -> aggregateRootNameByEntity[entity.key()] == valueObject.aggregate }
+                        .filter { entity -> aggregateRootNameByEntity[entity.key()] == valueObject.ownerAggregate }
                         .map { entity ->
                             LocalValueObjectOwnerKey(
                                 ownerPackageName = entity.packageName,
@@ -253,7 +320,7 @@ class CanonicalEnumCatalog private constructor(
             }
 
             val sharedDefinitions = model.valueObjects
-                .filter { it.scope == ValueObjectScope.SHARED }
+                .filter { it.aggregates.isEmpty() }
                 .map { it.name to it.fqn() }
                 .groupBy({ it.first }, { it.second })
             sharedDefinitions.entries.firstOrNull { (_, values) -> values.size > 1 }?.let { (typeName, _) ->

@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 class ProjectConfigTest {
 
     @Test
-    fun `enabled ids and template conflict policy are exposed`() {
+    fun `source and generator options are stored without enabled gates`() {
         val config = ProjectConfig(
             basePackage = "com.only4.example",
             layout = ProjectLayout.MULTI_MODULE,
@@ -15,12 +15,14 @@ class ProjectConfigTest {
                 "core" to "sample-core",
             ),
             sources = mapOf(
-                "design-json" to SourceConfig(enabled = true),
-                "ksp-metadata" to SourceConfig(enabled = false),
+                "design-json" to SourceConfig(
+                    options = mapOf("files" to listOf("design/design.json")),
+                ),
             ),
             generators = mapOf(
-                "design-command" to GeneratorConfig(enabled = true),
-                "pebble" to GeneratorConfig(enabled = false),
+                "aggregate" to GeneratorConfig(
+                    options = mapOf("artifact.specification" to false),
+                ),
             ),
             templates = TemplateConfig(
                 preset = "default",
@@ -32,8 +34,10 @@ class ProjectConfigTest {
             ),
         )
 
-        assertEquals(setOf("design-json"), config.enabledSourceIds())
-        assertEquals(setOf("design-command"), config.enabledGeneratorIds())
+        assertEquals(setOf("design-json"), config.sources.keys)
+        assertEquals(listOf("design/design.json"), config.sources.getValue("design-json").options["files"])
+        assertEquals(setOf("aggregate"), config.generators.keys)
+        assertEquals(false, config.generators.getValue("aggregate").options["artifact.specification"])
         assertEquals("sample-api", config.modules["api"])
         assertEquals(ConflictPolicy.SKIP, config.templates.conflictPolicy)
         assertEquals(

@@ -22,6 +22,15 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
 
         return model.schemas.map { schema ->
             val entity = requireUniqueSchemaEntity(schema.name, schema.entityName, entitiesByName[schema.entityName].orEmpty())
+            val aggregateElement = aggregateRootNameOrNull(entity, model.entities)?.let { aggregateName ->
+                aggregateElementContext(
+                    aggregate = aggregateName,
+                    name = schema.name,
+                    packageName = schema.packageName,
+                    description = schema.comment,
+                    type = "schema",
+                )
+            }
             val entityTypeFqn = derivedTypeReferences.entityFqn(entity)
             val ownerPackage = entity.packageName
             val fields = schema.fields.map { field ->
@@ -65,7 +74,7 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "entityTypeFqn" to entityTypeFqn,
                     "imports" to imports,
                     "fields" to fields,
-                ),
+                ) + listOfNotNull(aggregateElement?.let { "aggregateElement" to it }),
             )
         }
     }

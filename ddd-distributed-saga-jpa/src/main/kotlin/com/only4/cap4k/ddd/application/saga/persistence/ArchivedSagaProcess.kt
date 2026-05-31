@@ -3,20 +3,11 @@ package com.only4.cap4k.ddd.application.saga.persistence
 import com.alibaba.fastjson.JSON
 import com.alibaba.fastjson.serializer.SerializerFeature.IgnoreNonFieldGetter
 import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
-import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
 import java.time.LocalDateTime
 
-@Aggregate(
-    aggregate = "archived_saga",
-    name = "ArchivedSagaProcess",
-    root = false,
-    type = Aggregate.TYPE_ENTITY,
-    relevant = ["ArchivedSaga"],
-    description = "SAGA事务-子环节(存档)"
-)
 @Entity
 @Table(name = "`__archived_saga_process`")
 @DynamicInsert

@@ -1,6 +1,8 @@
 package {{ packageName }}
 
-{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
+{% if aggregateElement is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{% endif -%}
 {% if entityJpa.entityEnabled -%}
 {{ use("jakarta.persistence.Column") -}}
 {{ use("jakarta.persistence.Entity") -}}
@@ -60,13 +62,16 @@ package {{ packageName }}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
-@Aggregate(
-    aggregate = "{{ required(aggregateName, "aggregateName") }}",
-    name = "{{ typeName }}",
-    type = Aggregate.TYPE_ENTITY,
-    root = {{ required(aggregateRoot, "aggregateRoot") }},
-    description = "{{ comment | replace({'"': '\"'}) | raw }}"
+{% if aggregateElement is defined -%}
+@AggregateElement(
+    aggregate = {{ aggregateElement.aggregateKotlinStringLiteral | raw }},
+    name = {{ aggregateElement.nameKotlinStringLiteral | raw }},
+    packageName = {{ aggregateElement.packageNameKotlinStringLiteral | raw }},
+    description = {{ aggregateElement.descriptionKotlinStringLiteral | raw }},
+    type = {{ aggregateElement.typeKotlinStringLiteral | raw }},
+    root = {{ aggregateElement.root }}
 )
+{% endif -%}
 {% if entityJpa.entityEnabled %}@Entity
 @Table(name = "{{ entityJpa.tableName }}")
 {% if dynamicInsert %}@DynamicInsert

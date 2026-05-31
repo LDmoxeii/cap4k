@@ -8,7 +8,6 @@ import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.saga.SagaParam
 import com.only4.cap4k.ddd.core.application.saga.SagaCompensationRequestedBy
-import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.annotation.Retry
 import jakarta.persistence.*
@@ -21,7 +20,6 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
 
-@Aggregate(aggregate = "saga", name = "Saga", root = true, type = Aggregate.TYPE_ENTITY, description = "SAGA事务")
 @Entity
 @Table(name = "`__saga`")
 @DynamicInsert

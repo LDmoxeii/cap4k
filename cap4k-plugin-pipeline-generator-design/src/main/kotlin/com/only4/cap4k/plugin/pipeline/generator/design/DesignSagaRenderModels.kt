@@ -1,21 +1,21 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
-import com.only4.cap4k.plugin.pipeline.api.SagaModel
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 
 internal data class DesignSagaRenderModel(
     val packageName: String,
     val name: String,
     val description: String?,
-    val requestFields: List<DesignRenderFieldModel>,
-    val responseFields: List<DesignRenderFieldModel>,
+    val fields: List<DesignRenderFieldModel>,
+    val resultFields: List<DesignRenderFieldModel>,
     val imports: List<String>,
 ) {
     fun toContextMap(): Map<String, Any?> = mapOf(
         "packageName" to packageName,
         "name" to name,
         "description" to description,
-        "requestFields" to requestFields,
-        "responseFields" to responseFields,
+        "fields" to fields,
+        "resultFields" to resultFields,
         "imports" to imports,
     )
 }
@@ -23,20 +23,20 @@ internal data class DesignSagaRenderModel(
 internal object DesignSagaRenderModelFactory {
     fun create(
         packageName: String,
-        saga: SagaModel,
+        block: DesignBlockModel,
         typeRegistry: Map<String, String> = emptyMap(),
     ): DesignSagaRenderModel {
-        val renderModel = DesignPayloadRenderModelFactory.createForSaga(
+        val renderModel = DesignPayloadRenderModelFactory.createForSagaBlock(
             packageName = packageName,
-            saga = saga,
+            block = block,
             typeRegistry = typeRegistry,
         )
         return DesignSagaRenderModel(
             packageName = renderModel.packageName,
             name = renderModel.typeName,
-            description = saga.description,
-            requestFields = renderModel.requestFields,
-            responseFields = renderModel.responseFields,
+            description = block.description,
+            fields = renderModel.fields,
+            resultFields = renderModel.resultFields,
             imports = renderModel.imports,
         )
     }

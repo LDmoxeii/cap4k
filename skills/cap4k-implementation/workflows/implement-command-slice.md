@@ -4,7 +4,7 @@
 2. Stop and return to `cap4k-generation` when the write use case needs a missing `*Cmd.kt`, `*Qry.kt`, `*QryHandler.kt`, `*CliHandler.kt`, client, payload, domain event, integration event, domain service, saga, or subscriber skeleton that current generation supports.
 3. Stop and return to `cap4k-generation` when DDL, enum, value-object, or type-registry facts already exist but the aggregate, repository, factory, specification, enum, value-object, or unique-helper skeleton is still missing. If relation or field-mapping behavior seems missing after those facts exist, that is still aggregate/entity generation drift, not a standalone skeleton plan item, and must return to `cap4k-generation`.
 4. Stop and return to `cap4k-modeling` when the missing piece is a design entry, DDL annotation, `types.enumManifest`, `types.valueObjectManifest`, or `types.registryFile` entry.
-5. Stop and return to `cap4k-generation` when generation is blocked by missing KSP metadata output/config/setup.
+5. Stop and return to `cap4k-generation` when generation is blocked by missing analysis/setup inputs.
 6. Confirm the command intent and aggregate root.
 7. Add or update a focused behavior/application test when feasible.
 8. Inspect `build/cap4k/plan.json` before editing generated request or handler surfaces such as `*Cmd.kt`.

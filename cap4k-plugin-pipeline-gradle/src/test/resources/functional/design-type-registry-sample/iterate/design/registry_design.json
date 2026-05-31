@@ -3,11 +3,15 @@
     "tag": "command",
     "package": "video.publish",
     "name": "PublishVideo",
-    "desc": "publish video",
-    "aggregates": ["Video"],
-    "requestFields": [
-      { "name": "targetStatus", "type": "VideoStatus" }
+    "description": "publish video",
+    "aggregates": [
+      "Video"
     ],
-    "responseFields": []
+    "fields": [
+      {
+        "name": "targetStatus",
+        "type": "VideoStatus"
+      }
+    ]
   }
 ]
