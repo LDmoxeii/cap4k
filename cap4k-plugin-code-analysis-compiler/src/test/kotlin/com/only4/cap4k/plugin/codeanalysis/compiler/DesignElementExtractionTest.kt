@@ -82,6 +82,8 @@ class DesignElementExtractionTest {
         assertTrue(findOrder.contains("\"description\":\"Find order\""))
         assertTrue(findOrder.contains("\"aggregates\":[\"Order\"]"))
         assertTrue(findOrder.contains("\"artifacts\":[{\"family\":\"query\",\"variant\":\"detail\"},{\"family\":\"query-handler\"}]"))
+        assertFalse(findOrder.contains("\"eventName\""))
+        assertFalse(findOrder.contains("\"family\":\"query-handler\",\"variant\""))
         assertTrue(findOrder.contains("\"fields\":[{\"name\":\"orderId\",\"type\":\"Long\",\"nullable\":false}"))
         assertTrue(findOrder.contains("\"name\":\"keyword\",\"type\":\"String\",\"nullable\":true,\"defaultValue\":\"null\""))
         assertTrue(findOrder.contains("\"resultFields\":[{\"name\":\"orderNo\",\"type\":\"String\",\"nullable\":false}]"))
@@ -94,7 +96,7 @@ class DesignElementExtractionTest {
     }
 
     @Test
-    fun `recovers generated outer BuildingBlock command request only`() {
+    fun `recovers generated outer BuildingBlock command request and response`() {
         val sources = listOf(
             SourceFile.kotlin(
                 "BuildingBlock.kt",
@@ -146,8 +148,7 @@ class DesignElementExtractionTest {
 
         assertTrue(submitOrder.contains("\"fields\":[{\"name\":\"orderId\",\"type\":\"Long\",\"nullable\":false}"))
         assertTrue(submitOrder.contains("\"name\":\"note\",\"type\":\"String\",\"nullable\":true,\"defaultValue\":\"null\""))
-        assertTrue(submitOrder.contains("\"resultFields\":[]"))
-        assertFalse(submitOrder.contains("accepted"))
+        assertTrue(submitOrder.contains("\"resultFields\":[{\"name\":\"accepted\",\"type\":\"Boolean\",\"nullable\":false}]"))
     }
 
     @Test

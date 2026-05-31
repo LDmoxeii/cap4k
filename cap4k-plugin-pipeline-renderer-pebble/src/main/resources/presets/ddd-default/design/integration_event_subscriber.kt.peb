@@ -20,9 +20,8 @@ import {{ import }}
     packageName = {{ buildingBlock.packageNameKotlinStringLiteral | raw }},
     description = {{ buildingBlock.descriptionKotlinStringLiteral | raw }},
     aggregates = [{% for aggregate in buildingBlock.aggregateKotlinStringLiterals %}{{ aggregate | raw }}{% if not loop.last %}, {% endif %}{% endfor %}],
-    eventName = {{ buildingBlock.eventNameKotlinStringLiteral | raw }},
-    family = {{ buildingBlock.familyKotlinStringLiteral | raw }},
-    variant = {{ buildingBlock.variantKotlinStringLiteral | raw }}
+    family = {{ buildingBlock.familyKotlinStringLiteral | raw }}{% if buildingBlock.variant is not empty %},
+    variant = {{ buildingBlock.variantKotlinStringLiteral | raw }}{% endif %}
 )
 {% endif -%}
 class {{ typeName }} {

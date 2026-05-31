@@ -2660,9 +2660,9 @@ class PipelinePluginFunctionalTest {
         assertTrue(eventContent.contains("packageName = \"order\""))
         assertTrue(eventContent.contains("description = \"order */ \\\"created\\\" \\\\event \\${'$'}status\""))
         assertTrue(eventContent.contains("aggregates = [\"Order\"]"))
-        assertTrue(eventContent.contains("eventName = \"\""))
+        assertFalse(eventContent.contains("eventName = "))
         assertTrue(eventContent.contains("family = \"domain-event\""))
-        assertTrue(eventContent.contains("variant = \"\""))
+        assertFalse(eventContent.contains("variant = \"\""))
         assertFalse(eventContent.contains(legacyAggregateCall))
         assertFalse(eventContent.contains(legacyAggregateAnnotationFq))
         assertTrue(eventContent.contains("* order * / \"created\" \\event ${'$'}status"))
@@ -3203,7 +3203,12 @@ class PipelinePluginFunctionalTest {
         assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
         assertTrue(content.contains("@BuildingBlock("))
         assertTrue(content.contains("family = \"$family\""))
-        assertTrue(content.contains("variant = \"$variant\""))
+        assertFalse(content.contains("eventName = "))
+        if (variant.isBlank()) {
+            assertFalse(content.contains("variant = \"\""))
+        } else {
+            assertTrue(content.contains("variant = \"$variant\""))
+        }
         assertFalse(content.contains(legacyAggregateCall))
         assertFalse(content.contains(legacyAggregateAnnotationFq))
     }

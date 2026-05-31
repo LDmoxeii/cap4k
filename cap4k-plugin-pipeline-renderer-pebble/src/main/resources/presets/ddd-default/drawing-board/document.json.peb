@@ -18,23 +18,12 @@
 {%- if element.eventName is not empty %}
     "eventName": {{ element.eventName | json | raw }},
 {%- endif %}
-    "fields": [{% for field in element.designJsonFields %}
-      {
-        "name": {{ field.name | json | raw }},
-        "type": {{ field.type | json | raw }},
-        "nullable": {{ field.nullable }}{% if field.defaultValue is not null %},
-        "defaultValue": {{ field.defaultValue | json | raw }}{% endif %}
-      }{% if not loop.last %}, {% endif %}
-{% endfor %}
-    ],
-    "resultFields": [{% for field in element.resultFields %}
-      {
-        "name": {{ field.name | json | raw }},
-        "type": {{ field.type | json | raw }},
-        "nullable": {{ field.nullable }}{% if field.defaultValue is not null %},
-        "defaultValue": {{ field.defaultValue | json | raw }}{% endif %}
-      }{% if not loop.last %}, {% endif %}{% endfor %}
-    ]
+    "fields": [
+{% for field in element.designJsonFields %}      { "name": {{ field.name | json | raw }}, "type": {{ field.type | json | raw }}, "nullable": {{ field.nullable }}{% if field.defaultValue is not null %}, "defaultValue": {{ field.defaultValue | json | raw }}{% endif %} }{% if not loop.last %},{% endif %}
+{% endfor %}    ],
+    "resultFields": [
+{% for field in element.resultFields %}      { "name": {{ field.name | json | raw }}, "type": {{ field.type | json | raw }}, "nullable": {{ field.nullable }}{% if field.defaultValue is not null %}, "defaultValue": {{ field.defaultValue | json | raw }}{% endif %} }{% if not loop.last %},{% endif %}
+{% endfor %}    ]
   }{% if not loop.last %},{% endif %}
 {%- endfor %}
 ]
