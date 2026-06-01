@@ -17,7 +17,7 @@
 - Context7 兼容性是后续 public docs 需要处理的问题，不是 skill 运行时依赖。Skill 安装后可以离线、脱离 repo 使用，因此不能要求运行时查询 Context7 才能理解 cap4k authoring contract。
 - 当前 active public authoring docs 中已有 `docs/public/authoring/project-authoring-workflow.md` 提到 `sources.irAnalysis.inputDirs`、`build/cap4k code analysis` 和 `build/cap4k/analysis plan.json`。这些 spaced output path wording 是高风险漂移点，后续 Phase 2 需要按当前 code map 复核。
 - 当前 active analysis map `docs/superpowers/analysis/pipeline-and-gradle-map.md` 已指出 stale wording：`kspKotlin`、`sources.irAnalysis.enabled`、`generators.flow.enabled`、`generators.drawingBoard.enabled`，并给出当前 `sources.irAnalysis.inputDirs` 和 `analysis-plan.json` 事实。
-- 旧 dated analysis files 仍包含历史 drift terms，例如 `client/cli`、`design validator`、`kspKotlin`、old enabled switches。这些文件是历史分析证据，不应作为 Phase 2/3 的当前 authoring contract。
+- 旧 dated analysis files 已在 Phase 1 删除；其中有用的 drift terms 已由 active maps 和 git history 承接，不应作为 Phase 2/3 的当前 authoring contract 或本地证据。
 - issue #98 高风险 drift terms 需要持续扫描：KSP plan/generate wording、old enabled switches、enum-manifest-as-generator wording、design validator、client/cli handler、spaced output paths。
 - 本页只做 drift-audit map；详细 public docs 信息架构和 skill runtime 文案设计属于后续 Phase 2/3。
 
@@ -28,7 +28,9 @@
 - `skills/`: cap4k agent skill root，Phase 3 rewrite scope。
 - `skills/scripts/validate-cap4k-skills.ps1`: skill validation contract、自包含约束的可执行检查入口、stale wording scan。
 - `docs/superpowers/analysis/pipeline-and-gradle-map.md`: 当前 pipeline/Gradle 事实和 stale KSP/enabled switch drift notes。
-- `docs/superpowers/analysis/2026-05-11-*.md`: dated historical analysis files；只能作为历史 drift evidence，不能覆盖 current code facts。
+- `docs/superpowers/analysis/source-and-generator-contract-map.md`: 当前 source/generator contract 和 drift anchor。
+- `docs/superpowers/analysis/analysis-flow-and-verification-map.md`: 当前 analysis flow、verification contract 和 stale wording anchor。
+- `docs/superpowers/analysis/release-map.md`: 当前 release workflow 和发布相关 drift anchor。
 
 ## Contracts
 
