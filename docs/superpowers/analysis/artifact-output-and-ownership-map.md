@@ -10,7 +10,7 @@
 - `CHECKED_IN_SOURCE` 表示输出到可提交 source tree，默认 Kotlin root 是 `<moduleRoot>/src/main/kotlin`。这些文件会受 `templates.conflictPolicy` 或 plan item conflict policy 约束，默认常见 skeleton 使用 `SKIP`，避免覆盖已存在的手写内容。
 - `GENERATED_SOURCE` 表示 build-owned Kotlin source，默认计划 root 是 `<moduleRoot>/build/generated/cap4k/main/kotlin`。`AggregateArtifactOutputs.generatedKotlinArtifact` 显式设置 `outputKind = GENERATED_SOURCE`、`conflictPolicy = OVERWRITE` 和 `resolvedOutputRoot`。
 - Gradle 执行时，`rebaseGeneratedSourcePlanItem` 会把计划中的 `<moduleRoot>/build/generated/cap4k/main/kotlin` rebased 到实际 Gradle build directory 下的 root-relative path，并写入 `resolvedOutputRoot`。测试中默认多模块样例会出现 `demo-domain/build/generated/cap4k/main/kotlin`；当 Gradle build dir 被重定向时会出现类似 `demo-domain/out/build/generated/cap4k/main/kotlin` 的路径。
-- `cap4kGenerateSources` 使用 `generatedSourceTaskConfig`，只保留 `db`、`enum-manifest` source。它只运行 `aggregate`、`aggregate-projection`，并通过 `FilteringArtifactExporter` 只导出 `GENERATED_SOURCE`。它声明 generated source output directories，并把相关 module 的 `compileKotlin` 依赖接到 `cap4kGenerateSources`。
+- `cap4kGenerateSources` 使用 `generatedSourceTaskConfig`，只保留 `db`、`enum-manifest` source。它只运行 `aggregate`、`aggregate-projection`，并通过 filtering exporter 只导出 `GENERATED_SOURCE`。它声明 generated source output directories，并把相关 module 的 `compileKotlin` 依赖接到 `cap4kGenerateSources`。
 - `generatedSourceModuleRoles` 当前规则：`aggregate` 会为 `domain`、`adapter` 产生 generated source；当 `aggregate.options["artifact.unique"] == true` 时还会包含 `application`；`aggregate-projection` 会为 `adapter` 产生 generated source；`enum-manifest` source 会为 `domain` 产生 generated source。
 - `AggregateArtifactOutputs.checkedInKotlinArtifact` 输出到 `<moduleRoot>/src/main/kotlin`，设置 `outputKind = CHECKED_IN_SOURCE` 和 `resolvedOutputRoot = <moduleRoot>/src/main/kotlin`。aggregate factory、specification、behavior 等需要承载手写逻辑的 skeleton 属于 checked-in source。
 - design generators 默认输出 checked-in source：`command`、`query`、`query-handler`、`client`、`client-handler`、`api-payload`、`domain-event`、`domain-subscriber`、`integration-event`、`integration-subscriber`、`domain-service`、`saga` 都走 normal Kotlin source root，除非代码以后显式改变 `outputKind`。
@@ -19,7 +19,7 @@
 - `DrawingBoardArtifactPlanner` 的 generator ID 是 `drawing-board`，默认从 `model.drawingBoard.elementsByTag` 输出 `design/drawing_board_<tag>.json`，template ID 是 `drawing-board/document.json.peb`，conflict policy 是 `OVERWRITE`，supported tags 与当前 design interaction tags 对齐。
 - `DefaultPipelineRunner` 对内置 observation outputs 有额外规则：`drawing-board` 和 `flow` 的已知 template IDs 总是 resolve 为 `OVERWRITE`，不受用户 template conflict policy override 影响。
 - 所有权规则：cap4k-generated skeleton 的文件形状、包路径、类型名、模板字段和初始结构由 generator inputs/templates 拥有；复杂业务逻辑通常写在生成 skeleton 内部的手写区域或后续人工实现中，除非技术设计明确要求从 generator input/template 产生。
-- 绕过 generator-owned skeleton 是设计阶段决策。如果实现时发现必须绕开 generator-owned skeleton，不应直接手写平行结构；应停止实现，回到设计 / generator inputs / template ownership 重新决策。
+- 绕过 generator-owned skeleton 是设计阶段决策。如果实现时发现必须绕开 generator-owned skeleton，不应直接手写平行结构；应停止实现，回到设计 / generator inputs / template 所有权重新决策。
 
 ## Source Anchors
 
@@ -44,15 +44,15 @@
 
 ## Change Impact
 
-- Moving a planner from `CHECKED_IN_SOURCE` to `GENERATED_SOURCE` changes compile wiring, Gradle up-to-date inputs/outputs, conflict behavior and handwritten ownership expectations.
-- Changing generated source roots affects `cap4kGenerateSources`, plan JSON, source set registration, compile task dependencies and functional tests that assert `build/generated/cap4k/main/kotlin`.
-- Changing `flow` or `drawing-board` output roots affects `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` outputs, overwrite behavior, and downstream documentation / visualization agents that consume `flows` or `design` directories.
-- Changing default conflict policy for observation outputs can leave stale analysis artifacts in repo-local outputs, because flow and drawing-board are snapshots intended to be regenerated.
-- Adding a new generator-owned skeleton surface requires a design-stage ownership decision: whether it is checked-in handwritten surface, build-owned generated source, or analysis-only observation output.
+- 将 planner 从 `CHECKED_IN_SOURCE` 改为 `GENERATED_SOURCE` 会改变 compile wiring、Gradle up-to-date inputs/outputs、conflict behavior，以及手写逻辑的所有权预期。
+- 修改 generated source root 会影响 `cap4kGenerateSources`、plan JSON、source set registration、compile task dependencies，以及断言 `build/generated/cap4k/main/kotlin` 的 functional tests。
+- 修改 `flow` 或 `drawing-board` output root 会影响 `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 的输出、overwrite behavior，以及消费 `flows` 或 `design` 目录的下游 documentation / visualization agents。
+- 修改 observation output 的默认 conflict policy 可能让 repo-local outputs 留下过期 analysis artifacts，因为 `flow` 和 `drawing-board` 是预期可重新生成的 snapshot。
+- 新增 generator-owned skeleton surface 时，需要在设计阶段先决定所有权：它是 checked-in handwritten surface、build-owned generated source，还是 analysis-only observation output。
 
 ## Verification
 
-用于检查 output kind、generated roots、flow、drawing-board 和 analysis docs 的 PowerShell 安全显式目录命令：
+用于检查输出类型、generated roots、flow、drawing-board 和 analysis docs 的 PowerShell 安全显式目录命令：
 
 ```powershell
 rg -n "CHECKED_IN_SOURCE|GENERATED_SOURCE|build/generated/cap4k/main/kotlin|src-generated|flows|drawing" cap4k-plugin-pipeline-api cap4k-plugin-pipeline-core cap4k-plugin-pipeline-gradle cap4k-plugin-pipeline-generator-aggregate cap4k-plugin-pipeline-generator-design cap4k-plugin-pipeline-generator-flow cap4k-plugin-pipeline-generator-drawing-board docs/superpowers/analysis
@@ -70,9 +70,9 @@ rg -n "sourceTaskConfig|generatedSourceTaskConfig|analysisTaskConfig|SOURCE_TASK
 
 ## Drift Watch
 
-- 如果 `ArtifactOutputKind` 增加新值，必须重新定义 ownership、export filtering、conflict policy 和 Gradle source set 语义。
+- 如果 `ArtifactOutputKind` 增加新值，必须重新定义所有权、export filtering、conflict policy 和 Gradle source set 语义。
 - 如果 `cap4kGenerateSources` 开始包含 `design-json` 或 design generators，必须重新判断 checked-in skeleton 与 generated source 的边界。
-- 如果 `flow` 或 `drawing-board` 从 analysis task 进入 ordinary source generation task，必须更新 source/generator map、output ownership 和 public documentation routing。
+- 如果 `flow` 或 `drawing-board` 从 analysis task 进入 ordinary source generation task，必须更新 source/generator map、输出所有权和 public documentation routing。
 - 如果 Gradle `buildDirectory` rebase 逻辑改变，必须重新确认 plan root、resolved output root 和 compile task dependency 是否仍匹配。
 - 如果模板系统引入可声明手写 protected regions 的机制，应补充 skeleton 内部所有权边界。
 
