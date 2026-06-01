@@ -54,7 +54,7 @@
 从 cap4k worktree 根目录运行此命令：
 
 ```powershell
-rg -n "v\*|publish/maven-central|release.version|centralPortal|plugin marker|PluginMarker|publishPlugins" .github/workflows/maven-central-release.yml buildSrc/src/main/kotlin buildSrc/src/test/kotlin
+rg -ni "v\*|publish/maven-central|release.version|CentralPortal|ossrh-staging-api|plugin marker|PluginMarker|publishPlugins" .github/workflows/maven-central-release.yml buildSrc/src/main/kotlin buildSrc/src/test/kotlin
 ```
 
 修改本地图时可辅助读取这些源码：
