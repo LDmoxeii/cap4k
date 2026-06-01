@@ -35,12 +35,12 @@
 
 ## Contracts
 
-- Output kind contract: every planner must choose whether an artifact is `CHECKED_IN_SOURCE` or `GENERATED_SOURCE`. Default constructor behavior is checked-in, so generated-source artifacts must be explicit.
-- Path root contract: checked-in Kotlin artifacts use `ArtifactLayoutResolver.kotlinSourcePath`; generated Kotlin artifacts use `ArtifactLayoutResolver.generatedKotlinSourcePath`; project resources such as `flow` and `drawing-board` use `projectResourcePath` with validated output roots.
-- Gradle source contract: generated source directories must stay under the root project directory after rebasing. `toRootRelativeSlash` enforces this and `registerGeneratedKotlinSourceSets` registers `build/generated/cap4k/main/kotlin` as Kotlin `main` source dir for affected modules.
-- Export contract: `cap4kGenerateSources` must export only `GENERATED_SOURCE`; `cap4kGenerate` may export checked-in source and generated source according to the full source-generation plan.
-- Observation output contract: `flow` and `drawing-board` are analysis outputs. Their built-in templates are overwrite-by-design observations, not hand-edited source skeletons.
-- Ownership contract: files under generated source roots are generator-owned and can be overwritten. Checked-in skeleton files are initially generator-created, then often become user-maintained implementation surfaces under conflict policy protection.
+- 输出类型契约：每个 planner 都必须决定 artifact 属于 `CHECKED_IN_SOURCE` 还是 `GENERATED_SOURCE`。构造器默认行为是 checked-in，因此 generated-source artifact 必须显式声明。
+- 路径根契约：checked-in Kotlin artifact 使用 `ArtifactLayoutResolver.kotlinSourcePath`；generated Kotlin artifact 使用 `ArtifactLayoutResolver.generatedKotlinSourcePath`；`flow`、`drawing-board` 这类 project resource 使用 `projectResourcePath`，并依赖已校验的 output root。
+- Gradle source 契约：generated source directory 在 rebase 后必须仍位于 root project directory 下。`toRootRelativeSlash` 负责强制这一点，`registerGeneratedKotlinSourceSets` 会把 `build/generated/cap4k/main/kotlin` 注册为受影响 module 的 Kotlin `main` source dir。
+- 导出契约：`cap4kGenerateSources` 只能导出 `GENERATED_SOURCE`；`cap4kGenerate` 可以按完整 source-generation plan 导出 checked-in source 和 generated source。
+- 观察输出契约：`flow` 和 `drawing-board` 是 analysis output。它们的内置 template 是设计上可覆盖的观察结果，不是需要手工编辑的 source skeleton。
+- 所有权契约：generated source root 下的文件属于 generator-owned，可被覆盖。checked-in skeleton 文件最初由 generator-created，之后通常在 conflict policy 保护下成为 user-maintained implementation surface。
 
 ## Change Impact
 
@@ -52,13 +52,13 @@
 
 ## Verification
 
-PowerShell-safe explicit-directory command for output kind, generated roots, flow, drawing-board and analysis docs:
+用于检查 output kind、generated roots、flow、drawing-board 和 analysis docs 的 PowerShell 安全显式目录命令：
 
 ```powershell
 rg -n "CHECKED_IN_SOURCE|GENERATED_SOURCE|build/generated/cap4k/main/kotlin|src-generated|flows|drawing" cap4k-plugin-pipeline-api cap4k-plugin-pipeline-core cap4k-plugin-pipeline-gradle cap4k-plugin-pipeline-generator-aggregate cap4k-plugin-pipeline-generator-design cap4k-plugin-pipeline-generator-flow cap4k-plugin-pipeline-generator-drawing-board docs/superpowers/analysis
 ```
 
-Additional focused checks used while maintaining this map:
+维护本 map 时使用的补充聚焦检查：
 
 ```powershell
 rg -n "outputKind = ArtifactOutputKind|ArtifactOutputKind\.GENERATED_SOURCE|ArtifactOutputKind\.CHECKED_IN_SOURCE" cap4k-plugin-pipeline-generator-aggregate cap4k-plugin-pipeline-generator-design cap4k-plugin-pipeline-generator-types cap4k-plugin-pipeline-core cap4k-plugin-pipeline-api
