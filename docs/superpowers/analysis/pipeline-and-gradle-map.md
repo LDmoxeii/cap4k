@@ -1,10 +1,10 @@
 # Pipeline And Gradle Map
 
-## 用途
+## Purpose
 
 本页是 `cap4k-plugin-pipeline-gradle` 当前 Gradle plugin、task、DSL、source/generator routing 和输出路径的维护地图。它帮助维护 agent 判断 pipeline 行为是否来自当前 Kotlin source，而不是旧文档或旧分析结论。
 
-## 当前事实
+## Current Facts
 
 - Gradle plugin id 是 `io.github.ldmoxeii.cap4k.pipeline`，定义在 `cap4k-plugin-pipeline-gradle/build.gradle.kts` 的 `gradlePlugin { plugins { ... } }` block 中。
 - `PipelinePlugin.apply` 创建 extension `cap4k`，类型是 `Cap4kExtension`。
@@ -39,7 +39,7 @@
 - 当前 generator configuration 为 regular/build source generation 配置了 `aggregate` 和 `aggregateProjection` 两个 generators。`drawingBoard` 和 `flow` 作为 DSL blocks 存在，但当前 analysis task routing 通过 `analysisTaskConfig` generator IDs 选择，而不是通过文档曾描述的 `enabled` 开关。
 - 不要为当前 `cap4kPlan` 或 `cap4kGenerate` 行为记录 KSP metadata source contract。当前 regular source tasks 的依赖推断在 `inferSourceDependencies` 中返回 `emptyList()`。
 
-## 来源锚点
+## Source Anchors
 
 - `cap4k-plugin-pipeline-gradle/build.gradle.kts`: plugin id 和 Gradle plugin 声明。
 - `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePlugin.kt`: task 注册、task config 分区、source/generator IDs、generated source-set 注册、compile task wiring、依赖推断。
@@ -50,7 +50,7 @@
 - `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAnalysisPlanTask.kt`: `build/cap4k/analysis-plan.json`。
 - `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kGenerateSourcesTask.kt`: generated source task inputs、outputs 和 runner 调用。
 
-## 契约
+## Contracts
 
 - 以 code 为准。修改 public docs、skills 或 downstream analysis assumptions 前，必须重新核对 Kotlin source。
 - `cap4kPlan` 规划 source-task artifacts 并输出 `build/cap4k/plan.json`；`cap4kGenerate` 物化 source-task artifacts。
@@ -59,7 +59,7 @@
 - Analysis source selection 必须记录为 `sources.irAnalysis.inputDirs`，不能记录为 `enabled` boolean。
 - Public docs 后续再解释用户 workflow；本地图应保持为维护用的简明事实索引。
 
-## 变更影响
+## Change Impact
 
 - 添加新的 source provider 时，需要更新 source module code、`PipelinePlugin` source ID sets、`Cap4kProjectConfigFactory.buildSources`、tests 和本地图。
 - 添加新的 generator 时，需要更新 generator module code、`PipelinePlugin` generator ID sets、config factory mapping（如果该 generator 有 DSL options）、tests 和本地图。
@@ -67,7 +67,7 @@
 - 修改 analysis input semantics 会影响 `sources.irAnalysis.inputDirs`、`inferAnalysisDependencies`、`cap4kAnalysisPlan`、`cap4kAnalysisGenerate` 和 downstream flow/drawing-board docs。
 - 修改 plan report paths 会影响读取 `build/cap4k/*.json` 的 automation 和 review evidence。
 
-## 验证
+## Verification
 
 在 cap4k worktree root 执行这些命令：
 
@@ -85,7 +85,7 @@ Get-Content -Path cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/p
 Get-Content -Path cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kGenerateSourcesTask.kt -Raw
 ```
 
-## 漂移监控
+## Drift Watch
 
 - 旧说法曾描述 `cap4kPlan` / `cap4kGenerate` 依赖 KSP metadata；这对当前代码已过时。只有在 task source 重新接入这类 source contract 时，才能恢复该说法。
 - 旧说法曾描述 `cap4kGenerateSources` 接入 KSP，包括 `kspKotlin`；这对当前代码已过时。当前 wiring 是 Kotlin `main` source-set registration 加 `compileKotlin` dependency。
@@ -94,7 +94,7 @@ Get-Content -Path cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/p
 - 如果 `inferSourceDependencies` 不再返回 `emptyList()`，需要重新核对是否要为 `cap4kPlan`、`cap4kGenerate` 或 generated source tasks 记录新的 task dependencies。
 - 如果 generated source consumer task names 扩展到 `compileKotlin` 之外，需要更新 compile wiring contract 和 verification command。
 
-## 未覆盖范围
+## Not Covered
 
 - 应用 Gradle plugin 的 public user tutorial。
 - 完整 template catalog、template IDs 或 rendered artifact examples。
