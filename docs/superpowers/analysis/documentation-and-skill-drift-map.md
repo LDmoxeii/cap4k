@@ -14,7 +14,7 @@
 - `validate-cap4k-skills.ps1` 要求 shared rules 存在：`core-positioning.md`、`default-path-and-write-boundaries.md`、`ownership-and-generation-flow.md`、`naming-layout-and-testing.md`、`advanced-mode-gates.md`。
 - `validate-cap4k-skills.ps1` 要求 focused skills 引用指定 shared rules，并扫描 skills、AGENTS.md、public authoring docs、analysis docs、部分 runtime source，阻止多类 stale wording。
 - Installed skills 必须在 runtime 自包含。安装后的 skill 不应依赖 `docs/superpowers/analysis/`、`docs/public/`、GitHub issues、historical specs/plans、Context7 或 cap4k source repository 才能正常执行。
-- Context7 compatibility 是未来 public-doc concern，不是 skill runtime dependency。Skill 可以被安装后离线/脱离 repo 使用，因此不能要求 runtime 去查询 Context7 才能理解 cap4k authoring contract。
+- Context7 兼容性是后续 public docs 需要处理的问题，不是 skill 运行时依赖。Skill 安装后可以离线、脱离 repo 使用，因此不能要求运行时查询 Context7 才能理解 cap4k authoring contract。
 - 当前 active public authoring docs 中已有 `docs/public/authoring/project-authoring-workflow.md` 提到 `sources.irAnalysis.inputDirs`、`build/cap4k code analysis` 和 `build/cap4k/analysis plan.json`。这些 spaced output path wording 是高风险漂移点，后续 Phase 2 需要按当前 code map 复核。
 - 当前 active analysis map `docs/superpowers/analysis/pipeline-and-gradle-map.md` 已指出 stale wording：`kspKotlin`、`sources.irAnalysis.enabled`、`generators.flow.enabled`、`generators.drawingBoard.enabled`，并给出当前 `sources.irAnalysis.inputDirs` 和 `analysis-plan.json` 事实。
 - 旧 dated analysis files 仍包含历史 drift terms，例如 `client/cli`、`design validator`、`kspKotlin`、old enabled switches。这些文件是历史分析证据，不应作为 Phase 2/3 的当前 authoring contract。
@@ -32,12 +32,12 @@
 
 ## Contracts
 
-- Code wins over analysis。Public docs 和 skills 的事实必须先回到 current source、tests、build files 验证，再更新文档。
-- Analysis docs 是维护 agent 的 current code map/fact index，不是 public docs。
+- 代码事实优先于 analysis。Public docs 和 skills 的事实必须先回到当前源码、测试和 build files 验证，再更新文档。
+- Analysis docs 是维护 agent 使用的当前代码地图和事实索引，不是 public docs。
 - Public docs 面向 human cap4k users；它们可以解释工作流、示例和迁移，但不能用旧分析替代当前代码事实。
-- Skills 面向 authoring agents；installed skills 必须 self-contained，不能把 `docs/public/`、`docs/superpowers/analysis/`、GitHub issue、historical spec/plan、Context7 或 cap4k source checkout 当成 runtime dependency。
-- Phase 2 可处理 Context7 兼容性、public docs navigation 和人类用户阅读路径；Phase 3 必须保持 skill runtime independence。
-- Dated analysis files 中出现的旧 terms 只能作为 drift watch 信号；新 active maps 和后续 public/skill 文案必须明确 current contract。
+- Skills 面向 authoring agents；安装后的 skills 必须自包含，不能把 `docs/public/`、`docs/superpowers/analysis/`、GitHub issue、historical spec/plan、Context7 或 cap4k source checkout 当成运行时依赖。
+- Phase 2 可处理 Context7 兼容性、public docs navigation 和人类用户阅读路径；Phase 3 必须保持 skill 运行时独立。
+- Dated analysis files 中出现的旧 terms 只能作为漂移观察信号；新的 active maps 和后续 public/skill 文案必须明确当前 contract。
 
 ## Change Impact
 
@@ -49,14 +49,14 @@
 
 ## Verification
 
-Run these commands from the cap4k worktree root:
+从 cap4k worktree 根目录运行这些命令：
 
 ```powershell
 rg -n "kspKotlin|sources\.irAnalysis\.enabled|generators\.flow\.enabled|generators\.drawingBoard\.enabled|design validator|client/cli|analysis plan\.json|cap4k code analysis" README.md docs/public skills docs/superpowers/analysis
 Get-Content skills/scripts/validate-cap4k-skills.ps1 -Raw
 ```
 
-Useful inventory reads when changing this map:
+修改本地图时可辅助读取这些清单：
 
 ```powershell
 Get-ChildItem -Path docs/public -Recurse -File | Select-Object FullName
@@ -65,18 +65,18 @@ Get-ChildItem -Path skills -Recurse -File | Select-Object FullName
 
 ## Drift Watch
 
-- KSP plan/generate wording: old docs may say `cap4kPlan` / `cap4kGenerate` depend on `kspKotlin`; current active pipeline map says this is stale unless code reintroduces it。
-- Old enabled switches: `sources.irAnalysis.enabled`、`generators.flow.enabled`、`generators.drawingBoard.enabled` are stale unless current DSL source reintroduces those properties。
-- enum-manifest-as-generator wording: verify whether `enum-manifest` is a source ID, generated source input, generator output, or public concept before documenting it。
-- design validator: old `application.validators` wording may not represent current generator/design contract; verify from current source before public or skill text uses it。
-- client/cli handler: old analysis uses this language in dated files; public docs and skills should prefer current runtime/request boundary language unless code proves this is still a supported authoring concept。
-- Spaced output paths: `build/cap4k code analysis` and `build/cap4k/analysis plan.json` are high-risk wording because current task maps use `build/cap4k/analysis-plan.json` and source-verified paths。
-- `cap4k code analysis` wording should be checked against actual task outputs and generator source before Phase 2 public docs keep it。
-- Historical specs/plans and GitHub issue text are not current contracts; use them to seed scans, not to settle facts。
+- KSP plan/generate wording：旧文档可能说 `cap4kPlan` / `cap4kGenerate` 依赖 `kspKotlin`；当前 active pipeline map 已标记这类说法为过时，除非代码重新引入该行为。
+- Old enabled switches：`sources.irAnalysis.enabled`、`generators.flow.enabled`、`generators.drawingBoard.enabled` 已过时，除非当前 DSL source 重新引入这些 properties。
+- enum-manifest-as-generator wording：记录 `enum-manifest` 前，先验证它是 source ID、generated source input、generator output，还是 public concept。
+- design validator：旧的 `application.validators` wording 可能不代表当前 generator/design contract；public docs 或 skill 文案使用前，必须先从当前 source 验证。
+- client/cli handler：旧 analysis 在 dated files 中使用该语言；public docs 和 skills 应优先使用当前 runtime/request boundary language，除非代码证明它仍是受支持的 authoring concept。
+- Spaced output paths：`build/cap4k code analysis` 和 `build/cap4k/analysis plan.json` 是高风险 wording，因为当前 task maps 使用 `build/cap4k/analysis-plan.json` 和源码验证过的路径。
+- Phase 2 public docs 保留 `cap4k code analysis` wording 前，必须先用实际 task outputs 和 generator source 校验。
+- Historical specs/plans 和 GitHub issue text 不是当前 contract；它们只能用于提供扫描线索，不能用于判定事实。
 
 ## Not Covered
 
-- Phase 2 public docs table of contents, tutorial prose, Context7 packaging details, or human onboarding copy。
-- Phase 3 skill decomposition, trigger descriptions, runtime package format, or installed skill distribution flow。
-- Full validation script redesign or new stale-pattern enforcement implementation。
-- Detailed source maps for pipeline, runtime, generator template IDs, or release workflow; use the dedicated active maps for those topics。
+- Phase 2 public docs 的目录、教程正文、Context7 packaging details 或 human onboarding copy。
+- Phase 3 skill decomposition、trigger descriptions、runtime package format 或 installed skill distribution flow。
+- 完整 validation script redesign 或新的 stale-pattern enforcement implementation。
+- Pipeline、runtime、generator template IDs 或 release workflow 的详细 source maps；这些主题应使用对应的 dedicated active maps。

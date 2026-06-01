@@ -34,7 +34,7 @@
 
 ## Contracts
 
-- Code wins over this map。改 release 文档、发布说明或自动化前，必须重新读取 workflow、`buildSrc` convention source 和 tests。
+- 代码事实优先于本地图。修改 release 文档、发布说明或自动化前，必须重新读取 workflow、`buildSrc` 约定源码和测试。
 - Release tag 对外可用的粗触发是 workflow `"v*"`，实际 release tag 合同是 workflow bash regex `v<major>.<minor>.<patch>`。
 - Branch containment 合同来自 workflow source：tagged commit 必须包含在 `origin/publish/maven-central`。
 - Gradle 侧 release version 输入合同是 plain `major.minor.patch`，由 workflow 从 tag 中去掉 `v` 后通过 `release.version` 传入。
@@ -51,13 +51,13 @@
 
 ## Verification
 
-Run this command from the cap4k worktree root:
+从 cap4k worktree 根目录运行此命令：
 
 ```powershell
 rg -n "v\*|publish/maven-central|release.version|centralPortal|plugin marker|PluginMarker|publishPlugins" .github/workflows/maven-central-release.yml buildSrc/src/main/kotlin buildSrc/src/test/kotlin
 ```
 
-Useful source reads when changing this map:
+修改本地图时可辅助读取这些源码：
 
 ```powershell
 Get-Content -Path .github/workflows/maven-central-release.yml -Raw
@@ -70,10 +70,10 @@ Get-Content -Path buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts -Raw
 
 ## Drift Watch
 
-- Workflow `push.tags` 的 `"v*"` 和内部 regex 可能分离；不要只读其中一个。
-- `release.version` 输入必须保持与 workflow 去 `v` 行为一致；如果 Gradle 侧改为接受带 `v` 的 tag，本页和测试都要更新。
-- `publish/maven-central` 是当前 containment branch；如果 release branch 策略改名，workflow、public badge/runbook 和本页都要同步。
-- Central Portal task name matching 依赖 Gradle generated task names；升级 Gradle publish/plugin behavior 后要重新跑 `buildSrc` tests。
+- Workflow `push.tags` 的 `"v*"` 和内部 regex 可能不一致；检查时不要只读取其中一个。
+- `release.version` 输入必须保持与 workflow 去 `v` 行为一致；如果 Gradle 侧改为接受带 `v` 的 tag，本页和测试都要同步更新。
+- `publish/maven-central` 是当前包含性检查分支；如果 release branch 策略改名，workflow、public badge/runbook 和本页都要同步。
+- Central Portal task name matching 依赖 Gradle 生成的 task names；升级 Gradle publish/plugin 行为后要重新运行 `buildSrc` tests。
 - Plugin marker allowlist 目前只覆盖 `cap4k-pipeline` 和 `cap4k-flow-export` marker；新增 plugin publication 时不要默认放行。
 
 ## Not Covered
