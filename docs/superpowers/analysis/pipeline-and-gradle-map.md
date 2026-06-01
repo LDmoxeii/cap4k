@@ -28,10 +28,11 @@
   - regular source task: `db`, `design-json`, `enum-manifest`, `value-object-manifest`
   - generated source task: `db`, `enum-manifest`
   - analysis task: `ir-analysis`
-- Generator IDs routed by `PipelinePlugin.kt`:
+- `PipelinePlugin.kt` 路由的配置层 generator IDs:
   - regular source task: `command`, `query`, `query-handler`, `client`, `client-handler`, `api-payload`, `domain-event`, `domain-subscriber`, `domain-service`, `saga`, `integration-event`, `integration-subscriber`, `types-value-object`, `aggregate`, `aggregate-projection`
-  - generated source task: `aggregate`, `aggregate-projection`
+  - generated source task 配置层业务 generator IDs: `aggregate`, `aggregate-projection`
   - analysis task: `flow`, `drawing-board`
+- Source-generation runner 的实际 planner 安装范围大于配置层 generator ID 过滤范围。`buildSourceRunner(...)` 安装的 built-in planners 包括 `EnumManifestArtifactPlanner`（`id = "enum"`）、`AggregateArtifactPlanner` 和 `AggregateProjectionArtifactPlanner`；因此 `cap4kGenerateSources` 会把 `config.generators` 收窄到 `aggregate` / `aggregate-projection`，但已安装的 `enum` planner 仍可从 `enum-manifest` source input 产出 `GENERATED_SOURCE`。
 - `sources.irAnalysis.inputDirs` drives analysis input selection. `Cap4kProjectConfigFactory.buildSources` creates source id `ir-analysis` only when `extension.sources.irAnalysis.inputDirs` is not empty, and stores the absolute sorted paths in option `inputDirs`.
 - Analysis task dependency inference is based on `ir-analysis` `inputDirs`: `inferAnalysisDependencies` maps input dirs under a project build directory to that project `compileKotlin` task.
 - Current `Cap4kExtension` exposes DSL blocks `project`, `types`, `sources`, `generators`, `templates`, `bootstrap`, `layout`, and `addons`.
