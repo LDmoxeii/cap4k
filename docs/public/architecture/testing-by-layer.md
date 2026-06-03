@@ -22,7 +22,7 @@ Application layer tests 应覆盖用例编排和提交边界。Command tests 应
 
 ## Adapter Layer Tests
 
-Adapter layer tests 应覆盖 protocol conversion。Controller、API Payload、query adapter、client-handler、inbound integration listener 和 persistence adapter 的测试重点，是外部协议如何映射到 application contract，以及 application result 如何转换成外部 response。
+Adapter layer tests 应覆盖 protocol conversion。Controller、API Payload、query adapter、client-handler 和 persistence adapter 的测试重点，是外部协议如何映射到 application contract，以及 application result 如何转换成外部 response。对 inbound Integration Event，HTTP/message consumption、parse/register/dispatch 可以通过 framework/runtime smoke 或 adapter module wiring evidence 覆盖；业务项目的 application inbound subscriber 应作为 application-layer reaction to typed inbound Integration Event 测试，重点覆盖幂等、语义翻译和 Command/application delegation。
 
 参考项目锚点包括 `ContentController`、`ReviewController`、`QueryController`、`AdvancedPaidPublicationController`、`GetContentDetailQryHandler`、`GetMediaProcessingStatusQryHandler`、`TriggerMediaProcessingCliHandler`、`GetMediaProcessingStatusCliHandler`、paid publication `*CliHandler` 和 `MediaProcessingCallbackIntegrationEventSmokeTest`。其中 smoke test 可以证明 inbound HTTP consumption wiring 可达，但不替代 domain/application 的 focused tests。
 

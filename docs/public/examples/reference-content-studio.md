@@ -10,7 +10,7 @@
 
 - `cap4k-reference-content-studio-domain`：领域模型、Aggregate、Value Object、Factory、Domain Service、Domain Event 和领域行为测试。
 - `cap4k-reference-content-studio-application`：Command、Query、Subscriber、Saga、job 和用例编排。
-- `cap4k-reference-content-studio-adapter`：HTTP controller、query adapter、persistence adapter、external client adapter 和 integration event consume path。
+- `cap4k-reference-content-studio-adapter`：HTTP controller、query/client adapter、persistence adapter、protocol mapping、external capability handler，以及需要时的 framework integration-event transport wiring；HTTP/message consume/parse/register/dispatch 由 cap4k runtime transport 承担，typed external fact behavior 由 application inbound subscriber 承担。
 - `cap4k-reference-content-studio-start`：Spring Boot runtime assembly、local startup、schema、smoke tests 和 contract tests。
 
 这些模块对应 [Architecture](../architecture/index.md) 中的 domain、application、adapter、start 四层。阅读代码时，可以先用模块边界判断职责，再进入具体类看 generated skeleton 和 handwritten logic 的分工。

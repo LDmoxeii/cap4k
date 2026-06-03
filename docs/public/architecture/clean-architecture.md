@@ -2,15 +2,15 @@
 
 cap4k 项目的 Clean Architecture mental model 是：业务规则在内层，技术入口和运行时装配在外层，源码依赖尽量指向更内侧的抽象。这样做的目的不是制造目录层级，而是让代码审查能快速回答三个问题：业务真相在哪里，用例如何被编排，外部协议在哪里被转换。
 
-四层从内到外分别是 domain、application、adapter 和 start。domain layer 保护业务事实和不变量；application layer 组织一个用例如何读取、调用 domain 行为、保存和触发后续反应；adapter layer 把 HTTP、callback、external service、persistence 等技术协议转换成 application layer 能理解的请求和结果；start layer 装配 Spring Boot runtime、配置和启动路径。
+四层从内到外分别是 domain、application、adapter 和 start。domain layer 保护业务事实和不变量；application layer 组织一个用例如何读取、调用 domain 行为、提交持久化意图和触发后续反应；adapter layer 把 HTTP、callback、external service、persistence 等技术协议转换成 application layer 能理解的请求和结果；start layer 装配 Spring Boot runtime、配置和启动路径。
 
 ## Layer Responsibilities
 
 Domain layer 是最内层。它负责 [Aggregate](../concepts/modeling-building-blocks/aggregate.md)、[Entity](../concepts/modeling-building-blocks/entity.md)、[Value Object](../concepts/modeling-building-blocks/value-object.md)、[Factory](../concepts/modeling-building-blocks/factory.md)、[Domain Service](../concepts/modeling-building-blocks/domain-service.md) 和 [Domain Event](../concepts/modeling-building-blocks/domain-event.md)。它不应知道 Controller、API Payload、HTTP status、external service payload、Spring Boot startup 或数据库实现细节。
 
-Application layer 负责用例编排。Command handler 处理写入意图，Query handler 处理读取意图，Subscriber 和 Scheduled Reaction 处理事实之后的反应，Saga 处理需要持久化进度的跨步骤协调。Unit of Work、Repository 和 Mediator 帮助 application layer 管理提交边界和入口路由，但业务不变量仍由 domain layer 表达。
+Application layer 负责用例编排。Command handler 处理写入意图，Query handler 处理读取意图，Subscriber 和 Scheduled Reaction 处理事实之后的反应，Saga 处理需要持久化进度的跨步骤协调。Repository 提供 Aggregate 读取和访问边界，Unit of Work 负责持久化意图和提交边界，Mediator 作为 Command/Query routing facade；业务不变量仍由 domain layer 表达。
 
-Adapter layer 负责协议转换。Controller 接收 HTTP request，API Payload 描述对外接口字段，client-handler 调用外部能力，inbound integration listener 消费外部事实，persistence adapter 处理存储实现。adapter 可以做 mapping、错误码转换、鉴权上下文翻译和外部协议容错，但不应该成为业务真相层。
+Adapter layer 负责协议转换。Controller 接收 HTTP request，API Payload 描述对外接口字段，client-handler 调用外部能力，persistence adapter 处理存储实现。对 inbound Integration Event，cap4k integration-event transport adapter/runtime 消费 HTTP/message protocol，解析、注册并分发 typed integration event；业务项目的 application-layer inbound integration subscriber 接收 typed external fact，处理幂等和语义翻译，并在需要改变状态时委托 Command/application behavior。adapter 可以做 mapping、错误码转换、鉴权上下文翻译和外部协议容错，但不应该成为业务真相层。
 
 Start layer 负责 runtime assembly。它把各模块放进 Spring Boot 运行时，提供 local startup、runtime config、bean wiring 和 smoke path。start layer 可以依赖其他模块进行装配，但不应该新增业务判断，也不应该让 inner layers 反向依赖它。
 

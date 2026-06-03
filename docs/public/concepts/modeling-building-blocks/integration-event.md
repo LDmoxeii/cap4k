@@ -2,7 +2,7 @@
 
 Integration Event 是跨系统或跨 bounded context 传播的外部事实。它属于 published language：字段、命名和语义要面向边界外的读者保持稳定，而不是暴露内部 Aggregate 结构。它可以是 outbound event，向外发布本系统已确认的事实；也可以是 inbound event，表示外部系统传入并被本系统理解的事实。
 
-当事实需要跨服务、跨团队或跨上下文传播，并且接收方不应依赖本系统的内部 Domain Event 时，应建模 Integration Event。Domain Event 可以触发 outbound Integration Event 的发布，但二者不是同一个契约。Inbound Integration Event 进入系统后，通常由 adapter/application 层转换为 command、subscriber 处理或 anti-corruption translation。
+当事实需要跨服务、跨团队或跨上下文传播，并且接收方不应依赖本系统的内部 Domain Event 时，应建模 Integration Event。Domain Event 可以触发 outbound Integration Event 的发布，但二者不是同一个契约。Inbound Integration Event 进入系统后，要区分两段责任：cap4k integration-event transport adapter/runtime 消费 HTTP/message 等外部协议，解析、注册并分发 typed integration event；application layer 的 inbound integration subscriber 再接收这个外部事实，做幂等、语义转换，并在需要改变状态时委托 Command 或 application behavior。
 
 在 cap4k 中，`design.json` 支持 `integration_event` tag 表达 Integration Event 骨架。generator 可以提供事件类型、字段结构和目录位置；published language 的语义、版本兼容、外部字段命名、幂等和失败处理策略需要手写设计。Integration Event 与 External Capability Anti-Corruption Layer 协作，避免外部协议直接污染 domain layer。
 
