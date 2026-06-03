@@ -1,8 +1,8 @@
-# Generator DSL Reference
+# Generator DSL
 
-> 本页按“块名 -> 关键字段 -> 最小片段”记录 DSL。任务顺序、作者决策和边界判断请回到 [Generator Guide](../authoring/generator/index.md)。
+`cap4k {}` 是 pipeline plugin 的公开 Gradle extension。字段说明以当前公开 block 为准；业务建模解释见 [Generator Input Projection](../authoring/generator-input-projection.md)。
 
-## 顶层 `cap4k { }`
+## 顶层 Blocks
 
 ```kotlin
 cap4k {
@@ -13,22 +13,155 @@ cap4k {
     templates { }
     bootstrap { }
     layout { }
+    addons { }
 }
 ```
 
-| 块 | 作用 |
+| Block | 用途 |
 | --- | --- |
-| `project { }` | 声明 `basePackage` 与模块路径 |
-| `types { }` | 注册额外短名类型 |
-| `sources { }` | 声明输入来源 |
-| `generators { }` | 配置生成族选项 |
-| `templates { }` | 配置源码生成模板、覆盖目录、冲突策略 |
-| `bootstrap { }` | 配置 bootstrap 任务族 |
-| `layout { }` | 调整包根、包后缀与分析产物输出根 |
+| `project` | base package 与 module path。 |
+| `types` | type registry、enum manifest、value-object manifest。 |
+| `sources` | design JSON、DB/schema、IR analysis input。 |
+| `generators` | aggregate、aggregate projection、flow、drawing-board generator block。 |
+| `templates` | source generation template preset、override dirs、conflict policies。 |
+| `bootstrap` | project structure bootstrap configuration。 |
+| `layout` | package layout 与 analysis output root。 |
+| `addons` | provider-scoped addon options；addon 安装仍通过 `cap4kAddon` dependency。 |
+
+## `project { }`
+
+| Field | 说明 |
+| --- | --- |
+| `basePackage` | generated package 的基础包。 |
+| `domainModulePath` | domain module path。 |
+| `applicationModulePath` | application module path。 |
+| `adapterModulePath` | adapter module path。 |
+
+```kotlin
+project {
+    basePackage.set("com.acme.demo")
+    domainModulePath.set("demo-domain")
+    applicationModulePath.set("demo-application")
+    adapterModulePath.set("demo-adapter")
+}
+```
+
+## `types { }`
+
+| Field | 说明 |
+| --- | --- |
+| `registryFile` | 自定义类型 FQN / converter policy 输入。 |
+| `enumManifest.files` | `types.enumManifest` files，例如 `design/enums.json`。 |
+| `valueObjectManifest.files` | `types.valueObjectManifest` files，例如 `design/value-objects.json`。 |
+
+```kotlin
+types {
+    registryFile.set("design/types.json")
+    enumManifest { files.from("design/enums.json") }
+    valueObjectManifest { files.from("design/value-objects.json") }
+}
+```
+
+enum 与 Value Object manifest entries 不需要再重复写入 `types.registryFile`。
+
+## `sources { }`
+
+| Block | Fields | 服务的任务 |
+| --- | --- | --- |
+| `designJson` | `files`, `manifestFile` | `cap4kPlan`, `cap4kGenerate` |
+| `db` | `enabled`, `url`, `username`, `password`, `schema`, `includeTables`, `excludeTables` | `cap4kPlan`, `cap4kGenerate` |
+| `irAnalysis` | `inputDirs` | `cap4kAnalysisPlan`, `cap4kAnalysisGenerate` |
+
+```kotlin
+sources {
+    designJson { files.from("design/design.json") }
+    db {
+        enabled.set(true)
+        url.set("jdbc:...")
+        username.set("sa")
+        password.set("secret")
+        schema.set("PUBLIC")
+        includeTables.set(listOf("content"))
+        excludeTables.set(emptyList())
+    }
+    irAnalysis {
+        inputDirs.from("demo-application/build/cap4k-code-analysis")
+    }
+}
+```
+
+`sources.irAnalysis.inputDirs` 是当前 analysis selection。它不是 ordinary source generation input。
+
+## `generators { }`
+
+| Block | Fields | 说明 |
+| --- | --- | --- |
+| `aggregate` | `unsupportedTablePolicy`, `specialFields`, `artifacts` | DB/schema driven aggregate family。 |
+| `aggregateProjection` | block presence | aggregate projection generator configuration marker。 |
+| `flow` | none | analysis output generator id `flow`。 |
+| `drawingBoard` | none | analysis output generator id `drawing-board`。 |
+
+```kotlin
+generators {
+    aggregate {
+        unsupportedTablePolicy.set("FAIL")
+        specialFields {
+            idDefaultStrategy.set("uuid7")
+            deletedDefaultColumn.set("")
+            versionDefaultColumn.set("")
+            managedDefaultColumns.set(emptyList())
+        }
+        artifacts {
+            factory.set(true)
+            specification.set(false)
+            unique.set(false)
+        }
+    }
+    flow { }
+    drawingBoard { }
+}
+```
+
+`aggregate.artifacts.unique` 生成 aggregate unique helper surfaces。它不是 normal `design.json` `validator` tag。
+
+## `templates { }`
+
+| Field | 说明 |
+| --- | --- |
+| `preset` | source generation template preset，默认 `ddd-default`。 |
+| `overrideDirs` | template override dirs，按配置顺序查找。 |
+| `conflictPolicy` | 默认 source generation conflict policy，默认 `SKIP`。 |
+| `templateConflictPolicies` | 按 `templateId` 覆盖 conflict policy。 |
+
+```kotlin
+templates {
+    preset.set("ddd-default")
+    overrideDirs.from("codegen/templates")
+    conflictPolicy.set("SKIP")
+    templateConflictPolicies.put("design/api_payload.kt.peb", "OVERWRITE")
+}
+```
+
+addon template override 与 built-in template override 共用 `templates.overrideDirs` 和 `templates.templateConflictPolicies`。
 
 ## `bootstrap { }`
 
-最小形状：
+| Field | 说明 |
+| --- | --- |
+| `enabled` | 是否启用 bootstrap configuration。 |
+| `preset` | bootstrap preset，常用 `ddd-multi-module`。 |
+| `mode` | `BootstrapMode.IN_PLACE` 或 `BootstrapMode.PREVIEW_SUBTREE`。 |
+| `previewDir` | `PREVIEW_SUBTREE` 输出目录。 |
+| `projectName` | root project name。 |
+| `basePackage` | bootstrap 后项目 base package。 |
+| `modules.domainModuleName` | domain module name。 |
+| `modules.applicationModuleName` | application module name。 |
+| `modules.adapterModuleName` | adapter module name。 |
+| `modules.startModuleName` | start module name。 |
+| `templates.preset` | bootstrap template preset。 |
+| `templates.overrideDirs` | bootstrap template override dirs。 |
+| `slots` | `root`, `buildLogic`, `moduleRoot(role)`, `modulePackage(role)`, `moduleResources(role)`。 |
+| `conflictPolicy` | bootstrap write conflict policy，默认 `FAIL`。 |
 
 ```kotlin
 bootstrap {
@@ -37,145 +170,54 @@ bootstrap {
     mode.set(BootstrapMode.IN_PLACE)
     projectName.set("demo")
     basePackage.set("com.acme.demo")
-    modules { /* domain / application / adapter / start */ }
-    templates { preset.set("ddd-default-bootstrap") }
-    slots { /* optional */ }
-    conflictPolicy.set("FAIL")
-}
-```
-
-| 字段 | 含义 |
-| --- | --- |
-| `enabled` | 不启用就不能跑 bootstrap 任务 |
-| `preset` | 当前支持 `ddd-multi-module` |
-| `mode` | `IN_PLACE` 或 `PREVIEW_SUBTREE` |
-| `previewDir` | 仅 `PREVIEW_SUBTREE` 时需要 |
-| `projectName` / `basePackage` | 项目名与基础包名 |
-| `modules { }` | 四个模块名 |
-| `templates { preset / overrideDirs }` | bootstrap 模板配置 |
-| `slots { }` | 附加固定槽位内容 |
-| `conflictPolicy` | bootstrap 写盘冲突策略 |
-
-## `sources { }`
-
-最小形状：
-
-```kotlin
-sources {
-    designJson { files.from("design/design.json") }
-    db { enabled.set(true); url.set("jdbc:..."); schema.set("PUBLIC") }
-    irAnalysis { inputDirs.from("path/to/ir-analysis") }
-}
-
-types {
-    enumManifest { files.from("design/enums/*.json") }
-    valueObjectManifest { files.from("design/value-objects/*.json") }
-}
-```
-
-| source block | 常用字段 | 服务哪条任务链路 |
-| --- | --- | --- |
-| `designJson` | `files`, `manifestFile` | `cap4kPlan` / `cap4kGenerate` |
-| `db` | `enabled`, `url`, `username`, `password`, `schema`, `includeTables`, `excludeTables` | `cap4kPlan` / `cap4kGenerate` |
-| `irAnalysis` | `inputDirs` | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
-
-`enumManifest` 和 `valueObjectManifest` 是 `types {}` 输入合同，不是 `sources {}` family。枚举和值对象 manifest entry 不需要再额外写一条 `types.registryFile` entry。
-
-`sources.db` 以 JDBC metadata 作为数据库输入合同；表、列、关系、唯一约束和 primary-key metadata 会共同进入 canonical facts。
-
-## `generators { }`
-
-最小形状：
-
-```kotlin
-generators {
-    aggregate { unsupportedTablePolicy.set("FAIL") }
-}
-```
-
-| generator family | 说明 | 主要任务 |
-| --- | --- | --- |
-| design family | 无公开 generator switch；配置 `sources.designJson.files` 或 `sources.designJson.manifestFile` 后自动规划 `command`、`query`、`client`、`api_payload`、`domain_event`、`integration_event`、`domain_service`、`saga` 相关源码 | `cap4kPlan` / `cap4kGenerate` |
-| aggregate | 聚合骨架及相关产物 | `cap4kPlan` / `cap4kGenerate` |
-| flow | 流程观察材料；无公开 generator switch，由 `sources.irAnalysis.inputDirs` 驱动 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
-| drawingBoard | 设计 / 文档观察材料；无公开 generator switch，由 `sources.irAnalysis.inputDirs` 驱动 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` |
-
-`sources.designJson.files` 或 `sources.designJson.manifestFile` 存在即可进入 design family planning，不再需要公开 design-family generator switch。`aggregate` / `aggregateProjection` 仍通过各自 DSL block 表示配置存在，并由 block 内部 artifact options 控制可选 DB-derived 产物；flow 和 drawing-board 观察产物由 `sources.irAnalysis.inputDirs` 驱动。
-
-`tag = "integration_event"` 会生成事件契约类，要求配置 `sources.designJson.files` 或 `sources.designJson.manifestFile`，并配置 `project.applicationModulePath`。对应 design entry 必须声明 `eventName`、至少一个 `fields` 字段，并保持 `resultFields` 为空。方向通过 `artifacts[{ family: "integration-event", variant: "inbound" | "outbound" }]` 表达；只有同时显式选择 `integration-subscriber` 且事件 variant 为 `inbound` 时才会生成 Spring `@EventListener` subscriber。
-
-## `aggregate { }`
-
-最小形状：
-
-```kotlin
-aggregate {
-    unsupportedTablePolicy.set("FAIL")
-    specialFields {
-        idDefaultStrategy.set("uuid7")
-        deletedDefaultColumn.set("")
-        versionDefaultColumn.set("")
-        managedDefaultColumns.set(emptyList())
+    modules {
+        domainModuleName.set("demo-domain")
+        applicationModuleName.set("demo-application")
+        adapterModuleName.set("demo-adapter")
+        startModuleName.set("demo-start")
     }
-    artifacts {
-        factory.set(false)
-        specification.set(false)
-        unique.set(false)
-    }
-}
-```
-
-| 字段 | 含义 |
-| --- | --- |
-| `unsupportedTablePolicy` | 不支持表结构时的策略 |
-| `specialFields.idDefaultStrategy` | 默认 ID 策略 |
-| `specialFields.deletedDefaultColumn` | 默认逻辑删除列 |
-| `specialFields.versionDefaultColumn` | 默认版本列 |
-| `specialFields.managedDefaultColumns` | 默认受管字段 |
-| `artifacts.factory` | 可选 factory 产物 |
-| `artifacts.specification` | 可选 specification 产物 |
-| `artifacts.unique` | 可选 unique 查询 / handler / validator |
-
-aggregate unique validation adapter 仍属于 aggregate unique helper generation。它不是 core design `validator` tag。
-
-枚举翻译不再是 cap4k core aggregate 产物。需要这类产物时，应通过构建期 addon 提供，并由 `cap4kAddon` 依赖加载。
-
-## `templates { }`
-
-源码生成模板：
-
-```kotlin
-templates {
-    preset.set("ddd-default")
-    overrideDirs.from("codegen/templates")
-    conflictPolicy.set("SKIP")
-    templateConflictPolicies.put("aggregate/factory.kt.peb", "OVERWRITE")
-}
-```
-
-bootstrap 模板：
-
-```kotlin
-bootstrap {
     templates {
         preset.set("ddd-default-bootstrap")
-        overrideDirs.from("codegen/bootstrap-templates")
     }
+    conflictPolicy.set("SKIP")
 }
 ```
 
-| 字段 | 含义 |
+`cap4kBootstrapPlan` 写出 `build/cap4k/bootstrap-plan.json`；`cap4kBootstrap` 写出 bootstrap project structure。
+
+## `layout { }`
+
+package layout blocks 使用这些字段：
+
+| Field | 说明 |
 | --- | --- |
-| `preset` | 选择默认模板集 |
-| `overrideDirs` | 按顺序查找覆盖模板 |
-| `conflictPolicy` | 源码生成写盘冲突策略 |
-| `templateConflictPolicies` | 按 `templateId` 覆盖单个产物的写盘冲突策略 |
+| `packageRoot` | package root segment。 |
+| `packageSuffix` | appended suffix。 |
+| `defaultPackage` | entry package 为空时的 fallback segment。 |
 
-## Addon 产物
+analysis output root blocks 使用这些字段：
 
-cap4k 原生产物和 addon 产物共用同一套模板覆盖、冲突策略、计划和生成语义。
+| Field | 说明 |
+| --- | --- |
+| `outputRoot` | generated analysis artifact root。 |
 
-项目如果安装构建期 addon，例如 only-engine 枚举翻译 addon，addon 贡献的产物会出现在 `cap4kPlan` 中，并通过 `cap4kGenerate` 写入文件。
+常用 blocks：
+
+```kotlin
+layout {
+    designCommand { packageRoot.set("application.commands") }
+    designQuery { packageRoot.set("application.queries") }
+    designApiPayload { packageRoot.set("adapter.portal.api.payload") }
+    flow { outputRoot.set("analysis/flows") }
+    drawingBoard { outputRoot.set("analysis/drawing-board") }
+}
+```
+
+公开 layout blocks 包括 `aggregate`, `aggregateSchema`, `aggregateRepository`, `aggregateSharedEnum`, `aggregateUniqueQuery`, `aggregateUniqueQueryHandler`, `aggregateUniqueValidator`, `designCommand`, `designQuery`, `designClient`, `designQueryHandler`, `designClientHandler`, `designApiPayload`, `designDomainEvent`, `designDomainEventHandler`, `designIntegrationEvent`, `designIntegrationEventSubscriber`, `flow`, `drawingBoard`。
+
+## `addons { }`
+
+addon 安装使用 Gradle configuration `cap4kAddon`。`addons {}` 只承载 provider-scoped options。
 
 ```kotlin
 dependencies {
@@ -183,8 +225,12 @@ dependencies {
 }
 
 cap4k {
+    addons {
+        provider("only-engine-enum-translation") {
+            option("mode", "project-default")
+        }
+    }
     templates {
-        overrideDirs.from("codegen/templates")
         templateConflictPolicies.put(
             "addons/only-engine-enum-translation/aggregate/enum_translation.kt.peb",
             "OVERWRITE"
@@ -193,41 +239,4 @@ cap4k {
 }
 ```
 
-addon 模板可通过 `templates.overrideDirs` 覆盖；addon 模板冲突策略可通过 `templates.templateConflictPolicies` 按 `templateId` 配置。
-
-addon artifact 的 `templateId` 必须位于 `addons/<providerId>/<artifact>.kt.peb` 命名空间。provider-scoped options 只传给对应 provider 读取；业务项目不能通过 addon 暴露新的 source/canonical SPI，也不能让一个 addon 影响另一个 addon 的 artifact context。
-
-运行时代码依赖和生成期 addon 依赖是两件事。运行时库由项目通过 `implementation` 等配置声明；生成期 addon 通过 `cap4kAddon` 声明。cap4k 不会扫描项目普通运行时 classpath 来自动发现 addon。
-
-## 常见最小配置示例
-
-design family：
-
-```kotlin
-project { basePackage.set("com.acme.demo"); applicationModulePath.set("demo-application"); adapterModulePath.set("demo-adapter") }
-sources { designJson { files.from("design/design.json") } }
-```
-
-integration event：
-
-```kotlin
-project { basePackage.set("com.acme.demo"); applicationModulePath.set("demo-application") }
-sources { designJson { files.from("design/design.json") } }
-```
-
-默认布局会把事件契约放到 application 层的 `application.subscribers.integration.<variant>.<designPackage>` 下，把 inbound subscriber 骨架放到 `application.subscribers.integration` 下。模板覆盖文件名是 `design/integration_event.kt.peb` 和 `design/integration_event_subscriber.kt.peb`。
-
-aggregate family：
-
-```kotlin
-project { basePackage.set("com.acme.demo"); domainModulePath.set("demo-domain"); applicationModulePath.set("demo-application"); adapterModulePath.set("demo-adapter") }
-sources { db { enabled.set(true); url.set("jdbc:..."); schema.set("PUBLIC") } }
-generators { aggregate { unsupportedTablePolicy.set("FAIL") } }
-```
-
-analysis family：
-
-```kotlin
-project { basePackage.set("com.acme.demo") }
-sources { irAnalysis { inputDirs.from("path/to/ir-analysis") } }
-```
+addon artifacts 会出现在 `cap4kPlan` 中，并使用和 built-in artifacts 相同的 ownership fields：`generatorId`、`templateId`、`outputKind`、`resolvedOutputRoot`、`conflictPolicy`。
