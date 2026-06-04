@@ -1,5 +1,8 @@
 $ErrorActionPreference = 'Stop'
 
+$repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
+Set-Location -LiteralPath $repoRoot
+
 $skillDirs = Get-ChildItem -LiteralPath 'skills' -Directory |
   Where-Object { $_.Name -notin @('scripts', 'shared') }
 

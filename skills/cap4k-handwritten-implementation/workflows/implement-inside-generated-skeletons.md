@@ -2,7 +2,8 @@
 
 Read `../references/implementation-gotchas.md` before editing handwritten logic.
 
-confirm human review authorization
+confirm human generated-output review
+confirm explicit user authorization for handwritten implementation
 identify generated skeleton and handwritten slot
 avoid creating parallel structure
 use Repository only for aggregate access

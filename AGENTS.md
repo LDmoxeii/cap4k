@@ -10,20 +10,13 @@ When continuing work in `cap4k`, read this file first, then read:
 
 ## Cap4k Skill Routing
 
-When a task involves cap4k business-project authoring, use the repo-local skill router first:
+When a task involves cap4k business-project authoring, use the repo-local skill router as the only routing source:
 
 - [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md)
+- [skills/cap4k-authoring/routing.yaml](skills/cap4k-authoring/routing.yaml)
 
-Then route to the focused skill:
-
-| Task | Focused skill |
-|---|---|
-| Business discovery, aggregate boundaries, events, value objects | [skills/cap4k-business-discovery/SKILL.md](skills/cap4k-business-discovery/SKILL.md), then [skills/cap4k-tactical-modeling/SKILL.md](skills/cap4k-tactical-modeling/SKILL.md) |
-| Generator input authoring: DB/schema, design JSON, manifests, Gradle extension, addons/options, template decisions | [skills/cap4k-generator-inputs/SKILL.md](skills/cap4k-generator-inputs/SKILL.md) |
-| Plan/output ownership review and generation review | [skills/cap4k-generation-review/SKILL.md](skills/cap4k-generation-review/SKILL.md) |
-| Handwritten command/query/subscriber/job/controller implementation inside approved generated skeletons | [skills/cap4k-handwritten-implementation/SKILL.md](skills/cap4k-handwritten-implementation/SKILL.md) |
-| Service-boundary interaction: read [skills/cap4k-service-integration/SKILL.md](skills/cap4k-service-integration/SKILL.md) before handling Open Host Service entries, external capability clients, external fact entries, callbacks, message listeners, or integration events. | [skills/cap4k-service-integration/SKILL.md](skills/cap4k-service-integration/SKILL.md) |
-| Verification/audit claims, evidence modes, skipped checks, rollback targeting | [skills/cap4k-verification-audit/SKILL.md](skills/cap4k-verification-audit/SKILL.md) |
+Load the routed focused skill and every `required_reads` entry from `routing.yaml`.
+Do not duplicate per-task route rows in this shell.
 
 Keep this file as a routing shell. Do not duplicate focused skill rules here.
 
