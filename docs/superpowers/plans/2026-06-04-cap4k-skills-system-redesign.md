@@ -1107,10 +1107,12 @@ run or request cap4kPlan only after inputs are coherent
 Create `SKILL.md` with always-read:
 
 ```text
+rules/generation-stop-policy.md
 ../shared/references/output-ownership-taxonomy.md
-../shared/workflows/skeleton-generation-gate.md
 workflows/review-plan-and-generate.md
 ```
+
+Sequencing fix: `rules/generation-stop-policy.md` must be activated directly by this skill. Route-level `routing.yaml` already activates the shared skeleton gate and shared drift gotchas for generation review, so do not duplicate them in `SKILL.md`.
 
 Create `rules/generation-stop-policy.md` with:
 
@@ -1146,15 +1148,28 @@ skills/cap4k-generation
 skills/cap4k-generated-output-review
 ```
 
-- [ ] **Step 5: Verify and commit Task 5**
+- [ ] **Step 5: Update current temporary validator and stale references**
+
+Update `skills/scripts/validate-cap4k-skills.ps1` so:
+
+- it hard-fails if the deleted generation or generated-output review directories are reintroduced;
+- it validates current references for `cap4k-generator-inputs` and `cap4k-generation-review`;
+- it no longer requires the old generation or generated-output review skill names;
+- it still validates all current skills in the intermediate tree.
+
+Clean stale references under `skills/**` so no runtime skill text points to the removed generation or generated-output review route names. References to `cap4k-generation-review` remain valid.
+
+- [ ] **Step 6: Verify and commit Task 5**
 
 Run:
 
 ```powershell
-git diff --check -- skills/cap4k-generator-inputs skills/cap4k-generation-review
+git diff --check -- skills/cap4k-generator-inputs skills/cap4k-generation-review skills/cap4k-generation skills/cap4k-generated-output-review skills/scripts/validate-cap4k-skills.ps1 docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md
 Test-Path skills/cap4k-generation
 Test-Path skills/cap4k-generated-output-review
-rg -n "generated-output-review|cap4k-generated-output-review" skills
+rg -n "cap4k-generated-output-review|generated-output-review" skills
+rg -n "cap4k-generation($|[^-])" skills
+powershell -NoProfile -ExecutionPolicy Bypass -File skills/scripts/validate-cap4k-skills.ps1
 ```
 
 Expected:
@@ -1162,13 +1177,14 @@ Expected:
 ```text
 git diff --check exits 0
 both Test-Path commands return False
-rg exits 1 with no old generated-output-review references
+both rg scans exit 1 with no old skill references
+validation exits 0 with pass message
 ```
 
 Commit:
 
 ```powershell
-git add -- skills/cap4k-generator-inputs skills/cap4k-generation-review skills/cap4k-generation skills/cap4k-generated-output-review
+git add -- skills/cap4k-generator-inputs skills/cap4k-generation-review skills/cap4k-generation skills/cap4k-generated-output-review skills/scripts/validate-cap4k-skills.ps1 docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md
 git commit --no-verify -m "docs: add cap4k generator input review skills"
 ```
 

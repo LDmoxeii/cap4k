@@ -4,8 +4,12 @@ $skillDirs = Get-ChildItem -LiteralPath 'skills' -Directory |
   Where-Object { $_.Name -notin @('scripts', 'shared') }
 
 $removedModelingSkillName = 'cap4k-' + 'modeling'
+$removedGenerationSkillName = 'cap4k-' + 'generation'
+$removedGeneratedOutputReviewSkillName = 'cap4k-' + 'generated-' + 'output-' + 'review'
 $forbiddenSkillDirs = @(
-  (Join-Path 'skills' $removedModelingSkillName)
+  (Join-Path 'skills' $removedModelingSkillName),
+  (Join-Path 'skills' $removedGenerationSkillName),
+  (Join-Path 'skills' $removedGeneratedOutputReviewSkillName)
 )
 
 foreach ($forbiddenSkillDir in $forbiddenSkillDirs) {
@@ -95,10 +99,15 @@ $requiredSkillRefs = @{
     '../shared/workflows/skeleton-generation-gate.md',
     'workflows/write-technical-design-contract.md'
   )
-  'cap4k-generation' = @(
+  'cap4k-generator-inputs' = @(
     '../shared/rules/generator-input-source-of-truth.md',
-    '../shared/rules/generated-skeleton-ownership.md',
-    '../shared/workflows/skeleton-generation-gate.md'
+    '../shared/workflows/skeleton-generation-gate.md',
+    'workflows/project-generator-inputs.md'
+  )
+  'cap4k-generation-review' = @(
+    'rules/generation-stop-policy.md',
+    '../shared/references/output-ownership-taxonomy.md',
+    'workflows/review-plan-and-generate.md'
   )
   'cap4k-implementation' = @(
     '../shared/rules/layer-and-runtime-boundaries.md',
@@ -134,10 +143,32 @@ foreach ($skillName in $requiredSkillRefs.Keys) {
 $skillTextFiles = Get-ChildItem -LiteralPath 'skills' -Recurse -File |
   Where-Object { $_.Extension -in '.md', '.yaml', '.yml' }
 
+$removedOutputReviewPhrase = 'generated-' + 'output-' + 'review'
+$removedSkillRefPatterns = @(
+  @{
+    Name = $removedModelingSkillName
+    Pattern = [regex]::Escape($removedModelingSkillName)
+  },
+  @{
+    Name = $removedGenerationSkillName
+    Pattern = [regex]::Escape($removedGenerationSkillName) + '($|[^-])'
+  },
+  @{
+    Name = $removedGeneratedOutputReviewSkillName
+    Pattern = [regex]::Escape($removedGeneratedOutputReviewSkillName)
+  },
+  @{
+    Name = $removedOutputReviewPhrase
+    Pattern = [regex]::Escape($removedOutputReviewPhrase)
+  }
+)
+
 foreach ($file in $skillTextFiles) {
   $text = Get-Content -LiteralPath $file.FullName -Raw
-  if ($text -match $removedModelingSkillName) {
-    throw "Forbidden removed skill reference matched in skills runtime text: $($file.FullName): $removedModelingSkillName"
+  foreach ($removedSkillRefPattern in $removedSkillRefPatterns) {
+    if ($text -match $removedSkillRefPattern.Pattern) {
+      throw "Forbidden removed skill reference matched in skills runtime text: $($file.FullName): $($removedSkillRefPattern.Name)"
+    }
   }
 }
 
