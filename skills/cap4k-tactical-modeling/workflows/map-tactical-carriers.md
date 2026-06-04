@@ -13,7 +13,7 @@ Create one row per business signal:
 | Business Signal | Cap4k Carrier | Reason | Generator Input Surface | Expected Skeleton Or Plan Evidence | Handwritten Logic Slot | Verification Evidence | Rollback Trigger |
 |---|---|---|---|---|---|---|---|
 
-Use `../shared/references/tactical-affordance-map.md` as the carrier authority. Do not keep generic DDD labels unless they resolve to a cap4k carrier, expected skeleton, and verification evidence.
+Use `../../shared/references/tactical-affordance-map.md` as the carrier authority. Do not keep generic DDD labels unless they resolve to a cap4k carrier, expected skeleton, and verification evidence.
 
 ## Command/Query Split
 

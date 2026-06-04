@@ -1805,6 +1805,15 @@ git diff --check exits 0
 placeholder scan exits 1
 ```
 
+- [x] **Final review fix: inline runtime Markdown path coverage**
+
+Fix:
+
+```text
+skills/cap4k-tactical-modeling/workflows/map-tactical-carriers.md now uses ../../shared/references/tactical-affordance-map.md from the workflow directory.
+skills/scripts/checks/link-check.ps1 now scans code-spanned local .md paths in skills/**/*.md, ignores http URLs and non-path labels, resolves targets relative to the containing file, and fails with file and line evidence when a target is missing.
+```
+
 - [ ] **Step 2: Check spec coverage**
 
 Run:
