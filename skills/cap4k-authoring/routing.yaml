@@ -184,6 +184,12 @@ routes:
       - "callback"
       - "message"
       - "integration event"
+    negative_signals:
+      - "internal Domain Event modeling without cross-service publication or external reader contract"
+      - "review plan.json or generated output only"
+      - "implement inside an already approved generated skeleton without service-boundary design"
+      - "local CRUD or application use case with no external service boundary"
+      - "provider SDK wiring or adapter handler mapping only, with no Open Host Service, Published Language, external fact, or Integration Event boundary decision"
     route_first: cap4k-service-integration
     required_reads:
       - ../shared/rules/layer-and-runtime-boundaries.md

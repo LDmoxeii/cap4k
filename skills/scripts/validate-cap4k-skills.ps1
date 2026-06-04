@@ -149,9 +149,25 @@ foreach ($skillName in $requiredSkillRefs.Keys) {
   }
 }
 
+$skillTextFiles = Get-ChildItem -LiteralPath 'skills' -Recurse -File |
+  Where-Object { $_.Extension -in '.md', '.yaml', '.yml' }
+
+$rootTextFiles = @()
+if (Test-Path -LiteralPath 'AGENTS.md') {
+  $rootTextFiles += Get-Item -LiteralPath 'AGENTS.md'
+}
+
+$runtimeShellTextFiles = @($skillTextFiles) + @($rootTextFiles)
+
 $serviceIntegrationRoot = Join-Path 'skills' 'cap4k-service-integration'
 $staleServiceIntegrationPaths = @(
   ('workflows/handle-' + 'external-' + 'fact.md'),
+  ('rules/service-' + 'boundaries.md'),
+  ('rules/integration-' + 'events.md')
+)
+
+$staleServiceIntegrationTerms = @(
+  ('handle-' + 'external-' + 'fact'),
   ('rules/service-' + 'boundaries.md'),
   ('rules/integration-' + 'events.md')
 )
@@ -163,27 +179,14 @@ foreach ($staleServiceIntegrationPath in $staleServiceIntegrationPaths) {
   }
 }
 
-$serviceIntegrationTextFiles = Get-ChildItem -LiteralPath $serviceIntegrationRoot -Recurse -File |
-  Where-Object { $_.Extension -eq '.md' }
-
-foreach ($file in $serviceIntegrationTextFiles) {
+foreach ($file in $runtimeShellTextFiles) {
   $text = Get-Content -LiteralPath $file.FullName -Raw
-  foreach ($staleServiceIntegrationPath in $staleServiceIntegrationPaths) {
-    if ($text.Contains($staleServiceIntegrationPath)) {
-      throw "Stale service-integration reference matched in $($file.FullName): $staleServiceIntegrationPath"
+  foreach ($staleServiceIntegrationTerm in $staleServiceIntegrationTerms) {
+    if ($text.Contains($staleServiceIntegrationTerm)) {
+      throw "Stale service-integration reference matched in $($file.FullName): $staleServiceIntegrationTerm"
     }
   }
 }
-
-$skillTextFiles = Get-ChildItem -LiteralPath 'skills' -Recurse -File |
-  Where-Object { $_.Extension -in '.md', '.yaml', '.yml' }
-
-$rootTextFiles = @()
-if (Test-Path -LiteralPath 'AGENTS.md') {
-  $rootTextFiles += Get-Item -LiteralPath 'AGENTS.md'
-}
-
-$runtimeShellTextFiles = @($skillTextFiles) + @($rootTextFiles)
 
 $removedOutputReviewPhrase = 'generated-' + 'output-' + 'review'
 $removedSkillRefPatterns = @(

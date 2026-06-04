@@ -1467,7 +1467,7 @@ Completion notes:
 - Rebuilt the service-integration specialist as the final thin specialist with two Always Read entries and three routed workflows.
 - Replaced the old service-integration structure with final Published Language, Integration Event boundary, Open Host Service, external capability, and inbound Integration Event guidance.
 - Updated the validator to require the new specialist references and reject stale legacy service-integration files without creating static scan self-matches.
-- `skills/cap4k-authoring/routing.yaml` already pointed at the final boundary rule, so no routing edit was required.
+- `skills/cap4k-authoring/routing.yaml` was updated with `negative_signals` so the high-risk service-integration route has positive signals, negative signals, and rollback targets.
 
 ---
 
