@@ -25,7 +25,7 @@ stable code slots 是作者可以长期识别的手写位置。比如：
 - Subscriber 接收 domain event 或 inbound integration event，必要时委托 Command。
 - client-handler 把 application client contract 转成 adapter protocol。
 - Saga step 维护跨步骤协调、恢复和补偿。
-- Factory、Specification、Domain Service 和 Value Object 表达领域内的稳定规则。
+- Factory、Domain Service 和 Value Object 表达领域内的创建、协作判断和值语义；Specification 表达由 Unit of Work interception 执行的 pre-save constraint。
 
 generator 的作用是让这些 slot 有一致名称和位置。作者的作用是把业务判断写在对应 slot 中，并在 plan review 中确认 `conflictPolicy` 不会覆盖手写逻辑。
 

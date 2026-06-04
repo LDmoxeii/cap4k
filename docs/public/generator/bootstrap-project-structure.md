@@ -20,9 +20,9 @@ bootstrap 提供的是项目骨架结构：
 
 不用 bootstrap 也可以手工建立等价结构。典型 cap4k 项目仍应保持四层多模块：
 
-- `*-domain`：Aggregate、Entity、Value Object、Domain Event、Factory、Specification、Domain Service、Repository contract。
+- `*-domain`：Aggregate、Entity、Value Object、Domain Event、Factory、Specification pre-save constraint contract、Domain Service、Repository contract。
 - `*-application`：Command、Query、Subscriber、Saga、Scheduled Reaction、Unit of Work orchestration、external capability contract。
-- `*-adapter`：Controller、payload mapping、query adapter、client-handler、persistence adapter、外部协议转换。
+- `*-adapter`：Controller、payload mapping、query adapter、client-handler、persistence adapter、外部协议形状映射。
 - `*-start`：Spring Boot runtime assembly、configuration、database schema 和 application entry wiring。
 
 bootstrap 的价值是减少结构搭建中的命名和目录漂移；它不是唯一合法路径。无论通过 bootstrap 还是手工创建，后续 plan review 都要确认 module placement 和 Clean Architecture 依赖方向。

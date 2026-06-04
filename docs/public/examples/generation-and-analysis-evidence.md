@@ -63,7 +63,7 @@ README 中列出的 generation 入口是：
 - `analysis/flows/*.json`
 - `analysis/flows/*.mmd`
 
-参考项目中包含 controller flow 文件，也包含 inbound integration subscriber flow 文件。它们可以帮助对照 `http/content.http`、`http/review.http`、`http/media-processing.http` 和 application subscribers，检查 HTTP entry、integration-event consume path、Command dispatch 和 Subscriber reaction 是否连接正确。
+参考项目中包含 controller flow 文件，也包含 inbound integration subscriber flow 文件。它们可以帮助对照 `http/content.http`、`http/review.http`、`http/media-processing.http` 和 application subscribers，检查 framework HTTP/message transport reachability、typed inbound subscriber dispatch/reaction、Command dispatch 和 Subscriber reaction 是否连接正确。
 
 ## Drawing Board Output
 
@@ -84,7 +84,7 @@ README 中列出的 generation 入口是：
 
 - `ContentStudioHappyPathHttpSmokeTest`：默认 HTTP happy path。
 - `ContentStudioPaidPublicationSagaSmokeTest`：paid opt-in Saga runtime path。
-- `MediaProcessingCallbackIntegrationEventSmokeTest`：integration-event HTTP callback consume path。
+- `MediaProcessingCallbackIntegrationEventSmokeTest`：framework integration-event HTTP transport wiring 和 application subscriber reaction smoke path。
 - `ContentStudioDesignContractTest`：设计合同证据。
 - `PublishContentCommandContractTest`：默认发布 command contract。
 - `MediaProcessingResultSnapshotTest`：JSON-backed Value Object output。

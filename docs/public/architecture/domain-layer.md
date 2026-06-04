@@ -10,7 +10,7 @@ Domain layer 负责 [Aggregate](../concepts/modeling-building-blocks/aggregate.m
 
 ## 不负责
 
-Domain layer 不负责 Controller、API Payload、HTTP status、request header、callback payload、client-handler、persistence adapter、Spring Boot runtime config 或 local startup。它也不负责把外部 service 的字段名直接变成领域对象字段。外部协议进入系统后，应先由 adapter/application 转换成领域能理解的意图、值对象或事实。
+Domain layer 不负责 Controller、API Payload、HTTP status、request header、callback payload、client-handler、persistence adapter、Spring Boot runtime config 或 local startup。它也不负责把外部 service 的字段名直接变成领域对象字段。外部协议进入系统时，framework/runtime transport 负责 HTTP/message consume、parse、register 和 dispatch；adapter mapping 收敛协议形状；application code 解释 typed external fact、做幂等和语义翻译，并委托 Command 或 application use case。Domain layer 只接收领域语言中的意图、值对象或事实。
 
 如果一个 Aggregate 需要知道 URL、JSON 字段、SQL column、Spring profile 或 external service error code，说明协议细节已经越界。domain layer 可以表达“媒体处理已经完成”这样的业务事实，但不应该表达“某个 HTTP callback body 的字段名是什么”。
 
